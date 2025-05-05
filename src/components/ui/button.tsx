@@ -49,14 +49,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const Comp = asChild ? Slot : "button"
     return (
       <Comp
-        className={cn(
-          buttonVariants({ variant, size, className }), 
-          isGeorgian ? "font-georgian tracking-tight" : ""
-        )}
-        style={isGeorgian ? {
-          fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-          letterSpacing: "-0.2px"
-        } : undefined}
+        className={cn(buttonVariants({ variant, size, className }), isGeorgian ? "auth-button ka-text" : "")}
         ref={ref}
         {...props}
       >

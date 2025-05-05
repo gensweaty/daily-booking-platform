@@ -61,21 +61,21 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
           </div>
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-1 text-center">
-          {language === 'ka' ? <LanguageText>{t("auth.welcome")}</LanguageText> : t("auth.welcome")}
+          <LanguageText>{t("auth.welcome")}</LanguageText>
         </h1>
         <p className="text-foreground/80 text-center text-sm mb-4">
-          {language === 'ka' ? <LanguageText>{t("auth.description")}</LanguageText> : t("auth.description")}
+          <LanguageText>{t("auth.description")}</LanguageText>
         </p>
       </header>
 
       <div className="w-full max-w-sm mx-auto">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "signin" | "signup")} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="signin" className={language === 'ka' ? "font-georgian" : ""}>
-              {language === 'ka' ? <LanguageText>{t("auth.signInButton")}</LanguageText> : t("auth.signInButton")}
+            <TabsTrigger value="signin">
+              <LanguageText withFont={true}>{t("auth.signInButton")}</LanguageText>
             </TabsTrigger>
-            <TabsTrigger value="signup" className={language === 'ka' ? "font-georgian" : ""}>
-              {language === 'ka' ? <LanguageText>{t("auth.signUpButton")}</LanguageText> : t("auth.signUpButton")}
+            <TabsTrigger value="signup">
+              <LanguageText withFont={true}>{t("auth.signUpButton")}</LanguageText>
             </TabsTrigger>
           </TabsList>
           <TabsContent value="signin">

@@ -19,19 +19,20 @@ export const LanguageText = ({
   const { language } = useLanguage();
   const isGeorgian = language === 'ka';
   
+  if (!isGeorgian) {
+    return <span className={className}>{children}</span>;
+  }
+  
   return (
-    <span className={cn(
-      withFont && isGeorgian ? 'font-georgian' : '',
-      fixLetterSpacing && isGeorgian ? 'tracking-tight' : '',
-      className
-    )}
-    style={isGeorgian ? {
-      fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-      letterSpacing: fixLetterSpacing ? '-0.2px' : 'normal',
-      fontWeight: 'normal',
-      WebkitFontSmoothing: 'antialiased',
-      MozOsxFontSmoothing: 'grayscale'
-    } : undefined}
+    <span 
+      className={cn("ka-text", className)}
+      style={{
+        fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+        letterSpacing: fixLetterSpacing ? '-0.2px' : 'normal',
+        fontWeight: 'normal',
+        WebkitFontSmoothing: 'antialiased',
+        MozOsxFontSmoothing: 'grayscale'
+      }}
     >
       {children}
     </span>

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,7 +56,7 @@ export const SignIn = () => {
     <form onSubmit={handleSignIn} className="space-y-4">
       <div className="mb-4">
         <Label htmlFor="email" className="block text-sm font-medium mb-1">
-          {isGeorgian ? <LanguageText>{t("auth.emailLabel")}</LanguageText> : t("auth.emailLabel")}
+          <LanguageText>{t("auth.emailLabel")}</LanguageText>
         </Label>
         <Input
           id="email"
@@ -73,14 +72,14 @@ export const SignIn = () => {
       <div className="mb-4">
         <div className="flex justify-between items-center mb-1">
           <Label htmlFor="password" className="block text-sm font-medium">
-            {isGeorgian ? <LanguageText>{t("auth.passwordLabel")}</LanguageText> : t("auth.passwordLabel")}
+            <LanguageText>{t("auth.passwordLabel")}</LanguageText>
           </Label>
           <button 
             type="button"
             className="text-xs text-primary hover:underline focus:outline-none"
             onClick={handleForgotPasswordClick}
           >
-            {isGeorgian ? <LanguageText>{t("auth.forgotPassword")}</LanguageText> : t("auth.forgotPassword")}
+            <LanguageText>{t("auth.forgotPassword")}</LanguageText>
           </button>
         </div>
         <Input
@@ -99,11 +98,7 @@ export const SignIn = () => {
         className="w-full bg-primary text-white font-medium"
         disabled={loading}
       >
-        {isGeorgian ? (
-          <LanguageText>{loading ? t("auth.loading") : t("auth.signInButton")}</LanguageText>
-        ) : (
-          loading ? t("auth.loading") : t("auth.signInButton")
-        )}
+        <LanguageText>{loading ? t("auth.loading") : t("auth.signInButton")}</LanguageText>
       </Button>
     </form>
   );

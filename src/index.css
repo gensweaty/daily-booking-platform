@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -78,7 +77,18 @@
     /* cursor: none; */
   }
   
-  /* Enhanced Georgian font rendering with !important to override any conflicting styles */
+  /* Enhanced Georgian text rendering across all elements */
+  .ka-text,
+  [lang="ka"] .ka-text {
+    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+    font-display: swap !important;
+    text-rendering: optimizeLegibility !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    letter-spacing: -0.2px !important;
+  }
+
+  /* Georgian font styling - globally applied */
   .font-georgian {
     font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
     font-display: swap !important;
@@ -118,30 +128,73 @@
 }
 
 /* Expanded Georgian text styling for all relevant UI elements with !important */
-[lang="ka"] .dialog-title,
-[lang="ka"] .form-label,
-[lang="ka"] .input-placeholder,
-[lang="ka"] .button-text,
+[lang="ka"] span,
+[lang="ka"] div,
+[lang="ka"] p,
+[lang="ka"] a,
+[lang="ka"] button,
 [lang="ka"] h1,
 [lang="ka"] h2,
 [lang="ka"] h3,
 [lang="ka"] h4,
 [lang="ka"] h5,
 [lang="ka"] h6,
-[lang="ka"] button,
-[lang="ka"] .tabs-trigger,
-[lang="ka"] .label,
-[lang="ka"] .select-item,
-[lang="ka"] .select-trigger,
-[lang="ka"] th,
-[lang="ka"] span,
-[lang="ka"] div,
-[lang="ka"] p,
-[lang="ka"] a,
+[lang="ka"] label,
 [lang="ka"] input,
 [lang="ka"] textarea,
-[lang="ka"] select,
-[lang="ka"] option {
+[lang="ka"] .tabs-trigger,
+[lang="ka"] [role="tab"] {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+}
+
+/* Override for TabsTrigger components - targeting tabs in auth UI */
+[lang="ka"] [data-orientation="horizontal"] [data-radix-collection-item] {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+}
+
+/* Fix for first letter styling issues in Georgian text */
+[lang="ka"] *::first-letter {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  text-transform: none !important;
+  font-weight: normal !important;
+}
+
+/* Specific TabsTrigger first letter fix */
+[lang="ka"] [data-radix-collection-item]::first-letter {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  text-transform: none !important;
+  font-weight: normal !important;
+}
+
+/* Auth component specific fixes */
+[lang="ka"] .auth-tab-trigger,
+[lang="ka"] .auth-button {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  letter-spacing: -0.2px !important;
+}
+
+/* Auth sign in text and labels */
+[lang="ka"] [role="tablist"] button,
+[lang="ka"] [role="tab"],
+[lang="ka"] [role="tabpanel"] button {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  letter-spacing: -0.2px !important;
+}
+
+/* Very specific overrides for the signin/signup tabs */
+[lang="ka"] div[role="tablist"] button[data-state],
+[lang="ka"] div[role="tablist"] button[data-state] span,
+[lang="ka"] div[role="tablist"] button[data-state]::first-letter,
+[lang="ka"] div[role="tablist"] button[data-state] span::first-letter {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  letter-spacing: -0.2px !important;
+}
+
+/* Button text in auth forms */
+[lang="ka"] form button,
+[lang="ka"] form button span,
+[lang="ka"] form button::first-letter,
+[lang="ka"] form button span::first-letter {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
   letter-spacing: -0.2px !important;
 }
