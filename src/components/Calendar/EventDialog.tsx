@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -181,142 +182,6 @@ export const EventDialog = ({
     }
   }, [event, open]);
 
-  // ENHANCED: This function now ensures we always get the address
-  const sendApprovalEmail = async (
-    startDateTime: Date,
-    endDateTime: Date,
-    title: string,
-    userSurname: string,
-    socialNetworkLink: string,
-    paymentStatus?: string, 
-    paymentAmount?: string,
-    eventId?: string
-  ) => {
-    try {
-      console.log("Sending booking approval email to", socialNetworkLink);
-      
-      // Get business address FIRST before any deduplication to ensure we always have it
-      const { data: businessProfile, error: profileError } = await supabase
-        .from('business_profiles')
-        .select('business_name, contact_address')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-      
-      if (profileError) {
-        console.error("Error fetching business profile for email:", profileError);
-        throw new Error("Failed to fetch business profile");
-      }
-      
-      if (!businessProfile) {
-        console.error("Business profile not found for user:", user?.id);
-        throw new Error("Business profile not found");
-      }
-        
-      const businessName = businessProfile?.business_name || "Our Business";
-      const businessAddress = businessProfile?.contact_address || "";
-      
-      // Exit early if no address is available - let the user know
-      if (!businessAddress && eventId) {
-        console.warn("No business address available, will not send confirmation email");
-        toast({
-          title: t("common.warning"),
-          description: t("No business address available. Please add one to your business profile to send confirmation emails."),
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      // Business address is available - send the email
-      console.log("Email data:", {
-        recipientEmail: socialNetworkLink,
-        fullName: userSurname || title,
-        businessName,
-        businessAddress,
-        startDate: startDateTime.toISOString(),
-        endDate: endDateTime.toISOString(),
-        paymentStatus,
-        paymentAmount: paymentAmount ? parseFloat(paymentAmount) : undefined,
-        eventId,
-        source: 'EventDialog'
-      });
-      
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      
-      if (!accessToken) {
-        console.error("No access token available for authenticated request");
-        throw new Error("Authentication error");
-      }
-      
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-booking-approval-email`,
-        {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            recipientEmail: socialNetworkLink.trim(),
-            fullName: userSurname || title || "Customer",
-            businessName,
-            businessAddress,
-            startDate: startDateTime.toISOString(),
-            endDate: endDateTime.toISOString(),
-            paymentStatus,
-            paymentAmount: paymentAmount ? parseFloat(paymentAmount) : undefined,
-            eventId,
-            source: 'EventDialog'
-          }),
-        }
-      );
-      
-      console.log("Email API response status:", response.status);
-      
-      const responseText = await response.text();
-      console.log("Email API response text:", responseText);
-      
-      let responseData;
-      try {
-        responseData = responseText ? JSON.parse(responseText) : {};
-        console.log("Email API parsed response:", responseData);
-      } catch (jsonError) {
-        console.error("Failed to parse email API response as JSON:", jsonError);
-        responseData = { textResponse: responseText };
-      }
-      
-      if (!response.ok) {
-        console.error("Failed to send email notification:", responseData?.error || response.statusText);
-        throw new Error(responseData?.error || responseData?.details || `Failed to send email notification (status ${response.status})`);
-      }
-      
-      if (responseData.isDuplicate) {
-        console.log("Email was identified as duplicate and not sent");
-        toast({
-          title: t("common.info"),
-          description: t("Email notification already sent to ") + socialNetworkLink,
-        });
-      } else if (responseData.skipped) {
-        console.log("Email was skipped:", responseData.reason);
-      } else {
-        toast({
-          title: t("common.success"),
-          description: t("Email notification sent successfully to ") + socialNetworkLink,
-        });
-      }
-      
-    } catch (emailError) {
-      console.error("Error sending email notification:", emailError);
-      toast({
-        title: t("common.warning"),
-        description: t("Event created but email notification could not be sent: ") + 
-          (emailError instanceof Error ? emailError.message : "Unknown error"),
-        variant: "destructive",
-      });
-      throw emailError;
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -374,25 +239,6 @@ export const EventDialog = ({
       console.log("EventDialog - Submitting event data:", eventData);
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
-
-      let shouldSendEmail = false;
-      
-      // IMPORTANT FIX: Only send email if this is specifically approving a booking request
-      // or creating a new event from scratch with a valid email
-      if ((isApprovingBookingRequest || !event?.id) && 
-          socialNetworkLink && 
-          socialNetworkLink.includes("@")) {
-            
-        console.log(">>> APPROVAL EMAIL CONDITION MET", {
-          wasBookingRequest,
-          isApprovingBookingRequest,
-          eventId: event?.id,
-          newType: eventData.type,
-          email: socialNetworkLink
-        });
-        
-        shouldSendEmail = true;
-      }
       
       // Handle file upload to event_files for the current event
       if (selectedFile && createdEvent?.id && user) {
@@ -435,31 +281,11 @@ export const EventDialog = ({
           console.error("Error handling file upload:", fileError);
         }
       }
-      
-      // IMPORTANT FIX: Send email after everything else is saved if needed
-      if (shouldSendEmail) {
-        try {
-          await sendApprovalEmail(
-            startDateTime,
-            endDateTime,
-            title,
-            userSurname,
-            socialNetworkLink,
-            normalizedPaymentStatus,
-            paymentAmount,
-            createdEvent.id
-          );
-        } catch (emailError) {
-          console.error("Failed to send approval email:", emailError);
-        }
-      }
 
       if (!isBookingEvent) {
         toast({
           title: t("common.success"),
-          description: `${event?.id ? t("Event updated successfully") : t("Event created successfully")}${
-            shouldSendEmail ? " " + t("and notification email sent") : ""
-          }`,
+          description: event?.id ? t("Event updated successfully") : t("Event created successfully"),
         });
       } else {
         if (event?.id) {

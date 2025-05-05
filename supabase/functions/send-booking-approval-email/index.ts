@@ -29,8 +29,8 @@ const recentlySentEmails = new Map<string, number>();
 setInterval(() => {
   const now = Date.now();
   for (const [key, timestamp] of recentlySentEmails.entries()) {
-    // Remove entries older than 30 minutes to be extra safe
-    if (now - timestamp > 1800000) {
+    // Remove entries older than 10 minutes to be extra safe
+    if (now - timestamp > 600000) {
       recentlySentEmails.delete(key);
     }
   }
@@ -61,31 +61,6 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`- Business Address: ${parsedBody.businessAddress || '(No address provided)'}`);
       console.log(`- Event ID: ${parsedBody.eventId || '(No event ID)'}`);
       console.log(`- Source: ${parsedBody.source || '(Unknown source)'}`);
-      
-      // ENHANCED ADDRESS DEBUGGING
-      console.log("ADDRESS DIAGNOSTICS:");
-      console.log(`- Raw address property: ${JSON.stringify(parsedBody.businessAddress)}`);
-      console.log(`- Address type: ${typeof parsedBody.businessAddress}`);
-      console.log(`- Address direct access: ${parsedBody.businessAddress}`);
-      console.log(`- Is null? ${parsedBody.businessAddress === null}`);
-      console.log(`- Is undefined? ${parsedBody.businessAddress === undefined}`);
-      console.log(`- Is empty string? ${parsedBody.businessAddress === ''}`);
-      
-      if (parsedBody.businessAddress && typeof parsedBody.businessAddress === 'string') {
-        console.log(`- Address length: ${parsedBody.businessAddress.length}`);
-        console.log(`- First 20 chars: "${parsedBody.businessAddress.substring(0, 20)}"`);
-        console.log(`- Contains 'null' text? ${parsedBody.businessAddress.includes('null')}`);
-        console.log(`- Contains 'undefined' text? ${parsedBody.businessAddress.includes('undefined')}`);
-      }
-
-      // BUSINESS NAME DEBUGGING  
-      console.log("BUSINESS NAME DIAGNOSTICS:");
-      console.log(`- Raw business name property: ${JSON.stringify(parsedBody.businessName)}`);
-      console.log(`- Business name type: ${typeof parsedBody.businessName}`);
-      console.log(`- Business name direct access: ${parsedBody.businessName}`);
-      console.log(`- Is null? ${parsedBody.businessName === null}`);
-      console.log(`- Is undefined? ${parsedBody.businessName === undefined}`);
-      console.log(`- Is empty string? ${parsedBody.businessName === ''}`);
     } catch (parseError) {
       console.error("Failed to parse JSON request:", parseError);
       return new Response(
@@ -107,25 +82,8 @@ const handler = async (req: Request): Promise<Response> => {
       source
     } = parsedBody;
 
-    // IMPROVED: More robust deduplication logic
-    // If no address is provided but eventId exists, don't send email - wait for the one with address
-    // This ensures we only send the email with the address included
-    if (!businessAddress && eventId) {
-      console.log(`Request without address received for event ${eventId}. Skipping in favor of request with address.`);
-      return new Response(
-        JSON.stringify({ 
-          message: "Skipping email without address",
-          reason: "Missing address but eventId exists",
-          to: recipientEmail,
-          id: null,
-          skipped: true,
-          eventId
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
-      );
-    }
-
-    // Build a standardized deduplication key - combine eventId with email
+    // Build a standardized deduplication key that ignores the source
+    // This ensures we don't send duplicate emails just because they come from different sources
     let dedupeKey: string;
     
     if (eventId) {
@@ -158,21 +116,6 @@ const handler = async (req: Request): Promise<Response> => {
     // Add source info to the log record, but not to the deduplication key
     const logRecord = source ? `${dedupeKey} (source: ${source})` : dedupeKey;
     
-    // Mark as recently sent
-    recentlySentEmails.set(dedupeKey, Date.now());
-    console.log(`Setting deduplication key: ${logRecord} (tracking ${recentlySentEmails.size} emails)`);
-
-    console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName || "Unknown Business"}`);
-    console.log(`Start date (raw ISO string): ${startDate}`);
-    console.log(`End date (raw ISO string): ${endDate}`);
-    console.log(`Payment status: ${paymentStatus}`);
-    console.log(`Payment amount: ${paymentAmount}`);
-    
-    // Debug log for address - CRITICAL
-    console.log(`Business address (direct reference): ${businessAddress}`);
-    console.log(`Business address (JSON stringified): ${JSON.stringify(businessAddress)}`);
-    console.log(`Business address type: ${typeof businessAddress}`);
-
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(recipientEmail)) {
@@ -180,6 +123,22 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response(
         JSON.stringify({ error: "Invalid email format" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+      );
+    }
+    
+    // IMPORTANT: If there's no business address, reject the request
+    // This ensures we only send emails that include the address
+    if (!businessAddress || businessAddress.trim() === '') {
+      console.log(`Request without business address rejected for ${recipientEmail}`);
+      return new Response(
+        JSON.stringify({ 
+          message: "Email request rejected due to missing business address",
+          to: recipientEmail,
+          id: null,
+          skipped: true,
+          reason: "Missing business address"
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
     }
     
@@ -204,33 +163,11 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       
-      // --- IMPROVED Address Processing ---
+      // Prepare address section
       let addressInfo = "";
-      let addressDisplay = ""; // For logging purposes
+      let addressDisplay = businessAddress.trim();
+      addressInfo = `<p style="margin: 8px 0;"><strong>Address:</strong> ${addressDisplay}</p>`;
       
-      // Always attempt to use the address if it exists in any form
-      if (businessAddress !== undefined && businessAddress !== null) {
-        // Convert to string and clean (handle any potential undefined/null stringified values)
-        const addressStr = String(businessAddress).trim();
-        console.log(`Address converted to string: "${addressStr}"`);
-        
-        // Check if it's a valid usable address (not "null" or "undefined" strings or empty)
-        if (
-          addressStr.length > 0 && 
-          addressStr !== "null" && 
-          addressStr !== "undefined"
-        ) {
-          // This is a valid address we can use
-          addressDisplay = addressStr;
-          addressInfo = `<p style="margin: 8px 0;"><strong>Address:</strong> ${addressDisplay}</p>`;
-          console.log(`Valid address found, will display: "${addressDisplay}"`);
-        } else {
-          console.log(`Address rejected as invalid: "${addressStr}"`);
-        }
-      } else {
-        console.log("Business address is falsy - appears to be missing");
-      }
-
       // Normalize business name
       const displayBusinessName = businessName && businessName !== "null" && businessName !== "undefined" 
         ? businessName 
@@ -262,7 +199,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       // Final check of what will be included in the email HTML
       console.log("EMAIL HTML PREVIEW:");
-      console.log(`- Address section: ${addressInfo || "(No address will be shown)"}`);
+      console.log(`- Address section: ${addressInfo}`);
       console.log(`- Payment section: ${paymentInfo || "(No payment info will be shown)"}`);
       console.log(`- Business name used: ${displayBusinessName}`);
       
@@ -291,12 +228,17 @@ const handler = async (req: Request): Promise<Response> => {
 
       console.log(`Email successfully sent via Resend API to ${recipientEmail}, ID: ${emailResult.data?.id}`);
       
+      // Mark as recently sent ONLY if the email was successfully sent
+      // This prevents failed attempts from blocking future retries
+      recentlySentEmails.set(dedupeKey, Date.now());
+      console.log(`Setting deduplication key: ${logRecord} (tracking ${recentlySentEmails.size} emails)`);
+      
       return new Response(
         JSON.stringify({ 
           message: "Email sent successfully",
           to: recipientEmail,
           id: emailResult.data?.id,
-          included_address: addressDisplay || null, // For debugging
+          included_address: addressDisplay,
           business_name_used: displayBusinessName,
           source: source || 'unknown',
           dedupeKey: dedupeKey

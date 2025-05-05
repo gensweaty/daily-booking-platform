@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -319,7 +319,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     return emailRegex.test(email);
   };
 
-  // IMPROVED: Function to send confirmation email
+  // IMPROVED: Function to send confirmation email with better error handling and deduplication
   const sendBookingConfirmationEmail = async (
     eventId: string,
     title: string, 
@@ -330,6 +330,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     paymentAmount: number | null
   ) => {
     try {
+      console.log(`Initiating email sending for event ${eventId} to ${email}`);
+      
       // Get business address and name before anything else
       const { data: businessProfile, error: profileError } = await supabase
         .from('business_profiles')
@@ -342,19 +344,22 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         throw new Error("Failed to fetch business profile");
       }
       
+      // IMPORTANT: We require a business address to send a confirmation email
       if (!businessProfile?.contact_address) {
         console.warn("No business address found. Cannot send confirmation email.");
         toast({
           title: t("common.warning"),
           description: t("No business address available. Please add one to your business profile to send confirmation emails."),
-          variant: "destructive"  // Changed from "warning" to "destructive"
+          variant: "destructive"
         });
         return false;
       }
       
-      console.log('Sending booking confirmation email from calendar with:');
-      console.log(`- Address: ${businessProfile?.contact_address || 'None'}`);
+      console.log('Sending booking confirmation email with info:');
+      console.log(`- Address: ${businessProfile?.contact_address}`);
       console.log(`- Business name: ${businessProfile?.business_name || 'None'}`);
+      console.log(`- Event ID: ${eventId}`);
+      console.log(`- Recipient: ${email}`);
       
       const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
       const { data: sessionData } = await supabase.auth.getSession();
@@ -365,6 +370,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         throw new Error("Authentication error");
       }
       
+      // Always include the source as "useCalendarEvents" to ensure we only use this function
+      // for sending emails, avoiding duplicates from other sources
       const response = await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
         method: 'POST',
         headers: {
@@ -381,7 +388,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           paymentAmount: paymentAmount || 0,
           businessAddress: businessProfile?.contact_address || '',
           eventId: eventId,
-          source: 'CalendarEvents'
+          source: 'useCalendarEvents' // Updated source to ensure consistent tracking
         })
       });
       
@@ -412,9 +419,20 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         return false;
       }
       
+      toast({
+        title: t("common.success"),
+        description: t("Email notification sent successfully to ") + email,
+      });
+      
       return true;
     } catch (error) {
       console.error('Error sending booking confirmation email:', error);
+      toast({
+        title: t("common.warning"),
+        description: t("Failed to send confirmation email: ") + 
+          (error instanceof Error ? error.message : "Unknown error"),
+        variant: "destructive",
+      });
       return false;
     }
   };
@@ -454,13 +472,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       throw error;
     }
     
-    // MODIFIED: Only send email if we have a recipient email AND no recent email was sent for this event ID
-    // Do not even attempt to send if email is not valid
+    // Send confirmation email only if we have a valid recipient email
+    // and this is a new event (not from a booking request conversion)
     const recipientEmail = event.social_network_link;
-    if (recipientEmail && isValidEmail(recipientEmail)) {
+    if (
+      recipientEmail && 
+      isValidEmail(recipientEmail) && 
+      !event.booking_request_id && 
+      data
+    ) {
       try {
-        // This function already handles everything including checking for duplicates
-        const emailResult = await sendBookingConfirmationEmail(
+        await sendBookingConfirmationEmail(
           data.id,
           event.title || event.user_surname || '',
           recipientEmail,
@@ -469,12 +491,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           event.payment_status || 'not_paid',
           event.payment_amount || null
         );
-        
-        if (emailResult) {
-          console.log("Email sent or already sent recently");
-        } else {
-          console.log("Email sending skipped");
-        }
       } catch (emailError) {
         console.error('Error handling confirmation email:', emailError);
         // Don't throw error here, the event was created successfully
@@ -490,7 +506,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     
     const { data: existingEvent, error: fetchError } = await supabase
       .from('events')
-      .select('id, start_date, end_date, type')
+      .select('id, start_date, end_date, type, social_network_link')
       .eq('id', event.id)
       .single();
       
@@ -635,7 +651,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.error("Error handling customer creation:", customerError);
       }
       
-      // Send confirmation email to customer with business address - but only if we have a valid email
+      // Send confirmation email to customer with business address - this is the ONLY place we send emails
       if (event.requester_email && isValidEmail(event.requester_email)) {
         try {
           await sendBookingConfirmationEmail(
@@ -683,6 +699,26 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     if (error) {
       console.error('Error updating event:', error);
       throw error;
+    }
+    
+    // Send email if email address has changed
+    const emailChanged = event.social_network_link && 
+                        event.social_network_link !== existingEvent.social_network_link;
+    
+    if (emailChanged && isValidEmail(event.social_network_link as string)) {
+      try {
+        await sendBookingConfirmationEmail(
+          data.id,
+          event.title || event.user_surname || '',
+          event.social_network_link as string,
+          event.start_date as string,
+          event.end_date as string,
+          event.payment_status || 'not_paid',
+          event.payment_amount || null
+        );
+      } catch (emailError) {
+        console.error('Error sending updated booking email:', emailError);
+      }
     }
     
     return data;
