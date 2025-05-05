@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -13,6 +14,7 @@ import { DateRangeSelect } from "@/components/Statistics/DateRangeSelect";
 import * as XLSX from 'xlsx';
 import { LanguageText } from "@/components/shared/LanguageText";
 import { getCurrencySymbol } from "@/lib/currency";
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import {
   Table,
   TableBody,
@@ -109,6 +111,7 @@ export const CustomerList = () => {
   
   // Get currency symbol based on language
   const currencySymbol = useMemo(() => getCurrencySymbol(language), [language]);
+  const isGeorgian = language === 'ka';
 
   const { combinedData, isLoading, isFetching } = useCRMData(user?.id, dateRange);
 
@@ -441,8 +444,20 @@ export const CustomerList = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-[180px]">{t("crm.fullNameRequired")}</TableHead>
-                    <TableHead className="w-[130px]">{t("crm.phoneNumber")}</TableHead>
+                    <TableHead className="w-[180px]">
+                      {isGeorgian ? (
+                        <GeorgianAuthText fontWeight="medium">სრული სახელი</GeorgianAuthText>
+                      ) : (
+                        t("crm.fullNameRequired")
+                      )}
+                    </TableHead>
+                    <TableHead className="w-[130px]">
+                      {isGeorgian ? (
+                        <GeorgianAuthText fontWeight="medium">ტელეფონის ნომერი</GeorgianAuthText>
+                      ) : (
+                        t("crm.phoneNumber")
+                      )}
+                    </TableHead>
                     <TableHead className="w-[250px]">{t("crm.socialLinkEmail")}</TableHead>
                     <TableHead className="w-[120px]">
                       {language === 'en' ? 'Payment Status' : 
