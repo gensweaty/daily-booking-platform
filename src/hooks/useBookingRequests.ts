@@ -54,12 +54,14 @@ export const useBookingRequests = () => {
   const approvedRequests = bookingRequests.filter(req => req.status === 'approved');
   const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected');
   
-  async function sendApprovalEmail({ email, fullName, businessName, startDate, endDate }: {
+  async function sendApprovalEmail({ email, fullName, businessName, startDate, endDate, paymentStatus, paymentAmount }: {
     email: string;
     fullName: string;
     businessName: string;
     startDate: string;
     endDate: string;
+    paymentStatus?: string;
+    paymentAmount?: number;
   }) {
     if (!email || !email.includes('@')) {
       console.error("Invalid email format or missing email:", email);
@@ -71,13 +73,15 @@ export const useBookingRequests = () => {
       console.log(`Raw start date: ${startDate}`);
       console.log(`Raw end date: ${endDate}`);
       
-      // Prepare the request with all required data - passing the original ISO strings directly
+      // Prepare the request with all required data
       const requestBody = JSON.stringify({
         recipientEmail: email.trim(),
         fullName: fullName || "",
         businessName: businessName || "Our Business",
-        startDate: startDate, // Pass the ISO string directly
-        endDate: endDate,     // Pass the ISO string directly
+        startDate: startDate,
+        endDate: endDate,
+        paymentStatus: paymentStatus,
+        paymentAmount: paymentAmount
       });
       
       console.log("Request body for email function:", requestBody);
@@ -91,7 +95,7 @@ export const useBookingRequests = () => {
         return { success: false, error: "Authentication error" };
       }
       
-      // Call the Edge Function with full URL
+      // Call the Edge Function
       console.log("Making request to send-booking-approval-email function");
       const response = await fetch(
         "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
@@ -409,12 +413,15 @@ export const useBookingRequests = () => {
           endDate: booking.end_date,
         });
         
+        // Make sure we're passing payment info to the email function
         const emailResult = await sendApprovalEmail({
           email: booking.requester_email,
           fullName: booking.requester_name || booking.user_surname || "",
           businessName,
           startDate: booking.start_date,
           endDate: booking.end_date,
+          paymentStatus: booking.payment_status,
+          paymentAmount: booking.payment_amount
         });
         
         if (emailResult.success) {

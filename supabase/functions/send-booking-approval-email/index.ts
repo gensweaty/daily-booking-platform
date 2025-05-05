@@ -94,7 +94,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       
-      // Create HTML email content with properly encoded UTF-8 characters for all languages
+      // Create HTML email content with simpler formatting
       const htmlContent = `
         <!DOCTYPE html>
         <html lang="en">
@@ -115,17 +115,13 @@ const handler = async (req: Request): Promise<Response> => {
         </html>
       `;
       
-      // Send email using SMTP with proper UTF-8 encoding headers
+      // Send email using SMTP with simpler content type headers
       await client.send({
         from: `${businessName} <info@smartbookly.com>`,
         to: recipientEmail,
         subject: `Booking Approved at ${businessName}`,
         content: "Your booking has been approved",
-        html: htmlContent,
-        headers: {
-          "Content-Type": "text/html; charset=UTF-8",
-          "Content-Transfer-Encoding": "8bit"
-        }
+        html: htmlContent
       });
       
       console.log(`Email successfully sent to ${recipientEmail}`);
