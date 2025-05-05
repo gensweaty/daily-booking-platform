@@ -74,20 +74,19 @@ export const useBookingRequests = () => {
       console.log(`Raw start date: ${startDate}`);
       console.log(`Raw end date: ${endDate}`);
       
-      // Log the address for debugging - making sure we print the exact value
-      console.log(`Email data:`, {
-        email,
-        fullName,
-        businessName,
-        startDate,
-        endDate,
-        businessAddress, // Just log the raw value to verify what's being passed
-        paymentStatus,
-        paymentAmount,
-      });
+      // ENHANCED LOGGING - For debugging the exact address value
+      console.log(`Email data details - DEBUGGING ADDRESS ISSUE:`);
+      console.log(`- Business address (raw): "${businessAddress}"`);
+      console.log(`- Business address type: ${typeof businessAddress}`);
+      console.log(`- Is address null? ${businessAddress === null}`);
+      console.log(`- Is address undefined? ${businessAddress === undefined}`);
+      if (businessAddress) {
+        console.log(`- Address length: ${businessAddress.length}`);
+        console.log(`- First 20 chars: "${businessAddress.substring(0, 20)}"`);
+      }
       
-      // Prepare the request with all required data
-      const requestBody = JSON.stringify({
+      // Log all data being sent in the request
+      const requestBody = {
         recipientEmail: email.trim(),
         fullName: fullName || "",
         businessName: businessName || "Our Business",
@@ -96,9 +95,9 @@ export const useBookingRequests = () => {
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
         businessAddress: businessAddress // Pass the address as is
-      });
+      };
       
-      console.log("Request body for email function:", requestBody);
+      console.log("Complete request body for email function:", JSON.stringify(requestBody, null, 2));
       
       // Get access token for authenticated request
       const { data: sessionData } = await supabase.auth.getSession();
@@ -119,7 +118,7 @@ export const useBookingRequests = () => {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${accessToken}`
           },
-          body: requestBody,
+          body: JSON.stringify(requestBody),
         }
       );
 
@@ -422,20 +421,31 @@ export const useBookingRequests = () => {
           businessName = businessProfile.business_name || businessName;
           contactAddress = businessProfile.contact_address || null;
           
-          console.log("Fetched business profile details:", { 
-            name: businessName, 
-            address: contactAddress 
-          });
+          // ENHANCED DEBUGGING - Log business profile with special attention to address
+          console.log("Fetched business profile details for email:");
+          console.log("- Business name:", businessName);
+          console.log("- Contact address (raw):", JSON.stringify(contactAddress));
+          console.log("- Contact address (direct):", contactAddress);
+          console.log("- Address type:", typeof contactAddress);
+          
+          if (contactAddress === null) {
+            console.log("WARNING: Contact address is NULL in database");
+          } else if (contactAddress === undefined) {
+            console.log("WARNING: Contact address is UNDEFINED in database");
+          } else if (typeof contactAddress === 'string' && contactAddress.trim() === '') {
+            console.log("WARNING: Contact address is an EMPTY STRING in database");
+          }
         }
       } catch (err) {
-        console.warn("Could not load business profile details for email:", err);
+        console.error("Could not load business profile details for email:", err);
       }
       
       console.log(`Preparing to send email to ${booking.requester_email} for business ${businessName}`);
       
       if (booking && booking.requester_email) {
         // Send the approval email, passing the business address we just fetched
-        const emailResult = await sendApprovalEmail({
+        // DIRECT ADDRESS PASS - Stringify the entire email parameters for debugging
+        const emailParams = {
           email: booking.requester_email,
           fullName: booking.requester_name || booking.user_surname || "",
           businessName,
@@ -443,8 +453,12 @@ export const useBookingRequests = () => {
           endDate: booking.end_date,
           paymentStatus: booking.payment_status,
           paymentAmount: booking.payment_amount,
-          businessAddress: contactAddress // Pass the address we just fetched
-        });
+          businessAddress: contactAddress // Pass the address directly
+        };
+        
+        console.log("Final email parameters being sent:", JSON.stringify(emailParams, null, 2));
+        
+        const emailResult = await sendApprovalEmail(emailParams);
         
         if (emailResult.success) {
           console.log("Email notification processed during booking approval");

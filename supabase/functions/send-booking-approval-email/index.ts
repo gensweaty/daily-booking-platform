@@ -28,11 +28,35 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const requestBody = await req.text();
-    console.log("Request body:", requestBody);
+    console.log("Request body (raw):", requestBody);
     
     let parsedBody: BookingApprovalEmailRequest;
     try {
       parsedBody = JSON.parse(requestBody);
+      
+      // Comprehensive debug logging of the parsed body
+      console.log("Parsed request body:");
+      console.log(`- Recipient: ${parsedBody.recipientEmail}`);
+      console.log(`- Name: ${parsedBody.fullName}`);
+      console.log(`- Business: ${parsedBody.businessName}`);
+      console.log(`- Dates: ${parsedBody.startDate} to ${parsedBody.endDate}`);
+      console.log(`- Payment: ${parsedBody.paymentStatus} (${parsedBody.paymentAmount || 'N/A'})`);
+      
+      // ENHANCED ADDRESS DEBUGGING
+      console.log("ADDRESS DIAGNOSTICS:");
+      console.log(`- Raw address property: ${JSON.stringify(parsedBody.businessAddress)}`);
+      console.log(`- Address type: ${typeof parsedBody.businessAddress}`);
+      console.log(`- Address direct access: ${parsedBody.businessAddress}`);
+      console.log(`- Is null? ${parsedBody.businessAddress === null}`);
+      console.log(`- Is undefined? ${parsedBody.businessAddress === undefined}`);
+      console.log(`- Is empty string? ${parsedBody.businessAddress === ''}`);
+      
+      if (parsedBody.businessAddress && typeof parsedBody.businessAddress === 'string') {
+        console.log(`- Address length: ${parsedBody.businessAddress.length}`);
+        console.log(`- First 20 chars: "${parsedBody.businessAddress.substring(0, 20)}"`);
+        console.log(`- Contains 'null' text? ${parsedBody.businessAddress.includes('null')}`);
+        console.log(`- Contains 'undefined' text? ${parsedBody.businessAddress.includes('undefined')}`);
+      }
     } catch (parseError) {
       console.error("Failed to parse JSON request:", parseError);
       return new Response(
@@ -59,7 +83,9 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Payment amount: ${paymentAmount}`);
     
     // Debug log for address - CRITICAL
-    console.log(`Business address (raw): "${businessAddress}"`);
+    console.log(`Business address (direct reference): ${businessAddress}`);
+    console.log(`Business address (JSON stringified): ${JSON.stringify(businessAddress)}`);
+    console.log(`Business address type: ${typeof businessAddress}`);
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -92,35 +118,32 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       
-      // --- Address Processing ---
+      // --- IMPROVED Address Processing ---
       let addressInfo = "";
+      let addressDisplay = ""; // For logging purposes
       
-      // Enhanced debugging for address
-      console.log(`Exact business address value: "${businessAddress}"`);
-      console.log(`Address type: ${typeof businessAddress}`);
-      
+      // Explicit checks for valid address
       if (businessAddress) {
-        // Convert to string and trim in case we get a non-string or null
-        const addressStr = String(businessAddress || "").trim();
-        console.log(`Normalized address string: "${addressStr}"`);
+        // Convert to string and clean (handle any potential undefined/null stringified values)
+        const addressStr = String(businessAddress);
+        console.log(`Address converted to string: "${addressStr}"`);
         
-        if (addressStr && addressStr.length > 0 && addressStr !== "null" && addressStr !== "undefined") {
-          // Simplified cleaning logic - just normalize whitespace
-          const cleanAddress = addressStr
-            .replace(/\s+/g, ' ')
-            .trim();
-            
-          console.log(`Clean address for display: "${cleanAddress}"`);
-          
-          if (cleanAddress.length > 0) {
-            addressInfo = `<p style="margin: 8px 0;"><strong>Address:</strong> ${cleanAddress}</p>`;
-            console.log(`Address HTML generated: ${addressInfo}`);
-          }
+        // Check if it's a valid usable address (not "null" or "undefined" strings)
+        if (
+          addressStr && 
+          addressStr.trim().length > 0 && 
+          addressStr !== "null" && 
+          addressStr !== "undefined"
+        ) {
+          // This is a valid address we can use
+          addressDisplay = addressStr.trim();
+          addressInfo = `<p style="margin: 8px 0;"><strong>Address:</strong> ${addressDisplay}</p>`;
+          console.log(`Valid address found, will display: "${addressDisplay}"`);
         } else {
-          console.log("Address was empty, null or undefined after normalization");
+          console.log(`Address rejected as invalid: "${addressStr}"`);
         }
       } else {
-        console.log("No business address provided in request");
+        console.log("Business address is falsy - appears to be missing");
       }
       
       // Create HTML email content with simpler formatting
@@ -144,6 +167,11 @@ const handler = async (req: Request): Promise<Response> => {
         </body>
         </html>
       `;
+      
+      // Final check of what will be included in the email HTML
+      console.log("EMAIL HTML PREVIEW:");
+      console.log(`- Address section: ${addressInfo || "(No address will be shown)"}`);
+      console.log(`- Payment section: ${paymentInfo || "(No payment info will be shown)"}`);
       
       // Use Resend API to send the email
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -174,7 +202,8 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({ 
           message: "Email sent successfully",
           to: recipientEmail,
-          id: emailResult.data?.id
+          id: emailResult.data?.id,
+          included_address: addressDisplay || null // For debugging
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
