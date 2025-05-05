@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,7 +16,7 @@ interface BookingApprovalEmailRequest {
   endDate: string;
   paymentStatus?: string; 
   paymentAmount?: number;
-  businessAddress?: string; // Added business address field
+  businessAddress?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -24,7 +24,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log("Received request to send booking approval email");
+  console.log("Received request to send booking approval email via Resend API");
 
   try {
     const requestBody = await req.text();
@@ -75,21 +75,6 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log(`Formatted start date: ${formattedStartDate}`);
     console.log(`Formatted end date: ${formattedEndDate}`);
-    
-    // Setup SMTP client with Resend SMTP configuration
-    const client = new SMTPClient({
-      connection: {
-        hostname: "smtp.resend.com",
-        port: 465,
-        tls: true,
-        auth: {
-          username: "resend",
-          password: Deno.env.get("RESEND_API_KEY") || "",
-        },
-      },
-    });
-
-    console.log(`Attempting to send email via SMTP to ${recipientEmail}`);
     
     try {
       // Format payment information if available
@@ -158,43 +143,48 @@ const handler = async (req: Request): Promise<Response> => {
         </html>
       `;
       
-      // Send email using SMTP with simpler content type headers
-      await client.send({
-        from: `${businessName} <info@smartbookly.com>`,
-        to: recipientEmail,
+      // --- FIX: Use Resend API Client ---
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      if (!resendApiKey) {
+        throw new Error("Missing RESEND_API_KEY");
+      }
+      
+      const resend = new Resend(resendApiKey);
+
+      console.log(`Attempting to send email via Resend API to ${recipientEmail}`);
+      
+      const emailResult = await resend.emails.send({
+        from: `${businessName || 'SmartBookly'} <info@smartbookly.com>`,
+        to: [recipientEmail],
         subject: `Booking Approved at ${businessName}`,
-        content: "Your booking has been approved",
-        html: htmlContent
+        html: htmlContent,
       });
-      
-      console.log(`Email successfully sent to ${recipientEmail}`);
-      
-      await client.close();
+
+      console.log("Resend API response:", emailResult);
+      if (emailResult.error) {
+        console.error("Error from Resend API:", emailResult.error);
+        throw new Error(emailResult.error.message || "Unknown Resend API error");
+      }
+
+      console.log(`Email successfully sent via Resend API to ${recipientEmail}, ID: ${emailResult.data?.id}`);
       
       return new Response(
         JSON.stringify({ 
           message: "Email sent successfully",
-          to: recipientEmail
+          to: recipientEmail,
+          id: emailResult.data?.id
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
+      
     } catch (emailError: any) {
-      console.error("Error sending email:", emailError);
-      console.error("Error details:", emailError.message);
-      
-      if (client) {
-        try {
-          await client.close();
-        } catch (closeError) {
-          console.error("Error closing SMTP connection:", closeError);
-        }
-      }
-      
+      // Catch errors specifically from resend.emails.send
+      console.error("Error sending email via Resend API:", emailError);
       return new Response(
-        JSON.stringify({ 
-          error: "Failed to send email",
+        JSON.stringify({
+          error: "Failed to send email via Resend API",
           details: emailError.message || "Unknown error",
-          trace: typeof emailError.stack === 'string' ? emailError.stack : "No stack trace available"
+          trace: emailError.stack
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
