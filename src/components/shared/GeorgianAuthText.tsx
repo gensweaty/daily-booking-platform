@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { cn } from '@/lib/utils';
 
 interface GeorgianAuthTextProps {
   children: React.ReactNode;
@@ -8,15 +7,15 @@ interface GeorgianAuthTextProps {
 }
 
 export const GeorgianAuthText = ({ children, className = '' }: GeorgianAuthTextProps) => {
-  // This component specifically targets Georgian text in the UI
-  // with all the styling needed to ensure proper rendering of bold text
+  // This component specifically targets Georgian text in the Auth UI
+  // with all the styling needed to ensure proper rendering
   return (
     <span 
-      className={cn('georgian-auth-text font-bold', className)}
+      className={`georgian-fix-text ${className}`}
       style={{
         fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
         letterSpacing: '-0.2px',
-        fontWeight: 'bold', // Ensure bold is explicitly set
+        fontWeight: 'normal',
         WebkitFontSmoothing: 'antialiased',
         MozOsxFontSmoothing: 'grayscale',
         textRendering: 'optimizeLegibility'
