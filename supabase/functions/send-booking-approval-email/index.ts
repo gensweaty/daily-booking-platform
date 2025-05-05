@@ -81,21 +81,26 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Attempting to send email via SMTP to ${recipientEmail}`);
     
     try {
-      // Process the business address if available
+      // Process and sanitize the business address if available
       let addressSection = "";
       if (businessAddress) {
-        // Clean the address: remove extra whitespace and normalize
-        const cleanAddress = businessAddress.trim().replace(/\s+/g, " ");
-        console.log(`Cleaned business address: "${cleanAddress}"`);
+        // Convert to string explicitly, strip all non-standard characters and normalize whitespace
+        const cleanAddress = String(businessAddress)
+          .trim()
+          .replace(/=20/g, " ")  // Replace =20 with space
+          .replace(/\s+/g, " ")  // Normalize multiple spaces to single space
+          .replace(/[^\x20-\x7E]/g, "");  // Remove non-printable characters
+
+        console.log(`Processed business address: "${cleanAddress}"`);
         
-        if (cleanAddress) {
-          addressSection = `
-            <p><strong>Address:</strong> ${cleanAddress}</p>
-          `;
+        // Only add the address section if we have a valid address after cleaning
+        if (cleanAddress && cleanAddress.length > 0) {
+          addressSection = `<p><strong>Address:</strong> ${cleanAddress}</p>`;
+          console.log(`Final address HTML section: ${addressSection}`);
         }
       }
       
-      // Create HTML email content with simpler formatting
+      // Create HTML email content with simpler formatting and explicit encoding declaration
       const htmlContent = `
         <!DOCTYPE html>
         <html lang="en">

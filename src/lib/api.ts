@@ -113,7 +113,7 @@ export const testEmailSending = async (recipientEmail: string): Promise<any> => 
       .select("*")
       .single();
     
-    // Get the business address from the profile
+    // Get the business address from the profile and ensure it's properly formatted
     const businessAddress = businessProfile?.contact_address || "";
     console.log("Using business address for test email:", businessAddress);
     
@@ -123,7 +123,7 @@ export const testEmailSending = async (recipientEmail: string): Promise<any> => 
       businessName: "Test Business",
       startDate: new Date().toISOString(),
       endDate: new Date(Date.now() + 3600000).toISOString(), // 1 hour later
-      businessAddress: businessAddress, // Pass the full address string
+      businessAddress: businessAddress, // Pass the full address string as is
     };
     
     console.log("Sending test email with data:", testData);
