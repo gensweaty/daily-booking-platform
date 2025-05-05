@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 export const ka: TranslationType = {
@@ -256,7 +255,7 @@ export const ka: TranslationType = {
     startDateTime: "Დაწყების თარიღი და დრო",
     endDateTime: "Დასრულების თარიღი და დრო",
     eventNotes: "Შენიშვნები",
-    addEventNotes: "დამატებითი კომენტარი თქვენი მოთხოვნის შესახებ",
+    addEventNotes: "დაამატეთ შენიშვნები თქვენი ჯავშნის მოთხოვნის შესახებ",
     editEvent: "ღონისძიების რედაქტირება",
     addNewEvent: "ახალი ღონისძიების დამატება",
     updateEvent: "ღონისძიების განახლება",
