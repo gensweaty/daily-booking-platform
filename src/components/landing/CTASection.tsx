@@ -3,11 +3,9 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
-import { getGeorgianFontStyle } from "@/lib/font-utils";
 
 export const CTASection = () => {
-  const { t, language } = useLanguage();
-  const isGeorgian = language === 'ka';
+  const { t } = useLanguage();
   
   return (
     <section className="py-20 bg-primary text-white">
@@ -17,14 +15,8 @@ export const CTASection = () => {
           <LanguageText>{t('cta.subtitle')}</LanguageText>
         </p>
         <Link to="/signup">
-          <Button 
-            size="lg" 
-            variant="secondary"
-            style={isGeorgian ? getGeorgianFontStyle() : undefined}
-          >
-            <LanguageText withFont={true} fixLetterSpacing={true}>
-              {isGeorgian ? "დაჯავშნე" : t('cta.button')}
-            </LanguageText>
+          <Button size="lg" variant="secondary">
+            <LanguageText>{t('cta.button')}</LanguageText>
           </Button>
         </Link>
       </div>

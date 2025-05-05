@@ -9,6 +9,5 @@ export const getGeorgianFontStyle = (): CSSProperties => ({
   letterSpacing: '-0.2px',
   WebkitFontSmoothing: 'antialiased',
   MozOsxFontSmoothing: 'grayscale',
-  textRendering: 'optimizeLegibility' as const,
-  fontWeight: 'inherit'
+  textRendering: 'optimizeLegibility' as const
 });
