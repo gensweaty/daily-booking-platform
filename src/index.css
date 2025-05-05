@@ -199,6 +199,25 @@
   text-transform: none !important;
 }
 
+/* More specific selectors to target first letters in specific elements */
+[lang="ka"] .tabs-trigger::first-letter,
+[lang="ka"] button::first-letter, 
+[lang="ka"] h1::first-letter, 
+[lang="ka"] h2::first-letter, 
+[lang="ka"] h3::first-letter,
+[lang="ka"] h4::first-letter, 
+[lang="ka"] h5::first-letter, 
+[lang="ka"] h6::first-letter, 
+[lang="ka"] p::first-letter, 
+[lang="ka"] label::first-letter, 
+[lang="ka"] a::first-letter, 
+[lang="ka"] span::first-letter, 
+[lang="ka"] div::first-letter {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  letter-spacing: -0.2px !important;
+  font-weight: normal !important;
+}
+
 /* Ensure placeholder text in inputs also uses the Georgian font */
 [lang="ka"] input::placeholder,
 [lang="ka"] textarea::placeholder {
@@ -245,4 +264,26 @@
 [lang="ka"] .landing-button * {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
   letter-spacing: -0.2px !important;
+}
+
+/* Extra specific selectors for auth UI components */
+[lang="ka"] .TabsTrigger::first-letter,
+[lang="ka"] .TabsTrigger,
+[lang="ka"] [role="tab"]::first-letter,
+[lang="ka"] [role="tab"] {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  font-weight: normal !important;
+  letter-spacing: -0.2px !important;
+}
+
+/* Direct targeting for tabs in auth UI */
+[lang="ka"] [data-radix-collection-item] {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  font-weight: normal !important;
+}
+
+/* Target the first letter of each Georgian word */
+[lang="ka"] [data-radix-collection-item]::first-letter {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  font-weight: normal !important;
 }

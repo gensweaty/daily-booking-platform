@@ -10,6 +10,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "@/components/shared/LanguageText";
 
 interface AuthUIProps {
   defaultTab?: "signin" | "signup";
@@ -20,7 +21,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   useEffect(() => {
     if (location.pathname === "/signup") {
@@ -31,7 +32,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-background p-4">
+    <div className="min-h-screen bg-background p-4" lang={language}>
       <header className="mb-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
@@ -60,18 +61,22 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
           </div>
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-1 text-center">
-          {t("auth.welcome")}
+          {language === 'ka' ? <LanguageText>{t("auth.welcome")}</LanguageText> : t("auth.welcome")}
         </h1>
         <p className="text-foreground/80 text-center text-sm mb-4">
-          {t("auth.description")}
+          {language === 'ka' ? <LanguageText>{t("auth.description")}</LanguageText> : t("auth.description")}
         </p>
       </header>
 
       <div className="w-full max-w-sm mx-auto">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "signin" | "signup")} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="signin">{t("auth.signInButton")}</TabsTrigger>
-            <TabsTrigger value="signup">{t("auth.signUpButton")}</TabsTrigger>
+            <TabsTrigger value="signin" className={language === 'ka' ? "font-georgian" : ""}>
+              {language === 'ka' ? <LanguageText>{t("auth.signInButton")}</LanguageText> : t("auth.signInButton")}
+            </TabsTrigger>
+            <TabsTrigger value="signup" className={language === 'ka' ? "font-georgian" : ""}>
+              {language === 'ka' ? <LanguageText>{t("auth.signUpButton")}</LanguageText> : t("auth.signUpButton")}
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="signin">
             <SignIn />
