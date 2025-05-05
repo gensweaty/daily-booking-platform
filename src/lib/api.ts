@@ -107,12 +107,31 @@ export const testEmailSending = async (recipientEmail: string): Promise<any> => 
       throw new Error("Authentication error");
     }
     
+    // Try to fetch the current user's business profile for address
+    let businessAddress = null;
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user?.id) {
+        const { data: businessData } = await supabase
+          .from('business_profiles')
+          .select('contact_address')
+          .eq('user_id', userData.user.id)
+          .maybeSingle();
+          
+        businessAddress = businessData?.contact_address || null;
+        console.log("Found business address for test email:", businessAddress || "None");
+      }
+    } catch (err) {
+      console.warn("Could not fetch business address for test email:", err);
+    }
+    
     const testData = {
       recipientEmail: recipientEmail.trim(),
       fullName: "Test User",
       businessName: "Test Business",
       startDate: new Date().toISOString(),
       endDate: new Date(Date.now() + 3600000).toISOString(), // 1 hour later
+      businessAddress: businessAddress
     };
     
     console.log("Sending test email with data:", testData);

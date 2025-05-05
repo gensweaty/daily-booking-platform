@@ -14,8 +14,9 @@ interface BookingApprovalEmailRequest {
   businessName: string;
   startDate: string;
   endDate: string;
-  paymentStatus?: string; // Added payment status
-  paymentAmount?: number; // Added payment amount
+  paymentStatus?: string; 
+  paymentAmount?: number;
+  businessAddress?: string; // Added business address field
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -40,13 +41,23 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    const { recipientEmail, fullName, businessName, startDate, endDate, paymentStatus, paymentAmount } = parsedBody;
+    const { 
+      recipientEmail, 
+      fullName, 
+      businessName, 
+      startDate, 
+      endDate, 
+      paymentStatus, 
+      paymentAmount,
+      businessAddress 
+    } = parsedBody;
 
     console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName}`);
     console.log(`Start date (raw ISO string): ${startDate}`);
     console.log(`End date (raw ISO string): ${endDate}`);
     console.log(`Payment status: ${paymentStatus}`);
     console.log(`Payment amount: ${paymentAmount}`);
+    console.log(`Business address: ${businessAddress || 'Not provided'}`);
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -94,6 +105,21 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       
+      // Process business address if available
+      let addressInfo = "";
+      if (businessAddress) {
+        // Clean the address string to remove any =20 or similar encoding artifacts
+        let cleanAddress = businessAddress.trim();
+        cleanAddress = cleanAddress.replace(/=20/g, ' ');
+        cleanAddress = cleanAddress.replace(/\s+/g, ' '); // Normalize whitespace
+        
+        console.log(`Cleaned business address: "${cleanAddress}"`);
+        
+        if (cleanAddress) {
+          addressInfo = `<p><strong>Address:</strong> ${cleanAddress}</p>`;
+        }
+      }
+      
       // Create HTML email content with simpler formatting
       const htmlContent = `
         <!DOCTYPE html>
@@ -107,6 +133,7 @@ const handler = async (req: Request): Promise<Response> => {
           <h2 style="color: #333;">Hello ${fullName},</h2>
           <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
           <p><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+          ${addressInfo}
           ${paymentInfo}
           <p>We look forward to seeing you!</p>
           <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">

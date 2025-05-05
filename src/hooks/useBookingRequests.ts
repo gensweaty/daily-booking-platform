@@ -54,7 +54,7 @@ export const useBookingRequests = () => {
   const approvedRequests = bookingRequests.filter(req => req.status === 'approved');
   const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected');
   
-  async function sendApprovalEmail({ email, fullName, businessName, startDate, endDate, paymentStatus, paymentAmount }: {
+  async function sendApprovalEmail({ email, fullName, businessName, startDate, endDate, paymentStatus, paymentAmount, businessAddress }: {
     email: string;
     fullName: string;
     businessName: string;
@@ -62,6 +62,7 @@ export const useBookingRequests = () => {
     endDate: string;
     paymentStatus?: string;
     paymentAmount?: number;
+    businessAddress?: string;
   }) {
     if (!email || !email.includes('@')) {
       console.error("Invalid email format or missing email:", email);
@@ -72,6 +73,7 @@ export const useBookingRequests = () => {
       console.log(`Sending approval email to ${email} for booking at ${businessName}`);
       console.log(`Raw start date: ${startDate}`);
       console.log(`Raw end date: ${endDate}`);
+      console.log(`Business address: ${businessAddress || 'Not provided'}`);
       
       // Prepare the request with all required data
       const requestBody = JSON.stringify({
@@ -81,7 +83,8 @@ export const useBookingRequests = () => {
         startDate: startDate,
         endDate: endDate,
         paymentStatus: paymentStatus,
-        paymentAmount: paymentAmount
+        paymentAmount: paymentAmount,
+        businessAddress: businessAddress ? businessAddress.trim() : undefined
       });
       
       console.log("Request body for email function:", requestBody);
@@ -391,14 +394,23 @@ export const useBookingRequests = () => {
       // Email notification processing
       if (booking && booking.requester_email) {
         let businessName = "Our Business";
+        let businessAddress = null;
+        
         try {
+          // Fetch business profile with name AND address
           const { data: businessProfile } = await supabase
             .from('business_profiles')
-            .select('business_name')
+            .select('business_name, contact_address')
             .eq('id', booking.business_id)
             .maybeSingle();
-          if (businessProfile && businessProfile.business_name) {
-            businessName = businessProfile.business_name;
+            
+          if (businessProfile) {
+            businessName = businessProfile.business_name || businessName;
+            businessAddress = businessProfile.contact_address || null;
+            console.log("Fetched business profile details:", { 
+              name: businessName, 
+              address: businessAddress || "Not available" 
+            });
           }
         } catch (err) {
           console.warn("Could not load business profile for email:", err);
@@ -411,9 +423,10 @@ export const useBookingRequests = () => {
           businessName,
           startDate: booking.start_date,
           endDate: booking.end_date,
+          businessAddress: businessAddress || "Not provided",
         });
         
-        // Make sure we're passing payment info to the email function
+        // Make sure we're passing payment info and business address to the email function
         const emailResult = await sendApprovalEmail({
           email: booking.requester_email,
           fullName: booking.requester_name || booking.user_surname || "",
@@ -421,7 +434,8 @@ export const useBookingRequests = () => {
           startDate: booking.start_date,
           endDate: booking.end_date,
           paymentStatus: booking.payment_status,
-          paymentAmount: booking.payment_amount
+          paymentAmount: booking.payment_amount,
+          businessAddress: businessAddress
         });
         
         if (emailResult.success) {
