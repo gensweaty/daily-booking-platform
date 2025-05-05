@@ -9,6 +9,7 @@ import { FileDisplay } from "@/components/shared/FileDisplay";
 import { cn } from "@/lib/utils";
 import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { getCurrencySymbol } from "@/lib/currency";
 
 interface EventDialogFieldsProps {
@@ -84,6 +85,16 @@ export const EventDialogFields = ({
     MozOsxFontSmoothing: 'grayscale'
   } : undefined;
   
+  // Helper function for Georgian label text
+  const renderGeorgianLabel = (text: string) => {
+    if (isGeorgian) {
+      if (text === "events.fullName") return <GeorgianAuthText>სრული სახელი</GeorgianAuthText>;
+      if (text === "events.socialLinkEmail") return <GeorgianAuthText>ელფოსტა</GeorgianAuthText>; 
+      if (text === "events.eventNotes") return <GeorgianAuthText>შენიშვნები</GeorgianAuthText>;
+    }
+    return <LanguageText>{t(text)}</LanguageText>;
+  };
+  
   return <>
       <div>
         <Label 
@@ -91,7 +102,7 @@ export const EventDialogFields = ({
           className={cn(isGeorgian ? "font-georgian" : "")}
           style={georgianStyle}
         >
-          <LanguageText>{t("events.fullName")}</LanguageText>
+          {renderGeorgianLabel("events.fullName")}
         </Label>
         <Input 
           id="userSurname" 
@@ -129,7 +140,7 @@ export const EventDialogFields = ({
           className={cn(isGeorgian ? "font-georgian" : "")}
           style={georgianStyle}
         >
-          <LanguageText>{t("events.socialLinkEmail")}</LanguageText>
+          {renderGeorgianLabel("events.socialLinkEmail")}
         </Label>
         <Input 
           id="socialNetworkLink" 
@@ -255,7 +266,7 @@ export const EventDialogFields = ({
           className={cn(isGeorgian ? "font-georgian" : "")}
           style={georgianStyle}
         >
-          <LanguageText>{t("events.eventNotes")}</LanguageText>
+          {renderGeorgianLabel("events.eventNotes")}
         </Label>
         <Textarea 
           id="eventNotes" 
