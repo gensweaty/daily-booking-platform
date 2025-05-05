@@ -14,8 +14,9 @@ interface BookingApprovalEmailRequest {
   businessName: string;
   startDate: string;
   endDate: string;
-  paymentStatus?: string; // Added payment status
-  paymentAmount?: number; // Added payment amount
+  paymentStatus?: string; // Still kept in interface for backward compatibility
+  paymentAmount?: number; // Still kept in interface for backward compatibility
+  businessAddress?: string; // New field for business address
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -40,13 +41,12 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    const { recipientEmail, fullName, businessName, startDate, endDate, paymentStatus, paymentAmount } = parsedBody;
+    const { recipientEmail, fullName, businessName, startDate, endDate, businessAddress } = parsedBody;
 
     console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName}`);
     console.log(`Start date (raw ISO string): ${startDate}`);
     console.log(`End date (raw ISO string): ${endDate}`);
-    console.log(`Payment status: ${paymentStatus}`);
-    console.log(`Payment amount: ${paymentAmount}`);
+    console.log(`Business address: ${businessAddress}`);
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -81,17 +81,10 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Attempting to send email via SMTP to ${recipientEmail}`);
     
     try {
-      // Format payment information if available
-      let paymentInfo = "";
-      if (paymentStatus) {
-        const formattedStatus = formatPaymentStatus(paymentStatus);
-        
-        if (paymentStatus === 'partly_paid' || paymentStatus === 'fully_paid') {
-          const amountDisplay = paymentAmount ? `$${paymentAmount}` : "";
-          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus} ${amountDisplay}</p>`;
-        } else {
-          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus}</p>`;
-        }
+      // Create address section if address is available
+      let addressInfo = "";
+      if (businessAddress) {
+        addressInfo = `<p><strong>Address:</strong> ${businessAddress}</p>`;
       }
       
       // Create HTML email content with simpler formatting
@@ -107,7 +100,7 @@ const handler = async (req: Request): Promise<Response> => {
           <h2 style="color: #333;">Hello ${fullName},</h2>
           <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
           <p><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-          ${paymentInfo}
+          ${addressInfo}
           <p>We look forward to seeing you!</p>
           <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
           <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
@@ -169,7 +162,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-// Format payment status for display
+// Format payment status for display - kept for backward compatibility
 function formatPaymentStatus(status: string): string {
   switch (status) {
     case "not_paid":
