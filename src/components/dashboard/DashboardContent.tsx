@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -96,7 +97,11 @@ export const DashboardContent = ({
             <BarChart className="w-4 h-4" />
           </motion.div>
           <span className="hidden sm:inline">
-            <LanguageText>{t("dashboard.statistics")}</LanguageText>
+            {isGeorgian ? (
+              <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტიკა</GeorgianAuthText>
+            ) : (
+              <LanguageText>{t("dashboard.statistics")}</LanguageText>
+            )}
           </span>
         </TabsTrigger>
         <TabsTrigger 
@@ -205,7 +210,11 @@ export const DashboardContent = ({
             <Card className="min-h-[calc(100vh-12rem)]">
               <CardHeader>
                 <CardTitle>
-                  <LanguageText>{t("dashboard.statistics")}</LanguageText>
+                  {isGeorgian ? (
+                    <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტიკა</GeorgianAuthText>
+                  ) : (
+                    <LanguageText>{t("dashboard.statistics")}</LanguageText>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>

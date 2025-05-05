@@ -10,9 +10,13 @@ import { useStatistics } from "./Statistics/useStatistics";
 import { useExcelExport } from "./Statistics/ExcelExport";
 import { Skeleton } from "./ui/skeleton";
 import { LanguageText } from "./shared/LanguageText";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { GeorgianAuthText } from "./shared/GeorgianAuthText";
 
 export const Statistics = () => {
   const { user } = useAuth();
+  const { language } = useLanguage();
+  const isGeorgian = language === 'ka';
   const currentDate = useMemo(() => new Date(), []);
   const [dateRange, setDateRange] = useState({ 
     start: startOfMonth(currentDate),
