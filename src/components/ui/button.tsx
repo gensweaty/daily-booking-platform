@@ -52,17 +52,38 @@ export interface ButtonProps
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, children, ...props }, ref) => {
-    const { language } = useLanguage();
+    const { language, t } = useLanguage();
     const isGeorgian = language === 'ka';
     
     const Component = asChild ? Slot : "button"
     
-    // For Georgian text, wrap children with GeorgianAuthText to ensure proper font rendering
-    const wrappedChildren = isGeorgian && typeof children === 'string' ? (
-      <GeorgianAuthText fontWeight={props.disabled ? 'normal' : 'bold'}>
-        {children}
-      </GeorgianAuthText>
-    ) : children;
+    // For Georgian text, we need special handling
+    let wrappedChildren = children;
+    
+    // For button text that needs translation
+    if (isGeorgian && typeof children === 'string') {
+      // Special case for common button labels that need translation
+      if (children === 'add' || children === 'Add') {
+        wrappedChildren = (
+          <GeorgianAuthText fontWeight={props.disabled ? 'normal' : 'bold'}>
+            დამატება
+          </GeorgianAuthText>
+        );
+      } else if (children === 'update' || children === 'Update') {
+        wrappedChildren = (
+          <GeorgianAuthText fontWeight={props.disabled ? 'normal' : 'bold'}>
+            განახლება
+          </GeorgianAuthText>
+        );
+      } else {
+        // General case for other text
+        wrappedChildren = (
+          <GeorgianAuthText fontWeight={props.disabled ? 'normal' : 'bold'}>
+            {children}
+          </GeorgianAuthText>
+        );
+      }
+    }
     
     return (
       <Component

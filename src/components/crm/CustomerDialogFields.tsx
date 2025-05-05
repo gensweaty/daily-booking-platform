@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -18,6 +17,7 @@ import { CalendarIcon, Clock, ChevronUp, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { getCurrencySymbol } from "@/lib/currency";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -86,10 +86,12 @@ export const CustomerDialogFields = ({
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
+  const currencySymbol = getCurrencySymbol(language);
   
   // Show payment amount field if payment status is partly paid or fully paid
   const showPaymentAmount = paymentStatus === "partly" || paymentStatus === "fully";
 
+  // Helper function to format date and time for display
   const formatDateTime = (dateStr: string | null | undefined) => {
     if (!dateStr) return "-";
     try {
@@ -143,7 +145,7 @@ export const CustomerDialogFields = ({
           </LanguageText>
           {(normalizedStatus === 'partly' || normalizedStatus === 'fully') && paymentAmount && (
             <div className="text-xs mt-0.5">
-              ({language === 'es' ? '€' : '$'}{paymentAmount})
+              ({currencySymbol}{paymentAmount})
             </div>
           )}
         </div>
@@ -479,13 +481,13 @@ export const CustomerDialogFields = ({
           {showPaymentAmount && (
             <div className="space-y-2">
               <Label htmlFor="amount">
-                {t("events.paymentAmount")} ({language === 'es' ? '€' : '$'})
+                {t("events.paymentAmount")} ({currencySymbol})
               </Label>
               <Input
                 id="amount"
                 type="number"
                 step="0.01"
-                placeholder={`${t("events.paymentAmount")} ${language === 'es' ? '(€)' : '($)'}`}
+                placeholder={`${t("events.paymentAmount")} (${currencySymbol})`}
                 value={paymentAmount}
                 onChange={(e) => setPaymentAmount(e.target.value)}
                 required={showPaymentAmount}
