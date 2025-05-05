@@ -14,7 +14,6 @@ interface BookingApprovalEmailRequest {
   businessName: string;
   startDate: string;
   endDate: string;
-  language?: string; // Add language parameter
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -35,14 +34,13 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("Failed to parse JSON request:", parseError);
       return new Response(
         JSON.stringify({ error: "Invalid JSON in request body" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" }}
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
     }
     
-    const { recipientEmail, fullName, businessName, startDate, endDate, language = "en" } = parsedBody;
+    const { recipientEmail, fullName, businessName, startDate, endDate } = parsedBody;
 
     console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName}`);
-    console.log(`Language: ${language}`);
     console.log(`Start date (raw ISO string): ${startDate}`);
     console.log(`End date (raw ISO string): ${endDate}`);
 
@@ -52,7 +50,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("Invalid email format:", recipientEmail);
       return new Response(
         JSON.stringify({ error: "Invalid email format" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" }}
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
     }
     
@@ -79,23 +77,25 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Attempting to send email via SMTP to ${recipientEmail}`);
     
     try {
-      // Select email content based on language
-      const emailContent = getApprovalEmailContent(language, fullName, businessName, formattedStartDate, formattedEndDate);
-      const emailSubject = getApprovalEmailSubject(language, businessName);
+      // Create HTML email content
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+          <h2 style="color: #333;">Hello ${fullName},</h2>
+          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
+          <p><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+          <p>We look forward to seeing you!</p>
+          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+          <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
+        </div>
+      `;
       
-      // Send email using SMTP with encoding optimized for multilingual support (UTF-8)
+      // Send email using SMTP
       await client.send({
         from: `${businessName} <info@smartbookly.com>`,
         to: recipientEmail,
-        subject: emailSubject,
-        content: "Your booking has been approved", // Fallback plain text
-        html: emailContent,
-        // Critical UTF-8 encoding settings for proper display of Georgian and other languages
-        headers: {
-          "Content-Type": "text/html; charset=UTF-8",
-          "Content-Transfer-Encoding": "8bit",
-          "MIME-Version": "1.0"
-        },
+        subject: `Booking Approved at ${businessName}`,
+        content: "Your booking has been approved",
+        html: htmlContent,
       });
       
       console.log(`Email successfully sent to ${recipientEmail}`);
@@ -107,7 +107,7 @@ const handler = async (req: Request): Promise<Response> => {
           message: "Email sent successfully",
           to: recipientEmail
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" }}
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
     } catch (emailError: any) {
       console.error("Error sending email:", emailError);
@@ -127,7 +127,7 @@ const handler = async (req: Request): Promise<Response> => {
           details: emailError.message || "Unknown error",
           trace: typeof emailError.stack === 'string' ? emailError.stack : "No stack trace available"
         }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" }}
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
     }
   } catch (error: any) {
@@ -138,7 +138,7 @@ const handler = async (req: Request): Promise<Response> => {
         stack: error?.stack,
         message: "Failed to send email. Please try again later."
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" }}
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }}
     );
   }
 };
@@ -169,107 +169,6 @@ function formatDateTime(isoString: string): string {
   } catch (error) {
     console.error(`Error formatting date with timezone: ${error}`);
     return isoString; // Return original string if any error occurs
-  }
-}
-
-// Get email subject based on language
-function getApprovalEmailSubject(language: string, businessName: string): string {
-  switch (language.toLowerCase()) {
-    case 'ka':
-      return `დაჯავშნა დამტკიცებულია ${businessName}-ში`;
-    case 'es':
-      return `Reserva Aprobada en ${businessName}`;
-    case 'en':
-    default:
-      return `Booking Approved at ${businessName}`;
-  }
-}
-
-// Get email content based on language
-function getApprovalEmailContent(
-  language: string,
-  fullName: string,
-  businessName: string,
-  formattedStartDate: string,
-  formattedEndDate: string
-): string {
-  const baseStyles = `
-    font-family: Arial, sans-serif; 
-    max-width: 600px; 
-    margin: 0 auto; 
-    padding: 20px; 
-    border: 1px solid #eaeaea; 
-    border-radius: 5px;
-  `;
-  
-  switch (language.toLowerCase()) {
-    case 'ka':
-      // Georgian content
-      return `
-        <!DOCTYPE html>
-        <html lang="ka">
-        <head>
-          <meta charset="UTF-8">
-          <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-          <title>დაჯავშნის დადასტურება</title>
-        </head>
-        <body style="${baseStyles}">
-          <div>
-            <h2 style="color: #333;">გამარჯობა ${fullName},</h2>
-            <p>თქვენი ჯავშანი <b style="color: #4CAF50;">დამტკიცდა</b> <b>${businessName}</b>-ში.</p>
-            <p><strong>დაჯავშნის თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-            <p>ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
-            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-            <p style="color: #777; font-size: 14px;"><i>ეს არის ავტომატური შეტყობინება.</i></p>
-          </div>
-        </body>
-        </html>
-      `;
-    case 'es':
-      // Spanish content
-      return `
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-          <meta charset="UTF-8">
-          <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-          <title>Reserva Aprobada</title>
-        </head>
-        <body style="${baseStyles}">
-          <div>
-            <h2 style="color: #333;">Hola ${fullName},</h2>
-            <p>Su reserva ha sido <b style="color: #4CAF50;">aprobada</b> en <b>${businessName}</b>.</p>
-            <p><strong>Fecha y hora de la reserva:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-            <p>¡Esperamos verle pronto!</p>
-            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-            <p style="color: #777; font-size: 14px;"><i>Este es un mensaje automatizado.</i></p>
-          </div>
-        </body>
-        </html>
-      `;
-    case 'en':
-    default:
-      // English content (default)
-      return `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-          <title>Booking Approved</title>
-        </head>
-        <body style="${baseStyles}">
-          <div>
-            <h2 style="color: #333;">Hello ${fullName},</h2>
-            <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
-            <p><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-            <p>We look forward to seeing you!</p>
-            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-            <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
-          </div>
-        </body>
-        </html>
-      `;
   }
 }
 
