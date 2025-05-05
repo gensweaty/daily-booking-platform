@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -52,7 +53,7 @@ const handler = async (req: Request): Promise<Response> => {
         { 
           status: 500, 
           headers: { 
-            "Content-Type": "application/json",
+            "Content-Type": "application/json; charset=utf-8",
             ...corsHeaders 
           } 
         }
@@ -81,7 +82,7 @@ const handler = async (req: Request): Promise<Response> => {
         { 
           status: 400, 
           headers: { 
-            "Content-Type": "application/json",
+            "Content-Type": "application/json; charset=utf-8",
             ...corsHeaders 
           } 
         }
@@ -106,7 +107,7 @@ const handler = async (req: Request): Promise<Response> => {
         { 
           status: 400, 
           headers: { 
-            "Content-Type": "application/json",
+            "Content-Type": "application/json; charset=utf-8",
             ...corsHeaders 
           } 
         }
@@ -191,7 +192,7 @@ const handler = async (req: Request): Promise<Response> => {
         { 
           status: 400, 
           headers: { 
-            "Content-Type": "application/json",
+            "Content-Type": "application/json; charset=utf-8",
             ...corsHeaders
           } 
         }
@@ -287,6 +288,8 @@ const handler = async (req: Request): Promise<Response> => {
         // Add proper UTF-8 encoding headers for all emails, especially important for Georgian
         headers: {
           "Content-Type": "text/html; charset=UTF-8",
+          "Content-Transfer-Encoding": "quoted-printable",
+          "MIME-Version": "1.0"
         },
       });
       
@@ -319,7 +322,7 @@ const handler = async (req: Request): Promise<Response> => {
         { 
           status: 500, 
           headers: { 
-            "Content-Type": "application/json",
+            "Content-Type": "application/json; charset=utf-8",
             ...corsHeaders 
           } 
         }
@@ -342,7 +345,7 @@ const handler = async (req: Request): Promise<Response> => {
       { 
         status: 200, 
         headers: { 
-          "Content-Type": "application/json",
+          "Content-Type": "application/json; charset=utf-8",
           ...corsHeaders 
         } 
       }
@@ -363,7 +366,7 @@ const handler = async (req: Request): Promise<Response> => {
       { 
         status: 500, 
         headers: { 
-          "Content-Type": "application/json",
+          "Content-Type": "application/json; charset=utf-8",
           ...corsHeaders 
         } 
       }
@@ -412,6 +415,7 @@ function getRequestEmailContent(
       <html lang="ka">
       <head>
         <meta charset="UTF-8">
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>ახალი დაჯავშნის მოთხოვნა</title>
         <style>
@@ -479,6 +483,7 @@ https://smartbookly.com/dashboard
       <html lang="es">
       <head>
         <meta charset="UTF-8">
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Nueva Solicitud de Reserva</title>
         <style>
@@ -547,6 +552,7 @@ Si no se registró en SmartBookly, ignore este correo electrónico.
       <html lang="en">
       <head>
         <meta charset="UTF-8">
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>New Booking Request</title>
         <style>
