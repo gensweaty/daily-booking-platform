@@ -6,6 +6,74 @@ import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { associateBookingFilesWithEvent } from "@/integrations/supabase/client";
 
+// Helper function to associate booking files with a new event
+export const associateBookingFilesWithEvent = async (
+  bookingRequestId: string,
+  newEventId: string,
+  userId: string
+) => {
+  try {
+    console.log(`Copying files from booking ${bookingRequestId} to event ${newEventId}`);
+    
+    // Fetch all files associated with the booking request
+    const { data: bookingFiles, error: fetchError } = await supabase
+      .from('booking_files')
+      .select('*')
+      .eq('booking_request_id', bookingRequestId);
+      
+    if (fetchError) {
+      console.error("Error fetching booking files:", fetchError);
+      throw fetchError;
+    }
+    
+    if (!bookingFiles || bookingFiles.length === 0) {
+      console.log("No files found for booking request:", bookingRequestId);
+      return null;
+    }
+    
+    console.log(`Found ${bookingFiles.length} files to copy`);
+    
+    // Copy each file to the event_files table
+    const copiedFiles = [];
+    for (const file of bookingFiles) {
+      const { filename, file_path, content_type, size } = file;
+      
+      // Insert the file record into event_files
+      const { data: newFile, error: copyError } = await supabase
+        .from('event_files')
+        .insert({
+          event_id: newEventId,
+          filename,
+          file_path,
+          content_type,
+          size,
+          user_id: userId,
+        })
+        .select()
+        .single();
+        
+      if (copyError) {
+        console.error("Error copying file to event_files:", copyError);
+        continue; // Skip to the next file
+      }
+      
+      copiedFiles.push(newFile);
+      console.log(`Copied file ${filename} to event ${newEventId}`);
+    }
+    
+    if (copiedFiles.length === 0) {
+      console.log("No files were successfully copied to the event");
+      return null;
+    }
+    
+    // Return the first copied file (or adjust as needed)
+    return copiedFiles[0];
+  } catch (error) {
+    console.error("Error associating booking files with event:", error);
+    return null;
+  }
+};
+
 export const useCalendarEvents = (businessId?: string, businessUserId?: string | null) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -457,13 +525,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       event.type = 'event';
     }
     
-    // Create the event
+    // Create the event - Fix Type Error - We need to ensure end_date is included
+    const eventPayload = {
+      ...event,
+      user_id: user.id,
+      start_date: event.start_date,
+      end_date: event.end_date
+    };
+    
     const { data, error } = await supabase
       .from('events')
-      .insert({
-        ...event,
-        user_id: user.id
-      })
+      .insert(eventPayload)
       .select()
       .single();
       
@@ -478,7 +550,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     if (
       recipientEmail && 
       isValidEmail(recipientEmail) && 
-      !event.booking_request_id && 
+      !event.id && // Instead of checking booking_request_id which doesn't exist in the type
       data
     ) {
       try {
