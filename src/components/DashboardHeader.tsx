@@ -17,6 +17,7 @@ import { useTheme } from "next-themes";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 
 interface DashboardHeaderProps {
   username: string;
@@ -34,7 +35,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { toast } = useToast();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const { theme } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
 
   useEffect(() => {
     const fetchSubscription = async () => {
@@ -198,7 +200,13 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         </div>
       </div>
       <div className="text-center mb-2">
-        <h1 className="text-xl sm:text-2xl font-bold text-primary">{t('dashboard.welcome')}</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-primary">
+          {isGeorgian ? (
+            <GeorgianAuthText>მოგესალმებით</GeorgianAuthText>
+          ) : (
+            <LanguageText>{t('dashboard.welcome')}</LanguageText>
+          )}
+        </h1>
         <p className="text-sm text-foreground/80">
           {t('dashboard.subtitle')}
         </p>

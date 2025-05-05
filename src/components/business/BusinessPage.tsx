@@ -93,7 +93,11 @@ export const BusinessPage = () => {
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="profile">
-            <LanguageText>{t("business.businessProfile")}</LanguageText>
+            {isGeorgian ? (
+              <GeorgianAuthText>ბიზნეს პროფილი</GeorgianAuthText>
+            ) : (
+              <LanguageText>{t("business.businessProfile")}</LanguageText>
+            )}
           </TabsTrigger>
           <TabsTrigger value="bookings" className="relative">
             <LanguageText>{t("business.bookingRequests")}</LanguageText>
