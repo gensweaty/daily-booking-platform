@@ -14,6 +14,8 @@ interface BookingApprovalEmailRequest {
   businessName: string;
   startDate: string;
   endDate: string;
+  paymentStatus?: string; // Added payment status
+  paymentAmount?: number; // Added payment amount
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -38,11 +40,13 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    const { recipientEmail, fullName, businessName, startDate, endDate } = parsedBody;
+    const { recipientEmail, fullName, businessName, startDate, endDate, paymentStatus, paymentAmount } = parsedBody;
 
     console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName}`);
     console.log(`Start date (raw ISO string): ${startDate}`);
     console.log(`End date (raw ISO string): ${endDate}`);
+    console.log(`Payment status: ${paymentStatus}`);
+    console.log(`Payment amount: ${paymentAmount}`);
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -77,25 +81,51 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Attempting to send email via SMTP to ${recipientEmail}`);
     
     try {
-      // Create HTML email content
+      // Format payment information if available
+      let paymentInfo = "";
+      if (paymentStatus) {
+        const formattedStatus = formatPaymentStatus(paymentStatus);
+        
+        if (paymentStatus === 'partly_paid' || paymentStatus === 'fully_paid') {
+          const amountDisplay = paymentAmount ? `$${paymentAmount}` : "";
+          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus} ${amountDisplay}</p>`;
+        } else {
+          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus}</p>`;
+        }
+      }
+      
+      // Create HTML email content with properly encoded UTF-8 characters for all languages
       const htmlContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Booking Approved</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
           <h2 style="color: #333;">Hello ${fullName},</h2>
           <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
           <p><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+          ${paymentInfo}
           <p>We look forward to seeing you!</p>
           <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
           <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
-        </div>
+        </body>
+        </html>
       `;
       
-      // Send email using SMTP
+      // Send email using SMTP with proper UTF-8 encoding headers
       await client.send({
         from: `${businessName} <info@smartbookly.com>`,
         to: recipientEmail,
         subject: `Booking Approved at ${businessName}`,
         content: "Your booking has been approved",
         html: htmlContent,
+        headers: {
+          "Content-Type": "text/html; charset=UTF-8",
+          "Content-Transfer-Encoding": "8bit"
+        }
       });
       
       console.log(`Email successfully sent to ${recipientEmail}`);
@@ -142,6 +172,22 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 };
+
+// Format payment status for display
+function formatPaymentStatus(status: string): string {
+  switch (status) {
+    case "not_paid":
+      return "Not Paid";
+    case "partly_paid":
+    case "partly":
+      return "Partly Paid";
+    case "fully_paid":
+    case "fully":
+      return "Fully Paid";
+    default:
+      return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+  }
+}
 
 // Format dates with timezone awareness using Intl.DateTimeFormat
 function formatDateTime(isoString: string): string {

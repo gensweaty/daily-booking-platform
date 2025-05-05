@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -54,7 +53,7 @@ export const BookingRequestsList = ({
       if (key === "business.title") return <GeorgianAuthText>სათაური</GeorgianAuthText>;
       if (key === "business.dateTime") return <GeorgianAuthText>თარიღი და დრო</GeorgianAuthText>;
       if (key === "business.actions") return <GeorgianAuthText>მოქმედებები</GeorgianAuthText>;
-      if (key === "business.approve") return <GeorgianAuthText>დამტკიცება</GeorgianAuthText>;
+      if (key === "business.approve") return <GeorgianAuthText>დადასტურება</GeorgianAuthText>;
       if (key === "business.reject") return <GeorgianAuthText>უარყოფა</GeorgianAuthText>;
       if (key === "business.delete") return <GeorgianAuthText>წაშლა</GeorgianAuthText>;
     }
@@ -130,10 +129,10 @@ export const BookingRequestsList = ({
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="flex gap-1 items-center" 
+                    className="flex gap-1 items-center hover:bg-green-100 hover:text-green-700 hover:border-green-300" 
                     onClick={() => onApprove(request.id)}
                   >
-                    <Check className="h-4 w-4" />
+                    <Check className="h-4 w-4 text-green-600" />
                     <span>{renderGeorgianText("business.approve")}</span>
                   </Button>
                 )}
@@ -141,10 +140,10 @@ export const BookingRequestsList = ({
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="flex gap-1 items-center" 
+                    className="flex gap-1 items-center hover:bg-red-100 hover:text-red-700 hover:border-red-300" 
                     onClick={() => onReject(request.id)}
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-4 w-4 text-red-600" />
                     <span>{renderGeorgianText("business.reject")}</span>
                   </Button>
                 )}

@@ -186,7 +186,9 @@ export const EventDialog = ({
     endDateTime: Date,
     title: string,
     userSurname: string,
-    socialNetworkLink: string
+    socialNetworkLink: string,
+    paymentStatus?: string, 
+    paymentAmount?: string
   ) => {
     try {
       console.log("Sending booking approval email to", socialNetworkLink);
@@ -205,6 +207,8 @@ export const EventDialog = ({
         businessName,
         startDate: startDateTime.toISOString(),
         endDate: endDateTime.toISOString(),
+        paymentStatus,
+        paymentAmount: paymentAmount ? parseFloat(paymentAmount) : undefined
       });
       
       const { data: sessionData } = await supabase.auth.getSession();
@@ -229,6 +233,8 @@ export const EventDialog = ({
             businessName,
             startDate: startDateTime.toISOString(),
             endDate: endDateTime.toISOString(),
+            paymentStatus,
+            paymentAmount: paymentAmount ? parseFloat(paymentAmount) : undefined
           }),
         }
       );
@@ -347,7 +353,9 @@ export const EventDialog = ({
             endDateTime,
             title,
             userSurname,
-            socialNetworkLink
+            socialNetworkLink,
+            normalizedPaymentStatus,
+            paymentAmount
           );
           emailSent = true;
         } catch (emailError) {
