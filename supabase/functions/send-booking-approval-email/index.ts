@@ -16,7 +16,7 @@ interface BookingApprovalEmailRequest {
   endDate: string;
   paymentStatus?: string; // Still kept in interface for backward compatibility
   paymentAmount?: number; // Still kept in interface for backward compatibility
-  businessAddress?: string; // New field for business address
+  businessAddress?: string; // Field for business address
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -46,7 +46,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName}`);
     console.log(`Start date (raw ISO string): ${startDate}`);
     console.log(`End date (raw ISO string): ${endDate}`);
-    console.log(`Business address: ${businessAddress}`);
+    console.log(`Business address raw: ${businessAddress}`);
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -81,14 +81,18 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Attempting to send email via SMTP to ${recipientEmail}`);
     
     try {
-      // Create address section if address is available
-      let addressInfo = "";
+      // Process the business address if available
+      let addressSection = "";
       if (businessAddress) {
-        // Fix for the "=20" encoding issue - do proper processing of the address
-        // Strip all extra whitespace and normalize it
+        // Clean the address: remove extra whitespace and normalize
         const cleanAddress = businessAddress.trim().replace(/\s+/g, " ");
-        addressInfo = `<p><strong>Address:</strong> ${cleanAddress}</p>`;
-        console.log(`Cleaned address for email: "${cleanAddress}"`);
+        console.log(`Cleaned business address: "${cleanAddress}"`);
+        
+        if (cleanAddress) {
+          addressSection = `
+            <p><strong>Address:</strong> ${cleanAddress}</p>
+          `;
+        }
       }
       
       // Create HTML email content with simpler formatting
@@ -104,7 +108,7 @@ const handler = async (req: Request): Promise<Response> => {
           <h2 style="color: #333;">Hello ${fullName},</h2>
           <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
           <p><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-          ${addressInfo}
+          ${addressSection}
           <p>We look forward to seeing you!</p>
           <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
           <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>

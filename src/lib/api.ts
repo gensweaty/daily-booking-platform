@@ -113,12 +113,9 @@ export const testEmailSending = async (recipientEmail: string): Promise<any> => 
       .select("*")
       .single();
     
-    // Make sure the address is properly formatted for the test email
-    let businessAddress = "";
-    if (businessProfile?.contact_address) {
-      businessAddress = businessProfile.contact_address.trim();
-      console.log("Using business address for test email:", businessAddress);
-    }
+    // Get the business address from the profile
+    const businessAddress = businessProfile?.contact_address || "";
+    console.log("Using business address for test email:", businessAddress);
     
     const testData = {
       recipientEmail: recipientEmail.trim(),
@@ -126,7 +123,7 @@ export const testEmailSending = async (recipientEmail: string): Promise<any> => 
       businessName: "Test Business",
       startDate: new Date().toISOString(),
       endDate: new Date(Date.now() + 3600000).toISOString(), // 1 hour later
-      businessAddress: businessAddress,
+      businessAddress: businessAddress, // Pass the full address string
     };
     
     console.log("Sending test email with data:", testData);
