@@ -22,15 +22,15 @@ interface BookingApprovalEmailRequest {
 }
 
 // For deduplication: Store a map of recently sent emails with expiring entries
-// The key is eventId_recipientEmail
+// The key format is eventId_recipientEmail
 const recentlySentEmails = new Map<string, number>();
 
 // Clean up old entries from the deduplication map every 5 minutes
 setInterval(() => {
   const now = Date.now();
   for (const [key, timestamp] of recentlySentEmails.entries()) {
-    // Remove entries older than 10 minutes (increased from 2 minutes)
-    if (now - timestamp > 600000) {
+    // Remove entries older than 30 minutes to be extra safe
+    if (now - timestamp > 1800000) {
       recentlySentEmails.delete(key);
     }
   }
@@ -107,45 +107,60 @@ const handler = async (req: Request): Promise<Response> => {
       source
     } = parsedBody;
 
-    // Build a unique deduplication key - combine eventId (if available) with email and add source
+    // IMPROVED: More robust deduplication logic
+    // If no address is provided but eventId exists, don't send email - wait for the one with address
+    // This ensures we only send the email with the address included
+    if (!businessAddress && eventId) {
+      console.log(`Request without address received for event ${eventId}. Skipping in favor of request with address.`);
+      return new Response(
+        JSON.stringify({ 
+          message: "Skipping email without address",
+          reason: "Missing address but eventId exists",
+          to: recipientEmail,
+          id: null,
+          skipped: true,
+          eventId
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+      );
+    }
+
+    // Build a standardized deduplication key - combine eventId with email
     let dedupeKey: string;
     
     if (eventId) {
       dedupeKey = `${eventId}_${recipientEmail}`;
+      
+      // Check if we already sent an email for this event/recipient
+      const now = Date.now();
+      if (recentlySentEmails.has(dedupeKey)) {
+        const lastSent = recentlySentEmails.get(dedupeKey);
+        const timeAgo = now - (lastSent || 0);
+        console.log(`Duplicate email detected for key ${dedupeKey}. Last sent ${timeAgo}ms ago. Skipping.`);
+        
+        return new Response(
+          JSON.stringify({ 
+            message: "Email request was identified as a duplicate and skipped",
+            to: recipientEmail,
+            id: null,
+            isDuplicate: true,
+            dedupeKey: dedupeKey,
+            timeAgo: timeAgo
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+        );
+      }
     } else {
       // If no eventId, use a combination of email and timestamps as a fallback
       dedupeKey = `${recipientEmail}_${startDate}_${endDate}`;
     }
     
-    // Add source for additional tracking in logs
-    if (source) {
-      dedupeKey += `_${source}`;
-    }
-    
-    const now = Date.now();
-    
-    // Check if this exact email was sent recently
-    if (recentlySentEmails.has(dedupeKey)) {
-      const lastSent = recentlySentEmails.get(dedupeKey);
-      const timeAgo = now - (lastSent || 0);
-      console.log(`Duplicate email detected for key ${dedupeKey}. Last sent ${timeAgo}ms ago. Skipping.`);
-      
-      return new Response(
-        JSON.stringify({ 
-          message: "Email request was identified as a duplicate and skipped",
-          to: recipientEmail,
-          id: null,
-          isDuplicate: true,
-          dedupeKey: dedupeKey,
-          timeAgo: timeAgo
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
-      );
-    }
+    // Add source info to the log record, but not to the deduplication key
+    const logRecord = source ? `${dedupeKey} (source: ${source})` : dedupeKey;
     
     // Mark as recently sent
-    recentlySentEmails.set(dedupeKey, now);
-    console.log(`Setting deduplication key: ${dedupeKey} (tracking ${recentlySentEmails.size} emails)`);
+    recentlySentEmails.set(dedupeKey, Date.now());
+    console.log(`Setting deduplication key: ${logRecord} (tracking ${recentlySentEmails.size} emails)`);
 
     console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName || "Unknown Business"}`);
     console.log(`Start date (raw ISO string): ${startDate}`);

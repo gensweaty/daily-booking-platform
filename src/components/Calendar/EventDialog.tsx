@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -181,6 +182,7 @@ export const EventDialog = ({
     }
   }, [event, open]);
 
+  // ENHANCED: This function now ensures we always get the address
   const sendApprovalEmail = async (
     startDateTime: Date,
     endDateTime: Date,
@@ -194,39 +196,38 @@ export const EventDialog = ({
     try {
       console.log("Sending booking approval email to", socialNetworkLink);
       
-      // IMPROVED: Create a more robust deduplication key
-      if (eventId) {
-        // Check for multiple possible deduplication keys with consistent naming
-        const hasRecentEmail = 
-          localStorage.getItem(`calendar_event_${eventId}_${Math.floor(Date.now()/10000)}`) ||
-          localStorage.getItem(`dashboard_customer_${eventId}_${Math.floor(Date.now()/10000)}`) ||
-          localStorage.getItem(`newcustomer_event_${eventId}_${Math.floor(Date.now()/10000)}`) ||
-          localStorage.getItem(`event_dialog_${eventId}_${Math.floor(Date.now()/10000)}`);
-        
-        if (hasRecentEmail) {
-          console.log("Email already sent recently for this event, skipping duplicate", eventId);
-          return;
-        }
-        
-        // Mark as sent with a specific key for EventDialog
-        const emailDedupeKey = `event_dialog_${eventId}_${Math.floor(Date.now()/10000)}`;
-        localStorage.setItem(emailDedupeKey, 'true');
-        
-        // Set expiration after 5 minutes to clean up
-        setTimeout(() => {
-          localStorage.removeItem(emailDedupeKey);
-        }, 300000);
-      }
-      
-      const { data: businessProfile } = await supabase
+      // Get business address FIRST before any deduplication to ensure we always have it
+      const { data: businessProfile, error: profileError } = await supabase
         .from('business_profiles')
         .select('business_name, contact_address')
         .eq('user_id', user?.id)
         .maybeSingle();
+      
+      if (profileError) {
+        console.error("Error fetching business profile for email:", profileError);
+        throw new Error("Failed to fetch business profile");
+      }
+      
+      if (!businessProfile) {
+        console.error("Business profile not found for user:", user?.id);
+        throw new Error("Business profile not found");
+      }
         
       const businessName = businessProfile?.business_name || "Our Business";
       const businessAddress = businessProfile?.contact_address || "";
       
+      // Exit early if no address is available - let the user know
+      if (!businessAddress && eventId) {
+        console.warn("No business address available, will not send confirmation email");
+        toast({
+          title: t("common.warning"),
+          description: t("No business address available. Please add one to your business profile to send confirmation emails."),
+          variant: "warning"
+        });
+        return;
+      }
+      
+      // Business address is available - send the email
       console.log("Email data:", {
         recipientEmail: socialNetworkLink,
         fullName: userSurname || title,
@@ -290,10 +291,20 @@ export const EventDialog = ({
         throw new Error(responseData?.error || responseData?.details || `Failed to send email notification (status ${response.status})`);
       }
       
-      toast({
-        title: t("common.success"),
-        description: t("Email notification sent successfully to ") + socialNetworkLink,
-      });
+      if (responseData.isDuplicate) {
+        console.log("Email was identified as duplicate and not sent");
+        toast({
+          title: t("common.info"),
+          description: t("Email notification already sent to ") + socialNetworkLink,
+        });
+      } else if (responseData.skipped) {
+        console.log("Email was skipped:", responseData.reason);
+      } else {
+        toast({
+          title: t("common.success"),
+          description: t("Email notification sent successfully to ") + socialNetworkLink,
+        });
+      }
       
     } catch (emailError) {
       console.error("Error sending email notification:", emailError);

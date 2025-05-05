@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -313,6 +314,112 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
   };
 
+  // IMPROVED: Helper function to validate email format
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // IMPROVED: Function to send confirmation email
+  const sendBookingConfirmationEmail = async (
+    eventId: string,
+    title: string, 
+    email: string,
+    startDate: string,
+    endDate: string,
+    paymentStatus: string,
+    paymentAmount: number | null
+  ) => {
+    try {
+      // Get business address and name before anything else
+      const { data: businessProfile, error: profileError } = await supabase
+        .from('business_profiles')
+        .select('contact_address, business_name')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+          
+      if (profileError) {
+        console.error('Error fetching business profile for email:', profileError);
+        throw new Error("Failed to fetch business profile");
+      }
+      
+      if (!businessProfile?.contact_address) {
+        console.warn("No business address found. Cannot send confirmation email.");
+        toast({
+          title: t("common.warning"),
+          description: t("No business address available. Please add one to your business profile to send confirmation emails."),
+          variant: "warning"
+        });
+        return false;
+      }
+      
+      console.log('Sending booking confirmation email from calendar with:');
+      console.log(`- Address: ${businessProfile?.contact_address || 'None'}`);
+      console.log(`- Business name: ${businessProfile?.business_name || 'None'}`);
+      
+      const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
+      if (!accessToken) {
+        console.error("No access token available for authenticated request");
+        throw new Error("Authentication error");
+      }
+      
+      const response = await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          recipientEmail: email.trim(),
+          fullName: title || '',
+          businessName: businessProfile?.business_name || '',
+          startDate: startDate,
+          endDate: endDate,
+          paymentStatus: paymentStatus || 'not_paid',
+          paymentAmount: paymentAmount || 0,
+          businessAddress: businessProfile?.contact_address || '',
+          eventId: eventId,
+          source: 'CalendarEvents'
+        })
+      });
+      
+      console.log("Email API response status:", response.status);
+      
+      const responseText = await response.text();
+      console.log("Email API response text:", responseText);
+      
+      let responseData;
+      try {
+        responseData = responseText ? JSON.parse(responseText) : {};
+        console.log("Email API parsed response:", responseData);
+      } catch (jsonError) {
+        console.error("Failed to parse email API response as JSON:", jsonError);
+        responseData = { textResponse: responseText };
+      }
+      
+      if (!response.ok) {
+        console.error("Failed to send email notification:", responseData?.error || response.statusText);
+        throw new Error(responseData?.error || responseData?.details || `Failed to send email notification (status ${response.status})`);
+      }
+      
+      if (responseData.isDuplicate) {
+        console.log("Email was identified as duplicate and not sent");
+        return true; // Still return success
+      } else if (responseData.skipped) {
+        console.log("Email was skipped:", responseData.reason);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error sending booking confirmation email:', error);
+      return false;
+    }
+  };
+
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to create events");
     
@@ -349,73 +456,33 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
     
     // MODIFIED: Only send email if we have a recipient email AND no recent email was sent for this event ID
-    // This prevents duplicate emails when creating events from the dashboard
+    // Do not even attempt to send if email is not valid
     const recipientEmail = event.social_network_link;
     if (recipientEmail && isValidEmail(recipientEmail)) {
       try {
-        // Create a deduplication key for this event
-        const eventEmailKey = `calendar_event_${data.id}_${Date.now()}`;
+        // This function already handles everything including checking for duplicates
+        const emailResult = await sendBookingConfirmationEmail(
+          data.id,
+          event.title || event.user_surname || '',
+          recipientEmail,
+          event.start_date as string,
+          event.end_date as string,
+          event.payment_status || 'not_paid',
+          event.payment_amount || null
+        );
         
-        // Check if we already sent an email for this event recently (from another component)
-        const recentEmailSent = localStorage.getItem(`dashboard_customer_${data.id}_${Date.now()}`) ||
-                                  localStorage.getItem(`newcustomer_event_${data.id}_${Date.now()}`);
-                                  
-        if (!recentEmailSent) {
-          console.log("No recent email detected for this event, sending from calendar event creation");
-          localStorage.setItem(eventEmailKey, 'true');
-          
-          // Get business address for the email
-          const { data: businessProfile, error: profileError } = await supabase
-            .from('business_profiles')
-            .select('contact_address, business_name')
-            .eq('user_id', user.id)
-            .maybeSingle();
-            
-          if (profileError) {
-            console.error('Error fetching business profile for email:', profileError);
-          } else {
-            console.log('Sending booking confirmation email from calendar with:');
-            console.log(`- Address: ${businessProfile?.contact_address || 'None'}`);
-            console.log(`- Business name: ${businessProfile?.business_name || 'None'}`);
-            
-            const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
-            
-            await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-              },
-              body: JSON.stringify({
-                recipientEmail: recipientEmail,
-                fullName: event.title || event.user_surname || '',
-                businessName: businessProfile?.business_name || '',
-                startDate: event.start_date,
-                endDate: event.end_date,
-                paymentStatus: event.payment_status || 'not_paid',
-                paymentAmount: event.payment_amount || 0,
-                businessAddress: businessProfile?.contact_address || '',
-                eventId: data.id,
-                source: 'CalendarEvents'
-              })
-            });
-          }
+        if (emailResult) {
+          console.log("Email sent or already sent recently");
         } else {
-          console.log("Skipping email send from calendar because another component already sent it");
+          console.log("Email sending skipped");
         }
       } catch (emailError) {
-        console.error('Error sending booking confirmation email:', emailError);
+        console.error('Error handling confirmation email:', emailError);
         // Don't throw error here, the event was created successfully
       }
     }
     
     return data;
-  };
-
-  // Helper function to validate email format
-  const isValidEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
   };
 
   const updateEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
@@ -569,46 +636,21 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.error("Error handling customer creation:", customerError);
       }
       
-      // Send confirmation email to customer with business address
-      try {
-        if (event.requester_email) {
-          // Fetch business profile details for the email
-          const { data: businessProfile, error: profileError } = await supabase
-            .from('business_profiles')
-            .select('contact_address, business_name')
-            .eq('user_id', user.id)
-            .maybeSingle();
-            
-          if (profileError) {
-            console.error('Error fetching business address for email:', profileError);
-          } else {
-            console.log('Sending booking approval email with:');
-            console.log(`- Address: ${businessProfile?.contact_address || 'None'}`);
-            console.log(`- Business name: ${businessProfile?.business_name || 'None'}`);
-            
-            const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
-            
-            await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-              },
-              body: JSON.stringify({
-                recipientEmail: event.requester_email,
-                fullName: event.requester_name || event.title || '',
-                businessName: businessProfile?.business_name || '',
-                startDate: event.start_date,
-                endDate: event.end_date,
-                paymentStatus: event.payment_status || 'not_paid',
-                paymentAmount: event.payment_amount || 0,
-                businessAddress: businessProfile?.contact_address || ''
-              })
-            });
-          }
+      // Send confirmation email to customer with business address - but only if we have a valid email
+      if (event.requester_email && isValidEmail(event.requester_email)) {
+        try {
+          await sendBookingConfirmationEmail(
+            newEvent.id,
+            event.requester_name || event.title || '',
+            event.requester_email,
+            event.start_date as string,
+            event.end_date as string,
+            event.payment_status || 'not_paid',
+            event.payment_amount || null
+          );
+        } catch (emailError) {
+          console.error('Error sending booking approval email:', emailError);
         }
-      } catch (emailError) {
-        console.error('Error sending booking approval email:', emailError);
       }
       
       // Soft-delete or update the original booking request
