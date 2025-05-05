@@ -88,15 +88,15 @@
 
 /* Fix for calendar icon position in datetime inputs */
 .datetime-input-fix::-webkit-calendar-picker-indicator {
-  margin-left: 0; /* Move calendar icon directly after the time text */
-  padding-right: 8px; /* Add some padding on the right */
   position: absolute;
-  right: 4px; /* Position from the right edge */
-  opacity: 0.8; /* Make it slightly transparent */
+  right: 10px; /* Position closer to the text */
+  opacity: 0.8;
+  padding: 0;
+  margin: 0;
 }
 
 /* Add additional styles to ensure the text doesn't overlap with the calendar icon */
 .datetime-input-fix {
-  padding-right: 30px; /* Make room for the calendar icon */
-  position: relative; /* Ensure relative positioning for absolute child elements */
+  padding-right: 24px; /* Reduced padding to keep text and icon closer */
+  position: relative;
 }
