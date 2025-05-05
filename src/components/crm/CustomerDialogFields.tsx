@@ -17,8 +17,6 @@ import { CalendarIcon, Clock, ChevronUp, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
-import { getGeorgianFontStyle } from "@/lib/font-utils";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -86,7 +84,6 @@ export const CustomerDialogFields = ({
   setEventEndDate,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
-  const isGeorgian = language === 'ka';
   
   // Show payment amount field if payment status is partly paid or fully paid
   const showPaymentAmount = paymentStatus === "partly" || paymentStatus === "fully";
@@ -168,61 +165,32 @@ export const CustomerDialogFields = ({
     return { value: minute, label: minute };
   });
 
-  // Helper function for Georgian labels
-  const renderGeorgianLabel = (labelKey: string) => {
-    if (isGeorgian) {
-      if (labelKey === "crm.fullNameRequired") return <GeorgianAuthText>სრული სახელი</GeorgianAuthText>;
-      if (labelKey === "crm.phoneNumber") return <GeorgianAuthText>ტელეფონის ნომერი</GeorgianAuthText>;
-      if (labelKey === "crm.socialLinkEmail") return <GeorgianAuthText>ელფოსტა</GeorgianAuthText>;
-      if (labelKey === "events.start") return <GeorgianAuthText>დაწყება</GeorgianAuthText>;
-      if (labelKey === "events.end") return <GeorgianAuthText>დასრულება</GeorgianAuthText>;
-    }
-    return <LanguageText>{t(labelKey)}</LanguageText>;
-  };
-
-  // Helper function for Georgian placeholders
-  const getGeorgianPlaceholder = (placeholderKey: string) => {
-    if (isGeorgian) {
-      if (placeholderKey === "crm.fullNamePlaceholder") return "სრული სახელი";
-      if (placeholderKey === "crm.phoneNumberPlaceholder") return "ტელეფონის ნომერი";
-    }
-    return t(placeholderKey);
-  };
-
   return (
     <div className="space-y-4 mt-4">
       <div className="space-y-2">
-        <Label htmlFor="title" className={isGeorgian ? "font-georgian" : ""} style={isGeorgian ? getGeorgianFontStyle() : undefined}>
-          {renderGeorgianLabel("crm.fullNameRequired")}
-        </Label>
+        <Label htmlFor="title">{t("crm.fullNameRequired")}</Label>
         <Input
           id="title"
-          placeholder={getGeorgianPlaceholder("crm.fullNamePlaceholder")}
+          placeholder={t("crm.fullNamePlaceholder")}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
-          className={isGeorgian ? "font-georgian placeholder:font-georgian" : ""}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="number" className={isGeorgian ? "font-georgian" : ""} style={isGeorgian ? getGeorgianFontStyle() : undefined}>
-          {renderGeorgianLabel("crm.phoneNumber")}
-        </Label>
+        <Label htmlFor="number">{t("crm.phoneNumber")}</Label>
         <Input
           id="number"
           type="tel"
-          placeholder={getGeorgianPlaceholder("crm.phoneNumberPlaceholder")}
+          placeholder={t("crm.phoneNumberPlaceholder")}
           value={userNumber}
           onChange={(e) => setUserNumber(e.target.value)}
-          className={isGeorgian ? "font-georgian placeholder:font-georgian" : ""}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="socialNetwork" className={isGeorgian ? "font-georgian" : ""} style={isGeorgian ? getGeorgianFontStyle() : undefined}>
-          {renderGeorgianLabel("crm.socialLinkEmail")}
-        </Label>
+        <Label htmlFor="socialNetwork">{t("crm.socialLinkEmail")}</Label>
         <Input
           id="socialNetwork"
           type="email"
@@ -260,8 +228,7 @@ export const CustomerDialogFields = ({
         />
         <Label
           htmlFor="createEvent"
-          className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed ${isEventBased ? "text-muted-foreground" : ""} ${isGeorgian ? "font-georgian" : ""}`}
-          style={isGeorgian ? getGeorgianFontStyle() : undefined}
+          className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed ${isEventBased ? "text-muted-foreground" : ""}`}
         >
           {isEventBased 
             ? t("crm.customerFromEvent") 
@@ -272,13 +239,11 @@ export const CustomerDialogFields = ({
       {createEvent && (
         <>
           <div className="space-y-2">
-            <Label className={isGeorgian ? "font-georgian" : ""} style={isGeorgian ? getGeorgianFontStyle() : undefined}>
-              <LanguageText>{t("events.dateAndTime")}</LanguageText>
-            </Label>
+            <Label>{t("events.dateAndTime")}</Label>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label htmlFor="startDate" className={`text-xs text-muted-foreground ${isGeorgian ? "font-georgian" : ""}`} style={isGeorgian ? getGeorgianFontStyle() : undefined}>
-                  {isGeorgian ? <GeorgianAuthText>დაწყება</GeorgianAuthText> : <LanguageText>{t("events.start")}</LanguageText>}
+                <Label htmlFor="startDate" className="text-xs text-muted-foreground">
+                  {t("events.start")}
                 </Label>
                 <Popover>
                   <PopoverTrigger asChild>
@@ -375,8 +340,8 @@ export const CustomerDialogFields = ({
                 </Popover>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="endDate" className={`text-xs text-muted-foreground ${isGeorgian ? "font-georgian" : ""}`} style={isGeorgian ? getGeorgianFontStyle() : undefined}>
-                  {isGeorgian ? <GeorgianAuthText>დასრულება</GeorgianAuthText> : <LanguageText>{t("events.end")}</LanguageText>}
+                <Label htmlFor="endDate" className="text-xs text-muted-foreground">
+                  {t("events.end")}
                 </Label>
                 <Popover>
                   <PopoverTrigger asChild>
