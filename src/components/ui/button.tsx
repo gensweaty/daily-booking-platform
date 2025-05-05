@@ -5,6 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 import { useLanguage } from "@/contexts/LanguageContext"
+import { GeorgianAuthText } from "../shared/GeorgianAuthText"
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
@@ -54,21 +55,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     
     const Component = asChild ? Slot : "button"
     
-    // For Georgian text, wrap children to ensure proper font rendering
+    // For Georgian text, wrap children with GeorgianAuthText to ensure proper font rendering
     const wrappedChildren = isGeorgian && typeof children === 'string' ? (
-      <span 
-        className="georgian-fix-text"
-        style={{
-          fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-          letterSpacing: '-0.2px',
-          fontWeight: 'normal',
-          WebkitFontSmoothing: 'antialiased',
-          MozOsxFontSmoothing: 'grayscale',
-          textRendering: 'optimizeLegibility'
-        }}
-      >
+      <GeorgianAuthText fontWeight={props.disabled ? 'normal' : 'bold'}>
         {children}
-      </span>
+      </GeorgianAuthText>
     ) : children;
     
     return (

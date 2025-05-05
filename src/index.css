@@ -107,13 +107,25 @@
     text-rendering: optimizeLegibility !important;
   }
   
+  /* Fixed Georgian bold text - ensure all letters including first are bold */
+  .georgian-bold-fix,
+  .georgian-bold-fix * {
+    font-weight: inherit !important;
+  }
+  
+  /* Fixed Georgian bold text - first letter fix */
+  .georgian-bold-fix::first-letter {
+    font-weight: inherit !important;
+  }
+  
   /* Ensure first letter of Georgian text is also bold when parent is bold */
   [lang="ka"] .font-bold *,
   [lang="ka"] .font-semibold *,
   [lang="ka"] h1 *, 
   [lang="ka"] h2 *, 
   [lang="ka"] h3 *,
-  [lang="ka"] .georgian-auth-text[style*="font-weight: bold"] * {
+  [lang="ka"] .georgian-auth-text[style*="font-weight: bold"] *,
+  [lang="ka"] .georgian-auth-text[style*="font-weight: bold"]::first-letter {
     font-weight: inherit !important;
   }
   
@@ -378,4 +390,31 @@
 [lang="ka"] [data-radix-collection-item]::first-letter {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
   font-weight: normal !important;
+}
+
+/* Additional fixes for the first letter bolding issue in Georgian text */
+[lang="ka"] .font-bold::first-letter,
+[lang="ka"] .font-semibold::first-letter,
+[lang="ka"] h1::first-letter, 
+[lang="ka"] h2::first-letter, 
+[lang="ka"] h3::first-letter,
+[lang="ka"] b::first-letter,
+[lang="ka"] strong::first-letter,
+[lang="ka"] [class*="font-bold"]::first-letter,
+[lang="ka"] button.font-medium::first-letter,
+[lang="ka"] .font-bold > *::first-letter,
+[lang="ka"] .font-semibold > *::first-letter,
+[lang="ka"] [class*="font-bold"] > *::first-letter {
+  font-weight: inherit !important;
+  font-family: inherit !important;
+}
+
+/* Special case for buttons and task titles with Georgian text */
+[lang="ka"] button::first-letter,
+[lang="ka"] button > *::first-letter,
+[lang="ka"] button > span::first-letter,
+[lang="ka"] .georgian-auth-text::first-letter,
+[lang="ka"] .georgian-auth-text > *::first-letter {
+  font-weight: inherit !important;
+  font-family: inherit !important;
 }

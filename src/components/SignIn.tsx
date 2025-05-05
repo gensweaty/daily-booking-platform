@@ -57,7 +57,7 @@ export const SignIn = () => {
     <form onSubmit={handleSignIn} className="space-y-4">
       <div className="mb-4">
         <Label htmlFor="email" className="block text-sm font-medium mb-1">
-          {isGeorgian ? <GeorgianAuthText>ელექტრონული ფოსტა</GeorgianAuthText> : t("auth.emailLabel")}
+          {isGeorgian ? <GeorgianAuthText fontWeight="bold">ელექტრონული ფოსტა</GeorgianAuthText> : t("auth.emailLabel")}
         </Label>
         <Input
           id="email"
@@ -73,14 +73,14 @@ export const SignIn = () => {
       <div className="mb-4">
         <div className="flex justify-between items-center mb-1">
           <Label htmlFor="password" className="block text-sm font-medium">
-            {isGeorgian ? <GeorgianAuthText>პაროლი</GeorgianAuthText> : t("auth.passwordLabel")}
+            {isGeorgian ? <GeorgianAuthText fontWeight="bold">პაროლი</GeorgianAuthText> : t("auth.passwordLabel")}
           </Label>
           <button 
             type="button"
             className="text-xs text-primary hover:underline focus:outline-none"
             onClick={handleForgotPasswordClick}
           >
-            {isGeorgian ? <GeorgianAuthText>დაგავიწყდა პაროლი?</GeorgianAuthText> : t("auth.forgotPassword")}
+            {isGeorgian ? <GeorgianAuthText fontWeight="bold">დაგავიწყდა პაროლი?</GeorgianAuthText> : t("auth.forgotPassword")}
           </button>
         </div>
         <Input
@@ -99,9 +99,14 @@ export const SignIn = () => {
         className="w-full bg-primary text-white font-medium"
         disabled={loading}
       >
-        {isGeorgian ? (loading ? <GeorgianAuthText>მიმდინარეობს...</GeorgianAuthText> : <GeorgianAuthText>შესვლა</GeorgianAuthText>) : (loading ? t("auth.loading") : t("auth.signInButton"))}
+        {isGeorgian ? 
+          (loading ? 
+            <GeorgianAuthText fontWeight="bold">მიმდინარეობს...</GeorgianAuthText> : 
+            <GeorgianAuthText fontWeight="bold">შესვლა</GeorgianAuthText>
+          ) : 
+          (loading ? t("auth.loading") : t("auth.signInButton"))
+        }
       </Button>
     </form>
   );
 };
-
