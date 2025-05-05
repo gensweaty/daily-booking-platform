@@ -395,6 +395,14 @@ export const BookingRequestForm = ({
     }
   };
 
+  // Get the correct Georgian placeholder text for event notes
+  const getEventNotesPlaceholder = () => {
+    if (isGeorgian) {
+      return "დაამატეთ შენიშვნები თქვენი მოთხოვნის შესახებ";
+    }
+    return t("events.addEventNotes");
+  };
+
   return (
     <div className="space-y-4 p-1">
       <h3 className="text-xl font-semibold">
@@ -605,7 +613,7 @@ export const BookingRequestForm = ({
           </div>
         )}
         
-        {/* Notes Field */}
+        {/* Notes Field - UPDATE THIS SECTION */}
         <div>
           <Label htmlFor="eventNotes" className={labelClass} style={georgianFontStyle}>
             {isGeorgian ? (
@@ -618,7 +626,7 @@ export const BookingRequestForm = ({
             id="eventNotes"
             value={eventNotes}
             onChange={(e) => setEventNotes(e.target.value)}
-            placeholder={isGeorgian ? "დაამატეთ შენიშვნები თქვენი მოთხოვნი��� შესახებ" : t("events.addEventNotes")}
+            placeholder={getEventNotesPlaceholder()}
             className={cn("min-h-[100px] resize-none", isGeorgian ? "placeholder:font-georgian font-georgian" : "")}
             style={georgianFontStyle}
           />
