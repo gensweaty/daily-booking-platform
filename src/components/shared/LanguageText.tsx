@@ -2,6 +2,7 @@
 import React from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
+import { getGeorgianFontStyle } from '@/lib/font-utils';
 
 interface LanguageTextProps {
   children: React.ReactNode;
@@ -23,18 +24,11 @@ export const LanguageText = ({
     return <span className={className}>{children}</span>;
   }
   
-  // For Georgian text, apply specific styling
+  // For Georgian text, apply specific styling from the util function
   return (
     <span 
-      className={cn("ka-text", className)}
-      style={{
-        fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-        letterSpacing: fixLetterSpacing ? '-0.2px' : 'normal',
-        fontWeight: 'normal',
-        WebkitFontSmoothing: 'antialiased',
-        MozOsxFontSmoothing: 'grayscale',
-        textRendering: 'optimizeLegibility'
-      }}
+      className={cn("ka-text georgian-text-fix", className)}
+      style={withFont ? getGeorgianFontStyle() : undefined}
     >
       {children}
     </span>
