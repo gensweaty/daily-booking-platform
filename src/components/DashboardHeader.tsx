@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -18,6 +17,7 @@ import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { LanguageText } from "@/components/shared/LanguageText";
 
 interface DashboardHeaderProps {
   username: string;
@@ -207,8 +207,12 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             <LanguageText>{t('dashboard.welcome')}</LanguageText>
           )}
         </h1>
-        <p className="text-sm text-foreground/80">
-          {t('dashboard.subtitle')}
+        <p className="text-sm text-foreground/80 font-bold">
+          {isGeorgian ? (
+            <GeorgianAuthText>თქვენი პროდუქტიულობის ცენტრი</GeorgianAuthText>
+          ) : (
+            <LanguageText>{t('dashboard.subtitle')}</LanguageText>
+          )}
         </p>
       </div>
     </header>
