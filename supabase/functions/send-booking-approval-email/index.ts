@@ -69,7 +69,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    // New date formatting that respects the original time
+    // Format dates
     const formattedStartDate = formatDateTime(startDate);
     const formattedEndDate = formatDateTime(endDate);
     
@@ -92,30 +92,37 @@ const handler = async (req: Request): Promise<Response> => {
       
       // --- Address Processing ---
       let addressInfo = "";
-      if (businessAddress && typeof businessAddress === 'string') {
-        console.log(`Processing business address: "${businessAddress}"`);
+      
+      // Debug logging to check what's coming in
+      console.log(`Exact business address value: "${businessAddress}"`);
+      console.log(`Address type: ${typeof businessAddress}`);
+      
+      if (businessAddress) {
+        // Make sure we have a non-empty string
+        const addressStr = String(businessAddress).trim();
+        console.log(`Processing normalized address: "${addressStr}"`);
         
-        // Clean the address 
-        let cleanAddress = businessAddress
-          // Remove any quoted-printable encodings
-          .replace(/=([0-9A-F]{2})/gi, (match, hex) => {
-            try { return String.fromCharCode(parseInt(hex, 16)); }
-            catch { return ' '; }
-          })
-          // Normalize whitespace
-          .replace(/\s+/g, ' ')
-          .trim();
+        if (addressStr.length > 0) {
+          // Simple clean-up - no need for complex parsing
+          const cleanAddress = addressStr
+            // Replace encoded characters if any
+            .replace(/=([0-9A-F]{2})/gi, (match, hex) => {
+              try { return String.fromCharCode(parseInt(hex, 16)); }
+              catch { return ' '; }
+            })
+            // Normalize whitespace
+            .replace(/\s+/g, ' ')
+            .trim();
+            
+          console.log(`Final cleaned address: "${cleanAddress}"`);
           
-        console.log(`Cleaned business address: "${cleanAddress}"`);
-        
-        if (cleanAddress.length > 0) {
-          addressInfo = `<p style="margin: 8px 0;"><strong>Address:</strong> ${cleanAddress}</p>`;
-          console.log(`Generated address HTML: ${addressInfo}`);
-        } else {
-          console.log("Address was empty after cleaning, not displaying");
+          if (cleanAddress.length > 0) {
+            addressInfo = `<p style="margin: 8px 0;"><strong>Address:</strong> ${cleanAddress}</p>`;
+            console.log(`Generated address HTML: ${addressInfo}`);
+          }
         }
       } else {
-        console.log("No business address provided or invalid format");
+        console.log("No business address provided");
       }
       
       // Create HTML email content with simpler formatting
