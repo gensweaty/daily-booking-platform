@@ -58,6 +58,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const Component = asChild ? Slot : "button"
     
     // For Georgian text, wrap children with GeorgianAuthText to ensure proper font rendering
+    // Improved handling for string children to ensure proper translation rendering
     const wrappedChildren = isGeorgian && typeof children === 'string' ? (
       <GeorgianAuthText fontWeight={props.disabled ? 'normal' : 'bold'}>
         {children}

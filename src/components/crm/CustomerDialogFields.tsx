@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -18,6 +17,7 @@ import { CalendarIcon, Clock, ChevronUp, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { getCurrencySymbol } from "@/lib/currency";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -89,17 +89,9 @@ export const CustomerDialogFields = ({
   
   // Show payment amount field if payment status is partly paid or fully paid
   const showPaymentAmount = paymentStatus === "partly" || paymentStatus === "fully";
-
-  const formatDateTime = (dateStr: string | null | undefined) => {
-    if (!dateStr) return "-";
-    try {
-      const date = new Date(dateStr);
-      return format(date, "PPp"); // Format using date-fns for localized date and time
-    } catch (error) {
-      console.error("Error formatting date:", error);
-      return dateStr;
-    }
-  };
+  
+  // Get the correct currency symbol based on language
+  const currencySymbol = getCurrencySymbol(language);
 
   // Function to format payment status display
   const renderPaymentStatus = () => {
@@ -479,17 +471,23 @@ export const CustomerDialogFields = ({
           {showPaymentAmount && (
             <div className="space-y-2">
               <Label htmlFor="amount">
-                {t("events.paymentAmount")} ({language === 'es' ? '€' : '$'})
+                {t("events.paymentAmount")} ({currencySymbol})
               </Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                placeholder={`${t("events.paymentAmount")} ${language === 'es' ? '(€)' : '($)'}`}
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-                required={showPaymentAmount}
-              />
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <span className="text-gray-500">{currencySymbol}</span>
+                </div>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  placeholder={`${t("events.paymentAmount")} (${currencySymbol})`}
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  required={showPaymentAmount}
+                  className="pl-7"
+                />
+              </div>
             </div>
           )}
         </>
