@@ -25,23 +25,29 @@ export function ThemeProvider({
   enableColorScheme = true,
   ...props 
 }: ThemeProviderProps) {
+  // Add a state to track if we've initialized the theme
+  const [themeInitialized, setThemeInitialized] = React.useState(false);
+
   // Force immediate theme application to prevent flicker
   React.useEffect(() => {
-    // Get stored theme or use default
+    // Get user preference first from localStorage or system
     const storedTheme = localStorage.getItem(storageKey);
-    let initialTheme = storedTheme;
     
-    if (!initialTheme) {
-      if (defaultTheme === 'system' && enableSystem) {
-        initialTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      } else {
-        initialTheme = defaultTheme;
-      }
-    }
+    // Determine the initial theme
+    let initialTheme: string;
     
-    // When theme is forced, use that instead
     if (forcedTheme) {
+      // If theme is forced, use that
       initialTheme = forcedTheme;
+    } else if (storedTheme) {
+      // If we have a stored theme, use that
+      initialTheme = storedTheme;
+    } else if (enableSystem) {
+      // If system mode is enabled and no stored theme, check system preference
+      initialTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    } else {
+      // Fallback to default theme
+      initialTheme = defaultTheme;
     }
     
     // Apply theme class immediately to prevent flash
@@ -51,14 +57,24 @@ export function ThemeProvider({
     document.documentElement.setAttribute('data-theme', initialTheme);
     
     // Broadcast initial theme for components to react
-    const event = new CustomEvent('themeInit', { detail: { theme: initialTheme } });
+    const event = new CustomEvent('themeInit', { 
+      detail: { theme: initialTheme, initialLoad: true } 
+    });
     document.dispatchEvent(event);
+    
+    // Save the theme to localStorage
+    localStorage.setItem(storageKey, initialTheme);
+    
+    // Mark theme as initialized
+    setThemeInitialized(true);
     
     console.log("[ThemeProvider] Initialized with theme:", initialTheme);
   }, [storageKey, defaultTheme, forcedTheme, enableSystem]);
 
-  // Add another effect to handle transitions between pages
+  // Handle theme changes from other tabs or windows
   React.useEffect(() => {
+    if (!themeInitialized) return;
+
     const handleStorage = (e: StorageEvent) => {
       if (e.key === storageKey && e.newValue) {
         // Sync theme if storage was changed in another tab/window
@@ -77,7 +93,7 @@ export function ThemeProvider({
     
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
-  }, [storageKey]);
+  }, [storageKey, themeInitialized]);
 
   return (
     <NextThemesProvider 

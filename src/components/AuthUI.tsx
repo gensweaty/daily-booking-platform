@@ -23,10 +23,30 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const { theme, resolvedTheme } = useTheme();
   const { t, language } = useLanguage();
   const [mounted, setMounted] = useState(false);
+  const [currentLogo, setCurrentLogo] = useState<string>("/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png");
 
   useEffect(() => {
     setMounted(true);
+    
+    // Set the initial logo based on theme
+    updateLogoForTheme();
   }, []);
+
+  // Function to update logo based on current theme
+  const updateLogoForTheme = () => {
+    // Get current theme from various sources in order of reliability
+    const isDarkTheme = 
+      document.documentElement.classList.contains('dark') || 
+      document.documentElement.getAttribute('data-theme') === 'dark' ||
+      (resolvedTheme || theme) === 'dark';
+    
+    const newLogoSrc = isDarkTheme 
+      ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" 
+      : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png";
+    
+    setCurrentLogo(newLogoSrc);
+    console.log("[AuthUI] Logo updated based on theme:", isDarkTheme ? "dark" : "light");
+  };
 
   useEffect(() => {
     if (location.pathname === "/signup") {
@@ -36,19 +56,18 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
     }
   }, [location.pathname]);
 
-  // Determine the correct logo to use based on theme
-  const logoSrc = mounted && (resolvedTheme || theme) === 'dark' 
-    ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
-    : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png";
-
-  // Listen for theme changes to update logo
+  // Listen for theme changes
   useEffect(() => {
     if (!mounted) return;
 
-    const handleThemeChange = () => {
-      console.log("[AuthUI] Theme changed detected");
+    const handleThemeChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const newTheme = customEvent.detail?.theme;
+      console.log("[AuthUI] Theme changed detected:", newTheme);
+      updateLogoForTheme();
     };
 
+    // Listen for both initialization and changes
     document.addEventListener('themeChanged', handleThemeChange);
     document.addEventListener('themeInit', handleThemeChange);
     
@@ -56,7 +75,14 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
       document.removeEventListener('themeChanged', handleThemeChange);
       document.removeEventListener('themeInit', handleThemeChange);
     };
-  }, [mounted]);
+  }, [mounted, theme, resolvedTheme]);
+
+  // Update logo when theme or resolvedTheme changes
+  useEffect(() => {
+    if (mounted) {
+      updateLogoForTheme();
+    }
+  }, [theme, resolvedTheme, mounted]);
 
   return (
     <div className="min-h-screen bg-background p-4" lang={language}>
@@ -73,7 +99,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
             </Button>
             <Link to="/" className="flex items-center gap-2">
               <img 
-                src={logoSrc}
+                src={currentLogo}
                 alt="SmartBookly Logo" 
                 className="h-8 md:h-10 w-auto"
               />
@@ -95,11 +121,11 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
       <div className="w-full max-w-sm mx-auto">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "signin" | "signup")} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="signin">
-              <LanguageText withFont={true}>{t("auth.signInButton")}</LanguageText>
+            <TabsTrigger value="signin" className={language === 'ka' ? 'ka-text georgian-tab' : ''}>
+              {language === 'ka' ? "შესვლა" : t("auth.signInButton")}
             </TabsTrigger>
-            <TabsTrigger value="signup">
-              <LanguageText withFont={true}>{t("auth.signUpButton")}</LanguageText>
+            <TabsTrigger value="signup" className={language === 'ka' ? 'ka-text georgian-tab' : ''}>
+              {language === 'ka' ? "რეგისტრაცია" : t("auth.signUpButton")}
             </TabsTrigger>
           </TabsList>
           <TabsContent value="signin">

@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -116,6 +117,16 @@
   .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     filter: invert(1);
   }
+
+  /* Fix for Georgian tabs in auth UI */
+  .georgian-tab {
+    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+    letter-spacing: -0.2px !important;
+    font-weight: normal !important;
+    text-rendering: optimizeLegibility !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+  }
 }
 
 /* TipTap placeholder styling */
@@ -145,6 +156,16 @@
 [lang="ka"] .tabs-trigger,
 [lang="ka"] [role="tab"] {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+}
+
+/* Special fix for Georgian Auth UI text - fixed buttons */
+[lang="ka"] .georgian-fix-text {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  letter-spacing: -0.2px !important;
+  font-weight: normal !important;
+  text-rendering: optimizeLegibility !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
 }
 
 /* Override for TabsTrigger components - targeting tabs in auth UI */

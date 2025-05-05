@@ -31,7 +31,7 @@ export function ThemeToggle() {
     console.log("[ThemeToggle] Theme toggled to:", newTheme);
   };
 
-  // Force calendar to update when theme changes and on component mount
+  // Make sure we handle theme properly after mounting
   useEffect(() => {
     if (!mounted) return;
     
@@ -48,10 +48,14 @@ export function ThemeToggle() {
       if (isDarkMode !== hasDarkClass) {
         console.log("[ThemeToggle] Fixing theme class mismatch");
         document.documentElement.classList.toggle('dark', isDarkMode);
+        document.documentElement.setAttribute('data-theme', currentTheme);
       }
       
-      // Set data attribute for theme
-      document.documentElement.setAttribute('data-theme', currentTheme);
+      // Make sure the theme is properly set in localStorage
+      const storedTheme = localStorage.getItem('vite-ui-theme');
+      if (storedTheme !== currentTheme) {
+        localStorage.setItem('vite-ui-theme', currentTheme);
+      }
       
       // Dispatch a custom event that components can listen for to force rerender
       const event = new CustomEvent('themeChanged', { detail: { theme: currentTheme } });

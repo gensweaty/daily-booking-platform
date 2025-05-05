@@ -8,17 +8,58 @@ import { useEffect, useState } from "react";
 
 export const FooterSection = () => {
   const { theme, resolvedTheme } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [mounted, setMounted] = useState(false);
+  const [currentLogo, setCurrentLogo] = useState<string>("/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png");
 
   useEffect(() => {
     setMounted(true);
+    // Set initial logo
+    updateLogoForTheme();
   }, []);
 
-  // Determine the correct logo to use based on theme
-  const logoSrc = mounted && (resolvedTheme || theme) === 'dark' 
-    ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" 
-    : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png";
+  // Function to update logo based on current theme
+  const updateLogoForTheme = () => {
+    // Get current theme from various sources in order of reliability
+    const isDarkTheme = 
+      document.documentElement.classList.contains('dark') || 
+      document.documentElement.getAttribute('data-theme') === 'dark' ||
+      (resolvedTheme || theme) === 'dark';
+    
+    const newLogoSrc = isDarkTheme 
+      ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" 
+      : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png";
+    
+    setCurrentLogo(newLogoSrc);
+    console.log("[FooterSection] Logo updated based on theme:", isDarkTheme ? "dark" : "light");
+  };
+
+  // Listen for theme changes
+  useEffect(() => {
+    if (!mounted) return;
+
+    const handleThemeChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const newTheme = customEvent.detail?.theme;
+      console.log("[FooterSection] Theme changed detected:", newTheme);
+      updateLogoForTheme();
+    };
+
+    document.addEventListener('themeChanged', handleThemeChange);
+    document.addEventListener('themeInit', handleThemeChange);
+    
+    return () => {
+      document.removeEventListener('themeChanged', handleThemeChange);
+      document.removeEventListener('themeInit', handleThemeChange);
+    };
+  }, [mounted]);
+
+  // Update logo when theme or resolvedTheme changes
+  useEffect(() => {
+    if (mounted) {
+      updateLogoForTheme();
+    }
+  }, [theme, resolvedTheme, mounted]);
 
   return (
     <footer className="bg-muted/30 border-t">
@@ -27,7 +68,7 @@ export const FooterSection = () => {
           <div className="space-y-4">
             <Link to="/" className="inline-block">
               <img 
-                src={logoSrc}
+                src={currentLogo}
                 alt="SmartBookly Logo" 
                 className="h-10" 
               />
@@ -59,17 +100,17 @@ export const FooterSection = () => {
             <ul className="space-y-2">
               <li>
                 <Link to="/login" className="text-muted-foreground hover:text-foreground transition-colors">
-                  <LanguageText>{t('nav.signin')}</LanguageText>
+                  {language === 'ka' ? "შესვლა" : t('nav.signin')}
                 </Link>
               </li>
               <li>
                 <Link to="/signup" className="text-muted-foreground hover:text-foreground transition-colors">
-                  <LanguageText>{t('auth.signUpButton')}</LanguageText>
+                  {language === 'ka' ? "რეგისტრაცია" : t('auth.signUpButton')}
                 </Link>
               </li>
               <li>
                 <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
-                  <LanguageText>{t('nav.contact')}</LanguageText>
+                  {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
                 </Link>
               </li>
             </ul>

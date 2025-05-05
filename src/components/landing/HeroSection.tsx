@@ -31,28 +31,45 @@ const productImages = [{
 export const HeroSection = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { theme, resolvedTheme } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [mounted, setMounted] = useState(false);
+  const [currentLogo, setCurrentLogo] = useState<string>("/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png");
 
   useEffect(() => {
     setMounted(true);
+    // Set initial logo
+    updateLogoForTheme();
   }, []);
 
   const handleMenuClose = () => {
     setIsMobileMenuOpen(false);
   };
 
-  // Determine the correct logo to use based on theme
-  const logoSrc = mounted && (resolvedTheme || theme) === 'dark' 
-    ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" 
-    : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png";
+  // Function to update logo based on current theme
+  const updateLogoForTheme = () => {
+    // Get current theme from various sources in order of reliability
+    const isDarkTheme = 
+      document.documentElement.classList.contains('dark') || 
+      document.documentElement.getAttribute('data-theme') === 'dark' ||
+      (resolvedTheme || theme) === 'dark';
+    
+    const newLogoSrc = isDarkTheme 
+      ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" 
+      : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png";
+    
+    setCurrentLogo(newLogoSrc);
+    console.log("[HeroSection] Logo updated based on theme:", isDarkTheme ? "dark" : "light");
+  };
 
   // Listen for theme changes to update logo
   useEffect(() => {
     if (!mounted) return;
 
-    const handleThemeChange = () => {
-      console.log("[HeroSection] Theme change detected");
+    const handleThemeChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const newTheme = customEvent.detail?.theme;
+      console.log("[HeroSection] Theme changed detected:", newTheme);
+      updateLogoForTheme();
     };
 
     document.addEventListener('themeChanged', handleThemeChange);
@@ -64,6 +81,13 @@ export const HeroSection = () => {
     };
   }, [mounted]);
 
+  // Update logo when theme or resolvedTheme changes
+  useEffect(() => {
+    if (mounted) {
+      updateLogoForTheme();
+    }
+  }, [theme, resolvedTheme, mounted]);
+
   return <>
       <header className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary-light via-background to-accent-light opacity-10" />
@@ -73,7 +97,7 @@ export const HeroSection = () => {
             <div className="flex justify-between items-center">
               <Link to="/" className="flex items-center gap-2" aria-label="SmartBookly Home">
                 <img 
-                  src={logoSrc}
+                  src={currentLogo}
                   alt="SmartBookly Logo" 
                   className="h-8 md:h-10 w-auto" 
                   width="160" 
@@ -96,17 +120,17 @@ export const HeroSection = () => {
                 <ThemeToggle />
                 <Link to="/login">
                   <Button variant="outline" className="hover:scale-105 transition-transform">
-                    <LanguageText>{t('nav.signin')}</LanguageText>
+                    {language === 'ka' ? "შესვლა" : t('nav.signin')}
                   </Button>
                 </Link>
                 <Link to="/signup">
                   <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
-                    <LanguageText>{t('nav.startJourney')}</LanguageText>
+                    {language === 'ka' ? "მოგზაურობის დაწყება" : t('nav.startJourney')}
                   </Button>
                 </Link>
                 <Link to="/contact">
                   <Button variant="outline" className="hover:scale-105 transition-transform">
-                    <LanguageText>{t('nav.contact')}</LanguageText>
+                    {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
                   </Button>
                 </Link>
               </div>
@@ -115,17 +139,17 @@ export const HeroSection = () => {
             {isMobileMenuOpen && <div id="mobile-menu" className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-2 p-4 space-y-3 md:hidden animate-fade-in z-50" role="menu">
                 <Link to="/login" onClick={handleMenuClose} role="menuitem">
                   <Button variant="outline" className="w-full justify-start">
-                    <LanguageText>{t('nav.signin')}</LanguageText>
+                    {language === 'ka' ? "შესვლა" : t('nav.signin')}
                   </Button>
                 </Link>
                 <Link to="/signup" onClick={handleMenuClose} role="menuitem">
                   <Button className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90">
-                    <LanguageText>{t('nav.startJourney')}</LanguageText>
+                    {language === 'ka' ? "მოგზაურობის დაწყება" : t('nav.startJourney')}
                   </Button>
                 </Link>
                 <Link to="/contact" onClick={handleMenuClose} role="menuitem">
                   <Button variant="outline" className="w-full justify-start">
-                    <LanguageText>{t('nav.contact')}</LanguageText>
+                    {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
                   </Button>
                 </Link>
               </div>}
@@ -148,7 +172,7 @@ export const HeroSection = () => {
                 <Link to="/signup">
                   <Button size="lg" className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
                     <span className="flex items-center gap-2">
-                      <LanguageText>{t('nav.startJourney')}</LanguageText>
+                      {language === 'ka' ? "მოგზაურობის დაწყება" : t('nav.startJourney')}
                       <Sparkles className="w-5 h-5 animate-pulse" aria-hidden="true" />
                     </span>
                   </Button>

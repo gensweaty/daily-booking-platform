@@ -46,15 +46,36 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const { language } = useLanguage();
     const isGeorgian = language === 'ka';
     
-    const Comp = asChild ? Slot : "button"
+    const Component = asChild ? Slot : "button"
+    
+    // For Georgian text, wrap children to ensure proper font rendering
+    const wrappedChildren = isGeorgian && typeof children === 'string' ? (
+      <span 
+        className="georgian-fix-text"
+        style={{
+          fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+          letterSpacing: '-0.2px',
+          fontWeight: 'normal',
+          WebkitFontSmoothing: 'antialiased',
+          MozOsxFontSmoothing: 'grayscale',
+          textRendering: 'optimizeLegibility'
+        }}
+      >
+        {children}
+      </span>
+    ) : children;
+    
     return (
-      <Comp
-        className={cn(buttonVariants({ variant, size, className }), isGeorgian ? "auth-button ka-text" : "")}
+      <Component
+        className={cn(
+          buttonVariants({ variant, size, className }),
+          isGeorgian ? "ka-text" : ""
+        )}
         ref={ref}
         {...props}
       >
-        {children}
-      </Comp>
+        {wrappedChildren}
+      </Component>
     )
   }
 )

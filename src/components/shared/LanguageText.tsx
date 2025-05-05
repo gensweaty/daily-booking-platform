@@ -23,6 +23,7 @@ export const LanguageText = ({
     return <span className={className}>{children}</span>;
   }
   
+  // For Georgian text, apply specific styling
   return (
     <span 
       className={cn("ka-text", className)}
@@ -31,7 +32,8 @@ export const LanguageText = ({
         letterSpacing: fixLetterSpacing ? '-0.2px' : 'normal',
         fontWeight: 'normal',
         WebkitFontSmoothing: 'antialiased',
-        MozOsxFontSmoothing: 'grayscale'
+        MozOsxFontSmoothing: 'grayscale',
+        textRendering: 'optimizeLegibility'
       }}
     >
       {children}
