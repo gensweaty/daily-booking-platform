@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,20 +18,32 @@ interface BookingRequestFormProps {
   onSubmit: (data: any) => Promise<void>;
   onCancel: () => void;
   businessId: string;
-  startDate: Date;
-  endDate: Date;
+  startDate?: Date; // Changed to optional
+  endDate?: Date;   // Changed to optional
+  selectedDate?: Date; // Added to match Calendar component usage
+  startTime?: string; // Added to match Calendar component usage
+  endTime?: string;   // Added to match Calendar component usage
   disabled?: boolean;
   className?: string;
+  open?: boolean;  // Added to match Calendar component usage
+  onOpenChange?: (open: boolean) => void; // Added to match Calendar component usage
+  onSuccess?: () => void; // Added to match Calendar component usage
+  isExternalBooking?: boolean; // Added to match Calendar component usage
 }
 
 export const BookingRequestForm = ({
   onSubmit,
   onCancel,
   businessId,
-  startDate,
-  endDate,
+  startDate: providedStartDate,
+  endDate: providedEndDate,
+  selectedDate,
+  startTime,
+  endTime,
   disabled = false,
   className,
+  onSuccess,
+  isExternalBooking,
 }: BookingRequestFormProps) => {
   const [requesterName, setRequesterName] = useState("");
   const [requesterPhone, setRequesterPhone] = useState("");
@@ -43,6 +56,26 @@ export const BookingRequestForm = ({
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery("(max-width: 640px)");
+
+  // Calculate start and end dates from the provided props
+  const startDate = providedStartDate || (selectedDate ? new Date(selectedDate) : new Date());
+  const endDate = providedEndDate || (() => {
+    if (selectedDate && startTime && endTime) {
+      const endDate = new Date(selectedDate);
+      const [endHours, endMinutes] = endTime.split(':').map(Number);
+      endDate.setHours(endHours || 0, endMinutes || 0, 0, 0);
+      return endDate;
+    }
+    return new Date(startDate.getTime() + 60 * 60 * 1000); // Default to 1 hour later
+  })();
+
+  // Apply time if provided through startTime/endTime
+  useEffect(() => {
+    if (selectedDate && startTime) {
+      const [hours, minutes] = startTime.split(':').map(Number);
+      startDate.setHours(hours || 0, minutes || 0, 0, 0);
+    }
+  }, [selectedDate, startTime]);
 
   const georgianStyle = isGeorgian ? {
     fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"
@@ -100,6 +133,11 @@ export const BookingRequestForm = ({
       };
 
       await onSubmit(bookingData);
+      
+      // Call onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess();
+      }
     } catch (error: any) {
       console.error("Error submitting booking request:", error);
       setErrorMessage(t("common.errorOccurred"));
@@ -230,7 +268,7 @@ export const BookingRequestForm = ({
               id="notes"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder={t("events.addEventNotes")}
+              placeholder={isGeorgian ? "დამატებითი კომენტარი თქვენი მოთხოვნის შესახებ" : t("events.addEventNotes")}
               className={isGeorgian ? "font-georgian placeholder:font-georgian min-h-[100px]" : "min-h-[100px]"}
               style={georgianStyle}
             />
@@ -238,7 +276,7 @@ export const BookingRequestForm = ({
             <RichTextEditor
               content={description}
               onChange={setDescription}
-              placeholder={t("events.addEventNotes")}
+              placeholder={isGeorgian ? "დამატებითი კომენტარი თქვენი მოთხოვნის შესახებ" : t("events.addEventNotes")}
               className={isGeorgian ? "font-georgian" : ""}
             />
           )}
