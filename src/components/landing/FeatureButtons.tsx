@@ -5,7 +5,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 
 export const FeatureButtons = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const scrollToSection = (sectionId: string) => {
     const section = document.getElementById(sectionId);

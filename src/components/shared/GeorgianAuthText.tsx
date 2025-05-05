@@ -29,9 +29,6 @@ export const GeorgianAuthText = ({
       style={{
         ...baseStyles,
         fontWeight: fontWeightValue,
-        fontFeatureSettings: '"case" 0', // Disable case-sensitive forms
-        textTransform: 'none', // Prevent any text transformation
-        fontVariant: 'normal' // Prevent font variants that can cause issues
       }}
     >
       {children}

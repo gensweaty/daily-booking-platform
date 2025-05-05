@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
@@ -62,22 +63,12 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <GeorgianAuthText 
         fontWeight={props.disabled ? 'normal' : 'bold'}
         className="georgian-text-fix"
-        style={{
-          fontFeatureSettings: '"case" 0',
-          textTransform: 'none',
-          fontVariant: 'normal'
-        }}
       >
         {children}
       </GeorgianAuthText>
     ) : children;
     
-    const georgianStyle = isGeorgian ? {
-      ...getGeorgianFontStyle(),
-      fontFeatureSettings: '"case" 0',
-      textTransform: 'none',
-      fontVariant: 'normal'
-    } : undefined;
+    const georgianStyle = isGeorgian ? getGeorgianFontStyle() : undefined;
     
     return (
       <Component

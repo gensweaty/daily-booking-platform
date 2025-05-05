@@ -152,12 +152,7 @@ export const PublicBusinessPage = () => {
 
   // Add this function to ensure proper font rendering for Georgian text
   const applyGeorgianFont = (isGeorgian: boolean) => {
-    return isGeorgian ? {
-      ...getGeorgianFontStyle(),
-      fontFeatureSettings: '"case" 0',
-      textTransform: 'none',
-      fontVariant: 'normal'
-    } : undefined;
+    return isGeorgian ? getGeorgianFontStyle() : undefined;
   };
 
   if (isLoading) {

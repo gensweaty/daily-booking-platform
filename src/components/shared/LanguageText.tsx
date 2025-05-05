@@ -31,9 +31,6 @@ export const LanguageText = ({
       style={{
         ...getGeorgianFontStyle(),
         letterSpacing: fixLetterSpacing ? '-0.2px' : 'normal',
-        fontFeatureSettings: '"case" 0',
-        textTransform: 'none',
-        fontVariant: 'normal'
       }}
     >
       {children}
