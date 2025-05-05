@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -489,7 +488,7 @@ export const BookingRequestForm = ({
           />
         </div>
 
-        {/* Date and Time Fields - Add custom CSS to fix calendar icon positioning */}
+        {/* Date and Time Fields */}
         <div>
           <Label htmlFor="dateTime" className={labelClass} style={georgianFontStyle}>
             {isGeorgian ? (
@@ -520,7 +519,7 @@ export const BookingRequestForm = ({
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   required
-                  className="w-full datetime-input-fix" /* Added class for fixing calendar icon */
+                  className="w-full"
                   style={{ colorScheme: 'auto' }}
                 />
               </div>
@@ -540,7 +539,7 @@ export const BookingRequestForm = ({
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   required
-                  className="w-full datetime-input-fix" /* Added class for fixing calendar icon */
+                  className="w-full"
                   style={{ colorScheme: 'auto' }}
                 />
               </div>
@@ -606,7 +605,7 @@ export const BookingRequestForm = ({
           </div>
         )}
         
-        {/* Notes Field - Fix the placeholder text */}
+        {/* Notes Field */}
         <div>
           <Label htmlFor="eventNotes" className={labelClass} style={georgianFontStyle}>
             {isGeorgian ? (
@@ -619,7 +618,7 @@ export const BookingRequestForm = ({
             id="eventNotes"
             value={eventNotes}
             onChange={(e) => setEventNotes(e.target.value)}
-            placeholder={isGeorgian ? "დაამატეთ შენიშვნები თქვენი მოთხოვნის შესახებ" : t("events.addEventNotes")}
+            placeholder={isGeorgian ? "დაამატეთ შენიშვნები თქვენი მოთხოვნი��� შესახებ" : t("events.addEventNotes")}
             className={cn("min-h-[100px] resize-none", isGeorgian ? "placeholder:font-georgian font-georgian" : "")}
             style={georgianFontStyle}
           />

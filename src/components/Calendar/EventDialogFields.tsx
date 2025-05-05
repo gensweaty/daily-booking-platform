@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +10,6 @@ import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { getCurrencySymbol } from "@/lib/currency";
-import { getGeorgianFontStyle } from "@/lib/font-utils";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -79,8 +77,12 @@ export const EventDialogFields = ({
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
   const currencySymbol = getCurrencySymbol(language);
   
-  // Use consistent Georgian styling from font-utils
-  const georgianStyle = isGeorgian ? getGeorgianFontStyle() : undefined;
+  const georgianStyle = isGeorgian ? {
+    fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+    letterSpacing: '-0.2px',
+    WebkitFontSmoothing: 'antialiased',
+    MozOsxFontSmoothing: 'grayscale'
+  } : undefined;
   
   // Helper function for Georgian label text
   const renderGeorgianLabel = (text: string) => {
@@ -146,7 +148,7 @@ export const EventDialogFields = ({
           onChange={e => setSocialNetworkLink(e.target.value)} 
           placeholder="email@example.com" 
           type="email" 
-          style={isGeorgian ? georgianStyle : undefined}
+          style={isGeorgian ? { ...georgianStyle } : undefined}
         />
       </div>
       <div>
@@ -173,7 +175,8 @@ export const EventDialogFields = ({
                 value={startDate} 
                 onChange={e => setStartDate(e.target.value)} 
                 required 
-                className="w-full dark:text-white dark:[color-scheme:dark] datetime-input-fix" 
+                className="w-full dark:text-white dark:[color-scheme:dark]" 
+                style={{ colorScheme: 'auto' }} 
               />
             </div>
           </div>
@@ -192,7 +195,8 @@ export const EventDialogFields = ({
                 value={endDate} 
                 onChange={e => setEndDate(e.target.value)} 
                 required 
-                className="w-full dark:text-white dark:[color-scheme:dark] datetime-input-fix" 
+                className="w-full dark:text-white dark:[color-scheme:dark]" 
+                style={{ colorScheme: 'auto' }} 
               />
             </div>
           </div>
