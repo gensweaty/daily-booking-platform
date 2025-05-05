@@ -109,22 +109,28 @@ export const useBookingRequests = () => {
 
       // Send confirmation email
       if (import.meta.env.VITE_SUPABASE_FUNCTIONS_URL && apiKey) {
+        console.log("Preparing to send email with business address:", businessProfile.contact_address);
+        
+        const emailPayload = {
+          recipientEmail: booking.requester_email,
+          fullName: booking.requester_name,
+          businessName: businessProfile.business_name,
+          startDate: booking.start_date,
+          endDate: booking.end_date,
+          paymentStatus: booking.payment_status,
+          paymentAmount: booking.payment_amount,
+          businessAddress: businessProfile.contact_address || "", 
+        };
+        
+        console.log("Email payload:", JSON.stringify(emailPayload, null, 2));
+        
         const response = await fetch(`${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/send-booking-approval-email`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`,
           },
-          body: JSON.stringify({
-            recipientEmail: booking.requester_email,
-            fullName: booking.requester_name,
-            businessName: businessProfile.business_name,
-            startDate: booking.start_date,
-            endDate: booking.end_date,
-            paymentStatus: booking.payment_status,
-            paymentAmount: booking.payment_amount,
-            businessAddress: businessProfile.contact_address, 
-          }),
+          body: JSON.stringify(emailPayload),
         });
 
         if (!response.ok) {

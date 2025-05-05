@@ -105,10 +105,13 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       
-      // Format the address information if available
+      // Format the address information if available - make sure it's properly handled
       let addressInfo = "";
-      if (businessAddress) {
+      if (businessAddress && typeof businessAddress === 'string' && businessAddress.trim() !== '') {
         addressInfo = `<p><strong>Address:</strong> ${businessAddress}</p>`;
+        console.log("Adding address info to email:", addressInfo);
+      } else {
+        console.log("No business address provided or address is empty");
       }
       
       // Create HTML email content with simpler formatting
@@ -119,27 +122,43 @@ const handler = async (req: Request): Promise<Response> => {
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Booking Approved</title>
+          <style>
+            body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+            h2 { color: #333; }
+            .success { color: #4CAF50; font-weight: bold; }
+            .info-block { margin-bottom: 15px; }
+            hr { border: none; border-top: 1px solid #eaeaea; margin: 20px 0; }
+            .footer { color: #777; font-size: 14px; font-style: italic; }
+          </style>
         </head>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-          <h2 style="color: #333;">Hello ${fullName},</h2>
-          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
-          <p><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-          ${addressInfo}
-          ${paymentInfo}
+        <body>
+          <h2>Hello ${fullName},</h2>
+          <p>Your booking has been <span class="success">approved</span> at <b>${businessName}</b>.</p>
+          <div class="info-block">
+            <p><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+            ${addressInfo}
+            ${paymentInfo}
+          </div>
           <p>We look forward to seeing you!</p>
-          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-          <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
+          <hr>
+          <p class="footer">This is an automated message.</p>
         </body>
         </html>
       `;
       
-      // Send email using SMTP with simpler content type headers
+      // Log the entire HTML content for debugging
+      console.log("HTML email content:", htmlContent);
+      
+      // Send email using SMTP with explicit content type headers
       await client.send({
         from: `${businessName} <info@smartbookly.com>`,
         to: recipientEmail,
         subject: `Booking Approved at ${businessName}`,
         content: "Your booking has been approved",
-        html: htmlContent
+        html: htmlContent,
+        headers: {
+          "Content-Type": "text/html; charset=UTF-8"
+        }
       });
       
       console.log(`Email successfully sent to ${recipientEmail}`);
