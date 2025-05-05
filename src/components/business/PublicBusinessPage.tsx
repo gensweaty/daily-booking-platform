@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { supabase, forceBucketCreation } from "@/lib/supabase";
@@ -188,32 +189,34 @@ export const PublicBusinessPage = () => {
         <LanguageSwitcher />
       </div>
       
-      <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-16"
+      {/* Hero section with cover photo - extended height */}
+      <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-24"
         style={{
           backgroundImage: `url(${displayCoverUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
+          minHeight: '50vh', // Increased height
         }}
       >
         <div className="absolute inset-0 bg-black bg-opacity-50"></div>
         
         <div className="container mx-auto px-4 relative">
           <h1 
-            className={cn("text-4xl md:text-5xl font-bold mb-4", isGeorgian ? "font-georgian" : "")}
+            className={cn("text-4xl md:text-5xl font-bold mb-6", isGeorgian ? "font-georgian" : "")}
             style={applyGeorgianFont(isGeorgian)}
           >
             {business.business_name}
           </h1>
           {business.description && (
             <p 
-              className={cn("text-lg opacity-90 max-w-2xl", isGeorgian ? "font-georgian" : "")}
+              className={cn("text-lg opacity-90 max-w-2xl mb-8", isGeorgian ? "font-georgian" : "")}
               style={applyGeorgianFont(isGeorgian)}
             >
               {business.description}
             </p>
           )}
           
-          <div className="flex gap-4 mt-6">
+          <div className="flex gap-4 mb-6">
             <Button 
               size="lg" 
               className={cn("bg-white text-blue-700 hover:bg-blue-50", isGeorgian ? "georgian-text-fix font-georgian" : "")}
@@ -224,6 +227,48 @@ export const PublicBusinessPage = () => {
             >
               <LanguageText withFont={true}>{t("calendar.bookNow")}</LanguageText>
             </Button>
+          </div>
+          
+          {/* Additional business info moved from below into the hero section */}
+          <div className="grid md:grid-cols-2 gap-6 mt-8 bg-white/10 backdrop-blur-sm p-6 rounded-lg">
+            {business.contact_email && (
+              <div className="flex items-center gap-3">
+                <Mail className="h-5 w-5 text-blue-100" />
+                <a href={`mailto:${business.contact_email}`} className="hover:underline text-white">
+                  {business.contact_email}
+                </a>
+              </div>
+            )}
+            
+            {business.contact_phone && (
+              <div className="flex items-center gap-3">
+                <Phone className="h-5 w-5 text-blue-100" />
+                <a href={`tel:${business.contact_phone}`} className="hover:underline text-white">
+                  {business.contact_phone}
+                </a>
+              </div>
+            )}
+            
+            {business.contact_address && (
+              <div className="flex items-center gap-3">
+                <MapPin className="h-5 w-5 text-blue-100" />
+                <span className="text-white">{business.contact_address}</span>
+              </div>
+            )}
+            
+            {business.contact_website && (
+              <div className="flex items-center gap-3">
+                <Globe className="h-5 w-5 text-blue-100" />
+                <a 
+                  href={business.contact_website} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hover:underline text-white"
+                >
+                  {business.contact_website.replace(/^https?:\/\//, '')}
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -238,8 +283,8 @@ export const PublicBusinessPage = () => {
         />
       )}
 
-      <div className="container mx-auto px-4 py-12">
-        <div className="mb-8" id="calendar-section">
+      <div className="container mx-auto px-4 py-6">
+        <div id="calendar-section">
           <div className="flex justify-between items-center mb-4">
             <h2 
               className={cn("text-2xl font-bold", isGeorgian ? "font-georgian" : "")}
@@ -258,57 +303,6 @@ export const PublicBusinessPage = () => {
           {business.id && (
             <ExternalCalendar businessId={business.id} />
           )}
-        </div>
-
-        <div className="mt-12">
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <h2 className={cn("text-xl font-semibold", isGeorgian ? "font-georgian" : "")}>
-                <LanguageText>{t("business.contactInformation")}</LanguageText>
-              </h2>
-              
-              <div className="grid md:grid-cols-2 gap-6">
-                {business.contact_email && (
-                  <div className="flex items-center gap-3">
-                    <Mail className="h-5 w-5 text-blue-600" />
-                    <a href={`mailto:${business.contact_email}`} className="hover:underline">
-                      {business.contact_email}
-                    </a>
-                  </div>
-                )}
-                
-                {business.contact_phone && (
-                  <div className="flex items-center gap-3">
-                    <Phone className="h-5 w-5 text-blue-600" />
-                    <a href={`tel:${business.contact_phone}`} className="hover:underline">
-                      {business.contact_phone}
-                    </a>
-                  </div>
-                )}
-                
-                {business.contact_address && (
-                  <div className="flex items-center gap-3">
-                    <MapPin className="h-5 w-5 text-blue-600" />
-                    <span>{business.contact_address}</span>
-                  </div>
-                )}
-                
-                {business.contact_website && (
-                  <div className="flex items-center gap-3">
-                    <Globe className="h-5 w-5 text-blue-600" />
-                    <a 
-                      href={business.contact_website} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="hover:underline"
-                    >
-                      {business.contact_website.replace(/^https?:\/\//, '')}
-                    </a>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
