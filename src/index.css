@@ -196,10 +196,30 @@
 /* Fix for first letter styling issues in Georgian text */
 [lang="ka"] *::first-letter {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  text-transform: none !important;
 }
 
 /* Ensure placeholder text in inputs also uses the Georgian font */
 [lang="ka"] input::placeholder,
 [lang="ka"] textarea::placeholder {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+}
+
+/* Additional specific fixes for auth tabs and buttons */
+[lang="ka"] .tabs-list button,
+[lang="ka"] .tabs-trigger,
+[lang="ka"] button[type="submit"] {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+}
+
+/* Ensure all text within the auth UI uses the Georgian font */
+[lang="ka"] [role="tablist"] button,
+[lang="ka"] [role="tabpanel"] * {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+}
+
+/* Fix for pseudo elements in the auth UI */
+[lang="ka"] [role="tablist"] button::first-letter,
+[lang="ka"] [role="tabpanel"] *::first-letter {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
 }
