@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Trash2, AlertCircle } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, getStorageUrl } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { CustomerDialogFields } from "./CustomerDialogFields";
@@ -259,7 +259,8 @@ export const CustomerDialog = ({
           
           const eventData = {
             title: title,
-            user_number: user_number, // Reuse fields for the event
+            user_surname: user_number, // Reuse fields for the event
+            user_number: user_number,
             social_network_link: social_network_link,
             event_notes: event_notes,
             payment_status: payment_status,
@@ -394,11 +395,13 @@ export const CustomerDialog = ({
                 } else {
                   console.log("Sending booking confirmation email with address:", businessProfile?.contact_address);
                   
-                  await fetch(`${supabase.supabaseUrl}/functions/v1/send-booking-approval-email`, {
+                  const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
+                  
+                  await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${supabase.supabaseKey}`
+                      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
                     },
                     body: JSON.stringify({
                       recipientEmail: social_network_link,
