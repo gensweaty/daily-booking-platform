@@ -426,10 +426,10 @@ export const useBookingRequests = () => {
           businessName,
           startDate: booking.start_date,
           endDate: booking.end_date,
-          businessAddress: contactAddress ? `"${contactAddress}"` : "Not provided",
+          businessAddress: contactAddress,
         });
         
-        // Make sure we're passing contact_address to the email function
+        // Send the raw address without quotes - let the edge function handle it properly
         const emailResult = await sendApprovalEmail({
           email: booking.requester_email,
           fullName: booking.requester_name || booking.user_surname || "",

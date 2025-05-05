@@ -90,26 +90,24 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       
-      // --- ENHANCED Address Processing ---
-      let addressInfo = ""; // Holds the final HTML string part for the address
-      if (businessAddress && typeof businessAddress === 'string' && businessAddress.trim()) {
-        console.log(`Raw business address received: "${businessAddress}"`);
-
+      // --- Address Processing ---
+      let addressInfo = "";
+      if (businessAddress && typeof businessAddress === 'string') {
+        console.log(`Processing business address: "${businessAddress}"`);
+        
+        // Clean the address 
         let cleanAddress = businessAddress
-          // 1. Replace common quoted-printable encodings explicitly
+          // Remove any quoted-printable encodings
           .replace(/=([0-9A-F]{2})/gi, (match, hex) => {
-              // Convert hex (like 20 for space, 0A for newline etc.) back to char
-              try { return String.fromCharCode(parseInt(hex, 16)); }
-              catch { return ' '; } // Default to space if invalid hex
+            try { return String.fromCharCode(parseInt(hex, 16)); }
+            catch { return ' '; }
           })
-          // 2. Normalize all forms of whitespace (spaces, tabs, newlines) to a single space
+          // Normalize whitespace
           .replace(/\s+/g, ' ')
-          // 3. Trim leading/trailing whitespace again after cleaning
           .trim();
-
+          
         console.log(`Cleaned business address: "${cleanAddress}"`);
-
-        // Only include the address paragraph if the cleaned address is not empty
+        
         if (cleanAddress.length > 0) {
           addressInfo = `<p style="margin: 8px 0;"><strong>Address:</strong> ${cleanAddress}</p>`;
           console.log(`Generated address HTML: ${addressInfo}`);
@@ -117,9 +115,8 @@ const handler = async (req: Request): Promise<Response> => {
           console.log("Address was empty after cleaning, not displaying");
         }
       } else {
-        console.log("No business address provided or invalid type");
+        console.log("No business address provided or invalid format");
       }
-      // --- END ENHANCED Address Processing ---
       
       // Create HTML email content with simpler formatting
       const htmlContent = `
@@ -143,7 +140,7 @@ const handler = async (req: Request): Promise<Response> => {
         </html>
       `;
       
-      // --- FIX: Use Resend API Client ---
+      // Use Resend API to send the email
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       if (!resendApiKey) {
         throw new Error("Missing RESEND_API_KEY");
