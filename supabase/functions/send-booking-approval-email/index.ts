@@ -58,6 +58,15 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`- Contains 'null' text? ${parsedBody.businessAddress.includes('null')}`);
         console.log(`- Contains 'undefined' text? ${parsedBody.businessAddress.includes('undefined')}`);
       }
+
+      // BUSINESS NAME DEBUGGING  
+      console.log("BUSINESS NAME DIAGNOSTICS:");
+      console.log(`- Raw business name property: ${JSON.stringify(parsedBody.businessName)}`);
+      console.log(`- Business name type: ${typeof parsedBody.businessName}`);
+      console.log(`- Business name direct access: ${parsedBody.businessName}`);
+      console.log(`- Is null? ${parsedBody.businessName === null}`);
+      console.log(`- Is undefined? ${parsedBody.businessName === undefined}`);
+      console.log(`- Is empty string? ${parsedBody.businessName === ''}`);
     } catch (parseError) {
       console.error("Failed to parse JSON request:", parseError);
       return new Response(
@@ -77,7 +86,7 @@ const handler = async (req: Request): Promise<Response> => {
       businessAddress 
     } = parsedBody;
 
-    console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName}`);
+    console.log(`Processing email to: ${recipientEmail} for ${fullName} at ${businessName || "Unknown Business"}`);
     console.log(`Start date (raw ISO string): ${startDate}`);
     console.log(`End date (raw ISO string): ${endDate}`);
     console.log(`Payment status: ${paymentStatus}`);
@@ -145,6 +154,13 @@ const handler = async (req: Request): Promise<Response> => {
       } else {
         console.log("Business address is falsy - appears to be missing");
       }
+
+      // Normalize business name
+      const displayBusinessName = businessName && businessName !== "null" && businessName !== "undefined" 
+        ? businessName 
+        : 'SmartBookly';
+        
+      console.log(`Using business name for email: "${displayBusinessName}"`);
       
       // Create HTML email content with simpler formatting
       const htmlContent = `
@@ -157,7 +173,7 @@ const handler = async (req: Request): Promise<Response> => {
         </head>
         <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
           <h2 style="color: #333;">Hello ${fullName},</h2>
-          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
+          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${displayBusinessName}</b>.</p>
           <p style="margin: 8px 0;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
           ${addressInfo}
           ${paymentInfo}
@@ -172,6 +188,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("EMAIL HTML PREVIEW:");
       console.log(`- Address section: ${addressInfo || "(No address will be shown)"}`);
       console.log(`- Payment section: ${paymentInfo || "(No payment info will be shown)"}`);
+      console.log(`- Business name used: ${displayBusinessName}`);
       
       // Use Resend API to send the email
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -184,9 +201,9 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`Attempting to send email via Resend API to ${recipientEmail}`);
       
       const emailResult = await resend.emails.send({
-        from: `${businessName || 'SmartBookly'} <info@smartbookly.com>`,
+        from: `${displayBusinessName} <info@smartbookly.com>`,
         to: [recipientEmail],
-        subject: `Booking Approved at ${businessName}`,
+        subject: `Booking Approved at ${displayBusinessName}`,
         html: htmlContent,
       });
 
@@ -203,7 +220,8 @@ const handler = async (req: Request): Promise<Response> => {
           message: "Email sent successfully",
           to: recipientEmail,
           id: emailResult.data?.id,
-          included_address: addressDisplay || null // For debugging
+          included_address: addressDisplay || null, // For debugging
+          business_name_used: displayBusinessName
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );

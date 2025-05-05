@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -354,7 +353,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       // Fetch business profile for the user
       const { data: businessProfile, error: profileError } = await supabase
         .from('business_profiles')
-        .select('contact_address, name')
+        .select('contact_address, business_name')
         .eq('user_id', user.id)
         .maybeSingle();
         
@@ -362,7 +361,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.error('Error fetching business address:', profileError);
       } else if (businessProfile && (event.user_number || event.social_network_link)) {
         // Only send email if we have customer contact info
-        console.log('Sending booking confirmation email with address:', businessProfile.contact_address);
+        console.log('Sending booking confirmation email with:');
+        console.log(`- Address: ${businessProfile.contact_address || 'None'}`);
+        console.log(`- Business name: ${businessProfile.business_name || 'None'}`);
         
         const recipientEmail = event.social_network_link;
         if (recipientEmail && isValidEmail(recipientEmail)) {
@@ -378,7 +379,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             body: JSON.stringify({
               recipientEmail: recipientEmail,
               fullName: event.title || event.user_surname || '',
-              businessName: businessProfile.name || '',
+              businessName: businessProfile.business_name || '',
               startDate: event.start_date,
               endDate: event.end_date,
               paymentStatus: event.payment_status || 'not_paid',
@@ -559,14 +560,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           // Fetch business profile details for the email
           const { data: businessProfile, error: profileError } = await supabase
             .from('business_profiles')
-            .select('contact_address, name')
+            .select('contact_address, business_name')
             .eq('user_id', user.id)
             .maybeSingle();
             
           if (profileError) {
             console.error('Error fetching business address for email:', profileError);
           } else {
-            console.log('Sending booking approval email with address:', businessProfile?.contact_address);
+            console.log('Sending booking approval email with:');
+            console.log(`- Address: ${businessProfile?.contact_address || 'None'}`);
+            console.log(`- Business name: ${businessProfile?.business_name || 'None'}`);
             
             const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
             
@@ -579,7 +582,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               body: JSON.stringify({
                 recipientEmail: event.requester_email,
                 fullName: event.requester_name || event.title || '',
-                businessName: businessProfile?.name || '',
+                businessName: businessProfile?.business_name || '',
                 startDate: event.start_date,
                 endDate: event.end_date,
                 paymentStatus: event.payment_status || 'not_paid',

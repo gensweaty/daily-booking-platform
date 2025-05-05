@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -387,7 +386,7 @@ export const CustomerDialog = ({
                 // Get business address for the email
                 const { data: businessProfile, error: profileError } = await supabase
                   .from('business_profiles')
-                  .select('contact_address, name')
+                  .select('contact_address, business_name')
                   .eq('user_id', user.id)
                   .maybeSingle();
                   
@@ -395,6 +394,7 @@ export const CustomerDialog = ({
                   console.error("Error fetching business profile for email:", profileError);
                 } else {
                   console.log("Sending booking confirmation email with address:", businessProfile?.contact_address);
+                  console.log("Business name to use in email:", businessProfile?.business_name);
                   
                   const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
                   
@@ -407,7 +407,7 @@ export const CustomerDialog = ({
                     body: JSON.stringify({
                       recipientEmail: social_network_link,
                       fullName: title || '',
-                      businessName: businessProfile?.name || '',
+                      businessName: businessProfile?.business_name || '',
                       startDate: eventStartDate.toISOString(),
                       endDate: eventEndDate.toISOString(),
                       paymentStatus: payment_status || 'not_paid',

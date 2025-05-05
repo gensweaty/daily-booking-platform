@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -195,16 +196,18 @@ export const EventDialog = ({
       
       const { data: businessProfile } = await supabase
         .from('business_profiles')
-        .select('business_name')
+        .select('business_name, contact_address')
         .eq('user_id', user?.id)
         .maybeSingle();
         
       const businessName = businessProfile?.business_name || "Our Business";
+      const businessAddress = businessProfile?.contact_address || "";
       
       console.log("Email data:", {
         recipientEmail: socialNetworkLink,
         fullName: userSurname || title,
         businessName,
+        businessAddress,
         startDate: startDateTime.toISOString(),
         endDate: endDateTime.toISOString(),
         paymentStatus,
@@ -220,7 +223,7 @@ export const EventDialog = ({
       }
       
       const response = await fetch(
-        "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-booking-approval-email`,
         {
           method: "POST",
           headers: { 
@@ -231,6 +234,7 @@ export const EventDialog = ({
             recipientEmail: socialNetworkLink.trim(),
             fullName: userSurname || title || "Customer",
             businessName,
+            businessAddress,
             startDate: startDateTime.toISOString(),
             endDate: endDateTime.toISOString(),
             paymentStatus,
