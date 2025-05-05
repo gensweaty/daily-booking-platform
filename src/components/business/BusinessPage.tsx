@@ -1,3 +1,4 @@
+
 import { BusinessProfileForm } from "./BusinessProfileForm";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -12,6 +13,7 @@ import { MessageSquare, ExternalLink } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
@@ -20,6 +22,7 @@ export const BusinessPage = () => {
   const { bookingRequests, pendingRequests, approvedRequests, rejectedRequests, approveRequest, rejectRequest, deleteBookingRequest } = useBookingRequests();
   const pendingCount = pendingRequests?.length || 0;
   const isGeorgian = language === 'ka';
+  const isMobile = useMediaQuery('(max-width: 640px)');
 
   const { data: businessProfile, isLoading } = useQuery({
     queryKey: ["businessProfile", user?.id],
@@ -133,7 +136,7 @@ export const BusinessPage = () => {
         </TabsContent>
 
         <TabsContent value="bookings" className="space-y-6">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold">
                 <LanguageText>{t("business.bookingRequests")}</LanguageText>
@@ -148,7 +151,10 @@ export const BusinessPage = () => {
                 </div>
               )}
             </div>
-            {renderViewPublicPageButton()}
+            {isMobile && publicUrl && (
+              <div className="w-full mt-2">{renderViewPublicPageButton()}</div>
+            )}
+            {!isMobile && renderViewPublicPageButton()}
           </div>
 
           <div className="space-y-8">

@@ -180,7 +180,7 @@ export const BookingRequestsList = ({
   return (
     <>
       <div className="rounded-md border overflow-hidden">
-        <ScrollArea className="w-full">
+        <ScrollArea className="w-full" type="always">
           <div className={isMobile ? "min-w-[800px]" : "min-w-full"}>
             <Table>
               <TableHeader className="bg-muted/50">
@@ -229,7 +229,7 @@ export const BookingRequestsList = ({
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            className="flex gap-1 items-center hover:bg-red-100 hover:text-red-700 hover:border-red-300" 
+                            className="flex gap-1 items-center hover:bg-red-100 hover:text-red-700 hover:border-red-300 min-w-[32px]" 
                             onClick={() => onReject(request.id)}
                           >
                             <X className="h-4 w-4 text-red-600" />
@@ -239,7 +239,7 @@ export const BookingRequestsList = ({
                         <Button 
                           variant="outline" 
                           size="sm"
-                          className="text-destructive flex gap-1 items-center hover:bg-destructive/10" 
+                          className="text-destructive flex gap-1 items-center hover:bg-destructive/10 min-w-[32px]" 
                           onClick={() => handleDeleteClick(request.id)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -277,3 +277,4 @@ export const BookingRequestsList = ({
     </>
   );
 };
+
