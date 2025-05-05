@@ -25,4 +25,5 @@ export interface CalendarEventType {
   filename?: string;
   content_type?: string;
   size?: number;
+  checkAvailability?: boolean; // Add this new property
 }
