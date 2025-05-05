@@ -57,18 +57,21 @@ export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
         value={taskStats.total}
         description={`${taskStats.completed} ${t("dashboard.completed")}`}
         icon={CheckCircle2}
+        color="purple"
       />
       <StatCard
         title={t("dashboard.inProgress")}
         value={taskStats.inProgress}
         description={`${taskStats.todo} ${t("dashboard.todo")}`}
         icon={Clock}
+        color="orange"
       />
       <StatCard
         title={t("dashboard.totalEvents")}
         value={eventStats.total}
         description={`${eventStats.partlyPaid} ${t("dashboard.partlyPaid")}, ${eventStats.fullyPaid} ${t("dashboard.fullyPaid")}`}
         icon={CalendarCheck}
+        color="green"
       />
       <StatCard
         title={t("dashboard.totalIncome")}
@@ -76,6 +79,7 @@ export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
         description={t("dashboard.fromAllEvents")}
         icon={CurrencyIcon}
         valueClassName="text-2xl"
+        color="blue"
       />
     </div>
   );

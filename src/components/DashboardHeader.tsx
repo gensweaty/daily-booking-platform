@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -137,7 +138,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           <Dialog>
             <DialogTrigger asChild>
               <Button 
-                variant="outline" 
+                variant="purple" 
                 size="icon"
                 className="text-foreground"
               >
@@ -178,7 +179,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 </div>
                 <div className="pt-4">
                   <Button 
-                    variant="outline" 
+                    variant="info" 
                     className="w-full"
                     onClick={handleChangePassword}
                   >
@@ -190,8 +191,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           </Dialog>
           <ThemeToggle />
           <Button 
-            variant="outline" 
-            className="flex items-center gap-2 text-foreground"
+            variant="orange" 
+            className="flex items-center gap-2 text-white"
             onClick={handleSignOut}
           >
             <LogOut className="w-4 h-4" />

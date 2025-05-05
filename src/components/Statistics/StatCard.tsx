@@ -2,6 +2,7 @@
 import { Card } from "@/components/ui/card";
 import { LucideIcon } from "lucide-react";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { cn } from "@/lib/utils";
 
 interface StatCardProps {
   title: string;
@@ -9,13 +10,32 @@ interface StatCardProps {
   icon: LucideIcon;
   description: string;
   valueClassName?: string;
+  color?: "purple" | "green" | "orange" | "blue"; // Added color prop
 }
 
-export const StatCard = ({ title, value, icon: Icon, description, valueClassName }: StatCardProps) => {
+export const StatCard = ({ 
+  title, 
+  value, 
+  icon: Icon, 
+  description, 
+  valueClassName,
+  color = "purple" // Default color
+}: StatCardProps) => {
+  // Color mapping for icon and border
+  const colorStyles = {
+    purple: "text-[#9b87f5] border-l-[#9b87f5]",
+    green: "text-[#4ade80] border-l-[#4ade80]",
+    orange: "text-[#f97316] border-l-[#f97316]",
+    blue: "text-[#3b82f6] border-l-[#3b82f6]",
+  };
+  
   return (
-    <Card className="p-4 flex flex-col space-y-2">
+    <Card className={cn(
+      "p-4 flex flex-col space-y-2 overflow-hidden border-l-4", 
+      colorStyles[color]
+    )}>
       <div className="flex items-center space-x-2">
-        <Icon className="w-4 h-4 text-muted-foreground" />
+        <Icon className={cn("w-4 h-4", colorStyles[color])} />
         <h3 className="text-sm font-medium">
           <LanguageText>{title}</LanguageText>
         </h3>

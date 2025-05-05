@@ -31,12 +31,12 @@ export const DateRangeSelect = memo(({ selectedDate, onDateChange, disabled }: D
           <Button
             variant="outline"
             className={cn(
-              "w-full sm:w-[280px] justify-start text-left font-normal",
+              "w-full sm:w-[280px] justify-start text-left font-normal border-[#9b87f5]/30 hover:border-[#9b87f5] hover:bg-[#9b87f5]/5",
               !date && "text-muted-foreground"
             )}
             disabled={disabled}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
+            <CalendarIcon className="mr-2 h-4 w-4 text-[#9b87f5]" />
             {date?.from ? (
               date.to ? (
                 <>

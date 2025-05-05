@@ -1,4 +1,3 @@
-
 import { BusinessProfileForm } from "./BusinessProfileForm";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -67,7 +66,7 @@ export const BusinessPage = () => {
     
     return (
       <Button 
-        variant="outline"
+        variant="info"
         onClick={() => window.open(publicUrl, '_blank')}
         className="flex items-center gap-2"
       >
@@ -91,19 +90,25 @@ export const BusinessPage = () => {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="profile">
+        <TabsList className="mb-6 bg-background/80 border rounded-lg p-1 shadow-sm">
+          <TabsTrigger 
+            value="profile" 
+            className="data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
+          >
             {isGeorgian ? (
               <GeorgianAuthText>ბიზნეს პროფილი</GeorgianAuthText>
             ) : (
               <LanguageText>{t("business.businessProfile")}</LanguageText>
             )}
           </TabsTrigger>
-          <TabsTrigger value="bookings" className="relative">
+          <TabsTrigger 
+            value="bookings" 
+            className="relative data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
+          >
             <LanguageText>{t("business.bookingRequests")}</LanguageText>
             {pendingCount > 0 && (
               <Badge 
-                variant="destructive" 
+                variant="orange" 
                 className="absolute -top-2 -right-2 flex items-center justify-center h-5 min-w-5 p-0 text-xs"
               >
                 {pendingCount}
@@ -148,8 +153,9 @@ export const BusinessPage = () => {
 
           <div className="space-y-8">
             <div>
-              <h2 className="text-xl font-semibold mb-4">
-                {renderSectionHeading("business.pendingRequests")} ({pendingRequests.length})
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                {renderSectionHeading("business.pendingRequests")} 
+                <Badge variant="orange" className="ml-2">({pendingRequests.length})</Badge>
               </h2>
               <BookingRequestsList
                 requests={pendingRequests}
@@ -161,8 +167,9 @@ export const BusinessPage = () => {
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold mb-4">
-                {renderSectionHeading("business.approvedRequests")} ({approvedRequests.length})
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                {renderSectionHeading("business.approvedRequests")}
+                <Badge variant="green" className="ml-2">({approvedRequests.length})</Badge>
               </h2>
               <BookingRequestsList
                 requests={approvedRequests}
@@ -172,8 +179,9 @@ export const BusinessPage = () => {
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold mb-4">
-                {renderSectionHeading("business.rejectedRequests")} ({rejectedRequests.length})
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                {renderSectionHeading("business.rejectedRequests")}
+                <Badge variant="destructive" className="ml-2">({rejectedRequests.length})</Badge>
               </h2>
               <BookingRequestsList
                 requests={rejectedRequests}

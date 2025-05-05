@@ -30,10 +30,10 @@ export const StatsHeader = memo(({ dateRange, onDateChange, onExport, isLoading 
         disabled={isLoading}
       />
       <Button
-        variant="ghost"
+        variant="info"
         size="icon"
         onClick={onExport}
-        className="h-9 w-9 sm:-mt-4"
+        className="h-9 w-9 sm:-mt-4 rounded-md"
         title="Download as Excel"
         disabled={isLoading}
       >
