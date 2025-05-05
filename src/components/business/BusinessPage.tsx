@@ -1,3 +1,4 @@
+
 import { BusinessProfileForm } from "./BusinessProfileForm";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -76,6 +77,17 @@ export const BusinessPage = () => {
     );
   };
 
+  // Helper to render proper Georgian text for section headings
+  const renderSectionHeading = (key: string) => {
+    if (isGeorgian) {
+      if (key === "business.pendingRequests") return <GeorgianAuthText>მოთხოვნები მოლოდინში</GeorgianAuthText>;
+      if (key === "business.approvedRequests") return <GeorgianAuthText>დადასტურებული მოთხოვნები</GeorgianAuthText>;
+      if (key === "business.rejectedRequests") return <GeorgianAuthText>უარყოფილი მოთხოვნები</GeorgianAuthText>;
+      return <LanguageText>{t(key)}</LanguageText>;
+    }
+    return <LanguageText>{t(key)}</LanguageText>;
+  };
+
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
@@ -133,7 +145,7 @@ export const BusinessPage = () => {
           <div className="space-y-8">
             <div>
               <h2 className="text-xl font-semibold mb-4">
-                <LanguageText>{t("business.pendingRequests")}</LanguageText> ({pendingRequests.length})
+                {renderSectionHeading("business.pendingRequests")} ({pendingRequests.length})
               </h2>
               <BookingRequestsList
                 requests={pendingRequests}
@@ -146,7 +158,7 @@ export const BusinessPage = () => {
 
             <div>
               <h2 className="text-xl font-semibold mb-4">
-                <LanguageText>{t("business.approvedRequests")}</LanguageText> ({approvedRequests.length})
+                {renderSectionHeading("business.approvedRequests")} ({approvedRequests.length})
               </h2>
               <BookingRequestsList
                 requests={approvedRequests}
@@ -157,7 +169,7 @@ export const BusinessPage = () => {
 
             <div>
               <h2 className="text-xl font-semibold mb-4">
-                <LanguageText>{t("business.rejectedRequests")}</LanguageText> ({rejectedRequests.length})
+                {renderSectionHeading("business.rejectedRequests")} ({rejectedRequests.length})
               </h2>
               <BookingRequestsList
                 requests={rejectedRequests}

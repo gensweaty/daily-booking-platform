@@ -9,6 +9,7 @@ import { formatDate } from 'date-fns';
 import { AlertCircle, Check, X, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
@@ -25,9 +26,10 @@ export const BookingRequestsList = ({
   onReject,
   onDelete 
 }: BookingRequestsListProps) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
+  const isGeorgian = language === 'ka';
 
   const handleDeleteClick = (id: string) => {
     setRequestToDelete(id);
@@ -40,6 +42,23 @@ export const BookingRequestsList = ({
       setIsDeleteConfirmOpen(false);
       setRequestToDelete(null);
     }
+  };
+
+  // Helper to render Georgian text properly
+  const renderGeorgianText = (key: string) => {
+    if (isGeorgian) {
+      if (key === "business.pendingRequests") return <GeorgianAuthText>მოთხოვნები მოლოდინში</GeorgianAuthText>;
+      if (key === "business.approvedRequests") return <GeorgianAuthText>დადასტურებული მოთხოვნები</GeorgianAuthText>;
+      if (key === "business.rejectedRequests") return <GeorgianAuthText>უარყოფილი მოთხოვნები</GeorgianAuthText>;
+      if (key === "business.customer") return <GeorgianAuthText>მომხმარებელი</GeorgianAuthText>;
+      if (key === "business.title") return <GeorgianAuthText>სათაური</GeorgianAuthText>;
+      if (key === "business.dateTime") return <GeorgianAuthText>თარიღი და დრო</GeorgianAuthText>;
+      if (key === "business.actions") return <GeorgianAuthText>მოქმედებები</GeorgianAuthText>;
+      if (key === "business.approve") return <GeorgianAuthText>დამტკიცება</GeorgianAuthText>;
+      if (key === "business.reject") return <GeorgianAuthText>უარყოფა</GeorgianAuthText>;
+      if (key === "business.delete") return <GeorgianAuthText>წაშლა</GeorgianAuthText>;
+    }
+    return <LanguageText>{t(key)}</LanguageText>;
   };
 
   if (requests.length === 0) {
@@ -84,10 +103,10 @@ export const BookingRequestsList = ({
     <>
       <div className="rounded-md border">
         <div className="bg-muted/50 p-4 grid grid-cols-4 font-medium">
-          <div><LanguageText>{t("business.customer")}</LanguageText></div>
-          <div><LanguageText>{t("business.title")}</LanguageText></div>
-          <div><LanguageText>{t("business.dateTime")}</LanguageText></div>
-          <div className="text-right"><LanguageText>{t("business.actions")}</LanguageText></div>
+          <div>{renderGeorgianText("business.customer")}</div>
+          <div>{renderGeorgianText("business.title")}</div>
+          <div>{renderGeorgianText("business.dateTime")}</div>
+          <div className="text-right">{renderGeorgianText("business.actions")}</div>
         </div>
         <div className="divide-y">
           {requests.map((request) => (
@@ -115,7 +134,7 @@ export const BookingRequestsList = ({
                     onClick={() => onApprove(request.id)}
                   >
                     <Check className="h-4 w-4" />
-                    <span><LanguageText>{t("business.approve")}</LanguageText></span>
+                    <span>{renderGeorgianText("business.approve")}</span>
                   </Button>
                 )}
                 {type === 'pending' && onReject && (
@@ -126,7 +145,7 @@ export const BookingRequestsList = ({
                     onClick={() => onReject(request.id)}
                   >
                     <X className="h-4 w-4" />
-                    <span><LanguageText>{t("business.reject")}</LanguageText></span>
+                    <span>{renderGeorgianText("business.reject")}</span>
                   </Button>
                 )}
                 <Button 
@@ -136,7 +155,7 @@ export const BookingRequestsList = ({
                   onClick={() => handleDeleteClick(request.id)}
                 >
                   <Trash2 className="h-4 w-4" />
-                  <span><LanguageText>{t("business.delete")}</LanguageText></span>
+                  <span>{renderGeorgianText("business.delete")}</span>
                 </Button>
               </div>
             </div>
