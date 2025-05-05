@@ -7,23 +7,29 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "next-themes";
 
 interface CalendarViewProps {
-  days: Date[];
+  days?: Date[];
   events: CalendarEventType[];
   selectedDate: Date;
   view: CalendarViewType;
   onDayClick?: (date: Date, hour?: number) => void;
   onEventClick?: (event: CalendarEventType) => void;
   isExternalCalendar?: boolean;
+  businessId?: string;
+  businessUserId?: string;
+  onBookingRequest?: (startDate: Date, endDate: Date, selectedDate: Date, startTime: string, endTime: string) => void;
 }
 
 export function CalendarView({
-  days,
+  days = [],
   events,
   selectedDate,
   view,
   onDayClick,
   onEventClick,
   isExternalCalendar = false,
+  businessId,
+  businessUserId,
+  onBookingRequest,
 }: CalendarViewProps) {
   const { t } = useLanguage();
   const { theme, resolvedTheme } = useTheme();
@@ -131,6 +137,9 @@ export function CalendarView({
         onEventClick={onEventClick}
         isExternalCalendar={isExternalCalendar}
         theme={currentTheme}
+        businessId={businessId}
+        businessUserId={businessUserId}
+        onBookingRequest={onBookingRequest}
       />
     </div>
   );

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -29,6 +30,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -57,7 +59,7 @@ const Calendar: React.FC<CalendarProps> = ({
   const [view, setView] = useState<CalendarViewType>(initialView || defaultView);
   const [isLoading, setIsLoading] = useState(false);
   const [events, setEvents] = useState<CalendarEventType[]>([]);
-  const [open, setOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(
@@ -80,11 +82,7 @@ const Calendar: React.FC<CalendarProps> = ({
   const { t } = useLanguage();
   const isMobile = useMediaQuery("(max-width: 640px)");
 
-  const {
-    isOpen: isDialogOpen,
-    onOpen: onDialogOpen,
-    onClose: onDialogClose,
-  } = useEventDialog();
+  const eventDialog = useEventDialog();
 
   useEffect(() => {
     if (onViewChange) {
@@ -172,12 +170,12 @@ const Calendar: React.FC<CalendarProps> = ({
   const handleEventClick = (event: CalendarEventType) => {
     setSelectedEvent(event);
     setIsEventDialogOpen(true);
-    onDialogOpen();
+    eventDialog.onOpen();
   };
 
   const handleCloseEventDialog = () => {
     setIsEventDialogOpen(false);
-    onDialogClose();
+    eventDialog.onClose();
   };
 
   const handleBookingRequest = (
@@ -196,7 +194,7 @@ const Calendar: React.FC<CalendarProps> = ({
     setBookingEndTime(endTime);
   };
 
-  const submitBookingRequest = async (bookingData: any) => {
+  const handleBookingSubmit = async (bookingData: any) => {
     try {
       const { data, error } = await supabase
         .from("booking_requests")
@@ -220,7 +218,7 @@ const Calendar: React.FC<CalendarProps> = ({
       });
 
       setIsBookingRequestDialogOpen(false);
-      queryClient.invalidateQueries(["calendarEvents"]);
+      queryClient.invalidateQueries({ queryKey: ["calendarEvents"] });
     } catch (error: any) {
       console.error("Error submitting booking request:", error);
       toast({
@@ -229,6 +227,10 @@ const Calendar: React.FC<CalendarProps> = ({
         description: t("common.errorOccurred"),
       });
     }
+  };
+
+  const handleBookingCancel = () => {
+    setIsBookingRequestDialogOpen(false);
   };
 
   return (
@@ -249,10 +251,9 @@ const Calendar: React.FC<CalendarProps> = ({
           selectedDate={selectedDate}
           view={view}
           events={events}
-          onDateChange={handleDateChange}
+          days={[]} // CalendarView will compute days internally
+          onDayClick={handleDateChange}
           onEventClick={handleEventClick}
-          isCreateDialogOpen={isCreateDialogOpen}
-          setIsCreateDialogOpen={setIsCreateDialogOpen}
           isExternalCalendar={isExternalCalendar}
           businessId={businessId}
           businessUserId={businessUserId}
@@ -261,17 +262,17 @@ const Calendar: React.FC<CalendarProps> = ({
       </div>
 
       <EventDialog
-        isOpen={isDialogOpen}
+        open={isEventDialogOpen}
         onClose={handleCloseEventDialog}
         event={selectedEvent}
         isExternalCalendar={isExternalCalendar}
       />
 
-      <Dialog open={isBookingRequestDialogOpen} onOpenChange={setOpen}>
+      <Dialog open={isBookingRequestDialogOpen} onOpenChange={setIsBookingRequestDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <BookingRequestForm
-            onSubmit={submitBookingRequest}
-            onCancel={() => setIsBookingRequestDialogOpen(false)}
+            onSubmit={handleBookingSubmit}
+            onCancel={handleBookingCancel}
             businessId={businessId || ""}
             startDate={bookingStartDate}
             endDate={bookingEndDate}
