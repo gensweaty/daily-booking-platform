@@ -189,48 +189,50 @@ export const PublicBusinessPage = () => {
         <LanguageSwitcher />
       </div>
       
-      {/* Hero section with cover photo - extended height */}
-      <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-24"
+      {/* Hero section with cover photo - 20% smaller than previous version */}
+      <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-20"
         style={{
           backgroundImage: `url(${displayCoverUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          minHeight: '50vh', // Increased height
+          minHeight: '40vh', // Reduced from 50vh to 40vh (20% smaller)
         }}
       >
         <div className="absolute inset-0 bg-black bg-opacity-50"></div>
         
-        <div className="container mx-auto px-4 relative">
-          <h1 
-            className={cn("text-4xl md:text-5xl font-bold mb-6", isGeorgian ? "font-georgian" : "")}
-            style={applyGeorgianFont(isGeorgian)}
-          >
-            {business.business_name}
-          </h1>
-          {business.description && (
-            <p 
-              className={cn("text-lg opacity-90 max-w-2xl mb-8", isGeorgian ? "font-georgian" : "")}
+        <div className="container mx-auto px-4 relative h-full flex flex-col justify-between">
+          <div>
+            <h1 
+              className={cn("text-4xl md:text-5xl font-bold mb-6", isGeorgian ? "font-georgian" : "")}
               style={applyGeorgianFont(isGeorgian)}
             >
-              {business.description}
-            </p>
-          )}
-          
-          <div className="flex gap-4 mb-6">
-            <Button 
-              size="lg" 
-              className={cn("bg-white text-blue-700 hover:bg-blue-50", isGeorgian ? "georgian-text-fix font-georgian" : "")}
-              style={applyGeorgianFont(isGeorgian)}
-              onClick={() => {
-                document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-            >
-              <LanguageText withFont={true}>{t("calendar.bookNow")}</LanguageText>
-            </Button>
+              {business.business_name}
+            </h1>
+            {business.description && (
+              <p 
+                className={cn("text-lg opacity-90 max-w-2xl mb-8", isGeorgian ? "font-georgian" : "")}
+                style={applyGeorgianFont(isGeorgian)}
+              >
+                {business.description}
+              </p>
+            )}
+            
+            <div className="flex gap-4 mb-6">
+              <Button 
+                size="lg" 
+                className={cn("bg-white text-blue-700 hover:bg-blue-50", isGeorgian ? "georgian-text-fix font-georgian" : "")}
+                style={applyGeorgianFont(isGeorgian)}
+                onClick={() => {
+                  document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                <LanguageText withFont={true}>{t("calendar.bookNow")}</LanguageText>
+              </Button>
+            </div>
           </div>
           
-          {/* Additional business info moved from below into the hero section */}
-          <div className="grid md:grid-cols-2 gap-6 mt-8 bg-white/10 backdrop-blur-sm p-6 rounded-lg">
+          {/* Contact information positioned at the bottom of the section */}
+          <div className="grid md:grid-cols-2 gap-6 mt-auto bg-white/10 backdrop-blur-sm p-6 rounded-lg mb-2">
             {business.contact_email && (
               <div className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-blue-100" />
