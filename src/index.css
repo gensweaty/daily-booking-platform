@@ -223,3 +223,26 @@
 [lang="ka"] [role="tabpanel"] *::first-letter {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
 }
+
+/* Update landing page Georgian font styles */
+[lang="ka"] .hero-title,
+[lang="ka"] .hero-subtitle,
+[lang="ka"] .hero-description,
+[lang="ka"] .feature-title,
+[lang="ka"] .feature-description,
+[lang="ka"] .business-category,
+[lang="ka"] .business-description,
+[lang="ka"] .footer *,
+[lang="ka"] nav button,
+[lang="ka"] nav a {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  letter-spacing: -0.2px !important;
+}
+
+/* Fix Georgian font in feature cards and buttons */
+[lang="ka"] .feature-card *,
+[lang="ka"] .cta-section *,
+[lang="ka"] .landing-button * {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  letter-spacing: -0.2px !important;
+}
