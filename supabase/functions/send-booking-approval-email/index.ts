@@ -83,17 +83,17 @@ const handler = async (req: Request): Promise<Response> => {
       const emailContent = getApprovalEmailContent(language, fullName, businessName, formattedStartDate, formattedEndDate);
       const emailSubject = getApprovalEmailSubject(language, businessName);
       
-      // Send email using SMTP with proper encoding for all languages
+      // Send email using SMTP with encoding optimized for multilingual support (UTF-8)
       await client.send({
         from: `${businessName} <info@smartbookly.com>`,
         to: recipientEmail,
         subject: emailSubject,
         content: "Your booking has been approved", // Fallback plain text
         html: emailContent,
-        // Add proper UTF-8 encoding headers for all emails
+        // Critical UTF-8 encoding settings for proper display of Georgian and other languages
         headers: {
           "Content-Type": "text/html; charset=UTF-8",
-          "Content-Transfer-Encoding": "base64",
+          "Content-Transfer-Encoding": "8bit",
           "MIME-Version": "1.0"
         },
       });

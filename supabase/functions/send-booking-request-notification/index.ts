@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -285,10 +284,10 @@ const handler = async (req: Request): Promise<Response> => {
         html: emailHtml,
         text: plainText,
         reply_to: "no-reply@smartbookly.com",
-        // Improved UTF-8 encoding setup for proper character display
+        // Optimized UTF-8 encoding settings for proper character display in all languages
         headers: {
           "Content-Type": "text/html; charset=UTF-8",
-          "Content-Transfer-Encoding": "base64",
+          "Content-Transfer-Encoding": "8bit",
           "MIME-Version": "1.0"
         },
       });
