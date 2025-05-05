@@ -1,10 +1,8 @@
 
-import { CSSProperties } from 'react';
-
 /**
- * Returns consistent Georgian font styling with proper TypeScript typing
+ * Returns standardized Georgian font styling for consistent rendering
  */
-export const getGeorgianFontStyle = (): CSSProperties => ({
+export const getGeorgianFontStyle = () => ({
   fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
   letterSpacing: '-0.2px',
   WebkitFontSmoothing: 'antialiased',

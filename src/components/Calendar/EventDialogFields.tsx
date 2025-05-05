@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -93,6 +94,14 @@ export const EventDialogFields = ({
       if (text === "events.eventNotes") return <GeorgianAuthText>შენიშვნები</GeorgianAuthText>;
     }
     return <LanguageText>{t(text)}</LanguageText>;
+  };
+  
+  // Fixed Georgian placeholder for event notes
+  const getEventNotesPlaceholder = () => {
+    if (isGeorgian) {
+      return "დაამატეთ შენიშვნები თქვენი ჯავშნის შესახებ";
+    }
+    return t("events.addEventNotes");
   };
   
   return <>
@@ -272,7 +281,7 @@ export const EventDialogFields = ({
           id="eventNotes" 
           value={eventNotes} 
           onChange={e => setEventNotes(e.target.value)} 
-          placeholder={t("events.addEventNotes")} 
+          placeholder={getEventNotesPlaceholder()}
           className={cn("min-h-[100px] resize-none", isGeorgian ? "placeholder:font-georgian font-georgian" : "")} 
           style={georgianStyle}
         />
