@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -348,7 +347,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         toast({
           title: t("common.warning"),
           description: t("No business address available. Please add one to your business profile to send confirmation emails."),
-          variant: "warning"
+          variant: "destructive"  // Changed from "warning" to "destructive"
         });
         return false;
       }

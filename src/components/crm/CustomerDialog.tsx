@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -227,7 +226,7 @@ export const CustomerDialog = ({
         toast({
           title: t("common.warning"),
           description: t("No business address available. Please add one to your business profile to send confirmation emails."),
-          variant: "warning"
+          variant: "destructive"
         });
         return false;
       }
