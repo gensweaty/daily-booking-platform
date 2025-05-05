@@ -395,6 +395,10 @@ export interface TranslationType {
     enterRedeemCode: string;
     sendResetLink: string;
     backToSignIn: string;
+    passwordsDoNotMatch?: string; // Add the missing property
+    passwordTooShort?: string; // Add the missing property
+    verificationRequired?: string; // Add the missing property
+    checkEmailFolders?: string; // Add the missing property
   };
   
   legal: {
@@ -423,4 +427,3 @@ export interface TranslationType {
 }
 
 export type TranslationKey = keyof TranslationType;
-
