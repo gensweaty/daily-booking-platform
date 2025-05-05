@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -116,6 +117,23 @@
   /* Fixed Georgian bold text - first letter fix */
   .georgian-bold-fix::first-letter {
     font-weight: inherit !important;
+  }
+  
+  /* New class for fixing Georgian text inconsistencies */
+  .georgian-text-fix,
+  .georgian-text-fix * {
+    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+    letter-spacing: -0.2px !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+    font-weight: inherit !important;
+  }
+  
+  .georgian-text-fix::first-letter {
+    font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+    font-weight: inherit !important;
+    letter-spacing: -0.2px !important;
   }
   
   /* Ensure first letter of Georgian text is also bold when parent is bold */
@@ -260,7 +278,9 @@
 [lang="ka"] .dialog-content label,
 [lang="ka"] .dialog-content input,
 [lang="ka"] .dialog-content select,
-[lang="ka"] .dialog-content textarea {
+[lang="ka"] .dialog-content textarea,
+[lang="ka"] .dialog-content input::placeholder,
+[lang="ka"] .dialog-content textarea::placeholder {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
 }
 
@@ -272,8 +292,23 @@
 [lang="ka"] .booking-form span,
 [lang="ka"] .booking-form label,
 [lang="ka"] .booking-form input,
-[lang="ka"] .booking-form textarea {
+[lang="ka"] .booking-form textarea,
+[lang="ka"] .booking-form input::placeholder,
+[lang="ka"] .booking-form textarea::placeholder {
   font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  letter-spacing: -0.2px !important;
+}
+
+/* Public booking page specific fixes */
+[lang="ka"] .public-booking-form label,
+[lang="ka"] .public-booking-form input, 
+[lang="ka"] .public-booking-form input::placeholder,
+[lang="ka"] .public-booking-form textarea,
+[lang="ka"] .public-booking-form textarea::placeholder,
+[lang="ka"] .public-booking-form select,
+[lang="ka"] .public-booking-form button {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  letter-spacing: -0.2px !important;
 }
 
 /* Dashboard content Georgian styling */
@@ -418,3 +453,15 @@
   font-weight: inherit !important;
   font-family: inherit !important;
 }
+
+/* Fix for select component and dropdown in Georgian language */
+[lang="ka"] .select-trigger span,
+[lang="ka"] .select-content button,
+[lang="ka"] .select-item-text,
+[lang="ka"] .select-trigger,
+[lang="ka"] .select-content,
+[lang="ka"] .select-item {
+  font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
+  letter-spacing: -0.2px !important;
+}
+

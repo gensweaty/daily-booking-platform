@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { LanguageText } from '@/components/shared/LanguageText';
+import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
 import { Asterisk } from 'lucide-react';
 
 export interface BookingRequestFormProps {
@@ -75,6 +76,15 @@ export const BookingRequestForm = ({
     }
   }, [selectedDate, startTime, endTime]);
 
+  // Common Georgian font styling for consistent rendering
+  const georgianFontStyle = isGeorgian ? {
+    fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+    letterSpacing: '-0.2px',
+    WebkitFontSmoothing: 'antialiased',
+    MozOsxFontSmoothing: 'grayscale',
+    textRendering: 'optimizeLegibility'
+  } : undefined;
+  
   const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
 
@@ -101,6 +111,20 @@ export const BookingRequestForm = ({
   const handleFileChange = (file: File | null) => {
     setSelectedFile(file);
     setFileError('');
+  };
+
+  // Helper function for Georgian text to ensure consistent rendering
+  const renderGeorgianText = (text: string) => {
+    if (!isGeorgian) return text;
+    
+    return (
+      <span 
+        className="font-georgian georgian-text-fix"
+        style={georgianFontStyle}
+      >
+        {text}
+      </span>
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -380,47 +404,84 @@ export const BookingRequestForm = ({
   return (
     <div className="space-y-4 p-1">
       <h3 className="text-xl font-semibold">
-        <LanguageText withFont={true} fixLetterSpacing={true}>
-          {t('booking.bookAppointment')}
-        </LanguageText>
+        {isGeorgian ? (
+          <GeorgianAuthText fontWeight="semibold">
+            მოთხოვნის გაგზავნა
+          </GeorgianAuthText>
+        ) : (
+          <LanguageText>
+            {t('booking.bookAppointment')}
+          </LanguageText>
+        )}
       </h3>
       
       <form onSubmit={handleSubmit} className="space-y-4 mt-4">
         {/* Full Name Field */}
         <div>
-          <Label htmlFor="fullName" className={labelClass}>
-            <LanguageText>{t("events.fullName")}</LanguageText>
-            <RequiredFieldIndicator />
+          <Label htmlFor="fullName" className={labelClass} style={georgianFontStyle}>
+            {isGeorgian ? (
+              <>
+                <GeorgianAuthText fontWeight="medium">სრული სახელი</GeorgianAuthText>
+                <RequiredFieldIndicator />
+              </>
+            ) : (
+              <>
+                {t("events.fullName")}
+                <RequiredFieldIndicator />
+              </>
+            )}
           </Label>
           <Input
             id="fullName"
             value={fullName}
             onChange={handleNameChange}
-            placeholder={t("events.fullName")}
+            placeholder={isGeorgian ? "სრული სახელი" : t("events.fullName")}
             required
+            className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
+            style={georgianFontStyle}
           />
         </div>
 
         {/* Phone Number Field */}
         <div>
-          <Label htmlFor="userNumber" className={labelClass}>
-            <LanguageText>{t("events.phoneNumber")}</LanguageText>
-            <RequiredFieldIndicator />
+          <Label htmlFor="userNumber" className={labelClass} style={georgianFontStyle}>
+            {isGeorgian ? (
+              <>
+                <GeorgianAuthText fontWeight="medium">ტელეფონის ნომერი</GeorgianAuthText>
+                <RequiredFieldIndicator />
+              </>
+            ) : (
+              <>
+                {t("events.phoneNumber")}
+                <RequiredFieldIndicator />
+              </>
+            )}
           </Label>
           <Input
             id="userNumber"
             value={userNumber}
             onChange={(e) => setUserNumber(e.target.value)}
-            placeholder={t("events.phoneNumber")}
+            placeholder={isGeorgian ? "ტელეფონის ნომერი" : t("events.phoneNumber")}
             required
+            className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
+            style={georgianFontStyle}
           />
         </div>
 
         {/* Email Field */}
         <div>
-          <Label htmlFor="socialNetworkLink" className={labelClass}>
-            <LanguageText>{t("events.socialLinkEmail")}</LanguageText>
-            <RequiredFieldIndicator />
+          <Label htmlFor="socialNetworkLink" className={labelClass} style={georgianFontStyle}>
+            {isGeorgian ? (
+              <>
+                <GeorgianAuthText fontWeight="medium">ელფოსტა / სოციალური ქსელის ბმული</GeorgianAuthText>
+                <RequiredFieldIndicator />
+              </>
+            ) : (
+              <>
+                {t("events.socialLinkEmail")}
+                <RequiredFieldIndicator />
+              </>
+            )}
           </Label>
           <Input
             id="socialNetworkLink"
@@ -429,19 +490,33 @@ export const BookingRequestForm = ({
             placeholder="email@example.com"
             type="email"
             required
+            style={georgianFontStyle}
           />
         </div>
 
         {/* Date and Time Fields */}
         <div>
-          <Label htmlFor="dateTime" className={labelClass}>
-            <LanguageText>{t("events.dateAndTime")}</LanguageText>
-            <RequiredFieldIndicator />
+          <Label htmlFor="dateTime" className={labelClass} style={georgianFontStyle}>
+            {isGeorgian ? (
+              <>
+                <GeorgianAuthText fontWeight="medium">თარიღი და დრო</GeorgianAuthText>
+                <RequiredFieldIndicator />
+              </>
+            ) : (
+              <>
+                {t("events.dateAndTime")}
+                <RequiredFieldIndicator />
+              </>
+            )}
           </Label>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label htmlFor="startDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
-                <LanguageText>{t("events.start")}</LanguageText>
+              <Label htmlFor="startDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")} style={georgianFontStyle}>
+                {isGeorgian ? (
+                  <GeorgianAuthText>დაწყება</GeorgianAuthText>
+                ) : (
+                  t("events.start")
+                )}
               </Label>
               <div className="relative">
                 <Input
@@ -456,8 +531,12 @@ export const BookingRequestForm = ({
               </div>
             </div>
             <div>
-              <Label htmlFor="endDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
-                <LanguageText>{t("events.end")}</LanguageText>
+              <Label htmlFor="endDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")} style={georgianFontStyle}>
+                {isGeorgian ? (
+                  <GeorgianAuthText>დასრულება</GeorgianAuthText>
+                ) : (
+                  t("events.end")
+                )}
               </Label>
               <div className="relative">
                 <Input
@@ -476,20 +555,30 @@ export const BookingRequestForm = ({
         
         {/* Payment Status Dropdown */}
         <div>
-          <Label htmlFor="paymentStatus" className={labelClass}>
-            <LanguageText>{t("events.paymentStatus")}</LanguageText>
+          <Label htmlFor="paymentStatus" className={labelClass} style={georgianFontStyle}>
+            {isGeorgian ? (
+              <GeorgianAuthText fontWeight="medium">გადახდის სტატუსი</GeorgianAuthText>
+            ) : (
+              t("events.paymentStatus")
+            )}
           </Label>
           <Select
             value={paymentStatus}
             onValueChange={setPaymentStatus}
           >
-            <SelectTrigger id="paymentStatus" className={isGeorgian ? "font-georgian" : ""}>
-              <SelectValue placeholder={t("events.selectPaymentStatus")} />
+            <SelectTrigger id="paymentStatus" className={isGeorgian ? "font-georgian" : ""} style={georgianFontStyle}>
+              <SelectValue placeholder={isGeorgian ? "აირჩიეთ გადახდის სტატუსი" : t("events.selectPaymentStatus")} />
             </SelectTrigger>
-            <SelectContent className="bg-background">
-              <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.notPaid")}</SelectItem>
-              <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidPartly")}</SelectItem>
-              <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""}>{t("crm.paidFully")}</SelectItem>
+            <SelectContent className={`bg-background ${isGeorgian ? "font-georgian" : ""}`}>
+              <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""} style={georgianFontStyle}>
+                {isGeorgian ? "გადაუხდელი" : t("crm.notPaid")}
+              </SelectItem>
+              <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""} style={georgianFontStyle}>
+                {isGeorgian ? "ნაწილობრივ გადახდილი" : t("crm.paidPartly")}
+              </SelectItem>
+              <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""} style={georgianFontStyle}>
+                {isGeorgian ? "სრულად გადახდილი" : t("crm.paidFully")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -497,8 +586,12 @@ export const BookingRequestForm = ({
         {/* Payment Amount Field - conditionally visible */}
         {showPaymentAmount && (
           <div>
-            <Label htmlFor="paymentAmount" className={labelClass}>
-              <LanguageText>{t("events.paymentAmount")}</LanguageText>
+            <Label htmlFor="paymentAmount" className={labelClass} style={georgianFontStyle}>
+              {isGeorgian ? (
+                <GeorgianAuthText fontWeight="medium">გადახდის ოდენობა</GeorgianAuthText>
+              ) : (
+                t("events.paymentAmount")
+              )}
             </Label>
             <Input
               id="paymentAmount"
@@ -512,28 +605,39 @@ export const BookingRequestForm = ({
               placeholder="0.00"
               type="text"
               inputMode="decimal"
+              className={isGeorgian ? "font-georgian" : ""}
+              style={georgianFontStyle}
             />
           </div>
         )}
         
         {/* Notes Field */}
         <div>
-          <Label htmlFor="eventNotes" className={labelClass}>
-            <LanguageText>{t("events.eventNotes")}</LanguageText>
+          <Label htmlFor="eventNotes" className={labelClass} style={georgianFontStyle}>
+            {isGeorgian ? (
+              <GeorgianAuthText fontWeight="medium">შენიშვნები</GeorgianAuthText>
+            ) : (
+              t("events.eventNotes")
+            )}
           </Label>
           <Textarea
             id="eventNotes"
             value={eventNotes}
             onChange={(e) => setEventNotes(e.target.value)}
-            placeholder={t("events.addEventNotes")}
-            className="min-h-[100px] resize-none"
+            placeholder={isGeorgian ? "დაამატეთ შენიშვნები თქვენი მოთხოვნის შესახებ" : t("events.addEventNotes")}
+            className={cn("min-h-[100px] resize-none", isGeorgian ? "placeholder:font-georgian font-georgian" : "")}
+            style={georgianFontStyle}
           />
         </div>
         
         {/* File Upload Field - Fix label duplication */}
         <div>
-          <Label htmlFor="file" className={labelClass}>
-            <LanguageText>{t("common.attachments")}</LanguageText>
+          <Label htmlFor="file" className={labelClass} style={georgianFontStyle}>
+            {isGeorgian ? (
+              <GeorgianAuthText fontWeight="medium">დანართები</GeorgianAuthText>
+            ) : (
+              t("common.attachments")
+            )}
           </Label>
           <FileUploadField
             onChange={handleFileChange}
@@ -551,9 +655,15 @@ export const BookingRequestForm = ({
           className="w-full"
           disabled={isSubmitting}
         >
-          <LanguageText withFont={true} fixLetterSpacing={true}>
-            {isSubmitting ? t('common.submitting') : t('events.submitRequest')}
-          </LanguageText>
+          {isGeorgian ? (
+            <GeorgianAuthText fontWeight="medium">
+              {isSubmitting ? "იგზავნება..." : "მოთხოვნის გაგზავნა"}
+            </GeorgianAuthText>
+          ) : (
+            <LanguageText>
+              {isSubmitting ? t('common.submitting') : t('events.submitRequest')}
+            </LanguageText>
+          )}
         </Button>
       </form>
     </div>
