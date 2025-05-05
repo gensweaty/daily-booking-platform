@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { LanguageText } from '@/components/shared/LanguageText';
 import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
 import { Asterisk } from 'lucide-react';
+import { getGeorgianFontStyle } from '@/lib/font-utils';
 
 export interface BookingRequestFormProps {
   businessId: string;
@@ -77,13 +77,7 @@ export const BookingRequestForm = ({
   }, [selectedDate, startTime, endTime]);
 
   // Common Georgian font styling for consistent rendering
-  const georgianFontStyle = isGeorgian ? {
-    fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-    letterSpacing: '-0.2px',
-    WebkitFontSmoothing: 'antialiased',
-    MozOsxFontSmoothing: 'grayscale',
-    textRendering: 'optimizeLegibility'
-  } : undefined;
+  const georgianFontStyle = isGeorgian ? getGeorgianFontStyle() : undefined;
   
   const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
@@ -624,7 +618,7 @@ export const BookingRequestForm = ({
             id="eventNotes"
             value={eventNotes}
             onChange={(e) => setEventNotes(e.target.value)}
-            placeholder={isGeorgian ? "დაამატეთ შენიშვნები თქვენი მოთხოვნის შესახებ" : t("events.addEventNotes")}
+            placeholder={isGeorgian ? "დაამატეთ შენიშვნები თქვენი მოთხოვნი��� შესახებ" : t("events.addEventNotes")}
             className={cn("min-h-[100px] resize-none", isGeorgian ? "placeholder:font-georgian font-georgian" : "")}
             style={georgianFontStyle}
           />

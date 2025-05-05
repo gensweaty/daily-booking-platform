@@ -31,7 +31,7 @@ export const GeorgianAuthText = ({
         fontWeight: fontWeightValue,
         WebkitFontSmoothing: 'antialiased',
         MozOsxFontSmoothing: 'grayscale',
-        textRendering: 'optimizeLegibility'
+        textRendering: 'optimizeLegibility' as const
       }}
     >
       {children}
