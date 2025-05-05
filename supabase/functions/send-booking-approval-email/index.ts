@@ -84,7 +84,9 @@ const handler = async (req: Request): Promise<Response> => {
       // Create address section if address is available
       let addressInfo = "";
       if (businessAddress) {
-        addressInfo = `<p><strong>Address:</strong> ${businessAddress}</p>`;
+        // Properly encode and format the address to prevent "=20" or other encoding issues
+        const cleanAddress = businessAddress.trim().replace(/\s+/g, " ");
+        addressInfo = `<p><strong>Address:</strong> ${cleanAddress}</p>`;
       }
       
       // Create HTML email content with simpler formatting
