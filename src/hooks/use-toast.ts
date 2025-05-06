@@ -41,30 +41,51 @@ export const useToast = () => {
   
   return {
     toast: Object.assign(toast, {
-      success: ({ title = t("common.success"), description, ...props }: Partial<CustomToastProps> | string) => {
-        // Fix for line 40 error - handle string input
-        if (typeof props === 'string') {
-          sonnerToast.success(props);
+      success: (propsOrTitle: string | Partial<CustomToastProps>) => {
+        // Handle string input
+        if (typeof propsOrTitle === 'string') {
+          sonnerToast.success(propsOrTitle);
           return;
         }
+        
+        // Handle object input
+        const { title = t("common.success"), description, ...props } = propsOrTitle;
         sonnerToast.success(title as string, {
           description,
           ...props
         });
       },
-      info: ({ title = t("common.info"), description, ...props }: Partial<CustomToastProps>) => {
+      info: (propsOrTitle: string | Partial<CustomToastProps>) => {
+        if (typeof propsOrTitle === 'string') {
+          sonnerToast.info(propsOrTitle);
+          return;
+        }
+        
+        const { title = t("common.info"), description, ...props } = propsOrTitle;
         sonnerToast.info(title as string, {
           description,
           ...props
         });
       },
-      warning: ({ title = t("common.warning"), description, ...props }: Partial<CustomToastProps>) => {
+      warning: (propsOrTitle: string | Partial<CustomToastProps>) => {
+        if (typeof propsOrTitle === 'string') {
+          sonnerToast.warning(propsOrTitle);
+          return;
+        }
+        
+        const { title = t("common.warning"), description, ...props } = propsOrTitle;
         sonnerToast.warning(title as string, {
           description,
           ...props
         });
       },
-      error: ({ title = t("common.error"), description, ...props }: Partial<CustomToastProps>) => {
+      error: (propsOrTitle: string | Partial<CustomToastProps>) => {
+        if (typeof propsOrTitle === 'string') {
+          sonnerToast.error(propsOrTitle);
+          return;
+        }
+        
+        const { title = t("common.error"), description, ...props } = propsOrTitle;
         sonnerToast.error(title as string, {
           description,
           ...props
@@ -279,10 +300,10 @@ interface ToastFunctionProps {
 interface ToastFunction {
   (props: ToastInput): ReturnType<typeof sonnerToast>;
   (title: string, props?: Partial<CustomToastProps>): ReturnType<typeof sonnerToast>;
-  success: (props: Partial<CustomToastProps> | string) => void;
-  info: (props: Partial<CustomToastProps> | string) => void;
-  warning: (props: Partial<CustomToastProps> | string) => void;
-  error: (props: Partial<CustomToastProps> | string) => void;
+  success: (propsOrTitle: string | Partial<CustomToastProps>) => void;
+  info: (propsOrTitle: string | Partial<CustomToastProps>) => void;
+  warning: (propsOrTitle: string | Partial<CustomToastProps>) => void;
+  error: (propsOrTitle: string | Partial<CustomToastProps>) => void;
   custom: (props: ToastInput) => ReturnType<typeof sonnerToast>;
   translateKeys: (keys: { titleKey?: string; descriptionKey?: string }) => void;
   
@@ -364,40 +385,39 @@ const toastFn = function(
 
 // Add all the required methods to make the toast function fully compatible
 export const toast = Object.assign(toastFn, {
-  success: (propsOrTitle: Partial<CustomToastProps> | string) => {
-    // Fix for line 362 error - handle string input properly
+  success: (propsOrTitle: string | Partial<CustomToastProps>) => {
     if (typeof propsOrTitle === 'string') {
       sonnerToast.success(propsOrTitle);
     } else {
-      const { title = "Success", description, ...rest } = propsOrTitle;
-      sonnerToast.success(title as string, { description, ...rest });
+      const { title = "Success", description, ...props } = propsOrTitle;
+      sonnerToast.success(title as string, { description, ...props });
     }
   },
   
-  info: (propsOrTitle: Partial<CustomToastProps> | string) => {
+  info: (propsOrTitle: string | Partial<CustomToastProps>) => {
     if (typeof propsOrTitle === 'string') {
       sonnerToast.info(propsOrTitle);
     } else {
-      const { title = "Info", description, ...rest } = propsOrTitle;
-      sonnerToast.info(title as string, { description, ...rest });
+      const { title = "Info", description, ...props } = propsOrTitle;
+      sonnerToast.info(title as string, { description, ...props });
     }
   },
   
-  warning: (propsOrTitle: Partial<CustomToastProps> | string) => {
+  warning: (propsOrTitle: string | Partial<CustomToastProps>) => {
     if (typeof propsOrTitle === 'string') {
       sonnerToast.warning(propsOrTitle);
     } else {
-      const { title = "Warning", description, ...rest } = propsOrTitle;
-      sonnerToast.warning(title as string, { description, ...rest });
+      const { title = "Warning", description, ...props } = propsOrTitle;
+      sonnerToast.warning(title as string, { description, ...props });
     }
   },
   
-  error: (propsOrTitle: Partial<CustomToastProps> | string) => {
+  error: (propsOrTitle: string | Partial<CustomToastProps>) => {
     if (typeof propsOrTitle === 'string') {
       sonnerToast.error(propsOrTitle);
     } else {
-      const { title = "Error", description, ...rest } = propsOrTitle;
-      sonnerToast.error(title as string, { description, ...rest });
+      const { title = "Error", description, ...props } = propsOrTitle;
+      sonnerToast.error(title as string, { description, ...props });
     }
   },
   
