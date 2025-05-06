@@ -1,4 +1,3 @@
-
 const en = {
   nav: {
     signin: "Sign In",
@@ -262,6 +261,7 @@ const en = {
     deleteEvent: "Delete Event",
     eventDeleted: "Event deleted successfully",
     eventUpdated: "Event updated successfully",
+    eventCreated: "Event created successfully",
     timeSlotUnavailable: "Time Slot Unavailable",
     timeSlotConflict: "Schedule Conflict",
     timeSlotNotAvailable: "This time slot is not available",
