@@ -220,8 +220,7 @@ export const useToast = () => {
   };
 };
 
-// Create a standalone toast object that can be imported directly
-// This makes it easier to use in places where hook usage isn't possible
+// Define the base toast function type
 type ToastFunction = {
   (props: ToastT): string | number;
   success: ({ title, description, ...props }: ExternalToast) => void;
@@ -264,11 +263,13 @@ type ToastFunction = {
   copied: () => void;
 };
 
-// Create the toast function that also has properties
-const toastFunction = (props: ToastT): string | number => sonnerToast(props);
+// Create the actual toast function - make it callable
+const toastFunction = (props: ToastT): string | number => {
+  return sonnerToast(props);
+};
 
-// Define the standalone toast object with all the methods
-export const toast: ToastFunction = Object.assign(toastFunction, {
+// Export the standalone toast object with all methods
+export const toast = Object.assign(toastFunction, {
   success: ({ title = "Success", description, ...props }: ExternalToast) => {
     sonnerToast.success(title, {
       description,
@@ -390,25 +391,25 @@ export const toast: ToastFunction = Object.assign(toastFunction, {
     created: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("tasks.taskCreated")
+        description: t("tasks.taskCreated") || "Task created"
       });
     },
     updated: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("tasks.taskUpdated")
+        description: t("tasks.taskUpdated") || "Task updated"
       });
     },
     deleted: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("tasks.taskDeleted")
+        description: t("tasks.taskDeleted") || "Task deleted"
       });
     },
     statusChanged: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("tasks.taskStatusChanged")
+        description: t("tasks.taskStatusChanged") || "Task status changed"
       });
     }
   },
@@ -416,19 +417,19 @@ export const toast: ToastFunction = Object.assign(toastFunction, {
     added: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("notes.noteCreated")
+        description: t("notes.noteCreated") || "Note created"
       });
     },
     updated: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("notes.noteUpdated")
+        description: t("notes.noteUpdated") || "Note updated"
       });
     },
     deleted: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("notes.noteDeleted")
+        description: t("notes.noteDeleted") || "Note deleted"
       });
     }
   },
@@ -455,25 +456,25 @@ export const toast: ToastFunction = Object.assign(toastFunction, {
   saved: () => {
     const { t } = useLanguage();
     sonnerToast.success(t("common.success"), {
-      description: t("common.saved")
+      description: t("common.saved") || "Saved successfully"
     });
   },
   deleted: () => {
     const { t } = useLanguage();
     sonnerToast.success(t("common.success"), {
-      description: t("common.deleted")
+      description: t("common.deleted") || "Deleted successfully"
     });
   },
   updated: () => {
     const { t } = useLanguage();
     sonnerToast.success(t("common.success"), {
-      description: t("common.updated")
+      description: t("common.updated") || "Updated successfully"
     });
   },
   copied: () => {
     const { t } = useLanguage();
     sonnerToast.success(t("common.success"), {
-      description: t("common.copied")
+      description: t("common.copied") || "Copied to clipboard"
     });
   }
-});
+}) as ToastFunction;
