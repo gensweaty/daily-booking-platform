@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const ka: TranslationType = {
@@ -453,4 +452,3 @@ export const ka: TranslationType = {
     }
   }
 };
-
