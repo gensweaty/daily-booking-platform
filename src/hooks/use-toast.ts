@@ -1,7 +1,5 @@
-
 import * as React from "react"
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
-import { useLanguage } from "@/contexts/LanguageContext"
 
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 5000
@@ -168,7 +166,6 @@ function toast({ ...props }: Toast) {
 
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
-  const { language } = useLanguage()
 
   React.useEffect(() => {
     listeners.push(setState)
@@ -180,29 +177,9 @@ function useToast() {
     }
   }, [state])
 
-  // Enhanced toast function with language support
-  const enhancedToast = React.useCallback(
-    (props: Toast) => {
-      // For Georgian language, replace default success title
-      if (language === 'ka' && props.variant === 'default' && props.title === 'Success') {
-        props = { ...props, title: 'შესრულდა' };
-      }
-      
-      // For Georgian language, replace common success messages
-      if (language === 'ka' && typeof props.description === 'string') {
-        if (props.description === 'Event created successfully') {
-          props = { ...props, description: 'ივენთი წარმატებით შეიქმნა' };
-        }
-      }
-      
-      return toast(props);
-    },
-    [language]
-  );
-
   return {
     ...state,
-    toast: enhancedToast,
+    toast,
     dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
   }
 }

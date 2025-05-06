@@ -269,10 +269,6 @@ export interface TranslationType {
     deleteEvent: string;
     eventDeleted: string;
     eventUpdated: string;
-    eventCreated: string;
-    timeSlotUnavailable: string;
-    timeSlotConflict: string;
-    timeSlotNotAvailable: string;
     socialLinkEmail: string;
     dateAndTime: string;
     date: string;
@@ -281,6 +277,9 @@ export interface TranslationType {
     end: string;
     eventDetails: string;
     title: string;
+    timeSlotUnavailable: string;
+    timeSlotConflict: string;
+    timeSlotNotAvailable: string;
     bookAppointment: string;
     submitRequest: string;
   };
