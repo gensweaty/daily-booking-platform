@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
@@ -27,7 +26,7 @@ const productImages = [{
   alt: "CRM Preview",
   loading: "lazy"
 }, {
-  src: "/lovable-uploads/5e2575ec-860b-4a76-aeeb-e4c7edd3d312.png",
+  src: "/lovable-uploads/5c47a946-c86a-4d05-a039-116b80b2194e.png",
   alt: "Pet Grooming Salon",
   loading: "lazy"
 }];
