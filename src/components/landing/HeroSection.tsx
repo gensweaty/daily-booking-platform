@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
@@ -10,6 +11,10 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 
 const productImages = [{
+  src: "/lovable-uploads/6c5b35c2-85c1-43c3-b152-5be9f8a26669.png", // New image first
+  alt: "Pet Grooming Salon",
+  loading: "lazy"
+}, {
   src: "/lovable-uploads/a00576d5-fb16-4a4b-a313-0e1cbb61b00c.png",
   alt: "Calendar Preview",
   loading: "lazy"
@@ -24,10 +29,6 @@ const productImages = [{
 }, {
   src: "/lovable-uploads/f35ff4e8-3ae5-4bc2-95f6-c3bef5d53689.png",
   alt: "CRM Preview",
-  loading: "lazy"
-}, {
-  src: "/lovable-uploads/5c47a946-c86a-4d05-a039-116b80b2194e.png",
-  alt: "Pet Grooming Salon",
   loading: "lazy"
 }];
 
