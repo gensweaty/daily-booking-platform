@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -61,11 +60,8 @@ export const DashboardContent = ({
 
   useEffect(() => {
     if (pendingCount > 0) {
-      toast({
-        title: "New Booking Request",
-        description: `You have ${pendingCount} new booking ${pendingCount === 1 ? 'request' : 'requests'} pending`,
-        duration: 5000,
-      })
+      // Use the toast helper for booking requests with count parameter
+      toast.event.newBookingRequest(pendingCount);
     }
   }, [pendingCount, toast])
 

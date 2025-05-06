@@ -286,9 +286,11 @@ toast.event = {
     return toast({
       variant: "default",
       translateKeys: {
-        titleKey: "bookings.newRequest"
+        titleKey: "bookings.newRequest",
+        descriptionKey: "bookings.pendingRequestsCount"
       },
-      description: t("bookings.pendingRequestsCount").replace("{count}", count.toString())
+      // Use count as a parameter in the translation system
+      args: { count: count.toString() }
     });
   },
   bookingSubmitted: () => {

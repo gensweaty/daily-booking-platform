@@ -375,12 +375,8 @@ export const BookingRequestForm = ({
         fileInputRef.current.value = '';
       }
 
-      toast({
-        translateKeys: {
-          titleKey: "bookings.requestSubmitted",
-          descriptionKey: "bookings.requestSubmittedDescription"
-        }
-      });
+      // Use the dedicated toast helper for booking submissions instead of direct toast call
+      toast.event.bookingSubmitted();
 
       if (onSuccess) {
         onSuccess();
