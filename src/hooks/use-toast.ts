@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
 import { useLanguage } from "@/contexts/LanguageContext"
@@ -15,6 +14,7 @@ type ToasterToast = ToastProps & {
     titleKey?: string
     descriptionKey?: string
   }
+  translateParams?: Record<string, string | number>
 }
 
 const actionTypes = {
@@ -169,7 +169,7 @@ function toast({ ...props }: Toast) {
       translatedProps.title = t(props.translateKeys.titleKey);
     }
     if (props.translateKeys.descriptionKey && typeof props.translateKeys.descriptionKey === 'string') {
-      translatedProps.description = t(props.translateKeys.descriptionKey);
+      translatedProps.description = t(props.translateKeys.descriptionKey, props.translateParams);
     }
   }
 
@@ -281,23 +281,16 @@ toast.event = {
       }
     });
   },
-  // Fixed to correctly handle count parameter
   newBookingRequest: (count: number = 1) => {
-    // Get the translation function
-    const t = getTranslationFunction();
-    
-    // First get the base translation with placeholder
-    let description = t("bookings.pendingRequestsCount");
-    
-    // Manually replace the {count} placeholder with the actual number
-    description = description.replace('{count}', count.toString());
-    
     return toast({
       variant: "default",
       translateKeys: {
-        titleKey: "bookings.newRequest"
+        titleKey: "bookings.newRequest",
+        descriptionKey: "bookings.pendingRequestsCount"
       },
-      description: description
+      translateParams: {
+        count: count
+      }
     });
   },
   bookingSubmitted: () => {
