@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { LoaderCircle, Globe, Mail, Phone, MapPin } from "lucide-react";
 import { ExternalCalendar } from "../Calendar/ExternalCalendar";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { cn } from "@/lib/utils";
@@ -184,7 +185,8 @@ export const PublicBusinessPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="fixed top-4 right-4 z-50">
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+        <ThemeToggle />
         <LanguageSwitcher />
       </div>
       

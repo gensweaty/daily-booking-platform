@@ -5,6 +5,7 @@ import { CTASection } from "@/components/landing/CTASection";
 import { FooterSection } from "@/components/landing/FooterSection";
 import { CursorFollower } from "@/components/landing/CursorFollower";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { ThemeProvider } from "@/components/theme-provider"; 
 
 export const Landing = () => {
   const { language } = useLanguage();
