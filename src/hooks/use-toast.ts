@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
 import { useLanguage } from "@/contexts/LanguageContext"
@@ -283,10 +284,11 @@ toast.event = {
   // Modified to correctly handle count parameter for all languages
   newBookingRequest: (count: number = 1) => {
     const t = getTranslationFunction();
-    // First get the description with the placeholder
+    
+    // First get the base translation text with placeholder
     const descriptionTemplate = t("bookings.pendingRequestsCount");
-    // Then manually replace the placeholder with the actual count
-    // Make sure we look for exactly the format used in translations
+    
+    // Now manually replace the {count} placeholder with the actual number
     const description = descriptionTemplate.replace("{count}", count.toString());
     
     return toast({
@@ -294,7 +296,7 @@ toast.event = {
       translateKeys: {
         titleKey: "bookings.newRequest"
       },
-      description: description
+      description: description // Use the processed description with real count
     });
   },
   bookingSubmitted: () => {
