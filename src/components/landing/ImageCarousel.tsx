@@ -55,11 +55,11 @@ export const ImageCarousel = ({
             <CarouselItem key={index} className="md:basis-1/1">
               <div className="p-1">
                 <div className="rounded-xl overflow-hidden transition-all h-[400px] hover:shadow-lg">
-                  <div className="relative h-full">
+                  <div className="relative h-full w-full flex items-center justify-center bg-white">
                     <img
                       src={image.src}
                       alt={image.alt}
-                      className="w-full h-full object-contain bg-white"
+                      className="max-w-full max-h-full object-contain w-full h-full"
                     />
                   </div>
                 </div>

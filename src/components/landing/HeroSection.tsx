@@ -27,7 +27,7 @@ const productImages = [{
   alt: "CRM Preview",
   loading: "lazy"
 }, {
-  src: "/lovable-uploads/63332b28-99b4-4beb-8571-d9d4b276a11d.png",
+  src: "/lovable-uploads/2198a961-32aa-4b93-b795-c4dbf466ddfb.png",
   alt: "Pet Grooming Salon",
   loading: "lazy"
 }];
