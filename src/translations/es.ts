@@ -206,7 +206,7 @@ export const es: TranslationType = {
     goodMorning: "Buenos días",
     goodAfternoon: "Buenas tardes",
     goodEvening: "Buenas noches",
-    goodNight: "Buenas noches", // Added missing translation
+    goodNight: "Buenas noches",
     overview: "Resumen",
     calendar: "Calendario",
     bookingCalendar: "Calendario de Reservas",
@@ -402,7 +402,8 @@ export const es: TranslationType = {
     passwordsDoNotMatch: "Las contraseñas no coinciden",
     passwordTooShort: "La contraseña es demasiado corta",
     verificationRequired: "Importante: Después de registrarte, DEBES hacer clic en el enlace de verificación enviado a tu correo electrónico para activar tu cuenta.",
-    checkEmailFolders: "Por favor, revisa tanto tu bandeja de entrada como la carpeta de spam para el correo de confirmación."
+    checkEmailFolders: "Por favor, revisa tanto tu bandeja de entrada como la carpeta de spam para el correo de confirmación.",
+    signOutSuccess: "Sesión cerrada con éxito"
   },
   legal: {
     title: "Términos y Política de Privacidad",
