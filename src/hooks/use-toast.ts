@@ -257,7 +257,7 @@ toast.event = {
       variant: "default",
       translateKeys: {
         titleKey: "common.success",
-        descriptionKey: "bookings.approvedBooking"
+        descriptionKey: "bookings.requestApproved"
       }
     });
   },
