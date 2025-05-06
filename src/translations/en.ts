@@ -1,5 +1,7 @@
+import { TranslationType } from "./types";
 
-const en = {
+// Define English translations
+const en: TranslationType = {
   nav: {
     signin: "Sign In",
     startJourney: "Start Your Journey",
@@ -7,19 +9,19 @@ const en = {
   },
   hero: {
     title: "Boost Your Business Productivity with SmartBookly",
-    subtitle: "All-in-One Solution - Event Bookings, Task Management, CRM, and Analytics",
-    description: "Take complete control of your workflow with our seamless booking calendar, powerful task management, smart customer relationship management and integrated analytics. Everything your business needs, in one place.",
+    subtitle: "All-in-One Solution - Event Booking, Task Management, CRM, and Analytics",
+    description: "Take complete control of your workflow with our seamless booking calendar, powerful task management, smart customer relationship management, and built-in analytics. Everything your business needs, all in one place.",
   },
   features: {
     title: "What We Offer",
-    mainTitle: "Everything you need to make your business thrive",
+    mainTitle: "Everything You Need For Your Business to Thrive",
     booking: "Booking",
     tasks: "Tasks",
     crm: "CRM",
     analytics: "Analytics",
     website: "Website",
-    ownBookingWebsite: "Your own booking website",
-    businessTitle: "For any type of business",
+    ownBookingWebsite: "Your Own Booking Website",
+    businessTitle: "For Any Type of Business",
     smartAppointment: "Smart Appointment Scheduling",
     automatedAnalytics: "Automated Performance Analytics",
     modernCRM: "Modern CRM Solution",
@@ -31,12 +33,13 @@ const en = {
     feature1: "Multiple calendar views (month, week, day)",
     feature2: "Event scheduling with customizable time slots",
     feature3: "Customer booking management with payment tracking",
-    feature4: "Automatic event synchronization with CRM",
+    feature4: "Automatic event syncing with CRM",
     feature5: "Booking notifications via email and dashboard",
     requestSubmitted: "Your booking request has been successfully submitted!",
     yourEmailPlaceholder: "Enter your email",
     bookAppointment: "Book Appointment",
-    requestApproved: "Booking request approved and notification email processed"
+    requestApproved: "Booking request approved",
+    newRequest: "New booking request pending"
   },
   analytics: {
     title: "Comprehensive Analytics",
