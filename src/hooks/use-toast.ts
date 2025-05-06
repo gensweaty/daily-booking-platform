@@ -280,17 +280,20 @@ toast.event = {
       }
     });
   },
-  // Updated to use proper translation keys for both title and description for Georgian
+  // Modified to correctly handle count parameter for Georgian
   newBookingRequest: (count: number = 1) => {
     const t = getTranslationFunction();
+    // First get the description with the placeholder
+    const descriptionTemplate = t("bookings.pendingRequestsCount");
+    // Then manually replace the placeholder with the actual count
+    const description = descriptionTemplate.replace("{count}", count.toString());
+    
     return toast({
       variant: "default",
       translateKeys: {
-        titleKey: "bookings.newRequest",
-        descriptionKey: "bookings.pendingRequestsCount"
+        titleKey: "bookings.newRequest"
       },
-      // Use count as a parameter in the translation system
-      args: { count: count.toString() }
+      description: description
     });
   },
   bookingSubmitted: () => {
