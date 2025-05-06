@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 export const es: TranslationType = {
@@ -38,7 +37,8 @@ export const es: TranslationType = {
     requestSubmitted: "¡Tu solicitud de reserva ha sido enviada con éxito!",
     yourEmailPlaceholder: "Ingresa tu correo electrónico",
     bookAppointment: "Reservar Cita",
-    requestApproved: "Solicitud de reserva aprobada"
+    requestApproved: "Solicitud de reserva aprobada",
+    newRequest: "Nueva solicitud de reserva en espera"
   },
   analytics: {
     title: "Análisis Integral",
@@ -94,7 +94,7 @@ export const es: TranslationType = {
     missingUserInfo: "Falta información del usuario",
     customerCreated: "Cliente creado con éxito",
     customerUpdated: "Cliente actualizado con éxito",
-    customerDeleted: "Cliente eliminado con éxito", // Added missing required property
+    customerDeleted: "Cliente eliminado con éxito",
     noDataToExport: "No hay datos para exportar",
     error: "Error"
   },
@@ -116,7 +116,7 @@ export const es: TranslationType = {
     deleteTaskConfirmTitle: "¿Eliminar Tarea?",
     taskUpdated: "Tarea actualizada con éxito",
     taskDeleted: "Tarea eliminada con éxito",
-    taskAdded: "Tarea agregada con éxito" // Added missing required property
+    taskAdded: "Tarea agregada con éxito" 
   },
   website: {
     title: "Sitio Web Gratuito para tu negocio",

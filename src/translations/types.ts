@@ -354,7 +354,6 @@ export interface TranslationType {
     deleteConfirmMessage: string;
     noDescription: string;
     deleteConfirmTitle: string;
-    successMessage: string;
   };
   auth: {
     welcome: string;

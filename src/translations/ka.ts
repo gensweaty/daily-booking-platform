@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 export const ka: TranslationType = {
@@ -349,7 +348,6 @@ export const ka: TranslationType = {
     deleteConfirmMessage: "დარწმუნებული ხართ, რომ გსურთ წაშლა? ეს ქმედება შეუქცევადია.",
     noDescription: "აღწერა არ არის",
     deleteConfirmTitle: "გსურთ წაშლა?",
-    successMessage: "წარმატებულია"
   },
   auth: {
     welcome: "მოგესალმებით SmartBookly-ში",
@@ -401,9 +399,6 @@ export const ka: TranslationType = {
     passwordTooShort: "პაროლი ძალიან მოკლეა",
     verificationRequired: "მნიშვნელოვანი: რეგისტრაციის შემდეგ, თქვენ უნდა დააჭიროთ ვერიფიკაციის ბმულს, რომელიც გამოგზავნილია თქვენს ელ.ფოსტაზე, რათა გააქტიუროთ თქვენი ანგარიში.",
     checkEmailFolders: "გთხოვთ, შეამოწმოთ როგორც შემომავალი, ასევე სპამის საქაღალდეები დადასტურების ელ.ფოსტისთვის."
-  },
-  bookings: {
-    approvedBooking: "დადასტურებული ჯავშანი"
   },
   legal: {
     title: "Წესები და კონფიდენციალურობის პოლიტიკა",
