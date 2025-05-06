@@ -1,3 +1,4 @@
+
 import { toast as sonnerToast, ToastT, ExternalToast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ReactNode } from "react";
@@ -36,7 +37,7 @@ export const useToast = () => {
     }
     
     // Fallback (should not reach here due to types)
-    return sonnerToast(props as string);
+    return sonnerToast(props as unknown as string);
   };
   
   return {
@@ -380,7 +381,7 @@ const toastFn = function(
   }
   
   // This should never be reached due to TypeScript
-  return sonnerToast(propsOrTitle as string);
+  return sonnerToast(propsOrTitle as unknown as string);
 } as ToastFunction;
 
 // Add all the required methods to make the toast function fully compatible
