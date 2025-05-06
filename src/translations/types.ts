@@ -354,6 +354,9 @@ export interface TranslationType {
     deleteConfirmMessage: string;
     noDescription: string;
     deleteConfirmTitle: string;
+    authRequired: string; // Added missing property
+    save: string;
+    saving: string;
   };
   auth: {
     welcome: string;
@@ -430,6 +433,12 @@ export interface TranslationType {
     approvedBooking: string;
   };
   notes: {
+    title: string; // Added missing property
+    titlePlaceholder: string;
+    titleRequired: string;
+    content: string;
+    contentPlaceholder: string;
+    addNewNote: string;
     noteAdded: string;
     noteAddedDescription: string;
     noteUpdated: string;
