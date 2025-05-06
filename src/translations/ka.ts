@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 export const ka: TranslationType = {
@@ -114,7 +113,8 @@ export const ka: TranslationType = {
     done: "დასრულებული",
     deleteTaskConfirmTitle: "ამოცანის წაშლა",
     taskUpdated: "ამოცანა წარმატებით განახლდა",
-    taskDeleted: "ამოცანა წარმატებით წაიშალა"
+    taskDeleted: "ამოცანა წარმატებით წაიშალა",
+    taskAdded: "ამოცანა წარმატებით დაემატა"
   },
   website: {
     title: "უფასო ვებ-გვერდი თქვენი ბიზნესისთვის",
@@ -265,6 +265,7 @@ export const ka: TranslationType = {
     deleteEvent: "ღონისძიების წაშლა",
     eventDeleted: "ღონისძიება წარმატებით წაიშალა",
     eventUpdated: "ღონისძიება წარმატებით განახლდა",
+    eventCreated: "ივენთი შეიქმნა",
     timeSlotUnavailable: "დროის მონაკვეთი მიუწვდომელია",
     timeSlotConflict: "დროის კონფლიქტი",
     timeSlotNotAvailable: "ეს დროის მონაკვეთი მიუწვდომელია",
@@ -277,8 +278,7 @@ export const ka: TranslationType = {
     eventDetails: "ღონისძიების დეტალები",
     title: "ღონისძიების სათაური",
     bookAppointment: "შეხვედრის დაჯავშნა",
-    submitRequest: "მოთხოვნის გაგზავნა",
-    eventCreated: "ივენთი შეიქმნა"
+    submitRequest: "მოთხოვნის გაგზავნა"
   },
   contact: {
     email: "ელექტრონული ფოსტა",
@@ -315,7 +315,7 @@ export const ka: TranslationType = {
   },
   common: {
     cancel: "გაუქმება",
-    success: "წარმატება",
+    success: "წარმატებულია",
     error: "შეცდომა",
     warning: "გაფრთხილება",
     submitting: "იგზავნება...",
@@ -424,5 +424,54 @@ export const ka: TranslationType = {
         "დაუყოვნებლივ შეგვატყობინეთ თქვენს ანგარიშზე ნებისმიერი არაავტორიზებული წვდომის შესახებ."
       ]
     }
+  },
+  crm: {
+    title: "ურთიერთობების მართვა კლიენტებთან",
+    description: "ააწყვეთ და შეინარჩუნეთ მყარი ურთიერთობები კლიენტებთან ჩვენი CRM-ის საშუალებით",
+    feature1: "კლიენტების ინფორმაციის ცენტრალიზებული მართვა",
+    feature2: "ფაილების მიმაგრება და დოკუმენტების ორგანიზება",
+    feature3: "გადახდების თვალყურის დევნება და სტატუსის მონიტორინგი",
+    feature4: "ელასტიური ძიება მონაცემებზე სწრაფი წვდომისთვის",
+    feature5: "Excel-ში ჩამოტვირთვა ერთი დაწკაპუნებით ყველა ნაჩვენები მონაცემისთვის",
+    notPaid: "გადაუხდელი",
+    paidPartly: "ნაწილობრივ გადახდილი",
+    paidFully: "სრულად გადახდილი",
+    newCustomer: "ახალი კლიენტი",
+    fullNameRequired: "Სრული სახელი",
+    fullNamePlaceholder: "შეიყვანეთ კლიენტის სრული სახელი",
+    phoneNumber: "Ტელეფონის ნომერი",
+    phoneNumberPlaceholder: "შეიყვანეთ ტელეფონის ნომერი",
+    socialLinkEmail: "ელფოსტა / სოციალური ქსელის ბმული",
+    socialLinkEmailPlaceholder: "შეიყვანეთ ელფოსტა ან სოციალური ქსელის ბმული",
+    createEventForCustomer: "ღონისძიების შექმნა ამ კლიენტისთვის",
+    customerFromEvent: "ეს კლიენტი შეიქმნა ღონისძიებიდან",
+    paymentStatus: "გადახდის სტატუსი",
+    paymentAmount: "გადახდის თანხა",
+    selectPaymentStatus: "აირჩიეთ გადახდის სტატუსი",
+    comment: "კომენტარი",
+    commentPlaceholder: "დაამატეთ კომენტარი ამ კლიენტის შესახებ",
+    create: "Შექმნა",
+    cancel: "გაუქმება",
+    addCustomer: "კლიენტის დამატება",
+    editCustomer: "კლიენტის რედაქტირება",
+    update: "განახლება",
+    dates: "თარიღები",
+    actions: "მოქმედებები",
+    customersPerPage: "კლიენტები თითო გვერდზე",
+    noCustomers: "კლიენტები ვერ მოიძებნა",
+    noCustomersDescription: "დაამატეთ თქვენი პირველი კლიენტი დასაწყებად",
+    refreshing: "მონაცემების განახლება...",
+    yes: "კი",
+    no: "არა",
+    copiedToClipboard: "კოპირებულია ბუფერში",
+    copyError: "ტექსტის კოპირების შეცდომა",
+    deleteSuccess: "წარმატებით წაიშალა",
+    deleteError: "წაშლის შეცდომა",
+    missingUserInfo: "მომხმარებლის ინფორმაცია აკლია",
+    customerCreated: "კლიენტი წარმატებით შეიქმნა",
+    customerUpdated: "კლიენტი წარმატებით განახლდა",
+    customerDeleted: "კლიენტი წარმატებით წაიშალა",
+    noDataToExport: "ექსპორტისთვის მონაცემები არ არის",
+    error: "შეცდომა"
   }
 };

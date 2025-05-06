@@ -1,4 +1,3 @@
-
 const en = {
   nav: {
     signin: "Sign In",
@@ -36,7 +35,7 @@ const en = {
     requestSubmitted: "Your booking request has been successfully submitted!",
     yourEmailPlaceholder: "Enter your email",
     bookAppointment: "Book Appointment",
-    requestApproved: "Booking request approved"
+    requestApproved: "Booking request approved and notification email processed"
   },
   analytics: {
     title: "Comprehensive Analytics",
@@ -92,6 +91,7 @@ const en = {
     missingUserInfo: "Missing user info",
     customerCreated: "Customer created successfully",
     customerUpdated: "Customer updated successfully",
+    customerDeleted: "Customer deleted successfully",
     noDataToExport: "No data to export",
     error: "Error"
   },
@@ -112,7 +112,8 @@ const en = {
     done: "Done",
     deleteTaskConfirmTitle: "Delete Task?",
     taskUpdated: "Task updated successfully",
-    taskDeleted: "Task deleted successfully"
+    taskDeleted: "Task deleted successfully",
+    taskAdded: "Task added successfully"
   },
   website: {
     title: "Free Website for Your Business",
