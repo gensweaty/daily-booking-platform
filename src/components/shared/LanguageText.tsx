@@ -20,6 +20,20 @@ export const LanguageText = ({
   const { language } = useLanguage();
   const isGeorgian = language === 'ka';
   
+  // Handle translation keys directly if passed as string
+  if (typeof children === 'string' && children.includes('.')) {
+    try {
+      const { t } = useLanguage();
+      const possibleTranslation = t(children);
+      // If the returned value is different from the key, it's a valid translation
+      if (possibleTranslation !== children) {
+        children = possibleTranslation;
+      }
+    } catch (error) {
+      // Silently fail if it's not a valid translation key
+    }
+  }
+  
   if (!isGeorgian) {
     return <span className={className}>{children}</span>;
   }

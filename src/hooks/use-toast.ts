@@ -200,7 +200,7 @@ function toast({ ...props }: Toast) {
   }
 }
 
-// Create proper toast function with methods
+// Create proper toast function with methods - ALL with proper translation keys
 toast.success = (props: { title?: string; description?: string } & Omit<Toast, "title" | "description">) => {
   return toast({
     ...props,
@@ -223,7 +223,7 @@ toast.error = (props: { title?: string; description?: string } & Omit<Toast, "ti
   });
 };
 
-// Event toasts
+// Event toasts - Enhanced with proper translation
 toast.event = {
   created: () => {
     return toast({
@@ -257,7 +257,7 @@ toast.event = {
       variant: "default",
       translateKeys: {
         titleKey: "common.success",
-        descriptionKey: "booking.requestApproved"
+        descriptionKey: "bookings.approvedBooking"
       }
     });
   },
@@ -266,9 +266,11 @@ toast.event = {
       variant: "default",
       translateKeys: {
         titleKey: "common.new",
-        descriptionKey: "booking.newRequest"
+        descriptionKey: count === 1 ? "business.pendingRequests" : "business.pendingRequests"
       },
-      description: `${count} ახალი ჯავშნის მოთხოვნა მოლოდინშია`
+      // Use translation keys only, don't set hardcoded Georgian text
+      description: count > 1 ? `${count} ${getTranslationFunction()("common.new")} ${getTranslationFunction()("common.requests")}` : 
+                              `1 ${getTranslationFunction()("common.new")} ${getTranslationFunction()("common.request")}`
     });
   }
 };
