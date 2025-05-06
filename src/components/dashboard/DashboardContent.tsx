@@ -59,14 +59,11 @@ export const DashboardContent = ({
   const isGeorgian = language === 'ka'
 
   useEffect(() => {
-    // Only show the notification if there are pending requests
     if (pendingCount > 0) {
       // Use the toast helper for booking requests with count parameter
-      // Make sure we pass the actual count as a number
-      console.log("Showing notification for", pendingCount, "pending requests");
       toast.event.newBookingRequest(pendingCount);
     }
-  }, [pendingCount, toast]);
+  }, [pendingCount, toast])
 
   return (
     <Tabs defaultValue="calendar" className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
@@ -97,7 +94,7 @@ export const DashboardContent = ({
           </motion.div>
           <span className="hidden sm:inline">
             {isGeorgian ? (
-              <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტი���ა</GeorgianAuthText>
+              <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტიკა</GeorgianAuthText>
             ) : (
               <LanguageText>{t("dashboard.statistics")}</LanguageText>
             )}
