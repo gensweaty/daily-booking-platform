@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -62,12 +61,12 @@ export const DashboardContent = ({
   useEffect(() => {
     if (pendingCount > 0) {
       toast({
-        title: "New Booking Request",
-        description: `You have ${pendingCount} new booking ${pendingCount === 1 ? 'request' : 'requests'} pending`,
+        title: t("bookings.newRequest"),
+        description: t("bookings.pendingRequestsCount").replace("{count}", pendingCount.toString()),
         duration: 5000,
       })
     }
-  }, [pendingCount, toast])
+  }, [pendingCount, toast, t])
 
   return (
     <Tabs defaultValue="calendar" className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">

@@ -33,7 +33,7 @@ export const useBookingRequests = (options?: UseBookingRequestsOptions) => {
   const [lastNotificationCount, setLastNotificationCount] = useState(0);
 
   // Query booking requests filtered by status if provided
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data: allRequests, isLoading, error, refetch } = useQuery({
     queryKey: ['bookingRequests', options?.status],
     queryFn: async () => {
       if (!user) return [];
@@ -79,32 +79,38 @@ export const useBookingRequests = (options?: UseBookingRequestsOptions) => {
     },
     enabled: !!user,
   });
+
+  // Filter requests by status for convenience
+  const bookingRequests = allRequests || [];
+  const pendingRequests = bookingRequests.filter(req => req.status === 'pending');
+  const approvedRequests = bookingRequests.filter(req => req.status === 'approved');
+  const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected');
   
   // Check for new pending requests and show toast notification
   useEffect(() => {
-    if (!data || !options?.status || options.status !== 'pending') return;
+    if (!allRequests || !options?.status || options.status !== 'pending') return;
     
     // Call the callback if provided
-    if (options?.onInitialDataLoaded && data) {
-      options.onInitialDataLoaded(data);
+    if (options?.onInitialDataLoaded && allRequests) {
+      options.onInitialDataLoaded(allRequests);
     }
     
     // Show notification if there are new pending requests since last check
-    if (lastNotificationCount > 0 && data.length > lastNotificationCount) {
-      const newCount = data.length - lastNotificationCount;
+    if (lastNotificationCount > 0 && pendingRequests.length > lastNotificationCount) {
+      const newCount = pendingRequests.length - lastNotificationCount;
       
       // Use the event.newBookingRequest method with the correct translation
       toast.event.newBookingRequest(newCount);
     }
     
     // Update last count
-    if (data) {
-      setLastNotificationCount(data.length);
+    if (pendingRequests) {
+      setLastNotificationCount(pendingRequests.length);
     }
-  }, [data, lastNotificationCount, options]);
+  }, [allRequests, lastNotificationCount, options, pendingRequests]);
   
   // Function to approve a booking request
-  const approveBookingRequest = async (bookingId: string) => {
+  const approveRequest = async (bookingId: string) => {
     try {
       const { data: bookingData, error: bookingError } = await supabase
         .from('booking_requests')
@@ -179,7 +185,7 @@ export const useBookingRequests = (options?: UseBookingRequestsOptions) => {
   };
   
   // Function to reject a booking request
-  const rejectBookingRequest = async (bookingId: string) => {
+  const rejectRequest = async (bookingId: string) => {
     try {
       // Update the booking request status to rejected
       const { error } = await supabase
@@ -227,12 +233,17 @@ export const useBookingRequests = (options?: UseBookingRequestsOptions) => {
   };
   
   return {
-    bookingRequests: data || [],
+    bookingRequests,
+    pendingRequests,
+    approvedRequests,
+    rejectedRequests,
     isLoading,
     error,
     refetch,
-    approveBookingRequest,
-    rejectBookingRequest,
-    deleteBookingRequest
+    approveBookingRequest: approveRequest,
+    rejectBookingRequest: rejectRequest,
+    deleteBookingRequest,
+    approveRequest,
+    rejectRequest
   };
 };

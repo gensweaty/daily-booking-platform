@@ -14,12 +14,21 @@ const RATE_LIMIT_MS = 2 * 60 * 1000; // 2 minutes
 
 interface BookingRequestFormProps {
   businessId: string;
-  businessName: string;
+  businessName?: string;
   businessEmail?: string | null;
   startDate: Date;
-  endDate: Date;
+  endDate?: Date;
   onSuccess?: () => void;
   onCancel?: () => void;
+  // Add dialog props
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  // Add time props
+  startTime?: string;
+  endTime?: string;
+  // Add external booking flag
+  isExternalBooking?: boolean;
+  selectedDate?: Date;
 }
 
 export const BookingRequestForm: React.FC<BookingRequestFormProps> = ({
@@ -30,6 +39,12 @@ export const BookingRequestForm: React.FC<BookingRequestFormProps> = ({
   endDate,
   onSuccess,
   onCancel,
+  open,
+  onOpenChange,
+  startTime,
+  endTime,
+  isExternalBooking,
+  selectedDate,
 }) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -43,6 +58,25 @@ export const BookingRequestForm: React.FC<BookingRequestFormProps> = ({
 
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
+
+  // Use selectedDate and times if provided
+  const effectiveStartDate = selectedDate || startDate;
+  const effectiveEndDate = endDate || selectedDate || startDate;
+
+  // If start/end times are provided, update the dates
+  useEffect(() => {
+    if (selectedDate && startTime) {
+      const [hours, minutes] = startTime.split(':').map(Number);
+      effectiveStartDate.setHours(hours, minutes, 0, 0);
+    }
+    
+    if (selectedDate && endTime) {
+      const [hours, minutes] = endTime.split(':').map(Number);
+      if (effectiveEndDate) {
+        effectiveEndDate.setHours(hours, minutes, 0, 0);
+      }
+    }
+  }, [selectedDate, startTime, endTime]);
 
   // Check for rate limiting based on localStorage
   useEffect(() => {
@@ -110,8 +144,8 @@ export const BookingRequestForm: React.FC<BookingRequestFormProps> = ({
             requester_email: email,
             requester_phone: phone,
             description: notes || 'No additional notes',
-            start_date: startDate.toISOString(),
-            end_date: endDate.toISOString(),
+            start_date: effectiveStartDate.toISOString(),
+            end_date: effectiveEndDate.toISOString(),
             status: 'pending',
             payment_status: 'not_paid',
           }
@@ -146,7 +180,7 @@ export const BookingRequestForm: React.FC<BookingRequestFormProps> = ({
             await supabase
               .from('booking_files')
               .insert({
-                booking_id: bookingRequest.id,
+                booking_request_id: bookingRequest.id,
                 filename: selectedFile.name,
                 file_path: filePath,
                 content_type: selectedFile.type,
@@ -174,12 +208,12 @@ export const BookingRequestForm: React.FC<BookingRequestFormProps> = ({
             requesterEmail: email,
             requesterPhone: phone,
             notes: notes || 'No additional notes',
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString(),
+            startDate: effectiveStartDate.toISOString(),
+            endDate: effectiveEndDate.toISOString(),
             hasAttachment: !!selectedFile,
             paymentStatus: 'not_paid',
             paymentAmount: null,
-            businessName
+            businessName: businessName || ''
           })
         });
       } catch (emailError) {
@@ -201,6 +235,11 @@ export const BookingRequestForm: React.FC<BookingRequestFormProps> = ({
       setSelectedFile(null);
       setSubmitting(false);
       
+      // Close dialog if onOpenChange is provided
+      if (onOpenChange) {
+        onOpenChange(false);
+      }
+      
       if (onSuccess) {
         onSuccess();
       }
@@ -210,6 +249,10 @@ export const BookingRequestForm: React.FC<BookingRequestFormProps> = ({
       toast.error({ description: t("common.errorOccurred") });
       setSubmitting(false);
     }
+  };
+
+  const handleFileChange = (file: File | null) => {
+    setSelectedFile(file);
   };
 
   return (
@@ -274,7 +317,7 @@ export const BookingRequestForm: React.FC<BookingRequestFormProps> = ({
       
       <FileUploadField
         selectedFile={selectedFile}
-        setSelectedFile={setSelectedFile}
+        onFileChange={handleFileChange}
         fileError={fileError}
         setFileError={setFileError}
         disabled={submitting || timeRemaining > 0}

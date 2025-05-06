@@ -17,8 +17,8 @@ const ALLOWED_DOC_TYPES = ["application/pdf", "application/vnd.openxmlformats-of
 interface FileUploadFieldProps {
   onChange?: (file: File | null) => void;
   onUpload?: (url: string) => void;
-  onFileSelect?: (file: File) => Promise<void> | void; // Added this prop to match how it's being used
-  onFileChange?: (file: File | null) => void; // For backward compatibility
+  onFileSelect?: (file: File) => Promise<void> | void;
+  onFileChange?: (file: File | null) => void;
   fileError?: string;
   setFileError?: (error: string) => void;
   acceptedFileTypes?: string;
@@ -32,7 +32,7 @@ interface FileUploadFieldProps {
   noFileText?: string;
   maxSizeMB?: number;
   selectedFile?: File | null;
-  isUploading?: boolean; // Added to support the isUploading prop being passed from BusinessProfileForm
+  isUploading?: boolean;
 }
 
 export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps>(({
