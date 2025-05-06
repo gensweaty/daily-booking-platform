@@ -1,11 +1,29 @@
+
 import { toast as sonnerToast, ToastT, ExternalToast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export const useToast = () => {
   const { t, language } = useLanguage();
   
+  const toast = (props: ToastT | { title?: string; description?: string; variant?: "default" | "destructive"; [key: string]: any }) => {
+    // Handle object with title and description
+    if (props && typeof props === 'object') {
+      const { title, description, variant, ...rest } = props;
+      
+      // Handle variant property
+      if (variant === "destructive") {
+        return sonnerToast.error(title as string, { description, ...rest });
+      } else {
+        return sonnerToast(title as string, { description, ...rest });
+      }
+    }
+    
+    // Fallback
+    return sonnerToast(props as ToastT);
+  };
+  
   return {
-    toast: {
+    toast: Object.assign(toast, {
       success: ({ title = t("common.success"), description, ...props }: ExternalToast) => {
         sonnerToast.success(title, {
           description,
@@ -151,7 +169,6 @@ export const useToast = () => {
             { description: message }
           );
         },
-        // Customer notifications
         customerCreated: () => {
           const { t } = useLanguage();
           sonnerToast.success(t("common.success"), {
@@ -170,7 +187,6 @@ export const useToast = () => {
             description: t("customers.customerDeleted")
           });
         },
-        // Event notifications
         eventCreated: () => {
           const { t } = useLanguage();
           sonnerToast.success(t("common.success"), {
@@ -215,11 +231,11 @@ export const useToast = () => {
           description: t("common.copied")
         });
       }
-    }
+    })
   };
 };
 
-// Define a proper type for our callable toast function
+// Define the type for the toast function with string overload
 type ToastFunctionProps = ToastT | { 
   title?: string; 
   description?: string; 
@@ -227,7 +243,6 @@ type ToastFunctionProps = ToastT | {
   [key: string]: any 
 };
 
-// Create the base function type for toast with all the method signatures
 interface ToastFunction {
   (props: ToastFunctionProps): ReturnType<typeof sonnerToast>;
   (title: string, props?: ToastFunctionProps): ReturnType<typeof sonnerToast>;
@@ -276,23 +291,23 @@ interface ToastFunction {
   copied: () => void;
 }
 
-// Create the actual callable toast function
+// Create a callable function that can be used both as a function and an object
 const toastFn = function(
-  titleOrProps: string | ToastFunctionProps, 
+  propsOrTitle: ToastFunctionProps | string,
   props?: ToastFunctionProps
 ): ReturnType<typeof sonnerToast> {
   // Handle string title with optional props
-  if (typeof titleOrProps === 'string') {
-    return sonnerToast(titleOrProps, props);
+  if (typeof propsOrTitle === 'string') {
+    return sonnerToast(propsOrTitle, props as any);
   }
   
   // Handle object with title and description
-  if (titleOrProps && typeof titleOrProps === 'object') {
-    const { title, description, variant, ...rest } = titleOrProps;
+  if (propsOrTitle && typeof propsOrTitle === 'object') {
+    const { title, description, variant, ...rest } = propsOrTitle;
 
     // Special case for translateKeys
-    if ('translateKeys' in titleOrProps) {
-      const { translateKeys } = titleOrProps as any;
+    if ('translateKeys' in propsOrTitle) {
+      const { translateKeys } = propsOrTitle as any;
       const { t } = useLanguage();
       return sonnerToast(
         translateKeys.titleKey ? t(translateKeys.titleKey) : t("common.success"),
@@ -306,15 +321,15 @@ const toastFn = function(
     if (variant === "destructive") {
       return sonnerToast.error(title as string, { description, ...rest });
     } else {
-      return sonnerToast(titleOrProps as ToastT);
+      return sonnerToast(title as string, { description, ...rest });
     }
   }
   
   // Fallback
-  return sonnerToast(titleOrProps as ToastT);
+  return sonnerToast(propsOrTitle as ToastT);
 } as ToastFunction;
 
-// Now add all the required methods to make it fully compatible
+// Add all the required methods to make the toast function fully compatible
 export const toast = Object.assign(toastFn, {
   success: (propsOrTitle: ToastFunctionProps | string) => {
     if (typeof propsOrTitle === 'string') {
