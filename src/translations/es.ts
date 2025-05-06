@@ -346,7 +346,10 @@ export const es: TranslationType = {
     deleteConfirmMessage: "Esta acción no se puede deshacer. ¿Está seguro de que desea eliminar este elemento?",
     noDescription: "No se proporcionó descripción",
     deleteConfirmTitle: "¿Confirmar eliminación?",
-    successMessage: "Operación completada con éxito"
+    successMessage: "Operación completada con éxito",
+    authRequired: "Autenticación requerida",
+    save: "Guardar",
+    saving: "Guardando..."
   },
   auth: {
     welcome: "Bienvenido a SmartBookly",
@@ -427,6 +430,12 @@ export const es: TranslationType = {
     approvedBooking: "Reserva Aprobada"
   },
   notes: {
+    title: "Título",
+    titlePlaceholder: "Título de la nota",
+    titleRequired: "El título es necesario",
+    content: "Contenido",
+    contentPlaceholder: "Escribe tu nota aquí...",
+    addNewNote: "Añadir nueva nota",
     noteAdded: "Nota agregada con éxito",
     noteAddedDescription: "Tu nota ha sido creada correctamente",
     noteUpdated: "Nota actualizada con éxito",

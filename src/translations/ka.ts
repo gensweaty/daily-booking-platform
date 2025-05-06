@@ -129,7 +129,7 @@ export const ka: TranslationType = {
     feature5: "შეხვედრების დამტკიცება ელექტრონული ფოსტით",
   },
   cta: {
-    title: "მზად ხართ გაზარდოთ თქვენი ბიზნესი?",
+    title: "მზად ხართ გაზარდოთ თქვენი ���იზნესი?",
     subtitle: "დაიწყეთ ჩვენი პლატფორმის გამოყენება დღეს და ნახეთ განსხვავება!",
     button: "Დაიწყე ახლა",
   },
@@ -279,7 +279,7 @@ export const ka: TranslationType = {
     end: "Დასრულება",
     eventDetails: "ღონისძიების დეტალები",
     title: "ღონისძიების სათაური",
-    bookAppointment: "შეხვედრის დაჯავშნა",
+    bookAppointment: "შეხვედრი�� დაჯავშნა",
     submitRequest: "მოთხოვნის გაგზავნა"
   },
   contact: {
@@ -339,7 +339,7 @@ export const ka: TranslationType = {
     new: "ახალი",
     request: "მოთხოვნა",
     requests: "მოთხოვნები",
-    backToHome: "მთავარ გვერდზე დაბრუნება",
+    backToHome: "მთავარ ���ვერდზე დაბრუნება",
     and: "და",
     create: "Შექმნა",
     update: "განახლება",
@@ -348,6 +348,9 @@ export const ka: TranslationType = {
     deleteConfirmMessage: "დარწმუნებული ხართ, რომ გსურთ წაშლა? ეს ქმედება შეუქცევადია.",
     noDescription: "აღწერა არ არის",
     deleteConfirmTitle: "გსურთ წაშლა?",
+    authRequired: "ავტორიზაცია საჭიროა",
+    save: "შენახვა",
+    saving: "ინახება..."
   },
   auth: {
     welcome: "მოგესალმებით SmartBookly-ში",
@@ -428,6 +431,12 @@ export const ka: TranslationType = {
     approvedBooking: "დადასტურებული ჯავშანი"
   },
   notes: {
+    title: "სათაური",
+    titlePlaceholder: "შენიშვნის სათაური",
+    titleRequired: "სათაური აუცილებელია",
+    content: "შინაარსი",
+    contentPlaceholder: "დაწერეთ თქვენი შენიშვნა აქ...",
+    addNewNote: "ახალი შენიშვნის დამატება",
     noteAdded: "შენიშვნა დაემატა",
     noteAddedDescription: "თქვენი შენიშვნა წარმატებით შეინახა",
     noteUpdated: "შენიშვნა წარმატებით განახლდა",
