@@ -38,7 +38,8 @@ export const ka: TranslationType = {
     requestSubmitted: "თქვენი ჯავშნის მოთხოვნა წარმატებით გაიგზავნა!",
     yourEmailPlaceholder: "შეიყვანეთ თქვენი ელფოსტა",
     bookAppointment: "ვიზიტის დაჯავშნა",
-    requestApproved: "ჯავშანი დადასტურდა და ემაილი გაიგზავნა"
+    requestApproved: "ჯავშანი დადასტურდა და ემაილი გაიგზავნა",
+    newRequest: "ახალი ჯავშნის მოთხოვნა მოლოდინშია"
   },
   analytics: {
     title: "ინტეგრირებული ანალიტიკა",
@@ -267,7 +268,7 @@ export const ka: TranslationType = {
     deleteEvent: "ღონისძიების წაშლა",
     eventDeleted: "ღონისძიება წარმატებით წაიშალა",
     eventUpdated: "ღონისძიება წარმატებით განახლდა",
-    eventCreated: "ივენთი შეიქმნა",
+    eventCreated: "ღონისძიება წარმატებით შეიქმნა",
     timeSlotUnavailable: "დროის მონაკვეთი მიუწვდომელია",
     timeSlotConflict: "დროის კონფლიქტი",
     timeSlotNotAvailable: "ეს დროის მონაკვეთი მიუწვდომელია",
@@ -318,6 +319,7 @@ export const ka: TranslationType = {
   common: {
     cancel: "გაუქმება",
     success: "წარმატებულია",
+    successMessage: "მოქმედება წარმატებით შესრულდა",
     error: "შეცდომა",
     warning: "გაფრთხილება",
     submitting: "იგზავნება...",
@@ -428,7 +430,7 @@ export const ka: TranslationType = {
     }
   },
   notes: {
-    noteAdded: "შენიშვნა წარმატებით დაემატა",
+    noteAdded: "შენიშვნა დაემატა",
     noteAddedDescription: "თქვენი შენიშვნა წარმატებით შეინახა",
     noteUpdated: "შენიშვნა წარმატებით განახლდა",
     noteDeleted: "შენიშვნა წარმატებით წაიშალა"

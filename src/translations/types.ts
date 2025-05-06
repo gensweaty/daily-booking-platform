@@ -45,6 +45,7 @@ export interface TranslationType {
     yourEmailPlaceholder: string;
     bookAppointment: string;
     requestApproved: string;
+    newRequest: string;
   };
   analytics: {
     title: string;
@@ -323,6 +324,7 @@ export interface TranslationType {
   common: {
     cancel: string;
     success: string;
+    successMessage: string;
     error: string;
     warning: string;
     submitting: string;
@@ -405,7 +407,6 @@ export interface TranslationType {
     verificationRequired?: string;
     checkEmailFolders?: string; 
   };
-  
   legal: {
     title: string;
     lastUpdated: string;

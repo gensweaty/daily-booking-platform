@@ -260,6 +260,16 @@ toast.event = {
         descriptionKey: "booking.requestApproved"
       }
     });
+  },
+  newBookingRequest: (count: number = 1) => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.new",
+        descriptionKey: "booking.newRequest"
+      },
+      description: `${count} ახალი ჯავშნის მოთხოვნა მოლოდინშია`
+    });
   }
 };
 
