@@ -257,7 +257,7 @@ toast.event = {
       variant: "default",
       translateKeys: {
         titleKey: "common.success",
-        descriptionKey: "booking.requestApproved"
+        descriptionKey: "bookings.approvedBooking"
       }
     });
   },
@@ -266,7 +266,7 @@ toast.event = {
       variant: "default",
       translateKeys: {
         titleKey: "common.success", 
-        descriptionKey: "booking.requestRejected"
+        descriptionKey: "bookings.requestRejected"
       }
     });
   },
@@ -275,7 +275,7 @@ toast.event = {
       variant: "default",
       translateKeys: {
         titleKey: "common.success",
-        descriptionKey: "booking.requestDeleted"
+        descriptionKey: "bookings.requestDeleted"
       }
     });
   },
@@ -283,8 +283,8 @@ toast.event = {
     return toast({
       variant: "default",
       translateKeys: {
-        titleKey: "booking.newRequest",
-        descriptionKey: "booking.pendingRequestsCount"
+        titleKey: "bookings.newRequest",
+        descriptionKey: "bookings.pendingRequestsCount"
       },
       // Use translation keys only, don't set hardcoded English text
       description: count > 1 ? 

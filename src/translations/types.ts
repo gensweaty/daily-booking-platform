@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -431,9 +430,13 @@ export interface TranslationType {
   };
   bookings: {
     approvedBooking: string;
+    requestRejected: string;
+    requestDeleted: string;
+    newRequest: string;
+    pendingRequestsCount: string;
   };
   notes: {
-    title: string; // Added missing property
+    title: string;
     titlePlaceholder: string;
     titleRequired: string;
     content: string;

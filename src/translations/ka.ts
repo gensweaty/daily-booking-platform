@@ -129,7 +129,7 @@ export const ka: TranslationType = {
     feature5: "შეხვედრების დამტკიცება ელექტრონული ფოსტით",
   },
   cta: {
-    title: "მზად ხართ გაზარდოთ თქვენი ���იზნესი?",
+    title: "მზად ხართ გაზარდოთ თქვენი ���იზნე��ი?",
     subtitle: "დაიწყეთ ჩვენი პლატფორმის გამოყენება დღეს და ნახეთ განსხვავება!",
     button: "Დაიწყე ახლა",
   },
@@ -279,7 +279,7 @@ export const ka: TranslationType = {
     end: "Დასრულება",
     eventDetails: "ღონისძიების დეტალები",
     title: "ღონისძიების სათაური",
-    bookAppointment: "შეხვედრი�� დაჯავ���ნა",
+    bookAppointment: "შეხვედრი�� დაჯ��ვ���ნა",
     submitRequest: "მოთხოვნის გაგზავნა"
   },
   contact: {
@@ -339,7 +339,7 @@ export const ka: TranslationType = {
     new: "ახალი",
     request: "მოთხოვნა",
     requests: "მოთხოვნები",
-    backToHome: "მთავარ ���ვერდზე დაბრუნება",
+    backToHome: "მთავარ ����ვერდზე დაბრუნება",
     and: "და",
     create: "Შექმნა",
     update: "განახლება",
@@ -390,7 +390,7 @@ export const ka: TranslationType = {
     passwordRequirements: "პაროლი უნდა შეიცავდეს მინიმუმ 6 სიმბოლოს",
     confirmPasswordLabel: "პაროლის დადასტურება",
     signingIn: "შესვლა...",
-    signingUp: "რეგისტრაცია...",
+    signingUp: "რეგის���რაც��ა...",
     loading: "იტვირთება...",
     enterEmail: "შეიყვანეთ თქვენი ელ.ფოსტა",
     redeemCode: "გამოსყიდვის კოდი",
@@ -400,7 +400,7 @@ export const ka: TranslationType = {
     backToSignIn: "უკან შესვლა",
     passwordsDoNotMatch: "პაროლები არ ემთხვევა",
     passwordTooShort: "პაროლი ძალიან მოკლეა",
-    verificationRequired: "მნიშვნელოვანი: რეგის���რაციის შემდეგ, თქვენ უნდა დააჭიროთ ვერიფიკაციის ბმულს, რომელიც გამოგზავნილია თქვენს ელ.ფოსტაზე, რათა გააქტიუროთ თქვენი ანგარიში.",
+    verificationRequired: "მნიშვნელოვანი: რეგის���რაც��ს შემდეგ, თქვენ უნდა დააჭიროთ ვერიფიკაციის ბმულს, რომელიც გამოგზავნილია თქვენს ელ.ფოსტაზე, რათა გააქტიუროთ თქვენი ანგარიში.",
     checkEmailFolders: "გთხოვთ, შეამოწმოთ როგორც შემომავალი, ასევე სპამის საქაღალდეები დადასტურების ელ.ფოსტისთვის."
   },
   legal: {
