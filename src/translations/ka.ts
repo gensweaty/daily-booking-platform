@@ -451,9 +451,5 @@ export const ka: TranslationType = {
   },
   reminders: {
     reminderCreated: "შეხსენება წარმატებით შეიქმნა"
-  },
-  crm: {
-    customerCreated: "კლიენტი შეიქმნა წარმატებით",
-    customerUpdated: "კლიენტი განახლდა წარმატებით",
   }
 };

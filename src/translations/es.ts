@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 export const es: TranslationType = {
@@ -35,7 +34,8 @@ export const es: TranslationType = {
     feature3: "Gestiona reservas de clientes con seguimiento de pagos",
     feature4: "Sincronización automática de eventos con CRM",
     feature5: "Notificaciones de reserva vía email y panel",
-    requestSubmitted: "¡Tu solicitud de reserva se ha enviado con éxito!",
+    requestSubmitted: "Solicitud de reserva enviada",
+    requestSubmittedDescription: "Tu solicitud de reserva ha sido enviada y está pendiente de aprobación.",
     yourEmailPlaceholder: "Introduce tu email",
     bookAppointment: "Reservar cita",
     requestApproved: "Reserva aprobada y email enviado",
@@ -434,7 +434,9 @@ export const es: TranslationType = {
     requestDeleted: "Solicitud de reserva eliminada",
     newRequest: "Nueva solicitud de reserva",
     pendingRequestsCount: "solicitud de reserva pendiente",
-    requestApproved: "Solicitud de reserva aprobada y correo electrónico enviado"
+    requestApproved: "Solicitud de reserva aprobada y correo electrónico enviado",
+    requestSubmitted: "Solicitud de reserva enviada",
+    requestSubmittedDescription: "Tu solicitud de reserva ha sido enviada y está pendiente de aprobación."
   },
   
   notes: {
