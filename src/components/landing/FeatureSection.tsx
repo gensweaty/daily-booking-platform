@@ -26,7 +26,7 @@ export const FeatureSection = () => {
     icon: Globe,
     title: t('website.title'),
     description: t('website.description'),
-    image: "/lovable-uploads/53d70eb5-d4f8-4497-a308-b57fd27e7c77.png",
+    image: "/lovable-uploads/56398c4a-5410-4be1-9b29-15fd8724db2e.png",
     benefits: [t('website.feature1'), t('website.feature2'), t('website.feature3'), t('website.feature4'), t('website.feature5')],
     translationPrefix: 'website' as const,
     id: "booking-website",
