@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface ImageCarouselProps {
   images: {
@@ -34,6 +35,8 @@ export const ImageCarousel = ({
   imageHeight = "h-[400px]"
 }: ImageCarouselProps) => {
   const [api, setApi] = useState<CarouselApi>();
+  const isMobile = useMediaQuery("(max-width: 640px)");
+  const isTablet = useMediaQuery("(max-width: 1024px)");
 
   useEffect(() => {
     if (!api) return;
@@ -45,6 +48,13 @@ export const ImageCarousel = ({
 
     return () => clearInterval(interval);
   }, [api]);
+
+  // Determine appropriate height based on screen size
+  const responsiveHeight = isMobile 
+    ? "h-[280px]" 
+    : isTablet 
+      ? "h-[350px]" 
+      : imageHeight;
 
   return (
     <div className={cn("w-full relative group", className)}>
@@ -60,7 +70,7 @@ export const ImageCarousel = ({
           {images.map((image, index) => (
             <CarouselItem key={index} className="md:basis-1/1">
               <div className="p-1">
-                <div className={`rounded-xl overflow-hidden transition-all ${imageHeight} hover:shadow-lg`}>
+                <div className={`rounded-xl overflow-hidden transition-all ${responsiveHeight} hover:shadow-lg`}>
                   <div className={`relative h-full w-full flex items-center justify-center bg-white ${image.customPadding || 'p-0'}`}>
                     <img
                       src={image.src}
@@ -88,7 +98,7 @@ export const ImageCarousel = ({
             "transition-opacity duration-300",
             "absolute left-2 md:-left-16 bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800",
             "border-none shadow-lg hover:shadow-xl",
-            "w-10 h-10 rounded-full"
+            "w-8 h-8 md:w-10 md:h-10 rounded-full"
           )}
         />
         <CarouselNext 
@@ -97,7 +107,7 @@ export const ImageCarousel = ({
             "transition-opacity duration-300",
             "absolute right-2 md:-right-16 bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800",
             "border-none shadow-lg hover:shadow-xl",
-            "w-10 h-10 rounded-full"
+            "w-8 h-8 md:w-10 md:h-10 rounded-full"
           )}
         />
       </Carousel>

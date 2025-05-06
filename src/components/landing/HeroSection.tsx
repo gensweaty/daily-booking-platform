@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 const productImages = [{
   src: "/lovable-uploads/89b6a836-d818-4753-a3f8-9d0d83dc7406.png", // Pet Grooming Salon
@@ -39,6 +40,7 @@ export const HeroSection = () => {
   const { t, language } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [currentLogo, setCurrentLogo] = useState<string>("/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png");
+  const isMobile = useMediaQuery("(max-width: 640px)");
 
   useEffect(() => {
     setMounted(true);
@@ -97,14 +99,14 @@ export const HeroSection = () => {
       <header className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary-light via-background to-accent-light opacity-10" />
         
-        <div className="container mx-auto px-4 py-6 md:py-8 relative">
+        <div className="container mx-auto px-4 py-4 md:py-6 lg:py-8 relative">
           <nav className="relative" aria-label="Main navigation">
             <div className="flex justify-between items-center">
               <Link to="/" className="flex items-center gap-2" aria-label="SmartBookly Home">
                 <img 
                   src={currentLogo}
                   alt="SmartBookly Logo" 
-                  className="h-8 md:h-10 w-auto" 
+                  className="h-7 md:h-8 lg:h-10 w-auto" 
                   width="160" 
                   height="40" 
                   loading="eager" 
@@ -112,29 +114,29 @@ export const HeroSection = () => {
                 />
               </Link>
               
-              <div className="flex items-center gap-4 md:hidden">
+              <div className="flex items-center gap-3 md:hidden">
                 <LanguageSwitcher />
                 <ThemeToggle />
-                <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-expanded={isMobileMenuOpen} aria-controls="mobile-menu" aria-label="Toggle menu">
-                  {isMobileMenuOpen ? <X className="h-6 w-6" aria-hidden="true" /> : <Menu className="h-6 w-6" aria-hidden="true" />}
+                <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-expanded={isMobileMenuOpen} aria-controls="mobile-menu" aria-label="Toggle menu">
+                  {isMobileMenuOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
                 </Button>
               </div>
 
-              <div className="hidden md:flex items-center space-x-4" role="navigation">
+              <div className="hidden md:flex items-center space-x-3 lg:space-x-4" role="navigation">
                 <LanguageSwitcher />
                 <ThemeToggle />
                 <Link to="/login">
-                  <Button variant="outline" className="hover:scale-105 transition-transform">
+                  <Button variant="outline" className="hover:scale-105 transition-transform text-sm md:text-base">
                     {language === 'ka' ? "შესვლა" : t('nav.signin')}
                   </Button>
                 </Link>
                 <Link to="/signup">
-                  <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
+                  <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm md:text-base">
                     {language === 'ka' ? "მოგზაურობის დაწყება" : t('nav.startJourney')}
                   </Button>
                 </Link>
                 <Link to="/contact">
-                  <Button variant="outline" className="hover:scale-105 transition-transform">
+                  <Button variant="outline" className="hover:scale-105 transition-transform text-sm md:text-base">
                     {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
                   </Button>
                 </Link>
@@ -160,25 +162,25 @@ export const HeroSection = () => {
               </div>}
           </nav>
 
-          <main className="grid md:grid-cols-2 gap-8 md:gap-12 items-center mt-8 md:mt-12">
-            <div className="space-y-4 animate-fade-in">
-              <article className="space-y-4">
-                <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary lg:text-5xl">
+          <main className="grid md:grid-cols-2 gap-6 md:gap-8 lg:gap-12 items-center mt-6 md:mt-8 lg:mt-12">
+            <div className="space-y-3 md:space-y-4 animate-fade-in">
+              <article className="space-y-2 md:space-y-4">
+                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary">
                   <LanguageText>{t('hero.title')}</LanguageText>
                 </h1>
-                <h2 className="text-2xl font-semibold text-foreground/90 md:text-2xl">
+                <h2 className="text-xl md:text-2xl font-semibold text-foreground/90">
                   <LanguageText>{t('hero.subtitle')}</LanguageText>
                 </h2>
-                <h3 className="text-lg text-muted-foreground leading-relaxed md:text-lg">
+                <h3 className="text-base md:text-lg text-muted-foreground leading-relaxed">
                   <LanguageText>{t('hero.description')}</LanguageText>
                 </h3>
               </article>
-              <div className="pt-3">
+              <div className="pt-2 md:pt-3">
                 <Link to="/signup">
-                  <Button size="lg" className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
+                  <Button size={isMobile ? "default" : "lg"} className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
                     <span className="flex items-center gap-2">
                       {language === 'ka' ? "მოგზაურობის დაწყება" : t('nav.startJourney')}
-                      <Sparkles className="w-5 h-5 animate-pulse" aria-hidden="true" />
+                      <Sparkles className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} animate-pulse`} aria-hidden="true" />
                     </span>
                   </Button>
                 </Link>
