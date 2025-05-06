@@ -19,13 +19,17 @@ interface ImageCarouselProps {
   className?: string;
   showTitles?: boolean;
   permanentArrows?: boolean;
+  objectFit?: "object-contain" | "object-cover" | "object-fill";
+  imageHeight?: string;
 }
 
 export const ImageCarousel = ({ 
   images, 
   className,
   showTitles = false,
-  permanentArrows = false
+  permanentArrows = false,
+  objectFit = "object-contain",
+  imageHeight = "h-[400px]"
 }: ImageCarouselProps) => {
   const [api, setApi] = useState<CarouselApi>();
 
@@ -44,22 +48,22 @@ export const ImageCarousel = ({
     <div className={cn("w-full relative group", className)}>
       <Carousel
         opts={{
-          align: "start",
+          align: "center",
           loop: true,
         }}
         setApi={setApi}
         className="w-full"
       >
-        <CarouselContent>
+        <CarouselContent className="mx-auto">
           {images.map((image, index) => (
-            <CarouselItem key={index} className="md:basis-1/1">
-              <div className="p-1">
-                <div className="rounded-xl overflow-hidden transition-all h-[400px] hover:shadow-lg">
+            <CarouselItem key={index} className="md:basis-1/1 flex justify-center">
+              <div className="p-1 w-full">
+                <div className={cn("rounded-xl overflow-hidden transition-all hover:shadow-lg", imageHeight)}>
                   <div className="relative h-full w-full flex items-center justify-center bg-white">
                     <img
                       src={image.src}
                       alt={image.alt}
-                      className="w-full h-full object-contain"
+                      className={cn("w-full h-full", objectFit)}
                     />
                     {showTitles && image.title && (
                       <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-2 text-center">
