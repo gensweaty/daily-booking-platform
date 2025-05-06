@@ -102,7 +102,7 @@ const ToastTitle = React.forwardRef<
       className={cn("text-sm font-semibold", isGeorgian ? "georgian-text-fix" : "", className)}
       {...props}
     >
-      {isGeorgian ? <LanguageText>{children}</LanguageText> : children}
+      {typeof children === 'string' ? <LanguageText>{children}</LanguageText> : children}
     </ToastPrimitives.Title>
   );
 });
@@ -121,7 +121,7 @@ const ToastDescription = React.forwardRef<
       className={cn("text-sm opacity-90", isGeorgian ? "georgian-text-fix" : "", className)}
       {...props}
     >
-      {isGeorgian ? <LanguageText>{children}</LanguageText> : children}
+      {typeof children === 'string' ? <LanguageText>{children}</LanguageText> : children}
     </ToastPrimitives.Description>
   );
 });

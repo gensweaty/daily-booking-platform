@@ -141,14 +141,15 @@ type Toast = Omit<ToasterToast, "id">
 
 // Helper function to get translation function safely
 function getTranslationFunction() {
+  // Default fallback function returns the key itself
   let translationFunction = (key: string) => key;
   
   try {
-    // This is wrapped in try/catch because it might be called outside the context
+    // Get the translation function from the language context
+    // This is wrapped in try/catch because it might fail when called outside React components
     const { t } = useLanguage();
     translationFunction = t;
   } catch (error) {
-    // If useLanguage fails, we'll use the default function that returns the key
     console.warn("Language context not available, using fallback for translations");
   }
   
@@ -156,7 +157,8 @@ function getTranslationFunction() {
 }
 
 function toast({ ...props }: Toast) {
-  const translationFunction = getTranslationFunction();
+  // Get the translation function
+  const t = getTranslationFunction();
   
   const id = genId()
 
@@ -164,10 +166,10 @@ function toast({ ...props }: Toast) {
   let translatedProps = { ...props };
   if (props.translateKeys) {
     if (props.translateKeys.titleKey && typeof props.translateKeys.titleKey === 'string') {
-      translatedProps.title = translationFunction(props.translateKeys.titleKey);
+      translatedProps.title = t(props.translateKeys.titleKey);
     }
     if (props.translateKeys.descriptionKey && typeof props.translateKeys.descriptionKey === 'string') {
-      translatedProps.description = translationFunction(props.translateKeys.descriptionKey);
+      translatedProps.description = t(props.translateKeys.descriptionKey);
     }
   }
 
@@ -280,16 +282,16 @@ toast.event = {
     });
   },
   newBookingRequest: (count: number = 1) => {
+    const t = getTranslationFunction();
     return toast({
       variant: "default",
       translateKeys: {
-        titleKey: "bookings.newRequest",
-        descriptionKey: "bookings.pendingRequestsCount"
+        titleKey: "bookings.newRequest"
       },
-      // Use translation keys only, don't set hardcoded English text
+      // Use translation keys for the description
       description: count > 1 ? 
-        `${count} ${getTranslationFunction()("common.new")} ${getTranslationFunction()("common.requests")}` : 
-        `1 ${getTranslationFunction()("common.new")} ${getTranslationFunction()("common.request")}`
+        `${count} ${t("common.new")} ${t("common.requests")}` : 
+        `1 ${t("common.new")} ${t("common.request")}`
     });
   }
 };
@@ -362,8 +364,8 @@ toast.note = {
     return toast({
       variant: "default",
       translateKeys: {
-        titleKey: "common.success", 
-        descriptionKey: "notes.noteAdded"
+        titleKey: "notes.noteAdded",
+        descriptionKey: "notes.noteAddedDescription"
       }
     });
   },
@@ -445,9 +447,6 @@ toast.saveSuccess = () => {
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
   
-  // Get translation function safely
-  const translationFunction = getTranslationFunction();
-
   React.useEffect(() => {
     listeners.push(setState)
     return () => {
