@@ -136,7 +136,16 @@ function dispatch(action: Action) {
 type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {
-  const { t } = useLanguage()
+  let translationFunction = (key: string) => key;
+  
+  try {
+    const { t } = useLanguage();
+    translationFunction = t;
+  } catch (error) {
+    // If useLanguage fails, we'll use the default function that returns the key
+    console.warn("Language context not available, using fallback for translations");
+  }
+  
   const id = genId()
 
   const update = (props: ToasterToast) =>
@@ -144,6 +153,7 @@ function toast({ ...props }: Toast) {
       type: "UPDATE_TOAST",
       toast: { ...props, id },
     })
+    
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
   dispatch({
@@ -169,7 +179,17 @@ function toast({ ...props }: Toast) {
 
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
-  const { t } = useLanguage()
+  
+  // Get translation function safely
+  let translationFunction = (key: string) => key;
+  
+  try {
+    const { t } = useLanguage();
+    translationFunction = t;
+  } catch (error) {
+    // If useLanguage fails, we'll use the default function that returns the key
+    console.warn("Language context not available, using fallback for translations");
+  }
 
   React.useEffect(() => {
     listeners.push(setState)

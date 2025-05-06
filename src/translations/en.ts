@@ -1,3 +1,4 @@
+
 const en = {
   nav: {
     signin: "Sign In",
@@ -34,7 +35,8 @@ const en = {
     feature5: "Booking notifications via email and dashboard",
     requestSubmitted: "Your booking request has been successfully submitted!",
     yourEmailPlaceholder: "Enter your email",
-    bookAppointment: "Book Appointment"
+    bookAppointment: "Book Appointment",
+    requestApproved: "Booking request approved"
   },
   analytics: {
     title: "Comprehensive Analytics",
@@ -260,6 +262,7 @@ const en = {
     deleteEvent: "Delete Event",
     eventDeleted: "Event deleted successfully",
     eventUpdated: "Event updated successfully",
+    eventCreated: "Event created successfully",
     timeSlotUnavailable: "Time Slot Unavailable",
     timeSlotConflict: "Schedule Conflict",
     timeSlotNotAvailable: "This time slot is not available",
@@ -338,7 +341,8 @@ const en = {
     supportedFormats: ".jpg, .jpeg, .png, .pdf, .docx, .xls",
     deleteConfirmMessage: "This action cannot be undone. Are you sure you want to delete this item?",
     noDescription: "No description provided",
-    deleteConfirmTitle: "Confirm deletion?"
+    deleteConfirmTitle: "Confirm deletion?",
+    successMessage: "Operation completed successfully"
   },
   auth: {
     welcome: "Welcome to SmartBookly",
@@ -385,7 +389,11 @@ const en = {
     redeemCodeOptional: "Redeem Code (Optional)",
     enterRedeemCode: "Enter your redeem code",
     sendResetLink: "Send reset link",
-    backToSignIn: "Back to sign in"
+    backToSignIn: "Back to sign in",
+    passwordsDoNotMatch: "Passwords do not match",
+    passwordTooShort: "Password is too short",
+    verificationRequired: "Important: After registering, you MUST click the verification link sent to your email to activate your account.",
+    checkEmailFolders: "Please check both your inbox and spam folder for the confirmation email."
   },
   legal: {
     title: "Terms & Privacy Policy",
