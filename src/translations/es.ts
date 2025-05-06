@@ -94,6 +94,7 @@ export const es: TranslationType = {
     missingUserInfo: "Falta información del usuario",
     customerCreated: "Cliente creado con éxito",
     customerUpdated: "Cliente actualizado con éxito",
+    customerDeleted: "Cliente eliminado con éxito", // Added missing required property
     noDataToExport: "No hay datos para exportar",
     error: "Error"
   },
@@ -114,7 +115,8 @@ export const es: TranslationType = {
     done: "Completada",
     deleteTaskConfirmTitle: "¿Eliminar Tarea?",
     taskUpdated: "Tarea actualizada con éxito",
-    taskDeleted: "Tarea eliminada con éxito"
+    taskDeleted: "Tarea eliminada con éxito",
+    taskAdded: "Tarea agregada con éxito" // Added missing required property
   },
   website: {
     title: "Sitio Web Gratuito para tu negocio",
@@ -423,5 +425,14 @@ export const es: TranslationType = {
   },
   bookings: {
     approvedBooking: "Reserva Aprobada"
+  },
+  notes: {
+    noteAdded: "Nota agregada con éxito",
+    noteAddedDescription: "Tu nota ha sido creada correctamente",
+    noteUpdated: "Nota actualizada con éxito",
+    noteDeleted: "Nota eliminada con éxito"
+  },
+  reminders: {
+    reminderCreated: "Recordatorio creado con éxito"
   }
 };
