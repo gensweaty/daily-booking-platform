@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
@@ -26,6 +25,11 @@ const productImages = [{
   src: "/lovable-uploads/f35ff4e8-3ae5-4bc2-95f6-c3bef5d53689.png",
   alt: "CRM Preview",
   loading: "lazy"
+}, {
+  src: "/lovable-uploads/5c47a946-c86a-4d05-a039-116b80b2194e.png",
+  alt: "Pet Grooming Salon",
+  loading: "lazy",
+  title: "Lady's Grooming Salon"
 }];
 
 export const HeroSection = () => {
@@ -180,7 +184,7 @@ export const HeroSection = () => {
               </div>
             </div>
             <div className="animate-fade-in">
-              <ImageCarousel images={productImages} permanentArrows={true} />
+              <ImageCarousel images={productImages} permanentArrows={true} showTitles={true} />
             </div>
           </main>
         </div>
