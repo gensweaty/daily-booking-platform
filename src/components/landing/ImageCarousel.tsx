@@ -19,7 +19,8 @@ interface ImageCarouselProps {
   className?: string;
   showTitles?: boolean;
   permanentArrows?: boolean;
-  objectFit?: string; // New prop for controlling object-fit CSS property
+  objectFit?: string; // Prop for controlling object-fit CSS property
+  imageHeight?: string; // New prop for controlling image height
 }
 
 export const ImageCarousel = ({ 
@@ -27,7 +28,8 @@ export const ImageCarousel = ({
   className,
   showTitles = false,
   permanentArrows = false,
-  objectFit = 'object-contain' // Default to object-contain to maintain backward compatibility
+  objectFit = 'object-contain', // Default to object-contain to maintain backward compatibility
+  imageHeight = 'h-[400px]' // Default height that was previously hardcoded
 }: ImageCarouselProps) => {
   const [api, setApi] = useState<CarouselApi>();
 
@@ -56,7 +58,7 @@ export const ImageCarousel = ({
           {images.map((image, index) => (
             <CarouselItem key={index} className="md:basis-1/1 flex justify-center"> 
               <div className="p-1 w-full max-w-[90%] mx-auto"> 
-                <div className="rounded-xl overflow-hidden transition-all h-[400px] hover:shadow-lg">
+                <div className={`rounded-xl overflow-hidden transition-all ${imageHeight} hover:shadow-lg`}>
                   <div className="relative h-full w-full flex items-center justify-center bg-white">
                     <img
                       src={image.src}
