@@ -1,20 +1,25 @@
+
 import { Calendar, ChartBar, ListTodo, Users, Globe } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ClientLogos } from "./ClientLogos";
 import { FeatureButtons } from "./FeatureButtons";
 
-// Updated to ensure consistent padding
+// Updated to ensure all carousel images have consistent padding
 const calendarViews = [{
   src: "/lovable-uploads/89e4fa80-68d7-48c3-b9d4-b8ac38c657b6.png",
   alt: "Booking Calendar",
-  customStyle: "object-cover",
-  customPadding: "p-4" // Adding consistent padding
+  customStyle: "object-contain",
+  customPadding: "p-4" // Consistent padding for all images
 }, {
   src: "/lovable-uploads/400e814b-7812-448a-9e9a-9036616aab00.png",
-  alt: "Week View"
+  alt: "Week View",
+  customStyle: "object-contain",
+  customPadding: "p-4" // Adding padding to second image
 }, {
   src: "/lovable-uploads/541c86d2-6a17-4ec4-9a9c-5ad9e6e3ba4d.png",
-  alt: "Day View"
+  alt: "Day View",
+  customStyle: "object-contain",
+  customPadding: "p-4" // Adding padding to third image
 }];
 
 import { FeatureCard } from "./FeatureCard";
