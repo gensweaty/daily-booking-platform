@@ -44,6 +44,7 @@ export interface TranslationType {
     requestSubmitted: string;
     yourEmailPlaceholder: string;
     bookAppointment: string;
+    requestApproved: string;
   };
   analytics: {
     title: string;
@@ -75,8 +76,8 @@ export interface TranslationType {
     createEventForCustomer: string;
     customerFromEvent: string;
     paymentStatus: string;
-    paymentAmount: string;
     selectPaymentStatus: string;
+    paymentAmount: string;
     comment: string;
     commentPlaceholder: string;
     create: string;
@@ -207,7 +208,7 @@ export interface TranslationType {
     goodMorning: string;
     goodAfternoon: string;
     goodEvening: string;
-    goodNight?: string; // Made optional to accommodate the Georgian translation
+    goodNight?: string; 
     overview: string;
     calendar: string;
     bookingCalendar: string;
@@ -269,6 +270,7 @@ export interface TranslationType {
     deleteEvent: string;
     eventDeleted: string;
     eventUpdated: string;
+    eventCreated: string;
     socialLinkEmail: string;
     dateAndTime: string;
     date: string;
@@ -348,6 +350,7 @@ export interface TranslationType {
     deleteConfirmMessage: string;
     noDescription: string;
     deleteConfirmTitle: string;
+    successMessage: string;
   };
   auth: {
     welcome: string;
@@ -395,10 +398,10 @@ export interface TranslationType {
     enterRedeemCode: string;
     sendResetLink: string;
     backToSignIn: string;
-    passwordsDoNotMatch?: string; // Add the missing property
-    passwordTooShort?: string; // Add the missing property
-    verificationRequired?: string; // Add the missing property
-    checkEmailFolders?: string; // Add the missing property
+    passwordsDoNotMatch?: string;
+    passwordTooShort?: string; 
+    verificationRequired?: string;
+    checkEmailFolders?: string; 
   };
   
   legal: {

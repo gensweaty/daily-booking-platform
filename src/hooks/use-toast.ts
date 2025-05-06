@@ -1,5 +1,7 @@
+
 import * as React from "react"
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
+import { useLanguage } from "@/contexts/LanguageContext"
 
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 5000
@@ -134,6 +136,7 @@ function dispatch(action: Action) {
 type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {
+  const { t } = useLanguage()
   const id = genId()
 
   const update = (props: ToasterToast) =>
@@ -166,6 +169,7 @@ function toast({ ...props }: Toast) {
 
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
+  const { t } = useLanguage()
 
   React.useEffect(() => {
     listeners.push(setState)
