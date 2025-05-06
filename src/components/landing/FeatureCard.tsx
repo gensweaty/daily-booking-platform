@@ -38,13 +38,6 @@ export const FeatureCard = ({
     return `${translationPrefix}.${key}`;
   };
   
-  // Determine which object-fit to use based on feature type
-  const getObjectFit = () => {
-    if (translationPrefix === 'website') return 'object-cover';
-    if (translationPrefix === 'booking') return 'object-cover';
-    return 'object-contain';
-  };
-  
   return (
     <motion.div
       initial={{ opacity: 0, y: 50 }}
@@ -96,14 +89,12 @@ export const FeatureCard = ({
               images={carousel} 
               className="mx-[-1rem]"
               permanentArrows={true}
-              objectFit={getObjectFit()}
-              imageHeight="h-[480px]"
             />
           ) : (
             <img 
               src={image} 
               alt={t(getTranslationKey('title'))} 
-              className={`w-full h-[480px] ${translationPrefix === 'website' ? 'object-cover' : 'object-contain'} p-4`}
+              className={`w-full h-[440px] ${translationPrefix === 'website' ? 'object-cover' : 'object-contain'} p-4`}
             />
           )}
         </div>

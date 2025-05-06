@@ -11,7 +11,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 
 const productImages = [{
-  src: "/lovable-uploads/89b6a836-d818-4753-a3f8-9d0d83dc7406.png", // Pet Grooming Salon
+  src: "/lovable-uploads/89b6a836-d818-4753-a3f8-9d0d83dc7406.png", // New image first
   alt: "Pet Grooming Salon",
   loading: "lazy"
 }, {
@@ -184,12 +184,7 @@ export const HeroSection = () => {
               </div>
             </div>
             <div className="animate-fade-in">
-              <ImageCarousel 
-                images={productImages} 
-                permanentArrows={true} 
-                objectFit="object-cover" 
-                imageHeight="h-[480px]"
-              />
+              <ImageCarousel images={productImages} permanentArrows={true} />
             </div>
           </main>
         </div>
