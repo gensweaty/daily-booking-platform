@@ -222,12 +222,53 @@ export const useToast = () => {
 
 // Create a standalone toast object that can be imported directly
 // This makes it easier to use in places where hook usage isn't possible
-export const toast = {
-  // Make the object callable itself
-  // @ts-ignore - we're handling this dynamically
-  (...props: any[]): string | number {
-    return sonnerToast(...props);
-  },
+type ToastFunction = {
+  (props: ToastT): string | number;
+  success: ({ title, description, ...props }: ExternalToast) => void;
+  info: ({ title, description, ...props }: ExternalToast) => void;
+  warning: ({ title, description, ...props }: ExternalToast) => void;
+  error: ({ title, description, ...props }: ExternalToast) => void;
+  custom: (props: ToastT) => string | number;
+  event: {
+    bookingSubmitted: () => void;
+    bookingApproved: () => void;
+    bookingRejected: () => void;
+    bookingDeleted: () => void;
+    newBookingRequest: (count?: number) => void;
+    customerCreated: () => void;
+    customerUpdated: () => void;
+    customerDeleted: () => void;
+    eventCreated: () => void;
+    eventUpdated: () => void;
+    eventDeleted: () => void;
+  };
+  task: {
+    created: () => void;
+    updated: () => void;
+    deleted: () => void;
+    statusChanged: () => void;
+  };
+  note: {
+    added: () => void;
+    updated: () => void;
+    deleted: () => void;
+  };
+  reminder: {
+    created: () => void;
+    updated: () => void;
+    deleted: () => void;
+  };
+  saved: () => void;
+  deleted: () => void;
+  updated: () => void;
+  copied: () => void;
+};
+
+// Create the toast function that also has properties
+const toastFunction = (props: ToastT): string | number => sonnerToast(props);
+
+// Define the standalone toast object with all the methods
+export const toast: ToastFunction = Object.assign(toastFunction, {
   success: ({ title = "Success", description, ...props }: ExternalToast) => {
     sonnerToast.success(title, {
       description,
@@ -253,7 +294,6 @@ export const toast = {
     });
   },
   custom: (props: ToastT) => sonnerToast(props),
-  // Event-specific toast notifications
   event: {
     // Booking notifications
     bookingSubmitted: () => {
@@ -346,7 +386,6 @@ export const toast = {
       });
     }
   },
-  // Add missing categories that cause errors
   task: {
     created: () => {
       const { t } = useLanguage();
@@ -412,5 +451,29 @@ export const toast = {
         description: t("reminders.deleted") || "Reminder deleted"
       });
     }
+  },
+  saved: () => {
+    const { t } = useLanguage();
+    sonnerToast.success(t("common.success"), {
+      description: t("common.saved")
+    });
+  },
+  deleted: () => {
+    const { t } = useLanguage();
+    sonnerToast.success(t("common.success"), {
+      description: t("common.deleted")
+    });
+  },
+  updated: () => {
+    const { t } = useLanguage();
+    sonnerToast.success(t("common.success"), {
+      description: t("common.updated")
+    });
+  },
+  copied: () => {
+    const { t } = useLanguage();
+    sonnerToast.success(t("common.success"), {
+      description: t("common.copied")
+    });
   }
-};
+});
