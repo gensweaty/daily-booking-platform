@@ -5,21 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-
-export type BookingRequest = {
-  id: string;
-  title: string;
-  requester_name: string;
-  requester_email: string;
-  requester_phone: string;
-  description: string;
-  start_date: string;
-  end_date: string;
-  status: 'pending' | 'approved' | 'rejected';
-  created_at: string;
-  business_id: string;
-  notification_sent?: boolean;
-};
+import { BookingRequest } from "@/types/database"; // Import from database types instead of defining locally
 
 interface UseBookingRequestsOptions {
   status?: 'pending' | 'approved' | 'rejected';

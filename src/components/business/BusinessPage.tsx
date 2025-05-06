@@ -1,3 +1,4 @@
+
 import { BusinessProfileForm } from "./BusinessProfileForm";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -13,6 +14,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { BookingRequest } from "@/types/database"; // Import from types/database
 
 export const BusinessPage = () => {
   const { user } = useAuth();
@@ -97,6 +99,11 @@ export const BusinessPage = () => {
     return <LanguageText>{t(key)}</LanguageText>;
   };
 
+  // Type-safe request lists - make TypeScript happy by asserting types
+  const typedPendingRequests = pendingRequests as BookingRequest[];
+  const typedApprovedRequests = approvedRequests as BookingRequest[];
+  const typedRejectedRequests = rejectedRequests as BookingRequest[];
+
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
@@ -172,10 +179,10 @@ export const BusinessPage = () => {
             <div>
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 {renderSectionHeading("business.pendingRequests")} 
-                <Badge variant="orange" className="ml-2">({pendingRequests.length})</Badge>
+                <Badge variant="orange" className="ml-2">({typedPendingRequests.length})</Badge>
               </h2>
               <BookingRequestsList
-                requests={pendingRequests}
+                requests={typedPendingRequests}
                 type="pending"
                 onApprove={approveRequest}
                 onReject={rejectRequest}
@@ -186,10 +193,10 @@ export const BusinessPage = () => {
             <div>
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 {renderSectionHeading("business.approvedRequests")}
-                <Badge variant="green" className="ml-2">({approvedRequests.length})</Badge>
+                <Badge variant="green" className="ml-2">({typedApprovedRequests.length})</Badge>
               </h2>
               <BookingRequestsList
-                requests={approvedRequests}
+                requests={typedApprovedRequests}
                 type="approved"
                 onDelete={deleteBookingRequest}
               />
@@ -198,10 +205,10 @@ export const BusinessPage = () => {
             <div>
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 {renderSectionHeading("business.rejectedRequests")}
-                <Badge variant="destructive" className="ml-2">({rejectedRequests.length})</Badge>
+                <Badge variant="destructive" className="ml-2">({typedRejectedRequests.length})</Badge>
               </h2>
               <BookingRequestsList
-                requests={rejectedRequests}
+                requests={typedRejectedRequests}
                 type="rejected"
                 onDelete={deleteBookingRequest}
               />
