@@ -59,12 +59,11 @@ export const DashboardContent = ({
   const isGeorgian = language === 'ka'
 
   useEffect(() => {
-    // Only show the toast if there are actually pending requests
     if (pendingCount > 0) {
-      // Make sure we explicitly pass the number to ensure it replaces {count}
+      // Use the toast helper for booking requests with count parameter
       toast.event.newBookingRequest(pendingCount);
     }
-  }, [pendingCount, toast]);
+  }, [pendingCount, toast])
 
   return (
     <Tabs defaultValue="calendar" className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">

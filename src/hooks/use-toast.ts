@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
 import { useLanguage } from "@/contexts/LanguageContext"
@@ -281,16 +280,14 @@ toast.event = {
       }
     });
   },
-  // Fixed to correctly handle count parameter by directly inserting the number into the translation string
+  // Modified to correctly handle count parameter for all languages
   newBookingRequest: (count: number = 1) => {
     const t = getTranslationFunction();
-    
-    // Get the description template with the placeholder
+    // First get the description with the placeholder
     const descriptionTemplate = t("bookings.pendingRequestsCount");
-    
-    // Replace {count} placeholder with the actual count number
-    // This will work regardless of how {count} is formatted in different translations
-    const description = descriptionTemplate.replace(/\{count\}/g, count.toString());
+    // Then manually replace the placeholder with the actual count
+    // Make sure we look for exactly the format used in translations
+    const description = descriptionTemplate.replace("{count}", count.toString());
     
     return toast({
       variant: "default",
