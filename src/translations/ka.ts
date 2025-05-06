@@ -53,7 +53,7 @@ export const ka: TranslationType = {
     endDateTime: "დასრულების თარიღი და დრო",
     eventNotes: "შენიშვნები",
     addEventNotes: "დაამატეთ შენიშვნები თქვენს ჯავშანზე",
-    editEvent: "ღონისძიების რედაქტირება",
+    editEvent: "ღონისძიე��ის რედაქტირება",
     addNewEvent: "ახალი ღონისძიების დამატება",
     updateEvent: "ღონისძიების განახლება",
     createEvent: "ღონისძიების შექმნა",
@@ -78,7 +78,7 @@ export const ka: TranslationType = {
     requestRejected: "ჯავშნის მოთხოვნა უარყოფილია",
     requestDeleted: "ჯავშნის მოთხოვნა წაშლილია",
     newRequest: "ჯავშნის მოთხოვნა",
-    pendingRequestsCount: "თქვენ გაქვთ {count} ახალი ჯავშნის მოთხოვნა",
+    pendingRequestsCount: "თქვენ გაქვთ {{count}} ახალი ჯავშნის მოთხოვნა",
     requestSubmitted: "ჯავშნის მოთხოვნა გაიგზავნა",
     requestSubmittedDescription: "დადასტურება მოგივათ მეილზე"
   },
@@ -213,7 +213,7 @@ export const ka: TranslationType = {
     eventStatistics: "ღონისძიებების სტატისტიკა",
     financialSummary: "ფინანსური შეჯამება",
     summaryStatistics: "შეჯამების სტატისტიკა",
-    eventsData: "ღონისძიებების მონაცემები"
+    eventsData: "ღონი���ძიებების მონაცემები"
   },
   nav: {
     signin: "შესვლა",
@@ -253,7 +253,7 @@ export const ka: TranslationType = {
     yourEmailPlaceholder: "შეიყვანეთ თქვენი ელ-ფოსტა",
     bookAppointment: "დაჯავშნე შეხვედრა",
     requestApproved: "ჯავშნის მოთხოვნა დამტკიცებულია",
-    newRequest: "ახალი ჯავშნის მოთხოვნა"
+    newRequest: "��ხალი ჯავშნის მოთხოვნა"
   },
   analytics: {
     title: "ყოვლისმომცველი ანალიტიკა",
@@ -299,7 +299,7 @@ export const ka: TranslationType = {
     healthDesc: "ექიმები, თერაპევტები, კეთილდღეობის მწვრთნელები",
     sportsDesc: "პირადი მწვრთნელები, სპორტის მწვრთნელები, ფიტნეს ცენტრები",
     beautyDesc: "სალონები, სტილისტები, სპა ცენტრები",
-    personalDesc: "კონსულტანტები, ფოტოგრაფები, სახლის მომსახურება",
+    personalDesc: "���ონსულტანტები, ფოტოგრაფები, სახლის მომსახურება",
     educationDesc: "მასწავლებლები, რეპეტიტორები, ტრენერები, ვორქშოპები",
     myBusiness: "ჩემი ბიზნესი",
     businessProfile: "ბიზნეს პროფილი",

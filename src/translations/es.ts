@@ -433,7 +433,7 @@ export const es: TranslationType = {
     requestRejected: "Solicitud de reserva rechazada",
     requestDeleted: "Solicitud de reserva eliminada",
     newRequest: "Nueva solicitud de reserva",
-    pendingRequestsCount: "solicitud de reserva pendiente",
+    pendingRequestsCount: "Tienes {{count}} solicitudes de reserva pendientes",
     requestApproved: "Solicitud de reserva aprobada y correo electrónico enviado",
     requestSubmitted: "Solicitud de reserva enviada",
     requestSubmittedDescription: "Tu solicitud de reserva ha sido enviada y está pendiente de aprobación."
