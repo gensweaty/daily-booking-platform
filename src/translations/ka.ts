@@ -8,6 +8,8 @@ export const ka: TranslationType = {
     successMessage: "ოპერაცია წარმატებით შესრულდა",
     copiedToClipboard: "კოპირებულია ბუფერში",
     deleteSuccess: "წარმატებით წაიშალა",
+    deleteError: "შეცდომა წაშლისას",
+    missingUserInfo: "აკლია მომხმარებლის ინფორმაცია",
     warning: "გაფრთხილება",
     cancel: "გაუქმება",
     submitting: "იგზავნება...",
