@@ -92,8 +92,8 @@ export const ka: TranslationType = {
     deleteSuccess: "წარმატებით წაიშალა",
     deleteError: "წაშლის შეცდომა",
     missingUserInfo: "მომხმარებლის ინფორმაცია აკლია",
-    customerCreated: "კლიენტი წარმატებით შეიქმნა",
-    customerUpdated: "კლიენტი წარმატებით განახლდა",
+    customerCreated: "კლიენტი შეიქმნა წარმატებით",
+    customerUpdated: "კლიენტი განახლდა წარმატებით",
     customerDeleted: "კლიენტი წარმატებით წაიშალა",
     noDataToExport: "ექსპორტისთვის მონაცემები არ არის",
     error: "შეცდომა"
@@ -266,8 +266,8 @@ export const ka: TranslationType = {
     createEvent: "ღონისძიების შექმნა",
     deleteEvent: "ღონისძიების წაშლა",
     eventDeleted: "ღონისძიება წარმატებით წაიშალა",
-    eventUpdated: "ღონისძიება წარმატებით განახლდა",
-    eventCreated: "ღონისძიება წარმატებით შეიქმნა",
+    eventUpdated: "ივენთი განახლდა წარმატებით",
+    eventCreated: "ივენთი შეიქმნა წარმატებით",
     timeSlotUnavailable: "დროის მონაკვეთი მიუწვდომელია",
     timeSlotConflict: "დროის კონფლიქტი",
     timeSlotNotAvailable: "ეს დროის მონაკვეთი მიუწვდომელია",
@@ -430,10 +430,12 @@ export const ka: TranslationType = {
   bookings: {
     approvedBooking: "ჯავშანი დადასტურდა",
     requestRejected: "ჯავშნის მოთხოვნა უარყოფილია",
-    requestDeleted: "ჯავშნის მოთხოვნა წაშლილია",
+    requestDeleted: "ჯავშნის მოთხოვნა წაიშლილია",
     newRequest: "ახალი ჯავშნის მოთხოვნა",
-    pendingRequestsCount: "ჯავშნის მოთხოვნა მოლოდინშია",
-    requestApproved: "ჯავშანი დადასტურდა და ემაილი გაიგზავნა"
+    pendingRequestsCount: "თქვენ გაქვთ {count} ახალი ჯავშნი მოთხოვნა.",
+    requestApproved: "ჯავშანი დადასტურდა და ემაილი გაიგზავნა",
+    requestSubmitted: "დაჯავშნის მოთხოვნა გაგზავნილია",
+    requestSubmittedDescription: "თქვენი დაჯავშნის მოთხოვნა გაიგზავნა და დადასტურებას მიიღებთ მეილზე."
   },
   notes: {
     title: "სათაური",
@@ -449,5 +451,9 @@ export const ka: TranslationType = {
   },
   reminders: {
     reminderCreated: "შეხსენება წარმატებით შეიქმნა"
+  },
+  crm: {
+    customerCreated: "კლიენტი შეიქმნა წარმატებით",
+    customerUpdated: "კლიენტი განახლდა წარმატებით",
   }
 };

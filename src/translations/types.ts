@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -436,6 +435,8 @@ export interface TranslationType {
     newRequest: string;
     pendingRequestsCount: string;
     requestApproved: string;
+    requestSubmitted: string;
+    requestSubmittedDescription: string;
   };
   notes: {
     title: string;

@@ -288,10 +288,16 @@ toast.event = {
       translateKeys: {
         titleKey: "bookings.newRequest"
       },
-      // Use translation keys for the description
-      description: count > 1 ? 
-        `${count} ${t("common.new")} ${t("common.requests")}` : 
-        `1 ${t("common.new")} ${t("common.request")}`
+      description: t("bookings.pendingRequestsCount").replace("{count}", count.toString())
+    });
+  },
+  bookingSubmitted: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "bookings.requestSubmitted",
+        descriptionKey: "bookings.requestSubmittedDescription"
+      }
     });
   }
 };
