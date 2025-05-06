@@ -34,8 +34,7 @@ const en = {
     feature5: "Booking notifications via email and dashboard",
     requestSubmitted: "Your booking request has been successfully submitted!",
     yourEmailPlaceholder: "Enter your email",
-    bookAppointment: "Book Appointment",
-    requestApproved: "Booking request approved and notification email processed"
+    bookAppointment: "Book Appointment"
   },
   analytics: {
     title: "Comprehensive Analytics",
@@ -261,7 +260,6 @@ const en = {
     deleteEvent: "Delete Event",
     eventDeleted: "Event deleted successfully",
     eventUpdated: "Event updated successfully",
-    eventCreated: "Event created successfully",
     timeSlotUnavailable: "Time Slot Unavailable",
     timeSlotConflict: "Schedule Conflict",
     timeSlotNotAvailable: "This time slot is not available",
@@ -414,8 +412,7 @@ const en = {
     }
   },
   bookings: {
-    approvedBooking: "Approved Booking",
-    requestApproved: "Booking request approved and notification email processed"
+    approvedBooking: "Approved Booking"
   }
 };
 

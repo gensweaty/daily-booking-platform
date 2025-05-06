@@ -1,3 +1,4 @@
+
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
@@ -101,8 +102,8 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <RouteAwareThemeProvider>
-          <LanguageProvider>
-            <AuthProvider>
+          <AuthProvider>
+            <LanguageProvider>
               <SessionRecoveryWrapper>
                 <Routes>
                   <Route path="/" element={<Landing />} />
@@ -120,8 +121,8 @@ function App() {
                 </Routes>
                 <Toaster />
               </SessionRecoveryWrapper>
-            </AuthProvider>
-          </LanguageProvider>
+            </LanguageProvider>
+          </AuthProvider>
         </RouteAwareThemeProvider>
       </BrowserRouter>
     </QueryClientProvider>
@@ -129,3 +130,4 @@ function App() {
 }
 
 export default App;
+
