@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 // Define English translations
@@ -432,7 +433,8 @@ const en: TranslationType = {
     requestRejected: "Booking request rejected",
     requestDeleted: "Booking request deleted",
     newRequest: "New Booking Request",
-    pendingRequestsCount: "booking request pending"
+    pendingRequestsCount: "booking request pending",
+    requestApproved: "Booking request approved and email sent"
   },
   notes: {
     title: "Title",
