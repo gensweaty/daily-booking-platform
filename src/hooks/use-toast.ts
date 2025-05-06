@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
 import { useLanguage } from "@/contexts/LanguageContext"
@@ -280,21 +281,19 @@ toast.event = {
       }
     });
   },
-  // Modified to correctly handle count parameter for all languages
+  // Fixed to properly handle count parameter for all languages
   newBookingRequest: (count: number = 1) => {
     const t = getTranslationFunction();
-    // First get the description with the placeholder
-    const descriptionTemplate = t("bookings.pendingRequestsCount");
-    // Then manually replace the placeholder with the actual count
-    // Make sure we look for exactly the format used in translations
-    const description = descriptionTemplate.replace("{count}", count.toString());
     
+    // Create the description with the count directly inserted into the translation
+    // Instead of using string replacement which might be inconsistent across languages
     return toast({
       variant: "default",
       translateKeys: {
         titleKey: "bookings.newRequest"
       },
-      description: description
+      // Directly providing the full description with count
+      description: t("bookings.pendingRequestsCount").replace(/\{count\}/g, count.toString())
     });
   },
   bookingSubmitted: () => {

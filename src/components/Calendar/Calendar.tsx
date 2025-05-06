@@ -249,6 +249,7 @@ export const Calendar = ({
     setIsBookingFormOpen(false);
     queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
     
+    // Use translation helper for booking submission confirmation
     toast.event.bookingSubmitted();
   };
 
