@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const ka: TranslationType = {
@@ -393,7 +394,8 @@ export const ka: TranslationType = {
     passwordsDoNotMatch: "პაროლები არ ემთხვევა",
     passwordTooShort: "პაროლი ძალიან მოკლეა",
     verificationRequired: "მნიშვნელოვანი: რეგისტრაციის შემდეგ, თქვენ უნდა დააწკაპუნოთ თქვენს ელ-ფოსტაზე გამოგზავნილ ვერიფიკაციის ბმულზე თქვენი ანგარიშის გასააქტიურებლად.",
-    checkEmailFolders: "გთხოვთ, შეამოწმოთ როგორც თქვენი შემოსული, ასევე სპამის საქაღალდეები დადასტურების ელ-ფოსტისთვის."
+    checkEmailFolders: "გთხოვთ, შეამოწმოთ როგორც თქვენი შემოსული, ასევე სპამის საქაღალდეები დადასტურების ელ-ფოსტისთვის.",
+    signOutSuccess: "თქვენ წარმატებით გამოხვედით სისტემიდან"
   },
   contact: {
     email: "ელ-ფოსტა",

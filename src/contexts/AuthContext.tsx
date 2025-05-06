@@ -1,8 +1,10 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface AuthContextType {
   user: User | null;
@@ -74,6 +76,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { t } = useLanguage();
 
   const handleTokenError = useCallback(async () => {
     console.log('Handling token error - clearing session');
@@ -426,8 +429,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       toast({
-        title: "Success",
-        description: "Signed out successfully",
+        title: t('common.success'),
+        description: t('auth.signOutSuccess'),
       });
       
       navigate('/login');

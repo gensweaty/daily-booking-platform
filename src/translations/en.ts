@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 // Define English translations
@@ -403,7 +404,8 @@ const en: TranslationType = {
     passwordsDoNotMatch: "Passwords do not match",
     passwordTooShort: "Password is too short",
     verificationRequired: "Important: After registering, you MUST click the verification link sent to your email to activate your account.",
-    checkEmailFolders: "Please check both your inbox and spam folder for the confirmation email."
+    checkEmailFolders: "Please check both your inbox and spam folder for the confirmation email.",
+    signOutSuccess: "Signed out successfully"
   },
   legal: {
     title: "Terms & Privacy Policy",
