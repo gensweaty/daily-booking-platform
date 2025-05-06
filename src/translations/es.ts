@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 export const es: TranslationType = {
@@ -205,6 +206,7 @@ export const es: TranslationType = {
     goodMorning: "Buenos días",
     goodAfternoon: "Buenas tardes",
     goodEvening: "Buenas noches",
+    goodNight: "Buenas noches", // Added missing translation
     overview: "Resumen",
     calendar: "Calendario",
     bookingCalendar: "Calendario de Reservas",

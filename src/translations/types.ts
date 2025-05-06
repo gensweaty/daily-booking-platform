@@ -211,6 +211,7 @@ export interface TranslationType {
     goodMorning: string;
     goodAfternoon: string;
     goodEvening: string;
+    goodNight: string; // Added this line to include goodNight property
     overview: string;
     calendar: string;
     bookingCalendar: string;
