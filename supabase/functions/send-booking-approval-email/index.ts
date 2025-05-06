@@ -19,6 +19,7 @@ interface BookingApprovalEmailRequest {
   businessAddress?: string;
   eventId?: string; // Used for deduplication
   source?: string; // Used to track source of request
+  language?: string; // Used to determine email language
 }
 
 // For deduplication: Store a map of recently sent emails with expiring entries
@@ -61,6 +62,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`- Business Address: ${parsedBody.businessAddress || '(No address provided)'}`);
       console.log(`- Event ID: ${parsedBody.eventId || '(No event ID)'}`);
       console.log(`- Source: ${parsedBody.source || '(Unknown source)'}`);
+      console.log(`- Language: ${parsedBody.language || 'en (default)'}`);
     } catch (parseError) {
       console.error("Failed to parse JSON request:", parseError);
       return new Response(
@@ -79,7 +81,8 @@ const handler = async (req: Request): Promise<Response> => {
       paymentAmount,
       businessAddress,
       eventId,
-      source
+      source,
+      language = 'en' // Default to English if not specified
     } = parsedBody;
 
     // Build a standardized deduplication key that ignores the source
@@ -153,20 +156,20 @@ const handler = async (req: Request): Promise<Response> => {
       // Format payment information if available
       let paymentInfo = "";
       if (paymentStatus) {
-        const formattedStatus = formatPaymentStatus(paymentStatus);
+        const formattedStatus = formatPaymentStatus(paymentStatus, language);
         
         if (paymentStatus === 'partly_paid' || paymentStatus === 'partly') {
           const amountDisplay = paymentAmount ? `$${paymentAmount}` : "";
-          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus} ${amountDisplay}</p>`;
+          paymentInfo = `<p><strong>${getPaymentLabel(language)}:</strong> ${formattedStatus} ${amountDisplay}</p>`;
         } else {
-          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus}</p>`;
+          paymentInfo = `<p><strong>${getPaymentLabel(language)}:</strong> ${formattedStatus}</p>`;
         }
       }
       
       // Prepare address section
       let addressInfo = "";
       let addressDisplay = businessAddress.trim();
-      addressInfo = `<p style="margin: 8px 0;"><strong>Address:</strong> ${addressDisplay}</p>`;
+      addressInfo = `<p style="margin: 8px 0;"><strong>${getAddressLabel(language)}:</strong> ${addressDisplay}</p>`;
       
       // Normalize business name
       const displayBusinessName = businessName && businessName !== "null" && businessName !== "undefined" 
@@ -175,33 +178,22 @@ const handler = async (req: Request): Promise<Response> => {
         
       console.log(`Using business name for email: "${displayBusinessName}"`);
       
-      // Create HTML email content with simpler formatting
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Booking Approved</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-          <h2 style="color: #333;">Hello ${fullName},</h2>
-          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${displayBusinessName}</b>.</p>
-          <p style="margin: 8px 0;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-          ${addressInfo}
-          ${paymentInfo}
-          <p>We look forward to seeing you!</p>
-          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-          <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
-        </body>
-        </html>
-      `;
+      // Create HTML email content based on language
+      const htmlContent = createEmailTemplate(language, {
+        fullName,
+        displayBusinessName,
+        formattedStartDate,
+        formattedEndDate,
+        addressInfo,
+        paymentInfo
+      });
       
       // Final check of what will be included in the email HTML
       console.log("EMAIL HTML PREVIEW:");
       console.log(`- Address section: ${addressInfo}`);
       console.log(`- Payment section: ${paymentInfo || "(No payment info will be shown)"}`);
       console.log(`- Business name used: ${displayBusinessName}`);
+      console.log(`- Email language: ${language}`);
       
       // Use Resend API to send the email
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -216,7 +208,7 @@ const handler = async (req: Request): Promise<Response> => {
       const emailResult = await resend.emails.send({
         from: `${displayBusinessName} <info@smartbookly.com>`,
         to: [recipientEmail],
-        subject: `Booking Approved at ${displayBusinessName}`,
+        subject: getEmailSubject(language, displayBusinessName),
         html: htmlContent,
       });
 
@@ -241,7 +233,8 @@ const handler = async (req: Request): Promise<Response> => {
           included_address: addressDisplay,
           business_name_used: displayBusinessName,
           source: source || 'unknown',
-          dedupeKey: dedupeKey
+          dedupeKey: dedupeKey,
+          language: language
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
@@ -271,19 +264,176 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-// Format payment status for display
-function formatPaymentStatus(status: string): string {
-  switch (status) {
-    case "not_paid":
-      return "Not Paid";
-    case "partly_paid":
-    case "partly":
-      return "Partly Paid";
-    case "fully_paid":
-    case "fully":
-      return "Fully Paid";
+// Get email subject based on language
+function getEmailSubject(language: string, businessName: string): string {
+  switch (language) {
+    case 'ka':
+      return `დაჯავშნა დამტკიცებულია ${businessName}-ში`;
+    case 'es':
+      return `Reserva Aprobada en ${businessName}`;
+    case 'en':
     default:
-      return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+      return `Booking Approved at ${businessName}`;
+  }
+}
+
+// Get payment label based on language
+function getPaymentLabel(language: string): string {
+  switch (language) {
+    case 'ka':
+      return 'გადახდის სტატუსი';
+    case 'es':
+      return 'Estado del pago';
+    case 'en':
+    default:
+      return 'Payment status';
+  }
+}
+
+// Get address label based on language
+function getAddressLabel(language: string): string {
+  switch (language) {
+    case 'ka':
+      return 'მისამართი';
+    case 'es':
+      return 'Dirección';
+    case 'en':
+    default:
+      return 'Address';
+  }
+}
+
+// Format payment status for display based on language
+function formatPaymentStatus(status: string, language = 'en'): string {
+  if (language === 'ka') {
+    switch (status) {
+      case "not_paid":
+        return "გადაუხდელი";
+      case "partly_paid":
+      case "partly":
+        return "ნაწილობრივ გადახდილი";
+      case "fully_paid":
+      case "fully":
+        return "სრულად გადახდილი";
+      default:
+        return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+    }
+  } else if (language === 'es') {
+    switch (status) {
+      case "not_paid":
+        return "No Pagado";
+      case "partly_paid":
+      case "partly":
+        return "Pagado Parcialmente";
+      case "fully_paid":
+      case "fully":
+        return "Pagado Completamente";
+      default:
+        return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+    }
+  } else {
+    // English (default)
+    switch (status) {
+      case "not_paid":
+        return "Not Paid";
+      case "partly_paid":
+      case "partly":
+        return "Partly Paid";
+      case "fully_paid":
+      case "fully":
+        return "Fully Paid";
+      default:
+        return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+    }
+  }
+}
+
+// Create multilingual email templates
+function createEmailTemplate(language: string, data: {
+  fullName: string;
+  displayBusinessName: string;
+  formattedStartDate: string;
+  formattedEndDate: string;
+  addressInfo: string;
+  paymentInfo: string;
+}): string {
+  const { fullName, displayBusinessName, formattedStartDate, formattedEndDate, addressInfo, paymentInfo } = data;
+  
+  // English template (default)
+  const englishTemplate = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Booking Approved</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+      <h2 style="color: #333;">Hello ${fullName},</h2>
+      <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${displayBusinessName}</b>.</p>
+      <p style="margin: 8px 0;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+      ${addressInfo}
+      ${paymentInfo}
+      <p>We look forward to seeing you!</p>
+      <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+      <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
+    </body>
+    </html>
+  `;
+  
+  // Georgian template
+  const georgianTemplate = `
+    <!DOCTYPE html>
+    <html lang="ka">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>დაჯავშნა დამტკიცებულია</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+      <h2 style="color: #333;">გამარჯობა ${fullName},</h2>
+      <p>თქვენი ჯავშანი <b style="color: #4CAF50;">დამტკიცდა</b> <b>${displayBusinessName}</b>-ში.</p>
+      <p style="margin: 8px 0;"><strong>დაჯავშნის თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+      ${addressInfo}
+      ${paymentInfo}
+      <p>ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
+      <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+      <p style="color: #777; font-size: 14px;"><i>ეს არის ავტომატური შეტყობინება.</i></p>
+    </body>
+    </html>
+  `;
+  
+  // Spanish template
+  const spanishTemplate = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Reserva Aprobada</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+      <h2 style="color: #333;">Hola ${fullName},</h2>
+      <p>Su reserva ha sido <b style="color: #4CAF50;">aprobada</b> en <b>${displayBusinessName}</b>.</p>
+      <p style="margin: 8px 0;"><strong>Fecha y hora de la reserva:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+      ${addressInfo}
+      ${paymentInfo}
+      <p>¡Esperamos verle pronto!</p>
+      <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+      <p style="color: #777; font-size: 14px;"><i>Este es un mensaje automatizado.</i></p>
+    </body>
+    </html>
+  `;
+  
+  // Return the appropriate template based on language
+  switch (language) {
+    case 'ka':
+      return georgianTemplate;
+    case 'es':
+      return spanishTemplate;
+    case 'en':
+    default:
+      return englishTemplate;
   }
 }
 

@@ -232,6 +232,8 @@ export const BookingRequestForm = ({
         payment_status: paymentStatus,
         payment_amount: finalPaymentAmount,
         status: 'pending',
+        // Store the language of the request to use for emails later
+        request_language: language
       };
 
       console.log('Submitting booking request:', bookingData);
@@ -329,7 +331,8 @@ export const BookingRequestForm = ({
           hasAttachment: fileUploaded,
           paymentStatus: paymentStatus,
           paymentAmount: finalPaymentAmount,
-          businessName: businessNameToUse
+          businessName: businessNameToUse,
+          language: language // Add language parameter for email localization
         };
         
         // Log notification data

@@ -21,6 +21,7 @@ interface BookingNotificationRequest {
   paymentStatus?: string;
   paymentAmount?: number;
   businessAddress?: string; // Added for consistency
+  language?: string; // Added for email language selection
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -198,7 +199,10 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { requesterName, startDate, endDate, requesterPhone = "", notes = "", businessName = "Your Business", requesterEmail = "", businessAddress = "" } = requestData;
+    const { requesterName, startDate, endDate, requesterPhone = "", notes = "", businessName = "Your Business", requesterEmail = "", businessAddress = "", language = "en" } = requestData;
+
+    // Log the detected language
+    console.log(`📣 Using email language: ${language}`);
 
     // Format dates for display
     const formatDate = (isoString: string) => {
@@ -225,100 +229,74 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("📅 Formatted end date:", formattedEndDate);
 
     // Format payment status for display - Convert keys to readable text
-    const formatPaymentStatus = (status?: string, amount?: number): string => {
-      if (!status) return "Not specified";
+    const formatPaymentStatus = (status?: string, amount?: number, language = 'en'): string => {
+      if (!status) return language === 'ka' ? "არ არის მითითებული" : language === 'es' ? "No especificado" : "Not specified";
       
-      switch (status) {
-        case "not_paid":
-          return "Not Paid";
-        case "partly_paid":
-        case "partly":
-          return amount ? `Partly Paid ($${amount})` : "Partly Paid";
-        case "fully_paid":
-        case "fully":
-          return amount ? `Fully Paid ($${amount})` : "Fully Paid";
-        default:
-          return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+      if (language === 'ka') {
+        switch (status) {
+          case "not_paid":
+            return "გადაუხდელი";
+          case "partly_paid":
+          case "partly":
+            return amount ? `ნაწილობრივ გადახდილი ($${amount})` : "ნაწილობრივ გადახდილი";
+          case "fully_paid":
+          case "fully":
+            return amount ? `სრულად გადახდილი ($${amount})` : "სრულად გადახდილი";
+          default:
+            return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+        }
+      } else if (language === 'es') {
+        switch (status) {
+          case "not_paid":
+            return "No Pagado";
+          case "partly_paid":
+          case "partly":
+            return amount ? `Pagado Parcialmente ($${amount})` : "Pagado Parcialmente";
+          case "fully_paid":
+          case "fully":
+            return amount ? `Pagado Completamente ($${amount})` : "Pagado Completamente";
+          default:
+            return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+        }
+      } else {
+        // English (default)
+        switch (status) {
+          case "not_paid":
+            return "Not Paid";
+          case "partly_paid":
+          case "partly":
+            return amount ? `Partly Paid ($${amount})` : "Partly Paid";
+          case "fully_paid":
+          case "fully":
+            return amount ? `Fully Paid ($${amount})` : "Fully Paid";
+          default:
+            return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+        }
       }
     };
 
     const formattedPaymentStatus = formatPaymentStatus(
       requestData.paymentStatus, 
-      requestData.paymentAmount
+      requestData.paymentAmount,
+      language
     );
     
     console.log("💰 Formatted payment status:", formattedPaymentStatus);
 
-    // Create email content - improve formatting for better deliverability
-    const emailHtml = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>New Booking Request</title>
-        <style>
-          body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
-          .container { border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; background-color: #1d1f21; color: #e6e6e6; }
-          .header { color: #3b82f6; margin-top: 0; }
-          .details { margin: 20px 0; background-color: #2d2f33; padding: 15px; border-radius: 4px; }
-          .detail { margin: 8px 0; }
-          .button { text-align: center; margin: 25px 0; }
-          .button a { background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; }
-          .footer { color: #a0a0a0; font-size: 14px; text-align: center; margin-top: 20px; }
-          .small { font-size: 12px; color: #a0a0a0; }
-          hr { border: none; border-top: 1px solid #444; margin: 20px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h2 class="header">New Booking Request</h2>
-          <p>Hello,</p>
-          <p>You have received a new booking request from <strong>${requesterName}</strong>.</p>
-          <div class="details">
-            <p class="detail"><strong>Start Date:</strong> ${formattedStartDate}</p>
-            <p class="detail"><strong>End Date:</strong> ${formattedEndDate}</p>
-            ${requesterPhone ? `<p class="detail"><strong>Phone:</strong> ${requesterPhone}</p>` : ''}
-            ${requesterEmail ? `<p class="detail"><strong>Email:</strong> ${requesterEmail}</p>` : ''}
-            ${notes ? `<p class="detail"><strong>Notes:</strong> ${notes}</p>` : ''}
-            ${requestData.hasAttachment ? `<p class="detail"><strong>Has attachment:</strong> Yes</p>` : ''}
-            <p class="detail"><strong>Payment status:</strong> ${formattedPaymentStatus}</p>
-          </div>
-          <p>Please log in to your dashboard to view and respond to this request:</p>
-          <div class="button">
-            <a href="https://smartbookly.com/dashboard">Go to Dashboard</a>
-          </div>
-          <hr>
-          <p class="footer">This is an automated message from SmartBookly</p>
-          <p class="small">If you did not sign up for SmartBookly, please disregard this email.</p>
-        </div>
-      </body>
-      </html>
-    `;
-    
-    // Create plain text version for better deliverability
-    const plainText = `
-New Booking Request
-
-Hello,
-
-You have received a new booking request from ${requesterName}.
-
-Start Date: ${formattedStartDate}
-End Date: ${formattedEndDate}
-${requesterPhone ? `Phone: ${requesterPhone}` : ''}
-${requesterEmail ? `Email: ${requesterEmail}` : ''}
-${notes ? `Notes: ${notes}` : ''}
-${requestData.hasAttachment ? `Has attachment: Yes` : ''}
-Payment status: ${formattedPaymentStatus}
-
-Please log in to your dashboard to view and respond to this request:
-https://smartbookly.com/dashboard
-
-This is an automated message from SmartBookly
-
-If you did not sign up for SmartBookly, please disregard this email.
-    `;
+    // Create email content based on language
+    const { emailHtml, plainText, emailSubject } = createEmailContent(
+      language,
+      {
+        requesterName,
+        formattedStartDate,
+        formattedEndDate,
+        requesterPhone,
+        requesterEmail,
+        notes,
+        hasAttachment: requestData.hasAttachment || false,
+        formattedPaymentStatus
+      }
+    );
     
     console.log("📧 Sending email to:", businessEmail);
     
@@ -327,7 +305,7 @@ If you did not sign up for SmartBookly, please disregard this email.
     
     console.log("📧 Final recipient:", businessEmail);
     console.log("📧 Sending from:", fromEmail);
-    console.log("📧 Subject: New Booking Request - Action Required");
+    console.log("📧 Subject:", emailSubject);
     
     let emailResult;
     try {
@@ -337,7 +315,7 @@ If you did not sign up for SmartBookly, please disregard this email.
       emailResult = await resend.emails.send({
         from: fromEmail,
         to: [businessEmail],
-        subject: "New Booking Request - Action Required",
+        subject: emailSubject,
         html: emailHtml,
         text: plainText,
         reply_to: "no-reply@smartbookly.com",
@@ -390,7 +368,8 @@ If you did not sign up for SmartBookly, please disregard this email.
         success: true, 
         message: "Email notification sent successfully",
         id: emailResult.data?.id,
-        email: businessEmail
+        email: businessEmail,
+        language: language
       }),
       { 
         status: 200, 
@@ -423,6 +402,257 @@ If you did not sign up for SmartBookly, please disregard this email.
     );
   }
 };
+
+// Function to create email content based on language
+function createEmailContent(language: string, data: {
+  requesterName: string;
+  formattedStartDate: string;
+  formattedEndDate: string;
+  requesterPhone: string;
+  requesterEmail: string;
+  notes: string;
+  hasAttachment: boolean;
+  formattedPaymentStatus: string;
+}) {
+  const { 
+    requesterName,
+    formattedStartDate,
+    formattedEndDate,
+    requesterPhone,
+    requesterEmail,
+    notes,
+    hasAttachment,
+    formattedPaymentStatus
+  } = data;
+  
+  // Default English subject
+  let emailSubject = "New Booking Request - Action Required";
+  
+  // English email template (default)
+  let emailHtml = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>New Booking Request</title>
+      <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
+        .container { border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; background-color: #1d1f21; color: #e6e6e6; }
+        .header { color: #3b82f6; margin-top: 0; }
+        .details { margin: 20px 0; background-color: #2d2f33; padding: 15px; border-radius: 4px; }
+        .detail { margin: 8px 0; }
+        .button { text-align: center; margin: 25px 0; }
+        .button a { background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; }
+        .footer { color: #a0a0a0; font-size: 14px; text-align: center; margin-top: 20px; }
+        .small { font-size: 12px; color: #a0a0a0; }
+        hr { border: none; border-top: 1px solid #444; margin: 20px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h2 class="header">New Booking Request</h2>
+        <p>Hello,</p>
+        <p>You have received a new booking request from <strong>${requesterName}</strong>.</p>
+        <div class="details">
+          <p class="detail"><strong>Start Date:</strong> ${formattedStartDate}</p>
+          <p class="detail"><strong>End Date:</strong> ${formattedEndDate}</p>
+          ${requesterPhone ? `<p class="detail"><strong>Phone:</strong> ${requesterPhone}</p>` : ''}
+          ${requesterEmail ? `<p class="detail"><strong>Email:</strong> ${requesterEmail}</p>` : ''}
+          ${notes ? `<p class="detail"><strong>Notes:</strong> ${notes}</p>` : ''}
+          ${hasAttachment ? `<p class="detail"><strong>Has attachment:</strong> Yes</p>` : ''}
+          <p class="detail"><strong>Payment status:</strong> ${formattedPaymentStatus}</p>
+        </div>
+        <p>Please log in to your dashboard to view and respond to this request:</p>
+        <div class="button">
+          <a href="https://smartbookly.com/dashboard">Go to Dashboard</a>
+        </div>
+        <hr>
+        <p class="footer">This is an automated message from SmartBookly</p>
+        <p class="small">If you did not sign up for SmartBookly, please disregard this email.</p>
+      </div>
+    </body>
+    </html>
+  `;
+  
+  // Plain text version (English default)
+  let plainText = `
+New Booking Request
+
+Hello,
+
+You have received a new booking request from ${requesterName}.
+
+Start Date: ${formattedStartDate}
+End Date: ${formattedEndDate}
+${requesterPhone ? `Phone: ${requesterPhone}` : ''}
+${requesterEmail ? `Email: ${requesterEmail}` : ''}
+${notes ? `Notes: ${notes}` : ''}
+${hasAttachment ? `Has attachment: Yes` : ''}
+Payment status: ${formattedPaymentStatus}
+
+Please log in to your dashboard to view and respond to this request:
+https://smartbookly.com/dashboard
+
+This is an automated message from SmartBookly
+
+If you did not sign up for SmartBookly, please disregard this email.
+  `;
+  
+  // Georgian email template
+  if (language === 'ka') {
+    emailSubject = "ახალი დაჯავშნის მოთხოვნა - საჭიროებს ქმედებას";
+    
+    emailHtml = `
+      <!DOCTYPE html>
+      <html lang="ka">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ახალი დაჯავშნის მოთხოვნა</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
+          .container { border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; background-color: #1d1f21; color: #e6e6e6; }
+          .header { color: #3b82f6; margin-top: 0; }
+          .details { margin: 20px 0; background-color: #2d2f33; padding: 15px; border-radius: 4px; }
+          .detail { margin: 8px 0; }
+          .button { text-align: center; margin: 25px 0; }
+          .button a { background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; }
+          .footer { color: #a0a0a0; font-size: 14px; text-align: center; margin-top: 20px; }
+          .small { font-size: 12px; color: #a0a0a0; }
+          hr { border: none; border-top: 1px solid #444; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h2 class="header">ახალი დაჯავშნის მოთხოვნა</h2>
+          <p>გამარჯობა,</p>
+          <p>თქვენ მიიღეთ ახალი დაჯავშნის მოთხოვნა <strong>${requesterName}</strong>-სგან.</p>
+          <div class="details">
+            <p class="detail"><strong>დაწყების თარიღი:</strong> ${formattedStartDate}</p>
+            <p class="detail"><strong>დასრულების თარიღი:</strong> ${formattedEndDate}</p>
+            ${requesterPhone ? `<p class="detail"><strong>ტელეფონი:</strong> ${requesterPhone}</p>` : ''}
+            ${requesterEmail ? `<p class="detail"><strong>ელფოსტა:</strong> ${requesterEmail}</p>` : ''}
+            ${notes ? `<p class="detail"><strong>შენიშვნები:</strong> ${notes}</p>` : ''}
+            ${hasAttachment ? `<p class="detail"><strong>აქვს დანართი:</strong> დიახ</p>` : ''}
+            <p class="detail"><strong>გადახდის სტატუსი:</strong> ${formattedPaymentStatus}</p>
+          </div>
+          <p>გთხოვთ შეხვიდეთ თქვენს საინფორმაციო დაფაზე, რომ ნახოთ და უპასუხოთ ამ მოთხოვნას:</p>
+          <div class="button">
+            <a href="https://smartbookly.com/dashboard">გადადით Dashboard-ზე</a>
+          </div>
+          <hr>
+          <p class="footer">ეს არის ავტომატური შეტყობინება SmartBookly-სგან</p>
+          <p class="small">თუ არ დარეგისტრირებულხართ SmartBookly-ზე, გთხოვთ უგულებელყოთ ეს მეილი.</p>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    plainText = `
+ახალი დაჯავშნის მოთხოვნა
+
+გამარჯობა,
+
+თქვენ მიიღეთ ახალი დაჯავშნის მოთხოვნა ${requesterName}-სგან.
+
+დაწყების თარიღი: ${formattedStartDate}
+დასრულების თარიღი: ${formattedEndDate}
+${requesterPhone ? `ტელეფონი: ${requesterPhone}` : ''}
+${requesterEmail ? `ელფოსტა: ${requesterEmail}` : ''}
+${notes ? `შენიშვნები: ${notes}` : ''}
+${hasAttachment ? `აქვს დანართი: დიახ` : ''}
+გადახდის სტატუსი: ${formattedPaymentStatus}
+
+გთხოვთ შეხვიდეთ თქვენს საინფორმაციო დაფაზე, რომ ნახოთ და უპასუხოთ ამ მოთხოვნას:
+https://smartbookly.com/dashboard
+
+ეს არის ავტომატური შეტყობინება SmartBookly-სგან
+
+თუ არ დარეგისტრირებულხართ SmartBookly-ზე, გთხოვთ უგულებელყოთ ეს მეილი.
+    `;
+  }
+  
+  // Spanish email template
+  else if (language === 'es') {
+    emailSubject = "Nueva Solicitud de Reserva - Acción Requerida";
+    
+    emailHtml = `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Nueva Solicitud de Reserva</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
+          .container { border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; background-color: #1d1f21; color: #e6e6e6; }
+          .header { color: #3b82f6; margin-top: 0; }
+          .details { margin: 20px 0; background-color: #2d2f33; padding: 15px; border-radius: 4px; }
+          .detail { margin: 8px 0; }
+          .button { text-align: center; margin: 25px 0; }
+          .button a { background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; }
+          .footer { color: #a0a0a0; font-size: 14px; text-align: center; margin-top: 20px; }
+          .small { font-size: 12px; color: #a0a0a0; }
+          hr { border: none; border-top: 1px solid #444; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h2 class="header">Nueva Solicitud de Reserva</h2>
+          <p>Hola,</p>
+          <p>Ha recibido una nueva solicitud de reserva de <strong>${requesterName}</strong>.</p>
+          <div class="details">
+            <p class="detail"><strong>Fecha de inicio:</strong> ${formattedStartDate}</p>
+            <p class="detail"><strong>Fecha de finalización:</strong> ${formattedEndDate}</p>
+            ${requesterPhone ? `<p class="detail"><strong>Teléfono:</strong> ${requesterPhone}</p>` : ''}
+            ${requesterEmail ? `<p class="detail"><strong>Correo electrónico:</strong> ${requesterEmail}</p>` : ''}
+            ${notes ? `<p class="detail"><strong>Notas:</strong> ${notes}</p>` : ''}
+            ${hasAttachment ? `<p class="detail"><strong>Tiene adjunto:</strong> Sí</p>` : ''}
+            <p class="detail"><strong>Estado del pago:</strong> ${formattedPaymentStatus}</p>
+          </div>
+          <p>Inicie sesión en su panel de control para ver y responder a esta solicitud:</p>
+          <div class="button">
+            <a href="https://smartbookly.com/dashboard">Ir al panel de control</a>
+          </div>
+          <hr>
+          <p class="footer">Este es un mensaje automático de SmartBookly</p>
+          <p class="small">Si no se registró en SmartBookly, ignore este correo electrónico.</p>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    plainText = `
+Nueva Solicitud de Reserva
+
+Hola,
+
+Ha recibido una nueva solicitud de reserva de ${requesterName}.
+
+Fecha de inicio: ${formattedStartDate}
+Fecha de finalización: ${formattedEndDate}
+${requesterPhone ? `Teléfono: ${requesterPhone}` : ''}
+${requesterEmail ? `Correo electrónico: ${requesterEmail}` : ''}
+${notes ? `Notas: ${notes}` : ''}
+${hasAttachment ? `Tiene adjunto: Sí` : ''}
+Estado del pago: ${formattedPaymentStatus}
+
+Inicie sesión en su panel de control para ver y responder a esta solicitud:
+https://smartbookly.com/dashboard
+
+Este es un mensaje automático de SmartBookly
+
+Si no se registró en SmartBookly, ignore este correo electrónico.
+    `;
+  }
+  
+  return {
+    emailHtml,
+    plainText,
+    emailSubject
+  };
+}
 
 // Helper function to get business email directly if the RPC function fails
 async function getBusinessOwnerEmailDirect(businessId: string): Promise<{businessEmail: string | null, error: string | null}> {
