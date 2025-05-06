@@ -25,7 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { BookingRequestForm } from "../business/BookingRequestForm";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
 
@@ -333,11 +333,12 @@ export const Calendar = ({
           <DialogContent className="sm:max-w-md">
             {bookingDate && (
               <BookingRequestForm
+                open={isBookingFormOpen}
+                onOpenChange={setIsBookingFormOpen}
                 businessId={businessId}
                 selectedDate={bookingDate}
                 startTime={bookingStartTime}
                 endTime={bookingEndTime}
-                onClose={() => setIsBookingFormOpen(false)}
                 onSuccess={handleBookingSuccess}
                 isExternalBooking={true}
               />
