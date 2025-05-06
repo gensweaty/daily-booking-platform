@@ -424,6 +424,9 @@ export const ka: TranslationType = {
       ]
     }
   },
+  bookings: {
+    approvedBooking: "დადასტურებული ჯავშანი"
+  },
   notes: {
     noteAdded: "შენიშვნა დაემატა",
     noteAddedDescription: "თქვენი შენიშვნა წარმატებით შეინახა",
