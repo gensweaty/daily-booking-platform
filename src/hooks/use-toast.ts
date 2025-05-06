@@ -269,6 +269,13 @@ export const useToast = () => {
 };
 
 // Define the toast function interface that can be both called and have properties
+interface ToastFunctionProps {
+  title?: string | ReactNode;
+  description?: string | ReactNode;
+  variant?: "default" | "destructive";
+  [key: string]: any;
+}
+
 interface ToastFunction {
   (props: ToastInput): ReturnType<typeof sonnerToast>;
   (title: string, props?: Partial<CustomToastProps>): ReturnType<typeof sonnerToast>;
@@ -329,7 +336,7 @@ const toastFn = function(
   
   // Handle object with title and description
   if (propsOrTitle && typeof propsOrTitle === 'object') {
-    const { title, description, variant, ...rest } = propsOrTitle as CustomToastProps;
+    const { title, description, variant, ...rest } = propsOrTitle as ToastFunctionProps;
 
     // Special case for translateKeys
     if ('translateKeys' in propsOrTitle) {
@@ -595,10 +602,3 @@ export const toast = Object.assign(toastFn, {
     });
   }
 });
-
-// Also update the UI component re-export
-<lov-write file_path="src/components/ui/use-toast.ts">
-// Re-export the toast functions from the hooks directory
-import { useToast, toast } from "@/hooks/use-toast";
-
-export { useToast, toast };
