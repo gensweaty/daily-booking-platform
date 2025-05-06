@@ -221,7 +221,7 @@ export const useToast = () => {
 };
 
 // Define a more complete type for our toast function including callability
-interface ToastFunction {
+interface ToastFunction extends Function {
   (props: ToastT | { title?: string; description?: string; [key: string]: any }): string | number;
   success: (props: ToastT | { title?: string; description?: string; [key: string]: any }) => void;
   info: (props: ToastT | { title?: string; description?: string; [key: string]: any }) => void;
@@ -265,16 +265,16 @@ interface ToastFunction {
 }
 
 // Create a function that can be called directly
-const toastFn = ((props: ToastT | { title?: string; description?: string; [key: string]: any }): string | number => {
+const toastFunction = function(props: ToastT | { title?: string; description?: string; [key: string]: any }): string | number {
   // If it's a simple string, treat it as a title
   if (typeof props === 'string') {
-    return sonnerToast({ title: props });
+    return sonnerToast(props);
   }
   // Handle basic object format
   if (props && typeof props === 'object') {
     // Handle the special translateKeys case
     if ('translateKeys' in props) {
-      const { translateKeys } = props as { translateKeys: { titleKey?: string; descriptionKey?: string } };
+      const { translateKeys } = props as any;
       const { t } = useLanguage();
       return sonnerToast.success(
         translateKeys.titleKey ? t(translateKeys.titleKey) : t("common.success"),
@@ -289,10 +289,10 @@ const toastFn = ((props: ToastT | { title?: string; description?: string; [key: 
   }
   // Fallback to default behavior
   return sonnerToast(props as ToastT);
-}) as ToastFunction;
+};
 
 // Extend the function with methods
-export const toast = Object.assign(toastFn, {
+export const toast = Object.assign(toastFunction, {
   success: (props: ToastT | { title?: string; description?: string; [key: string]: any }) => {
     if (typeof props === 'string') {
       sonnerToast.success(props);
@@ -520,5 +520,4 @@ export const toast = Object.assign(toastFn, {
       description: t("common.copied") || "Copied to clipboard"
     });
   }
-});
-
+}) as ToastFunction;
