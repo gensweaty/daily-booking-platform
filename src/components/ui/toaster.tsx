@@ -1,3 +1,4 @@
+
 import { useToast } from "@/hooks/use-toast"
 import {
   Toast,
@@ -7,9 +8,14 @@ import {
   ToastTitle,
   ToastViewport,
 } from "@/components/ui/toast"
+import { useLanguage } from "@/contexts/LanguageContext"
+import { cn } from "@/lib/utils"
+import { getGeorgianFontStyle } from "@/lib/font-utils"
 
 export function Toaster() {
   const { toasts } = useToast()
+  const { language } = useLanguage()
+  const isGeorgian = language === 'ka'
 
   return (
     <ToastProvider>
@@ -17,9 +23,21 @@ export function Toaster() {
         return (
           <Toast key={id} {...props}>
             <div className="grid gap-1">
-              {title && <ToastTitle>{title}</ToastTitle>}
+              {title && (
+                <ToastTitle 
+                  className={cn(isGeorgian && "font-georgian")}
+                  style={isGeorgian ? getGeorgianFontStyle() : undefined}
+                >
+                  {title}
+                </ToastTitle>
+              )}
               {description && (
-                <ToastDescription>{description}</ToastDescription>
+                <ToastDescription 
+                  className={cn(isGeorgian && "font-georgian")}
+                  style={isGeorgian ? getGeorgianFontStyle() : undefined}
+                >
+                  {description}
+                </ToastDescription>
               )}
             </div>
             {action}
