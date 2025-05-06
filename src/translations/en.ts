@@ -207,6 +207,7 @@ const en: TranslationType = {
     goodMorning: "Good Morning",
     goodAfternoon: "Good Afternoon",
     goodEvening: "Good Evening",
+    goodNight: "Good Night", // Added missing translation
     overview: "Overview",
     calendar: "Calendar",
     bookingCalendar: "Booking Calendar",
