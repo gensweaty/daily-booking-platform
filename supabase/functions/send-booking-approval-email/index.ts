@@ -19,6 +19,7 @@ interface BookingApprovalEmailRequest {
   businessAddress?: string;
   eventId?: string; // Used for deduplication
   source?: string; // Used to track source of request
+  language?: string; // Added language parameter
 }
 
 // For deduplication: Store a map of recently sent emails with expiring entries
@@ -35,6 +36,110 @@ setInterval(() => {
     }
   }
 }, 300000); // Run every 5 minutes
+
+// Function to get localized email content based on language
+function getLocalizedEmailContent(
+  language: string,
+  fullName: string,
+  businessName: string,
+  formattedStartDate: string,
+  formattedEndDate: string,
+  addressInfo: string,
+  paymentInfo: string
+): string {
+  // Default to English if language is not specified or not supported
+  switch (language) {
+    case 'ka': // Georgian
+      return `
+        <!DOCTYPE html>
+        <html lang="ka">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>ჯავშანი დამტკიცებულია</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+          <h2 style="color: #333;">გამარჯობა ${fullName},</h2>
+          <p>თქვენი ჯავშანი დამტკიცდა <b>${businessName}</b>-ში.</p>
+          <p style="margin: 8px 0;"><strong>დაჯავშნის თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+          ${addressInfo}
+          ${paymentInfo}
+          <p>ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
+          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+          <p style="color: #777; font-size: 14px;"><i>ეს არის ავტომატური შეტყობინება.</i></p>
+        </body>
+        </html>
+      `;
+    case 'es': // Spanish
+      return `
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Reserva Aprobada</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+          <h2 style="color: #333;">Hola ${fullName},</h2>
+          <p>Su reserva ha sido <b style="color: #4CAF50;">aprobada</b> en <b>${businessName}</b>.</p>
+          <p style="margin: 8px 0;"><strong>Fecha y hora de la reserva:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+          ${addressInfo}
+          ${paymentInfo}
+          <p>¡Esperamos verle pronto!</p>
+          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+          <p style="color: #777; font-size: 14px;"><i>Este es un mensaje automático.</i></p>
+        </body>
+        </html>
+      `;
+    default: // English (default)
+      return `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Booking Approved</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+          <h2 style="color: #333;">Hello ${fullName},</h2>
+          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${businessName}</b>.</p>
+          <p style="margin: 8px 0;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+          ${addressInfo}
+          ${paymentInfo}
+          <p>We look forward to seeing you!</p>
+          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+          <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
+        </body>
+        </html>
+      `;
+  }
+}
+
+// Function to get localized payment status based on language
+function getLocalizedPaymentStatus(status: string, language: string): string {
+  if (language === 'ka') {
+    switch (status) {
+      case "not_paid": return "გადაუხდელი";
+      case "partly_paid":
+      case "partly": return "ნაწილობრივ გადახდილი";
+      case "fully_paid":
+      case "fully": return "სრულად გადახდილი";
+      default: return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+    }
+  } else if (language === 'es') {
+    switch (status) {
+      case "not_paid": return "No Pagado";
+      case "partly_paid":
+      case "partly": return "Parcialmente Pagado";
+      case "fully_paid":
+      case "fully": return "Totalmente Pagado";
+      default: return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+    }
+  } else {
+    // Default English
+    return formatPaymentStatus(status);
+  }
+}
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -61,6 +166,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`- Business Address: ${parsedBody.businessAddress || '(No address provided)'}`);
       console.log(`- Event ID: ${parsedBody.eventId || '(No event ID)'}`);
       console.log(`- Source: ${parsedBody.source || '(Unknown source)'}`);
+      console.log(`- Language: ${parsedBody.language || 'en (default)'}`);
     } catch (parseError) {
       console.error("Failed to parse JSON request:", parseError);
       return new Response(
@@ -79,7 +185,8 @@ const handler = async (req: Request): Promise<Response> => {
       paymentAmount,
       businessAddress,
       eventId,
-      source
+      source,
+      language = 'en' // Default to English if not specified
     } = parsedBody;
 
     // Build a standardized deduplication key that ignores the source
@@ -153,20 +260,40 @@ const handler = async (req: Request): Promise<Response> => {
       // Format payment information if available
       let paymentInfo = "";
       if (paymentStatus) {
-        const formattedStatus = formatPaymentStatus(paymentStatus);
+        // Get localized payment status based on language
+        const formattedStatus = getLocalizedPaymentStatus(paymentStatus, language);
         
         if (paymentStatus === 'partly_paid' || paymentStatus === 'partly') {
           const amountDisplay = paymentAmount ? `$${paymentAmount}` : "";
-          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus} ${amountDisplay}</p>`;
+          if (language === 'ka') {
+            paymentInfo = `<p><strong>გადახდის სტატუსი:</strong> ${formattedStatus} ${amountDisplay}</p>`;
+          } else if (language === 'es') {
+            paymentInfo = `<p><strong>Estado del pago:</strong> ${formattedStatus} ${amountDisplay}</p>`;
+          } else {
+            paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus} ${amountDisplay}</p>`;
+          }
         } else {
-          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus}</p>`;
+          if (language === 'ka') {
+            paymentInfo = `<p><strong>გადახდის სტატუსი:</strong> ${formattedStatus}</p>`;
+          } else if (language === 'es') {
+            paymentInfo = `<p><strong>Estado del pago:</strong> ${formattedStatus}</p>`;
+          } else {
+            paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus}</p>`;
+          }
         }
       }
       
       // Prepare address section
       let addressInfo = "";
       let addressDisplay = businessAddress.trim();
-      addressInfo = `<p style="margin: 8px 0;"><strong>Address:</strong> ${addressDisplay}</p>`;
+      
+      if (language === 'ka') {
+        addressInfo = `<p style="margin: 8px 0;"><strong>მისამართი:</strong> ${addressDisplay}</p>`;
+      } else if (language === 'es') {
+        addressInfo = `<p style="margin: 8px 0;"><strong>Dirección:</strong> ${addressDisplay}</p>`;
+      } else {
+        addressInfo = `<p style="margin: 8px 0;"><strong>Address:</strong> ${addressDisplay}</p>`;
+      }
       
       // Normalize business name
       const displayBusinessName = businessName && businessName !== "null" && businessName !== "undefined" 
@@ -175,33 +302,23 @@ const handler = async (req: Request): Promise<Response> => {
         
       console.log(`Using business name for email: "${displayBusinessName}"`);
       
-      // Create HTML email content with simpler formatting
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Booking Approved</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-          <h2 style="color: #333;">Hello ${fullName},</h2>
-          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${displayBusinessName}</b>.</p>
-          <p style="margin: 8px 0;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-          ${addressInfo}
-          ${paymentInfo}
-          <p>We look forward to seeing you!</p>
-          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-          <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
-        </body>
-        </html>
-      `;
+      // Create HTML email content with language-specific formatting
+      const htmlContent = getLocalizedEmailContent(
+        language,
+        fullName,
+        displayBusinessName,
+        formattedStartDate,
+        formattedEndDate,
+        addressInfo,
+        paymentInfo
+      );
       
       // Final check of what will be included in the email HTML
       console.log("EMAIL HTML PREVIEW:");
       console.log(`- Address section: ${addressInfo}`);
       console.log(`- Payment section: ${paymentInfo || "(No payment info will be shown)"}`);
       console.log(`- Business name used: ${displayBusinessName}`);
+      console.log(`- Using language: ${language}`);
       
       // Use Resend API to send the email
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -241,7 +358,8 @@ const handler = async (req: Request): Promise<Response> => {
           included_address: addressDisplay,
           business_name_used: displayBusinessName,
           source: source || 'unknown',
-          dedupeKey: dedupeKey
+          dedupeKey: dedupeKey,
+          language: language
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );

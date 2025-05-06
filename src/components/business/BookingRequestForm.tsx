@@ -232,6 +232,7 @@ export const BookingRequestForm = ({
         payment_status: paymentStatus,
         payment_amount: finalPaymentAmount,
         status: 'pending',
+        language: language // Add the current language to the booking request
       };
 
       console.log('Submitting booking request:', bookingData);
@@ -316,7 +317,7 @@ export const BookingRequestForm = ({
           console.warn("Could not get business name:", err);
         }
         
-        // Prepare notification data with the business email if we have it
+        // Prepare notification data with the business email and language
         const notificationData = {
           businessId: businessId,
           businessEmail: businessEmail, // Include the email if we have it
@@ -329,7 +330,8 @@ export const BookingRequestForm = ({
           hasAttachment: fileUploaded,
           paymentStatus: paymentStatus,
           paymentAmount: finalPaymentAmount,
-          businessName: businessNameToUse
+          businessName: businessNameToUse,
+          language: language // Add the current language to the notification
         };
         
         // Log notification data
@@ -452,7 +454,7 @@ export const BookingRequestForm = ({
           <Label htmlFor="userNumber" className={labelClass} style={georgianFontStyle}>
             {isGeorgian ? (
               <>
-                <GeorgianAuthText fontWeight="medium">ტელეფონის ნომერი</GeorgianAuthText>
+                <GeorgianAuthText fontWeight="medium">ტელეფონის ნო��ერი</GeorgianAuthText>
                 <RequiredFieldIndicator />
               </>
             ) : (
