@@ -54,22 +54,13 @@ export const ImageCarousel = ({
           {images.map((image, index) => (
             <CarouselItem key={index} className="md:basis-1/1">
               <div className="p-1">
-                <div className={cn(
-                  "rounded-xl overflow-hidden transition-all",
-                  showTitles ? "h-[430px]" : "h-[400px]",
-                  "hover:shadow-lg"
-                )}>
+                <div className="rounded-xl overflow-hidden transition-all h-[400px] hover:shadow-lg">
                   <div className="relative h-full">
                     <img
                       src={image.src}
                       alt={image.alt}
                       className="w-full h-full object-contain bg-white"
                     />
-                    {showTitles && image.title && (
-                      <div className="absolute bottom-0 left-0 right-0 p-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm">
-                        <h3 className="text-lg font-semibold text-center">{image.title}</h3>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>

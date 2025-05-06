@@ -28,8 +28,7 @@ const productImages = [{
 }, {
   src: "/lovable-uploads/5c47a946-c86a-4d05-a039-116b80b2194e.png",
   alt: "Pet Grooming Salon",
-  loading: "lazy",
-  title: "Lady's Grooming Salon"
+  loading: "lazy"
 }];
 
 export const HeroSection = () => {
@@ -184,7 +183,7 @@ export const HeroSection = () => {
               </div>
             </div>
             <div className="animate-fade-in">
-              <ImageCarousel images={productImages} permanentArrows={true} showTitles={true} />
+              <ImageCarousel images={productImages} permanentArrows={true} />
             </div>
           </main>
         </div>
