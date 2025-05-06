@@ -37,7 +37,8 @@ export const es: TranslationType = {
     feature5: "Notificaciones de reservas por correo electrónico y panel",
     requestSubmitted: "¡Tu solicitud de reserva ha sido enviada con éxito!",
     yourEmailPlaceholder: "Ingresa tu correo electrónico",
-    bookAppointment: "Reservar Cita"
+    bookAppointment: "Reservar Cita",
+    requestApproved: "Solicitud de reserva aprobada"
   },
   analytics: {
     title: "Análisis Integral",
@@ -263,6 +264,7 @@ export const es: TranslationType = {
     deleteEvent: "Eliminar Evento",
     eventDeleted: "Evento eliminado con éxito",
     eventUpdated: "Evento actualizado con éxito",
+    eventCreated: "Evento creado con éxito",
     timeSlotUnavailable: "Horario No Disponible",
     timeSlotConflict: "Conflicto de Horario",
     timeSlotNotAvailable: "Este horario no está disponible",
@@ -341,7 +343,8 @@ export const es: TranslationType = {
     supportedFormats: "Formatos admitidos: .jpg, .jpeg, .png, .pdf, .docx, .xls",
     deleteConfirmMessage: "Esta acción no se puede deshacer. ¿Está seguro de que desea eliminar este elemento?",
     noDescription: "No se proporcionó descripción",
-    deleteConfirmTitle: "¿Confirmar eliminación?"
+    deleteConfirmTitle: "¿Confirmar eliminación?",
+    successMessage: "Operación completada con éxito"
   },
   auth: {
     welcome: "Bienvenido a SmartBookly",
