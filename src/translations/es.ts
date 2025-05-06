@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 export const es: TranslationType = {
@@ -427,7 +428,11 @@ export const es: TranslationType = {
     }
   },
   bookings: {
-    approvedBooking: "Reserva Aprobada"
+    approvedBooking: "Reserva Aprobada",
+    requestRejected: "Solicitud de reserva rechazada",
+    requestDeleted: "Solicitud de reserva eliminada",
+    newRequest: "Nueva Solicitud de Reserva",
+    pendingRequestsCount: "solicitud de reserva pendiente"
   },
   notes: {
     title: "Título",
@@ -445,3 +450,4 @@ export const es: TranslationType = {
     reminderCreated: "Recordatorio creado con éxito"
   }
 };
+
