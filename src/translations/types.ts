@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -41,6 +42,7 @@ export interface TranslationType {
     feature4: string;
     feature5: string;
     requestSubmitted: string;
+    requestSubmittedDescription: string; // Added missing property
     yourEmailPlaceholder: string;
     bookAppointment: string;
     requestApproved: string;
