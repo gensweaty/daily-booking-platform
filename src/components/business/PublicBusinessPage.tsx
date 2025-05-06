@@ -11,11 +11,13 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
 
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
   const { t, language } = useLanguage();
+  const { theme } = useTheme();
   const isGeorgian = language === 'ka';
   
   const getBusinessSlug = () => {
@@ -43,6 +45,7 @@ export const PublicBusinessPage = () => {
   const maxRetryCount = 3;
 
   console.log("[PublicBusinessPage] Using business slug:", businessSlug);
+  console.log("[PublicBusinessPage] Current theme:", theme);
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -190,13 +193,13 @@ export const PublicBusinessPage = () => {
         <LanguageSwitcher />
       </div>
       
-      {/* Hero section with cover photo - increased by 5% from previous size */}
-      <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white"
+      {/* Hero section with cover photo */}
+      <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white dark:from-blue-800 dark:to-indigo-900"
         style={{
           backgroundImage: `url(${displayCoverUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          minHeight: '44vh', // Extended from 42vh to 44vh (5% increase)
+          minHeight: '44vh',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between'
@@ -225,7 +228,7 @@ export const PublicBusinessPage = () => {
             <div className="flex gap-4 mb-6">
               <Button 
                 size="lg" 
-                className={cn("bg-white text-blue-700 hover:bg-blue-50", isGeorgian ? "georgian-text-fix font-georgian" : "")}
+                className={cn("bg-white text-blue-700 hover:bg-blue-50 dark:bg-white/90 dark:hover:bg-white", isGeorgian ? "georgian-text-fix font-georgian" : "")}
                 style={applyGeorgianFont(isGeorgian)}
                 onClick={() => {
                   document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
@@ -238,7 +241,7 @@ export const PublicBusinessPage = () => {
         </div>
           
         {/* Contact information moved to bottom of the hero section as requested */}
-        <div className="bg-white/15 backdrop-blur-sm mt-auto">
+        <div className="bg-white/15 backdrop-blur-sm mt-auto dark:bg-black/30">
           <div className="container mx-auto px-4">
             <div className="grid md:grid-cols-2 gap-6 py-4">
               {business.contact_email && (
@@ -295,7 +298,7 @@ export const PublicBusinessPage = () => {
       )}
 
       <div className="container mx-auto px-4 py-6">
-        <div id="calendar-section">
+        <div id="calendar-section" className="bg-background">
           <div className="flex justify-between items-center mb-4">
             <h2 
               className={cn("text-2xl font-bold", isGeorgian ? "font-georgian" : "")}
