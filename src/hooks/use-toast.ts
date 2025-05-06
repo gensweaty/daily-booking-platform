@@ -139,14 +139,20 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
-// Helper function to get translation function safely
+// Modified to properly handle translation parameters
 function getTranslationFunction() {
-  // Default fallback function returns the key itself
-  let translationFunction = (key: string) => key;
+  // Default fallback function returns the key itself, with parameter handling
+  let translationFunction = (key: string, params?: Record<string, string | number>): string => {
+    if (!params) return key;
+    
+    // Simple parameter replacement for fallback
+    return Object.entries(params).reduce((str, [param, value]) => {
+      return str.replace(new RegExp(`{${param}}`, 'g'), String(value));
+    }, key);
+  };
   
   try {
     // Get the translation function from the language context
-    // This is wrapped in try/catch because it might fail when called outside React components
     const { t } = useLanguage();
     translationFunction = t;
   } catch (error) {
@@ -169,7 +175,12 @@ function toast({ ...props }: Toast) {
       translatedProps.title = t(props.translateKeys.titleKey);
     }
     if (props.translateKeys.descriptionKey && typeof props.translateKeys.descriptionKey === 'string') {
-      translatedProps.description = t(props.translateKeys.descriptionKey, props.translateParams);
+      if (props.translateParams) {
+        // Handle parameters for description
+        translatedProps.description = t(props.translateKeys.descriptionKey, props.translateParams);
+      } else {
+        translatedProps.description = t(props.translateKeys.descriptionKey);
+      }
     }
   }
 
