@@ -1,4 +1,6 @@
 
+import { type } from 'os';
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -42,7 +44,7 @@ export interface TranslationType {
     feature4: string;
     feature5: string;
     requestSubmitted: string;
-    requestSubmittedDescription: string; // Added missing property
+    requestSubmittedDescription: string;
     yourEmailPlaceholder: string;
     bookAppointment: string;
     requestApproved: string;
@@ -212,7 +214,7 @@ export interface TranslationType {
     goodMorning: string;
     goodAfternoon: string;
     goodEvening: string;
-    goodNight: string; // Added this line to include goodNight property
+    goodNight: string;
     overview: string;
     calendar: string;
     bookingCalendar: string;
@@ -409,26 +411,7 @@ export interface TranslationType {
     passwordTooShort: string;
     verificationRequired: string;
     checkEmailFolders: string;
-  };
-  legal: {
-    title: string;
-    lastUpdated: string;
-    termsOfService: string;
-    welcomeText: string;
-    generalInfo: {
-      title: string;
-      companyName: string;
-      registered: string;
-      contact: string;
-    };
-    eligibility: {
-      title: string;
-      description: string;
-    };
-    accountSecurity: {
-      title: string;
-      requirements: string[];
-    };
+    signOutSuccess: string;
   };
   bookings: {
     approvedBooking: string;
@@ -454,5 +437,25 @@ export interface TranslationType {
   };
   reminders: {
     reminderCreated: string;
+  };
+  legal: {
+    title: string;
+    lastUpdated: string;
+    termsOfService: string;
+    welcomeText: string;
+    generalInfo: {
+      title: string;
+      companyName: string;
+      registered: string;
+      contact: string;
+    };
+    eligibility: {
+      title: string;
+      description: string;
+    };
+    accountSecurity: {
+      title: string;
+      requirements: string[];
+    };
   };
 }

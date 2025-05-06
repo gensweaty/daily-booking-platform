@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 // Define English translations

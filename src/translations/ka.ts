@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const ka: TranslationType = {
@@ -54,7 +53,7 @@ export const ka: TranslationType = {
     endDateTime: "დასრულების თარიღი და დრო",
     eventNotes: "შენიშვნები",
     addEventNotes: "დაამატეთ შენიშვნები თქვენს ჯავშანზე",
-    editEvent: "ღონისძიე��ის რედაქტირება",
+    editEvent: "ღონისძიეის რედაქტირება",
     addNewEvent: "ახალი ღონისძიების დამატება",
     updateEvent: "ღონისძიების განახლება",
     createEvent: "ღონისძიების შექმნა",
@@ -214,7 +213,7 @@ export const ka: TranslationType = {
     eventStatistics: "ღონისძიებების სტატისტიკა",
     financialSummary: "ფინანსური შეჯამება",
     summaryStatistics: "შეჯამების სტატისტიკა",
-    eventsData: "ღონი���ძიებების მონაცემები"
+    eventsData: "ღონიძიებების მონაცემები"
   },
   nav: {
     signin: "შესვლა",
@@ -254,7 +253,7 @@ export const ka: TranslationType = {
     yourEmailPlaceholder: "შეიყვანეთ თქვენი ელ-ფოსტა",
     bookAppointment: "დაჯავშნე შეხვედრა",
     requestApproved: "ჯავშნის მოთხოვნა დამტკიცებულია",
-    newRequest: "��ხალი ჯავშნის მოთხოვნა"
+    newRequest: "ხალი ჯავშნის მოთხოვნა"
   },
   analytics: {
     title: "ყოვლისმომცველი ანალიტიკა",
@@ -300,7 +299,7 @@ export const ka: TranslationType = {
     healthDesc: "ექიმები, თერაპევტები, კეთილდღეობის მწვრთნელები",
     sportsDesc: "პირადი მწვრთნელები, სპორტის მწვრთნელები, ფიტნეს ცენტრები",
     beautyDesc: "სალონები, სტილისტები, სპა ცენტრები",
-    personalDesc: "���ონსულტანტები, ფოტოგრაფები, სახლის მომსახურება",
+    personalDesc: "ონსულტანტები, ფოტოგრაფები, სახლის მომსახურება",
     educationDesc: "მასწავლებლები, რეპეტიტორები, ტრენერები, ვორქშოპები",
     myBusiness: "ჩემი ბიზნესი",
     businessProfile: "ბიზნეს პროფილი",
