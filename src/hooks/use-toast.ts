@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
 import { useLanguage } from "@/contexts/LanguageContext"
@@ -281,7 +280,7 @@ toast.event = {
       }
     });
   },
-  // Updated to use proper translation keys for both title and description
+  // Updated to use proper translation keys for both title and description for Georgian
   newBookingRequest: (count: number = 1) => {
     const t = getTranslationFunction();
     return toast({
