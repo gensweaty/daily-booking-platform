@@ -1,10 +1,13 @@
+
 import { Calendar, ChartBar, ListTodo, Users, Globe } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ClientLogos } from "./ClientLogos";
 import { FeatureButtons } from "./FeatureButtons";
+
+// Updated to use the new uploaded image as the first image in the carousel
 const calendarViews = [{
-  src: "/lovable-uploads/2c659363-6837-44d0-9f56-4f0a5c8a2b74.png",
-  alt: "Month View"
+  src: "/lovable-uploads/155f0013-6e24-48e6-b456-9b5c1c1715c4.png",
+  alt: "Booking Calendar"
 }, {
   src: "/lovable-uploads/400e814b-7812-448a-9e9a-9036616aab00.png",
   alt: "Week View"
@@ -12,7 +15,9 @@ const calendarViews = [{
   src: "/lovable-uploads/541c86d2-6a17-4ec4-9a9c-5ad9e6e3ba4d.png",
   alt: "Day View"
 }];
+
 import { FeatureCard } from "./FeatureCard";
+
 export const FeatureSection = () => {
   const {
     t
