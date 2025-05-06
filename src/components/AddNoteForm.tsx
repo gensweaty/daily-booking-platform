@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -87,17 +87,10 @@ export const AddNoteForm = () => {
       setSelectedFile(null);
       setIsExpanded(false);
       queryClient.invalidateQueries({ queryKey: ["notes"] });
-      toast({
-        title: t("notes.noteAdded"),
-        description: t("notes.noteAddedDescription"),
-      });
+      toast.note.added();
     },
     onError: (error: any) => {
-      toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error({ description: error.message });
     },
   });
 
@@ -105,20 +98,12 @@ export const AddNoteForm = () => {
     e.preventDefault();
 
     if (!title.trim()) {
-      toast({
-        title: t("common.error"),
-        description: t("notes.titleRequired"),
-        variant: "destructive",
-      });
+      toast.error({ description: t("notes.titleRequired") });
       return;
     }
 
     if (!user) {
-      toast({
-        title: t("common.error"),
-        description: t("common.authRequired"),
-        variant: "destructive",
-      });
+      toast.error({ description: t("common.authRequired") });
       return;
     }
 

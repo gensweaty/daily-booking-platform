@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { createTask, updateTask } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Task } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
@@ -38,12 +38,10 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      toast({
-        title: "Error",
+      toast.error({
         description: language === 'es' 
           ? "Debes iniciar sesión para crear tareas"
-          : "You must be logged in to create tasks",
-        variant: "destructive",
+          : "You must be logged in to create tasks"
       });
       return;
     }
@@ -92,25 +90,18 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       await queryClient.invalidateQueries({ queryKey: ['tasks'] });
       await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
       
-      toast({
-        title: language === 'es' ? "Éxito" : "Success",
-        description: language === 'es'
-          ? editingTask 
-            ? "Tarea actualizada exitosamente"
-            : "Tarea creada exitosamente"
-          : editingTask
-            ? "Task updated successfully"
-            : "Task created successfully",
-      });
+      if (editingTask) {
+        toast.task.updated();
+      } else {
+        toast.task.created();
+      }
       onClose();
     } catch (error: any) {
       console.error('Task operation error:', error);
-      toast({
-        title: "Error",
+      toast.error({
         description: language === 'es'
           ? `Error al ${editingTask ? 'actualizar' : 'crear'} la tarea. Por favor intenta de nuevo.`
-          : error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Please try again.`,
-        variant: "destructive",
+          : error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Please try again.`
       });
     }
   };

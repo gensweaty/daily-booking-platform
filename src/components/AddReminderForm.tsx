@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createReminder } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -19,10 +19,8 @@ export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.id) {
-      toast({
-        title: "Error",
-        description: "You need to be logged in to create reminders",
-        variant: "destructive",
+      toast.error({
+        description: "You need to be logged in to create reminders"
       });
       return;
     }
@@ -35,17 +33,12 @@ export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
         user_id: user.id
       });
       await queryClient.invalidateQueries({ queryKey: ['reminders'] });
-      toast({
-        title: "Success",
-        description: "Reminder created successfully",
-      });
+      toast.reminder.created();
       onClose();
     } catch (error) {
       console.error('Reminder creation error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create reminder. Please try again.",
-        variant: "destructive",
+      toast.error({
+        description: "Failed to create reminder. Please try again."
       });
     }
   };

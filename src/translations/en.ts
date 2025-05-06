@@ -1,3 +1,4 @@
+
 const en = {
   nav: {
     signin: "Sign In",
@@ -343,7 +344,10 @@ const en = {
     deleteConfirmMessage: "This action cannot be undone. Are you sure you want to delete this item?",
     noDescription: "No description provided",
     deleteConfirmTitle: "Confirm deletion?",
-    successMessage: "Operation completed successfully"
+    successMessage: "Operation completed successfully",
+    authRequired: "Authentication required",
+    save: "Save",
+    saving: "Saving..."
   },
   auth: {
     welcome: "Welcome to SmartBookly",
@@ -422,6 +426,21 @@ const en = {
   },
   bookings: {
     approvedBooking: "Approved Booking"
+  },
+  notes: {
+    title: "Title",
+    titlePlaceholder: "Note title",
+    titleRequired: "Title is required",
+    content: "Content",
+    contentPlaceholder: "Write your note here...",
+    addNewNote: "Add new note",
+    noteAdded: "Note Added",
+    noteAddedDescription: "Your note has been saved successfully",
+    noteUpdated: "Note updated successfully",
+    noteDeleted: "Note deleted successfully"
+  },
+  reminders: {
+    reminderCreated: "Reminder created successfully"
   }
 };
 

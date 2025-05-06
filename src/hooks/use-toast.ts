@@ -139,16 +139,24 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
-function toast({ ...props }: Toast) {
+// Helper function to get translation function safely
+function getTranslationFunction() {
   let translationFunction = (key: string) => key;
   
   try {
+    // This is wrapped in try/catch because it might be called outside the context
     const { t } = useLanguage();
     translationFunction = t;
   } catch (error) {
     // If useLanguage fails, we'll use the default function that returns the key
     console.warn("Language context not available, using fallback for translations");
   }
+  
+  return translationFunction;
+}
+
+function toast({ ...props }: Toast) {
+  const translationFunction = getTranslationFunction();
   
   const id = genId()
 
@@ -192,19 +200,180 @@ function toast({ ...props }: Toast) {
   }
 }
 
+// Create proper toast function with methods
+toast.success = (props: { title?: string; description?: string } & Omit<Toast, "title" | "description">) => {
+  return toast({
+    ...props,
+    variant: "default",
+    translateKeys: {
+      titleKey: props.title ? undefined : "common.success",
+      descriptionKey: props.description ? undefined : "common.successMessage"
+    }
+  });
+};
+
+toast.error = (props: { title?: string; description?: string } & Omit<Toast, "title" | "description">) => {
+  return toast({
+    ...props,
+    variant: "destructive",
+    translateKeys: {
+      titleKey: props.title ? undefined : "common.error",
+      descriptionKey: props.description ? undefined : "common.errorOccurred"
+    }
+  });
+};
+
+// Event toasts
+toast.event = {
+  created: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "events.eventCreated"
+      }
+    });
+  },
+  updated: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "events.eventUpdated"
+      }
+    });
+  },
+  deleted: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "events.eventDeleted"
+      }
+    });
+  },
+  bookingApproved: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "booking.requestApproved"
+      }
+    });
+  }
+};
+
+// Task toasts
+toast.task = {
+  created: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "tasks.taskAdded" 
+      }
+    });
+  },
+  updated: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "tasks.taskUpdated"
+      }
+    });
+  },
+  deleted: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "tasks.taskDeleted"
+      }
+    });
+  }
+};
+
+// Customer toasts
+toast.customer = {
+  created: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "crm.customerCreated"
+      }
+    });
+  },
+  updated: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "crm.customerUpdated"
+      }
+    });
+  },
+  deleted: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "crm.customerDeleted"
+      }
+    });
+  }
+};
+
+// Note toasts
+toast.note = {
+  added: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "notes.noteAdded",
+        descriptionKey: "notes.noteAddedDescription"
+      }
+    });
+  },
+  updated: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "notes.noteUpdated"
+      }
+    });
+  },
+  deleted: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "notes.noteDeleted"
+      }
+    });
+  }
+};
+
+// Reminder toasts
+toast.reminder = {
+  created: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "reminders.reminderCreated"
+      }
+    });
+  }
+};
+
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
   
   // Get translation function safely
-  let translationFunction = (key: string) => key;
-  
-  try {
-    const { t } = useLanguage();
-    translationFunction = t;
-  } catch (error) {
-    // If useLanguage fails, we'll use the default function that returns the key
-    console.warn("Language context not available, using fallback for translations");
-  }
+  const translationFunction = getTranslationFunction();
 
   React.useEffect(() => {
     listeners.push(setState)
@@ -216,133 +385,9 @@ function useToast() {
     }
   }, [state])
 
-  // Enhanced toast function with translation support
-  const translatedToast = React.useMemo(
-    () => ({
-      ...toast,
-      success: (props: { title?: string; description?: string } & Omit<Toast, "title" | "description">) => {
-        return toast({
-          ...props,
-          variant: "default",
-          translateKeys: {
-            titleKey: props.title ? undefined : "common.success",
-            descriptionKey: props.description ? undefined : "common.successMessage"
-          }
-        });
-      },
-      error: (props: { title?: string; description?: string } & Omit<Toast, "title" | "description">) => {
-        return toast({
-          ...props,
-          variant: "destructive",
-          translateKeys: {
-            titleKey: props.title ? undefined : "common.error",
-            descriptionKey: props.description ? undefined : "common.errorOccurred"
-          }
-        });
-      },
-      event: {
-        created: () => {
-          return toast({
-            variant: "default",
-            translateKeys: {
-              titleKey: "common.success",
-              descriptionKey: "events.eventCreated"
-            }
-          });
-        },
-        updated: () => {
-          return toast({
-            variant: "default",
-            translateKeys: {
-              titleKey: "common.success",
-              descriptionKey: "events.eventUpdated"
-            }
-          });
-        },
-        deleted: () => {
-          return toast({
-            variant: "default",
-            translateKeys: {
-              titleKey: "common.success",
-              descriptionKey: "events.eventDeleted"
-            }
-          });
-        },
-        bookingApproved: () => {
-          return toast({
-            variant: "default",
-            translateKeys: {
-              titleKey: "common.success",
-              descriptionKey: "booking.requestApproved"
-            }
-          });
-        }
-      },
-      task: {
-        created: () => {
-          return toast({
-            variant: "default",
-            translateKeys: {
-              titleKey: "common.success",
-              descriptionKey: "tasks.taskAdded" 
-            }
-          });
-        },
-        updated: () => {
-          return toast({
-            variant: "default",
-            translateKeys: {
-              titleKey: "common.success",
-              descriptionKey: "tasks.taskUpdated"
-            }
-          });
-        },
-        deleted: () => {
-          return toast({
-            variant: "default",
-            translateKeys: {
-              titleKey: "common.success",
-              descriptionKey: "tasks.taskDeleted"
-            }
-          });
-        }
-      },
-      customer: {
-        created: () => {
-          return toast({
-            variant: "default",
-            translateKeys: {
-              titleKey: "common.success",
-              descriptionKey: "crm.customerCreated"
-            }
-          });
-        },
-        updated: () => {
-          return toast({
-            variant: "default",
-            translateKeys: {
-              titleKey: "common.success",
-              descriptionKey: "crm.customerUpdated"
-            }
-          });
-        },
-        deleted: () => {
-          return toast({
-            variant: "default",
-            translateKeys: {
-              titleKey: "common.success",
-              descriptionKey: "crm.customerDeleted"
-            }
-          });
-        }
-      }
-    }),
-    []
-  );
-
   return {
     ...state,
-    toast: translatedToast,
+    toast,
     dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
   }
 }
