@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 // Define English translations
@@ -36,6 +37,7 @@ const en: TranslationType = {
     feature4: "Automatic event syncing with CRM",
     feature5: "Booking notifications via email and dashboard",
     requestSubmitted: "Booking request submitted",
+    requestSubmittedDescription: "Your booking request has been submitted and is pending approval.", // Added missing property
     yourEmailPlaceholder: "Enter your email",
     bookAppointment: "Book Appointment",
     requestApproved: "Booking request approved",

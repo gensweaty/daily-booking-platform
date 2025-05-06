@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 export const ka: TranslationType = {
@@ -35,6 +36,7 @@ export const ka: TranslationType = {
     feature4: "ღონისძიებების ავტომატური სინქრონიზაცია CRM-თან",
     feature5: "ჯავშნის შეტყობინებები ელფოსტით და დაფიდან",
     requestSubmitted: "თქვენი ჯავშნის მოთხოვნა წარმატებით გაიგზავნა!",
+    requestSubmittedDescription: "თქვენი დაჯავშნის მოთხოვნა გაიგზავნა და დადასტურებას მიიღებთ მეილზე.", // Added missing property
     yourEmailPlaceholder: "შეიყვანეთ თქვენი ელფოსტა",
     bookAppointment: "ვიზიტის დაჯავშნა",
     requestApproved: "ჯავშანი დადასტურდა და ემაილი გაიგზავნა",
