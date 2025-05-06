@@ -89,8 +89,6 @@ export const FeatureCard = ({
               images={carousel} 
               className="mx-[-1rem]"
               permanentArrows={true}
-              // Add a special prop for the booking calendar carousel to use object-cover
-              objectFit={translationPrefix === 'booking' ? 'object-cover' : 'object-contain'}
             />
           ) : (
             <img 

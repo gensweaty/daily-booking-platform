@@ -184,11 +184,7 @@ export const HeroSection = () => {
               </div>
             </div>
             <div className="animate-fade-in">
-              <ImageCarousel 
-                images={productImages} 
-                permanentArrows={true} 
-                imageHeight="h-[480px]" // Increased height to match website section images
-              />
+              <ImageCarousel images={productImages} permanentArrows={true} />
             </div>
           </main>
         </div>
