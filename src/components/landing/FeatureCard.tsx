@@ -17,6 +17,7 @@ interface FeatureCardProps {
     src: string;
     alt: string;
     title?: string;
+    customStyle?: string;
   }[];
   reverse?: boolean;
   translationPrefix: 'booking' | 'analytics' | 'crm' | 'tasks' | 'website';
@@ -36,6 +37,13 @@ export const FeatureCard = ({
   
   const getTranslationKey = (key: string): string => {
     return `${translationPrefix}.${key}`;
+  };
+  
+  // Determine appropriate object-fit based on feature type
+  const getObjectFit = () => {
+    if (translationPrefix === 'website') return 'object-cover';
+    if (translationPrefix === 'booking') return 'object-cover';
+    return 'object-contain';
   };
   
   return (
@@ -89,12 +97,14 @@ export const FeatureCard = ({
               images={carousel} 
               className="mx-[-1rem]"
               permanentArrows={true}
+              objectFit={getObjectFit()}
+              imageHeight="h-[480px]"
             />
           ) : (
             <img 
               src={image} 
               alt={t(getTranslationKey('title'))} 
-              className={`w-full h-[440px] ${translationPrefix === 'website' ? 'object-cover' : 'object-contain'} p-4`}
+              className={`w-full h-[480px] ${getObjectFit()} p-4`}
             />
           )}
         </div>

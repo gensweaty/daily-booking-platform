@@ -15,17 +15,22 @@ interface ImageCarouselProps {
     src: string;
     alt: string;
     title?: string;
+    customStyle?: string; // Add support for custom styling per image
   }[];
   className?: string;
   showTitles?: boolean;
   permanentArrows?: boolean;
+  objectFit?: "object-contain" | "object-cover" | "object-fill";
+  imageHeight?: string;
 }
 
 export const ImageCarousel = ({ 
   images, 
   className,
   showTitles = false,
-  permanentArrows = false
+  permanentArrows = false,
+  objectFit = "object-contain",
+  imageHeight = "h-[400px]"
 }: ImageCarouselProps) => {
   const [api, setApi] = useState<CarouselApi>();
 
@@ -54,12 +59,16 @@ export const ImageCarousel = ({
           {images.map((image, index) => (
             <CarouselItem key={index} className="md:basis-1/1">
               <div className="p-1">
-                <div className="rounded-xl overflow-hidden transition-all h-[400px] hover:shadow-lg">
+                <div className={`rounded-xl overflow-hidden transition-all ${imageHeight} hover:shadow-lg`}>
                   <div className="relative h-full w-full flex items-center justify-center bg-white">
                     <img
                       src={image.src}
                       alt={image.alt}
-                      className="w-full h-full object-contain"
+                      className={cn(
+                        "w-full h-full",
+                        // Apply custom style per image if provided, otherwise use the default objectFit
+                        image.customStyle || objectFit
+                      )}
                     />
                     {showTitles && image.title && (
                       <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-2 text-center">

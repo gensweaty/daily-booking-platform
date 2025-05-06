@@ -1,13 +1,13 @@
-
 import { Calendar, ChartBar, ListTodo, Users, Globe } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ClientLogos } from "./ClientLogos";
 import { FeatureButtons } from "./FeatureButtons";
 
-// Updated to use the new uploaded image as the first image in the carousel
+// Updated to ensure the first image in the carousel has proper display
 const calendarViews = [{
   src: "/lovable-uploads/89e4fa80-68d7-48c3-b9d4-b8ac38c657b6.png",
-  alt: "Booking Calendar"
+  alt: "Booking Calendar",
+  customStyle: "object-cover p-0" // This ensures the image fills the container like in the screenshot
 }, {
   src: "/lovable-uploads/400e814b-7812-448a-9e9a-9036616aab00.png",
   alt: "Week View"
@@ -26,7 +26,7 @@ export const FeatureSection = () => {
     icon: Globe,
     title: t('website.title'),
     description: t('website.description'),
-    image: "/lovable-uploads/70d5dbd5-33c5-4a79-8e5d-f70268175828.png", // Updated to use the new image
+    image: "/lovable-uploads/70d5dbd5-33c5-4a79-8e5d-f70268175828.png",
     benefits: [t('website.feature1'), t('website.feature2'), t('website.feature3'), t('website.feature4'), t('website.feature5')],
     translationPrefix: 'website' as const,
     id: "booking-website",
@@ -70,12 +70,8 @@ export const FeatureSection = () => {
   }];
   return <section className="py-20 bg-muted/30">
       <div className="container mx-auto px-4">
-        
-        
         <FeatureButtons />
-        
         <ClientLogos />
-        
         {features.map((feature, index) => <div key={index} id={feature.id}>
             <FeatureCard {...feature} />
           </div>)}
