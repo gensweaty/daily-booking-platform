@@ -25,7 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { BookingRequestForm } from "../business/BookingRequestForm";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
 
@@ -249,10 +249,7 @@ export const Calendar = ({
     setIsBookingFormOpen(false);
     queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
     
-    toast({
-      title: "Booking request submitted",
-      description: "Your booking request has been submitted and is pending approval."
-    });
+    toast.event.bookingSubmitted();
   };
 
   if (error && !directEvents) {
@@ -333,8 +330,6 @@ export const Calendar = ({
           <DialogContent className="sm:max-w-md">
             {bookingDate && (
               <BookingRequestForm
-                open={isBookingFormOpen}
-                onOpenChange={setIsBookingFormOpen}
                 businessId={businessId}
                 selectedDate={bookingDate}
                 startTime={bookingStartTime}

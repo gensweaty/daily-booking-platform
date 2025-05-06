@@ -280,12 +280,13 @@ toast.event = {
       }
     });
   },
-  // Modified to correctly handle count parameter for Georgian
+  // Modified to correctly handle count parameter for all languages
   newBookingRequest: (count: number = 1) => {
     const t = getTranslationFunction();
     // First get the description with the placeholder
     const descriptionTemplate = t("bookings.pendingRequestsCount");
     // Then manually replace the placeholder with the actual count
+    // Make sure we look for exactly the format used in translations
     const description = descriptionTemplate.replace("{count}", count.toString());
     
     return toast({
