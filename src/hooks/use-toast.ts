@@ -1,4 +1,3 @@
-
 import { toast as sonnerToast, ToastT, ExternalToast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ReactNode } from "react";
@@ -42,7 +41,12 @@ export const useToast = () => {
   
   return {
     toast: Object.assign(toast, {
-      success: ({ title = t("common.success"), description, ...props }: Partial<CustomToastProps>) => {
+      success: ({ title = t("common.success"), description, ...props }: Partial<CustomToastProps> | string) => {
+        // Fix for line 40 error - handle string input
+        if (typeof props === 'string') {
+          sonnerToast.success(props);
+          return;
+        }
         sonnerToast.success(title as string, {
           description,
           ...props
@@ -72,7 +76,6 @@ export const useToast = () => {
         }
         return sonnerToast(props.title as string, props);
       },
-      // Add sub-objects for specific entity toasts
       note: {
         added: () => {
           const { t } = useLanguage();
@@ -140,7 +143,6 @@ export const useToast = () => {
         }
       },
       event: {
-        // Booking notifications
         bookingSubmitted: () => {
           const { language } = useLanguage();
           const message = language === 'ka' ? 
@@ -229,7 +231,6 @@ export const useToast = () => {
           });
         }
       },
-      // Generic action notifications
       saved: () => {
         const { t } = useLanguage();
         sonnerToast.success(t("common.success"), {
@@ -254,7 +255,6 @@ export const useToast = () => {
           description: t("common.copied")
         });
       },
-      // Special case for translation keys
       translateKeys: ({ titleKey, descriptionKey }: { titleKey?: string; descriptionKey?: string }) => {
         const { t } = useLanguage();
         sonnerToast.success(
@@ -268,7 +268,7 @@ export const useToast = () => {
   };
 };
 
-// Define the toast function interface that can be both called and have properties
+// Define the toast function interface
 interface ToastFunctionProps {
   title?: string | ReactNode;
   description?: string | ReactNode;
@@ -365,6 +365,7 @@ const toastFn = function(
 // Add all the required methods to make the toast function fully compatible
 export const toast = Object.assign(toastFn, {
   success: (propsOrTitle: Partial<CustomToastProps> | string) => {
+    // Fix for line 362 error - handle string input properly
     if (typeof propsOrTitle === 'string') {
       sonnerToast.success(propsOrTitle);
     } else {
