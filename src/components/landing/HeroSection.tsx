@@ -11,7 +11,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 
 const productImages = [{
-  src: "/lovable-uploads/6c5b35c2-85c1-43c3-b152-5be9f8a26669.png", // New image first
+  src: "/lovable-uploads/89b6a836-d818-4753-a3f8-9d0d83dc7406.png", // New image first
   alt: "Pet Grooming Salon",
   loading: "lazy"
 }, {
