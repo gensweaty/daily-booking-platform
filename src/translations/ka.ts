@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 export const ka: TranslationType = {
@@ -28,19 +27,19 @@ export const ka: TranslationType = {
     kanbanManagement: "ამოცანების მართვა Kanban-ით"
   },
   booking: {
-    title: "ჯავშნების სისტემა",
-    description: "მართეთ შეხვედრები და ღონისძიებები ეფექტურად",
+    title: "გონიერი ჯავშნის სისტემა",
+    description: "მართეთ თქვენი შეხვედრები და ღონისძიებები ეფექტურად",
     feature1: "კალენდრის მრავალი ხედი (თვე, კვირა, დღე)",
-    feature2: "ღონისძიებების დაგეგმვა მორგებული დროის მონაკვეთებით",
-    feature3: "კლიენტების ჯავშნების მართვა გადახდების თვალყურის დევნებით",
+    feature2: "ღონისძიების დაგეგმვა მორგებადი დროითი ინტერვალებით",
+    feature3: "კლიენტის ჯავშნის მართვა გადახდის თვალყურისდევნით",
     feature4: "ღონისძიებების ავტომატური სინქრონიზაცია CRM-თან",
     feature5: "ჯავშნის შეტყობინებები ელფოსტით და დაფიდან",
     requestSubmitted: "თქვენი ჯავშნის მოთხოვნა წარმატებით გაიგზავნა!",
-    requestSubmittedDescription: "თქვენი დაჯავშნის მოთხოვნა გაიგზავნა და დადასტურებას მიიღებთ მეილზე.", // Added missing property
+    requestSubmittedDescription: "თქვენი დაჯავშნის მოთხოვნა გაიგზავნა და დადასტურებას მიიღებთ მეილზე.",
     yourEmailPlaceholder: "შეიყვანეთ თქვენი ელფოსტა",
     bookAppointment: "ვიზიტის დაჯავშნა",
     requestApproved: "ჯავშანი დადასტურდა და ემაილი გაიგზავნა",
-    newRequest: "ახალი ჯავშნის მოთხოვნა მოლოდინშია"
+    newRequest: "ახალი ჯავშნის მოთხოვნა"
   },
   analytics: {
     title: "ინტეგრირებული ანალიტიკა",
@@ -94,9 +93,9 @@ export const ka: TranslationType = {
     deleteSuccess: "წარმატებით წაიშალა",
     deleteError: "წაშლის შეცდომა",
     missingUserInfo: "მომხმარებლის ინფორმაცია აკლია",
-    customerCreated: "კლიენტი შეიქმნა წარმატებით",
-    customerUpdated: "კლიენტი განახლდა წარმატებით",
-    customerDeleted: "კლიენტი წარმატებით წაიშალა",
+    customerCreated: "მომხმარებელი წარმატებით შეიქმნა",
+    customerUpdated: "მომხმარებელი წარმატებით განახლდა",
+    customerDeleted: "მომხმარებელი წარმატებით წაიშალა",
     noDataToExport: "ექსპორტისთვის მონაცემები არ არის",
     error: "შეცდომა"
   },
@@ -252,30 +251,30 @@ export const ka: TranslationType = {
   },
   events: {
     submitBookingRequest: "ჯავშნის მოთხოვნის გაგზავნა",
-    fullNameRequired: "Სრული სახელი",
-    fullName: "Სრული სახელი",
-    phoneNumber: "Ტელეფონის ნომერი",
+    fullNameRequired: "სრული სახელი აუცილებელია",
+    fullName: "სრული სახელი",
+    phoneNumber: "ტელეფონის ნომერი",
     paymentStatus: "გადახდის სტატუსი",
     selectPaymentStatus: "აირჩიეთ გადახდის სტატუსი",
-    paymentAmount: "გადახდის თანხა",
-    startDateTime: "Დაწყების თარიღი და დრო",
-    endDateTime: "Დასრულების თარიღი და დრო",
-    eventNotes: "Შენიშვნები",
-    addEventNotes: "დაამატეთ შენიშვნები თქვენი ჯავშნის მოთხოვნის შესახებ",
+    paymentAmount: "გადახდის ოდენობა",
+    startDateTime: "დაწყების თარიღი და დრო",
+    endDateTime: "დასრულების თარიღი და დრო",
+    eventNotes: "შენიშვნები",
+    addEventNotes: "დაამატეთ შენიშვნები თქვენი მოთხოვნის შესახებ",
     editEvent: "ღონისძიების რედაქტირება",
     addNewEvent: "ახალი ღონისძიების დამატება",
     updateEvent: "ღონისძიების განახლება",
     createEvent: "ღონისძიების შექმნა",
     deleteEvent: "ღონისძიების წაშლა",
     eventDeleted: "ღონისძიება წარმატებით წაიშალა",
-    eventUpdated: "ივენთი განახლდა წარმატებით",
-    eventCreated: "ივენთი შეიქმნა წარმატებით",
+    eventUpdated: "ღონისძიება წარმატებით განახლდა",
+    eventCreated: "ღონისძიება წარმატებით შეიქმნა",
     timeSlotUnavailable: "დროის მონაკვეთი მიუწვდომელია",
     timeSlotConflict: "დროის კონფლიქტი",
     timeSlotNotAvailable: "ეს დროის მონაკვეთი მიუწვდომელია",
     socialLinkEmail: "ელფოსტა / სოციალური ქსელის ბმული",
     dateAndTime: "თარიღი და დრო",
-    date: "თარიღი",
+    date: "Დაწყების თარიღი",
     time: "Დრო",
     start: "Დაწყება",
     end: "Დასრულება",
@@ -434,10 +433,10 @@ export const ka: TranslationType = {
     requestRejected: "ჯავშნის მოთხოვნა უარყოფილია",
     requestDeleted: "ჯავშნის მოთხოვნა წაიშლილია",
     newRequest: "ახალი ჯავშნის მოთხოვნა",
-    pendingRequestsCount: "თქვენ გაქვთ {count} ახალი ჯავშნი მოთხოვნა.",
+    pendingRequestsCount: "თქვენ გაქვთ {count} ახალი ჯავშნის მოთხოვნა",
     requestApproved: "ჯავშანი დადასტურდა და ემაილი გაიგზავნა",
-    requestSubmitted: "დაჯავშნის მოთხოვნა გაგზავნილია",
-    requestSubmittedDescription: "თქვენი დაჯავშნის მოთხოვნა გაიგზავნა და დადასტურებას მიიღებთ მეილზე."
+    requestSubmitted: "ჯავშნის მოთხოვნა გაიგზავნილია",
+    requestSubmittedDescription: "თქვენი ჯავშნის მოთხოვნა გაიგზავნილია და ელოდება დამტკიცებას."
   },
   notes: {
     title: "სათაური",

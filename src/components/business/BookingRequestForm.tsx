@@ -130,9 +130,10 @@ export const BookingRequestForm = ({
       // Validate required fields
       if (!fullName) {
         toast({
-          title: t('common.error'),
-          description: t('Name is required'),
-          variant: 'destructive'
+          translateKeys: {
+            titleKey: "common.error",
+            descriptionKey: "events.fullNameRequired"
+          }
         });
         setIsSubmitting(false);
         return;
@@ -140,9 +141,10 @@ export const BookingRequestForm = ({
 
       if (!userNumber) {
         toast({
-          title: t('common.error'),
-          description: t('Phone number is required'),
-          variant: 'destructive'
+          translateKeys: {
+            titleKey: "common.error",
+            descriptionKey: "events.phoneNumberRequired"
+          }
         });
         setIsSubmitting(false);
         return;
@@ -150,9 +152,10 @@ export const BookingRequestForm = ({
 
       if (!socialNetworkLink || !socialNetworkLink.includes('@')) {
         toast({
-          title: t('common.error'),
-          description: t('Valid email address is required'),
-          variant: 'destructive'
+          translateKeys: {
+            titleKey: "common.error",
+            descriptionKey: "events.validEmailRequired"
+          }
         });
         setIsSubmitting(false);
         return;
@@ -164,9 +167,10 @@ export const BookingRequestForm = ({
       // Additional validation for dates
       if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
         toast({
-          title: t('common.error'),
-          description: t('Valid start and end dates are required'),
-          variant: 'destructive'
+          translateKeys: {
+            titleKey: "common.error",
+            descriptionKey: "events.validDatesRequired"
+          }
         });
         setIsSubmitting(false);
         return;
@@ -372,8 +376,10 @@ export const BookingRequestForm = ({
       }
 
       toast({
-        title: t('common.success'),
-        description: t('Your booking request has been submitted successfully')
+        translateKeys: {
+          titleKey: "bookings.requestSubmitted",
+          descriptionKey: "bookings.requestSubmittedDescription"
+        }
       });
 
       if (onSuccess) {
@@ -388,9 +394,10 @@ export const BookingRequestForm = ({
       console.error('Error submitting form:', error);
       setIsSubmitting(false);
       toast({
-        title: t('common.error'),
-        description: t('There was a problem submitting your request. Please try again.'),
-        variant: 'destructive'
+        translateKeys: {
+          titleKey: "common.error",
+          descriptionKey: "common.errorOccurred"
+        }
       });
     }
   };

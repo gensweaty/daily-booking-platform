@@ -199,9 +199,10 @@ export const CustomerDialog = ({
 
     if (!user?.id) {
       toast({
-        title: t("common.error"),
-        description: t("common.missingUserInfo"),
-        variant: "destructive",
+        translateKeys: {
+          titleKey: "common.error",
+          descriptionKey: "common.missingUserInfo"
+        }
       });
       return;
     }
@@ -405,17 +406,21 @@ export const CustomerDialog = ({
       await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
 
+      // Update to use translation keys
       toast({
-        title: t("common.success"),
-        description: customerId ? t("common.updateSuccess") : t("crm.customerAddSuccess"),
+        translateKeys: {
+          titleKey: "common.success",
+          descriptionKey: customerId ? "crm.customerUpdated" : "crm.customerCreated"
+        }
       });
       onOpenChange(false);
     } catch (error: any) {
       console.error("Error updating data:", error);
       toast({
-        title: t("common.error"),
-        description: error.message || t("common.updateError"),
-        variant: "destructive",
+        translateKeys: {
+          titleKey: "common.error",
+          descriptionKey: "common.errorOccurred"
+        }
       });
     } finally {
       setIsLoading(false);
