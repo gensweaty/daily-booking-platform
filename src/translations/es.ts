@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 export const es: TranslationType = {
@@ -28,18 +27,18 @@ export const es: TranslationType = {
     kanbanManagement: "Gestión de Tareas con Kanban"
   },
   booking: {
-    title: "Sistema Inteligente de Reservas",
-    description: "Gestiona eficientemente tus citas y eventos",
+    title: "Sistema de reservas",
+    description: "Gestiona citas y eventos de forma eficiente",
     feature1: "Múltiples vistas de calendario (mes, semana, día)",
-    feature2: "Programación de eventos con franjas horarias personalizables",
-    feature3: "Gestión de reservas de clientes con seguimiento de pagos",
+    feature2: "Programa eventos con intervalos de tiempo personalizados",
+    feature3: "Gestiona reservas de clientes con seguimiento de pagos",
     feature4: "Sincronización automática de eventos con CRM",
-    feature5: "Notificaciones de reservas por correo electrónico y panel",
-    requestSubmitted: "¡Tu solicitud de reserva ha sido enviada con éxito!",
-    yourEmailPlaceholder: "Ingresa tu correo electrónico",
-    bookAppointment: "Reservar Cita",
-    requestApproved: "Solicitud de reserva aprobada",
-    newRequest: "Nueva solicitud de reserva en espera"
+    feature5: "Notificaciones de reserva vía email y panel",
+    requestSubmitted: "¡Tu solicitud de reserva se ha enviado con éxito!",
+    yourEmailPlaceholder: "Introduce tu email",
+    bookAppointment: "Reservar cita",
+    requestApproved: "Reserva aprobada y email enviado",
+    newRequest: "Nueva solicitud de reserva pendiente"
   },
   analytics: {
     title: "Análisis Integral",
@@ -428,12 +427,14 @@ export const es: TranslationType = {
     }
   },
   bookings: {
-    approvedBooking: "Reserva Aprobada",
+    approvedBooking: "Reserva aprobada",
     requestRejected: "Solicitud de reserva rechazada",
     requestDeleted: "Solicitud de reserva eliminada",
-    newRequest: "Nueva Solicitud de Reserva",
-    pendingRequestsCount: "solicitud de reserva pendiente"
+    newRequest: "Nueva solicitud de reserva",
+    pendingRequestsCount: "Solicitudes de reserva pendientes",
+    requestApproved: "Reserva aprobada y email enviado"
   },
+  
   notes: {
     title: "Título",
     titlePlaceholder: "Título de la nota",
@@ -446,8 +447,8 @@ export const es: TranslationType = {
     noteUpdated: "Nota actualizada con éxito",
     noteDeleted: "Nota eliminada con éxito"
   },
+  
   reminders: {
     reminderCreated: "Recordatorio creado con éxito"
   }
 };
-

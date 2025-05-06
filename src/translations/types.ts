@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -353,7 +354,7 @@ export interface TranslationType {
     deleteConfirmMessage: string;
     noDescription: string;
     deleteConfirmTitle: string;
-    authRequired: string; // Added missing property
+    authRequired: string;
     save: string;
     saving: string;
   };
@@ -434,6 +435,7 @@ export interface TranslationType {
     requestDeleted: string;
     newRequest: string;
     pendingRequestsCount: string;
+    requestApproved: string; // Added this missing property
   };
   notes: {
     title: string;
