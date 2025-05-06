@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 export const ka: TranslationType = {
@@ -93,6 +94,7 @@ export const ka: TranslationType = {
     missingUserInfo: "მომხმარებლის ინფორმაცია აკლია",
     customerCreated: "კლიენტი წარმატებით შეიქმნა",
     customerUpdated: "კლიენტი წარმატებით განახლდა",
+    customerDeleted: "კლიენტი წარმატებით წაიშალა",
     noDataToExport: "ექსპორტისთვის მონაცემები არ არის",
     error: "შეცდომა"
   },
@@ -337,10 +339,10 @@ export const ka: TranslationType = {
     request: "მოთხოვნა",
     requests: "მოთხოვნები",
     backToHome: "მთავარ გვერდზე დაბრუნება",
+    and: "და",
     create: "Შექმნა",
     update: "განახლება",
     delete: "წაშლა",
-    and: "და",
     supportedFormats: "მხარდაჭერილი ფორმატები: .jpg, .jpeg, .png, .pdf, .docx, .xls",
     deleteConfirmMessage: "დარწმუნებული ხართ, რომ გსურთ წაშლა? ეს ქმედება შეუქცევადია.",
     noDescription: "აღწერა არ არის",
@@ -425,53 +427,13 @@ export const ka: TranslationType = {
       ]
     }
   },
-  crm: {
-    title: "ურთიერთობების მართვა კლიენტებთან",
-    description: "ააწყვეთ და შეინარჩუნეთ მყარი ურთიერთობები კლიენტებთან ჩვენი CRM-ის საშუალებით",
-    feature1: "კლიენტების ინფორმაციის ცენტრალიზებული მართვა",
-    feature2: "ფაილების მიმაგრება და დოკუმენტების ორგანიზება",
-    feature3: "გადახდების თვალყურის დევნება და სტატუსის მონიტორინგი",
-    feature4: "ელასტიური ძიება მონაცემებზე სწრაფი წვდომისთვის",
-    feature5: "Excel-ში ჩამოტვირთვა ერთი დაწკაპუნებით ყველა ნაჩვენები მონაცემისთვის",
-    notPaid: "გადაუხდელი",
-    paidPartly: "ნაწილობრივ გადახდილი",
-    paidFully: "სრულად გადახდილი",
-    newCustomer: "ახალი კლიენტი",
-    fullNameRequired: "Სრული სახელი",
-    fullNamePlaceholder: "შეიყვანეთ კლიენტის სრული სახელი",
-    phoneNumber: "Ტელეფონის ნომერი",
-    phoneNumberPlaceholder: "შეიყვანეთ ტელეფონის ნომერი",
-    socialLinkEmail: "ელფოსტა / სოციალური ქსელის ბმული",
-    socialLinkEmailPlaceholder: "შეიყვანეთ ელფოსტა ან სოციალური ქსელის ბმული",
-    createEventForCustomer: "ღონისძიების შექმნა ამ კლიენტისთვის",
-    customerFromEvent: "ეს კლიენტი შეიქმნა ღონისძიებიდან",
-    paymentStatus: "გადახდის სტატუსი",
-    paymentAmount: "გადახდის თანხა",
-    selectPaymentStatus: "აირჩიეთ გადახდის სტატუსი",
-    comment: "კომენტარი",
-    commentPlaceholder: "დაამატეთ კომენტარი ამ კლიენტის შესახებ",
-    create: "Შექმნა",
-    cancel: "გაუქმება",
-    addCustomer: "კლიენტის დამატება",
-    editCustomer: "კლიენტის რედაქტირება",
-    update: "განახლება",
-    dates: "თარიღები",
-    actions: "მოქმედებები",
-    customersPerPage: "კლიენტები თითო გვერდზე",
-    noCustomers: "კლიენტები ვერ მოიძებნა",
-    noCustomersDescription: "დაამატეთ თქვენი პირველი კლიენტი დასაწყებად",
-    refreshing: "მონაცემების განახლება...",
-    yes: "კი",
-    no: "არა",
-    copiedToClipboard: "კოპირებულია ბუფერში",
-    copyError: "ტექსტის კოპირების შეცდომა",
-    deleteSuccess: "წარმატებით წაიშალა",
-    deleteError: "წაშლის შეცდომა",
-    missingUserInfo: "მომხმარებლის ინფორმაცია აკლია",
-    customerCreated: "კლიენტი წარმატებით შეიქმნა",
-    customerUpdated: "კლიენტი წარმატებით განახლდა",
-    customerDeleted: "კლიენტი წარმატებით წაიშალა",
-    noDataToExport: "ექსპორტისთვის მონაცემები არ არის",
-    error: "შეცდომა"
+  notes: {
+    noteAdded: "შენიშვნა წარმატებით დაემატა",
+    noteAddedDescription: "თქვენი შენიშვნა წარმატებით შეინახა",
+    noteUpdated: "შენიშვნა წარმატებით განახლდა",
+    noteDeleted: "შენიშვნა წარმატებით წაიშალა"
+  },
+  reminders: {
+    reminderCreated: "შეხსენება წარმატებით შეიქმნა"
   }
 };

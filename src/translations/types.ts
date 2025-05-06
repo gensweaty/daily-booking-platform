@@ -100,6 +100,7 @@ export interface TranslationType {
     missingUserInfo: string;
     customerCreated: string;
     customerUpdated: string;
+    customerDeleted: string;
     noDataToExport: string;
     error: string;
   };
@@ -121,6 +122,7 @@ export interface TranslationType {
     deleteTaskConfirmTitle: string;
     taskUpdated: string;
     taskDeleted: string;
+    taskAdded: string;
   };
   website: {
     title: string;
@@ -426,6 +428,15 @@ export interface TranslationType {
   };
   bookings: {
     approvedBooking: string;
+  };
+  notes: {
+    noteAdded: string;
+    noteAddedDescription: string;
+    noteUpdated: string;
+    noteDeleted: string;
+  };
+  reminders: {
+    reminderCreated: string;
   };
 }
 
