@@ -14,24 +14,43 @@ import { LoaderCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { DialogClose } from "@/components/ui/dialog";
 
 interface BookingRequestFormProps {
   businessId: string;
-  eventTitle: string;
-  eventDateTime: string;
+  eventTitle?: string;
+  eventDateTime?: string;
   onClose?: () => void;
+  // For Calendar integration
+  selectedDate?: Date;
+  startTime?: string;
+  endTime?: string;
+  onSuccess?: () => void;
+  isExternalBooking?: boolean;
 }
 
 export const BookingRequestForm = ({ 
   businessId, 
   eventTitle, 
   eventDateTime,
-  onClose 
+  onClose,
+  selectedDate,
+  startTime,
+  endTime,
+  onSuccess,
+  isExternalBooking
 }: BookingRequestFormProps) => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const isGeorgian = language === 'ka';
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Determine event title and datetime from either direct props or date/time props
+  const actualEventTitle = eventTitle || (selectedDate ? 
+    `${t("events.booking")} ${selectedDate.toLocaleDateString()}` : "");
+  
+  const actualEventDateTime = eventDateTime || (selectedDate && startTime ? 
+    `${selectedDate.toISOString().split('T')[0]} ${startTime}` : new Date().toISOString());
 
   const formSchema = z.object({
     fullName: z.string().min(2, { message: t("events.fullNameRequired") }),
@@ -59,9 +78,9 @@ export const BookingRequestForm = ({
         .from('booking_requests')
         .select('id')
         .eq('business_id', businessId)
-        .eq('customer_full_name', values.fullName)
-        .eq('event_title', eventTitle)
-        .eq('event_date_time', eventDateTime)
+        .eq('requester_name', values.fullName)
+        .eq('title', actualEventTitle)
+        .eq('start_date', actualEventDateTime)
         .gte('created_at', new Date(Date.now() - 60000).toISOString()) // Requests in the last minute
         .limit(1);
 
@@ -79,12 +98,13 @@ export const BookingRequestForm = ({
 
       const newBookingRequest: Partial<BookingRequest> = {
         business_id: businessId,
-        customer_full_name: values.fullName,
-        customer_phone: values.phone || null,
-        customer_email: values.email || null,
-        event_title: eventTitle,
-        event_date_time: eventDateTime,
-        notes: values.notes || null,
+        requester_name: values.fullName,
+        requester_phone: values.phone || null,
+        requester_email: values.email || null,
+        title: actualEventTitle,
+        start_date: actualEventDateTime,
+        end_date: endTime ? `${selectedDate?.toISOString().split('T')[0]} ${endTime}` : actualEventDateTime,
+        description: values.notes || null,
         status: 'pending',
       };
 
@@ -96,7 +116,7 @@ export const BookingRequestForm = ({
         throw error;
       }
 
-      // Use the toast.event.bookingSubmitted() helper which is already set up with proper translations
+      // Use the toast helper which is already set up with proper translations
       toast.event.bookingSubmitted();
 
       // Send webhook notification to business owner
@@ -109,6 +129,9 @@ export const BookingRequestForm = ({
         // Continue with form submission even if notification fails
       }
 
+      if (onSuccess) {
+        onSuccess();
+      }
       if (onClose) {
         onClose();
       }
