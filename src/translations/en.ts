@@ -1,3 +1,4 @@
+
 const en = {
   nav: {
     signin: "Sign In",
@@ -34,7 +35,8 @@ const en = {
     feature5: "Booking notifications via email and dashboard",
     requestSubmitted: "Your booking request has been successfully submitted!",
     yourEmailPlaceholder: "Enter your email",
-    bookAppointment: "Book Appointment"
+    bookAppointment: "Book Appointment",
+    requestApproved: "Booking request approved and notification email processed"
   },
   analytics: {
     title: "Comprehensive Analytics",
@@ -412,7 +414,8 @@ const en = {
     }
   },
   bookings: {
-    approvedBooking: "Approved Booking"
+    approvedBooking: "Approved Booking",
+    requestApproved: "Booking request approved and notification email processed"
   }
 };
 
