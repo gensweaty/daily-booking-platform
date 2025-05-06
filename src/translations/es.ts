@@ -427,12 +427,12 @@ export const es: TranslationType = {
     }
   },
   bookings: {
-    approvedBooking: "Reserva aprobada",
+    approvedBooking: "Solicitud de reserva aprobada",
     requestRejected: "Solicitud de reserva rechazada",
     requestDeleted: "Solicitud de reserva eliminada",
     newRequest: "Nueva solicitud de reserva",
-    pendingRequestsCount: "Solicitudes de reserva pendientes",
-    requestApproved: "Reserva aprobada y email enviado"
+    pendingRequestsCount: "solicitud de reserva pendiente",
+    requestApproved: "Solicitud de reserva aprobada y correo electrónico enviado"
   },
   
   notes: {
