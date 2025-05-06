@@ -6,7 +6,7 @@ import { FeatureButtons } from "./FeatureButtons";
 
 // Updated to use the new uploaded image as the first image in the carousel
 const calendarViews = [{
-  src: "/lovable-uploads/155f0013-6e24-48e6-b456-9b5c1c1715c4.png",
+  src: "/lovable-uploads/89e4fa80-68d7-48c3-b9d4-b8ac38c657b6.png",
   alt: "Booking Calendar"
 }, {
   src: "/lovable-uploads/400e814b-7812-448a-9e9a-9036616aab00.png",
