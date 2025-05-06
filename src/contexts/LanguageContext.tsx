@@ -55,7 +55,7 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
       
       // Return the translated string or fallback to the key
       if (typeof result === 'string') {
-        // Handle parameter replacement
+        // Handle parameter replacement with double curly braces
         if (params) {
           return Object.entries(params).reduce((str, [param, value]) => {
             return str.replace(new RegExp(`{{${param}}}`, 'g'), String(value));

@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import * as ToastPrimitives from "@radix-ui/react-toast"
 import { cva, type VariantProps } from "class-variance-authority"
@@ -109,8 +110,10 @@ ToastTitle.displayName = ToastPrimitives.Title.displayName
 
 const ToastDescription = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Description>,
-  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Description>
->(({ className, children, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Description> & {
+    translateParams?: Record<string, string | number>
+  }
+>(({ className, children, translateParams, ...props }, ref) => {
   const { language } = useLanguage();
   const isGeorgian = language === 'ka';
 
@@ -120,7 +123,7 @@ const ToastDescription = React.forwardRef<
       className={cn("text-sm opacity-90", isGeorgian ? "georgian-text-fix" : "", className)}
       {...props}
     >
-      {typeof children === 'string' ? <LanguageText>{children}</LanguageText> : children}
+      {typeof children === 'string' ? <LanguageText translateParams={translateParams}>{children}</LanguageText> : children}
     </ToastPrimitives.Description>
   );
 });

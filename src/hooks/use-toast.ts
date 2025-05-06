@@ -139,7 +139,6 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
-// Modified to properly handle translation parameters
 function getTranslationFunction() {
   // Default fallback function returns the key itself, with parameter handling
   let translationFunction = (key: string, params?: Record<string, string | number>): string => {
@@ -147,7 +146,7 @@ function getTranslationFunction() {
     
     // Simple parameter replacement for fallback
     return Object.entries(params).reduce((str, [param, value]) => {
-      return str.replace(new RegExp(`{${param}}`, 'g'), String(value));
+      return str.replace(new RegExp(`{{${param}}}`, 'g'), String(value));
     }, key);
   };
   
@@ -198,6 +197,7 @@ function toast({ ...props }: Toast) {
       ...translatedProps,
       id,
       open: true,
+      translateParams: props.translateParams, // Pass translateParams to the toast
       onOpenChange: (open) => {
         if (!open) dismiss()
       },
@@ -213,7 +213,6 @@ function toast({ ...props }: Toast) {
   }
 }
 
-// Create proper toast function with methods - ALL with proper translation keys
 toast.success = (props: { title?: string; description?: string } & Omit<Toast, "title" | "description">) => {
   return toast({
     ...props,
@@ -236,7 +235,6 @@ toast.error = (props: { title?: string; description?: string } & Omit<Toast, "ti
   });
 };
 
-// Event toasts - Enhanced with proper translation
 toast.event = {
   created: () => {
     return toast({
@@ -315,7 +313,6 @@ toast.event = {
   }
 };
 
-// Task toasts
 toast.task = {
   created: () => {
     return toast({
@@ -346,7 +343,6 @@ toast.task = {
   }
 };
 
-// Customer toasts
 toast.customer = {
   created: () => {
     return toast({
@@ -377,7 +373,6 @@ toast.customer = {
   }
 };
 
-// Note toasts
 toast.note = {
   added: () => {
     return toast({
@@ -408,7 +403,6 @@ toast.note = {
   }
 };
 
-// Reminder toasts
 toast.reminder = {
   created: () => {
     return toast({
@@ -421,7 +415,6 @@ toast.reminder = {
   }
 };
 
-// Export toast notification
 toast.exportSuccess = () => {
   return toast({
     variant: "default",
@@ -432,7 +425,6 @@ toast.exportSuccess = () => {
   });
 };
 
-// Common action toasts
 toast.copySuccess = () => {
   return toast({
     variant: "default",
