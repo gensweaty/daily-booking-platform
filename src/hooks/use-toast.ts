@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
 import { useLanguage } from "@/contexts/LanguageContext"
@@ -280,15 +281,23 @@ toast.event = {
       }
     });
   },
-  // Modified to correctly pass count parameter to translation system
+  // Fixed to correctly handle count parameter
   newBookingRequest: (count: number = 1) => {
+    // Get the translation function
+    const t = getTranslationFunction();
+    
+    // First get the base translation with placeholder
+    let description = t("bookings.pendingRequestsCount");
+    
+    // Manually replace the {count} placeholder with the actual number
+    description = description.replace('{count}', count.toString());
+    
     return toast({
       variant: "default",
       translateKeys: {
         titleKey: "bookings.newRequest"
       },
-      // Pass count as a parameter object to the translation system
-      description: getTranslationFunction()("bookings.pendingRequestsCount", { count })
+      description: description
     });
   },
   bookingSubmitted: () => {
