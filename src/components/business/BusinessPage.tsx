@@ -14,21 +14,12 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { BookingRequest } from "@/types/database"; // Import from types/database
 
 export const BusinessPage = () => {
   const { user } = useAuth();
   const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<"profile" | "bookings">("profile");
-  const { 
-    pendingRequests, 
-    approvedRequests, 
-    rejectedRequests, 
-    approveRequest, 
-    rejectRequest, 
-    deleteBookingRequest 
-  } = useBookingRequests();
-  
+  const { bookingRequests, pendingRequests, approvedRequests, rejectedRequests, approveRequest, rejectRequest, deleteBookingRequest } = useBookingRequests();
   const pendingCount = pendingRequests?.length || 0;
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');
@@ -98,11 +89,6 @@ export const BusinessPage = () => {
     }
     return <LanguageText>{t(key)}</LanguageText>;
   };
-
-  // Type-safe request lists - make TypeScript happy by asserting types
-  const typedPendingRequests = pendingRequests as BookingRequest[];
-  const typedApprovedRequests = approvedRequests as BookingRequest[];
-  const typedRejectedRequests = rejectedRequests as BookingRequest[];
 
   return (
     <div className="space-y-6">
@@ -179,10 +165,10 @@ export const BusinessPage = () => {
             <div>
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 {renderSectionHeading("business.pendingRequests")} 
-                <Badge variant="orange" className="ml-2">({typedPendingRequests.length})</Badge>
+                <Badge variant="orange" className="ml-2">({pendingRequests.length})</Badge>
               </h2>
               <BookingRequestsList
-                requests={typedPendingRequests}
+                requests={pendingRequests}
                 type="pending"
                 onApprove={approveRequest}
                 onReject={rejectRequest}
@@ -193,10 +179,10 @@ export const BusinessPage = () => {
             <div>
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 {renderSectionHeading("business.approvedRequests")}
-                <Badge variant="green" className="ml-2">({typedApprovedRequests.length})</Badge>
+                <Badge variant="green" className="ml-2">({approvedRequests.length})</Badge>
               </h2>
               <BookingRequestsList
-                requests={typedApprovedRequests}
+                requests={approvedRequests}
                 type="approved"
                 onDelete={deleteBookingRequest}
               />
@@ -205,10 +191,10 @@ export const BusinessPage = () => {
             <div>
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 {renderSectionHeading("business.rejectedRequests")}
-                <Badge variant="destructive" className="ml-2">({typedRejectedRequests.length})</Badge>
+                <Badge variant="destructive" className="ml-2">({rejectedRequests.length})</Badge>
               </h2>
               <BookingRequestsList
-                requests={typedRejectedRequests}
+                requests={rejectedRequests}
                 type="rejected"
                 onDelete={deleteBookingRequest}
               />

@@ -3,7 +3,6 @@ import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useState, useEffect, forwardRef } from "react";
 import { LanguageText } from "./LanguageText";
-import { cn } from "@/lib/utils";
 
 const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
 const MAX_FILE_SIZE_IMAGES = 50 * 1024 * 1024; // 50MB for images
@@ -18,8 +17,8 @@ const ALLOWED_DOC_TYPES = ["application/pdf", "application/vnd.openxmlformats-of
 interface FileUploadFieldProps {
   onChange?: (file: File | null) => void;
   onUpload?: (url: string) => void;
-  onFileSelect?: (file: File) => Promise<void> | void;
-  onFileChange?: (file: File | null) => void;
+  onFileSelect?: (file: File) => Promise<void> | void; // Added this prop to match how it's being used
+  onFileChange?: (file: File | null) => void; // For backward compatibility
   fileError?: string;
   setFileError?: (error: string) => void;
   acceptedFileTypes?: string;
@@ -33,7 +32,7 @@ interface FileUploadFieldProps {
   noFileText?: string;
   maxSizeMB?: number;
   selectedFile?: File | null;
-  isUploading?: boolean;
+  isUploading?: boolean; // Added to support the isUploading prop being passed from BusinessProfileForm
 }
 
 export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps>(({
@@ -57,7 +56,6 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   isUploading
 }, ref) => {
   const { t, language } = useLanguage();
-  const isGeorgian = language === 'ka';
   const [localFileError, setLocalFileError] = useState("");
   const [fileSelected, setFileSelected] = useState<string>("");
 
@@ -117,7 +115,7 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   const hasImage = !!imageUrl;
   
   return <div className={`${hideLabel && hideDescription ? '' : 'space-y-2'}`}>
-      {!hideLabel && <label htmlFor="file" className={cn("block text-sm font-medium mb-1", isGeorgian && "font-georgian")}>
+      {!hideLabel && <label htmlFor="file" className="block text-gray-700">
           <LanguageText>{uploadText || t("calendar.attachment")}</LanguageText>
         </label>}
       

@@ -167,7 +167,7 @@ export const ka: TranslationType = {
     noApprovedRequests: "არ არის დადასტურებული მოთხოვნები",
     noRejectedRequests: "არ არის უარყოფილი მოთხოვნები",
     pendingRequestsDescription: "როდესაც მომხმარებლები გამოაგზავნიან ჯავშნის მოთხოვნებს, ისინი აქ გამოჩნდებიან თქვენი დასამტკიცებლად.",
-    approvedRequestsDescription: "დადასტურებული ჯავშ��ის მოთხოვნები აქ გამოჩნდება.",
+    approvedRequestsDescription: "დადასტურებული ჯავშნის მოთხოვნები აქ გამოჩნდება.",
     rejectedRequestsDescription: "უარყოფილი ჯავშნის მოთხოვნები აქ გამოჩნდება.",
     editBusinessProfile: "Ბიზნეს პროფილის რედაქტირება",
     chooseFile: "აირჩიეთ ფაილი",
@@ -391,7 +391,7 @@ export const ka: TranslationType = {
     passwordRequirements: "პაროლი უნდა შეიცავდეს მინიმუმ 6 სიმბოლოს",
     confirmPasswordLabel: "პაროლის დადასტურება",
     signingIn: "შესვლა...",
-    signingUp: "რეგისრაცს...",
+    signingUp: "რეგისრაცა...",
     loading: "იტვირთება...",
     enterEmail: "შეიყვანეთ თქვენი ელ.ფოსტა",
     redeemCode: "გამოსყიდვის კოდი",
@@ -417,7 +417,7 @@ export const ka: TranslationType = {
     },
     eligibility: {
       title: "2. Უნარიანობა",
-      description: "თქვენ უნდა იყოთ მინიმუმ 18 წლის ჩვენი სერვისების გამოსაყენებლად. ჩვენი პლატფორმ��ს გამოყენებით, თქვენ ადასტურებთ, რომ აკმაყოფილებთ ამ მოთხოვნას."
+      description: "თქვენ უნდა იყოთ მინიმუმ 18 წლის ჩვენი სერვისების გამოსაყენებლად. ჩვენი პლატფორმის გამოყენებით, თქვენ ადასტურებთ, რომ აკმაყოფილებთ ამ მოთხოვნას."
     },
     accountSecurity: {
       title: "3. Ანგარიშის რეგისრაცია და უსაფრთხოება",
