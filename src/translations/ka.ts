@@ -36,7 +36,8 @@ export const ka: TranslationType = {
     feature5: "ჯავშნის შეტყობინებები ელფოსტით და დაფიდან",
     requestSubmitted: "თქვენი ჯავშნის მოთხოვნა წარმატებით გაიგზავნა!",
     yourEmailPlaceholder: "შეიყვანეთ თქვენი ელფოსტა",
-    bookAppointment: "ვიზიტის დაჯავშნა"
+    bookAppointment: "ვიზიტის დაჯავშნა",
+    requestApproved: "ჯავშნის მოთხოვნა დამტკიცებულია და შეტყობინების ელფოსტა დამუშავებულია"
   },
   analytics: {
     title: "ინტეგრირებული ანალიტიკა",
@@ -263,6 +264,7 @@ export const ka: TranslationType = {
     deleteEvent: "ღონისძიების წაშლა",
     eventDeleted: "ღონისძიება წარმატებით წაიშალა",
     eventUpdated: "ღონისძიება წარმატებით განახლდა",
+    eventCreated: "ღონისძიება წარმატებით შეიქმნა",
     timeSlotUnavailable: "დროის მონაკვეთი მიუწვდომელია",
     timeSlotConflict: "დროის კონფლიქტი",
     timeSlotNotAvailable: "ეს დროის მონაკვეთი მიუწვდომელია",
@@ -394,9 +396,6 @@ export const ka: TranslationType = {
     verificationRequired: "მნიშვნელოვანი: რეგისტრაციის შემდეგ, თქვენ უნდა დააჭიროთ ვერიფიკაციის ბმულს, რომელიც გამოგზავნილია თქვენს ელ.ფოსტაზე, რათა გააქტიუროთ თქვენი ანგარიში.",
     checkEmailFolders: "გთხოვთ, შეამოწმოთ როგორც შემომავალი, ასევე სპამის საქაღალდეები დადასტურების ელ.ფოსტისთვის."
   },
-  bookings: {
-    approvedBooking: "დადასტურებული ჯავშანი"
-  },
   legal: {
     title: "Წესები და კონფიდენციალურობის პოლიტიკა",
     lastUpdated: "ბოლო განახლება: {{date}}",
@@ -420,5 +419,9 @@ export const ka: TranslationType = {
         "დაუყოვნებლივ შეგვატყობინეთ თქვენს ანგარიშზე ნებისმიერი არაავტორიზებული წვდომის შესახებ."
       ]
     }
+  },
+  bookings: {
+    approvedBooking: "დადასტურებული ჯავშანი",
+    requestApproved: "ჯავშნის მოთხოვნა დამტკიცებულია და შეტყობინების ელფოსტა დამუშავებულია"
   }
 };

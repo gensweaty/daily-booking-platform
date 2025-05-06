@@ -1,5 +1,6 @@
 import * as React from "react"
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
+import { useLanguage } from "@/contexts/LanguageContext"
 
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 5000
@@ -143,16 +144,14 @@ function toast({ ...props }: Toast) {
     })
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
+  // Prepare toast with appropriate properties
+  const toastProps = { ...props, id, open: true, onOpenChange: (open: boolean) => {
+    if (!open) dismiss()
+  }};
+
   dispatch({
     type: "ADD_TOAST",
-    toast: {
-      ...props,
-      id,
-      open: true,
-      onOpenChange: (open) => {
-        if (!open) dismiss()
-      },
-    },
+    toast: toastProps,
   })
 
   setTimeout(dismiss, TOAST_REMOVE_DELAY)
@@ -166,6 +165,7 @@ function toast({ ...props }: Toast) {
 
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
+  const { t, language } = useLanguage()
 
   React.useEffect(() => {
     listeners.push(setState)
@@ -177,9 +177,33 @@ function useToast() {
     }
   }, [state])
 
+  // Create a wrapper toast function that applies translations
+  const translatedToast = (props: Toast) => {
+    // Handle translation for event creation success message
+    if (props.title === "Success" && props.description === "Event created successfully") {
+      return toast({
+        ...props,
+        title: t("common.success"),
+        description: t("events.eventCreated"),
+      });
+    }
+    
+    // Handle translation for booking request approval
+    if (props.title === "Success" && props.description === "Booking request approved and notification email processed") {
+      return toast({
+        ...props,
+        title: t("common.success"),
+        description: t("bookings.requestApproved"),
+      });
+    }
+    
+    // For other toasts, keep original behavior
+    return toast(props);
+  }
+
   return {
     ...state,
-    toast,
+    toast: translatedToast,
     dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
   }
 }

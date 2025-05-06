@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 export const es: TranslationType = {
@@ -37,7 +36,8 @@ export const es: TranslationType = {
     feature5: "Notificaciones de reservas por correo electrónico y panel",
     requestSubmitted: "¡Tu solicitud de reserva ha sido enviada con éxito!",
     yourEmailPlaceholder: "Ingresa tu correo electrónico",
-    bookAppointment: "Reservar Cita"
+    bookAppointment: "Reservar Cita",
+    requestApproved: "Solicitud de reserva aprobada y correo electrónico de notificación procesado"
   },
   analytics: {
     title: "Análisis Integral",
@@ -263,6 +263,7 @@ export const es: TranslationType = {
     deleteEvent: "Eliminar Evento",
     eventDeleted: "Evento eliminado con éxito",
     eventUpdated: "Evento actualizado con éxito",
+    eventCreated: "Evento creado con éxito",
     timeSlotUnavailable: "Horario No Disponible",
     timeSlotConflict: "Conflicto de Horario",
     timeSlotNotAvailable: "Este horario no está disponible",
@@ -419,6 +420,7 @@ export const es: TranslationType = {
     }
   },
   bookings: {
-    approvedBooking: "Reserva Aprobada"
+    approvedBooking: "Reserva Aprobada",
+    requestApproved: "Solicitud de reserva aprobada y correo electrónico de notificación procesado"
   }
 };

@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -44,6 +43,7 @@ export interface TranslationType {
     requestSubmitted: string;
     yourEmailPlaceholder: string;
     bookAppointment: string;
+    requestApproved: string;
   };
   analytics: {
     title: string;
@@ -269,6 +269,10 @@ export interface TranslationType {
     deleteEvent: string;
     eventDeleted: string;
     eventUpdated: string;
+    eventCreated: string;
+    timeSlotUnavailable: string;
+    timeSlotConflict: string;
+    timeSlotNotAvailable: string;
     socialLinkEmail: string;
     dateAndTime: string;
     date: string;
@@ -277,9 +281,6 @@ export interface TranslationType {
     end: string;
     eventDetails: string;
     title: string;
-    timeSlotUnavailable: string;
-    timeSlotConflict: string;
-    timeSlotNotAvailable: string;
     bookAppointment: string;
     submitRequest: string;
   };
@@ -423,6 +424,7 @@ export interface TranslationType {
   };
   bookings: {
     approvedBooking: string;
+    requestApproved: string;
   };
 }
 
