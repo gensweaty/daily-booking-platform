@@ -19,13 +19,15 @@ interface ImageCarouselProps {
   className?: string;
   showTitles?: boolean;
   permanentArrows?: boolean;
+  objectFit?: string; // New prop for controlling object-fit CSS property
 }
 
 export const ImageCarousel = ({ 
   images, 
   className,
   showTitles = false,
-  permanentArrows = false
+  permanentArrows = false,
+  objectFit = 'object-contain' // Default to object-contain to maintain backward compatibility
 }: ImageCarouselProps) => {
   const [api, setApi] = useState<CarouselApi>();
 
@@ -44,22 +46,22 @@ export const ImageCarousel = ({
     <div className={cn("w-full relative group", className)}>
       <Carousel
         opts={{
-          align: "center", // Changed from "start" to "center" for better centering
+          align: "center", // Keeping center alignment
           loop: true,
         }}
         setApi={setApi}
         className="w-full"
       >
-        <CarouselContent className="mx-auto"> {/* Added mx-auto for horizontal centering */}
+        <CarouselContent className="mx-auto"> 
           {images.map((image, index) => (
-            <CarouselItem key={index} className="md:basis-1/1 flex justify-center"> {/* Added flex and justify-center */}
-              <div className="p-1 w-full max-w-[90%] mx-auto"> {/* Added max-width and mx-auto */}
+            <CarouselItem key={index} className="md:basis-1/1 flex justify-center"> 
+              <div className="p-1 w-full max-w-[90%] mx-auto"> 
                 <div className="rounded-xl overflow-hidden transition-all h-[400px] hover:shadow-lg">
                   <div className="relative h-full w-full flex items-center justify-center bg-white">
                     <img
                       src={image.src}
                       alt={image.alt}
-                      className="w-full h-full object-contain"
+                      className={`w-full h-full ${objectFit} p-2`} // Apply padding and dynamic objectFit
                     />
                     {showTitles && image.title && (
                       <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-2 text-center">
@@ -76,7 +78,7 @@ export const ImageCarousel = ({
           className={cn(
             permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             "transition-opacity duration-300",
-            "absolute left-2 md:-left-12 bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800", // Changed from -left-16 to -left-12
+            "absolute left-2 md:-left-12 bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800",
             "border-none shadow-lg hover:shadow-xl",
             "w-10 h-10 rounded-full"
           )}
@@ -85,7 +87,7 @@ export const ImageCarousel = ({
           className={cn(
             permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             "transition-opacity duration-300",
-            "absolute right-2 md:-right-12 bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800", // Changed from -right-16 to -right-12
+            "absolute right-2 md:-right-12 bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800",
             "border-none shadow-lg hover:shadow-xl",
             "w-10 h-10 rounded-full"
           )}
