@@ -1,472 +1,236 @@
-import * as React from "react"
-import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
-import { useLanguage } from "@/contexts/LanguageContext"
 
-const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 5000
+import { toast as sonnerToast, ToastT, ExternalToast } from "sonner";
+import { useLanguage } from "@/contexts/LanguageContext";
 
-type ToasterToast = ToastProps & {
-  id: string
-  title?: React.ReactNode
-  description?: React.ReactNode
-  action?: ToastActionElement
-  translateKeys?: {
-    titleKey?: string
-    descriptionKey?: string
-  }
-}
-
-const actionTypes = {
-  ADD_TOAST: "ADD_TOAST",
-  UPDATE_TOAST: "UPDATE_TOAST",
-  DISMISS_TOAST: "DISMISS_TOAST",
-  REMOVE_TOAST: "REMOVE_TOAST",
-} as const
-
-let count = 0
-
-function genId() {
-  count = (count + 1) % Number.MAX_SAFE_INTEGER
-  return count.toString()
-}
-
-type ActionType = typeof actionTypes
-
-type Action =
-  | {
-      type: ActionType["ADD_TOAST"]
-      toast: ToasterToast
-    }
-  | {
-      type: ActionType["UPDATE_TOAST"]
-      toast: Partial<ToasterToast>
-    }
-  | {
-      type: ActionType["DISMISS_TOAST"]
-      toastId?: ToasterToast["id"]
-    }
-  | {
-      type: ActionType["REMOVE_TOAST"]
-      toastId?: ToasterToast["id"]
-    }
-
-interface State {
-  toasts: ToasterToast[]
-}
-
-const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
-
-const addToRemoveQueue = (toastId: string) => {
-  if (toastTimeouts.has(toastId)) {
-    return
-  }
-
-  const timeout = setTimeout(() => {
-    toastTimeouts.delete(toastId)
-    dispatch({
-      type: "REMOVE_TOAST",
-      toastId: toastId,
-    })
-  }, TOAST_REMOVE_DELAY)
-
-  toastTimeouts.set(toastId, timeout)
-}
-
-export const reducer = (state: State, action: Action): State => {
-  switch (action.type) {
-    case "ADD_TOAST":
-      return {
-        ...state,
-        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
-      }
-
-    case "UPDATE_TOAST":
-      return {
-        ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === action.toast.id ? { ...t, ...action.toast } : t
-        ),
-      }
-
-    case "DISMISS_TOAST": {
-      const { toastId } = action
-
-      if (toastId) {
-        addToRemoveQueue(toastId)
-      } else {
-        state.toasts.forEach((toast) => {
-          addToRemoveQueue(toast.id)
-        })
-      }
-
-      return {
-        ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === toastId || toastId === undefined
-            ? {
-                ...t,
-                open: false,
-              }
-            : t
-        ),
-      }
-    }
-    case "REMOVE_TOAST":
-      if (action.toastId === undefined) {
-        return {
-          ...state,
-          toasts: [],
-        }
-      }
-      return {
-        ...state,
-        toasts: state.toasts.filter((t) => t.id !== action.toastId),
-      }
-  }
-}
-
-const listeners: Array<(state: State) => void> = []
-
-let memoryState: State = { toasts: [] }
-
-function dispatch(action: Action) {
-  memoryState = reducer(memoryState, action)
-  listeners.forEach((listener) => {
-    listener(memoryState)
-  })
-}
-
-type Toast = Omit<ToasterToast, "id">
-
-// Helper function to get translation function safely
-function getTranslationFunction() {
-  // Default fallback function returns the key itself
-  let translationFunction = (key: string) => key;
+export const useToast = () => {
+  const { t, language } = useLanguage();
   
-  try {
-    // Get the translation function from the language context
-    // This is wrapped in try/catch because it might fail when called outside React components
-    const { t } = useLanguage();
-    translationFunction = t;
-  } catch (error) {
-    console.warn("Language context not available, using fallback for translations");
-  }
-  
-  return translationFunction;
-}
-
-function toast({ ...props }: Toast) {
-  // Get the translation function
-  const t = getTranslationFunction();
-  
-  const id = genId()
-
-  // Apply translations if translation keys are provided
-  let translatedProps = { ...props };
-  if (props.translateKeys) {
-    if (props.translateKeys.titleKey && typeof props.translateKeys.titleKey === 'string') {
-      translatedProps.title = t(props.translateKeys.titleKey);
-    }
-    if (props.translateKeys.descriptionKey && typeof props.translateKeys.descriptionKey === 'string') {
-      translatedProps.description = t(props.translateKeys.descriptionKey);
-    }
-  }
-
-  const update = (props: ToasterToast) =>
-    dispatch({
-      type: "UPDATE_TOAST",
-      toast: { ...props, id },
-    })
-    
-  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
-
-  dispatch({
-    type: "ADD_TOAST",
+  return {
     toast: {
-      ...translatedProps,
-      id,
-      open: true,
-      onOpenChange: (open) => {
-        if (!open) dismiss()
+      success: ({ title = t("common.success"), description, ...props }: ExternalToast) => {
+        sonnerToast.success(title, {
+          description,
+          ...props
+        });
       },
+      info: ({ title = t("common.info"), description, ...props }: ExternalToast) => {
+        sonnerToast.info(title, {
+          description,
+          ...props
+        });
+      },
+      warning: ({ title = t("common.warning"), description, ...props }: ExternalToast) => {
+        sonnerToast.warning(title, {
+          description,
+          ...props
+        });
+      },
+      error: ({ title = t("common.error"), description, ...props }: ExternalToast) => {
+        sonnerToast.error(title, {
+          description,
+          ...props
+        });
+      },
+      custom: (props: ToastT) => sonnerToast(props),
+    }
+  };
+};
+
+// These event-specific toast notifications help maintain consistent messaging
+// across the application for common events
+export const toast = {
+  success: ({ title = "Success", description, ...props }: ExternalToast) => {
+    sonnerToast.success(title, {
+      description,
+      ...props
+    });
+  },
+  info: ({ title = "Info", description, ...props }: ExternalToast) => {
+    sonnerToast.info(title, {
+      description,
+      ...props
+    });
+  },
+  warning: ({ title = "Warning", description, ...props }: ExternalToast) => {
+    sonnerToast.warning(title, {
+      description,
+      ...props
+    });
+  },
+  error: ({ title = "Error", description, ...props }: ExternalToast) => {
+    sonnerToast.error(title, {
+      description,
+      ...props
+    });
+  },
+  custom: (props: ToastT) => sonnerToast(props),
+  // Event-specific toast notifications
+  event: {
+    // Booking notifications
+    bookingSubmitted: () => {
+      const { language } = useLanguage();
+      const message = language === 'ka' ? 
+        "თქვენი ჯავშანი წარმატებით გაიგზავნა" : 
+        "Your booking request has been submitted";
+        
+      sonnerToast.success(language === 'ka' ? "ჯავშანი გაგზავნილია" : "Booking Submitted", {
+        description: message
+      });
     },
-  })
-
-  setTimeout(dismiss, TOAST_REMOVE_DELAY)
-
-  return {
-    id: id,
-    dismiss,
-    update,
-  }
-}
-
-// Create proper toast function with methods - ALL with proper translation keys
-toast.success = (props: { title?: string; description?: string } & Omit<Toast, "title" | "description">) => {
-  return toast({
-    ...props,
-    variant: "default",
-    translateKeys: {
-      titleKey: props.title ? undefined : "common.success",
-      descriptionKey: props.description ? undefined : "common.successMessage"
-    }
-  });
-};
-
-toast.error = (props: { title?: string; description?: string } & Omit<Toast, "title" | "description">) => {
-  return toast({
-    ...props,
-    variant: "destructive",
-    translateKeys: {
-      titleKey: props.title ? undefined : "common.error",
-      descriptionKey: props.description ? undefined : "common.errorOccurred"
-    }
-  });
-};
-
-// Event toasts - Enhanced with proper translation
-toast.event = {
-  created: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "common.success",
-        descriptionKey: "events.eventCreated"
-      }
-    });
-  },
-  updated: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "common.success",
-        descriptionKey: "events.eventUpdated"
-      }
-    });
-  },
-  deleted: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "common.success",
-        descriptionKey: "events.eventDeleted"
-      }
-    });
-  },
-  bookingApproved: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "common.success",
-        descriptionKey: "bookings.requestApproved"
-      }
-    });
-  },
-  bookingRejected: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "common.success", 
-        descriptionKey: "bookings.requestRejected"
-      }
-    });
-  },
-  bookingDeleted: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "common.success",
-        descriptionKey: "bookings.requestDeleted"
-      }
-    });
-  },
-  newBookingRequest: (count: number = 1) => {
-    const t = getTranslationFunction();
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "bookings.newRequest"
-      },
-      description: t("bookings.pendingRequestsCount").replace("{count}", count.toString())
-    });
-  },
-  bookingSubmitted: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "bookings.requestSubmitted",
-        descriptionKey: "bookings.requestSubmittedDescription"
-      }
-    });
-  }
-};
-
-// Task toasts
-toast.task = {
-  created: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "common.success",
-        descriptionKey: "tasks.taskAdded" 
-      }
-    });
-  },
-  updated: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "common.success",
-        descriptionKey: "tasks.taskUpdated"
-      }
-    });
-  },
-  deleted: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "common.success",
-        descriptionKey: "tasks.taskDeleted"
-      }
-    });
-  }
-};
-
-// Customer toasts
-toast.customer = {
-  created: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "common.success",
-        descriptionKey: "crm.customerCreated"
-      }
-    });
-  },
-  updated: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "common.success",
-        descriptionKey: "crm.customerUpdated"
-      }
-    });
-  },
-  deleted: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "common.success",
-        descriptionKey: "crm.customerDeleted"
-      }
-    });
+    bookingApproved: () => {
+      const { language } = useLanguage();
+      const message = language === 'ka' ? 
+        "ჯავშანი დადასტურებულია" : 
+        "Booking request has been approved";
+        
+      sonnerToast.success(language === 'ka' ? "ჯავშანი დადასტურებულია" : "Booking Approved", {
+        description: message
+      });
+    },
+    bookingRejected: () => {
+      const { language } = useLanguage();
+      const message = language === 'ka' ? 
+        "ჯავშანი უარყოფილია" : 
+        "Booking request has been rejected";
+        
+      sonnerToast.info(language === 'ka' ? "ჯავშანი უარყოფილია" : "Booking Rejected", {
+        description: message
+      });
+    },
+    bookingDeleted: () => {
+      const { language } = useLanguage();
+      const message = language === 'ka' ? 
+        "ჯავშანი წაშლილია" : 
+        "Booking has been deleted";
+        
+      sonnerToast.info(language === 'ka' ? "ჯავშანი წაშლილია" : "Booking Deleted", {
+        description: message
+      });
+    },
+    newBookingRequest: (count: number = 1) => {
+      const { language } = useLanguage();
+      const message = language === 'ka' ? 
+        `თქვენ გაქვთ ${count} ახალი ჯავშნის მოთხოვნა` : 
+        `You have ${count} new booking ${count === 1 ? 'request' : 'requests'}`;
+        
+      sonnerToast.info(
+        language === 'ka' ? "ახალი ჯავშნის მოთხოვნა" : "New Booking Request", 
+        { description: message }
+      );
+    },
+    // Customer notifications
+    customerCreated: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("customers.customerCreated")
+      });
+    },
+    customerUpdated: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("customers.customerUpdated")
+      });
+    },
+    customerDeleted: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("customers.customerDeleted")
+      });
+    },
+    // Event notifications
+    eventCreated: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("events.eventCreated")
+      });
+    },
+    eventUpdated: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("events.eventUpdated")
+      });
+    },
+    eventDeleted: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("events.eventDeleted")
+      });
+    },
+    // Task notifications
+    taskCreated: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("tasks.taskCreated")
+      });
+    },
+    taskUpdated: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("tasks.taskUpdated")
+      });
+    },
+    taskDeleted: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("tasks.taskDeleted")
+      });
+    },
+    taskStatusChanged: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("tasks.taskStatusChanged")
+      });
+    },
+    // Note notifications
+    noteCreated: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("notes.noteCreated")
+      });
+    },
+    noteUpdated: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("notes.noteUpdated")
+      });
+    },
+    noteDeleted: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("notes.noteDeleted")
+      });
+    },
+    // Business notifications
+    businessProfileUpdated: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("business.profileUpdated")
+      });
+    },
+    // Generic action notifications
+    saved: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("common.saved")
+      });
+    },
+    deleted: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("common.deleted")
+      });
+    },
+    updated: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("common.updated")
+      });
+    },
+    copied: () => {
+      const { t } = useLanguage();
+      sonnerToast.success(t("common.success"), {
+        description: t("common.copied")
+      });
+    },
   }
 };
-
-// Note toasts
-toast.note = {
-  added: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "notes.noteAdded",
-        descriptionKey: "notes.noteAddedDescription"
-      }
-    });
-  },
-  updated: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "common.success",
-        descriptionKey: "notes.noteUpdated"
-      }
-    });
-  },
-  deleted: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "common.success",
-        descriptionKey: "notes.noteDeleted"
-      }
-    });
-  }
-};
-
-// Reminder toasts
-toast.reminder = {
-  created: () => {
-    return toast({
-      variant: "default",
-      translateKeys: {
-        titleKey: "common.success",
-        descriptionKey: "reminders.reminderCreated"
-      }
-    });
-  }
-};
-
-// Export toast notification
-toast.exportSuccess = () => {
-  return toast({
-    variant: "default",
-    translateKeys: {
-      titleKey: "dashboard.exportSuccessful",
-      descriptionKey: "dashboard.exportSuccessMessage"
-    }
-  });
-};
-
-// Common action toasts
-toast.copySuccess = () => {
-  return toast({
-    variant: "default",
-    translateKeys: {
-      titleKey: "common.success",
-      descriptionKey: "common.copiedToClipboard"
-    }
-  });
-};
-
-toast.deleteSuccess = () => {
-  return toast({
-    variant: "default",
-    translateKeys: {
-      titleKey: "common.success",
-      descriptionKey: "common.deleteSuccess"
-    }
-  });
-};
-
-toast.saveSuccess = () => {
-  return toast({
-    variant: "default",
-    translateKeys: {
-      titleKey: "common.success",
-      descriptionKey: "common.successMessage"
-    }
-  });
-};
-
-function useToast() {
-  const [state, setState] = React.useState<State>(memoryState)
-  
-  React.useEffect(() => {
-    listeners.push(setState)
-    return () => {
-      const index = listeners.indexOf(setState)
-      if (index > -1) {
-        listeners.splice(index, 1)
-      }
-    }
-  }, [state])
-
-  return {
-    ...state,
-    toast,
-    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
-  }
-}
-
-export { useToast, toast }

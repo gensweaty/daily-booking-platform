@@ -253,6 +253,7 @@ export const BookingRequestForm: React.FC<BookingRequestFormProps> = ({
 
   const handleFileChange = (file: File | null) => {
     setSelectedFile(file);
+    setFileError(""); // Clear any existing errors
   };
 
   return (
