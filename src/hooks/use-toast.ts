@@ -220,13 +220,13 @@ export const useToast = () => {
   };
 };
 
-// Define the base toast function type
-type ToastFunction = {
-  (props: ToastT): string | number;
-  success: ({ title, description, ...props }: ExternalToast) => void;
-  info: ({ title, description, ...props }: ExternalToast) => void;
-  warning: ({ title, description, ...props }: ExternalToast) => void;
-  error: ({ title, description, ...props }: ExternalToast) => void;
+// Define a more complete type for our toast function including callability
+interface ToastFunction {
+  (props: ToastT | { title?: string; description?: string; [key: string]: any }): string | number;
+  success: (props: ToastT | { title?: string; description?: string; [key: string]: any }) => void;
+  info: (props: ToastT | { title?: string; description?: string; [key: string]: any }) => void;
+  warning: (props: ToastT | { title?: string; description?: string; [key: string]: any }) => void;
+  error: (props: ToastT | { title?: string; description?: string; [key: string]: any }) => void;
   custom: (props: ToastT) => string | number;
   event: {
     bookingSubmitted: () => void;
@@ -261,40 +261,83 @@ type ToastFunction = {
   deleted: () => void;
   updated: () => void;
   copied: () => void;
-};
+  translateKeys?: (keys: { titleKey?: string; descriptionKey?: string }) => void;
+}
 
-// Create the actual toast function - make it callable
-const toastFunction = (props: ToastT): string | number => {
-  return sonnerToast(props);
-};
+// Create a function that can be called directly
+const toastFn = ((props: ToastT | { title?: string; description?: string; [key: string]: any }): string | number => {
+  // If it's a simple string, treat it as a title
+  if (typeof props === 'string') {
+    return sonnerToast({ title: props });
+  }
+  // Handle basic object format
+  if (props && typeof props === 'object') {
+    // Handle the special translateKeys case
+    if ('translateKeys' in props) {
+      const { translateKeys } = props as { translateKeys: { titleKey?: string; descriptionKey?: string } };
+      const { t } = useLanguage();
+      return sonnerToast.success(
+        translateKeys.titleKey ? t(translateKeys.titleKey) : t("common.success"),
+        {
+          description: translateKeys.descriptionKey ? t(translateKeys.descriptionKey) : undefined
+        }
+      );
+    }
+    // Regular props handling
+    const { title, description, ...rest } = props;
+    return sonnerToast({ title, description, ...rest });
+  }
+  // Fallback to default behavior
+  return sonnerToast(props as ToastT);
+}) as ToastFunction;
 
-// Export the standalone toast object with all methods
-export const toast = Object.assign(toastFunction, {
-  success: ({ title = "Success", description, ...props }: ExternalToast) => {
-    sonnerToast.success(title, {
-      description,
-      ...props
-    });
+// Extend the function with methods
+export const toast = Object.assign(toastFn, {
+  success: (props: ToastT | { title?: string; description?: string; [key: string]: any }) => {
+    if (typeof props === 'string') {
+      sonnerToast.success(props);
+    } else {
+      const { title = "Success", description, ...rest } = props;
+      sonnerToast.success(title, { description, ...rest });
+    }
   },
-  info: ({ title = "Info", description, ...props }: ExternalToast) => {
-    sonnerToast.info(title, {
-      description,
-      ...props
-    });
+  info: (props: ToastT | { title?: string; description?: string; [key: string]: any }) => {
+    if (typeof props === 'string') {
+      sonnerToast.info(props);
+    } else {
+      const { title = "Info", description, ...rest } = props;
+      sonnerToast.info(title, { description, ...rest });
+    }
   },
-  warning: ({ title = "Warning", description, ...props }: ExternalToast) => {
-    sonnerToast.warning(title, {
-      description,
-      ...props
-    });
+  warning: (props: ToastT | { title?: string; description?: string; [key: string]: any }) => {
+    if (typeof props === 'string') {
+      sonnerToast.warning(props);
+    } else {
+      const { title = "Warning", description, ...rest } = props;
+      sonnerToast.warning(title, { description, ...rest });
+    }
   },
-  error: ({ title = "Error", description, ...props }: ExternalToast) => {
-    sonnerToast.error(title, {
-      description,
-      ...props
-    });
+  error: (props: ToastT | { title?: string; description?: string; [key: string]: any }) => {
+    if (typeof props === 'string') {
+      sonnerToast.error(props);
+    } else {
+      const { title = "Error", description, ...rest } = props;
+      sonnerToast.error(title, { description, ...rest });
+    }
   },
   custom: (props: ToastT) => sonnerToast(props),
+
+  // Special case for translate keys
+  translateKeys: ({ titleKey, descriptionKey }: { titleKey?: string; descriptionKey?: string }) => {
+    const { t } = useLanguage();
+    sonnerToast.success(
+      titleKey ? t(titleKey) : t("common.success"),
+      {
+        description: descriptionKey ? t(descriptionKey) : undefined
+      }
+    );
+  },
+
   event: {
     // Booking notifications
     bookingSubmitted: () => {
@@ -352,38 +395,38 @@ export const toast = Object.assign(toastFunction, {
     customerCreated: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("customers.customerCreated")
+        description: t("customers.customerCreated") || "Customer created successfully"
       });
     },
     customerUpdated: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("customers.customerUpdated")
+        description: t("customers.customerUpdated") || "Customer updated successfully"
       });
     },
     customerDeleted: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("customers.customerDeleted")
+        description: t("customers.customerDeleted") || "Customer deleted successfully"
       });
     },
     // Event notifications
     eventCreated: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("events.eventCreated")
+        description: t("events.eventCreated") || "Event created successfully"
       });
     },
     eventUpdated: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("events.eventUpdated")
+        description: t("events.eventUpdated") || "Event updated successfully"
       });
     },
     eventDeleted: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("events.eventDeleted")
+        description: t("events.eventDeleted") || "Event deleted successfully"
       });
     }
   },
@@ -391,19 +434,19 @@ export const toast = Object.assign(toastFunction, {
     created: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("tasks.taskCreated") || "Task created"
+        description: t("tasks.taskCreated") || "Task created successfully"
       });
     },
     updated: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("tasks.taskUpdated") || "Task updated"
+        description: t("tasks.taskUpdated") || "Task updated successfully"
       });
     },
     deleted: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("tasks.taskDeleted") || "Task deleted"
+        description: t("tasks.taskDeleted") || "Task deleted successfully"
       });
     },
     statusChanged: () => {
@@ -417,19 +460,19 @@ export const toast = Object.assign(toastFunction, {
     added: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("notes.noteCreated") || "Note created"
+        description: t("notes.noteCreated") || "Note created successfully"
       });
     },
     updated: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("notes.noteUpdated") || "Note updated"
+        description: t("notes.noteUpdated") || "Note updated successfully"
       });
     },
     deleted: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("notes.noteDeleted") || "Note deleted"
+        description: t("notes.noteDeleted") || "Note deleted successfully"
       });
     }
   },
@@ -437,19 +480,19 @@ export const toast = Object.assign(toastFunction, {
     created: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("reminders.created") || "Reminder created"
+        description: t("reminders.created") || "Reminder created successfully"
       });
     },
     updated: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("reminders.updated") || "Reminder updated"
+        description: t("reminders.updated") || "Reminder updated successfully"
       });
     },
     deleted: () => {
       const { t } = useLanguage();
       sonnerToast.success(t("common.success"), {
-        description: t("reminders.deleted") || "Reminder deleted"
+        description: t("reminders.deleted") || "Reminder deleted successfully"
       });
     }
   },
@@ -477,4 +520,5 @@ export const toast = Object.assign(toastFunction, {
       description: t("common.copied") || "Copied to clipboard"
     });
   }
-}) as ToastFunction;
+});
+
