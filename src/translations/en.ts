@@ -428,7 +428,11 @@ const en: TranslationType = {
     }
   },
   bookings: {
-    approvedBooking: "Approved Booking"
+    approvedBooking: "Booking request approved",
+    requestRejected: "Booking request rejected",
+    requestDeleted: "Booking request deleted",
+    newRequest: "New Booking Request",
+    pendingRequestsCount: "booking request pending"
   },
   notes: {
     title: "Title",

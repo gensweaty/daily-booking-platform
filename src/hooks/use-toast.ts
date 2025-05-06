@@ -257,7 +257,25 @@ toast.event = {
       variant: "default",
       translateKeys: {
         titleKey: "common.success",
-        descriptionKey: "bookings.approvedBooking"
+        descriptionKey: "booking.requestApproved"
+      }
+    });
+  },
+  bookingRejected: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success", 
+        descriptionKey: "booking.requestRejected"
+      }
+    });
+  },
+  bookingDeleted: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "booking.requestDeleted"
       }
     });
   },
@@ -265,12 +283,13 @@ toast.event = {
     return toast({
       variant: "default",
       translateKeys: {
-        titleKey: "common.new",
-        descriptionKey: count === 1 ? "business.pendingRequests" : "business.pendingRequests"
+        titleKey: "booking.newRequest",
+        descriptionKey: "booking.pendingRequestsCount"
       },
-      // Use translation keys only, don't set hardcoded Georgian text
-      description: count > 1 ? `${count} ${getTranslationFunction()("common.new")} ${getTranslationFunction()("common.requests")}` : 
-                              `1 ${getTranslationFunction()("common.new")} ${getTranslationFunction()("common.request")}`
+      // Use translation keys only, don't set hardcoded English text
+      description: count > 1 ? 
+        `${count} ${getTranslationFunction()("common.new")} ${getTranslationFunction()("common.requests")}` : 
+        `1 ${getTranslationFunction()("common.new")} ${getTranslationFunction()("common.request")}`
     });
   }
 };
@@ -343,8 +362,8 @@ toast.note = {
     return toast({
       variant: "default",
       translateKeys: {
-        titleKey: "notes.noteAdded",
-        descriptionKey: "notes.noteAddedDescription"
+        titleKey: "common.success", 
+        descriptionKey: "notes.noteAdded"
       }
     });
   },
@@ -379,6 +398,48 @@ toast.reminder = {
       }
     });
   }
+};
+
+// Export toast notification
+toast.exportSuccess = () => {
+  return toast({
+    variant: "default",
+    translateKeys: {
+      titleKey: "dashboard.exportSuccessful",
+      descriptionKey: "dashboard.exportSuccessMessage"
+    }
+  });
+};
+
+// Common action toasts
+toast.copySuccess = () => {
+  return toast({
+    variant: "default",
+    translateKeys: {
+      titleKey: "common.success",
+      descriptionKey: "common.copiedToClipboard"
+    }
+  });
+};
+
+toast.deleteSuccess = () => {
+  return toast({
+    variant: "default",
+    translateKeys: {
+      titleKey: "common.success",
+      descriptionKey: "common.deleteSuccess"
+    }
+  });
+};
+
+toast.saveSuccess = () => {
+  return toast({
+    variant: "default",
+    translateKeys: {
+      titleKey: "common.success",
+      descriptionKey: "common.successMessage"
+    }
+  });
 };
 
 function useToast() {
