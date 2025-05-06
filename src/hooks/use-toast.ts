@@ -1,16 +1,34 @@
 
 import { toast as sonnerToast, ToastT, ExternalToast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { ReactNode } from "react";
+
+// Define custom toast props type
+type CustomToastProps = {
+  title?: string | ReactNode;
+  description?: string | ReactNode;
+  variant?: "default" | "destructive";
+  [key: string]: any;
+};
+
+// Type for our toast function inputs
+type ToastInput = string | CustomToastProps;
 
 export const useToast = () => {
   const { t, language } = useLanguage();
   
-  const toast = (props: ToastT | { title?: string; description?: string; variant?: "default" | "destructive"; [key: string]: any }) => {
+  // Create a callable toast function that handles different input types
+  const toast = (props: ToastInput, options?: Partial<CustomToastProps>) => {
+    // Handle string title with optional options
+    if (typeof props === 'string') {
+      return sonnerToast(props, options);
+    }
+    
     // Handle object with title and description
     if (props && typeof props === 'object') {
       const { title, description, variant, ...rest } = props;
       
-      // Handle variant property
+      // Handle variant property for error styling
       if (variant === "destructive") {
         return sonnerToast.error(title as string, { description, ...rest });
       } else {
@@ -18,37 +36,42 @@ export const useToast = () => {
       }
     }
     
-    // Fallback
-    return sonnerToast(props as ToastT);
+    // Fallback (should not reach here due to types)
+    return sonnerToast(props as string);
   };
   
   return {
     toast: Object.assign(toast, {
-      success: ({ title = t("common.success"), description, ...props }: ExternalToast) => {
-        sonnerToast.success(title, {
+      success: ({ title = t("common.success"), description, ...props }: Partial<CustomToastProps>) => {
+        sonnerToast.success(title as string, {
           description,
           ...props
         });
       },
-      info: ({ title = t("common.info"), description, ...props }: ExternalToast) => {
-        sonnerToast.info(title, {
+      info: ({ title = t("common.info"), description, ...props }: Partial<CustomToastProps>) => {
+        sonnerToast.info(title as string, {
           description,
           ...props
         });
       },
-      warning: ({ title = t("common.warning"), description, ...props }: ExternalToast) => {
-        sonnerToast.warning(title, {
+      warning: ({ title = t("common.warning"), description, ...props }: Partial<CustomToastProps>) => {
+        sonnerToast.warning(title as string, {
           description,
           ...props
         });
       },
-      error: ({ title = t("common.error"), description, ...props }: ExternalToast) => {
-        sonnerToast.error(title, {
+      error: ({ title = t("common.error"), description, ...props }: Partial<CustomToastProps>) => {
+        sonnerToast.error(title as string, {
           description,
           ...props
         });
       },
-      custom: (props: ToastT) => sonnerToast(props),
+      custom: (props: string | CustomToastProps) => {
+        if (typeof props === 'string') {
+          return sonnerToast(props);
+        }
+        return sonnerToast(props.title as string, props);
+      },
       // Add sub-objects for specific entity toasts
       note: {
         added: () => {
@@ -230,27 +253,30 @@ export const useToast = () => {
         sonnerToast.success(t("common.success"), {
           description: t("common.copied")
         });
+      },
+      // Special case for translation keys
+      translateKeys: ({ titleKey, descriptionKey }: { titleKey?: string; descriptionKey?: string }) => {
+        const { t } = useLanguage();
+        sonnerToast.success(
+          titleKey ? t(titleKey) : t("common.success"),
+          {
+            description: descriptionKey ? t(descriptionKey) : undefined
+          }
+        );
       }
     })
   };
 };
 
-// Define the type for the toast function with string overload
-type ToastFunctionProps = ToastT | { 
-  title?: string; 
-  description?: string; 
-  variant?: "default" | "destructive"; 
-  [key: string]: any 
-};
-
+// Define the toast function interface that can be both called and have properties
 interface ToastFunction {
-  (props: ToastFunctionProps): ReturnType<typeof sonnerToast>;
-  (title: string, props?: ToastFunctionProps): ReturnType<typeof sonnerToast>;
-  success: (props: ToastFunctionProps | string) => void;
-  info: (props: ToastFunctionProps | string) => void;
-  warning: (props: ToastFunctionProps | string) => void;
-  error: (props: ToastFunctionProps | string) => void;
-  custom: (props: ToastT) => ReturnType<typeof sonnerToast>;
+  (props: ToastInput): ReturnType<typeof sonnerToast>;
+  (title: string, props?: Partial<CustomToastProps>): ReturnType<typeof sonnerToast>;
+  success: (props: Partial<CustomToastProps> | string) => void;
+  info: (props: Partial<CustomToastProps> | string) => void;
+  warning: (props: Partial<CustomToastProps> | string) => void;
+  error: (props: Partial<CustomToastProps> | string) => void;
+  custom: (props: ToastInput) => ReturnType<typeof sonnerToast>;
   translateKeys: (keys: { titleKey?: string; descriptionKey?: string }) => void;
   
   // Entity-specific toast methods
@@ -293,17 +319,17 @@ interface ToastFunction {
 
 // Create a callable function that can be used both as a function and an object
 const toastFn = function(
-  propsOrTitle: ToastFunctionProps | string,
-  props?: ToastFunctionProps
+  propsOrTitle: ToastInput,
+  options?: Partial<CustomToastProps>
 ): ReturnType<typeof sonnerToast> {
   // Handle string title with optional props
   if (typeof propsOrTitle === 'string') {
-    return sonnerToast(propsOrTitle, props as any);
+    return sonnerToast(propsOrTitle, options || {});
   }
   
   // Handle object with title and description
   if (propsOrTitle && typeof propsOrTitle === 'object') {
-    const { title, description, variant, ...rest } = propsOrTitle;
+    const { title, description, variant, ...rest } = propsOrTitle as CustomToastProps;
 
     // Special case for translateKeys
     if ('translateKeys' in propsOrTitle) {
@@ -325,49 +351,55 @@ const toastFn = function(
     }
   }
   
-  // Fallback
-  return sonnerToast(propsOrTitle as ToastT);
+  // This should never be reached due to TypeScript
+  return sonnerToast(propsOrTitle as string);
 } as ToastFunction;
 
 // Add all the required methods to make the toast function fully compatible
 export const toast = Object.assign(toastFn, {
-  success: (propsOrTitle: ToastFunctionProps | string) => {
+  success: (propsOrTitle: Partial<CustomToastProps> | string) => {
     if (typeof propsOrTitle === 'string') {
       sonnerToast.success(propsOrTitle);
     } else {
       const { title = "Success", description, ...rest } = propsOrTitle;
-      sonnerToast.success(title, { description, ...rest });
+      sonnerToast.success(title as string, { description, ...rest });
     }
   },
   
-  info: (propsOrTitle: ToastFunctionProps | string) => {
+  info: (propsOrTitle: Partial<CustomToastProps> | string) => {
     if (typeof propsOrTitle === 'string') {
       sonnerToast.info(propsOrTitle);
     } else {
       const { title = "Info", description, ...rest } = propsOrTitle;
-      sonnerToast.info(title, { description, ...rest });
+      sonnerToast.info(title as string, { description, ...rest });
     }
   },
   
-  warning: (propsOrTitle: ToastFunctionProps | string) => {
+  warning: (propsOrTitle: Partial<CustomToastProps> | string) => {
     if (typeof propsOrTitle === 'string') {
       sonnerToast.warning(propsOrTitle);
     } else {
       const { title = "Warning", description, ...rest } = propsOrTitle;
-      sonnerToast.warning(title, { description, ...rest });
+      sonnerToast.warning(title as string, { description, ...rest });
     }
   },
   
-  error: (propsOrTitle: ToastFunctionProps | string) => {
+  error: (propsOrTitle: Partial<CustomToastProps> | string) => {
     if (typeof propsOrTitle === 'string') {
       sonnerToast.error(propsOrTitle);
     } else {
       const { title = "Error", description, ...rest } = propsOrTitle;
-      sonnerToast.error(title, { description, ...rest });
+      sonnerToast.error(title as string, { description, ...rest });
     }
   },
   
-  custom: (props: ToastT) => sonnerToast(props),
+  custom: (propsOrTitle: ToastInput) => {
+    if (typeof propsOrTitle === 'string') {
+      return sonnerToast(propsOrTitle);
+    }
+    const { title, ...rest } = propsOrTitle;
+    return sonnerToast(title as string, rest);
+  },
   
   translateKeys: ({ titleKey, descriptionKey }: { titleKey?: string; descriptionKey?: string }) => {
     const { t } = useLanguage();
@@ -563,3 +595,10 @@ export const toast = Object.assign(toastFn, {
     });
   }
 });
+
+// Also update the UI component re-export
+<lov-write file_path="src/components/ui/use-toast.ts">
+// Re-export the toast functions from the hooks directory
+import { useToast, toast } from "@/hooks/use-toast";
+
+export { useToast, toast };
