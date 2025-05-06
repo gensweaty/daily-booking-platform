@@ -15,7 +15,8 @@ interface ImageCarouselProps {
     src: string;
     alt: string;
     title?: string;
-    customStyle?: string; // Add support for custom styling per image
+    customStyle?: string; // For custom styling per image
+    customPadding?: string; // New prop for custom padding per image
   }[];
   className?: string;
   showTitles?: boolean;
@@ -60,7 +61,7 @@ export const ImageCarousel = ({
             <CarouselItem key={index} className="md:basis-1/1">
               <div className="p-1">
                 <div className={`rounded-xl overflow-hidden transition-all ${imageHeight} hover:shadow-lg`}>
-                  <div className="relative h-full w-full flex items-center justify-center bg-white">
+                  <div className={`relative h-full w-full flex items-center justify-center bg-white ${image.customPadding || 'p-0'}`}>
                     <img
                       src={image.src}
                       alt={image.alt}

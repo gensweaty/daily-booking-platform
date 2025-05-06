@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
@@ -14,7 +13,8 @@ const productImages = [{
   src: "/lovable-uploads/89b6a836-d818-4753-a3f8-9d0d83dc7406.png", // Pet Grooming Salon
   alt: "Pet Grooming Salon",
   loading: "lazy",
-  customStyle: "object-cover p-0" // This ensures the image fills the container with no padding
+  customStyle: "object-cover", 
+  customPadding: "p-4" // Adding padding specifically for this image
 }, {
   src: "/lovable-uploads/a00576d5-fb16-4a4b-a313-0e1cbb61b00c.png",
   alt: "Calendar Preview",
