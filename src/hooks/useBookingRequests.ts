@@ -54,7 +54,7 @@ export const useBookingRequests = () => {
   const approvedRequests = bookingRequests.filter(req => req.status === 'approved');
   const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected');
   
-  async function sendApprovalEmail({ email, fullName, businessName, startDate, endDate, paymentStatus, paymentAmount, businessAddress, language }: {
+  async function sendApprovalEmail({ email, fullName, businessName, startDate, endDate, paymentStatus, paymentAmount, businessAddress }: {
     email: string;
     fullName: string;
     businessName: string;
@@ -63,7 +63,6 @@ export const useBookingRequests = () => {
     paymentStatus?: string;
     paymentAmount?: number;
     businessAddress?: string;
-    language?: string; // Add language parameter
   }) {
     if (!email || !email.includes('@')) {
       console.error("Invalid email format or missing email:", email);
@@ -74,7 +73,6 @@ export const useBookingRequests = () => {
       console.log(`Sending approval email to ${email} for booking at ${businessName}`);
       console.log(`Raw start date: ${startDate}`);
       console.log(`Raw end date: ${endDate}`);
-      console.log(`Email language: ${language || 'default (en)'}`); // Log language
       
       // ENHANCED LOGGING - For debugging the exact address value
       console.log(`Email data details - DEBUGGING ADDRESS ISSUE:`);
@@ -96,8 +94,7 @@ export const useBookingRequests = () => {
         endDate: endDate,
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
-        businessAddress: businessAddress, // Pass the address as is
-        language: language || 'en' // Default to English if no language is provided
+        businessAddress: businessAddress // Pass the address as is
       };
       
       console.log("Complete request body for email function:", JSON.stringify(requestBody, null, 2));
@@ -446,9 +443,6 @@ export const useBookingRequests = () => {
       console.log(`Preparing to send email to ${booking.requester_email} for business ${businessName}`);
       
       if (booking && booking.requester_email) {
-        // Get the language from the booking request or default to user's current language from localStorage
-        const requestLanguage = booking.request_language || localStorage.getItem('language') || 'en';
-        
         // Send the approval email, passing the business address we just fetched
         // DIRECT ADDRESS PASS - Stringify the entire email parameters for debugging
         const emailParams = {
@@ -459,8 +453,7 @@ export const useBookingRequests = () => {
           endDate: booking.end_date,
           paymentStatus: booking.payment_status,
           paymentAmount: booking.payment_amount,
-          businessAddress: contactAddress, // Pass the address directly
-          language: requestLanguage // Pass the language for localized emails
+          businessAddress: contactAddress // Pass the address directly
         };
         
         console.log("Final email parameters being sent:", JSON.stringify(emailParams, null, 2));
