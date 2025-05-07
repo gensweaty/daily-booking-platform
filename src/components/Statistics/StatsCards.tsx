@@ -4,7 +4,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { StatCard } from "./StatCard";
 import {
   CheckCircle2,
-  Clock,
+  Users,
   CalendarCheck,
   DollarSign,
   EuroIcon,
@@ -26,9 +26,14 @@ interface StatsCardsProps {
     fullyPaid: number;
     totalIncome: number | string | null | undefined;
   };
+  customerStats: {
+    total: number;
+    withBooking: number;
+    withoutBooking: number;
+  };
 }
 
-export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
+export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsProps) => {
   const { t, language } = useLanguage();
   
   // Early return with warning if eventStats is missing entirely
@@ -72,20 +77,26 @@ export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
     currency: currencySymbol
   });
 
+  // Format the task details to show completed, in progress, and todo
+  const taskDetailsText = `${taskStats.completed} ${t("dashboard.completed")}, ${taskStats.inProgress} ${t("dashboard.inProgress")}, ${taskStats.todo} ${t("dashboard.todo")}`;
+
+  // Format the customer details text
+  const customerDetailsText = `${customerStats.withBooking} ${t("dashboard.withBooking")}, ${customerStats.withoutBooking} ${t("dashboard.withoutBooking")}`;
+
   return (
     <div className="grid gap-4 md:grid-cols-4">
       <StatCard
         title={t("dashboard.totalTasks")}
         value={taskStats.total}
-        description={`${taskStats.completed} ${t("dashboard.completed")}`}
+        description={taskDetailsText}
         icon={CheckCircle2}
         color="purple"
       />
       <StatCard
-        title={t("dashboard.inProgress")}
-        value={taskStats.inProgress}
-        description={`${taskStats.todo} ${t("dashboard.todo")}`}
-        icon={Clock}
+        title={t("dashboard.totalCustomers")}
+        value={customerStats.total}
+        description={customerDetailsText}
+        icon={Users}
         color="orange"
       />
       <StatCard

@@ -8,6 +8,7 @@ import { StatsHeader } from "./Statistics/StatsHeader";
 import { StatsCards } from "./Statistics/StatsCards";
 import { useStatistics } from "./Statistics/useStatistics";
 import { useExcelExport } from "./Statistics/ExcelExport";
+import { useCRMData } from "@/hooks/useCRMData";
 import { Skeleton } from "./ui/skeleton";
 import { LanguageText } from "./shared/LanguageText";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -28,7 +29,24 @@ export const Statistics = () => {
   
   // Optimized hook usage with proper dependencies
   const { taskStats, eventStats, isLoading } = useStatistics(userId, dateRange);
+  const { combinedData, isLoading: isLoadingCRM } = useCRMData(userId, dateRange);
   const { exportToExcel } = useExcelExport();
+
+  // Calculate customer statistics
+  const customerStats = useMemo(() => {
+    if (!combinedData) return { total: 0, withBooking: 0, withoutBooking: 0 };
+
+    const total = combinedData.length;
+    const withBooking = combinedData.filter(item => 
+      item.create_event === true || 
+      (item.start_date && item.end_date)
+    ).length;
+    const withoutBooking = total - withBooking;
+
+    console.log("Customer Stats:", { total, withBooking, withoutBooking });
+    
+    return { total, withBooking, withoutBooking };
+  }, [combinedData]);
 
   // Add effect to validate eventStats and totalIncome specifically
   useEffect(() => {
@@ -67,9 +85,17 @@ export const Statistics = () => {
     totalIncome: 0 
   }), []);
 
+  // Default customer stats
+  const defaultCustomerStats = useMemo(() => ({
+    total: 0,
+    withBooking: 0,
+    withoutBooking: 0
+  }), []);
+
   // Memoize the stats data to avoid unnecessary re-renders
   const currentTaskStats = useMemo(() => taskStats || defaultTaskStats, [taskStats, defaultTaskStats]);
   const currentEventStats = useMemo(() => eventStats || defaultEventStats, [eventStats, defaultEventStats]);
+  const currentCustomerStats = useMemo(() => customerStats || defaultCustomerStats, [customerStats, defaultCustomerStats]);
   const chartData = useMemo(() => eventStats?.dailyStats || [], [eventStats?.dailyStats]);
   const incomeData = useMemo(() => eventStats?.monthlyIncome || [], [eventStats?.monthlyIncome]);
 
@@ -85,16 +111,21 @@ export const Statistics = () => {
     }
   }, [eventStats]);
 
+  // Log customer stats
+  useEffect(() => {
+    console.log("Statistics - Customer Stats:", currentCustomerStats);
+  }, [currentCustomerStats]);
+
   return (
     <div className="space-y-6">
       <StatsHeader 
         dateRange={dateRange}
         onDateChange={handleDateChange}
         onExport={handleExport}
-        isLoading={isLoading}
+        isLoading={isLoading || isLoadingCRM}
       />
       
-      {isLoading ? (
+      {isLoading || isLoadingCRM ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (
@@ -117,7 +148,8 @@ export const Statistics = () => {
           
           <StatsCards 
             taskStats={currentTaskStats} 
-            eventStats={currentEventStats} 
+            eventStats={currentEventStats}
+            customerStats={currentCustomerStats}
           />
 
           <div className="grid gap-4 md:grid-cols-2">
