@@ -1,7 +1,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth } from 'date-fns';
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { BookingChart } from "./Statistics/BookingChart";
 import { IncomeChart } from "./Statistics/IncomeChart";
 import { StatsHeader } from "./Statistics/StatsHeader";
@@ -29,6 +29,19 @@ export const Statistics = () => {
   // Optimized hook usage with proper dependencies
   const { taskStats, eventStats, isLoading } = useStatistics(userId, dateRange);
   const { exportToExcel } = useExcelExport();
+
+  // Add effect to validate eventStats and totalIncome specifically
+  useEffect(() => {
+    if (eventStats) {
+      console.log("Statistics component - Raw eventStats:", { 
+        eventStats,
+        totalIncomeType: typeof eventStats.totalIncome,
+        totalIncomeValue: eventStats.totalIncome,
+        isNumber: typeof eventStats.totalIncome === 'number',
+        isValidNumber: typeof eventStats.totalIncome === 'number' && !isNaN(eventStats.totalIncome)
+      });
+    }
+  }, [eventStats]);
 
   const handleExport = useCallback(() => {
     if (taskStats && eventStats) {
@@ -96,6 +109,12 @@ export const Statistics = () => {
         </div>
       ) : (
         <>
+          {/* Log right before passing to StatsCards */}
+          {console.log("Before rendering StatsCards - currentEventStats:", {
+            totalIncome: currentEventStats.totalIncome,
+            type: typeof currentEventStats.totalIncome
+          })}
+          
           <StatsCards 
             taskStats={currentTaskStats} 
             eventStats={currentEventStats} 

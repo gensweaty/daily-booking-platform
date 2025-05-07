@@ -29,6 +29,9 @@ export const StatCard = ({
     blue: "text-[#3b82f6] border-l-[#3b82f6]",
   };
   
+  // Determine if the value is a financial figure (contains currency symbol)
+  const isCurrencyValue = typeof value === 'string' && /^[₾$€£¥]/.test(value);
+
   return (
     <Card className={cn(
       "p-4 flex flex-col space-y-2 overflow-hidden border-l-4", 
@@ -41,7 +44,12 @@ export const StatCard = ({
         </h3>
       </div>
       <div className={valueClassName || "text-2xl font-bold"}>
-        <LanguageText withFont={typeof value === 'string'}>{value}</LanguageText>
+        {/* For currency values, don't use LanguageText as translation might break display */}
+        {isCurrencyValue ? (
+          <span>{value}</span>
+        ) : (
+          <LanguageText withFont={typeof value === 'string'}>{value}</LanguageText>
+        )}
       </div>
       <p className="text-xs text-muted-foreground">
         <LanguageText>{description}</LanguageText>

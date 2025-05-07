@@ -11,7 +11,7 @@ import {
   BanknoteIcon,
 } from "lucide-react";
 import { LanguageText } from "@/components/shared/LanguageText";
-import { getCurrencySymbol } from "@/lib/currency";
+import { getCurrencySymbol, parsePaymentAmount } from "@/lib/currency";
 
 interface StatsCardsProps {
   taskStats: {
@@ -31,43 +31,45 @@ interface StatsCardsProps {
 export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
   const { t, language } = useLanguage();
   
+  // Early return with warning if eventStats is missing entirely
+  if (!eventStats) {
+    console.warn("StatsCards: eventStats is missing or undefined");
+    return null;
+  }
+  
   // Get the appropriate currency symbol based on language
   const currencySymbol = getCurrencySymbol(language);
 
   // Ensure totalIncome is a valid number - use fallback to 0 if invalid or undefined
   let validTotalIncome = 0;
   
-  if (eventStats.totalIncome !== undefined && eventStats.totalIncome !== null) {
-    // If it's a string, try to parse it
-    if (typeof eventStats.totalIncome === 'string') {
-      try {
-        const parsed = parseFloat(eventStats.totalIncome);
-        validTotalIncome = !isNaN(parsed) ? parsed : 0;
-      } catch (e) {
-        console.error("Failed to parse string income value:", eventStats.totalIncome);
-        validTotalIncome = 0;
-      }
-    } 
-    // If it's already a number, just check it's valid
-    else if (typeof eventStats.totalIncome === 'number') {
-      validTotalIncome = !isNaN(eventStats.totalIncome) ? eventStats.totalIncome : 0;
+  if (eventStats.totalIncome === undefined || eventStats.totalIncome === null) {
+    console.warn("StatsCards: totalIncome is null or undefined, using default 0");
+  } else {
+    // Use our shared utility function to parse the payment amount
+    validTotalIncome = parsePaymentAmount(eventStats.totalIncome);
+    
+    // Additional validation to ensure we have a number
+    if (isNaN(validTotalIncome) || !isFinite(validTotalIncome)) {
+      console.error("StatsCards: Invalid number after parsing:", eventStats.totalIncome);
+      validTotalIncome = 0;
     }
   }
 
   // Format the income value to have 2 decimal places and add currency symbol
-  const formattedIncome = `${currencySymbol}${validTotalIncome.toFixed(2)}`;
+  const formattedIncome = `${currencySymbol}${(validTotalIncome || 0).toFixed(2)}`;
   
   // Choose the appropriate currency icon based on language
   const CurrencyIcon = language === 'es' ? EuroIcon : 
                        language === 'ka' ? BanknoteIcon : DollarSign;
   
-  // For debugging
+  // Enhanced debugging to verify income data at every step
   console.log("StatsCards - Rendering with income data:", {
     rawIncome: eventStats.totalIncome,
-    validTotalIncome,
+    rawIncomeType: typeof eventStats.totalIncome,
+    afterParsing: validTotalIncome,
     formattedIncome,
-    currency: currencySymbol,
-    typeOf: typeof eventStats.totalIncome
+    currency: currencySymbol
   });
 
   return (
