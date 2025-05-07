@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -17,6 +18,8 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getStorageUrl } from "@/integrations/supabase/client";
+import { FileDisplay } from "@/components/shared/FileDisplay";
+import type { FileRecord } from "@/types/files";
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
@@ -53,22 +56,6 @@ export const BookingRequestsList = ({
       setIsDeleteConfirmOpen(false);
       setRequestToDelete(null);
     }
-  };
-
-  const handleAttachmentClick = (filePath: string | undefined) => {
-    if (filePath) {
-      console.log('Opening attachment:', filePath);
-      setSelectedAttachment(filePath);
-      setIsAttachmentDialogOpen(true);
-    }
-  };
-
-  // Get the direct file URL from Supabase storage
-  const getAttachmentUrl = (filePath: string | undefined): string => {
-    if (!filePath) return '';
-    
-    // Use the booking_attachments bucket for booking request files
-    return `${getStorageUrl()}/object/public/booking_attachments/${filePath}`;
   };
 
   // Format payment status for display with proper styling
@@ -208,6 +195,44 @@ export const BookingRequestsList = ({
     );
   }
 
+  // Convert booking request files to FileRecord format for FileDisplay component
+  const mapRequestFilesToFileRecords = (request: BookingRequest): FileRecord[] => {
+    // Start with any directly attached file
+    const files: FileRecord[] = [];
+    
+    // Add direct file if it exists on the request
+    if (request.file_path) {
+      files.push({
+        id: `${request.id}-main`,
+        filename: request.filename || 'file',
+        file_path: request.file_path,
+        content_type: request.content_type || '',
+        size: request.size || 0,
+        created_at: request.created_at,
+        user_id: request.user_id || null,
+        event_id: request.id
+      });
+    }
+    
+    // Add any files from the files array
+    if (request.files && request.files.length > 0) {
+      request.files.forEach(file => {
+        files.push({
+          id: file.id,
+          filename: file.filename,
+          file_path: file.file_path,
+          content_type: file.content_type || '',
+          size: file.size || 0,
+          created_at: request.created_at,
+          user_id: request.user_id || null,
+          event_id: request.id
+        });
+      });
+    }
+    
+    return files;
+  };
+
   // Responsive table view with improved mobile styling
   return (
     <>
@@ -265,11 +290,31 @@ export const BookingRequestsList = ({
                     )}
                   </TableCell>
                   <TableCell className="py-2">
-                    {request.file_path ? (
-                      <Button variant="ghost" size="sm" className="p-1 h-auto" onClick={() => handleAttachmentClick(request.file_path)}>
-                        <Paperclip className="h-4 w-4 mr-1" />
-                        <span className="text-xs truncate max-w-[80px]">{request.filename || 'File'}</span>
-                      </Button>
+                    {(request.file_path || (request.files && request.files.length > 0)) ? (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="gap-1">
+                            <Paperclip className="h-4 w-4" />
+                            <span>
+                              {request.files && request.files.length > 1 
+                                ? `${request.files.length} ${t("common.files")}`
+                                : (request.filename || t("common.attachment"))}
+                            </span>
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>{t("common.attachments")}</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-2 p-2">
+                            <FileDisplay 
+                              files={mapRequestFilesToFileRecords(request)}
+                              bucketName="booking_attachments"
+                              allowDelete={false}
+                            />
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}
@@ -322,30 +367,6 @@ export const BookingRequestsList = ({
           </Table>
         </div>
       </div>
-
-      {/* File Preview Dialog */}
-      <Dialog open={isAttachmentDialogOpen} onOpenChange={setIsAttachmentDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              <LanguageText>{t("business.viewAttachment")}</LanguageText>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="p-2 border rounded">
-            {selectedAttachment && (
-              <a 
-                href={`${getStorageUrl()}/storage/v1/object/public/booking_attachments/${selectedAttachment}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center justify-center py-3 text-primary hover:underline"
-              >
-                <FileText className="mr-2 h-5 w-5" />
-                <LanguageText>{t("business.downloadFile")}</LanguageText>
-              </a>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <AlertDialogContent className="max-w-md">
