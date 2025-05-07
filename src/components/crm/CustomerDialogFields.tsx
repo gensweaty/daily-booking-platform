@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import type { FileRecord } from "@/types/files";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -39,7 +40,7 @@ interface CustomerDialogFieldsProps {
   startDate?: string;
   endDate?: string;
   customerId?: string | null;
-  displayedFiles?: any[];
+  displayedFiles?: FileRecord[];
   onFileDeleted?: (fileId: string) => void;
   eventStartDate: Date;
   setEventStartDate: (date: Date) => void;
@@ -247,13 +248,7 @@ export const CustomerDialogFields = ({
         {displayedFiles && displayedFiles.length > 0 && (
           <div className="mb-4">
             <FileDisplay 
-              files={displayedFiles.map(file => ({
-                id: file.id,
-                filename: file.filename,
-                file_path: file.file_path,
-                content_type: file.content_type,
-                size: file.size
-              }))} 
+              files={displayedFiles} 
               bucketName={bucketName}
               allowDelete={true}
               onFileDeleted={onFileDeleted}
@@ -264,10 +259,10 @@ export const CustomerDialogFields = ({
         )}
         <FileUploadField
           selectedFile={selectedFile}
-          setSelectedFile={setSelectedFile}
-          error={fileError}
-          setError={setFileError}
-          accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          onFileChange={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+          acceptedFileTypes="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         />
       </div>
     </>
