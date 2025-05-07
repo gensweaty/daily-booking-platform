@@ -38,31 +38,13 @@ export const useBookingRequests = () => {
     queryFn: async () => {
       if (!businessId) return [];
       
-      console.log('Fetching booking requests for business:', businessId);
-      
-      // Explicitly select all columns including file fields
       const { data, error } = await supabase
         .from('booking_requests')
-        .select('*, file_path, filename, content_type, size')
+        .select('*')
         .eq('business_id', businessId)
         .order('created_at', { ascending: false });
       
-      if (error) {
-        console.error('Error fetching booking requests:', error);
-        throw error;
-      }
-      
-      console.log('Fetched booking requests data:', data);
-      
-      if (data) {
-        // Log file attachments for debugging
-        data.forEach(request => {
-          if (request.file_path) {
-            console.log(`Request ${request.id} has file: ${request.filename} (${request.file_path})`);
-          }
-        });
-      }
-      
+      if (error) throw error;
       return data || [];
     },
     enabled: !!businessId,
@@ -71,13 +53,6 @@ export const useBookingRequests = () => {
   const pendingRequests = bookingRequests.filter(req => req.status === 'pending');
   const approvedRequests = bookingRequests.filter(req => req.status === 'approved');
   const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected');
-  
-  console.log('Booking requests counts:', {
-    total: bookingRequests.length,
-    pending: pendingRequests.length,
-    approved: approvedRequests.length,
-    rejected: rejectedRequests.length
-  });
   
   async function sendApprovalEmail({ email, fullName, businessName, startDate, endDate, paymentStatus, paymentAmount, businessAddress }: {
     email: string;

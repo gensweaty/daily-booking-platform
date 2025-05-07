@@ -6,7 +6,7 @@ import { BookingRequest } from '@/types/database';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatDate } from 'date-fns';
-import { AlertCircle, Check, X, Trash2, FileText, Paperclip } from "lucide-react";
+import { AlertCircle, Check, X, Trash2, FileText, PaperclipIcon, Paperclip } from "lucide-react";
 import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
@@ -41,9 +41,6 @@ export const BookingRequestsList = ({
   
   const [selectedAttachment, setSelectedAttachment] = useState<string | null>(null);
   const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
-
-  // Debug logs to check requests data
-  console.log(`BookingRequestsList - ${type} requests:`, requests);
 
   const handleDeleteClick = (id: string) => {
     setRequestToDelete(id);
@@ -164,7 +161,7 @@ export const BookingRequestsList = ({
     return <LanguageText>{t(key)}</LanguageText>;
   };
 
-  if (!requests || requests.length === 0) {
+  if (requests.length === 0) {
     return (
       <div className="text-center p-10 border border-dashed rounded-lg">
         <div className="flex justify-center mb-4">

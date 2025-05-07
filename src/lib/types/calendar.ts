@@ -21,7 +21,6 @@ export interface CalendarEventType {
   description?: string;
   file?: File;
   deleted_at?: string; 
-  // Enhanced file attachment fields
   file_path?: string;
   filename?: string;
   content_type?: string;
