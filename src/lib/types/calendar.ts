@@ -26,4 +26,12 @@ export interface CalendarEventType {
   content_type?: string;
   size?: number;
   checkAvailability?: boolean;
+  files?: Array<{
+    id: string;
+    event_id: string;
+    filename: string;
+    file_path: string;
+    content_type?: string;
+    size?: number;
+  }>;
 }

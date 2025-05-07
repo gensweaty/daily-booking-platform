@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -17,6 +16,7 @@ import {
   Table, TableHeader, TableRow, TableHead, TableBody, TableCell 
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { getStorageUrl } from "@/integrations/supabase/client";
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
@@ -57,9 +57,18 @@ export const BookingRequestsList = ({
 
   const handleAttachmentClick = (filePath: string | undefined) => {
     if (filePath) {
+      console.log('Opening attachment:', filePath);
       setSelectedAttachment(filePath);
       setIsAttachmentDialogOpen(true);
     }
+  };
+
+  // Get the direct file URL from Supabase storage
+  const getAttachmentUrl = (filePath: string | undefined): string => {
+    if (!filePath) return '';
+    
+    // Use the booking_attachments bucket for booking request files
+    return `${getStorageUrl()}/object/public/booking_attachments/${filePath}`;
   };
 
   // Format payment status for display with proper styling
@@ -325,7 +334,7 @@ export const BookingRequestsList = ({
           <div className="p-2 border rounded">
             {selectedAttachment && (
               <a 
-                href={`https://mrueqpffzauvdxmuwhfa.supabase.co/storage/v1/object/public/booking_attachments/${selectedAttachment}`} 
+                href={`${getStorageUrl()}/storage/v1/object/public/booking_attachments/${selectedAttachment}`} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="flex items-center justify-center py-3 text-primary hover:underline"

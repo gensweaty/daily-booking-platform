@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -33,23 +34,90 @@ export const useBookingRequests = () => {
     fetchBusinessProfile();
   }, [user]);
   
-  const { data: bookingRequests = [], isLoading, error } = useQuery({
+  const { data: bookingRequestsData = [], isLoading, error } = useQuery({
     queryKey: ['booking_requests', businessId],
     queryFn: async () => {
       if (!businessId) return [];
       
-      const { data, error } = await supabase
+      console.log('Fetching booking requests with files for business_id:', businessId);
+      
+      // Fetch booking requests
+      const { data: requests, error: requestsError } = await supabase
         .from('booking_requests')
         .select('*')
         .eq('business_id', businessId)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
-      return data || [];
+      if (requestsError) {
+        console.error('Error fetching booking requests:', requestsError);
+        throw requestsError;
+      }
+      
+      if (!requests || requests.length === 0) {
+        console.log('No booking requests found');
+        return [];
+      }
+      
+      console.log(`Found ${requests.length} booking requests`);
+      
+      // Fetch files for all booking requests using event_files table
+      // Files for booking requests are stored with event_id matching the booking request ID
+      const requestIds = requests.map(req => req.id);
+      
+      const { data: filesData, error: filesError } = await supabase
+        .from('event_files')
+        .select('*')
+        .in('event_id', requestIds);
+      
+      if (filesError) {
+        console.error('Error fetching booking request files:', filesError);
+        // Don't throw here, just proceed without files
+      }
+      
+      const filesMap = new Map();
+      
+      if (filesData && filesData.length > 0) {
+        console.log(`Found ${filesData.length} files for booking requests`);
+        
+        // Create a map of booking request ID to files
+        filesData.forEach(file => {
+          if (!filesMap.has(file.event_id)) {
+            filesMap.set(file.event_id, []);
+          }
+          filesMap.get(file.event_id).push(file);
+        });
+      } else {
+        console.log('No files found for booking requests');
+      }
+      
+      // Enrich requests with files information
+      return requests.map(request => {
+        const files = filesMap.get(request.id) || [];
+        
+        // If we have files, add the first file's info directly to the request object
+        // This maintains compatibility with the existing UI
+        if (files.length > 0) {
+          const firstFile = files[0];
+          return {
+            ...request,
+            filename: firstFile.filename,
+            file_path: firstFile.file_path,
+            content_type: firstFile.content_type,
+            size: firstFile.size,
+            files: files // Add all files array for future use if needed
+          };
+        }
+        
+        return request;
+      });
     },
     enabled: !!businessId,
   });
   
+  // Extract the booking requests from the data
+  const bookingRequests = bookingRequestsData || [];
+  
+  // Filter requests by status
   const pendingRequests = bookingRequests.filter(req => req.status === 'pending');
   const approvedRequests = bookingRequests.filter(req => req.status === 'approved');
   const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected');
