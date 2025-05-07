@@ -27,7 +27,6 @@ export const FileDisplay = ({
 }: FileDisplayProps) => {
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [fileURLs, setFileURLs] = useState<{[key: string]: string}>({});
-  const [fileExists, setFileExists] = useState<{[key: string]: boolean}>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t } = useLanguage();
@@ -41,74 +40,24 @@ export const FileDisplay = ({
     return acc;
   }, []);
 
-  // Alternative buckets to check if the primary bucket fails
-  const alternativeBuckets = ['event_attachments', 'booking_attachments', 'customer_attachments'];
-
   useEffect(() => {
     // Debug the files we're trying to display
     console.log("FileDisplay - Files to process:", uniqueFiles);
-    console.log("FileDisplay - Using bucket:", bucketName);
     
-    const checkFileExistsAndSetURLs = async () => {
-      const newURLs: {[key: string]: string} = {};
-      const existsMap: {[key: string]: boolean} = {};
-      
-      for (const file of uniqueFiles) {
-        if (file.file_path) {
-          const normalizedPath = normalizeFilePath(file.file_path);
-          
-          // First try with the provided bucket
-          let fileExistsInBucket = await checkFileExists(bucketName, normalizedPath);
-          let effectiveBucket = bucketName;
-          
-          // If file doesn't exist in the provided bucket, try alternative buckets
-          if (!fileExistsInBucket) {
-            for (const altBucket of alternativeBuckets) {
-              if (altBucket !== bucketName) {
-                fileExistsInBucket = await checkFileExists(altBucket, normalizedPath);
-                if (fileExistsInBucket) {
-                  console.log(`File ${file.filename}: Found in alternate bucket ${altBucket} instead of ${bucketName}`);
-                  effectiveBucket = altBucket;
-                  break;
-                }
-              }
-            }
-          }
-          
-          console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${normalizedPath}, exists: ${fileExistsInBucket}`);
-          existsMap[file.id] = fileExistsInBucket;
-          newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
-        }
+    const newURLs: {[key: string]: string} = {};
+    uniqueFiles.forEach(file => {
+      if (file.file_path) {
+        const normalizedPath = normalizeFilePath(file.file_path);
+        
+        // Use the provided bucket name instead of hardcoding
+        // This allows the parent component to specify the correct bucket
+        console.log(`File ${file.filename}: Using bucket ${bucketName} for path ${normalizedPath}`);
+        
+        newURLs[file.id] = `${getStorageUrl()}/object/public/${bucketName}/${normalizedPath}`;
       }
-      
-      setFileURLs(newURLs);
-      setFileExists(existsMap);
-    };
-    
-    checkFileExistsAndSetURLs();
+    });
+    setFileURLs(newURLs);
   }, [uniqueFiles, bucketName]);
-
-  // Function to check if a file exists in a bucket
-  const checkFileExists = async (bucket: string, path: string): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase.storage.from(bucket).download(path, {
-        transform: {
-          width: 10, // Request a tiny thumbnail just to check existence
-          height: 10
-        }
-      });
-      
-      if (error) {
-        console.log(`File check error for ${path} in ${bucket}:`, error);
-        return false;
-      }
-      
-      return true;
-    } catch (error) {
-      console.error(`Error checking file existence for ${path} in ${bucket}:`, error);
-      return false;
-    }
-  };
 
   const getFileExtension = (filename: string): string => {
     return filename.split('.').pop()?.toLowerCase() || '';
@@ -137,8 +86,10 @@ export const FileDisplay = ({
     try {
       console.log(`Attempting to download file: ${fileName}, path: ${filePath}, fileId: ${fileId}, bucket: ${bucketName}`);
       
+      // Use the bucket name provided in props
       const normalizedPath = normalizeFilePath(filePath);
-      const directUrl = fileURLs[fileId];
+      const directUrl = fileURLs[fileId] || 
+        `${getStorageUrl()}/object/public/${bucketName}/${normalizedPath}`;
       
       console.log('Using direct URL for download:', directUrl);
       
@@ -191,8 +142,8 @@ export const FileDisplay = ({
       return fileURLs[fileId];
     }
     
-    // This is a fallback but should rarely be used since we pre-compute URLs
     const normalizedPath = normalizeFilePath(filePath);
+    // Use the bucket name from props
     return `${getStorageUrl()}/object/public/${bucketName}/${normalizedPath}`;
   };
 
@@ -303,17 +254,18 @@ export const FileDisplay = ({
           ? file.filename.substring(0, 20) + '...' 
           : file.filename;
         
-        // Use the URL from our state that points to the correct bucket
-        const imageUrl = fileURLs[file.id] || '';
-        const fileAvailable = fileExists[file.id] !== false;
+        // Use the bucket name from props for URLs
+        const normalizedPath = normalizeFilePath(file.file_path);
+        const imageUrl = fileURLs[file.id] || 
+          `${getStorageUrl()}/object/public/${bucketName}/${normalizedPath}`;
           
-        console.log(`Rendering file: ${file.filename}, URL: ${imageUrl}, available: ${fileAvailable}`);
+        console.log(`Rendering file: ${file.filename}, URL: ${imageUrl}, bucket: ${bucketName}`);
           
         return (
           <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">
             <div className="p-3 flex items-center justify-between">
               <div className="flex items-center space-x-2 overflow-hidden">
-                {isImage(file.filename) && fileAvailable ? (
+                {isImage(file.filename) ? (
                   <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                     <img 
                       src={imageUrl}
@@ -331,22 +283,17 @@ export const FileDisplay = ({
                   </div>
                 )}
                 <span className="truncate text-sm">{fileNameDisplay}</span>
-                {!fileAvailable && (
-                  <span className="text-xs text-red-500">(File unavailable)</span>
-                )}
               </div>
               <div className="flex space-x-1">
-                {fileAvailable && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDownload(file.file_path, file.filename, file.id)}
-                    title={t("common.download")}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDownload(file.file_path, file.filename, file.id)}
+                  title={t("common.download")}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
                 {allowDelete && (
                   <Button
                     type="button"
@@ -362,17 +309,15 @@ export const FileDisplay = ({
               </div>
             </div>
             
-            {fileAvailable && (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full rounded-none border-t flex items-center justify-center gap-2 py-1.5"
-                onClick={() => handleOpenFile(file.file_path, file.id)}
-              >
-                <ExternalLink className="h-4 w-4" />
-                {t("crm.open")}
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full rounded-none border-t flex items-center justify-center gap-2 py-1.5"
+              onClick={() => handleOpenFile(file.file_path, file.id)}
+            >
+              <ExternalLink className="h-4 w-4" />
+              {t("crm.open")}
+            </Button>
           </div>
         );
       })}

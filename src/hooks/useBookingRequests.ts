@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -344,7 +345,6 @@ export const useBookingRequests = () => {
           try {
             console.log(`Processing file: ${file.filename}, path: ${file.file_path}`);
             
-            // 1. Download file from booking_attachments
             const { data: fileData, error: fileError } = await supabase.storage
               .from('booking_attachments')
               .download(file.file_path);
@@ -355,63 +355,49 @@ export const useBookingRequests = () => {
             }
             
             const newFilePath = `${Date.now()}_${file.filename.replace(/\s+/g, '_')}`;
-            
-            // 2. Upload to event_attachments
-            const { error: uploadEventError } = await supabase.storage
+            const { error: uploadError } = await supabase.storage
               .from('event_attachments')
               .upload(newFilePath, fileData);
               
-            if (uploadEventError) {
-              console.error('Error uploading file to event_attachments:', uploadEventError);
-            } else {
-              console.log(`Successfully copied file to event_attachments/${newFilePath}`);
+            if (uploadError) {
+              console.error('Error uploading file to event_attachments:', uploadError);
+              continue;
+            }
+            
+            console.log(`Successfully copied file to event_attachments/${newFilePath}`);
+            
+            // Create file record in event_files for the newly created event
+            const { error: eventFileError } = await supabase
+              .from('event_files')
+              .insert({
+                filename: file.filename,
+                file_path: newFilePath,
+                content_type: file.content_type,
+                size: file.size,
+                user_id: user?.id,
+                event_id: eventData.id
+              });
               
-              // Create file record in event_files for the newly created event
-              const { error: eventFileError } = await supabase
-                .from('event_files')
+            if (eventFileError) {
+              console.error('Error creating event file record:', eventFileError);
+            } else {
+              console.log('Successfully created event file record');
+            }
+            
+            if (customerData) {
+              const { error: customerFileError } = await supabase
+                .from('customer_files_new')
                 .insert({
                   filename: file.filename,
                   file_path: newFilePath,
                   content_type: file.content_type,
                   size: file.size,
                   user_id: user?.id,
-                  event_id: eventData.id
+                  customer_id: customerData.id
                 });
                 
-              if (eventFileError) {
-                console.error('Error creating event file record:', eventFileError);
-              } else {
-                console.log('Successfully created event file record');
-              }
-            }
-            
-            // 3. Upload to customer_attachments if customer was created
-            if (customerData) {
-              const { error: uploadCustomerError } = await supabase.storage
-                .from('customer_attachments')
-                .upload(newFilePath, fileData);
-                
-              if (uploadCustomerError) {
-                console.error('Error uploading file to customer_attachments:', uploadCustomerError);
-              } else {
-                console.log(`Successfully copied file to customer_attachments/${newFilePath}`);
-                
-                const { error: customerFileError } = await supabase
-                  .from('customer_files_new')
-                  .insert({
-                    filename: file.filename,
-                    file_path: newFilePath,
-                    content_type: file.content_type,
-                    size: file.size,
-                    user_id: user?.id,
-                    customer_id: customerData.id
-                  });
-                  
-                if (customerFileError) {
-                  console.error('Error creating customer file record:', customerFileError);
-                } else {
-                  console.log('Successfully created customer file record');
-                }
+              if (customerFileError) {
+                console.error('Error creating customer file record:', customerFileError);
               }
             }
           } catch (error) {
@@ -425,7 +411,6 @@ export const useBookingRequests = () => {
         try {
           console.log(`Processing direct file from booking request: ${booking.filename || 'unnamed'}, path: ${booking.file_path}`);
           
-          // 1. Download file from booking_attachments
           const { data: fileData, error: fileError } = await supabase.storage
             .from('booking_attachments')
             .download(booking.file_path);
@@ -434,14 +419,12 @@ export const useBookingRequests = () => {
             console.error('Error downloading direct file from booking_attachments:', fileError);
           } else if (fileData) {
             const newFilePath = `${Date.now()}_${(booking.filename || 'attachment').replace(/\s+/g, '_')}`;
-            
-            // 2. Upload to event_attachments
-            const { error: uploadEventError } = await supabase.storage
+            const { error: uploadError } = await supabase.storage
               .from('event_attachments')
               .upload(newFilePath, fileData);
               
-            if (uploadEventError) {
-              console.error('Error uploading direct file to event_attachments:', uploadEventError);
+            if (uploadError) {
+              console.error('Error uploading direct file to event_attachments:', uploadError);
             } else {
               console.log(`Successfully copied direct file to event_attachments/${newFilePath}`);
               
@@ -462,19 +445,8 @@ export const useBookingRequests = () => {
               } else {
                 console.log('Successfully created event file record for direct file');
               }
-            }
-            
-            // 3. Upload to customer_attachments if customer was created
-            if (customerData) {
-              const { error: uploadCustomerError } = await supabase.storage
-                .from('customer_attachments')
-                .upload(newFilePath, fileData);
-                
-              if (uploadCustomerError) {
-                console.error('Error uploading direct file to customer_attachments:', uploadCustomerError);
-              } else {
-                console.log(`Successfully copied direct file to customer_attachments/${newFilePath}`);
-                
+              
+              if (customerData) {
                 const { error: customerFileError } = await supabase
                   .from('customer_files_new')
                   .insert({
@@ -488,8 +460,6 @@ export const useBookingRequests = () => {
                   
                 if (customerFileError) {
                   console.error('Error creating customer file record for direct file:', customerFileError);
-                } else {
-                  console.log('Successfully created customer file record for direct file');
                 }
               }
             }
