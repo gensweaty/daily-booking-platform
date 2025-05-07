@@ -114,9 +114,6 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   // Display existing image if provided
   const hasImage = !!imageUrl;
   
-  // Process accepted file types
-  const acceptAttr = acceptedFileTypes || [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",");
-  
   return <div className={`${hideLabel && hideDescription ? '' : 'space-y-2'}`}>
       {!hideLabel && <label htmlFor="file" className="block text-gray-700">
           <LanguageText>{uploadText || t("calendar.attachment")}</LanguageText>
@@ -126,7 +123,7 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
           <img src={imageUrl} alt="Preview" className="max-h-40 rounded-md object-cover" />
         </div>}
       
-      <Input id="file" type="file" onChange={handleFileChange} accept={acceptAttr} className="cursor-pointer bg-background border-gray-300" onClick={e => {
+      <Input id="file" type="file" onChange={handleFileChange} accept={acceptedFileTypes || [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")} className="cursor-pointer bg-background border-gray-300" onClick={e => {
       // Reset value before opening to ensure onChange triggers even if same file is selected
       (e.target as HTMLInputElement).value = '';
     }} disabled={disabled || isUploading} ref={ref} />
