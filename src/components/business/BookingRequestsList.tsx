@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -291,30 +290,11 @@ export const BookingRequestsList = ({
                   </TableCell>
                   <TableCell className="py-2">
                     {(request.file_path || (request.files && request.files.length > 0)) ? (
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm" className="gap-1">
-                            <Paperclip className="h-4 w-4" />
-                            <span>
-                              {request.files && request.files.length > 1 
-                                ? `${request.files.length} ${t("common.files")}`
-                                : (request.filename || t("common.attachment"))}
-                            </span>
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>{t("common.attachments")}</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-2 p-2">
-                            <FileDisplay 
-                              files={mapRequestFilesToFileRecords(request)}
-                              bucketName="booking_attachments"
-                              allowDelete={false}
-                            />
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                      <FileDisplay 
+                        files={mapRequestFilesToFileRecords(request)}
+                        bucketName="event_attachments"
+                        allowDelete={false}
+                      />
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}

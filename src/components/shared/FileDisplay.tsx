@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink, FileText, FileSpreadsheet, PresentationIcon } from "lucide-react";
@@ -47,7 +46,7 @@ export const FileDisplay = ({
         const normalizedPath = normalizeFilePath(file.file_path);
         // Always use event_attachments for all files regardless of the type
         const effectiveBucket = "event_attachments";
-        console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${file.file_path}`);
+        console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${normalizedPath}`);
         newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
       }
     });
@@ -75,11 +74,6 @@ export const FileDisplay = ({
     }
     
     return <FileIcon className="h-5 w-5" />;
-  };
-
-  const determineEffectiveBucket = (filePath: string, parentType?: string, source?: string): string => {
-    // Always return event_attachments for all file operations
-    return "event_attachments";
   };
 
   const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
@@ -243,81 +237,81 @@ export const FileDisplay = ({
     return null;
   }
 
+  // Display a compact layout for an inline view that shows just the filename
+  // with an expandable view for more options
   return (
     <div className="space-y-2">
-      <div className="space-y-2">
-        {uniqueFiles.map((file) => {
-          if (!file.file_path) return null;
+      {uniqueFiles.map((file) => {
+        if (!file.file_path) return null;
+        
+        const fileNameDisplay = file.filename && file.filename.length > 20 
+          ? file.filename.substring(0, 20) + '...' 
+          : file.filename;
+        
+        // Always use event_attachments for the URL
+        const imageUrl = fileURLs[file.id] || 
+          `${getStorageUrl()}/object/public/event_attachments/${normalizeFilePath(file.file_path)}`;
           
-          const fileNameDisplay = file.filename && file.filename.length > 20 
-            ? file.filename.substring(0, 20) + '...' 
-            : file.filename;
-          
-          // Always use event_attachments for the URL
-          const imageUrl = fileURLs[file.id] || 
-            `${getStorageUrl()}/object/public/event_attachments/${normalizeFilePath(file.file_path)}`;
-            
-          return (
-            <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">
-              <div className="p-3 flex items-center justify-between">
-                <div className="flex items-center space-x-2 overflow-hidden">
-                  {isImage(file.filename) ? (
-                    <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
-                      <img 
-                        src={imageUrl}
-                        alt={file.filename}
-                        className="h-full w-full object-cover"
-                        onError={(e) => {
-                          console.error('Image failed to load', e, 'URL:', imageUrl);
-                          e.currentTarget.src = '/placeholder.svg';
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
-                      {getFileIcon(file.filename)}
-                    </div>
-                  )}
-                  <span className="truncate text-sm">{fileNameDisplay}</span>
-                </div>
-                <div className="flex space-x-1">
+        return (
+          <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">
+            <div className="p-3 flex items-center justify-between">
+              <div className="flex items-center space-x-2 overflow-hidden">
+                {isImage(file.filename) ? (
+                  <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
+                    <img 
+                      src={imageUrl}
+                      alt={file.filename}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        console.error('Image failed to load', e, 'URL:', imageUrl);
+                        e.currentTarget.src = '/placeholder.svg';
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
+                    {getFileIcon(file.filename)}
+                  </div>
+                )}
+                <span className="truncate text-sm">{fileNameDisplay}</span>
+              </div>
+              <div className="flex space-x-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDownload(file.file_path, file.filename, file.id)}
+                  title={t("common.download")}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+                {allowDelete && (
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleDownload(file.file_path, file.filename, file.id)}
-                    title={t("common.download")}
+                    onClick={() => handleDelete(file.id, file.file_path)}
+                    disabled={deletingFileId === file.id}
+                    title={t("common.delete")}
                   >
-                    <Download className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4 text-red-500" />
                   </Button>
-                  {allowDelete && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(file.id, file.file_path)}
-                      disabled={deletingFileId === file.id}
-                      title={t("common.delete")}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  )}
-                </div>
+                )}
               </div>
-              
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full rounded-none border-t flex items-center justify-center gap-2 py-1.5"
-                onClick={() => handleOpenFile(file.file_path, file.id)}
-              >
-                <ExternalLink className="h-4 w-4" />
-                {t("crm.open")}
-              </Button>
             </div>
-          );
-        })}
-      </div>
+            
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full rounded-none border-t flex items-center justify-center gap-2 py-1.5"
+              onClick={() => handleOpenFile(file.file_path, file.id)}
+            >
+              <ExternalLink className="h-4 w-4" />
+              {t("crm.open")}
+            </Button>
+          </div>
+        );
+      })}
     </div>
   );
 };
