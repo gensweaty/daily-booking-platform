@@ -249,6 +249,9 @@ const en: TranslationType = {
     financialSummary: "Financial Summary",
     summaryStatistics: "Summary Statistics",
     eventsData: "Events Data",
+    totalCustomers: "Total Customers",
+    withBooking: "with booking",
+    withoutBooking: "without booking"
   },
   events: {
     submitBookingRequest: "Submit Booking Request",

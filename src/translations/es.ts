@@ -248,6 +248,9 @@ export const es: TranslationType = {
     financialSummary: "Resumen Financiero",
     summaryStatistics: "Estadísticas de Resumen",
     eventsData: "Datos de Eventos",
+    totalCustomers: "Total de Clientes",
+    withBooking: "con reserva",
+    withoutBooking: "sin reserva"
   },
   events: {
     submitBookingRequest: "Enviar Solicitud de Reserva",

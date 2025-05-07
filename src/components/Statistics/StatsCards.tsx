@@ -80,8 +80,11 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
   // Format the task details to show completed, in progress, and todo
   const taskDetailsText = `${taskStats.completed} ${t("dashboard.completed")}, ${taskStats.inProgress} ${t("dashboard.inProgress")}, ${taskStats.todo} ${t("dashboard.todo")}`;
 
-  // Format the customer details text
-  const customerDetailsText = `${customerStats.withBooking} ${t("dashboard.withBooking")}, ${customerStats.withoutBooking} ${t("dashboard.withoutBooking")}`;
+  // Format the customer details text using proper translations
+  // Using separate translation keys for "with booking" and "without booking"
+  const withBookingText = t("dashboard.withBooking");
+  const withoutBookingText = t("dashboard.withoutBooking");
+  const customerDetailsText = `${customerStats.withBooking} ${withBookingText}, ${customerStats.withoutBooking} ${withoutBookingText}`;
 
   return (
     <div className="grid gap-4 md:grid-cols-4">

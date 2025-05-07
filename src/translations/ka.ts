@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const ka: TranslationType = {
@@ -54,7 +53,7 @@ export const ka: TranslationType = {
     endDateTime: "დასრულების თარიღი და დრო",
     eventNotes: "შენიშვნები",
     addEventNotes: "დაამატეთ შენიშვნები თქვენს ჯავშანზე",
-    editEvent: "ჯავშნის რედაქტირება",
+    editEvent: "ჯავშნის რედაქტირე���ა",
     addNewEvent: "ახალი ჯავშნის დამატება",
     updateEvent: "ჯავშნის განახლება",
     createEvent: "ჯავშნის შექმნა",
@@ -148,7 +147,7 @@ export const ka: TranslationType = {
     copyError: "შეცდომა ტექსტის კოპირებისას",
     deleteSuccess: "წარმატებით წაიშალა",
     deleteError: "შეცდომა წაშლისას",
-    missingUserInfo: "აკლია მომხმარებლის ინფორმაცია",
+    missingUserInfo: "აკლია მომხმარებლის ინფორმაციი",
     noDataToExport: "არ არის მონაცემები ექსპორტისთვის",
     error: "შეცდომა"
   },
@@ -214,7 +213,10 @@ export const ka: TranslationType = {
     eventStatistics: "ღონისძიებების სტატისტიკა",
     financialSummary: "ფინანსური შეჯამება",
     summaryStatistics: "შეჯამების სტატისტიკა",
-    eventsData: "ღონიძიებების მონაცემები"
+    eventsData: "ღონიძიებების მონაცემები",
+    totalCustomers: "სულ მომხმარებლები",
+    withBooking: "ჯავშნით",
+    withoutBooking: "ჯავშნის გარეშე"
   },
   nav: {
     signin: "შესვლა",
@@ -257,7 +259,7 @@ export const ka: TranslationType = {
     newRequest: "ხალი ჯავშნის მოთხოვნა"
   },
   analytics: {
-    title: "ყოვლისმომცველი ანალიტიკა",
+    title: "ყოვლისმომცველი ა��ალიტიკა",
     description: "თვალყური ადევნეთ თქვენს მუშაობას და ზრდას",
     feature1: "ჯავშნებისა და შემოსავლის ანალიტიკა",
     feature2: "მორგებული თარიღის დიაპაზონის ფილტრაცია",
@@ -342,7 +344,7 @@ export const ka: TranslationType = {
     address: "მისამართი",
     updateProfile: "პროფილის განახლება",
     availableTimes: "ხელმისაწვდომი დროები",
-    clickToRequest: "დააწკაპუნეთ ნებისმიერ დროზე ჯავშნის მოთხოვნისთვის",
+    clickToRequest: "დააწკაპ��ნეთ ნებისმიერ დროზე ჯავშნის მოთხოვნისთვის",
     contactInformation: "საკონტაქტო ინფორმაცია"
   },
   auth: {
@@ -390,7 +392,7 @@ export const ka: TranslationType = {
     redeemCodeOptional: "გამოსყიდვის კოდი (არასავალდებულო)",
     enterRedeemCode: "შეიყვანეთ თქვენი გამოსყიდვის კოდი",
     sendResetLink: "პაროლის აღდგენის ბმულის გაგზავნა",
-    backToSignIn: "დაბრუნება შესვლაზე",
+    backToSignIn: "დაბრუნ��ბა შესვლაზე",
     passwordsDoNotMatch: "პაროლები არ ემთხვევა",
     passwordTooShort: "პაროლი ძალიან მოკლეა",
     verificationRequired: "მნიშვნელოვანი: რეგისტრაციის შემდეგ, თქვენ უნდა დააწკაპუნოთ თქვენს ელ-ფოსტაზე გამოგზავნილ ვერიფიკაციის ბმულზე თქვენი ანგარიშის გასააქტიურებლად.",
@@ -434,7 +436,7 @@ export const ka: TranslationType = {
     title: "წესები და კონფიდენციალურობის პოლიტიკა",
     lastUpdated: "ბოლოს განახლდა: {{date}}",
     termsOfService: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში. ეს მომსახურების პირობები ('პირობები') არეგულირებს ჩვენი SaaS პლატფორმისა და სერვისების ('სერვისები') გამოყენებას. ჩვენი სერვისების წვდომით ან გამოყენებით თქვენ ეთანხმებით ამ პირობებს. თუ არ ეთანხმებით, გთხოვთ, არ გამოიყენოთ ჩვენი სერვისები.",
-    welcomeText: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში. ეს მომსახურების პირობები ('პირობები') არეგულირებს ჩვენი SaaS პლატფორმისა და სერვისების ('სერვისები') გამოყენებას.",
+    welcomeText: "კ��თილი იყოს თქვენი მობრძანება SmartBookly-ში. ეს მომსახურების პირობები ('პირობები') არეგულირებს ჩვენი SaaS პლატფორმისა და სერვისების ('სერვისები') გამოყენებას.",
     generalInfo: {
       title: "1. ზოგადი ინფორმაცია",
       companyName: "კომპანიის სახელი: SmartBookly",
