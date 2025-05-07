@@ -47,14 +47,13 @@ export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
                        language === 'ka' ? BanknoteIcon : DollarSign;
   
   // For debugging
-  console.log("StatsCards - Rendering with event stats:", {
-    total: eventStats.total,
-    partlyPaid: eventStats.partlyPaid,
-    fullyPaid: eventStats.fullyPaid,
-    totalIncome: eventStats.totalIncome,
+  console.log("StatsCards - Rendering with income data:", {
+    rawIncome: eventStats.totalIncome,
     safeIncome,
     formattedIncome,
-    currency: currencySymbol
+    currency: currencySymbol,
+    isValid: typeof eventStats.totalIncome === 'number' && !isNaN(eventStats.totalIncome),
+    typeOf: typeof eventStats.totalIncome
   });
 
   return (
