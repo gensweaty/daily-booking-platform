@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
@@ -132,7 +133,7 @@ export const HeroSection = () => {
                 </Link>
                 <Link to="/signup">
                   <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm md:text-base">
-                    {language === 'ka' ? "მოგზაურობის დაწყება" : t('nav.startJourney')}
+                    {language === 'ka' ? "გამოსცადეთ უფასოდ" : t('nav.startJourney')}
                   </Button>
                 </Link>
                 <Link to="/contact">
@@ -151,7 +152,7 @@ export const HeroSection = () => {
                 </Link>
                 <Link to="/signup" onClick={handleMenuClose} role="menuitem">
                   <Button className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90">
-                    {language === 'ka' ? "მოგზაურობის დაწყება" : t('nav.startJourney')}
+                    {language === 'ka' ? "გამოსცადეთ უფასოდ" : t('nav.startJourney')}
                   </Button>
                 </Link>
                 <Link to="/contact" onClick={handleMenuClose} role="menuitem">
@@ -179,7 +180,7 @@ export const HeroSection = () => {
                 <Link to="/signup">
                   <Button size={isMobile ? "default" : "lg"} className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
                     <span className="flex items-center gap-2">
-                      {language === 'ka' ? "მოგზაურობის დაწყება" : t('nav.startJourney')}
+                      {language === 'ka' ? "გამოსცადეთ უფასოდ" : t('nav.startJourney')}
                       <Sparkles className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} animate-pulse`} aria-hidden="true" />
                     </span>
                   </Button>
@@ -199,3 +200,4 @@ export const HeroSection = () => {
       </header>
     </>;
 };
+
