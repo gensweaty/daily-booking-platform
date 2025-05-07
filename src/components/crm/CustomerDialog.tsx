@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -132,6 +131,7 @@ export const CustomerDialog = ({
           }
         }
 
+        console.log("Files loaded for customer/event:", filesData);
         setDisplayedFiles(filesData);
       } catch (error) {
         console.error("Error loading files:", error);
@@ -614,6 +614,9 @@ export const CustomerDialog = ({
               setEventStartDate={setEventStartDate}
               eventEndDate={eventEndDate}
               setEventEndDate={setEventEndDate}
+              // Pass fallback buckets to check for files
+              fileBucketName={customerId?.startsWith('event-') ? "event_attachments" : "customer_attachments"}
+              fallbackBuckets={["event_attachments", "customer_attachments", "booking_attachments"]}
             />
 
             <div className="flex justify-between">

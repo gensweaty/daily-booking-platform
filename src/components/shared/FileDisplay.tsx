@@ -15,6 +15,7 @@ interface FileDisplayProps {
   onFileDeleted?: (fileId: string) => void;
   parentId?: string;
   parentType?: string;
+  fallbackBuckets?: string[]; // Add fallback buckets to try if the file is not found in the primary bucket
 }
 
 export const FileDisplay = ({ 
@@ -23,10 +24,12 @@ export const FileDisplay = ({
   allowDelete = false, 
   onFileDeleted,
   parentId,
-  parentType
+  parentType,
+  fallbackBuckets = []
 }: FileDisplayProps) => {
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [fileURLs, setFileURLs] = useState<{[key: string]: string}>({});
+  const [validatedBuckets, setValidatedBuckets] = useState<{[key: string]: string}>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t } = useLanguage();
@@ -40,24 +43,73 @@ export const FileDisplay = ({
     return acc;
   }, []);
 
+  // Add a function to validate file existence in a bucket
+  const checkFileExistence = async (bucket: string, filePath: string): Promise<boolean> => {
+    try {
+      const normalizedPath = normalizeFilePath(filePath);
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(normalizedPath, 5); // Short 5 second signed URL just to check existence
+      
+      if (error || !data) {
+        console.log(`File doesn't exist in ${bucket}:`, normalizedPath);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error(`Error checking file in ${bucket}:`, error);
+      return false;
+    }
+  };
+
   useEffect(() => {
     // Debug the files we're trying to display
     console.log("FileDisplay - Files to process:", uniqueFiles);
+    console.log("FileDisplay - Primary bucket:", bucketName);
+    console.log("FileDisplay - Fallback buckets:", fallbackBuckets);
     
-    const newURLs: {[key: string]: string} = {};
-    uniqueFiles.forEach(file => {
-      if (file.file_path) {
+    const determineBucketsAndUrls = async () => {
+      const newURLs: {[key: string]: string} = {};
+      const newBuckets: {[key: string]: string} = {};
+      
+      for (const file of uniqueFiles) {
+        if (!file.file_path) continue;
+        
         const normalizedPath = normalizeFilePath(file.file_path);
+        const allBuckets = [bucketName, ...fallbackBuckets];
+        let foundBucket = null;
         
-        // Use the provided bucket name instead of hardcoding
-        // This allows the parent component to specify the correct bucket
-        console.log(`File ${file.filename}: Using bucket ${bucketName} for path ${normalizedPath}`);
+        // First try the primary bucket
+        for (const bucket of allBuckets) {
+          console.log(`Checking if file ${file.filename} exists in ${bucket} at ${normalizedPath}`);
+          const exists = await checkFileExistence(bucket, normalizedPath);
+          
+          if (exists) {
+            foundBucket = bucket;
+            console.log(`File found in ${bucket}`);
+            break;
+          }
+        }
         
-        newURLs[file.id] = `${getStorageUrl()}/object/public/${bucketName}/${normalizedPath}`;
+        // If we found a bucket where the file exists, use it
+        if (foundBucket) {
+          newBuckets[file.id] = foundBucket;
+          newURLs[file.id] = `${getStorageUrl()}/object/public/${foundBucket}/${normalizedPath}`;
+        } else {
+          // If we didn't find the file in any bucket, default to the primary
+          console.log(`File not found in any bucket, defaulting to ${bucketName}`);
+          newBuckets[file.id] = bucketName;
+          newURLs[file.id] = `${getStorageUrl()}/object/public/${bucketName}/${normalizedPath}`;
+        }
       }
-    });
-    setFileURLs(newURLs);
-  }, [uniqueFiles, bucketName]);
+      
+      setValidatedBuckets(newBuckets);
+      setFileURLs(newURLs);
+    };
+    
+    determineBucketsAndUrls();
+  }, [uniqueFiles, bucketName, fallbackBuckets]);
 
   const getFileExtension = (filename: string): string => {
     return filename.split('.').pop()?.toLowerCase() || '';
@@ -84,12 +136,13 @@ export const FileDisplay = ({
 
   const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
     try {
-      console.log(`Attempting to download file: ${fileName}, path: ${filePath}, fileId: ${fileId}, bucket: ${bucketName}`);
+      // Use the validated bucket for this file
+      const effectiveBucket = validatedBuckets[fileId] || bucketName;
+      console.log(`Attempting to download file: ${fileName}, path: ${filePath}, fileId: ${fileId}, bucket: ${effectiveBucket}`);
       
-      // Use the bucket name provided in props
       const normalizedPath = normalizeFilePath(filePath);
       const directUrl = fileURLs[fileId] || 
-        `${getStorageUrl()}/object/public/${bucketName}/${normalizedPath}`;
+        `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
       
       console.log('Using direct URL for download:', directUrl);
       
@@ -142,9 +195,10 @@ export const FileDisplay = ({
       return fileURLs[fileId];
     }
     
+    // Use the validated bucket for this file
+    const effectiveBucket = validatedBuckets[fileId] || bucketName;
     const normalizedPath = normalizeFilePath(filePath);
-    // Use the bucket name from props
-    return `${getStorageUrl()}/object/public/${bucketName}/${normalizedPath}`;
+    return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
   };
 
   const handleOpenFile = async (filePath: string, fileId: string) => {
@@ -172,11 +226,12 @@ export const FileDisplay = ({
     try {
       setDeletingFileId(fileId);
       
-      // Use the bucket name from props
-      console.log(`Deleting file from bucket ${bucketName}, path: ${filePath}`);
+      // Use the validated bucket for this file
+      const effectiveBucket = validatedBuckets[fileId] || bucketName;
+      console.log(`Deleting file from bucket ${effectiveBucket}, path: ${filePath}`);
       
       const { error: storageError } = await supabase.storage
-        .from(bucketName)
+        .from(effectiveBucket)
         .remove([normalizeFilePath(filePath)]);
 
       if (storageError) {
@@ -254,12 +309,13 @@ export const FileDisplay = ({
           ? file.filename.substring(0, 20) + '...' 
           : file.filename;
         
-        // Use the bucket name from props for URLs
+        // Use the validated bucket for this file
+        const effectiveBucket = validatedBuckets[file.id] || bucketName;
         const normalizedPath = normalizeFilePath(file.file_path);
         const imageUrl = fileURLs[file.id] || 
-          `${getStorageUrl()}/object/public/${bucketName}/${normalizedPath}`;
+          `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
           
-        console.log(`Rendering file: ${file.filename}, URL: ${imageUrl}, bucket: ${bucketName}`);
+        console.log(`Rendering file: ${file.filename}, URL: ${imageUrl}, bucket: ${effectiveBucket}`);
           
         return (
           <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">
