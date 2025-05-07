@@ -1,5 +1,5 @@
 
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -13,6 +13,7 @@ import { PublicBusinessPage } from "@/components/business/PublicBusinessPage";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ForgotPassword } from "@/components/ForgotPassword";
 import { useEffect } from "react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Create a client for React Query with improved retry logic
 const queryClient = new QueryClient({
@@ -102,34 +103,76 @@ const RouteAwareWrapper = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Add this cache busting header for all business page requests
+const CacheBustingHeaders = () => {
+  const location = useLocation();
+  const isBusinessPage = location.pathname.startsWith('/business/');
+  
+  useEffect(() => {
+    if (isBusinessPage) {
+      // Add cache-control meta tag
+      const metaTag = document.createElement('meta');
+      metaTag.httpEquiv = 'Cache-Control';
+      metaTag.content = 'no-cache, no-store, must-revalidate';
+      document.head.appendChild(metaTag);
+      
+      // Add pragma meta tag
+      const pragmaTag = document.createElement('meta');
+      pragmaTag.httpEquiv = 'Pragma';
+      pragmaTag.content = 'no-cache';
+      document.head.appendChild(pragmaTag);
+      
+      // Add expires meta tag
+      const expiresTag = document.createElement('meta');
+      expiresTag.httpEquiv = 'Expires';
+      expiresTag.content = '0';
+      document.head.appendChild(expiresTag);
+      
+      return () => {
+        // Clean up when component unmounts
+        document.head.removeChild(metaTag);
+        document.head.removeChild(pragmaTag);
+        document.head.removeChild(expiresTag);
+      };
+    }
+  }, [isBusinessPage]);
+  
+  return null;
+};
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <ThemeProvider defaultTheme="system">
-          <LanguageProvider>
-            <AuthProvider>
-              <SessionRecoveryWrapper>
-                <RouteAwareWrapper>
-                  <Routes>
-                    <Route path="/" element={<Landing />} />
-                    <Route path="/dashboard" element={<Index />} />
-                    <Route path="/dashboard/*" element={<Index />} />
-                    <Route path="/legal" element={<Legal />} />
-                    <Route path="/contact" element={<Contact />} />
-                    <Route path="/reset-password" element={<ResetPassword />} />
-                    <Route path="/forgot-password" element={<ForgotPassword />} />
-                    <Route path="/business/:slug" element={<PublicBusinessPage />} />
-                    <Route path="/business" element={<PublicBusinessPage />} />
-                    <Route path="/login" element={<Index />} />
-                    <Route path="/signup" element={<Index />} />
-                    <Route path="*" element={<Landing />} />
-                  </Routes>
-                  <Toaster />
-                </RouteAwareWrapper>
-              </SessionRecoveryWrapper>
-            </AuthProvider>
-          </LanguageProvider>
+          <TooltipProvider>
+            <CacheBustingHeaders />
+            <LanguageProvider>
+              <AuthProvider>
+                <SessionRecoveryWrapper>
+                  <RouteAwareWrapper>
+                    <Routes>
+                      <Route path="/" element={<Landing />} />
+                      <Route path="/dashboard" element={<Index />} />
+                      <Route path="/dashboard/*" element={<Index />} />
+                      <Route path="/legal" element={<Legal />} />
+                      <Route path="/contact" element={<Contact />} />
+                      <Route path="/reset-password" element={<ResetPassword />} />
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
+                      <Route path="/business/:slug" element={<PublicBusinessPage />} />
+                      <Route path="/business" element={<PublicBusinessPage />} />
+                      {/* Redirect legacy URLs or alternative formats */}
+                      <Route path="/business?slug=:slug" element={<Navigate to="/business/:slug" replace />} />
+                      <Route path="/login" element={<Index />} />
+                      <Route path="/signup" element={<Index />} />
+                      <Route path="*" element={<Landing />} />
+                    </Routes>
+                    <Toaster />
+                  </RouteAwareWrapper>
+                </SessionRecoveryWrapper>
+              </AuthProvider>
+            </LanguageProvider>
+          </TooltipProvider>
         </ThemeProvider>
       </BrowserRouter>
     </QueryClientProvider>

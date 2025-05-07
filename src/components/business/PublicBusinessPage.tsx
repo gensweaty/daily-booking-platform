@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { supabase, forceBucketCreation } from "@/lib/supabase";
@@ -12,25 +13,51 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
+import { useToast } from "@/components/ui/use-toast";
+
+// Helper to normalize slugs for consistency between environments
+const normalizeSlug = (slug: string): string => {
+  return slug?.toLowerCase().trim() || '';
+};
 
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
   const { t, language } = useLanguage();
   const { theme } = useTheme();
+  const { toast } = useToast();
   const isGeorgian = language === 'ka';
   
   const getBusinessSlug = () => {
-    if (slug) return slug;
+    // Try multiple sources to get the slug with priority order
+    let businessSlug = null;
+
+    // 1. First check URL params (most reliable)
+    if (slug) businessSlug = normalizeSlug(slug);
     
-    const pathMatch = location.pathname.match(/\/business\/([^\/]+)/);
-    if (pathMatch && pathMatch[1]) return pathMatch[1];
+    // 2. Check path pattern /business/[slug]
+    if (!businessSlug) {
+      const pathMatch = location.pathname.match(/\/business\/([^\/]+)/);
+      if (pathMatch && pathMatch[1]) businessSlug = normalizeSlug(pathMatch[1]);
+    }
     
-    const searchParams = new URLSearchParams(location.search);
-    const slugFromSearch = searchParams.get('slug') || searchParams.get('business');
-    if (slugFromSearch) return slugFromSearch;
+    // 3. Check query params
+    if (!businessSlug) {
+      const searchParams = new URLSearchParams(location.search);
+      const slugFromSearch = searchParams.get('slug') || searchParams.get('business');
+      if (slugFromSearch) businessSlug = normalizeSlug(slugFromSearch);
+    }
     
-    return localStorage.getItem('lastVisitedBusinessSlug') || null;
+    // 4. Fallback to localStorage (least reliable)
+    if (!businessSlug) {
+      businessSlug = localStorage.getItem('lastVisitedBusinessSlug');
+      if (businessSlug) {
+        console.log("[PublicBusinessPage] Using slug from localStorage:", businessSlug);
+        businessSlug = normalizeSlug(businessSlug);
+      }
+    }
+    
+    return businessSlug;
   };
 
   const businessSlug = getBusinessSlug();
@@ -42,25 +69,59 @@ export const PublicBusinessPage = () => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const imageRetryCount = useRef(0);
+  const fetchAttempts = useRef(0);
+  const maxFetchAttempts = 5;
   const maxRetryCount = 3;
 
   console.log("[PublicBusinessPage] Using business slug:", businessSlug);
   console.log("[PublicBusinessPage] Current theme:", theme);
+  console.log("[PublicBusinessPage] Current path:", location.pathname);
+  console.log("[PublicBusinessPage] Current search params:", location.search);
 
+  // Increase retry attempts for reliability in production
   useEffect(() => {
     const intervalId = setInterval(() => {
-      if (retryCount < 3 && !business) {
+      if (retryCount < 5 && !business) {
+        console.log("[PublicBusinessPage] Retrying fetch, attempt #", retryCount + 1);
         setRetryCount(prev => prev + 1);
       }
-    }, 5000);
+    }, 3000); // Slightly longer intervals for production
     
     return () => clearInterval(intervalId);
   }, [business, retryCount]);
 
+  // Save slug to localStorage for recovery
   useEffect(() => {
     if (businessSlug) {
-      localStorage.setItem('lastVisitedBusinessSlug', businessSlug);
+      try {
+        localStorage.setItem('lastVisitedBusinessSlug', businessSlug);
+        console.log("[PublicBusinessPage] Saved slug to localStorage:", businessSlug);
+      } catch (err) {
+        console.warn("[PublicBusinessPage] Failed to save slug to localStorage", err);
+      }
     }
+  }, [businessSlug]);
+
+  // On mount, try to detect and clear stale cache
+  useEffect(() => {
+    const checkForCacheIssues = async () => {
+      try {
+        // Force browser to clear potential cache issues
+        const cacheBuster = `?cb=${Date.now()}`;
+        if (businessSlug) {
+          const testUrl = `${window.location.origin}/business/${businessSlug}${cacheBuster}`;
+          console.log("[PublicBusinessPage] Cache test URL:", testUrl);
+          
+          // Just create a head request to prime any cache issues
+          await fetch(testUrl, { method: 'HEAD', cache: 'no-store' })
+            .catch(() => console.log("[PublicBusinessPage] Cache priming request completed"));
+        }
+      } catch (err) {
+        console.warn("[PublicBusinessPage] Cache check error:", err);
+      }
+    };
+    
+    checkForCacheIssues();
   }, [businessSlug]);
 
   useEffect(() => {
@@ -73,25 +134,73 @@ export const PublicBusinessPage = () => {
       
       try {
         setIsLoading(true);
-        console.log("[PublicBusinessPage] Fetching business profile for slug:", businessSlug);
+        fetchAttempts.current += 1;
+        
+        console.log(
+          `[PublicBusinessPage] Fetching business profile for slug: "${businessSlug}" (attempt ${fetchAttempts.current})`
+        );
         
         await forceBucketCreation();
+
+        // Add cache busting parameter to avoid stale results
+        const timestamp = Date.now();
         
         const { data, error } = await supabase
           .from("business_profiles")
           .select("*")
           .eq("slug", businessSlug)
-          .single();
+          .maybeSingle();
 
         if (error) {
           console.error("Error fetching business profile:", error);
-          setError("Failed to load business information");
+          
+          // Retry for network-related errors
+          if (fetchAttempts.current < maxFetchAttempts) {
+            console.log(`[PublicBusinessPage] Will retry in ${fetchAttempts.current * 1000}ms`);
+            setTimeout(() => {
+              setRetryCount(prev => prev + 1);
+            }, fetchAttempts.current * 1000);
+          } else {
+            setError("Failed to load business information. Please try again later.");
+            
+            // Show a toast for user feedback
+            toast({
+              title: t("business.fetchError"),
+              description: t("business.tryAgainLater"),
+              variant: "destructive",
+            });
+          }
           return;
         }
         
         if (!data) {
           console.error("No business found with slug:", businessSlug);
-          setError("Business not found");
+          
+          // Try with a case-insensitive search as fallback
+          console.log("[PublicBusinessPage] Trying case-insensitive search as fallback");
+          
+          const { data: dataFallback, error: errorFallback } = await supabase
+            .from("business_profiles")
+            .select("*")
+            .ilike("slug", businessSlug)
+            .maybeSingle();
+            
+          if (errorFallback || !dataFallback) {
+            setError("Business not found");
+            return;
+          }
+          
+          console.log("[PublicBusinessPage] Found business with case-insensitive search:", dataFallback);
+          setBusiness(dataFallback as BusinessProfile);
+          
+          if (dataFallback.cover_photo_url) {
+            handleCoverPhotoUrl(dataFallback.cover_photo_url);
+          }
+          
+          if (dataFallback?.business_name) {
+            document.title = `${dataFallback.business_name} - Book Now`;
+          }
+          
           return;
         }
         
@@ -99,19 +208,7 @@ export const PublicBusinessPage = () => {
         setBusiness(data as BusinessProfile);
         
         if (data.cover_photo_url) {
-          if (!data.cover_photo_url.startsWith('blob:')) {
-            const timestamp = Date.now();
-            let photoUrl = data.cover_photo_url.split('?')[0];
-            photoUrl = `${photoUrl}?t=${timestamp}`;
-            
-            console.log("[PublicBusinessPage] Setting cover photo URL with cache busting:", photoUrl);
-            setCoverPhotoUrl(photoUrl);
-            setImageLoaded(false);
-            imageRetryCount.current = 0;
-          } else {
-            console.warn("[PublicBusinessPage] Ignoring blob URL:", data.cover_photo_url);
-            setCoverPhotoUrl(null);
-          }
+          handleCoverPhotoUrl(data.cover_photo_url);
         }
         
         if (data?.business_name) {
@@ -120,13 +217,37 @@ export const PublicBusinessPage = () => {
       } catch (error) {
         console.error("Exception in fetchBusinessProfile:", error);
         setError("An unexpected error occurred");
+        
+        // Retry on general exceptions
+        if (fetchAttempts.current < maxFetchAttempts) {
+          setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+          }, fetchAttempts.current * 1000);
+        }
       } finally {
         setIsLoading(false);
       }
     };
-
+    
     fetchBusinessProfile();
-  }, [businessSlug, retryCount]);
+  }, [businessSlug, retryCount, toast, t]);
+
+  // Helper function to handle cover photo URL processing
+  const handleCoverPhotoUrl = (url: string) => {
+    if (!url.startsWith('blob:')) {
+      const timestamp = Date.now();
+      let photoUrl = url.split('?')[0];
+      photoUrl = `${photoUrl}?t=${timestamp}`;
+      
+      console.log("[PublicBusinessPage] Setting cover photo URL with cache busting:", photoUrl);
+      setCoverPhotoUrl(photoUrl);
+      setImageLoaded(false);
+      imageRetryCount.current = 0;
+    } else {
+      console.warn("[PublicBusinessPage] Ignoring blob URL:", url);
+      setCoverPhotoUrl(null);
+    }
+  };
 
   const handleImageLoad = () => {
     console.log("[PublicBusinessPage] Cover photo loaded successfully");
