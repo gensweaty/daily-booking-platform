@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink, FileText, FileSpreadsheet, PresentationIcon } from "lucide-react";
@@ -34,9 +33,31 @@ export const FileDisplay = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
-  // Remove duplicate files based on file_path to prevent showing the same file twice
+  // More sophisticated deduplication that considers both file_path and filename
   const uniqueFiles = files.reduce((acc: FileRecord[], current) => {
-    const isDuplicate = acc.some(item => item.file_path === current.file_path);
+    // Check if we already have a file with the same path or same filename and similar path
+    const isDuplicate = acc.some(item => {
+      // Exact path match is always a duplicate
+      if (item.file_path === current.file_path) {
+        return true;
+      }
+      
+      // If filenames match, check if paths are similar enough (contain same file ID)
+      if (item.filename === current.filename && item.file_path && current.file_path) {
+        // Extract file ID from path (usually the last part after the last slash)
+        const itemPathParts = normalizeFilePath(item.file_path).split('/');
+        const currentPathParts = normalizeFilePath(current.file_path).split('/');
+        
+        // If the last parts of the paths (the file names) are the same, consider it a duplicate
+        if (itemPathParts.length > 0 && currentPathParts.length > 0 && 
+            itemPathParts[itemPathParts.length - 1] === currentPathParts[currentPathParts.length - 1]) {
+          return true;
+        }
+      }
+      
+      return false;
+    });
+    
     if (!isDuplicate) {
       acc.push(current);
     }
