@@ -13,6 +13,10 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useEffect, useState } from "react";
 import { useBusinessProfile } from "@/hooks/useBusinessProfile";
+import { InfoCircle } from "lucide-react";
+
+// Enhanced validation for slugs
+const slugRegex = /^[a-z0-9-]+$/;
 
 const formSchema = z.object({
   businessName: z.string().min(2, {
@@ -20,6 +24,8 @@ const formSchema = z.object({
   }),
   slug: z.string().min(2, {
     message: "URL slug must be at least 2 characters.",
+  }).regex(slugRegex, {
+    message: "Slug can only contain lowercase letters, numbers, and hyphens."
   }),
   description: z.string().optional(),
   coverPhoto: z.string().optional(),
@@ -33,8 +39,9 @@ export const BusinessProfileForm = () => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [baseUrl, setBaseUrl] = useState<string | null>(null);
-  const { businessProfile, isLoading, createBusinessProfile, updateBusinessProfile, uploadCoverPhoto } = useBusinessProfile();
+  const { businessProfile, isLoading, createBusinessProfile, updateBusinessProfile, uploadCoverPhoto, generateSlug } = useBusinessProfile();
   const isGeorgian = language === 'ka';
 
   useEffect(() => {
@@ -54,6 +61,17 @@ export const BusinessProfileForm = () => {
       address: "",
     },
   });
+
+  // Auto-generate slug when business name changes (only if slug is empty)
+  const businessName = form.watch('businessName');
+  const currentSlug = form.watch('slug');
+  
+  useEffect(() => {
+    if (businessName && !currentSlug && !businessProfile) {
+      const slug = generateSlug(businessName);
+      form.setValue("slug", slug);
+    }
+  }, [businessName, currentSlug, businessProfile, generateSlug, form]);
 
   // Update form with business profile data when it's loaded
   useEffect(() => {
@@ -94,9 +112,14 @@ export const BusinessProfileForm = () => {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
+      setIsSaving(true);
+      
+      // Always normalize the slug to lowercase
+      const normalizedSlug = values.slug.toLowerCase().trim();
+      
       const profileData = {
         business_name: values.businessName,
-        slug: values.slug,
+        slug: normalizedSlug,
         description: values.description,
         cover_photo_url: values.coverPhoto,
         contact_phone: values.phone,
@@ -110,6 +133,13 @@ export const BusinessProfileForm = () => {
       } else {
         await createBusinessProfile(profileData);
       }
+      
+      // Give a bit of time for any caches to update
+      setTimeout(() => {
+        // Reload the current page to apply any theme or configuration changes
+        window.location.reload();
+      }, 1000);
+      
     } catch (error: any) {
       console.error("Error updating business profile:", error);
       toast({
@@ -117,6 +147,8 @@ export const BusinessProfileForm = () => {
         description: error.message || t("common.errorOccurred"),
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -158,7 +190,19 @@ export const BusinessProfileForm = () => {
                 <LanguageText>{t("business.urlSlug")}</LanguageText>
               </FormLabel>
               <FormControl>
-                <Input placeholder="your-business-name" {...field} />
+                <div className="relative">
+                  <Input 
+                    placeholder="your-business-name" 
+                    {...field} 
+                    onChange={(e) => {
+                      // Force lowercase for consistency
+                      field.onChange(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
+                    }}
+                  />
+                  <div className="absolute top-2 right-2 text-muted-foreground">
+                    <InfoCircle className="h-4 w-4" title="Only lowercase letters, numbers, and hyphens are allowed" />
+                  </div>
+                </div>
               </FormControl>
               <FormDescription>
                 <LanguageText>{t("business.publicPageUrl")}</LanguageText>{" "}
@@ -284,9 +328,18 @@ export const BusinessProfileForm = () => {
           )}
         />
 
-        <Button type="submit" className="w-full md:w-auto" disabled={isLoading || isUploading}>
+        <Button 
+          type="submit" 
+          className="w-full md:w-auto" 
+          disabled={isLoading || isUploading || isSaving}
+        >
           {isLoading ? (
             t("common.loading")
+          ) : isSaving ? (
+            <div className="flex items-center gap-2">
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+              <LanguageText>{t("common.saving")}</LanguageText>
+            </div>
           ) : (
             <LanguageText>{t("business.updateProfile")}</LanguageText>
           )}

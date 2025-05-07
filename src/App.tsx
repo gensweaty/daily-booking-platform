@@ -1,5 +1,5 @@
 
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -102,11 +102,49 @@ const RouteAwareWrapper = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Add this cache busting header for all business page requests
+const CacheBustingHeaders = () => {
+  const location = useLocation();
+  const isBusinessPage = location.pathname.startsWith('/business/');
+  
+  useEffect(() => {
+    if (isBusinessPage) {
+      // Add cache-control meta tag
+      const metaTag = document.createElement('meta');
+      metaTag.httpEquiv = 'Cache-Control';
+      metaTag.content = 'no-cache, no-store, must-revalidate';
+      document.head.appendChild(metaTag);
+      
+      // Add pragma meta tag
+      const pragmaTag = document.createElement('meta');
+      pragmaTag.httpEquiv = 'Pragma';
+      pragmaTag.content = 'no-cache';
+      document.head.appendChild(pragmaTag);
+      
+      // Add expires meta tag
+      const expiresTag = document.createElement('meta');
+      expiresTag.httpEquiv = 'Expires';
+      expiresTag.content = '0';
+      document.head.appendChild(expiresTag);
+      
+      return () => {
+        // Clean up when component unmounts
+        document.head.removeChild(metaTag);
+        document.head.removeChild(pragmaTag);
+        document.head.removeChild(expiresTag);
+      };
+    }
+  }, [isBusinessPage]);
+  
+  return null;
+};
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <ThemeProvider defaultTheme="system">
+          <CacheBustingHeaders />
           <LanguageProvider>
             <AuthProvider>
               <SessionRecoveryWrapper>
@@ -121,6 +159,8 @@ function App() {
                     <Route path="/forgot-password" element={<ForgotPassword />} />
                     <Route path="/business/:slug" element={<PublicBusinessPage />} />
                     <Route path="/business" element={<PublicBusinessPage />} />
+                    {/* Redirect legacy URLs or alternative formats */}
+                    <Route path="/business?slug=:slug" element={<Navigate to="/business/:slug" replace />} />
                     <Route path="/login" element={<Index />} />
                     <Route path="/signup" element={<Index />} />
                     <Route path="*" element={<Landing />} />
