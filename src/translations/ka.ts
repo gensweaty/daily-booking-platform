@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const ka: TranslationType = {
@@ -185,7 +184,7 @@ export const ka: TranslationType = {
     business: "ბიზნესი",
     stats: "სტატისტიკა",
     statistics: "სტატისტიკა",
-    crm: "კლიენტები",
+    crm: "კლიენტების მართვა",
     signOut: "გასვლა",
     darkMode: "მუქი რეჟიმი",
     lightMode: "ნათელი რეჟიმი",
