@@ -1,5 +1,5 @@
 
-import { useState, FormEvent, useRef } from "react";
+import { useState, FormEvent, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,9 +18,22 @@ import { useLanguage } from "@/contexts/LanguageContext";
 interface BookingRequestFormProps {
   businessId: string;
   businessName?: string;
+  selectedDate?: Date;
+  startTime?: string;
+  endTime?: string;
+  onSuccess?: () => void;
+  isExternalBooking?: boolean;
 }
 
-export function BookingRequestForm({ businessId, businessName = "" }: BookingRequestFormProps) {
+export function BookingRequestForm({ 
+  businessId, 
+  businessName = "",
+  selectedDate,
+  startTime,
+  endTime,
+  onSuccess,
+  isExternalBooking = false
+}: BookingRequestFormProps) {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,8 +54,44 @@ export function BookingRequestForm({ businessId, businessName = "" }: BookingReq
   const now = new Date();
   
   // State for dates and times
-  const [startDate, setStartDate] = useState<Date>(roundToNearestHour(addDays(now, 1)));
-  const [endDate, setEndDate] = useState<Date>(roundToNearestHour(addHours(addDays(now, 1), 1)));
+  const [startDate, setStartDate] = useState<Date>(selectedDate || roundToNearestHour(addDays(now, 1)));
+  const [endDate, setEndDate] = useState<Date>(() => {
+    if (selectedDate && endTime) {
+      const endDateTime = new Date(selectedDate);
+      const [hours, minutes] = endTime.split(':').map(Number);
+      endDateTime.setHours(hours, minutes || 0, 0, 0);
+      return endDateTime;
+    }
+    return roundToNearestHour(addHours(addDays(now, 1), 1));
+  });
+
+  // Update dates when props change
+  useEffect(() => {
+    if (selectedDate) {
+      // If we have a selected date and start time
+      if (startTime) {
+        const newStartDate = new Date(selectedDate);
+        const [hours, minutes] = startTime.split(':').map(Number);
+        newStartDate.setHours(hours, minutes || 0, 0, 0);
+        setStartDate(newStartDate);
+      } else {
+        setStartDate(selectedDate);
+      }
+
+      // If we have a selected date and end time
+      if (endTime) {
+        const newEndDate = new Date(selectedDate);
+        const [hours, minutes] = endTime.split(':').map(Number);
+        newEndDate.setHours(hours, minutes || 0, 0, 0);
+        setEndDate(newEndDate);
+      } else {
+        // Default to 1 hour after start time
+        const newEndDate = new Date(startDate);
+        newEndDate.setHours(startDate.getHours() + 1);
+        setEndDate(newEndDate);
+      }
+    }
+  }, [selectedDate, startTime, endTime]);
   
   // State for selected file
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -191,6 +240,11 @@ export function BookingRequestForm({ businessId, businessName = "" }: BookingReq
         title: t("bookings.requestSubmitted"),
         description: t("bookings.requestSubmittedDetails"),
       });
+      
+      // Call the onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess();
+      }
     } catch (error) {
       console.error("Error submitting booking request:", error);
       toast({
@@ -383,7 +437,7 @@ export function BookingRequestForm({ businessId, businessName = "" }: BookingReq
             <FileUploadField
               ref={fileInputRef}
               onChange={(file) => setSelectedFile(file)}
-              accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              acceptedFileTypes="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             />
           </div>
           
