@@ -38,11 +38,9 @@ export const BookingRequestsList = ({
   const { t, language } = useLanguage();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');
-  
-  const [selectedAttachment, setSelectedAttachment] = useState<string | null>(null);
-  const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
 
   const handleDeleteClick = (id: string) => {
     setRequestToDelete(id);
@@ -55,6 +53,75 @@ export const BookingRequestsList = ({
       setIsDeleteConfirmOpen(false);
       setRequestToDelete(null);
     }
+  };
+  
+  const handleApprove = async (id: string) => {
+    // Set processing state to show loading indicator
+    setProcessingId(id);
+    try {
+      await onApprove?.(id);
+    } finally {
+      // Clear processing state when done (success or error)
+      setProcessingId(null);
+    }
+  };
+  
+  const handleReject = async (id: string) => {
+    setProcessingId(id);
+    try {
+      await onReject?.(id);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Improved function to deduplicate files
+  const mapRequestFilesToFileRecords = (request: BookingRequest): FileRecord[] => {
+    const files: FileRecord[] = [];
+    const fileSignatures = new Set<string>(); // Track file signatures to prevent duplicates
+    
+    // Helper function to add a file if it's not a duplicate
+    const addUniqueFile = (file: FileRecord) => {
+      // Create a unique signature for the file based on path and name
+      const signature = `${file.filename}:${file.file_path}`;
+      
+      if (!fileSignatures.has(signature)) {
+        fileSignatures.add(signature);
+        files.push(file);
+      }
+    };
+    
+    // Add direct file if it exists on the request
+    if (request.file_path) {
+      addUniqueFile({
+        id: `${request.id}-main`,
+        filename: request.filename || 'file',
+        file_path: request.file_path,
+        content_type: request.content_type || '',
+        size: request.size || 0,
+        created_at: request.created_at,
+        user_id: request.user_id || null,
+        event_id: request.id
+      });
+    }
+    
+    // Add any files from the files array with deduplication
+    if (request.files && request.files.length > 0) {
+      request.files.forEach(file => {
+        addUniqueFile({
+          id: file.id,
+          filename: file.filename,
+          file_path: file.file_path,
+          content_type: file.content_type || '',
+          size: file.size || 0,
+          created_at: request.created_at,
+          user_id: request.user_id || null,
+          event_id: request.id
+        });
+      });
+    }
+    
+    return files;
   };
 
   // Format payment status for display with proper styling
@@ -194,55 +261,6 @@ export const BookingRequestsList = ({
     );
   }
 
-  // Improved function to deduplicate files
-  const mapRequestFilesToFileRecords = (request: BookingRequest): FileRecord[] => {
-    const files: FileRecord[] = [];
-    const fileSignatures = new Set<string>(); // Track file signatures to prevent duplicates
-    
-    // Helper function to add a file if it's not a duplicate
-    const addUniqueFile = (file: FileRecord) => {
-      // Create a unique signature for the file based on path and name
-      const signature = `${file.filename}:${file.file_path}`;
-      
-      if (!fileSignatures.has(signature)) {
-        fileSignatures.add(signature);
-        files.push(file);
-      }
-    };
-    
-    // Add direct file if it exists on the request
-    if (request.file_path) {
-      addUniqueFile({
-        id: `${request.id}-main`,
-        filename: request.filename || 'file',
-        file_path: request.file_path,
-        content_type: request.content_type || '',
-        size: request.size || 0,
-        created_at: request.created_at,
-        user_id: request.user_id || null,
-        event_id: request.id
-      });
-    }
-    
-    // Add any files from the files array with deduplication
-    if (request.files && request.files.length > 0) {
-      request.files.forEach(file => {
-        addUniqueFile({
-          id: file.id,
-          filename: file.filename,
-          file_path: file.file_path,
-          content_type: file.content_type || '',
-          size: file.size || 0,
-          created_at: request.created_at,
-          user_id: request.user_id || null,
-          event_id: request.id
-        });
-      });
-    }
-    
-    return files;
-  };
-
   // Responsive table view with improved mobile styling
   return (
     <>
@@ -319,11 +337,20 @@ export const BookingRequestsList = ({
                           variant="approve" 
                           size="sm" 
                           className="flex gap-1 items-center w-full sm:w-auto" 
-                          onClick={() => onApprove(request.id)}
+                          onClick={() => handleApprove(request.id)}
+                          disabled={processingId === request.id}
                         >
-                          <Check className="h-4 w-4" />
+                          {processingId === request.id ? (
+                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          ) : (
+                            <Check className="h-4 w-4" />
+                          )}
                           <span>
-                            {renderGeorgianText("business.approve")}
+                            {processingId === request.id ? (
+                              <LanguageText>{t("common.processing")}</LanguageText>
+                            ) : (
+                              renderGeorgianText("business.approve")
+                            )}
                           </span>
                         </Button>
                       )}
@@ -332,11 +359,20 @@ export const BookingRequestsList = ({
                           variant="outline" 
                           size="sm" 
                           className="flex gap-1 items-center hover:bg-red-100 hover:text-red-700 hover:border-red-300 w-full sm:w-auto" 
-                          onClick={() => onReject(request.id)}
+                          onClick={() => handleReject(request.id)}
+                          disabled={processingId === request.id}
                         >
-                          <X className="h-4 w-4 text-red-600" />
+                          {processingId === request.id ? (
+                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+                          ) : (
+                            <X className="h-4 w-4 text-red-600" />
+                          )}
                           <span>
-                            {renderGeorgianText("business.reject")}
+                            {processingId === request.id ? (
+                              <LanguageText>{t("common.processing")}</LanguageText>
+                            ) : (
+                              renderGeorgianText("business.reject")
+                            )}
                           </span>
                         </Button>
                       )}
@@ -345,6 +381,7 @@ export const BookingRequestsList = ({
                         size="sm"
                         className="text-destructive flex gap-1 items-center hover:bg-destructive/10 w-full sm:w-auto" 
                         onClick={() => handleDeleteClick(request.id)}
+                        disabled={processingId === request.id}
                       >
                         <Trash2 className="h-4 w-4" />
                         <span>

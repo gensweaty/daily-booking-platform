@@ -45,22 +45,10 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const requestBody = await req.text();
-    console.log("Request body (raw):", requestBody);
     
     let parsedBody: BookingApprovalEmailRequest;
     try {
       parsedBody = JSON.parse(requestBody);
-      
-      // Comprehensive debug logging of the parsed body
-      console.log("Parsed request body:");
-      console.log(`- Recipient: ${parsedBody.recipientEmail}`);
-      console.log(`- Name: ${parsedBody.fullName}`);
-      console.log(`- Business: ${parsedBody.businessName}`);
-      console.log(`- Dates: ${parsedBody.startDate} to ${parsedBody.endDate}`);
-      console.log(`- Payment: ${parsedBody.paymentStatus} (${parsedBody.paymentAmount || 'N/A'})`);
-      console.log(`- Business Address: ${parsedBody.businessAddress || '(No address provided)'}`);
-      console.log(`- Event ID: ${parsedBody.eventId || '(No event ID)'}`);
-      console.log(`- Source: ${parsedBody.source || '(Unknown source)'}`);
     } catch (parseError) {
       console.error("Failed to parse JSON request:", parseError);
       return new Response(
@@ -113,9 +101,6 @@ const handler = async (req: Request): Promise<Response> => {
       dedupeKey = `${recipientEmail}_${startDate}_${endDate}`;
     }
     
-    // Add source info to the log record, but not to the deduplication key
-    const logRecord = source ? `${dedupeKey} (source: ${source})` : dedupeKey;
-    
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(recipientEmail)) {
@@ -126,7 +111,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    // IMPORTANT: If there's no business address, reject the request
+    // If there's no business address, reject the request
     // This ensures we only send emails that include the address
     if (!businessAddress || businessAddress.trim() === '') {
       console.log(`Request without business address rejected for ${recipientEmail}`);
@@ -145,9 +130,6 @@ const handler = async (req: Request): Promise<Response> => {
     // Format dates
     const formattedStartDate = formatDateTime(startDate);
     const formattedEndDate = formatDateTime(endDate);
-    
-    console.log(`Formatted start date: ${formattedStartDate}`);
-    console.log(`Formatted end date: ${formattedEndDate}`);
     
     try {
       // Format payment information if available
@@ -172,8 +154,6 @@ const handler = async (req: Request): Promise<Response> => {
       const displayBusinessName = businessName && businessName !== "null" && businessName !== "undefined" 
         ? businessName 
         : 'SmartBookly';
-        
-      console.log(`Using business name for email: "${displayBusinessName}"`);
       
       // Create HTML email content with simpler formatting
       const htmlContent = `
@@ -197,12 +177,6 @@ const handler = async (req: Request): Promise<Response> => {
         </html>
       `;
       
-      // Final check of what will be included in the email HTML
-      console.log("EMAIL HTML PREVIEW:");
-      console.log(`- Address section: ${addressInfo}`);
-      console.log(`- Payment section: ${paymentInfo || "(No payment info will be shown)"}`);
-      console.log(`- Business name used: ${displayBusinessName}`);
-      
       // Use Resend API to send the email
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       if (!resendApiKey) {
@@ -210,8 +184,6 @@ const handler = async (req: Request): Promise<Response> => {
       }
       
       const resend = new Resend(resendApiKey);
-
-      console.log(`Attempting to send email via Resend API to ${recipientEmail}`);
       
       const emailResult = await resend.emails.send({
         from: `${displayBusinessName} <info@smartbookly.com>`,
@@ -220,7 +192,6 @@ const handler = async (req: Request): Promise<Response> => {
         html: htmlContent,
       });
 
-      console.log("Resend API response:", emailResult);
       if (emailResult.error) {
         console.error("Error from Resend API:", emailResult.error);
         throw new Error(emailResult.error.message || "Unknown Resend API error");
@@ -231,7 +202,7 @@ const handler = async (req: Request): Promise<Response> => {
       // Mark as recently sent ONLY if the email was successfully sent
       // This prevents failed attempts from blocking future retries
       recentlySentEmails.set(dedupeKey, Date.now());
-      console.log(`Setting deduplication key: ${logRecord} (tracking ${recentlySentEmails.size} emails)`);
+      console.log(`Setting deduplication key: ${dedupeKey} (tracking ${recentlySentEmails.size} emails)`);
       
       return new Response(
         JSON.stringify({ 
@@ -289,8 +260,6 @@ function formatPaymentStatus(status: string): string {
 
 // Format dates with timezone awareness using Intl.DateTimeFormat
 function formatDateTime(isoString: string): string {
-  console.log(`Formatting date with timezone: ${isoString}`);
-  
   try {
     // Use Intl.DateTimeFormat with explicit timezone to ensure correct time display
     const formatter = new Intl.DateTimeFormat('en-US', {
@@ -305,9 +274,6 @@ function formatDateTime(isoString: string): string {
     
     const date = new Date(isoString);
     const formatted = formatter.format(date);
-    
-    console.log(`Original ISO: ${isoString}`);
-    console.log(`Formatted with timezone: ${formatted}`);
     
     return formatted;
   } catch (error) {
