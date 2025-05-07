@@ -1,38 +1,32 @@
-<!DOCTYPE html>
+
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MWMBV0G8J3"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'G-MWMBV0G8J3');
-    </script>
-    <link rel="stylesheet" href="/node_modules/bpg-glaho-web-caps/css/bpg-glaho-web-caps.css">
-    <title>Smartbookly - All in one SaaS for business productivity</title>
-    <meta name="description" content="All-in-One CRM, Booking, and Task Management solution for modern businesses. Streamline your workflow with our powerful productivity tool." />
-    <meta name="author" content="Lovable" />
-    <meta name="keywords" content="CRM, Booking System, Task Management, Business Productivity, Calendar Management, Business Software, SaaS, Business Tools, Scheduling Software" />
-    <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="Smartbookly - All in one SaaS for business productivity" />
-    <meta property="og:description" content="All-in-One CRM, Booking, and Task Management solution for modern businesses. Streamline your workflow with our powerful productivity tool." />
-    <meta property="og:image" content="/og-image.png" />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Smartbookly - Business Productivity Suite" />
-    <meta name="twitter:description" content="All-in-One CRM, Booking, and Task Management solution for modern businesses." />
-    <link rel="icon" type="image/png" href="/lovable-uploads/fc3d2883-6b57-4178-9938-fd39d77f307a.png" />
-    <link rel="canonical" href="https://smartbookly.com" />
-    <meta name="theme-color" content="#9b87f5" />
+    <title>SmartBookly</title>
+    <!-- Pre-React route detector script -->
+    <script src="/route-detector.js"></script>
+    <style>
+      /* Quickly hide body until React loads to prevent flashes */
+      .is-business-page body {
+        visibility: hidden;
+      }
+      /* Once React hydrates, it will remove this class */
+      .react-loaded.is-business-page body {
+        visibility: visible;
+      }
+    </style>
   </head>
-
   <body>
     <div id="root"></div>
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Add react-loaded class after the page loads
+      window.addEventListener('load', function() {
+        document.documentElement.classList.add('react-loaded');
+      });
+    </script>
   </body>
 </html>
