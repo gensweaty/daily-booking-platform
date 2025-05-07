@@ -148,10 +148,32 @@ const CacheBustingHeaders = () => {
   return null;
 };
 
+// NEW: Early Route Detection before React Router is fully initialized
+const EarlyRouteDetector = () => {
+  useEffect(() => {
+    if (window.location.href.includes('/business')) {
+      console.log("[EarlyRouteDetector] Business page detected in URL, setting flag");
+      sessionStorage.setItem('onBusinessPage', 'true');
+      
+      // Set a cookie for server-side detection
+      document.cookie = "isBusinessPage=true; path=/";
+      
+      // Use localStorage as another backup
+      localStorage.setItem('isBusinessPage', 'true');
+      
+      // Add a special class to the body that CSS can detect
+      document.body.classList.add('is-business-page');
+    }
+  }, []);
+  
+  return null;
+};
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <EarlyRouteDetector />
         <CacheBustingHeaders />
         <ThemeProvider defaultTheme="system">
           <TooltipProvider>
@@ -160,6 +182,10 @@ function App() {
                 <SessionRecoveryWrapper>
                   <RouteAwareWrapper>
                     <Routes>
+                      {/* REORDERED: Business page routes FIRST to ensure they have priority */}
+                      <Route path="/business/:slug" element={<PublicBusinessPage />} />
+                      <Route path="/business" element={<PublicBusinessPage />} />
+                      
                       {/* Public routes that are ALWAYS accessible */}
                       <Route path="/" element={<Landing />} />
                       <Route path="/legal" element={<Legal />} />
@@ -170,10 +196,6 @@ function App() {
                       {/* Auth routes */}
                       <Route path="/login" element={<Index />} />
                       <Route path="/signup" element={<Index />} />
-                      
-                      {/* Business page routes that should always be publicly accessible */}
-                      <Route path="/business/:slug" element={<PublicBusinessPage />} />
-                      <Route path="/business" element={<PublicBusinessPage />} />
                       
                       {/* Dashboard routes that require authentication */}
                       <Route path="/dashboard" element={<Index />} />
