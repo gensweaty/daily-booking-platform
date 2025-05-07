@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -260,7 +261,7 @@ export const CustomerDialog = ({
           
           const eventData = {
             title: title,
-            user_surname: user_number, // Reuse fields for the event
+            user_surname: title, // Fix: use title as user_surname instead of user_number
             user_number: user_number,
             social_network_link: social_network_link,
             event_notes: event_notes,
@@ -354,9 +355,10 @@ export const CustomerDialog = ({
         console.log("Customer created:", customerData);
 
         // Handle file upload for the new customer if a file was selected
+        let uploadedFileData = null;
         if (selectedFile && customerData) {
           try {
-            await uploadFile(customerData.id, selectedFile);
+            uploadedFileData = await uploadFile(customerData.id, selectedFile);
           } catch (uploadError) {
             console.error("File upload failed:", uploadError);
           }
@@ -366,7 +368,7 @@ export const CustomerDialog = ({
         if (createEvent && customerData) {
           const eventData = {
             title: title,
-            user_surname: user_number, // Reuse fields for the event
+            user_surname: title, // Fix: use title as user_surname instead of user_number
             user_number: user_number,
             social_network_link: social_network_link,
             event_notes: event_notes,
@@ -394,8 +396,33 @@ export const CustomerDialog = ({
             });
           } else {
             console.log("Event created successfully:", eventResult);
-            // Note: The email will be sent automatically by useCalendarEvents hook
-            // when the events list refreshes due to queryClient invalidation
+            
+            // If we have a file, also associate it with the new event
+            if (uploadedFileData && eventResult) {
+              try {
+                // Copy the file data to event_files table to link it with the event
+                const eventFileData = {
+                  event_id: eventResult.id,
+                  filename: uploadedFileData.filename,
+                  file_path: uploadedFileData.file_path, // Use the same file path
+                  content_type: uploadedFileData.content_type,
+                  size: uploadedFileData.size,
+                  user_id: user.id
+                };
+                
+                const { error: eventFileError } = await supabase
+                  .from('event_files')
+                  .insert(eventFileData);
+                  
+                if (eventFileError) {
+                  console.error("Error associating file with event:", eventFileError);
+                } else {
+                  console.log("File associated with event successfully");
+                }
+              } catch (fileAssociationError) {
+                console.error("Error associating file with event:", fileAssociationError);
+              }
+            }
           }
         }
       }
