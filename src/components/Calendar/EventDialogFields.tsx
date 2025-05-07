@@ -1,16 +1,13 @@
-
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { FileDisplay } from "@/components/shared/FileDisplay";
-import { cn } from "@/lib/utils";
-import { FileRecord } from "@/types/files";
-import { LanguageText } from "@/components/shared/LanguageText";
-import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { getCurrencySymbol } from "@/lib/currency";
+import { CalendarEventType } from "@/lib/types/calendar"; 
+import { FileRecord } from "@/types/files";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -33,12 +30,14 @@ interface EventDialogFieldsProps {
   setPaymentAmount: (value: string) => void;
   selectedFile: File | null;
   setSelectedFile: (file: File | null) => void;
-  fileError: string;
+  fileError: string; 
   setFileError: (error: string) => void;
   eventId?: string;
-  displayedFiles: FileRecord[];
-  onFileDeleted: (fileId: string) => void;
+  displayedFiles?: FileRecord[];
+  onFileDeleted?: (fileId: string) => void;
   isBookingRequest?: boolean;
+  fileBucketName?: string;
+  fallbackBuckets?: string[];
 }
 
 export const EventDialogFields = ({
@@ -65,263 +64,142 @@ export const EventDialogFields = ({
   fileError,
   setFileError,
   eventId,
-  displayedFiles,
+  displayedFiles = [],
   onFileDeleted,
-  isBookingRequest = false
+  isBookingRequest = false,
+  fileBucketName = "event_attachments",
+  fallbackBuckets = []
 }: EventDialogFieldsProps) => {
-  const {
-    t,
-    language
-  } = useLanguage();
-  const isGeorgian = language === 'ka';
-  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
-  const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
+  const { t, language } = useLanguage();
   const currencySymbol = getCurrencySymbol(language);
+  const isGeorgian = language === 'ka';
   
-  const georgianStyle = isGeorgian ? {
-    fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-    letterSpacing: '-0.2px',
-    WebkitFontSmoothing: 'antialiased',
-    MozOsxFontSmoothing: 'grayscale'
-  } : undefined;
+  // Show payment amount field if payment status is partly paid or fully paid
+  const showPaymentAmount = paymentStatus.includes('partly') || paymentStatus.includes('fully');
   
-  // Helper function for Georgian label text
-  const renderGeorgianLabel = (text: string) => {
-    if (isGeorgian) {
-      if (text === "events.fullName") return <GeorgianAuthText>სრული სახელი</GeorgianAuthText>;
-      if (text === "events.phoneNumber") return <GeorgianAuthText>ტელეფონის ნომერი</GeorgianAuthText>;
-      if (text === "events.socialLinkEmail") return <GeorgianAuthText>ელფოსტა</GeorgianAuthText>; 
-      if (text === "events.eventNotes") return <GeorgianAuthText>შენიშვნები</GeorgianAuthText>;
-    }
-    return <LanguageText>{t(text)}</LanguageText>;
-  };
-  
-  // Fixed Georgian placeholder for event notes
-  const getEventNotesPlaceholder = () => {
-    if (isGeorgian) {
-      return "დაამატეთ შენიშვნები თქვენი ჯავშნის შესახებ";
-    }
-    return t("events.addEventNotes");
-  };
-  
-  // Helper function for Georgian placeholder text
-  const getGeorgianPlaceholder = (text: string) => {
-    if (isGeorgian) {
-      if (text === "events.fullName") return "სრული სახელი";
-      if (text === "events.phoneNumber") return "ტელეფონის ნომერი";
-    }
-    return t(text);
-  };
-  
-  return <>
-      <div>
-        <Label 
-          htmlFor="userSurname" 
-          className={cn(isGeorgian ? "font-georgian" : "")}
-          style={georgianStyle}
-        >
-          {renderGeorgianLabel("events.fullName")}
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="title">
+          {isGeorgian ? "სრული სახელი" : t("crm.fullNameRequired")}
         </Label>
-        <Input 
-          id="userSurname" 
-          value={userSurname} 
-          onChange={e => {
-            setUserSurname(e.target.value);
-            setTitle(e.target.value); // Set title to same as userSurname
-          }} 
-          placeholder={isGeorgian ? "სრული სახელი" : t("events.fullName")} 
-          required 
-          className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
-          style={georgianStyle} 
+        <Input
+          id="title"
+          placeholder={isGeorgian ? "შეიყვანეთ კლიენტის სრული სახელი" : t("crm.fullNamePlaceholder")}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
         />
       </div>
-      <div>
-        <Label 
-          htmlFor="userNumber" 
-          className={cn(isGeorgian ? "font-georgian" : "")}
-          style={georgianStyle}
-        >
-          {renderGeorgianLabel("events.phoneNumber")}
+
+      <div className="space-y-2">
+        <Label htmlFor="number">
+          {isGeorgian ? "ტელეფონის ნომერი" : t("crm.phoneNumber")}
         </Label>
-        <Input 
-          id="userNumber" 
-          value={userNumber} 
-          onChange={e => setUserNumber(e.target.value)} 
-          placeholder={isGeorgian ? "ტელეფონის ნომერი" : t("events.phoneNumber")} 
-          className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}  
-          style={georgianStyle} 
+        <Input
+          id="number"
+          type="tel"
+          placeholder={isGeorgian ? "შეიყვანეთ ტელეფონის ნომერი" : t("crm.phoneNumberPlaceholder")}
+          value={userNumber}
+          onChange={(e) => setUserNumber(e.target.value)}
         />
       </div>
-      <div>
-        <Label 
-          htmlFor="socialNetworkLink" 
-          className={cn(isGeorgian ? "font-georgian" : "")}
-          style={georgianStyle}
-        >
-          {renderGeorgianLabel("events.socialLinkEmail")}
-        </Label>
-        <Input 
-          id="socialNetworkLink" 
-          value={socialNetworkLink} 
-          onChange={e => setSocialNetworkLink(e.target.value)} 
-          placeholder="email@example.com" 
-          type="email" 
-          style={isGeorgian ? { ...georgianStyle } : undefined}
+
+      <div className="space-y-2">
+        <Label htmlFor="socialNetwork">{t("crm.socialLinkEmail")}</Label>
+        <Input
+          id="socialNetwork"
+          type="email"
+          placeholder={t("crm.socialLinkEmailPlaceholder")}
+          value={socialNetworkLink}
+          onChange={(e) => setSocialNetworkLink(e.target.value)}
         />
       </div>
-      <div>
-        <Label 
-          htmlFor="dateTime" 
-          className={cn(isGeorgian ? "font-georgian" : "")}
-          style={georgianStyle}
-        >
-          <LanguageText>{t("events.dateAndTime")}</LanguageText>
-        </Label>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label 
-              htmlFor="startDate" 
-              className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}
-              style={georgianStyle}
-            >
-              {isGeorgian ? <GeorgianAuthText>დაწყება</GeorgianAuthText> : <LanguageText>{t("events.start")}</LanguageText>}
-            </Label>
-            <div className="relative">
-              <Input 
-                id="startDate" 
-                type="datetime-local" 
-                value={startDate} 
-                onChange={e => setStartDate(e.target.value)} 
-                required 
-                className="w-full dark:text-white dark:[color-scheme:dark]" 
-                style={{ colorScheme: 'auto' }} 
-              />
-            </div>
-          </div>
-          <div>
-            <Label 
-              htmlFor="endDate" 
-              className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}
-              style={georgianStyle}
-            >
-              {isGeorgian ? <GeorgianAuthText>დასრულება</GeorgianAuthText> : <LanguageText>{t("events.end")}</LanguageText>}
-            </Label>
-            <div className="relative">
-              <Input 
-                id="endDate" 
-                type="datetime-local" 
-                value={endDate} 
-                onChange={e => setEndDate(e.target.value)} 
-                required 
-                className="w-full dark:text-white dark:[color-scheme:dark]" 
-                style={{ colorScheme: 'auto' }} 
-              />
-            </div>
-          </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="startDate">{t("events.startDate")}</Label>
+        <Input
+          id="startDate"
+          type="datetime-local"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="endDate">{t("events.endDate")}</Label>
+        <Input
+          id="endDate"
+          type="datetime-local"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>{t("crm.paymentStatus")}</Label>
+        <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder={t("crm.selectPaymentStatus")} />
+          </SelectTrigger>
+          <SelectContent className="bg-background">
+            <SelectItem value="not_paid">{t("crm.notPaid")}</SelectItem>
+            <SelectItem value="partly">{t("crm.paidPartly")}</SelectItem>
+            <SelectItem value="fully">{t("crm.paidFully")}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {showPaymentAmount && (
+        <div className="space-y-2">
+          <Label htmlFor="amount">
+            {t("events.paymentAmount")} ({currencySymbol})
+          </Label>
+          <Input
+            id="amount"
+            type="number"
+            step="0.01"
+            placeholder={`${t("events.paymentAmount")} (${currencySymbol})`}
+            value={paymentAmount}
+            onChange={(e) => setPaymentAmount(e.target.value)}
+            required={showPaymentAmount}
+          />
         </div>
-      </div>
-      
-      {!isBookingRequest && <>
-          <div>
-            <Label 
-              htmlFor="paymentStatus" 
-              className={cn(isGeorgian ? "font-georgian" : "")}
-              style={georgianStyle}
-            >
-              <LanguageText>{t("events.paymentStatus")}</LanguageText>
-            </Label>
-            <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-              <SelectTrigger id="paymentStatus" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                <SelectValue placeholder={t("events.selectPaymentStatus")} />
-              </SelectTrigger>
-              <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
-                <SelectItem value="not_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  <LanguageText>{t("crm.notPaid")}</LanguageText>
-                </SelectItem>
-                <SelectItem value="partly_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  <LanguageText>{t("crm.paidPartly")}</LanguageText>
-                </SelectItem>
-                <SelectItem value="fully_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  <LanguageText>{t("crm.paidFully")}</LanguageText>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {showPaymentAmount && <div>
-              <Label 
-                htmlFor="paymentAmount" 
-                className={cn(isGeorgian ? "font-georgian" : "")}
-                style={georgianStyle}
-              >
-                <LanguageText>{t("events.paymentAmount")}</LanguageText>
-              </Label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                  <span className="text-gray-500">{currencySymbol}</span>
-                </div>
-                <Input 
-                  id="paymentAmount" 
-                  value={paymentAmount} 
-                  onChange={e => {
-                    const value = e.target.value;
-                    if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                      setPaymentAmount(value);
-                    }
-                  }} 
-                  className="pl-7" 
-                  placeholder="0.00" 
-                  type="text" 
-                  inputMode="decimal" 
-                />
-              </div>
-            </div>}
-        </>}
-      
-      <div>
-        <Label 
-          htmlFor="eventNotes" 
-          className={cn(isGeorgian ? "font-georgian" : "")}
-          style={georgianStyle}
-        >
-          {renderGeorgianLabel("events.eventNotes")}
-        </Label>
-        <Textarea 
-          id="eventNotes" 
-          value={eventNotes} 
-          onChange={e => setEventNotes(e.target.value)} 
-          placeholder={getEventNotesPlaceholder()}
-          className={cn("min-h-[100px] resize-none", isGeorgian ? "placeholder:font-georgian font-georgian" : "")} 
-          style={georgianStyle}
+      )}
+
+      <div className="space-y-2">
+        <Label htmlFor="notes">{t("crm.comment")}</Label>
+        <Textarea
+          id="notes"
+          placeholder={t("crm.commentPlaceholder")}
+          value={eventNotes}
+          onChange={(e) => setEventNotes(e.target.value)}
+          className="min-h-[100px]"
         />
       </div>
       
-      <div>
-        <Label 
-          htmlFor="file" 
-          className={cn(isGeorgian ? "font-georgian" : "")}
-          style={georgianStyle}
-        >
-          <LanguageText>{t("common.attachments")}</LanguageText>
-        </Label>
-        <FileUploadField 
-          onChange={setSelectedFile} 
-          fileError={fileError} 
-          setFileError={setFileError} 
-          acceptedFileTypes={acceptedFormats} 
-          selectedFile={selectedFile} 
-          hideLabel={true} 
-        />
-      </div>
-      
-      {displayedFiles.length > 0 && <div className="flex flex-col gap-2">
+      {eventId && displayedFiles.length > 0 && (
+        <div className="space-y-2">
           <FileDisplay 
             files={displayedFiles} 
-            bucketName="event_attachments" 
-            allowDelete={true} 
-            onFileDeleted={onFileDeleted} 
-            parentType="event" 
+            bucketName={fileBucketName}
+            allowDelete 
+            onFileDeleted={onFileDeleted}
+            parentType="event"
+            fallbackBuckets={fallbackBuckets}
           />
-        </div>}
-    </>;
+        </div>
+      )}
+      
+      <div className="space-y-2">
+        <FileUploadField 
+          onChange={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+        />
+      </div>
+    </div>
+  );
 };
+
+export default EventDialogFields;
