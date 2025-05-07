@@ -13,6 +13,7 @@ import { PublicBusinessPage } from "@/components/business/PublicBusinessPage";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ForgotPassword } from "@/components/ForgotPassword";
 import { useEffect } from "react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Create a client for React Query with improved retry logic
 const queryClient = new QueryClient({
@@ -144,32 +145,34 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <ThemeProvider defaultTheme="system">
-          <CacheBustingHeaders />
-          <LanguageProvider>
-            <AuthProvider>
-              <SessionRecoveryWrapper>
-                <RouteAwareWrapper>
-                  <Routes>
-                    <Route path="/" element={<Landing />} />
-                    <Route path="/dashboard" element={<Index />} />
-                    <Route path="/dashboard/*" element={<Index />} />
-                    <Route path="/legal" element={<Legal />} />
-                    <Route path="/contact" element={<Contact />} />
-                    <Route path="/reset-password" element={<ResetPassword />} />
-                    <Route path="/forgot-password" element={<ForgotPassword />} />
-                    <Route path="/business/:slug" element={<PublicBusinessPage />} />
-                    <Route path="/business" element={<PublicBusinessPage />} />
-                    {/* Redirect legacy URLs or alternative formats */}
-                    <Route path="/business?slug=:slug" element={<Navigate to="/business/:slug" replace />} />
-                    <Route path="/login" element={<Index />} />
-                    <Route path="/signup" element={<Index />} />
-                    <Route path="*" element={<Landing />} />
-                  </Routes>
-                  <Toaster />
-                </RouteAwareWrapper>
-              </SessionRecoveryWrapper>
-            </AuthProvider>
-          </LanguageProvider>
+          <TooltipProvider>
+            <CacheBustingHeaders />
+            <LanguageProvider>
+              <AuthProvider>
+                <SessionRecoveryWrapper>
+                  <RouteAwareWrapper>
+                    <Routes>
+                      <Route path="/" element={<Landing />} />
+                      <Route path="/dashboard" element={<Index />} />
+                      <Route path="/dashboard/*" element={<Index />} />
+                      <Route path="/legal" element={<Legal />} />
+                      <Route path="/contact" element={<Contact />} />
+                      <Route path="/reset-password" element={<ResetPassword />} />
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
+                      <Route path="/business/:slug" element={<PublicBusinessPage />} />
+                      <Route path="/business" element={<PublicBusinessPage />} />
+                      {/* Redirect legacy URLs or alternative formats */}
+                      <Route path="/business?slug=:slug" element={<Navigate to="/business/:slug" replace />} />
+                      <Route path="/login" element={<Index />} />
+                      <Route path="/signup" element={<Index />} />
+                      <Route path="*" element={<Landing />} />
+                    </Routes>
+                    <Toaster />
+                  </RouteAwareWrapper>
+                </SessionRecoveryWrapper>
+              </AuthProvider>
+            </LanguageProvider>
+          </TooltipProvider>
         </ThemeProvider>
       </BrowserRouter>
     </QueryClientProvider>
