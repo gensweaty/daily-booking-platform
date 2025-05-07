@@ -3,6 +3,8 @@
   "rewrites": [
     { "source": "/business/:slug", "destination": "/index.html" },
     { "source": "/business", "destination": "/index.html" },
+    { "source": "/login", "destination": "/index.html" },
+    { "source": "/signup", "destination": "/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [

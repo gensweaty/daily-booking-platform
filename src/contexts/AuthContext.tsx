@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -62,9 +63,14 @@ const PUBLIC_PATHS = ['/', '/login', '/signup', '/contact', '/legal', '/forgot-p
 
 // Helper to check if the current path is public
 const isPublicPath = (path: string) => {
-  // Check if the path is one of the public paths or starts with /business/
-  return PUBLIC_PATHS.some(publicPath => path === publicPath || path.startsWith(publicPath + '/')) || 
-         path.startsWith('/business/');
+  // More explicitly check if this is a business page path
+  if (path.startsWith('/business') || path.includes('/business/')) {
+    console.log("[AuthContext] Business page path detected, treating as public:", path);
+    return true;
+  }
+  
+  // Check if the path is one of the public paths
+  return PUBLIC_PATHS.some(publicPath => path === publicPath || path.startsWith(publicPath + '/'));
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -76,6 +82,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { t } = useLanguage();
+
+  // Add debug logging for path and auth state
+  useEffect(() => {
+    console.log("[AuthContext] Current path:", location.pathname);
+    console.log("[AuthContext] Is public path:", isPublicPath(location.pathname));
+    console.log("[AuthContext] Authentication state:", user ? "Authenticated" : "Unauthenticated");
+  }, [location.pathname, user]);
 
   const handleTokenError = useCallback(async () => {
     console.log('Handling token error - clearing session');
@@ -135,9 +148,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (!currentSession) {
         // Only handle as error if not on public path
         if (!isPublicPath(location.pathname)) {
+          console.log("[AuthContext] No session and not on public path, handling token error");
           await handleTokenError();
         } else {
           // We're on a public path, just update the state
+          console.log("[AuthContext] No session but on public path, allowing access");
           setSession(null);
           setUser(null);
         }
@@ -415,6 +430,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
       
+      // Don't redirect from business pages on signOut
+      const isBusinessPage = location.pathname.startsWith('/business');
+      
       console.log('Starting sign out process...');
       localStorage.removeItem('app-auth-token');
       localStorage.removeItem('supabase.auth.token');
@@ -432,14 +450,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         description: t('auth.signOutSuccess'),
       });
       
-      navigate('/login');
+      // Only navigate to login if not on a business page
+      if (!isBusinessPage) {
+        navigate('/login');
+      }
     } catch (error: any) {
       console.error('Sign out error:', error);
       localStorage.removeItem('app-auth-token');
       localStorage.removeItem('supabase.auth.token');
       setUser(null);
       setSession(null);
-      navigate('/login');
+      
+      // Only navigate to login if not on a business page
+      if (!location.pathname.startsWith('/business')) {
+        navigate('/login');
+      }
       
       toast({
         title: "Notice",

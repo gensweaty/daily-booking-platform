@@ -1,6 +1,5 @@
-
 import { useState, useEffect, useRef } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { supabase, forceBucketCreation } from "@/lib/supabase";
 import { BusinessProfile } from "@/types/database";
 import { Button } from "@/components/ui/button";
@@ -23,10 +22,31 @@ const normalizeSlug = (slug: string): string => {
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const { t, language } = useLanguage();
   const { theme } = useTheme();
   const { toast } = useToast();
   const isGeorgian = language === 'ka';
+  
+  // Detect if user is redirected too many times
+  useEffect(() => {
+    const redirectCount = sessionStorage.getItem('redirectCount');
+    const count = redirectCount ? parseInt(redirectCount) : 0;
+    
+    if (count > 3) {
+      console.error("[PublicBusinessPage] Too many redirects detected, forcing page to stay");
+      sessionStorage.removeItem('redirectCount');
+      // Force page to stay
+      window.history.pushState(null, '', location.pathname);
+    } else {
+      sessionStorage.setItem('redirectCount', (count + 1).toString());
+      
+      // Reset counter after 5 seconds
+      setTimeout(() => {
+        sessionStorage.removeItem('redirectCount');
+      }, 5000);
+    }
+  }, [location.pathname]);
   
   const getBusinessSlug = () => {
     // Try multiple sources to get the slug with priority order
@@ -96,10 +116,18 @@ export const PublicBusinessPage = () => {
       try {
         localStorage.setItem('lastVisitedBusinessSlug', businessSlug);
         console.log("[PublicBusinessPage] Saved slug to localStorage:", businessSlug);
+        
+        // Also set a session flag to indicate we're on a business page
+        sessionStorage.setItem('onBusinessPage', 'true');
       } catch (err) {
         console.warn("[PublicBusinessPage] Failed to save slug to localStorage", err);
       }
     }
+    
+    // Cleanup function
+    return () => {
+      sessionStorage.removeItem('onBusinessPage');
+    };
   }, [businessSlug]);
 
   // On mount, try to detect and clear stale cache
