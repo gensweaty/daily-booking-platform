@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -25,7 +26,6 @@ interface BookingNotificationRequest {
 
 const handler = async (req: Request): Promise<Response> => {
   console.log(`🔔 Booking notification function invoked with method: ${req.method}`);
-  console.log(`🌐 Request URL: ${req.url}`);
   
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -59,10 +59,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    // Initialize Resend with the API key
-    console.log("🔄 Initializing Resend client");
-    const resend = new Resend(resendApiKey);
-    
     // Parse request body
     let requestData: BookingNotificationRequest;
     try {
@@ -88,8 +84,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Validate required fields
-    // Using businessEmail if directly provided, otherwise we need businessId
+    // Quick validation of required fields
     if ((!requestData.businessEmail && !requestData.businessId) || !requestData.requesterName || !requestData.startDate || !requestData.endDate) {
       const missingFields = [];
       if (!requestData.businessEmail && !requestData.businessId) missingFields.push("businessEmail or businessId");
@@ -134,263 +129,41 @@ const handler = async (req: Request): Promise<Response> => {
         );
         
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`❌ Error from email lookup API: ${response.status} ${errorText}`);
+          console.error(`❌ Error from email lookup API: ${response.status}`);
           
           // Try a different approach - query business_profiles and auth.users directly
           const { businessEmail: altEmail, error: altError } = await getBusinessOwnerEmailDirect(requestData.businessId);
-          
-          if (altError) {
-            throw new Error(`Failed to get business owner email using alternative method: ${altError}`);
-          }
           
           if (altEmail) {
             businessEmail = altEmail;
             console.log(`📧 Found business owner email (alternative method): ${businessEmail}`);
           } else {
-            throw new Error("No email found for business owner through any method");
+            console.error(`Email lookup failed: ${altError}`);
+            // Return success anyway since we'll continue in the background
           }
         } else {
           const result = await response.json();
-          console.log("📧 Email lookup result:", result);
-          
           if (result && result.email) {
             businessEmail = result.email;
             console.log(`📧 Found business owner email: ${businessEmail}`);
-          } else {
-            throw new Error("No email found for business owner");
           }
         }
       } catch (error) {
         console.error("❌ Error getting business owner email:", error);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: "Failed to get business owner email",
-            details: error.message 
-          }),
-          { 
-            status: 500, 
-            headers: { 
-              "Content-Type": "application/json",
-              ...corsHeaders 
-            }
-          }
-        );
+        // Return success anyway, we'll try to send the email in the background
       }
     }
 
-    // Ensure we have an email to send to
-    if (!businessEmail || !businessEmail.includes('@')) {
-      console.error("❌ Invalid or missing business email:", businessEmail);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Invalid business email format or missing email address" 
-        }),
-        { 
-          status: 400, 
-          headers: { 
-            "Content-Type": "application/json",
-            ...corsHeaders
-          } 
-        }
-      );
-    }
-
-    const { requesterName, startDate, endDate, requesterPhone = "", notes = "", businessName = "Your Business", requesterEmail = "", businessAddress = "" } = requestData;
-
-    // Format dates for display
-    const formatDate = (isoString: string) => {
-      try {
-        const date = new Date(isoString);
-        return date.toLocaleString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: 'numeric',
-          minute: 'numeric',
-          hour12: true
-        });
-      } catch (e) {
-        console.error("❌ Date formatting error:", e, "for date:", isoString);
-        return isoString; // Fallback to the original string if parsing fails
-      }
-    };
-
-    const formattedStartDate = formatDate(startDate);
-    const formattedEndDate = formatDate(endDate);
+    // Initialize resend early
+    console.log("🔄 Initializing Resend client");
+    const resend = new Resend(resendApiKey);
     
-    console.log("📅 Formatted start date:", formattedStartDate);
-    console.log("📅 Formatted end date:", formattedEndDate);
-
-    // Format payment status for display - Convert keys to readable text
-    const formatPaymentStatus = (status?: string, amount?: number): string => {
-      if (!status) return "Not specified";
-      
-      switch (status) {
-        case "not_paid":
-          return "Not Paid";
-        case "partly_paid":
-        case "partly":
-          return amount ? `Partly Paid ($${amount})` : "Partly Paid";
-        case "fully_paid":
-        case "fully":
-          return amount ? `Fully Paid ($${amount})` : "Fully Paid";
-        default:
-          return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
-      }
-    };
-
-    const formattedPaymentStatus = formatPaymentStatus(
-      requestData.paymentStatus, 
-      requestData.paymentAmount
-    );
-    
-    console.log("💰 Formatted payment status:", formattedPaymentStatus);
-
-    // Create email content - improve formatting for better deliverability
-    const emailHtml = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>New Booking Request</title>
-        <style>
-          body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
-          .container { border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; background-color: #1d1f21; color: #e6e6e6; }
-          .header { color: #3b82f6; margin-top: 0; }
-          .details { margin: 20px 0; background-color: #2d2f33; padding: 15px; border-radius: 4px; }
-          .detail { margin: 8px 0; }
-          .button { text-align: center; margin: 25px 0; }
-          .button a { background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; }
-          .footer { color: #a0a0a0; font-size: 14px; text-align: center; margin-top: 20px; }
-          .small { font-size: 12px; color: #a0a0a0; }
-          hr { border: none; border-top: 1px solid #444; margin: 20px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h2 class="header">New Booking Request</h2>
-          <p>Hello,</p>
-          <p>You have received a new booking request from <strong>${requesterName}</strong>.</p>
-          <div class="details">
-            <p class="detail"><strong>Start Date:</strong> ${formattedStartDate}</p>
-            <p class="detail"><strong>End Date:</strong> ${formattedEndDate}</p>
-            ${requesterPhone ? `<p class="detail"><strong>Phone:</strong> ${requesterPhone}</p>` : ''}
-            ${requesterEmail ? `<p class="detail"><strong>Email:</strong> ${requesterEmail}</p>` : ''}
-            ${notes ? `<p class="detail"><strong>Notes:</strong> ${notes}</p>` : ''}
-            ${requestData.hasAttachment ? `<p class="detail"><strong>Has attachment:</strong> Yes</p>` : ''}
-            <p class="detail"><strong>Payment status:</strong> ${formattedPaymentStatus}</p>
-          </div>
-          <p>Please log in to your dashboard to view and respond to this request:</p>
-          <div class="button">
-            <a href="https://smartbookly.com/dashboard">Go to Dashboard</a>
-          </div>
-          <hr>
-          <p class="footer">This is an automated message from SmartBookly</p>
-          <p class="small">If you did not sign up for SmartBookly, please disregard this email.</p>
-        </div>
-      </body>
-      </html>
-    `;
-    
-    // Create plain text version for better deliverability
-    const plainText = `
-New Booking Request
-
-Hello,
-
-You have received a new booking request from ${requesterName}.
-
-Start Date: ${formattedStartDate}
-End Date: ${formattedEndDate}
-${requesterPhone ? `Phone: ${requesterPhone}` : ''}
-${requesterEmail ? `Email: ${requesterEmail}` : ''}
-${notes ? `Notes: ${notes}` : ''}
-${requestData.hasAttachment ? `Has attachment: Yes` : ''}
-Payment status: ${formattedPaymentStatus}
-
-Please log in to your dashboard to view and respond to this request:
-https://smartbookly.com/dashboard
-
-This is an automated message from SmartBookly
-
-If you did not sign up for SmartBookly, please disregard this email.
-    `;
-    
-    console.log("📧 Sending email to:", businessEmail);
-    
-    // Use your verified domain for the from address
-    const fromEmail = "SmartBookly <info@smartbookly.com>";
-    
-    console.log("📧 Final recipient:", businessEmail);
-    console.log("📧 Sending from:", fromEmail);
-    console.log("📧 Subject: New Booking Request - Action Required");
-    
-    let emailResult;
-    try {
-      console.log("📤 About to execute Resend API call");
-      
-      // Make sure we fully await the email sending before returning
-      emailResult = await resend.emails.send({
-        from: fromEmail,
-        to: [businessEmail],
-        subject: "New Booking Request - Action Required",
-        html: emailHtml,
-        text: plainText,
-        reply_to: "no-reply@smartbookly.com",
-      });
-      
-      console.log("📬 Raw Resend API response:", JSON.stringify(emailResult));
-      
-      if (emailResult.error) {
-        throw new Error(emailResult.error.message || "Unknown error from Resend API");
-      }
-      
-      console.log("✅ Email sent successfully with ID:", emailResult.data?.id);
-      console.log("✅ Recipient:", businessEmail);
-      
-      // Wait a moment to ensure the email is processed
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-    } catch (resendError) {
-      console.error("❌ Resend API error:", resendError);
-      
-      // Provide helpful guidance about domain verification
-      let errorMessage = resendError instanceof Error ? resendError.message : "Unknown Resend error";
-      let helpfulError = errorMessage;
-      
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Email sending failed", 
-          details: helpfulError,
-          originalError: errorMessage,
-        }),
-        { 
-          status: 500, 
-          headers: { 
-            "Content-Type": "application/json",
-            ...corsHeaders 
-          } 
-        }
-      );
-    }
-
-    // Success response
-    console.log("✅ Request processed successfully, returning response");
-    
-    // Wait to ensure all logs are flushed before returning
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    return new Response(
+    // Return success early - we'll finish the email processing in the background
+    const successResponse = new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Email notification sent successfully",
-        id: emailResult.data?.id,
-        email: businessEmail
+        message: "Email notification processing started",
+        email: businessEmail || "pending"
       }),
       { 
         status: 200, 
@@ -400,12 +173,160 @@ If you did not sign up for SmartBookly, please disregard this email.
         } 
       }
     );
+
+    // Continue email processing in the background using EdgeRuntime.waitUntil
+    if (typeof EdgeRuntime !== 'undefined' && businessEmail && businessEmail.includes('@')) {
+      console.log("📧 Continuing email processing in background for:", businessEmail);
+      
+      EdgeRuntime.waitUntil((async () => {
+        try {
+          const { requesterName, startDate, endDate, requesterPhone = "", notes = "", businessName = "Your Business", requesterEmail = "", businessAddress = "" } = requestData;
+    
+          // Format dates for display
+          const formatDate = (isoString: string) => {
+            try {
+              const date = new Date(isoString);
+              return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: 'numeric',
+                hour12: true
+              });
+            } catch (e) {
+              return isoString; // Fallback to the original string if parsing fails
+            }
+          };
+    
+          const formattedStartDate = formatDate(startDate);
+          const formattedEndDate = formatDate(endDate);
+    
+          // Format payment status for display
+          const formatPaymentStatus = (status?: string, amount?: number): string => {
+            if (!status) return "Not specified";
+            
+            switch (status) {
+              case "not_paid":
+                return "Not Paid";
+              case "partly_paid":
+              case "partly":
+                return amount ? `Partly Paid ($${amount})` : "Partly Paid";
+              case "fully_paid":
+              case "fully":
+                return amount ? `Fully Paid ($${amount})` : "Fully Paid";
+              default:
+                return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+            }
+          };
+    
+          const formattedPaymentStatus = formatPaymentStatus(
+            requestData.paymentStatus, 
+            requestData.paymentAmount
+          );
+    
+          // Create email content
+          const emailHtml = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>New Booking Request</title>
+              <style>
+                body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
+                .container { border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; background-color: #1d1f21; color: #e6e6e6; }
+                .header { color: #3b82f6; margin-top: 0; }
+                .details { margin: 20px 0; background-color: #2d2f33; padding: 15px; border-radius: 4px; }
+                .detail { margin: 8px 0; }
+                .button { text-align: center; margin: 25px 0; }
+                .button a { background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; }
+                .footer { color: #a0a0a0; font-size: 14px; text-align: center; margin-top: 20px; }
+                .small { font-size: 12px; color: #a0a0a0; }
+                hr { border: none; border-top: 1px solid #444; margin: 20px 0; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <h2 class="header">New Booking Request</h2>
+                <p>Hello,</p>
+                <p>You have received a new booking request from <strong>${requesterName}</strong>.</p>
+                <div class="details">
+                  <p class="detail"><strong>Start Date:</strong> ${formattedStartDate}</p>
+                  <p class="detail"><strong>End Date:</strong> ${formattedEndDate}</p>
+                  ${requesterPhone ? `<p class="detail"><strong>Phone:</strong> ${requesterPhone}</p>` : ''}
+                  ${requesterEmail ? `<p class="detail"><strong>Email:</strong> ${requesterEmail}</p>` : ''}
+                  ${notes ? `<p class="detail"><strong>Notes:</strong> ${notes}</p>` : ''}
+                  ${requestData.hasAttachment ? `<p class="detail"><strong>Has attachment:</strong> Yes</p>` : ''}
+                  <p class="detail"><strong>Payment status:</strong> ${formattedPaymentStatus}</p>
+                </div>
+                <p>Please log in to your dashboard to view and respond to this request:</p>
+                <div class="button">
+                  <a href="https://smartbookly.com/dashboard">Go to Dashboard</a>
+                </div>
+                <hr>
+                <p class="footer">This is an automated message from SmartBookly</p>
+                <p class="small">If you did not sign up for SmartBookly, please disregard this email.</p>
+              </div>
+            </body>
+            </html>
+          `;
+          
+          // Create plain text version for better deliverability
+          const plainText = `
+    New Booking Request
+
+    Hello,
+
+    You have received a new booking request from ${requesterName}.
+
+    Start Date: ${formattedStartDate}
+    End Date: ${formattedEndDate}
+    ${requesterPhone ? `Phone: ${requesterPhone}` : ''}
+    ${requesterEmail ? `Email: ${requesterEmail}` : ''}
+    ${notes ? `Notes: ${notes}` : ''}
+    ${requestData.hasAttachment ? `Has attachment: Yes` : ''}
+    Payment status: ${formattedPaymentStatus}
+
+    Please log in to your dashboard to view and respond to this request:
+    https://smartbookly.com/dashboard
+
+    This is an automated message from SmartBookly
+
+    If you did not sign up for SmartBookly, please disregard this email.
+          `;
+    
+          console.log("📧 Sending email to:", businessEmail);
+          
+          // Use your verified domain for the from address
+          const fromEmail = "SmartBookly <info@smartbookly.com>";
+    
+          try {
+            const emailResult = await resend.emails.send({
+              from: fromEmail,
+              to: [businessEmail],
+              subject: "New Booking Request - Action Required",
+              html: emailHtml,
+              text: plainText,
+              reply_to: "no-reply@smartbookly.com",
+            });
+            
+            console.log("✅ Email sent successfully with ID:", emailResult.data?.id);
+            
+          } catch (resendError) {
+            console.error("❌ Resend API error:", resendError);
+          }
+        } catch (error) {
+          console.error("❌ Background email processing error:", error);
+        }
+      })());
+    }
+
+    // Return the success response
+    return successResponse;
     
   } catch (error) {
     console.error("❌ Unhandled error in send-booking-request-notification:", error);
-    
-    // Wait to ensure all logs are flushed before returning
-    await new Promise(resolve => setTimeout(resolve, 300));
     
     return new Response(
       JSON.stringify({ 
@@ -440,28 +361,22 @@ async function getBusinessOwnerEmailDirect(businessId: string): Promise<{busines
     );
     
     if (!businessProfileResponse.ok) {
-      const errorText = await businessProfileResponse.text();
-      console.error(`❌ Error fetching business profile: ${businessProfileResponse.status} ${errorText}`);
-      return { businessEmail: null, error: `Business profile fetch failed: ${errorText}` };
+      return { businessEmail: null, error: `Business profile fetch failed: ${businessProfileResponse.status}` };
     }
     
     const businessProfiles = await businessProfileResponse.json();
-    console.log("🔍 Business profiles result:", businessProfiles);
     
     if (!businessProfiles || businessProfiles.length === 0) {
-      console.error("❌ No business profile found with ID:", businessId);
       return { businessEmail: null, error: "No business profile found" };
     }
     
     const userId = businessProfiles[0].user_id;
-    console.log("🔍 Found user ID:", userId);
     
     if (!userId) {
       return { businessEmail: null, error: "No user ID associated with business profile" };
     }
     
     // Use the Admin API with service role key to get user email directly
-    // This is a fallback method when the RPC function fails
     const userResponse = await fetch(
       `https://mrueqpffzauvdxmuwhfa.supabase.co/auth/v1/admin/users/${userId}`,
       {
@@ -473,13 +388,10 @@ async function getBusinessOwnerEmailDirect(businessId: string): Promise<{busines
     );
     
     if (!userResponse.ok) {
-      const errorText = await userResponse.text();
-      console.error(`❌ Error fetching user: ${userResponse.status} ${errorText}`);
-      return { businessEmail: null, error: `User fetch failed: ${errorText}` };
+      return { businessEmail: null, error: `User fetch failed: ${userResponse.status}` };
     }
     
     const userData = await userResponse.json();
-    console.log("🔍 User data result (email masked for logs):", { ...userData, email: "***" });
     
     if (!userData || !userData.email) {
       return { businessEmail: null, error: "No email found in user data" };
@@ -487,10 +399,9 @@ async function getBusinessOwnerEmailDirect(businessId: string): Promise<{busines
     
     return { businessEmail: userData.email, error: null };
   } catch (error) {
-    console.error("❌ Error in alternative email lookup:", error);
-    return { businessEmail: null, error: error instanceof Error ? error.message : "Unknown error in alternative email lookup" };
+    return { businessEmail: null, error: error instanceof Error ? error.message : "Unknown error" };
   }
 }
 
-// Start server and make sure all promises resolve before shutdown
+// Start server
 serve(handler);

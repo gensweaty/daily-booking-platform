@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,7 @@ export const BookingRequestForm = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [businessData, setBusinessData] = useState<{businessName?: string, businessEmail?: string, businessAddress?: string} | null>(null);
   
   // Replace useState with fullName state
   const [fullName, setFullName] = useState('');
@@ -75,6 +77,38 @@ export const BookingRequestForm = ({
       setEndDate(format(oneHourLater, "yyyy-MM-dd'T'HH:mm"));
     }
   }, [selectedDate, startTime, endTime]);
+
+  // Fetch business data early and cache it
+  useEffect(() => {
+    const fetchBusinessData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('business_profiles')
+          .select('business_name, contact_email, contact_address')
+          .eq('id', businessId)
+          .single();
+
+        if (error) {
+          console.error("Error fetching business data:", error);
+          return;
+        }
+
+        setBusinessData({
+          businessName: data?.business_name,
+          businessEmail: data?.contact_email,
+          businessAddress: data?.contact_address
+        });
+        
+        console.log("Cached business data:", data);
+      } catch (err) {
+        console.error("Error in business data fetch:", err);
+      }
+    };
+
+    if (businessId) {
+      fetchBusinessData();
+    }
+  }, [businessId]);
 
   // Common Georgian font styling for consistent rendering
   const georgianFontStyle = isGeorgian ? getGeorgianFontStyle() : undefined;
@@ -123,10 +157,10 @@ export const BookingRequestForm = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      setIsSubmitting(true);
-      console.log("Starting form submission...");
+    setIsSubmitting(true);
+    console.log("Starting form submission...");
 
+    try {
       // Validate required fields
       if (!fullName) {
         toast({
@@ -185,46 +219,12 @@ export const BookingRequestForm = ({
         }
       }
 
-      // First, fetch the business owner's email using the RPC function to ensure we have it
-      let businessEmail = null;
-      try {
-        console.log("Fetching business owner email for ID:", businessId);
-        
-        // Call the RPC function directly to get the email
-        const { data: emailData, error: emailError } = await supabase
-          .rpc('get_business_owner_email', { business_id_param: businessId });
-          
-        if (emailError) {
-          console.error("Error getting business email via RPC:", emailError);
-          
-          // Fallback: Query business_profiles and auth.users directly
-          const { data: businessData } = await supabase
-            .from('business_profiles')
-            .select('user_id')
-            .eq('id', businessId)
-            .single();
-            
-          if (businessData && businessData.user_id) {
-            const { data: userData } = await supabase.auth.admin.getUserById(businessData.user_id);
-            if (userData && userData.user && userData.user.email) {
-              businessEmail = userData.user.email;
-              console.log("Retrieved business email via user lookup:", businessEmail);
-            }
-          }
-        } else if (emailData && emailData.email) {
-          businessEmail = emailData.email;
-          console.log("Retrieved business email via RPC:", businessEmail);
-        }
-      } catch (emailLookupError) {
-        console.error("Failed to retrieve business email:", emailLookupError);
-      }
-
+      // Create booking data object
       const bookingData = {
         business_id: businessId,
         requester_name: fullName,
         requester_email: socialNetworkLink,
         requester_phone: userNumber,
-        // Use fullName for both title and requester_name to ensure consistency
         title: `${fullName}`,
         description: eventNotes || null,
         start_date: startDateTime.toISOString(),
@@ -236,24 +236,29 @@ export const BookingRequestForm = ({
 
       console.log('Submitting booking request:', bookingData);
 
-      const { data, error } = await supabase
+      // Step 1: Create booking request in database
+      const { data: bookingResponse, error: bookingError } = await supabase
         .from('booking_requests')
         .insert(bookingData)
         .select()
         .single();
 
-      if (error) {
-        console.error('Error submitting booking request:', error);
-        throw error;
+      if (bookingError) {
+        console.error('Error submitting booking request:', bookingError);
+        throw bookingError;
       }
 
-      const bookingId = data.id;
+      const bookingId = bookingResponse.id;
       console.log('Booking request created with ID:', bookingId);
 
-      // Track if file was uploaded for notification purposes
-      let fileUploaded = false;
+      // Flag to track if we need to upload a file
+      let hasFile = !!selectedFile;
 
-      if (selectedFile && bookingId) {
+      // Step 2: Start email notification in parallel to file upload
+      // We'll use Promise.all to run these operations in parallel
+      
+      // Prepare file upload promise if a file is selected
+      const fileUploadPromise = selectedFile && bookingId ? (async () => {
         try {
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${bookingId}/${Date.now()}.${fileExt}`;
@@ -265,11 +270,10 @@ export const BookingRequestForm = ({
 
           if (uploadError) {
             console.error('Error uploading file:', uploadError);
-            throw uploadError;
+            return { success: false, error: uploadError };
           }
 
           console.log('File uploaded successfully to path:', filePath);
-          fileUploaded = true;
 
           const fileRecord = {
             filename: selectedFile.name,
@@ -285,80 +289,85 @@ export const BookingRequestForm = ({
 
           if (fileRecordError) {
             console.error('Error creating file record:', fileRecordError);
-          } else {
-            console.log('File record created successfully in event_files');
+            return { success: false, error: fileRecordError };
           }
+          
+          console.log('File record created successfully in event_files');
+          return { success: true };
         } catch (fileError) {
           console.error('Error handling file upload:', fileError);
+          return { success: false, error: fileError };
         }
-      }
+      })() : Promise.resolve({ success: true });
 
-      console.log('Booking request submitted successfully!');
-      
-      try {
-        console.log('Sending notification email...');
-        
-        // Get a business name if possible
-        let businessNameToUse = "Business";
-        
+      // Prepare email notification promise
+      const emailNotificationPromise = (async () => {
         try {
-          const { data: businessData } = await supabase
-            .from('business_profiles')
-            .select('business_name')
-            .eq('id', businessId)
-            .single();
+          console.log('Sending notification email...');
+          
+          // Use cached business data instead of fetching again
+          const businessNameToUse = businessData?.businessName || "Business";
+          
+          // Prepare notification data with the business email if we have it
+          const notificationData = {
+            businessId: businessId,
+            businessEmail: businessData?.businessEmail, // Use cached email if available
+            requesterName: fullName,
+            requesterEmail: socialNetworkLink,
+            requesterPhone: userNumber,
+            notes: eventNotes || "No additional notes",
+            startDate: startDateTime.toISOString(),
+            endDate: endDateTime.toISOString(),
+            hasAttachment: hasFile,
+            paymentStatus: paymentStatus,
+            paymentAmount: finalPaymentAmount,
+            businessName: businessNameToUse,
+            businessAddress: businessData?.businessAddress
+          };
+          
+          // Log notification data
+          console.log("Sending email notification with data:", JSON.stringify(notificationData));
+          
+          // Use the full function URL with a timeout to prevent long waits
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+          
+          try {
+            const response = await fetch(
+              "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(notificationData),
+                signal: controller.signal
+              }
+            );
             
-          if (businessData && businessData.business_name) {
-            businessNameToUse = businessData.business_name;
-            console.log("Using business name:", businessNameToUse);
+            clearTimeout(timeoutId);
+            console.log("Email notification response status:", response.status);
+            
+            return { success: true };
+          } catch (fetchError) {
+            clearTimeout(timeoutId);
+            console.warn("Email notification request error (continuing anyway):", fetchError);
+            return { success: false, error: fetchError };
           }
-        } catch (err) {
-          console.warn("Could not get business name:", err);
+        } catch (emailError) {
+          console.error("Failed to send email notification:", emailError);
+          return { success: false, error: emailError };
         }
-        
-        // Prepare notification data with the business email if we have it
-        const notificationData = {
-          businessId: businessId,
-          businessEmail: businessEmail, // Include the email if we have it
-          requesterName: fullName,
-          requesterEmail: socialNetworkLink,
-          requesterPhone: userNumber,
-          notes: eventNotes || "No additional notes",
-          startDate: startDateTime.toISOString(),
-          endDate: endDateTime.toISOString(),
-          hasAttachment: fileUploaded,
-          paymentStatus: paymentStatus,
-          paymentAmount: finalPaymentAmount,
-          businessName: businessNameToUse
-        };
-        
-        // Log notification data
-        console.log("Sending email notification with data:", JSON.stringify(notificationData));
-        
-        // Use the full function URL
-        const response = await fetch(
-          "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(notificationData),
-          }
-        );
-        
-        console.log("Email notification response status:", response.status);
-        
-        const responseData = await response.text();
-        try {
-          const parsedResponse = JSON.parse(responseData);
-          console.log("Email notification response:", parsedResponse);
-        } catch (e) {
-          console.log("Raw email notification response:", responseData);
-        }
-        
-      } catch (emailError) {
-        console.error("Failed to send email notification:", emailError);
-      }
-      
+      })();
+
+      // Start both operations in parallel but don't wait for them to complete
+      Promise.all([fileUploadPromise, emailNotificationPromise])
+        .then(results => {
+          console.log("Background operations completed:", results);
+        })
+        .catch(error => {
+          console.error("Error in background operations:", error);
+        });
+
+      // Show success message immediately after booking creation
       setIsSubmitting(false);
       
       // Reset form
@@ -375,7 +384,7 @@ export const BookingRequestForm = ({
         fileInputRef.current.value = '';
       }
 
-      // Use the dedicated toast helper for booking submissions instead of direct toast call
+      // Use the dedicated toast helper for booking submissions
       toast.event.bookingSubmitted();
 
       if (onSuccess) {
@@ -616,7 +625,7 @@ export const BookingRequestForm = ({
           </div>
         )}
         
-        {/* Notes Field - UPDATE THIS SECTION */}
+        {/* Notes Field */}
         <div>
           <Label htmlFor="eventNotes" className={labelClass} style={georgianFontStyle}>
             {isGeorgian ? (
@@ -635,7 +644,7 @@ export const BookingRequestForm = ({
           />
         </div>
         
-        {/* File Upload Field - Fix label duplication */}
+        {/* File Upload Field */}
         <div>
           <Label htmlFor="file" className={labelClass} style={georgianFontStyle}>
             {isGeorgian ? (
