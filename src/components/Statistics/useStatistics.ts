@@ -40,6 +40,42 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
+  // Helper function to consistently parse payment amounts
+  const parsePaymentAmount = (amount: any): number => {
+    // If null or undefined, return 0
+    if (amount === null || amount === undefined) return 0;
+    
+    // Special handling for specific error cases
+    if (amount === 'NaN' || amount === '') return 0;
+    
+    // For string values (might include currency symbols)
+    if (typeof amount === 'string') {
+      try {
+        // Remove any non-numeric characters except dots and minus signs
+        const cleanedStr = amount.replace(/[^0-9.-]+/g, '');
+        const parsed = parseFloat(cleanedStr);
+        return isNaN(parsed) ? 0 : parsed;
+      } catch (e) {
+        console.error(`Failed to parse string payment amount: ${amount}`, e);
+        return 0;
+      }
+    }
+    
+    // For numeric values, ensure they're valid
+    if (typeof amount === 'number') {
+      return isNaN(amount) ? 0 : amount;
+    }
+    
+    // Try to convert other types to number
+    try {
+      const converted = Number(amount);
+      return isNaN(converted) ? 0 : converted;
+    } catch (e) {
+      console.error(`Failed to convert payment amount: ${amount}`, e);
+      return 0;
+    }
+  };
+
   // Optimize events stats query with more efficient date handling and include CRM events
   const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
     queryKey: eventStatsQueryKey,
@@ -135,14 +171,19 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       const allEvents = Array.from(eventsMap.values());
       console.log(`Statistics - Combined into ${allEvents.length} total unique events`);
       
-      // Debug payment amounts specifically
-      console.log('Events with payment data:', allEvents.filter(e => e.payment_amount).map(e => ({
-        id: e.id,
-        title: e.title,
-        payment_amount: e.payment_amount,
-        payment_status: e.payment_status,
-        raw_type: typeof e.payment_amount
-      })));
+      // Log detailed payment information for each event with payment data
+      console.log('Event payment data:');
+      allEvents.forEach((event, index) => {
+        if (event.payment_amount !== undefined && event.payment_amount !== null) {
+          console.log(`Event ${index + 1} (${event.id}):`, {
+            title: event.title,
+            raw_payment_amount: event.payment_amount,
+            type_of: typeof event.payment_amount,
+            payment_status: event.payment_status,
+            parsed_amount: parsePaymentAmount(event.payment_amount)
+          });
+        }
+      });
 
       // Get payment status counts using normalized values
       const partlyPaid = allEvents.filter(e => 
@@ -195,36 +236,8 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           end: endOfMonth(dateRange.end)
         });
       }
-
-      // Helper function to safely parse payment amount
-      const safelyParseAmount = (amount: any): number => {
-        if (amount === null || amount === undefined) return 0;
-        
-        try {
-          // Handle string values (might include currency symbols)
-          if (typeof amount === 'string') {
-            // Remove any non-numeric characters except dots and minus signs
-            const cleanedStr = amount.replace(/[^0-9.-]+/g, '');
-            const parsed = parseFloat(cleanedStr);
-            return isNaN(parsed) ? 0 : parsed;
-          }
-          
-          // Handle numeric values
-          if (typeof amount === 'number') {
-            return isNaN(amount) ? 0 : amount;
-          }
-          
-          // Try to cast other types to number
-          const converted = Number(amount);
-          return isNaN(converted) ? 0 : converted;
-          
-        } catch (err) {
-          console.error('Failed to parse payment amount:', amount, err);
-          return 0;
-        }
-      };
       
-      // Calculate monthly income with better handling
+      // Calculate monthly income with consistent payment parsing
       const monthlyIncome = monthsToCompare.map(month => {
         const monthStart = startOfMonth(month);
         const monthEnd = endOfDay(endOfMonth(month));
@@ -243,10 +256,10 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           const status = normalizePaymentStatus(event.payment_status);
           const isPaid = status === 'fully_paid' || status === 'partly_paid';
           
-          if (isPaid && event.payment_amount) {
-            const amount = safelyParseAmount(event.payment_amount);
-            console.log(`Monthly income: Adding ${amount} from event ${event.id}`);
-            income += amount;
+          if (isPaid && (event.payment_amount !== undefined && event.payment_amount !== null)) {
+            const parsedAmount = parsePaymentAmount(event.payment_amount);
+            income += parsedAmount;
+            console.log(`Month ${format(month, 'MMM yyyy')} - Added ${parsedAmount} from event ${event.id}`);
           }
         });
         
@@ -259,7 +272,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       // Debug: Monthly income data
       console.log('Monthly income data:', monthlyIncome);
 
-      // Calculate total income with detailed logging
+      // Calculate total income directly from all events with consistent parsing
       let totalIncome = 0;
       let validPaymentCount = 0;
       
@@ -267,35 +280,45 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         const status = normalizePaymentStatus(event.payment_status);
         const isPaid = status === 'fully_paid' || status === 'partly_paid';
                        
-        if (isPaid && event.payment_amount !== undefined && event.payment_amount !== null) {
-          const amount = safelyParseAmount(event.payment_amount);
+        if (isPaid && (event.payment_amount !== undefined && event.payment_amount !== null)) {
+          const parsedAmount = parsePaymentAmount(event.payment_amount);
           
-          if (amount > 0) {
+          if (parsedAmount > 0) {
             validPaymentCount++;
-            console.log(`Total income: Adding ${amount} from event ${event.id} (${event.title}) - Type: ${typeof event.payment_amount}, Raw value: ${event.payment_amount}`);
-            totalIncome += amount;
+            console.log(`Total income: Adding ${parsedAmount} from event ${event.id} (${event.title})`);
+            totalIncome += parsedAmount;
           }
         }
       });
       
-      // Cross-check with monthly income
+      // Double check by calculating total from monthly income
       const monthlyTotal = monthlyIncome.reduce((sum, month) => sum + month.income, 0);
       
       console.log('Income calculation summary:', {
-        calculatedTotal: totalIncome,
+        totalDirectCalculation: totalIncome,
         monthlyTotalSum: monthlyTotal, 
         eventsWithValidPayment: validPaymentCount,
-        totalEventCount: allEvents.length
+        totalEventCount: allEvents.length,
+        mismatch: Math.abs(totalIncome - monthlyTotal) > 0.01 ? 'YES' : 'NO'
       });
       
-      // If there's a significant discrepancy, log it
+      // If there's a discrepancy, use the monthly sum as it's more reliable
       if (Math.abs(totalIncome - monthlyTotal) > 0.01) {
-        console.warn('Income calculation discrepancy detected:', {
+        console.warn('Income calculation discrepancy detected, using monthly sum instead:', {
           directTotal: totalIncome,
           monthlySum: monthlyTotal,
           difference: totalIncome - monthlyTotal
         });
+        totalIncome = monthlyTotal;
       }
+
+      // Final validation to ensure totalIncome is a valid number
+      if (typeof totalIncome !== 'number' || isNaN(totalIncome)) {
+        console.error('Invalid totalIncome detected, resetting to 0:', totalIncome);
+        totalIncome = 0;
+      }
+
+      console.log(`Final totalIncome value: ${totalIncome}`);
 
       return {
         total: allEvents.length || 0,

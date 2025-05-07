@@ -24,7 +24,7 @@ interface StatsCardsProps {
     total: number;
     partlyPaid: number;
     fullyPaid: number;
-    totalIncome: number;
+    totalIncome: number | string | null | undefined;
   };
 }
 
@@ -34,13 +34,28 @@ export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
   // Get the appropriate currency symbol based on language
   const currencySymbol = getCurrencySymbol(language);
 
-  // First ensure totalIncome is a valid number - use fallback to 0 if undefined, null or NaN
-  const safeIncome = typeof eventStats.totalIncome === 'number' && !isNaN(eventStats.totalIncome) 
-    ? eventStats.totalIncome 
-    : 0;
+  // Ensure totalIncome is a valid number - use fallback to 0 if invalid or undefined
+  let validTotalIncome = 0;
+  
+  if (eventStats.totalIncome !== undefined && eventStats.totalIncome !== null) {
+    // If it's a string, try to parse it
+    if (typeof eventStats.totalIncome === 'string') {
+      try {
+        const parsed = parseFloat(eventStats.totalIncome);
+        validTotalIncome = !isNaN(parsed) ? parsed : 0;
+      } catch (e) {
+        console.error("Failed to parse string income value:", eventStats.totalIncome);
+        validTotalIncome = 0;
+      }
+    } 
+    // If it's already a number, just check it's valid
+    else if (typeof eventStats.totalIncome === 'number') {
+      validTotalIncome = !isNaN(eventStats.totalIncome) ? eventStats.totalIncome : 0;
+    }
+  }
 
   // Format the income value to have 2 decimal places and add currency symbol
-  const formattedIncome = `${currencySymbol}${safeIncome.toFixed(2)}`;
+  const formattedIncome = `${currencySymbol}${validTotalIncome.toFixed(2)}`;
   
   // Choose the appropriate currency icon based on language
   const CurrencyIcon = language === 'es' ? EuroIcon : 
@@ -49,10 +64,9 @@ export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
   // For debugging
   console.log("StatsCards - Rendering with income data:", {
     rawIncome: eventStats.totalIncome,
-    safeIncome,
+    validTotalIncome,
     formattedIncome,
     currency: currencySymbol,
-    isValid: typeof eventStats.totalIncome === 'number' && !isNaN(eventStats.totalIncome),
     typeOf: typeof eventStats.totalIncome
   });
 
