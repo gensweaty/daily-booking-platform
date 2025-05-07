@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -53,6 +52,8 @@ export const useBookingRequests = () => {
         throw error;
       }
       
+      console.log('Fetched booking requests data:', data);
+      
       if (data) {
         // Log file attachments for debugging
         data.forEach(request => {
@@ -70,6 +71,13 @@ export const useBookingRequests = () => {
   const pendingRequests = bookingRequests.filter(req => req.status === 'pending');
   const approvedRequests = bookingRequests.filter(req => req.status === 'approved');
   const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected');
+  
+  console.log('Booking requests counts:', {
+    total: bookingRequests.length,
+    pending: pendingRequests.length,
+    approved: approvedRequests.length,
+    rejected: rejectedRequests.length
+  });
   
   async function sendApprovalEmail({ email, fullName, businessName, startDate, endDate, paymentStatus, paymentAmount, businessAddress }: {
     email: string;
