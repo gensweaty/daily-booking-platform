@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const ka: TranslationType = {
@@ -53,11 +54,11 @@ export const ka: TranslationType = {
     endDateTime: "დასრულების თარიღი და დრო",
     eventNotes: "შენიშვნები",
     addEventNotes: "დაამატეთ შენიშვნები თქვენს ჯავშანზე",
-    editEvent: "ღონისძიეის რედაქტირება",
-    addNewEvent: "ახალი ღონისძიების დამატება",
-    updateEvent: "ღონისძიების განახლება",
-    createEvent: "ღონისძიების შექმნა",
-    deleteEvent: "ღონისძიების წაშლა",
+    editEvent: "ჯავშნის რედაქტირება",
+    addNewEvent: "ახალი ჯავშნის დამატება",
+    updateEvent: "ჯავშნის განახლება",
+    createEvent: "ჯავშნის შექმნა",
+    deleteEvent: "ჯავშნის წაშლა",
     timeSlotUnavailable: "დროის ინტერვალი მიუწვდომელია",
     timeSlotConflict: "განრიგის კონფლიქტი",
     timeSlotNotAvailable: "ეს დროის ინტერვალი არ არის ხელმისაწვდომი",
@@ -425,7 +426,7 @@ export const ka: TranslationType = {
     day: "დღე",
     week: "კვირა",
     month: "თვე",
-    addEvent: "ღონისძიების დამატება",
+    addEvent: "ჯავშნის დამატება",
     bookNow: "დაჯავშნე ახლავე",
     weekOf: "კვირა"
   },
