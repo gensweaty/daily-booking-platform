@@ -152,19 +152,25 @@ function App() {
                 <SessionRecoveryWrapper>
                   <RouteAwareWrapper>
                     <Routes>
+                      {/* Public routes that are ALWAYS accessible */}
                       <Route path="/" element={<Landing />} />
-                      <Route path="/dashboard" element={<Index />} />
-                      <Route path="/dashboard/*" element={<Index />} />
                       <Route path="/legal" element={<Legal />} />
                       <Route path="/contact" element={<Contact />} />
                       <Route path="/reset-password" element={<ResetPassword />} />
                       <Route path="/forgot-password" element={<ForgotPassword />} />
+                      
+                      {/* Business page routes that should always be publicly accessible */}
                       <Route path="/business/:slug" element={<PublicBusinessPage />} />
                       <Route path="/business" element={<PublicBusinessPage />} />
+                      
+                      {/* Dashboard routes that require authentication */}
+                      <Route path="/dashboard" element={<Index />} />
+                      <Route path="/dashboard/*" element={<Index />} />
+                      
                       {/* Redirect legacy URLs or alternative formats */}
                       <Route path="/business?slug=:slug" element={<Navigate to="/business/:slug" replace />} />
-                      <Route path="/login" element={<Index />} />
-                      <Route path="/signup" element={<Index />} />
+                      <Route path="/login" element={<Landing />} />
+                      <Route path="/signup" element={<Landing />} />
                       <Route path="*" element={<Landing />} />
                     </Routes>
                     <Toaster />
