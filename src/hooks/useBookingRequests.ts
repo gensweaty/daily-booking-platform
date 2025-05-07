@@ -78,12 +78,21 @@ export const useBookingRequests = () => {
       if (filesData && filesData.length > 0) {
         console.log(`Found ${filesData.length} files for booking requests`);
         
-        // Create a map of booking request ID to files
+        // Create a map of booking request ID to files with deduplication
         filesData.forEach(file => {
+          if (!file.event_id) return;
+          
           if (!filesMap.has(file.event_id)) {
-            filesMap.set(file.event_id, []);
+            filesMap.set(file.event_id, new Map()); // Use a map for deduplication
           }
-          filesMap.get(file.event_id).push(file);
+          
+          // Use file path as key to prevent duplicates
+          const fileMap = filesMap.get(file.event_id);
+          const fileKey = `${file.filename}:${file.file_path}`;
+          
+          if (!fileMap.has(fileKey)) {
+            fileMap.set(fileKey, file);
+          }
         });
       } else {
         console.log('No files found for booking requests');
@@ -91,7 +100,9 @@ export const useBookingRequests = () => {
       
       // Enrich requests with files information
       return requests.map(request => {
-        const files = filesMap.get(request.id) || [];
+        // Get deduplicated files from the map
+        const fileMap = filesMap.get(request.id);
+        const files = fileMap ? Array.from(fileMap.values()) : [];
         
         // If we have files, add the first file's info directly to the request object
         // This maintains compatibility with the existing UI

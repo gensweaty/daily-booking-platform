@@ -194,14 +194,25 @@ export const BookingRequestsList = ({
     );
   }
 
-  // Convert booking request files to FileRecord format for FileDisplay component
+  // Improved function to deduplicate files
   const mapRequestFilesToFileRecords = (request: BookingRequest): FileRecord[] => {
-    // Start with any directly attached file
     const files: FileRecord[] = [];
+    const fileSignatures = new Set<string>(); // Track file signatures to prevent duplicates
+    
+    // Helper function to add a file if it's not a duplicate
+    const addUniqueFile = (file: FileRecord) => {
+      // Create a unique signature for the file based on path and name
+      const signature = `${file.filename}:${file.file_path}`;
+      
+      if (!fileSignatures.has(signature)) {
+        fileSignatures.add(signature);
+        files.push(file);
+      }
+    };
     
     // Add direct file if it exists on the request
     if (request.file_path) {
-      files.push({
+      addUniqueFile({
         id: `${request.id}-main`,
         filename: request.filename || 'file',
         file_path: request.file_path,
@@ -213,10 +224,10 @@ export const BookingRequestsList = ({
       });
     }
     
-    // Add any files from the files array
+    // Add any files from the files array with deduplication
     if (request.files && request.files.length > 0) {
       request.files.forEach(file => {
-        files.push({
+        addUniqueFile({
           id: file.id,
           filename: file.filename,
           file_path: file.file_path,
