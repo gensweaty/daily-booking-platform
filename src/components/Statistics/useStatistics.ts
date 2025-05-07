@@ -134,6 +134,15 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       // Convert Map back to array
       const allEvents = Array.from(eventsMap.values());
       console.log(`Statistics - Combined into ${allEvents.length} total unique events`);
+      
+      // Debug all events with payment amounts
+      console.log('Events with payment amounts:', allEvents.filter(e => e.payment_amount).map(e => ({
+        id: e.id,
+        title: e.title,
+        payment_amount: e.payment_amount,
+        payment_status: e.payment_status,
+        type: e.payment_amount?.constructor?.name || typeof e.payment_amount
+      })));
 
       // Get payment status counts using normalized values
       const partlyPaid = allEvents.filter(e => 
@@ -205,7 +214,29 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           const isPaid = status === 'fully_paid' || status === 'partly_paid';
                            
           if (isPaid && event.payment_amount) {
-            return acc + Number(event.payment_amount);
+            // Ensure payment_amount is processed correctly as a number
+            let amount = 0;
+            
+            try {
+              // Handle different types of payment_amount
+              if (typeof event.payment_amount === 'string') {
+                amount = parseFloat(event.payment_amount.replace(/[^0-9.-]+/g, ''));
+              } else if (typeof event.payment_amount === 'number') {
+                amount = event.payment_amount;
+              } else if (event.payment_amount !== null && event.payment_amount !== undefined) {
+                amount = Number(event.payment_amount);
+              }
+              
+              if (isNaN(amount)) {
+                console.warn('Invalid payment amount converted to NaN:', event.payment_amount);
+                return acc;
+              }
+            } catch (err) {
+              console.error('Error processing payment amount:', event.payment_amount, err);
+              return acc;
+            }
+            
+            return acc + amount;
           }
           return acc;
         }, 0);
@@ -216,27 +247,39 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         };
       });
 
-      // Calculate total income correctly using normalized payment statuses
-      const totalIncome = allEvents.reduce((acc, event) => {
+      // Calculate total income correctly
+      let totalIncome = 0;
+      
+      // Enhanced totalIncome calculation with better logging
+      allEvents.forEach(event => {
         const status = normalizePaymentStatus(event.payment_status);
         const isPaid = status === 'fully_paid' || status === 'partly_paid';
                        
         if (isPaid && event.payment_amount) {
-          // Ensure payment_amount is processed as a number
-          const amount = typeof event.payment_amount === 'string' 
-            ? parseFloat(event.payment_amount) 
-            : Number(event.payment_amount);
-            
-          // Debug to find any NaN values
-          if (isNaN(amount)) {
-            console.warn('Invalid payment amount detected:', event.payment_amount, 'for event:', event.id);
-            return acc;
-          }
+          let amount = 0;
           
-          return acc + amount;
+          try {
+            // Handle different types of payment_amount
+            if (typeof event.payment_amount === 'string') {
+              amount = parseFloat(event.payment_amount.replace(/[^0-9.-]+/g, ''));
+            } else if (typeof event.payment_amount === 'number') {
+              amount = event.payment_amount;
+            } else if (event.payment_amount !== null && event.payment_amount !== undefined) {
+              amount = Number(event.payment_amount);
+            }
+            
+            if (isNaN(amount)) {
+              console.warn('Invalid payment amount detected:', event.payment_amount, 'for event:', event.id);
+              return;
+            }
+            
+            console.log(`Adding income: ${amount} from event ${event.id} (${event.title}) - status: ${status}`);
+            totalIncome += amount;
+          } catch (err) {
+            console.error('Error processing payment amount:', event.payment_amount, 'for event:', event.id, err);
+          }
         }
-        return acc;
-      }, 0);
+      });
       
       // Log income calculation for debugging
       console.log('Total income calculated:', totalIncome, 'from', allEvents.length, 'events');
