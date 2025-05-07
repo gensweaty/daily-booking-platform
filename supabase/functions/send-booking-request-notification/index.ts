@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -330,30 +331,52 @@ If you did not sign up for SmartBookly, please disregard this email.
     console.log("📧 Subject: New Booking Request - Action Required");
     
     let emailResult;
+    
+    // Use non-blocking email sending, similar to how we optimized the approval process
     try {
       console.log("📤 About to execute Resend API call");
       
-      // Make sure we fully await the email sending before returning
-      emailResult = await resend.emails.send({
-        from: fromEmail,
-        to: [businessEmail],
-        subject: "New Booking Request - Action Required",
-        html: emailHtml,
-        text: plainText,
-        reply_to: "no-reply@smartbookly.com",
-      });
-      
-      console.log("📬 Raw Resend API response:", JSON.stringify(emailResult));
-      
-      if (emailResult.error) {
-        throw new Error(emailResult.error.message || "Unknown error from Resend API");
+      // Use waitUntil to make email sending non-blocking
+      if (typeof EdgeRuntime !== 'undefined') {
+        // This will send the response without waiting for email completion
+        EdgeRuntime.waitUntil((async () => {
+          try {
+            const result = await resend.emails.send({
+              from: fromEmail,
+              to: [businessEmail],
+              subject: "New Booking Request - Action Required",
+              html: emailHtml,
+              text: plainText,
+              reply_to: "no-reply@smartbookly.com",
+            });
+            
+            console.log("📬 Background email process complete:", JSON.stringify(result));
+          } catch (err) {
+            console.error("❌ Background email process error:", err);
+          }
+        })());
+        
+        emailResult = { success: true, message: "Email processing started in background" };
+      } else {
+        // Fallback to traditional method if EdgeRuntime is not available
+        emailResult = await resend.emails.send({
+          from: fromEmail,
+          to: [businessEmail],
+          subject: "New Booking Request - Action Required",
+          html: emailHtml,
+          text: plainText,
+          reply_to: "no-reply@smartbookly.com",
+        });
+        
+        console.log("📬 Raw Resend API response:", JSON.stringify(emailResult));
+        
+        if (emailResult.error) {
+          throw new Error(emailResult.error.message || "Unknown error from Resend API");
+        }
+        
+        console.log("✅ Email sent successfully with ID:", emailResult.data?.id);
+        console.log("✅ Recipient:", businessEmail);
       }
-      
-      console.log("✅ Email sent successfully with ID:", emailResult.data?.id);
-      console.log("✅ Recipient:", businessEmail);
-      
-      // Wait a moment to ensure the email is processed
-      await new Promise(resolve => setTimeout(resolve, 500));
       
     } catch (resendError) {
       console.error("❌ Resend API error:", resendError);
@@ -379,18 +402,14 @@ If you did not sign up for SmartBookly, please disregard this email.
       );
     }
 
-    // Success response
+    // Success response - return quickly without waiting for email completion
     console.log("✅ Request processed successfully, returning response");
-    
-    // Wait to ensure all logs are flushed before returning
-    await new Promise(resolve => setTimeout(resolve, 300));
     
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Email notification sent successfully",
-        id: emailResult.data?.id,
-        email: businessEmail
+        message: "Booking request submitted successfully",
+        emailStatus: emailResult?.success ? "processing" : "initiated"
       }),
       { 
         status: 200, 
@@ -403,9 +422,6 @@ If you did not sign up for SmartBookly, please disregard this email.
     
   } catch (error) {
     console.error("❌ Unhandled error in send-booking-request-notification:", error);
-    
-    // Wait to ensure all logs are flushed before returning
-    await new Promise(resolve => setTimeout(resolve, 300));
     
     return new Response(
       JSON.stringify({ 
