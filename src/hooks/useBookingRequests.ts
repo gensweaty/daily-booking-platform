@@ -239,12 +239,8 @@ export const useBookingRequests = () => {
         throw new Error('User not authenticated');
       }
       
-      // Show toast for approval in progress
-      toast({
-        title: "Processing approval...",
-        description: "Please wait while we process your request.",
-        duration: 3000
-      });
+      // Remove the loading toast notification since we have button loading animations
+      // This was displaying "Processing approval... Please wait while we process your request."
       
       const { data: booking, error: fetchError } = await supabase
         .from('booking_requests')
