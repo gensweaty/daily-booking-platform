@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -131,7 +130,7 @@ export const DashboardContent = ({
           </motion.div>
           <span className="hidden sm:inline">
             {isGeorgian ? (
-              <GeorgianAuthText>კლიენტების მართვა</GeorgianAuthText>
+              <GeorgianAuthText>მომხმარებლების მართვა</GeorgianAuthText>
             ) : (
               <LanguageText>{t("dashboard.crm")}</LanguageText>
             )}
