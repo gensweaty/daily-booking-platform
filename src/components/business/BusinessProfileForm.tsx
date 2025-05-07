@@ -13,7 +13,7 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useEffect, useState } from "react";
 import { useBusinessProfile } from "@/hooks/useBusinessProfile";
-import { InfoCircle } from "lucide-react";
+import { Info, Loader } from "lucide-react";
 
 // Enhanced validation for slugs
 const slugRegex = /^[a-z0-9-]+$/;
@@ -200,7 +200,7 @@ export const BusinessProfileForm = () => {
                     }}
                   />
                   <div className="absolute top-2 right-2 text-muted-foreground">
-                    <InfoCircle className="h-4 w-4" title="Only lowercase letters, numbers, and hyphens are allowed" />
+                    <Info className="h-4 w-4" title="Only lowercase letters, numbers, and hyphens are allowed" />
                   </div>
                 </div>
               </FormControl>
@@ -337,7 +337,7 @@ export const BusinessProfileForm = () => {
             t("common.loading")
           ) : isSaving ? (
             <div className="flex items-center gap-2">
-              <LoaderCircle className="h-4 w-4 animate-spin" />
+              <Loader className="h-4 w-4 animate-spin" />
               <LanguageText>{t("common.saving")}</LanguageText>
             </div>
           ) : (
