@@ -25,7 +25,7 @@ export function ThemeProvider({
   enableColorScheme = true,
   ...props 
 }: ThemeProviderProps) {
-  // Add a state to track if we've initialized the theme
+  // Ensure React is in scope for the useState hook
   const [themeInitialized, setThemeInitialized] = React.useState(false);
 
   // Force immediate theme application to prevent flicker

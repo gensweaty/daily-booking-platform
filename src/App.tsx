@@ -51,13 +51,25 @@ const SessionRecoveryWrapper = ({ children }: { children: React.ReactNode }) => 
   return <>{children}</>;
 };
 
-// Route-aware theme wrapper component
+// Route-aware theme wrapper component that doesn't use hooks outside of component
 const RouteAwareThemeProvider = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <ThemeProvider 
+      defaultTheme="system"
+      storageKey="vite-ui-theme"
+      enableSystem={true}
+      enableColorScheme={true}
+    >
+      {children}
+    </ThemeProvider>
+  );
+};
+
+// A separate component to handle route awareness
+const RouteAwareWrapper = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
-
-  // External business page detection
   const isExternalPage = location.pathname.startsWith('/business/');
-
+  
   useEffect(() => {
     if (isExternalPage) {
       // Set default to light mode but don't force it
@@ -86,46 +98,39 @@ const RouteAwareThemeProvider = ({ children }: { children: React.ReactNode }) =>
       console.log("[InitTheme] Applied system light theme");
     }
   }, [isExternalPage, location.pathname]);
-
-  return (
-    <ThemeProvider 
-      defaultTheme={isExternalPage ? "light" : "system"}
-      storageKey="vite-ui-theme"
-      enableSystem={true}
-      enableColorScheme={true}
-    >
-      {children}
-    </ThemeProvider>
-  );
+  
+  return <>{children}</>;
 };
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <RouteAwareThemeProvider>
+        <ThemeProvider defaultTheme="system">
           <LanguageProvider>
             <AuthProvider>
               <SessionRecoveryWrapper>
-                <Routes>
-                  <Route path="/" element={<Landing />} />
-                  <Route path="/dashboard" element={<Index />} />
-                  <Route path="/dashboard/*" element={<Index />} />
-                  <Route path="/legal" element={<Legal />} />
-                  <Route path="/contact" element={<Contact />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/business/:slug" element={<PublicBusinessPage />} />
-                  <Route path="/business" element={<PublicBusinessPage />} />
-                  <Route path="/login" element={<Index />} />
-                  <Route path="/signup" element={<Index />} />
-                  <Route path="*" element={<Landing />} />
-                </Routes>
-                <Toaster />
+                <RouteAwareWrapper>
+                  <Routes>
+                    <Route path="/" element={<Landing />} />
+                    <Route path="/dashboard" element={<Index />} />
+                    <Route path="/dashboard/*" element={<Index />} />
+                    <Route path="/legal" element={<Legal />} />
+                    <Route path="/contact" element={<Contact />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/business/:slug" element={<PublicBusinessPage />} />
+                    <Route path="/business" element={<PublicBusinessPage />} />
+                    <Route path="/login" element={<Index />} />
+                    <Route path="/signup" element={<Index />} />
+                    <Route path="*" element={<Landing />} />
+                  </Routes>
+                  <Toaster />
+                </RouteAwareWrapper>
               </SessionRecoveryWrapper>
             </AuthProvider>
           </LanguageProvider>
-        </RouteAwareThemeProvider>
+        </ThemeProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );
