@@ -128,14 +128,22 @@ const CacheBustingHeaders = () => {
       expiresTag.content = '0';
       document.head.appendChild(expiresTag);
       
+      // Set a session flag to indicate we're on a business page
+      sessionStorage.setItem('onBusinessPage', 'true');
+      
       return () => {
         // Clean up when component unmounts
         document.head.removeChild(metaTag);
         document.head.removeChild(pragmaTag);
         document.head.removeChild(expiresTag);
+        
+        // Only remove the flag if we're not navigating to another business page
+        if (!location.pathname.includes('/business')) {
+          sessionStorage.removeItem('onBusinessPage');
+        }
       };
     }
-  }, [isBusinessPage]);
+  }, [isBusinessPage, location.pathname]);
   
   return null;
 };
@@ -144,9 +152,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <CacheBustingHeaders />
         <ThemeProvider defaultTheme="system">
           <TooltipProvider>
-            <CacheBustingHeaders />
             <LanguageProvider>
               <AuthProvider>
                 <SessionRecoveryWrapper>
