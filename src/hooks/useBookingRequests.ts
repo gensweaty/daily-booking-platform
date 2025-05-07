@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
-import { BookingRequest } from "@/types/database";
+import { BookingRequest, EventFile } from "@/types/database";
 
 export const useBookingRequests = () => {
   const { user } = useAuth();
@@ -73,7 +73,8 @@ export const useBookingRequests = () => {
         // Don't throw here, just proceed without files
       }
       
-      const filesMap = new Map();
+      // Use Map for efficient lookups, with proper typing for the nested Map
+      const filesMap = new Map<string, Map<string, EventFile>>();
       
       if (filesData && filesData.length > 0) {
         console.log(`Found ${filesData.length} files for booking requests`);
@@ -83,11 +84,11 @@ export const useBookingRequests = () => {
           if (!file.event_id) return;
           
           if (!filesMap.has(file.event_id)) {
-            filesMap.set(file.event_id, new Map()); // Use a map for deduplication
+            filesMap.set(file.event_id, new Map<string, EventFile>());
           }
           
           // Use file path as key to prevent duplicates
-          const fileMap = filesMap.get(file.event_id);
+          const fileMap = filesMap.get(file.event_id)!;
           const fileKey = `${file.filename}:${file.file_path}`;
           
           if (!fileMap.has(fileKey)) {
