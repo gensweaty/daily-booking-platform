@@ -31,7 +31,8 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       .eq('user_id', userId)
       .or(`start_date.gte.${dateRange.start.toISOString()},created_at.gte.${dateRange.start.toISOString()}`)
       .or(`start_date.lte.${endOfDay(dateRange.end).toISOString()},created_at.lte.${endOfDay(dateRange.end).toISOString()}`)
-      .is('deleted_at', null);
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false }); // Sort by created_at in descending order
 
     if (error) {
       console.error("Error fetching customers:", error);
@@ -52,7 +53,8 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       .eq('user_id', userId)
       .gte('start_date', dateRange.start.toISOString())
       .lte('start_date', endOfDay(dateRange.end).toISOString())
-      .is('deleted_at', null);
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false }); // Sort by created_at in descending order
 
     if (eventsError) {
       console.error("Error fetching events:", eventsError);
@@ -144,6 +146,13 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
         });
       }
     }
+    
+    // Sort the combined data by created_at in descending order (newest first)
+    combined.sort((a, b) => {
+      const dateA = new Date(a.created_at || 0).getTime();
+      const dateB = new Date(b.created_at || 0).getTime();
+      return dateB - dateA;
+    });
     
     return combined;
   }, [customers, events, isLoadingCustomers, isLoadingEvents]);
