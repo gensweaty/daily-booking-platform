@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink, FileText, FileSpreadsheet, PresentationIcon } from "lucide-react";
@@ -40,6 +41,9 @@ export const FileDisplay = ({
   }, []);
 
   useEffect(() => {
+    // Debug the files we're trying to display
+    console.log("FileDisplay - Files to process:", uniqueFiles);
+    
     const newURLs: {[key: string]: string} = {};
     uniqueFiles.forEach(file => {
       if (file.file_path) {
@@ -78,11 +82,13 @@ export const FileDisplay = ({
 
   const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
     try {
-      console.log(`Attempting to download file: ${fileName}, path: ${filePath}`);
+      console.log(`Attempting to download file: ${fileName}, path: ${filePath}, fileId: ${fileId}`);
       
       // Always use event_attachments bucket for all files
+      const effectiveBucket = "event_attachments";
+      const normalizedPath = normalizeFilePath(filePath);
       const directUrl = fileURLs[fileId] || 
-        `${getStorageUrl()}/object/public/event_attachments/${normalizeFilePath(filePath)}`;
+        `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
       
       console.log('Using direct URL for download:', directUrl);
       
@@ -249,8 +255,11 @@ export const FileDisplay = ({
           : file.filename;
         
         // Always use event_attachments for the URL
+        const normalizedPath = normalizeFilePath(file.file_path);
         const imageUrl = fileURLs[file.id] || 
-          `${getStorageUrl()}/object/public/event_attachments/${normalizeFilePath(file.file_path)}`;
+          `${getStorageUrl()}/object/public/event_attachments/${normalizedPath}`;
+          
+        console.log(`Rendering file: ${file.filename}, URL: ${imageUrl}`);
           
         return (
           <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">
