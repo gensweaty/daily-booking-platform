@@ -69,6 +69,15 @@ export interface BookingRequest {
   filename?: string;
   content_type?: string;
   size?: number;
+  // Add the files property for multiple file attachments
+  files?: Array<{
+    id: string;
+    event_id: string;
+    filename: string;
+    file_path: string;
+    content_type?: string;
+    size?: number;
+  }>;
 }
 
 // Add EventFile interface to match event_files table
