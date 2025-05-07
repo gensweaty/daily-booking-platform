@@ -34,8 +34,13 @@ export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
   // Get the appropriate currency symbol based on language
   const currencySymbol = getCurrencySymbol(language);
 
+  // First ensure totalIncome is a valid number - use fallback to 0 if undefined, null or NaN
+  const safeIncome = typeof eventStats.totalIncome === 'number' && !isNaN(eventStats.totalIncome) 
+    ? eventStats.totalIncome 
+    : 0;
+
   // Format the income value to have 2 decimal places and add currency symbol
-  const formattedIncome = `${currencySymbol}${eventStats.totalIncome.toFixed(2)}`;
+  const formattedIncome = `${currencySymbol}${safeIncome.toFixed(2)}`;
   
   // Choose the appropriate currency icon based on language
   const CurrencyIcon = language === 'es' ? EuroIcon : 
@@ -47,6 +52,8 @@ export const StatsCards = ({ taskStats, eventStats }: StatsCardsProps) => {
     partlyPaid: eventStats.partlyPaid,
     fullyPaid: eventStats.fullyPaid,
     totalIncome: eventStats.totalIncome,
+    safeIncome,
+    formattedIncome,
     currency: currencySymbol
   });
 

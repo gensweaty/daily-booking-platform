@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format, parseISO, eachDayOfInterval, endOfDay, startOfMonth, endOfMonth, differenceInMonths, addMonths, eachMonthOfInterval } from 'date-fns';
@@ -221,10 +222,29 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         const isPaid = status === 'fully_paid' || status === 'partly_paid';
                        
         if (isPaid && event.payment_amount) {
-          return acc + Number(event.payment_amount);
+          // Ensure payment_amount is processed as a number
+          const amount = typeof event.payment_amount === 'string' 
+            ? parseFloat(event.payment_amount) 
+            : Number(event.payment_amount);
+            
+          // Debug to find any NaN values
+          if (isNaN(amount)) {
+            console.warn('Invalid payment amount detected:', event.payment_amount, 'for event:', event.id);
+            return acc;
+          }
+          
+          return acc + amount;
         }
         return acc;
       }, 0);
+      
+      // Log income calculation for debugging
+      console.log('Total income calculated:', totalIncome, 'from', allEvents.length, 'events');
+      console.log('Payment statuses distribution:', {
+        fullyPaid,
+        partlyPaid,
+        notPaid: allEvents.length - fullyPaid - partlyPaid
+      });
 
       return {
         total: allEvents.length || 0,
