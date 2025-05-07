@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -614,6 +613,7 @@ export const CustomerDialog = ({
               setEventStartDate={setEventStartDate}
               eventEndDate={eventEndDate}
               setEventEndDate={setEventEndDate}
+              bucketName={customerId?.startsWith('event-') ? 'event_attachments' : 'customer_attachments'}
             />
 
             <div className="flex justify-between">
