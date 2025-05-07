@@ -48,14 +48,16 @@ export const FileDisplay = ({
     uniqueFiles.forEach(file => {
       if (file.file_path) {
         const normalizedPath = normalizeFilePath(file.file_path);
-        // Always use event_attachments for all files regardless of the type
-        const effectiveBucket = "event_attachments";
-        console.log(`File ${file.filename}: Using bucket ${effectiveBucket} for path ${normalizedPath}`);
-        newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
+        
+        // Use the provided bucket name instead of hardcoding
+        // This allows the parent component to specify the correct bucket
+        console.log(`File ${file.filename}: Using bucket ${bucketName} for path ${normalizedPath}`);
+        
+        newURLs[file.id] = `${getStorageUrl()}/object/public/${bucketName}/${normalizedPath}`;
       }
     });
     setFileURLs(newURLs);
-  }, [uniqueFiles]);
+  }, [uniqueFiles, bucketName]);
 
   const getFileExtension = (filename: string): string => {
     return filename.split('.').pop()?.toLowerCase() || '';
@@ -82,13 +84,12 @@ export const FileDisplay = ({
 
   const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
     try {
-      console.log(`Attempting to download file: ${fileName}, path: ${filePath}, fileId: ${fileId}`);
+      console.log(`Attempting to download file: ${fileName}, path: ${filePath}, fileId: ${fileId}, bucket: ${bucketName}`);
       
-      // Always use event_attachments bucket for all files
-      const effectiveBucket = "event_attachments";
+      // Use the bucket name provided in props
       const normalizedPath = normalizeFilePath(filePath);
       const directUrl = fileURLs[fileId] || 
-        `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
+        `${getStorageUrl()}/object/public/${bucketName}/${normalizedPath}`;
       
       console.log('Using direct URL for download:', directUrl);
       
@@ -142,8 +143,8 @@ export const FileDisplay = ({
     }
     
     const normalizedPath = normalizeFilePath(filePath);
-    // Always use event_attachments bucket
-    return `${getStorageUrl()}/object/public/event_attachments/${normalizedPath}`;
+    // Use the bucket name from props
+    return `${getStorageUrl()}/object/public/${bucketName}/${normalizedPath}`;
   };
 
   const handleOpenFile = async (filePath: string, fileId: string) => {
@@ -171,12 +172,11 @@ export const FileDisplay = ({
     try {
       setDeletingFileId(fileId);
       
-      // Always use event_attachments bucket
-      const effectiveBucket = "event_attachments";
-      console.log(`Deleting file from bucket ${effectiveBucket}, path: ${filePath}`);
+      // Use the bucket name from props
+      console.log(`Deleting file from bucket ${bucketName}, path: ${filePath}`);
       
       const { error: storageError } = await supabase.storage
-        .from(effectiveBucket)
+        .from(bucketName)
         .remove([normalizeFilePath(filePath)]);
 
       if (storageError) {
@@ -254,12 +254,12 @@ export const FileDisplay = ({
           ? file.filename.substring(0, 20) + '...' 
           : file.filename;
         
-        // Always use event_attachments for the URL
+        // Use the bucket name from props for URLs
         const normalizedPath = normalizeFilePath(file.file_path);
         const imageUrl = fileURLs[file.id] || 
-          `${getStorageUrl()}/object/public/event_attachments/${normalizedPath}`;
+          `${getStorageUrl()}/object/public/${bucketName}/${normalizedPath}`;
           
-        console.log(`Rendering file: ${file.filename}, URL: ${imageUrl}`);
+        console.log(`Rendering file: ${file.filename}, URL: ${imageUrl}, bucket: ${bucketName}`);
           
         return (
           <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">

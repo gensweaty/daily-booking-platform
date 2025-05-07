@@ -292,8 +292,9 @@ export const BookingRequestsList = ({
                     {(request.file_path || (request.files && request.files.length > 0)) ? (
                       <FileDisplay 
                         files={mapRequestFilesToFileRecords(request)}
-                        bucketName="event_attachments"
+                        bucketName="booking_attachments"
                         allowDelete={false}
+                        parentType="event"
                       />
                     ) : (
                       <span className="text-muted-foreground">-</span>
