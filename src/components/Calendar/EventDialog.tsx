@@ -146,7 +146,7 @@ export const EventDialog = ({
           .rpc('get_all_related_files', {
             event_id_param: event.id,
             customer_id_param: null,
-            entity_name_param: event.title || '' // Include title for potential file matches
+            entity_name_param: null // Don't load by name to prevent potential duplicates
           });
             
         if (eventFilesError) {

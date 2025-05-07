@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink, FileText, FileSpreadsheet, PresentationIcon } from "lucide-react";
@@ -34,29 +33,37 @@ export const FileDisplay = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
-  // Enhanced deduplication that creates a fingerprint for each file based on filename and path structure
+  // Advanced deduplication that creates a unique signature for each file
   const uniqueFiles = files.reduce((acc: FileRecord[], current) => {
     // Skip files without paths
     if (!current.file_path) return acc;
     
-    // Create a fingerprint based on the filename and the last segment of the path
-    // (which typically contains the unique file identifier)
+    // Create a more precise fingerprint that also considers the source
     const pathSegments = normalizeFilePath(current.file_path).split('/');
     const lastSegment = pathSegments[pathSegments.length - 1] || '';
-    const fileFingerprint = `${current.filename}-${lastSegment}`;
     
-    // Check if we already have a file with the same fingerprint
+    // Use file path components, source, and event/customer id to create a more unique signature
+    const fileSignature = `${current.filename}-${lastSegment}-${current.source || ''}-${current.event_id || current.customer_id || ''}`;
+    
+    console.log(`Evaluating file: ${current.filename}, signature: ${fileSignature}`);
+    
+    // Check if we already have a file with the same signature
     const hasDuplicate = acc.some(file => {
       if (!file.file_path) return false;
       
       const existingPathSegments = normalizeFilePath(file.file_path).split('/');
       const existingLastSegment = existingPathSegments[existingPathSegments.length - 1] || '';
-      const existingFingerprint = `${file.filename}-${existingLastSegment}`;
+      const existingSignature = `${file.filename}-${existingLastSegment}-${file.source || ''}-${file.event_id || file.customer_id || ''}`;
       
-      return fileFingerprint === existingFingerprint;
+      const isDuplicate = fileSignature === existingSignature;
+      if (isDuplicate) {
+        console.log(`Found duplicate: ${file.filename}, matching signature: ${existingSignature}`);
+      }
+      return isDuplicate;
     });
     
     if (!hasDuplicate) {
+      console.log(`Adding unique file: ${current.filename}, signature: ${fileSignature}`);
       acc.push(current);
     }
     
