@@ -90,7 +90,7 @@ export const FeatureCard = ({
               className="flex items-start gap-2"
             >
               <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-primary mt-1" />
-              <span className="text-sm sm:text-base md:text-base"><LanguageText>{t(getTranslationKey(`feature${idx + 1}`))}</LanguageText></span>
+              <span className="text-base sm:text-base md:text-base"><LanguageText>{t(getTranslationKey(`feature${idx + 1}`))}</LanguageText></span>
             </motion.li>
           ))}
         </ul>
