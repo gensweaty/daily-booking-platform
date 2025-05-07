@@ -1,408 +1,668 @@
-
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { format } from "date-fns";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarEventType } from "@/lib/types/calendar";
-import { Customer } from "@/lib/types/customer";
-import { FileUploadField } from "@/components/shared/FileUploadField";
-import { supabase } from "@/integrations/supabase/client";
+import { Trash2, AlertCircle } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase, getStorageUrl } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
-import { useLanguage } from "@/contexts/LanguageContext";
 import { CustomerDialogFields } from "./CustomerDialogFields";
+import { useLanguage } from "@/contexts/LanguageContext";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { testEmailSending } from "@/lib/api"; // Import the email sending function
 
 interface CustomerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedDate?: Date | null;
-  onSubmit?: (data: Partial<Customer>) => Promise<Customer>;
-  onDelete?: () => void;
-  customer?: Customer;
+  customerId?: string | null;
   initialData?: any;
 }
 
 export const CustomerDialog = ({
   open,
   onOpenChange,
-  selectedDate = null,
-  onSubmit,
-  onDelete,
-  customer,
-  initialData
+  customerId,
+  initialData,
 }: CustomerDialogProps) => {
-  const [title, setTitle] = useState(initialData?.title || customer?.title || "");
-  const [userSurname, setUserSurname] = useState(initialData?.user_surname || customer?.user_surname || "");
-  const [userNumber, setUserNumber] = useState(initialData?.user_number || customer?.user_number || "");
-  const [socialNetworkLink, setSocialNetworkLink] = useState(initialData?.social_network_link || customer?.social_network_link || "");
-  const [createEvent, setCreateEvent] = useState(initialData?.create_event !== undefined ? initialData.create_event : customer?.create_event !== undefined ? customer.create_event : false);
-  const [paymentStatus, setPaymentStatus] = useState(initialData?.payment_status || customer?.payment_status || "not_paid");
-  const [paymentAmount, setPaymentAmount] = useState(initialData?.payment_amount?.toString() || customer?.payment_amount?.toString() || "");
-  const [customerNotes, setCustomerNotes] = useState(initialData?.customer_notes || customer?.customer_notes || "");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState("");
-  const [startDate, setStartDate] = useState(selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : "");
-  const [endDate, setEndDate] = useState(selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : "");
-  const [eventStartDate, setEventStartDate] = useState(selectedDate || new Date());
-  const [eventEndDate, setEventEndDate] = useState(() => {
-    const initialEndDate = selectedDate ? new Date(selectedDate) : new Date();
-    initialEndDate.setHours(initialEndDate.getHours() + 1);
-    return initialEndDate;
-  });
-  const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { t } = useLanguage();
+  const [formData, setFormData] = useState({
+    title: "",
+    user_number: "",
+    social_network_link: "",
+    event_notes: "",
+    payment_status: "not_paid",
+    payment_amount: "",
+    startDate: "",
+    endDate: "",
+  });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
+  const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  // Add state for delete confirmation dialog
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+  // Add state for event date/time pickers
+  const [eventStartDate, setEventStartDate] = useState<Date>(new Date());
+  const [eventEndDate, setEventEndDate] = useState<Date>(new Date());
+  const [createEvent, setCreateEvent] = useState(false);
 
   useEffect(() => {
-    if (initialData || customer) {
-      setTitle(initialData?.title || customer?.title || "");
-      setUserSurname(initialData?.user_surname || customer?.user_surname || "");
-      setUserNumber(initialData?.user_number || customer?.user_number || "");
-      setSocialNetworkLink(initialData?.social_network_link || customer?.social_network_link || "");
-      setCreateEvent(initialData?.create_event !== undefined ? initialData.create_event : customer?.create_event !== undefined ? customer.create_event : false);
-      setPaymentStatus(initialData?.payment_status || customer?.payment_status || "not_paid");
-      setPaymentAmount(initialData?.payment_amount?.toString() || customer?.payment_amount?.toString() || "");
-      setCustomerNotes(initialData?.customer_notes || customer?.customer_notes || "");
-
-      if ((initialData?.start_date && initialData?.end_date) || (customer?.start_date && customer?.end_date)) {
-        setStartDate(format(new Date(initialData?.start_date || customer?.start_date), "yyyy-MM-dd'T'HH:mm"));
-        setEndDate(format(new Date(initialData?.end_date || customer?.end_date), "yyyy-MM-dd'T'HH:mm"));
-        setEventStartDate(new Date(initialData?.start_date || customer?.start_date));
-        setEventEndDate(new Date(initialData?.end_date || customer?.end_date));
+    if (initialData) {
+      setFormData({
+        title: initialData.title || "",
+        user_number: initialData.user_number || "",
+        social_network_link: initialData.social_network_link || "",
+        event_notes: initialData.event_notes || "",
+        payment_status: initialData.payment_status || "not_paid",
+        payment_amount: initialData.payment_amount?.toString() || "",
+        startDate: initialData.startDate || "",
+        endDate: initialData.endDate || "",
+      });
+      
+      // Set the create_event checkbox state from initialData
+      setCreateEvent(initialData.create_event || false);
+      
+      // Set event dates if they exist in initialData
+      if (initialData.start_date) {
+        setEventStartDate(new Date(initialData.start_date));
       }
-    } else if (selectedDate) {
-      setStartDate(format(selectedDate, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(selectedDate, "yyyy-MM-dd'T'HH:mm"));
-      setEventStartDate(selectedDate);
-      const initialEndDate = new Date(selectedDate);
-      initialEndDate.setHours(initialEndDate.getHours() + 1);
-      setEventEndDate(initialEndDate);
-      setTitle("");
-      setUserSurname("");
-      setUserNumber("");
-      setSocialNetworkLink("");
+      if (initialData.end_date) {
+        setEventEndDate(new Date(initialData.end_date));
+      }
+    } else {
+      setFormData({
+        title: "",
+        user_number: "",
+        social_network_link: "",
+        event_notes: "",
+        payment_status: "not_paid",
+        payment_amount: "",
+        startDate: "",
+        endDate: "",
+      });
       setCreateEvent(false);
-      setPaymentStatus("not_paid");
-      setPaymentAmount("");
-      setCustomerNotes("");
     }
-  }, [customer, selectedDate, initialData]);
+  }, [initialData]);
 
-  // Handle form submission for creating/updating customer
+  useEffect(() => {
+    const loadFiles = async () => {
+      if (!customerId) {
+        setDisplayedFiles([]);
+        return;
+      }
+
+      try {
+        let filesData: any[] = [];
+        if (customerId.startsWith('event-')) {
+          const eventId = customerId.replace('event-', '');
+          const { data: eventFiles, error: eventFilesError } = await supabase
+            .from('event_files')
+            .select('*')
+            .eq('event_id', eventId);
+
+          if (eventFilesError) {
+            console.error("Error loading event files:", eventFilesError);
+          } else {
+            filesData = eventFiles || [];
+          }
+        } else {
+          const { data: customerFiles, error: customerFilesError } = await supabase
+            .from('customer_files_new')
+            .select('*')
+            .eq('customer_id', customerId);
+
+          if (customerFilesError) {
+            console.error("Error loading customer files:", customerFilesError);
+          } else {
+            filesData = customerFiles || [];
+          }
+        }
+
+        console.log("Files loaded for customer/event:", filesData);
+        setDisplayedFiles(filesData);
+      } catch (error) {
+        console.error("Error loading files:", error);
+        setDisplayedFiles([]);
+      }
+    };
+
+    if (open) {
+      loadFiles();
+      setSelectedFile(null);
+      setFileError("");
+    }
+  }, [open, customerId]);
+
+  const uploadFile = async (customerId: string, file: File) => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${customerId}/${crypto.randomUUID()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('customer_attachments')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error('Error uploading file:', uploadError);
+        throw uploadError;
+      }
+
+      const fileData = {
+        filename: file.name,
+        file_path: filePath,
+        content_type: file.type,
+        size: file.size,
+        user_id: user?.id,
+        customer_id: customerId,
+      };
+
+      const { error: fileRecordError } = await supabase
+        .from('customer_files_new')
+        .insert(fileData);
+
+      if (fileRecordError) {
+        console.error('Error creating file record:', fileRecordError);
+        throw fileRecordError;
+      }
+
+      return fileData;
+    } catch (error: any) {
+      console.error("Error during file upload:", error);
+      toast({
+        title: t("common.error"),
+        description: error.message || t("common.uploadError"),
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  // Helper function to validate email format
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Helper function to send email notification for new event
+  const sendEventCreationEmail = async (eventData: any) => {
+    try {
+      // Check if we have a valid customer email to send to
+      const customerEmail = eventData.social_network_link;
+      if (!customerEmail || !isValidEmail(customerEmail)) {
+        console.warn("No valid customer email found for sending notification");
+        return;
+      }
+      
+      // Get user's business profile for the email
+      const { data: businessData } = await supabase
+        .from('business_profiles')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+      
+      console.log("Business data for email:", businessData);
+      
+      if (businessData) {
+        // Send email notification to the customer's email address
+        // Use the same email format/template as the calendar event emails
+        const emailResult = await testEmailSending(
+          customerEmail, // Customer's email
+          eventData.title || eventData.user_surname || '', // Customer name
+          businessData.business_name || '', // Business name from profile
+          eventData.start_date,
+          eventData.end_date,
+          eventData.payment_status || 'not_paid',
+          eventData.payment_amount || null,
+          businessData.contact_address || '',
+          eventData.id
+        );
+        
+        console.log("Event creation email result:", emailResult);
+        
+        if (emailResult?.error) {
+          console.warn("Failed to send event creation email:", emailResult.error);
+        } else {
+          console.log("Event creation email sent successfully to customer:", customerEmail);
+        }
+      } else {
+        console.warn("Missing business data for event notification");
+      }
+    } catch (error) {
+      console.error("Error sending event creation email:", error);
+      // Don't throw - we don't want to break the main flow if just the email fails
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title || title.trim() === "") {
+    if (!user?.id) {
       toast({
         translateKeys: {
           titleKey: "common.error",
-          descriptionKey: "crm.fullNameRequired"
-        },
-        variant: "destructive",
+          descriptionKey: "common.missingUserInfo"
+        }
       });
       return;
     }
 
+    setIsLoading(true);
     try {
-      const customerData: Partial<Customer> = {
-        title: title,
-        user_surname: userSurname,
-        user_number: userNumber,
-        social_network_link: socialNetworkLink,
-        customer_notes: customerNotes,
-        create_event: createEvent,
-        payment_status: paymentStatus,
-        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-      };
+      const { title, user_number, social_network_link, event_notes, payment_status, payment_amount } = formData;
 
-      if (customer?.id) {
-        customerData.id = customer.id;
-      }
+      // For existing customers/events (update operation)
+      if (customerId) {
+        const updates = {
+          title,
+          user_number,
+          social_network_link,
+          event_notes,
+          payment_status,
+          payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+          user_id: user.id,
+          create_event: createEvent, // Make sure to update the create_event flag
+          start_date: createEvent ? eventStartDate.toISOString() : null,
+          end_date: createEvent ? eventEndDate.toISOString() : null
+        };
 
-      console.log("CustomerDialog - Submitting customer data:", customerData);
-      let createdCustomer: Customer;
-      
-      if (onSubmit) {
-        createdCustomer = await onSubmit(customerData);
-      } else {
-        // Directly insert into customers table if no onSubmit provided
-        if (customer?.id) {
-          // Update existing customer
-          const { data, error } = await supabase
-            .from('customers')
-            .update(customerData)
-            .eq('id', customer.id)
-            .select('*')
-            .single();
-            
-          if (error) throw error;
-          createdCustomer = data;
-        } else {
-          // Create new customer
-          const { data, error } = await supabase
-            .from('customers')
-            .insert({
-              ...customerData,
-              user_id: user?.id,
-              title: title // Ensure title is specified as it's required
-            })
-            .select('*')
-            .single();
-            
-          if (error) throw error;
-          createdCustomer = data;
+        let tableToUpdate = 'customers';
+        let id = customerId;
+
+        if (customerId.startsWith('event-')) {
+          tableToUpdate = 'events';
+          id = customerId.replace('event-', '');
         }
-      }
-      
-      console.log('Created/Updated customer:', createdCustomer);
-      
-      // Store the newly uploaded file for later use with event creation
-      let uploadedFilePath = null;
-      let uploadedFilename = null;
-      let uploadedContentType = null;
-      let uploadedFileSize = null;
 
-      // Handle file upload if there's a selected file
-      if (selectedFile && createdCustomer?.id && user) {
-        try {
-          const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `${createdCustomer.id}/${crypto.randomUUID()}.${fileExt}`;
-          
-          console.log('Uploading file to customer_attachments:', filePath);
-          
-          const { error: uploadError } = await supabase.storage
-            .from('customer_attachments')
-            .upload(filePath, selectedFile);
+        const { data, error } = await supabase
+          .from(tableToUpdate)
+          .update(updates)
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .select()
+          .single();
 
-          if (uploadError) {
-            console.error('Error uploading file:', uploadError);
-            throw uploadError;
-          }
+        if (error) throw error;
 
-          // Save file details for potential event creation
-          uploadedFilePath = filePath;
-          uploadedFilename = selectedFile.name;
-          uploadedContentType = selectedFile.type;
-          uploadedFileSize = selectedFile.size;
-
-          // Create record in customer_files_new table
-          const fileData = {
-            filename: selectedFile.name,
-            file_path: filePath,
-            content_type: selectedFile.type,
-            size: selectedFile.size,
-            user_id: user.id,
-            customer_id: createdCustomer.id
-          };
-
-          const { error: fileRecordError } = await supabase
-            .from('customer_files_new')
-            .insert(fileData);
+        // If this is a customer and create_event is checked, create or update the corresponding event
+        if (tableToUpdate === 'customers' && createEvent) {
+          // Check if there's already an event with this title
+          const { data: existingEvents, error: eventCheckError } = await supabase
+            .from('events')
+            .select('id')
+            .eq('title', title)
+            .eq('user_id', user.id)
+            .is('deleted_at', null);
             
-          if (fileRecordError) {
-            console.error('Error creating file record:', fileRecordError);
-            throw fileRecordError;
+          if (eventCheckError) {
+            console.error("Error checking for existing events:", eventCheckError);
           }
-
-          console.log('File record created successfully for customer');
-        } catch (fileError) {
-          console.error("Error handling file upload:", fileError);
-          // Continue with form submission even if file upload fails
-        }
-      }
-
-      // If the user has opted to create an event for this customer
-      if (createEvent) {
-        try {
-          console.log("Creating event for customer:", createdCustomer);
-          
-          const startDateTime = new Date(eventStartDate);
-          const endDateTime = new Date(eventEndDate);
           
           const eventData = {
-            user_id: user?.id,
             title: title,
-            user_surname: userSurname,
-            user_number: userNumber,
-            social_network_link: socialNetworkLink,
-            event_notes: customerNotes,  // Map customer_notes to event_notes
-            start_date: startDateTime.toISOString(),
-            end_date: endDateTime.toISOString(),
-            payment_status: paymentStatus,
-            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-            type: 'event',
+            user_surname: title, // Fix: use title as user_surname instead of user_number
+            user_number: user_number,
+            social_network_link: social_network_link,
+            event_notes: event_notes,
+            payment_status: payment_status,
+            payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+            user_id: user.id,
+            start_date: eventStartDate.toISOString(),
+            end_date: eventEndDate.toISOString(),
           };
-          
-          // Pass the event data for creation
-          const { data: createdEvent, error: eventError } = await supabase
-            .from('events')
-            .insert(eventData)
-            .select('*')
-            .single();
-            
-          if (eventError) {
-            console.error('Error creating event:', eventError);
-            throw eventError;
-          }
-          
-          console.log('Event created successfully:', createdEvent);
 
-          // If we have uploaded a file for the customer, also associate it with the event
-          if (uploadedFilePath && createdEvent && user) {
-            try {
-              // Create a new unique file path for the event attachment
-              const fileExt = uploadedFilePath.split('.').pop();
-              const eventFilePath = `${createdEvent.id}/${crypto.randomUUID()}.${fileExt}`;
+          let createdEventId: string | null = null;
+
+          if (existingEvents && existingEvents.length > 0) {
+            // Update existing event
+            const { data: updatedEvent, error: eventUpdateError } = await supabase
+              .from('events')
+              .update(eventData)
+              .eq('id', existingEvents[0].id)
+              .select()
+              .single();
+
+            if (eventUpdateError) {
+              console.error("Error updating event:", eventUpdateError);
+              toast({
+                title: t("common.warning"),
+                description: t("crm.eventUpdateFailed"),
+                variant: "destructive",
+              });
+            } else {
+              createdEventId = updatedEvent.id;
+            }
+          } else {
+            // Create new event
+            const { data: newEvent, error: eventCreateError } = await supabase
+              .from('events')
+              .insert(eventData)
+              .select()
+              .single();
+
+            if (eventCreateError) {
+              console.error("Error creating event:", eventCreateError);
+              toast({
+                title: t("common.warning"),
+                description: t("crm.eventCreationFailed"),
+                variant: "destructive",
+              });
+            } else {
+              createdEventId = newEvent.id;
               
-              // Copy the file from customer_attachments to event_attachments
-              console.log('Copying file from customer_attachments to event_attachments');
-              console.log('Source:', uploadedFilePath);
-              console.log('Destination:', eventFilePath);
-              
-              // Get the file data from the customer bucket
-              const { data: fileData, error: downloadError } = await supabase.storage
-                .from('customer_attachments')
-                .download(uploadedFilePath);
-                
-              if (downloadError) {
-                console.error('Error downloading file from customer_attachments:', downloadError);
-                throw downloadError;
-              }
-              
-              // Upload the file to the event bucket
-              const { error: uploadError } = await supabase.storage
-                .from('event_attachments')
-                .upload(eventFilePath, fileData);
-                
-              if (uploadError) {
-                console.error('Error uploading file to event_attachments:', uploadError);
-                throw uploadError;
-              }
-              
-              // Create record in event_files table
-              const eventFileData = {
-                filename: uploadedFilename,
-                file_path: eventFilePath,
-                content_type: uploadedContentType,
-                size: uploadedFileSize,
-                user_id: user.id,
-                event_id: createdEvent.id
-              };
-              
-              const { error: fileRecordError } = await supabase
-                .from('event_files')
-                .insert(eventFileData);
-                
-              if (fileRecordError) {
-                console.error('Error creating event file record:', fileRecordError);
-                throw fileRecordError;
-              }
-              
-              console.log('File successfully associated with both customer and event');
-            } catch (fileError) {
-              console.error("Error handling event file upload:", fileError);
-              // Continue even if file association fails
+              // Send email notification for the newly created event
+              await sendEventCreationEmail(newEvent);
             }
           }
-          
-          // Invalidate relevant queries to refresh data
-          queryClient.invalidateQueries({ queryKey: ['events'] });
-        } catch (eventError) {
-          console.error('Error in event creation flow:', eventError);
-          toast({
-            translateKeys: {
-              titleKey: "common.warning",
-              descriptionKey: "crm.eventCreationError"
-            },
-            variant: "destructive"
-          });
+        }
+
+        if (selectedFile && customerId && !customerId.startsWith('event-')) {
+          try {
+            await uploadFile(customerId, selectedFile);
+          } catch (uploadError) {
+            console.error("File upload failed:", uploadError);
+          }
+        }
+      } 
+      // For new customers (insert operation)
+      else {
+        const newCustomer = {
+          title,
+          user_number,
+          social_network_link,
+          event_notes,
+          payment_status,
+          payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+          user_id: user.id,
+          create_event: createEvent,
+          start_date: createEvent ? eventStartDate.toISOString() : null,
+          end_date: createEvent ? eventEndDate.toISOString() : null
+        };
+
+        console.log("Creating new customer:", newCustomer);
+        
+        const { data: customerData, error: customerError } = await supabase
+          .from('customers')
+          .insert(newCustomer)
+          .select()
+          .single();
+
+        if (customerError) {
+          console.error("Error creating customer:", customerError);
+          throw customerError;
+        }
+
+        console.log("Customer created:", customerData);
+
+        // Handle file upload for the new customer if a file was selected
+        let uploadedFileData = null;
+        if (selectedFile && customerData) {
+          try {
+            uploadedFileData = await uploadFile(customerData.id, selectedFile);
+          } catch (uploadError) {
+            console.error("File upload failed:", uploadError);
+          }
+        }
+
+        // Create corresponding event if checkbox was checked
+        if (createEvent && customerData) {
+          const eventData = {
+            title: title,
+            user_surname: title, // Use title as user_surname instead of user_number
+            user_number: user_number,
+            social_network_link: social_network_link, // This contains the email address
+            event_notes: event_notes,
+            payment_status: payment_status,
+            payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+            user_id: user.id,
+            start_date: eventStartDate.toISOString(),
+            end_date: eventEndDate.toISOString(),
+          };
+
+          console.log("Creating event from customer:", eventData);
+
+          const { data: eventResult, error: eventError } = await supabase
+            .from('events')
+            .insert(eventData)
+            .select()
+            .single();
+
+          if (eventError) {
+            console.error("Error creating event:", eventError);
+            toast({
+              title: t("common.warning"),
+              description: t("crm.eventCreationFailed"),
+              variant: "destructive",
+            });
+          } else {
+            console.log("Event created successfully:", eventResult);
+            
+            // Send email notification to customer's email when creating a new event
+            if (social_network_link && isValidEmail(social_network_link)) {
+              await sendEventCreationEmail({
+                id: eventResult.id,
+                title: title,
+                user_surname: title,
+                social_network_link: social_network_link,
+                start_date: eventStartDate.toISOString(),
+                end_date: eventEndDate.toISOString(),
+                payment_status: payment_status,
+                payment_amount: payment_amount ? parseFloat(payment_amount) : null
+              });
+            }
+            
+            // If we have a file, also associate it with the new event
+            if (uploadedFileData && eventResult) {
+              try {
+                // Copy the file data to event_files table to link it with the event
+                const eventFileData = {
+                  event_id: eventResult.id,
+                  filename: uploadedFileData.filename,
+                  file_path: uploadedFileData.file_path, // Use the same file path
+                  content_type: uploadedFileData.content_type,
+                  size: uploadedFileData.size,
+                  user_id: user.id
+                };
+                
+                const { error: eventFileError } = await supabase
+                  .from('event_files')
+                  .insert(eventFileData);
+                  
+                if (eventFileError) {
+                  console.error("Error associating file with event:", eventFileError);
+                } else {
+                  console.log("File associated with event successfully");
+                }
+              } catch (fileAssociationError) {
+                console.error("Error associating file with event:", fileAssociationError);
+              }
+            }
+          }
         }
       }
-      
-      // Standard success toast and dialog closing
+
+      // Make sure to invalidate all the relevant queries
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
+      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+
+      // Update to use translation keys
       toast({
         translateKeys: {
           titleKey: "common.success",
-          descriptionKey: customer?.id ? "crm.customerUpdated" : "crm.customerCreated"
+          descriptionKey: customerId ? "crm.customerUpdated" : "crm.customerCreated"
         }
       });
-      
       onOpenChange(false);
-      
-      // Invalidate queries to ensure data is refreshed
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      
     } catch (error: any) {
-      console.error('Error handling customer submission:', error);
+      console.error("Error updating data:", error);
       toast({
         translateKeys: {
           titleKey: "common.error",
           descriptionKey: "common.errorOccurred"
-        },
+        }
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    // Open confirmation dialog instead of deleting immediately
+    setIsDeleteConfirmOpen(true);
+  };
+
+  // Add new function to handle confirmed deletion
+  const handleConfirmDelete = async () => {
+    if (!customerId || !user?.id) return;
+
+    try {
+      setIsLoading(true);
+
+      let tableToUpdate = 'customers';
+      let id = customerId;
+
+      if (customerId.startsWith('event-')) {
+        tableToUpdate = 'events';
+        id = customerId.replace('event-', '');
+      }
+
+      const { error } = await supabase
+        .from(tableToUpdate)
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
+      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      
+      toast({
+        title: t("common.success"),
+        description: t("common.deleteSuccess"),
+      });
+
+      onOpenChange(false);
+      // Close delete confirmation dialog
+      setIsDeleteConfirmOpen(false);
+    } catch (error: any) {
+      console.error('Error deleting:', error);
+      toast({
+        title: t("common.error"),
+        description: error.message || t("common.deleteError"),
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogTitle>{customer ? t("crm.editCustomer") : t("crm.addCustomer")}</DialogTitle>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <CustomerDialogFields
-            title={title}
-            setTitle={setTitle}
-            userSurname={userSurname}
-            setUserSurname={setUserSurname}
-            userNumber={userNumber}
-            setUserNumber={setUserNumber}
-            socialNetworkLink={socialNetworkLink}
-            setSocialNetworkLink={setSocialNetworkLink}
-            createEvent={createEvent}
-            setCreateEvent={setCreateEvent}
-            paymentStatus={paymentStatus}
-            setPaymentStatus={setPaymentStatus}
-            paymentAmount={paymentAmount}
-            setPaymentAmount={setPaymentAmount}
-            customerNotes={customerNotes}
-            setCustomerNotes={setCustomerNotes}
-            selectedFile={selectedFile}
-            setSelectedFile={setSelectedFile}
-            fileError={fileError}
-            setFileError={setFileError}
-            isEventBased={!!customer?.start_date && !!customer?.end_date}
-            startDate={customer?.start_date}
-            endDate={customer?.end_date}
-            customerId={customer?.id}
-            eventStartDate={eventStartDate}
-            setEventStartDate={setEventStartDate}
-            eventEndDate={eventEndDate}
-            setEventEndDate={setEventEndDate}
-            fileBucketName="customer_attachments"
-            fallbackBuckets={["event_attachments"]}
-          />
-          <div className="flex justify-between">
-            <Button type="submit">{customer ? t("crm.updateCustomer") : t("crm.createCustomer")}</Button>
-            {customer && onDelete && (
-              <Button type="button" variant="destructive" onClick={onDelete}>
-                {t("common.delete")}
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl">
+          <DialogTitle>
+            {customerId ? t("crm.editCustomer") : t("crm.addCustomer")}
+          </DialogTitle>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <CustomerDialogFields
+              title={formData.title}
+              setTitle={(value) => setFormData({ ...formData, title: value })}
+              userSurname=""
+              setUserSurname={() => {}}
+              userNumber={formData.user_number}
+              setUserNumber={(value) => setFormData({ ...formData, user_number: value })}
+              socialNetworkLink={formData.social_network_link}
+              setSocialNetworkLink={(value) => setFormData({ ...formData, social_network_link: value })}
+              createEvent={createEvent}
+              setCreateEvent={setCreateEvent}
+              paymentStatus={formData.payment_status}
+              setPaymentStatus={(value) => setFormData({ ...formData, payment_status: value })}
+              paymentAmount={formData.payment_amount}
+              setPaymentAmount={(value) => setFormData({ ...formData, payment_amount: value })}
+              customerNotes={formData.event_notes}
+              setCustomerNotes={(value) => setFormData({ ...formData, event_notes: value })}
+              selectedFile={selectedFile}
+              setSelectedFile={setSelectedFile}
+              fileError={fileError}
+              setFileError={setFileError}
+              isEventBased={customerId?.startsWith('event-') || false}
+              startDate={formData.startDate}
+              endDate={formData.endDate}
+              customerId={customerId}
+              displayedFiles={displayedFiles}
+              onFileDeleted={(fileId) => {
+                setDisplayedFiles((prev) => prev.filter((file) => file.id !== fileId));
+              }}
+              eventStartDate={eventStartDate}
+              setEventStartDate={setEventStartDate}
+              eventEndDate={eventEndDate}
+              setEventEndDate={setEventEndDate}
+              // Fix here: use fileBucketName instead of removed prop
+              fileBucketName={customerId?.startsWith('event-') ? "event_attachments" : "customer_attachments"}
+              fallbackBuckets={["event_attachments", "customer_attachments", "booking_attachments"]}
+            />
+
+            <div className="flex justify-between">
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="flex-1 mr-2"
+              >
+                {customerId ? t("common.update") : t("common.add")}
               </Button>
-            )}
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+              {customerId && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  onClick={handleDelete}
+                  disabled={isLoading}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add deletion confirmation dialog */}
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              {t("common.deleteConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("common.deleteConfirmMessage")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
-
-export default CustomerDialog;

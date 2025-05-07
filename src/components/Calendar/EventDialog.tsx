@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -131,7 +132,7 @@ export const EventDialog = ({
     }
   }, [selectedDate, event, open]);
 
-  // Load files for this event - with support for multiple buckets
+  // Load files for this event - simplified to only use event_files table
   useEffect(() => {
     const loadFiles = async () => {
       if (!event?.id) {
@@ -141,13 +142,11 @@ export const EventDialog = ({
       try {
         console.log("Loading files for event:", event.id);
         
-        // Use the get_all_related_files RPC to find files across different buckets
+        // SIMPLIFIED: Only check event_files for the current event ID
         const { data: eventFiles, error: eventFilesError } = await supabase
-          .rpc('get_all_related_files', {
-            event_id_param: event.id,
-            customer_id_param: null,
-            entity_name_param: null // Don't load by name to prevent potential duplicates
-          });
+          .from('event_files')
+          .select('*')
+          .eq('event_id', event.id);
             
         if (eventFilesError) {
           console.error("Error loading event files:", eventFilesError);
@@ -156,7 +155,7 @@ export const EventDialog = ({
         }
         
         if (eventFiles && eventFiles.length > 0) {
-          console.log("Loaded files for event:", eventFiles.length);
+          console.log("Loaded files from event_files:", eventFiles.length);
           
           // Add a parentType property for compatibility with existing code
           const filesWithSource = eventFiles.map(file => ({
@@ -400,8 +399,6 @@ export const EventDialog = ({
               onFileDeleted={handleFileDeleted}
               displayedFiles={displayedFiles}
               isBookingRequest={isBookingRequest}
-              fileBucketName="event_attachments"
-              fallbackBuckets={["customer_attachments", "booking_attachments"]}
             />
             
             <div className="flex justify-between gap-4">

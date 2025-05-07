@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink, FileText, FileSpreadsheet, PresentationIcon } from "lucide-react";
@@ -33,40 +34,12 @@ export const FileDisplay = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
-  // Advanced deduplication that creates a unique signature for each file
+  // Remove duplicate files based on file_path to prevent showing the same file twice
   const uniqueFiles = files.reduce((acc: FileRecord[], current) => {
-    // Skip files without paths
-    if (!current.file_path) return acc;
-    
-    // Create a more precise fingerprint that also considers the source
-    const pathSegments = normalizeFilePath(current.file_path).split('/');
-    const lastSegment = pathSegments[pathSegments.length - 1] || '';
-    
-    // Use file path components, source, and event/customer id to create a more unique signature
-    const fileSignature = `${current.filename}-${lastSegment}-${current.source || ''}-${current.event_id || current.customer_id || ''}`;
-    
-    console.log(`Evaluating file: ${current.filename}, signature: ${fileSignature}`);
-    
-    // Check if we already have a file with the same signature
-    const hasDuplicate = acc.some(file => {
-      if (!file.file_path) return false;
-      
-      const existingPathSegments = normalizeFilePath(file.file_path).split('/');
-      const existingLastSegment = existingPathSegments[existingPathSegments.length - 1] || '';
-      const existingSignature = `${file.filename}-${existingLastSegment}-${file.source || ''}-${file.event_id || file.customer_id || ''}`;
-      
-      const isDuplicate = fileSignature === existingSignature;
-      if (isDuplicate) {
-        console.log(`Found duplicate: ${file.filename}, matching signature: ${existingSignature}`);
-      }
-      return isDuplicate;
-    });
-    
-    if (!hasDuplicate) {
-      console.log(`Adding unique file: ${current.filename}, signature: ${fileSignature}`);
+    const isDuplicate = acc.some(item => item.file_path === current.file_path);
+    if (!isDuplicate) {
       acc.push(current);
     }
-    
     return acc;
   }, []);
 
@@ -92,8 +65,7 @@ export const FileDisplay = ({
 
   useEffect(() => {
     // Debug the files we're trying to display
-    console.log("FileDisplay - Files to process:", files);
-    console.log("FileDisplay - Unique files after deduplication:", uniqueFiles);
+    console.log("FileDisplay - Files to process:", uniqueFiles);
     console.log("FileDisplay - Primary bucket:", bucketName);
     console.log("FileDisplay - Fallback buckets:", fallbackBuckets);
     
