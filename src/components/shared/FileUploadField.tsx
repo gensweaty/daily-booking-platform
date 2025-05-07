@@ -136,6 +136,8 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
         <p className="text-xs text-muted-foreground mt-1">
           {language === 'en' ? 
             "Supported Formats: .jpg, .jpeg, .png, .pdf, .docx, .xls" :
+            language === 'ka' ?
+            "მხარდაჭერილი ფორმატები: .jpg, .jpeg, .png, .pdf, .docx, .xls" :
             <LanguageText>{t("common.supportedFormats")}</LanguageText>
           }
         </p>
