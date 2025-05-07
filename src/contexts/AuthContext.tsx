@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -60,11 +61,31 @@ const hasErrorParams = () => {
 // Define a list of public paths that don't require authentication
 const PUBLIC_PATHS = ['/', '/login', '/signup', '/contact', '/legal', '/forgot-password', '/reset-password'];
 
-// Helper to check if the current path is public
+// Helper to check if the current path is public - Enhanced based on solution plan
 const isPublicPath = (path: string) => {
-  // Check if the path is one of the public paths or starts with /business/
-  return PUBLIC_PATHS.some(publicPath => path === publicPath || path.startsWith(publicPath + '/')) || 
-         path.startsWith('/business/');
+  const fullPath = window.location.href;
+  
+  // Check if this is a business page path (improved to be more robust)
+  if (path.startsWith('/business') || path.includes('/business/')) {
+    console.log("[AuthContext] Business page path detected via path, treating as public:", path);
+    return true;
+  }
+  
+  // Additional fallback check for SSR or route hydration lag
+  if (fullPath.includes('/business')) {
+    console.log("[AuthContext] Business page path detected via fullPath, treating as public:", fullPath);
+    return true;
+  }
+  
+  // Special case for direct links with query parameters
+  const urlObj = new URL(fullPath);
+  if (urlObj.searchParams.has('slug') || urlObj.searchParams.has('business')) {
+    console.log("[AuthContext] Business page detected via query params, treating as public");
+    return true;
+  }
+  
+  // Check if the path is one of the public paths
+  return PUBLIC_PATHS.some(publicPath => path === publicPath || path.startsWith(publicPath + '/'));
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -77,8 +98,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [searchParams] = useSearchParams();
   const { t } = useLanguage();
 
+  // Add debug logging for path and auth state
+  useEffect(() => {
+    console.log("[AuthContext] Current path:", location.pathname);
+    console.log("[AuthContext] Full URL:", window.location.href);
+    console.log("[AuthContext] Is public path:", isPublicPath(location.pathname));
+    console.log("[AuthContext] Authentication state:", user ? "Authenticated" : "Unauthenticated");
+    
+    // Check for the business page flag
+    const isOnBusinessPage = sessionStorage.getItem('onBusinessPage') === 'true';
+    if (isOnBusinessPage) {
+      console.log("[AuthContext] Business page flag is set in sessionStorage");
+    }
+  }, [location.pathname, user]);
+
   const handleTokenError = useCallback(async () => {
     console.log('Handling token error - clearing session');
+    
+    // Check if we're on a business page (via sessionStorage flag)
+    if (sessionStorage.getItem('onBusinessPage') === 'true') {
+      console.log("[AuthContext] On business page (via flag), skipping auth redirect");
+      setSession(null);
+      setUser(null);
+      return;
+    }
+    
     setSession(null);
     setUser(null);
     
@@ -108,6 +152,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshSession = useCallback(async () => {
     try {
+      // If we're on a business page (via sessionStorage flag), skip authentication checks
+      if (sessionStorage.getItem('onBusinessPage') === 'true') {
+        console.log("[AuthContext] On business page (via flag), skipping authentication checks");
+        setLoading(false);
+        return;
+      }
+      
       // If we have recovery parameters, don't refresh session as we're in password reset flow
       if (hasRecoveryParams() || searchParams.has('code')) {
         console.log("Recovery parameters detected, skipping session refresh");
@@ -133,11 +184,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (!currentSession) {
-        // Only handle as error if not on public path
+        // Per the solution plan: Modified logic for no session case
         if (!isPublicPath(location.pathname)) {
+          console.log("[AuthContext] No session and not on public path, handling token error");
           await handleTokenError();
         } else {
           // We're on a public path, just update the state
+          console.log("[AuthContext] No session but on public path, allowing access");
           setSession(null);
           setUser(null);
         }
@@ -157,6 +210,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const initSession = async () => {
       try {
+        // Check if we're on a business page first (via URL)
+        const isBusinessPage = 
+          location.pathname.startsWith('/business') || 
+          location.pathname.includes('/business/') ||
+          window.location.href.includes('/business');
+        
+        if (isBusinessPage) {
+          console.log("[AuthContext] Business page detected in initSession, setting flag");
+          sessionStorage.setItem('onBusinessPage', 'true');
+          
+          // On business pages, we can skip some auth checks to prevent redirects
+          if (!hasRecoveryParams() && !hasEmailConfirmParams()) {
+            console.log("[AuthContext] Business page without auth params, fast path");
+            setLoading(false);
+            return;
+          }
+        } else {
+          // Not a business page, clear the flag
+          sessionStorage.removeItem('onBusinessPage');
+        }
+        
         // Handle dashboard with code parameter (email confirmation)
         if (location.pathname === '/dashboard' && searchParams.has('code')) {
           console.log("Found code parameter on dashboard route, handling email confirmation");
@@ -303,6 +377,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event, newSession ? 'Session exists' : 'No session');
       
+      // If we're on a business page and this isn't a login event, don't redirect
+      if (sessionStorage.getItem('onBusinessPage') === 'true' && 
+          event !== 'SIGNED_IN' && 
+          event !== 'SIGNED_OUT') {
+        console.log("[AuthContext] On business page, skipping auth state change handling");
+        return;
+      }
+      
       // Handle dashboard with code parameter (email confirmation)
       if (location.pathname === '/dashboard' && searchParams.has('code')) {
         console.log("Code parameter detected on dashboard route during auth state change");
@@ -415,6 +497,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
       
+      // Don't redirect from business pages on signOut
+      const isBusinessPage = location.pathname.startsWith('/business');
+      
       console.log('Starting sign out process...');
       localStorage.removeItem('app-auth-token');
       localStorage.removeItem('supabase.auth.token');
@@ -432,14 +517,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         description: t('auth.signOutSuccess'),
       });
       
-      navigate('/login');
+      // Only navigate to login if not on a business page
+      if (!isBusinessPage) {
+        navigate('/login');
+      }
     } catch (error: any) {
       console.error('Sign out error:', error);
       localStorage.removeItem('app-auth-token');
       localStorage.removeItem('supabase.auth.token');
       setUser(null);
       setSession(null);
-      navigate('/login');
+      
+      // Only navigate to login if not on a business page
+      if (!location.pathname.startsWith('/business')) {
+        navigate('/login');
+      }
       
       toast({
         title: "Notice",

@@ -128,14 +128,22 @@ const CacheBustingHeaders = () => {
       expiresTag.content = '0';
       document.head.appendChild(expiresTag);
       
+      // Set a session flag to indicate we're on a business page
+      sessionStorage.setItem('onBusinessPage', 'true');
+      
       return () => {
         // Clean up when component unmounts
         document.head.removeChild(metaTag);
         document.head.removeChild(pragmaTag);
         document.head.removeChild(expiresTag);
+        
+        // Only remove the flag if we're not navigating to another business page
+        if (!location.pathname.includes('/business')) {
+          sessionStorage.removeItem('onBusinessPage');
+        }
       };
     }
-  }, [isBusinessPage]);
+  }, [isBusinessPage, location.pathname]);
   
   return null;
 };
@@ -144,9 +152,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <CacheBustingHeaders />
         <ThemeProvider defaultTheme="system">
           <TooltipProvider>
-            <CacheBustingHeaders />
             <LanguageProvider>
               <AuthProvider>
                 <SessionRecoveryWrapper>
@@ -159,6 +167,10 @@ function App() {
                       <Route path="/reset-password" element={<ResetPassword />} />
                       <Route path="/forgot-password" element={<ForgotPassword />} />
                       
+                      {/* Auth routes */}
+                      <Route path="/login" element={<Index />} />
+                      <Route path="/signup" element={<Index />} />
+                      
                       {/* Business page routes that should always be publicly accessible */}
                       <Route path="/business/:slug" element={<PublicBusinessPage />} />
                       <Route path="/business" element={<PublicBusinessPage />} />
@@ -169,8 +181,6 @@ function App() {
                       
                       {/* Redirect legacy URLs or alternative formats */}
                       <Route path="/business?slug=:slug" element={<Navigate to="/business/:slug" replace />} />
-                      <Route path="/login" element={<Landing />} />
-                      <Route path="/signup" element={<Landing />} />
                       <Route path="*" element={<Landing />} />
                     </Routes>
                     <Toaster />

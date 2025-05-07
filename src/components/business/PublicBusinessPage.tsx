@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { supabase, forceBucketCreation } from "@/lib/supabase";
 import { BusinessProfile } from "@/types/database";
 import { Button } from "@/components/ui/button";
@@ -20,13 +20,78 @@ const normalizeSlug = (slug: string): string => {
   return slug?.toLowerCase().trim() || '';
 };
 
+// Added hydration safety component
+const HydrationSafetyWrapper = ({ children }: { children: React.ReactNode }) => {
+  const [isHydrated, setIsHydrated] = useState(false);
+  
+  useEffect(() => {
+    // This effect runs after hydration is complete
+    setIsHydrated(true);
+    
+    // Set business page flag
+    sessionStorage.setItem('onBusinessPage', 'true');
+    
+    return () => {
+      // Clean up when unmounting
+      sessionStorage.removeItem('onBusinessPage');
+    };
+  }, []);
+  
+  // During SSR or before hydration, render a minimal version
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <LoaderCircle className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+  
+  return <>{children}</>;
+};
+
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const { t, language } = useLanguage();
   const { theme } = useTheme();
   const { toast } = useToast();
   const isGeorgian = language === 'ka';
+  
+  // Set the business page flag on mount
+  useEffect(() => {
+    console.log("[PublicBusinessPage] Setting onBusinessPage flag in sessionStorage");
+    sessionStorage.setItem('onBusinessPage', 'true');
+    
+    // Cleanup on unmount
+    return () => {
+      // Only remove the flag if we're not navigating to another business page
+      if (!location.pathname.includes('/business')) {
+        console.log("[PublicBusinessPage] Removing onBusinessPage flag on unmount");
+        sessionStorage.removeItem('onBusinessPage');
+      }
+    };
+  }, [location.pathname]);
+  
+  // Detect if user is redirected too many times
+  useEffect(() => {
+    const redirectCount = sessionStorage.getItem('redirectCount');
+    const count = redirectCount ? parseInt(redirectCount) : 0;
+    
+    if (count > 3) {
+      console.error("[PublicBusinessPage] Too many redirects detected, forcing page to stay");
+      sessionStorage.removeItem('redirectCount');
+      // Force page to stay
+      window.history.pushState(null, '', location.pathname);
+    } else {
+      sessionStorage.setItem('redirectCount', (count + 1).toString());
+      
+      // Reset counter after 5 seconds
+      setTimeout(() => {
+        sessionStorage.removeItem('redirectCount');
+      }, 5000);
+    }
+  }, [location.pathname]);
   
   const getBusinessSlug = () => {
     // Try multiple sources to get the slug with priority order
@@ -96,10 +161,18 @@ export const PublicBusinessPage = () => {
       try {
         localStorage.setItem('lastVisitedBusinessSlug', businessSlug);
         console.log("[PublicBusinessPage] Saved slug to localStorage:", businessSlug);
+        
+        // Also set a session flag to indicate we're on a business page
+        sessionStorage.setItem('onBusinessPage', 'true');
       } catch (err) {
         console.warn("[PublicBusinessPage] Failed to save slug to localStorage", err);
       }
     }
+    
+    // Cleanup function
+    return () => {
+      sessionStorage.removeItem('onBusinessPage');
+    };
   }, [businessSlug]);
 
   // On mount, try to detect and clear stale cache
@@ -307,139 +380,142 @@ export const PublicBusinessPage = () => {
     } : undefined;
   };
 
+  // Wrap with hydration safety
   return (
-    <div className="min-h-screen bg-background">
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
-        <ThemeToggle />
-        <LanguageSwitcher />
-      </div>
-      
-      {/* Hero section with cover photo */}
-      <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white dark:from-blue-800 dark:to-indigo-900"
-        style={{
-          backgroundImage: `url(${displayCoverUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          minHeight: '44vh',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}
-      >
-        <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+    <HydrationSafetyWrapper>
+      <div className="min-h-screen bg-background">
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+          <ThemeToggle />
+          <LanguageSwitcher />
+        </div>
         
-        <div className="container mx-auto px-4 relative h-full flex flex-col justify-end">
-          {/* Business info moved lower in the cover section */}
-          <div className="py-16 mb-16">
-            <h1 
-              className={cn("text-4xl md:text-5xl font-bold mb-6", isGeorgian ? "font-georgian" : "")}
-              style={applyGeorgianFont(isGeorgian)}
-            >
-              {business.business_name}
-            </h1>
-            {business.description && (
-              <p 
-                className={cn("text-lg opacity-90 max-w-2xl mb-8", isGeorgian ? "font-georgian" : "")}
+        {/* Hero section with cover photo */}
+        <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white dark:from-blue-800 dark:to-indigo-900"
+          style={{
+            backgroundImage: `url(${displayCoverUrl})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            minHeight: '44vh',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}
+        >
+          <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+          
+          <div className="container mx-auto px-4 relative h-full flex flex-col justify-end">
+            {/* Business info moved lower in the cover section */}
+            <div className="py-16 mb-16">
+              <h1 
+                className={cn("text-4xl md:text-5xl font-bold mb-6", isGeorgian ? "font-georgian" : "")}
                 style={applyGeorgianFont(isGeorgian)}
               >
-                {business.description}
-              </p>
-            )}
+                {business.business_name}
+              </h1>
+              {business.description && (
+                <p 
+                  className={cn("text-lg opacity-90 max-w-2xl mb-8", isGeorgian ? "font-georgian" : "")}
+                  style={applyGeorgianFont(isGeorgian)}
+                >
+                  {business.description}
+                </p>
+              )}
+              
+              <div className="flex gap-4 mb-6">
+                <Button 
+                  size="lg" 
+                  className={cn("bg-white text-blue-700 hover:bg-blue-50 dark:bg-white/90 dark:hover:bg-white", isGeorgian ? "georgian-text-fix font-georgian" : "")}
+                  style={applyGeorgianFont(isGeorgian)}
+                  onClick={() => {
+                    document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  <LanguageText withFont={true}>{t("calendar.bookNow")}</LanguageText>
+                </Button>
+              </div>
+            </div>
+          </div>
             
-            <div className="flex gap-4 mb-6">
-              <Button 
-                size="lg" 
-                className={cn("bg-white text-blue-700 hover:bg-blue-50 dark:bg-white/90 dark:hover:bg-white", isGeorgian ? "georgian-text-fix font-georgian" : "")}
+          {/* Contact information moved to bottom of the hero section as requested */}
+          <div className="bg-white/15 backdrop-blur-sm mt-auto dark:bg-black/30">
+            <div className="container mx-auto px-4">
+              <div className="grid md:grid-cols-2 gap-6 py-4">
+                {business.contact_email && (
+                  <div className="flex items-center gap-3">
+                    <Mail className="h-5 w-5 text-blue-100" />
+                    <a href={`mailto:${business.contact_email}`} className="hover:underline text-white">
+                      {business.contact_email}
+                    </a>
+                  </div>
+                )}
+                
+                {business.contact_phone && (
+                  <div className="flex items-center gap-3">
+                    <Phone className="h-5 w-5 text-blue-100" />
+                    <a href={`tel:${business.contact_phone}`} className="hover:underline text-white">
+                      {business.contact_phone}
+                    </a>
+                  </div>
+                )}
+                
+                {business.contact_address && (
+                  <div className="flex items-center gap-3">
+                    <MapPin className="h-5 w-5 text-blue-100" />
+                    <span className="text-white">{business.contact_address}</span>
+                  </div>
+                )}
+                
+                {business.contact_website && (
+                  <div className="flex items-center gap-3">
+                    <Globe className="h-5 w-5 text-blue-100" />
+                    <a 
+                      href={business.contact_website} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="hover:underline text-white"
+                    >
+                      {business.contact_website.replace(/^https?:\/\//, '')}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {coverPhotoUrl && (
+          <img 
+            src={coverPhotoUrl} 
+            alt=""
+            className="hidden" 
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+          />
+        )}
+
+        <div className="container mx-auto px-4 py-6">
+          <div id="calendar-section" className="bg-background">
+            <div className="flex justify-between items-center mb-4">
+              <h2 
+                className={cn("text-2xl font-bold", isGeorgian ? "font-georgian" : "")}
                 style={applyGeorgianFont(isGeorgian)}
-                onClick={() => {
-                  document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
-                }}
               >
-                <LanguageText withFont={true}>{t("calendar.bookNow")}</LanguageText>
-              </Button>
+                <LanguageText>{t("business.availableTimes")}</LanguageText>
+              </h2>
+              <div 
+                className={cn("text-sm text-muted-foreground", isGeorgian ? "font-georgian" : "")}
+                style={applyGeorgianFont(isGeorgian)}
+              >
+                <LanguageText>{t("business.clickToRequest")}</LanguageText>
+              </div>
             </div>
-          </div>
-        </div>
-          
-        {/* Contact information moved to bottom of the hero section as requested */}
-        <div className="bg-white/15 backdrop-blur-sm mt-auto dark:bg-black/30">
-          <div className="container mx-auto px-4">
-            <div className="grid md:grid-cols-2 gap-6 py-4">
-              {business.contact_email && (
-                <div className="flex items-center gap-3">
-                  <Mail className="h-5 w-5 text-blue-100" />
-                  <a href={`mailto:${business.contact_email}`} className="hover:underline text-white">
-                    {business.contact_email}
-                  </a>
-                </div>
-              )}
-              
-              {business.contact_phone && (
-                <div className="flex items-center gap-3">
-                  <Phone className="h-5 w-5 text-blue-100" />
-                  <a href={`tel:${business.contact_phone}`} className="hover:underline text-white">
-                    {business.contact_phone}
-                  </a>
-                </div>
-              )}
-              
-              {business.contact_address && (
-                <div className="flex items-center gap-3">
-                  <MapPin className="h-5 w-5 text-blue-100" />
-                  <span className="text-white">{business.contact_address}</span>
-                </div>
-              )}
-              
-              {business.contact_website && (
-                <div className="flex items-center gap-3">
-                  <Globe className="h-5 w-5 text-blue-100" />
-                  <a 
-                    href={business.contact_website} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="hover:underline text-white"
-                  >
-                    {business.contact_website.replace(/^https?:\/\//, '')}
-                  </a>
-                </div>
-              )}
-            </div>
+            
+            {business.id && (
+              <ExternalCalendar businessId={business.id} />
+            )}
           </div>
         </div>
       </div>
-
-      {coverPhotoUrl && (
-        <img 
-          src={coverPhotoUrl} 
-          alt=""
-          className="hidden" 
-          onLoad={handleImageLoad}
-          onError={handleImageError}
-        />
-      )}
-
-      <div className="container mx-auto px-4 py-6">
-        <div id="calendar-section" className="bg-background">
-          <div className="flex justify-between items-center mb-4">
-            <h2 
-              className={cn("text-2xl font-bold", isGeorgian ? "font-georgian" : "")}
-              style={applyGeorgianFont(isGeorgian)}
-            >
-              <LanguageText>{t("business.availableTimes")}</LanguageText>
-            </h2>
-            <div 
-              className={cn("text-sm text-muted-foreground", isGeorgian ? "font-georgian" : "")}
-              style={applyGeorgianFont(isGeorgian)}
-            >
-              <LanguageText>{t("business.clickToRequest")}</LanguageText>
-            </div>
-          </div>
-          
-          {business.id && (
-            <ExternalCalendar businessId={business.id} />
-          )}
-        </div>
-      </div>
-    </div>
+    </HydrationSafetyWrapper>
   );
 };
