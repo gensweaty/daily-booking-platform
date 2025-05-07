@@ -218,7 +218,7 @@ export const ka: TranslationType = {
   },
   nav: {
     signin: "შესვლა",
-    startJourney: "დაიწყეთ თქვენი მოგზაურობა",
+    startJourney: "გამოსცადეთ უფასოდ",
     contact: "კონტაქტი"
   },
   hero: {
