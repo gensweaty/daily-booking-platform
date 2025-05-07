@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -20,28 +21,30 @@ import { CustomerDialogFields } from "./CustomerDialogFields";
 interface CustomerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedDate: Date | null;
-  onSubmit: (data: Partial<Customer>) => Promise<Customer>;
+  selectedDate?: Date | null;
+  onSubmit?: (data: Partial<Customer>) => Promise<Customer>;
   onDelete?: () => void;
   customer?: Customer;
+  initialData?: any;
 }
 
 export const CustomerDialog = ({
   open,
   onOpenChange,
-  selectedDate,
+  selectedDate = null,
   onSubmit,
   onDelete,
-  customer
+  customer,
+  initialData
 }: CustomerDialogProps) => {
-  const [title, setTitle] = useState(customer?.title || "");
-  const [userSurname, setUserSurname] = useState(customer?.user_surname || "");
-  const [userNumber, setUserNumber] = useState(customer?.user_number || "");
-  const [socialNetworkLink, setSocialNetworkLink] = useState(customer?.social_network_link || "");
-  const [createEvent, setCreateEvent] = useState(customer?.create_event !== undefined ? customer.create_event : false);
-  const [paymentStatus, setPaymentStatus] = useState(customer?.payment_status || "not_paid");
-  const [paymentAmount, setPaymentAmount] = useState(customer?.payment_amount?.toString() || "");
-  const [customerNotes, setCustomerNotes] = useState(customer?.customer_notes || "");
+  const [title, setTitle] = useState(initialData?.title || customer?.title || "");
+  const [userSurname, setUserSurname] = useState(initialData?.user_surname || customer?.user_surname || "");
+  const [userNumber, setUserNumber] = useState(initialData?.user_number || customer?.user_number || "");
+  const [socialNetworkLink, setSocialNetworkLink] = useState(initialData?.social_network_link || customer?.social_network_link || "");
+  const [createEvent, setCreateEvent] = useState(initialData?.create_event !== undefined ? initialData.create_event : customer?.create_event !== undefined ? customer.create_event : false);
+  const [paymentStatus, setPaymentStatus] = useState(initialData?.payment_status || customer?.payment_status || "not_paid");
+  const [paymentAmount, setPaymentAmount] = useState(initialData?.payment_amount?.toString() || customer?.payment_amount?.toString() || "");
+  const [customerNotes, setCustomerNotes] = useState(initialData?.customer_notes || customer?.event_notes || "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [startDate, setStartDate] = useState(selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : "");
@@ -59,21 +62,21 @@ export const CustomerDialog = ({
   const { t } = useLanguage();
 
   useEffect(() => {
-    if (customer) {
-      setTitle(customer.title || "");
-      setUserSurname(customer.user_surname || "");
-      setUserNumber(customer.user_number || "");
-      setSocialNetworkLink(customer.social_network_link || "");
-      setCreateEvent(customer.create_event !== undefined ? customer.create_event : false);
-      setPaymentStatus(customer.payment_status || "not_paid");
-      setPaymentAmount(customer.payment_amount?.toString() || "");
-      setCustomerNotes(customer.customer_notes || "");
+    if (initialData || customer) {
+      setTitle(initialData?.title || customer?.title || "");
+      setUserSurname(initialData?.user_surname || customer?.user_surname || "");
+      setUserNumber(initialData?.user_number || customer?.user_number || "");
+      setSocialNetworkLink(initialData?.social_network_link || customer?.social_network_link || "");
+      setCreateEvent(initialData?.create_event !== undefined ? initialData.create_event : customer?.create_event !== undefined ? customer.create_event : false);
+      setPaymentStatus(initialData?.payment_status || customer?.payment_status || "not_paid");
+      setPaymentAmount(initialData?.payment_amount?.toString() || customer?.payment_amount?.toString() || "");
+      setCustomerNotes(initialData?.customer_notes || customer?.event_notes || "");
 
-      if (customer.start_date && customer.end_date) {
-        setStartDate(format(new Date(customer.start_date), "yyyy-MM-dd'T'HH:mm"));
-        setEndDate(format(new Date(customer.end_date), "yyyy-MM-dd'T'HH:mm"));
-        setEventStartDate(new Date(customer.start_date));
-        setEventEndDate(new Date(customer.end_date));
+      if ((initialData?.start_date && initialData?.end_date) || (customer?.start_date && customer?.end_date)) {
+        setStartDate(format(new Date(initialData?.start_date || customer?.start_date), "yyyy-MM-dd'T'HH:mm"));
+        setEndDate(format(new Date(initialData?.end_date || customer?.end_date), "yyyy-MM-dd'T'HH:mm"));
+        setEventStartDate(new Date(initialData?.start_date || customer?.start_date));
+        setEventEndDate(new Date(initialData?.end_date || customer?.end_date));
       }
     } else if (selectedDate) {
       setStartDate(format(selectedDate, "yyyy-MM-dd'T'HH:mm"));
@@ -91,7 +94,7 @@ export const CustomerDialog = ({
       setPaymentAmount("");
       setCustomerNotes("");
     }
-  }, [customer, selectedDate]);
+  }, [customer, selectedDate, initialData]);
 
   // Handle form submission for creating/updating customer
   const handleSubmit = async (e: React.FormEvent) => {
@@ -125,7 +128,39 @@ export const CustomerDialog = ({
       }
 
       console.log("CustomerDialog - Submitting customer data:", customerData);
-      const createdCustomer = await onSubmit(customerData);
+      let createdCustomer: Customer;
+      
+      if (onSubmit) {
+        createdCustomer = await onSubmit(customerData);
+      } else {
+        // Directly insert into customers table if no onSubmit provided
+        if (customer?.id) {
+          // Update existing customer
+          const { data, error } = await supabase
+            .from('customers')
+            .update(customerData)
+            .eq('id', customer.id)
+            .select('*')
+            .single();
+            
+          if (error) throw error;
+          createdCustomer = data;
+        } else {
+          // Create new customer
+          const { data, error } = await supabase
+            .from('customers')
+            .insert({
+              ...customerData,
+              user_id: user?.id
+            })
+            .select('*')
+            .single();
+            
+          if (error) throw error;
+          createdCustomer = data;
+        }
+      }
+      
       console.log('Created/Updated customer:', createdCustomer);
       
       // Store the newly uploaded file for later use with event creation
@@ -191,12 +226,13 @@ export const CustomerDialog = ({
           const startDateTime = new Date(eventStartDate);
           const endDateTime = new Date(eventEndDate);
           
-          const eventData: Partial<CalendarEventType> = {
+          const eventData = {
+            user_id: user?.id,
             title: title,
-            user_surname: title, // Sync the title with the user_surname for consistency
+            user_surname: userSurname,
             user_number: userNumber,
             social_network_link: socialNetworkLink,
-            event_notes: customerNotes, // Use customer notes for event notes
+            event_notes: customerNotes,
             start_date: startDateTime.toISOString(),
             end_date: endDateTime.toISOString(),
             payment_status: paymentStatus,
@@ -207,10 +243,7 @@ export const CustomerDialog = ({
           // Pass the event data for creation
           const { data: createdEvent, error: eventError } = await supabase
             .from('events')
-            .insert({
-              ...eventData,
-              user_id: user?.id
-            })
+            .insert(eventData)
             .select('*')
             .single();
             
@@ -354,6 +387,8 @@ export const CustomerDialog = ({
             setEventStartDate={setEventStartDate}
             eventEndDate={eventEndDate}
             setEventEndDate={setEventEndDate}
+            fileBucketName="customer_attachments"
+            fallbackBuckets={["event_attachments"]}
           />
           <div className="flex justify-between">
             <Button type="submit">{customer ? t("crm.updateCustomer") : t("crm.createCustomer")}</Button>

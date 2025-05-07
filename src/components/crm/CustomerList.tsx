@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -620,7 +619,7 @@ export const CustomerList = () => {
       <CustomerDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
-        customerId={selectedCustomer?.id}
+        customer={selectedCustomer}
         initialData={selectedCustomer}
       />
 
