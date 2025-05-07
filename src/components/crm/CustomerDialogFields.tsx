@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getCurrencySymbol } from "@/lib/currency";
+import { FileRecord } from "@/types/files";
 
 interface CustomerDialogFieldsProps {
   title: string;
@@ -44,12 +45,14 @@ interface CustomerDialogFieldsProps {
   startDate?: string | null;
   endDate?: string | null;
   customerId?: string;
-  displayedFiles?: any[];
+  displayedFiles?: FileRecord[];
   onFileDeleted?: (fileId: string) => void;
   eventStartDate: Date;
   setEventStartDate: (date: Date) => void;
   eventEndDate: Date;
   setEventEndDate: (date: Date) => void;
+  fileBucketName?: string;
+  fallbackBuckets?: string[];
 }
 
 export const CustomerDialogFields = ({
@@ -83,6 +86,8 @@ export const CustomerDialogFields = ({
   setEventStartDate,
   eventEndDate,
   setEventEndDate,
+  fileBucketName = "customer_attachments",
+  fallbackBuckets = [],
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
@@ -512,10 +517,11 @@ export const CustomerDialogFields = ({
         <div className="space-y-2">
           <FileDisplay 
             files={displayedFiles} 
-            bucketName="customer_attachments"
+            bucketName={fileBucketName}
             allowDelete
             onFileDeleted={onFileDeleted}
             parentType="customer"
+            fallbackBuckets={fallbackBuckets}
           />
         </div>
       )}

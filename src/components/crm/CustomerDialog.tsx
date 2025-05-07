@@ -614,7 +614,7 @@ export const CustomerDialog = ({
               setEventStartDate={setEventStartDate}
               eventEndDate={eventEndDate}
               setEventEndDate={setEventEndDate}
-              // Pass fallback buckets to check for files
+              // Fix here: use fileBucketName instead of removed prop
               fileBucketName={customerId?.startsWith('event-') ? "event_attachments" : "customer_attachments"}
               fallbackBuckets={["event_attachments", "customer_attachments", "booking_attachments"]}
             />
