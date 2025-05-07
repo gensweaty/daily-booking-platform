@@ -218,7 +218,18 @@ export const CustomerDialog = ({
       if (businessData) {
         // Send email notification to the customer's email address
         // Use the same email format/template as the calendar event emails
-        const emailResult = await testEmailSending(customerEmail);
+        const emailResult = await testEmailSending(
+          customerEmail, // Customer's email
+          eventData.title || eventData.user_surname || '', // Customer name
+          businessData.business_name || '', // Business name from profile
+          eventData.start_date,
+          eventData.end_date,
+          eventData.payment_status || 'not_paid',
+          eventData.payment_amount || null,
+          businessData.contact_address || '',
+          eventData.id
+        );
+        
         console.log("Event creation email result:", emailResult);
         
         if (emailResult?.error) {

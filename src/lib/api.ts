@@ -94,80 +94,61 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
   }
 };
 
-// Test function to verify email sending functionality
-export const testEmailSending = async (recipientEmail: string): Promise<any> => {
+// Test sending email (will be replaced with real email sending)
+export const testEmailSending = async (
+  recipientEmail: string, 
+  fullName: string = '', 
+  businessName: string = '',
+  startDate: string = new Date().toISOString(),
+  endDate: string = new Date().toISOString(),
+  paymentStatus: string = 'not_paid',
+  paymentAmount: number | null = null,
+  businessAddress: string = '',
+  eventId?: string
+) => {
+  console.log(`Test sending email to ${recipientEmail}`);
+  
   try {
-    console.log("Testing email sending to:", recipientEmail);
-    
+    const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
     const { data: sessionData } = await supabase.auth.getSession();
     const accessToken = sessionData.session?.access_token;
     
     if (!accessToken) {
       console.error("No access token available for authenticated request");
-      throw new Error("Authentication error");
+      return { error: "Authentication error" };
     }
     
-    // Try to fetch the current user's business profile for address
-    let businessAddress = null;
-    try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user?.id) {
-        const { data: businessData } = await supabase
-          .from('business_profiles')
-          .select('contact_address')
-          .eq('user_id', userData.user.id)
-          .maybeSingle();
-          
-        businessAddress = businessData?.contact_address || null;
-        console.log("Found business address for test email:", businessAddress || "None");
-      }
-    } catch (err) {
-      console.warn("Could not fetch business address for test email:", err);
-    }
-    
-    const testData = {
-      recipientEmail: recipientEmail.trim(),
-      fullName: "Test User",
-      businessName: "Test Business",
-      startDate: new Date().toISOString(),
-      endDate: new Date(Date.now() + 3600000).toISOString(), // 1 hour later
-      businessAddress: businessAddress
-    };
-    
-    console.log("Sending test email with data:", testData);
-    
-    const response = await fetch(
-      "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
-      {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}`
-        },
-        body: JSON.stringify(testData),
-      }
-    );
+    const response = await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        recipientEmail,
+        fullName,
+        businessName,
+        startDate,
+        endDate,
+        paymentStatus,
+        paymentAmount,
+        businessAddress,
+        eventId,
+        source: 'useCalendarEvents' // Track source consistently
+      })
+    });
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Error sending test email:", errorText);
-      try {
-        return JSON.parse(errorText);
-      } catch (e) {
-        return { error: errorText };
-      }
+      console.error("Email API error:", errorText);
+      return { error: "Failed to send email" };
     }
     
     const result = await response.json();
-    console.log("Test email result:", result);
     return result;
-  } catch (error: any) {
-    console.error("Exception in testEmailSending:", error);
-    return { 
-      error: true, 
-      message: error.message || "Unknown error",
-      stack: error.stack
-    };
+  } catch (error) {
+    console.error("Error sending email:", error);
+    return { error: "Failed to send email" };
   }
 };
 
