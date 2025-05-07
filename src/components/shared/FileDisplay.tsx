@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink, FileText, FileSpreadsheet, PresentationIcon } from "lucide-react";
@@ -33,34 +34,32 @@ export const FileDisplay = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
-  // More sophisticated deduplication that considers both file_path and filename
+  // Enhanced deduplication that creates a fingerprint for each file based on filename and path structure
   const uniqueFiles = files.reduce((acc: FileRecord[], current) => {
-    // Check if we already have a file with the same path or same filename and similar path
-    const isDuplicate = acc.some(item => {
-      // Exact path match is always a duplicate
-      if (item.file_path === current.file_path) {
-        return true;
-      }
+    // Skip files without paths
+    if (!current.file_path) return acc;
+    
+    // Create a fingerprint based on the filename and the last segment of the path
+    // (which typically contains the unique file identifier)
+    const pathSegments = normalizeFilePath(current.file_path).split('/');
+    const lastSegment = pathSegments[pathSegments.length - 1] || '';
+    const fileFingerprint = `${current.filename}-${lastSegment}`;
+    
+    // Check if we already have a file with the same fingerprint
+    const hasDuplicate = acc.some(file => {
+      if (!file.file_path) return false;
       
-      // If filenames match, check if paths are similar enough (contain same file ID)
-      if (item.filename === current.filename && item.file_path && current.file_path) {
-        // Extract file ID from path (usually the last part after the last slash)
-        const itemPathParts = normalizeFilePath(item.file_path).split('/');
-        const currentPathParts = normalizeFilePath(current.file_path).split('/');
-        
-        // If the last parts of the paths (the file names) are the same, consider it a duplicate
-        if (itemPathParts.length > 0 && currentPathParts.length > 0 && 
-            itemPathParts[itemPathParts.length - 1] === currentPathParts[currentPathParts.length - 1]) {
-          return true;
-        }
-      }
+      const existingPathSegments = normalizeFilePath(file.file_path).split('/');
+      const existingLastSegment = existingPathSegments[existingPathSegments.length - 1] || '';
+      const existingFingerprint = `${file.filename}-${existingLastSegment}`;
       
-      return false;
+      return fileFingerprint === existingFingerprint;
     });
     
-    if (!isDuplicate) {
+    if (!hasDuplicate) {
       acc.push(current);
     }
+    
     return acc;
   }, []);
 
@@ -86,7 +85,8 @@ export const FileDisplay = ({
 
   useEffect(() => {
     // Debug the files we're trying to display
-    console.log("FileDisplay - Files to process:", uniqueFiles);
+    console.log("FileDisplay - Files to process:", files);
+    console.log("FileDisplay - Unique files after deduplication:", uniqueFiles);
     console.log("FileDisplay - Primary bucket:", bucketName);
     console.log("FileDisplay - Fallback buckets:", fallbackBuckets);
     
