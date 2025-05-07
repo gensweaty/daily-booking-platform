@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -5,7 +6,7 @@ import { BookingRequest } from '@/types/database';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatDate } from 'date-fns';
-import { AlertCircle, Check, X, Trash2 } from "lucide-react";
+import { AlertCircle, Check, X, Trash2, FileText, PaperclipIcon, Paperclip } from "lucide-react";
 import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
@@ -15,6 +16,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { 
   Table, TableHeader, TableRow, TableHead, TableBody, TableCell 
 } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
@@ -36,6 +38,9 @@ export const BookingRequestsList = ({
   const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');
+  
+  const [selectedAttachment, setSelectedAttachment] = useState<string | null>(null);
+  const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
 
   const handleDeleteClick = (id: string) => {
     setRequestToDelete(id);
@@ -47,6 +52,13 @@ export const BookingRequestsList = ({
       onDelete(requestToDelete);
       setIsDeleteConfirmOpen(false);
       setRequestToDelete(null);
+    }
+  };
+
+  const handleAttachmentClick = (filePath: string | undefined) => {
+    if (filePath) {
+      setSelectedAttachment(filePath);
+      setIsAttachmentDialogOpen(true);
     }
   };
 
@@ -126,12 +138,24 @@ export const BookingRequestsList = ({
       if (key === "business.approve") return <GeorgianAuthText>დადასტურება</GeorgianAuthText>;
       if (key === "business.reject") return <GeorgianAuthText>უარყოფა</GeorgianAuthText>;
       if (key === "business.delete") return <GeorgianAuthText>წაშლა</GeorgianAuthText>;
+      if (key === "business.comments") return <GeorgianAuthText>კომენტარები</GeorgianAuthText>;
+      if (key === "business.attachments") return <GeorgianAuthText>დანართები</GeorgianAuthText>;
     }
     
-    // For English and Spanish, handle "Payment Status" explicitly
+    // For English and Spanish
     if (key === "business.paymentStatus") {
       if (language === 'en') return "Payment Status";
       if (language === 'es') return "Estado del pago";
+    }
+    
+    if (key === "business.comments") {
+      if (language === 'en') return "Comments";
+      if (language === 'es') return "Comentarios";
+    }
+    
+    if (key === "business.attachments") {
+      if (language === 'en') return "Attachments";
+      if (language === 'es') return "Archivos adjuntos";
     }
     
     return <LanguageText>{t(key)}</LanguageText>;
@@ -181,28 +205,30 @@ export const BookingRequestsList = ({
       <div className="rounded-md border">
         {/* Make the container scrollable horizontally on mobile */}
         <div className="overflow-x-auto w-full">
-          <Table className="min-w-[650px]">
+          <Table className="min-w-[750px]">
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead className="w-1/4">{renderGeorgianText("business.customer")}</TableHead>
-                <TableHead className="w-1/4">{renderGeorgianText("business.paymentStatus")}</TableHead>
-                <TableHead className="w-1/4">{renderGeorgianText("business.dateTime")}</TableHead>
-                <TableHead className="w-1/4 text-right">{renderGeorgianText("business.actions")}</TableHead>
+                <TableHead className="w-1/6">{renderGeorgianText("business.customer")}</TableHead>
+                <TableHead className="w-1/6">{renderGeorgianText("business.paymentStatus")}</TableHead>
+                <TableHead className="w-1/6">{renderGeorgianText("business.dateTime")}</TableHead>
+                <TableHead className="w-1/6">{renderGeorgianText("business.comments")}</TableHead>
+                <TableHead className="w-1/6">{renderGeorgianText("business.attachments")}</TableHead>
+                <TableHead className="w-1/6 text-right">{renderGeorgianText("business.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {requests.map((request) => (
-                <TableRow key={request.id}>
-                  <TableCell className="font-medium w-1/4">
+                <TableRow key={request.id} className="h-[72px]">
+                  <TableCell className="font-medium py-2">
                     <div className="overflow-hidden">
                       <div className="font-medium truncate">{request.requester_name}</div>
                       <div className="text-sm text-muted-foreground truncate">{request.requester_email || request.requester_phone}</div>
                     </div>
                   </TableCell>
-                  <TableCell className="w-1/4">
+                  <TableCell className="py-2">
                     {renderPaymentStatus(request.payment_status, request.payment_amount)}
                   </TableCell>
-                  <TableCell className="text-sm w-1/4">
+                  <TableCell className="text-sm py-2">
                     {request.start_date && (
                       <>
                         {formatDate(new Date(request.start_date), 'MMM d, yyyy')}
@@ -211,7 +237,35 @@ export const BookingRequestsList = ({
                       </>
                     )}
                   </TableCell>
-                  <TableCell className="text-right w-1/4">
+                  <TableCell className="py-2">
+                    {request.description ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="max-w-[150px] truncate cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+                              {request.description}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-md">
+                            <p className="whitespace-normal">{request.description}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="py-2">
+                    {request.file_path ? (
+                      <Button variant="ghost" size="sm" className="p-1 h-auto" onClick={() => handleAttachmentClick(request.file_path)}>
+                        <Paperclip className="h-4 w-4 mr-1" />
+                        <span className="text-xs truncate max-w-[80px]">{request.filename || 'File'}</span>
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right py-2">
                     {/* Improve action buttons layout - stack on mobile */}
                     <div className="flex flex-wrap gap-2 justify-end sm:justify-end">
                       {type === 'pending' && onApprove && (
@@ -259,6 +313,30 @@ export const BookingRequestsList = ({
           </Table>
         </div>
       </div>
+
+      {/* File Preview Dialog */}
+      <Dialog open={isAttachmentDialogOpen} onOpenChange={setIsAttachmentDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              <LanguageText>{t("business.viewAttachment")}</LanguageText>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-2 border rounded">
+            {selectedAttachment && (
+              <a 
+                href={`https://mrueqpffzauvdxmuwhfa.supabase.co/storage/v1/object/public/booking_attachments/${selectedAttachment}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center justify-center py-3 text-primary hover:underline"
+              >
+                <FileText className="mr-2 h-5 w-5" />
+                <LanguageText>{t("business.downloadFile")}</LanguageText>
+              </a>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <AlertDialogContent className="max-w-md">
