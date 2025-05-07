@@ -1,11 +1,10 @@
-
 import { type } from 'os';
 
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
   language: Language;
-  setLanguage: (language: Language) => void;
+  setLanguage: (lang: Language) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 }
 
@@ -256,6 +255,9 @@ export interface TranslationType {
     financialSummary: string;
     summaryStatistics: string;
     eventsData: string;
+    totalCustomers: string;
+    withBooking: string;
+    withoutBooking: string;
   };
   events: {
     submitBookingRequest: string;
