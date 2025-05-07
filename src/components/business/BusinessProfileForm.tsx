@@ -14,6 +14,7 @@ import * as z from "zod";
 import { useEffect, useState } from "react";
 import { useBusinessProfile } from "@/hooks/useBusinessProfile";
 import { Info, Loader } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Enhanced validation for slugs
 const slugRegex = /^[a-z0-9-]+$/;
@@ -200,7 +201,16 @@ export const BusinessProfileForm = () => {
                     }}
                   />
                   <div className="absolute top-2 right-2 text-muted-foreground">
-                    <Info className="h-4 w-4" title="Only lowercase letters, numbers, and hyphens are allowed" />
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          <Info className="h-4 w-4" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Only lowercase letters, numbers, and hyphens are allowed</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               </FormControl>
