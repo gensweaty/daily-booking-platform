@@ -44,7 +44,7 @@ export const CustomerDialog = ({
   const [createEvent, setCreateEvent] = useState(initialData?.create_event !== undefined ? initialData.create_event : customer?.create_event !== undefined ? customer.create_event : false);
   const [paymentStatus, setPaymentStatus] = useState(initialData?.payment_status || customer?.payment_status || "not_paid");
   const [paymentAmount, setPaymentAmount] = useState(initialData?.payment_amount?.toString() || customer?.payment_amount?.toString() || "");
-  const [customerNotes, setCustomerNotes] = useState(initialData?.customer_notes || customer?.event_notes || "");
+  const [customerNotes, setCustomerNotes] = useState(initialData?.customer_notes || customer?.customer_notes || "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [startDate, setStartDate] = useState(selectedDate ? format(selectedDate, "yyyy-MM-dd'T'HH:mm") : "");
@@ -70,7 +70,7 @@ export const CustomerDialog = ({
       setCreateEvent(initialData?.create_event !== undefined ? initialData.create_event : customer?.create_event !== undefined ? customer.create_event : false);
       setPaymentStatus(initialData?.payment_status || customer?.payment_status || "not_paid");
       setPaymentAmount(initialData?.payment_amount?.toString() || customer?.payment_amount?.toString() || "");
-      setCustomerNotes(initialData?.customer_notes || customer?.event_notes || "");
+      setCustomerNotes(initialData?.customer_notes || customer?.customer_notes || "");
 
       if ((initialData?.start_date && initialData?.end_date) || (customer?.start_date && customer?.end_date)) {
         setStartDate(format(new Date(initialData?.start_date || customer?.start_date), "yyyy-MM-dd'T'HH:mm"));
@@ -151,7 +151,8 @@ export const CustomerDialog = ({
             .from('customers')
             .insert({
               ...customerData,
-              user_id: user?.id
+              user_id: user?.id,
+              title: title // Ensure title is specified as it's required
             })
             .select('*')
             .single();
@@ -232,7 +233,7 @@ export const CustomerDialog = ({
             user_surname: userSurname,
             user_number: userNumber,
             social_network_link: socialNetworkLink,
-            event_notes: customerNotes,
+            event_notes: customerNotes,  // Map customer_notes to event_notes
             start_date: startDateTime.toISOString(),
             end_date: endDateTime.toISOString(),
             payment_status: paymentStatus,
