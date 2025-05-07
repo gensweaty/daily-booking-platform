@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -38,13 +39,29 @@ export const useBookingRequests = () => {
     queryFn: async () => {
       if (!businessId) return [];
       
+      console.log('Fetching booking requests for business:', businessId);
+      
+      // Explicitly select all columns including file fields
       const { data, error } = await supabase
         .from('booking_requests')
-        .select('*')
+        .select('*, file_path, filename, content_type, size')
         .eq('business_id', businessId)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching booking requests:', error);
+        throw error;
+      }
+      
+      if (data) {
+        // Log file attachments for debugging
+        data.forEach(request => {
+          if (request.file_path) {
+            console.log(`Request ${request.id} has file: ${request.filename} (${request.file_path})`);
+          }
+        });
+      }
+      
       return data || [];
     },
     enabled: !!businessId,

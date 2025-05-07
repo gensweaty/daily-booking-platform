@@ -62,6 +62,16 @@ export const BookingRequestsList = ({
     }
   };
 
+  // Debug function to check file properties
+  const logFileDetails = (request: BookingRequest) => {
+    console.log('File details for request:', request.id);
+    console.log('- file_path:', request.file_path);
+    console.log('- filename:', request.filename);
+    console.log('- content_type:', request.content_type);
+    console.log('- size:', request.size);
+    return null;
+  };
+
   // Format payment status for display with proper styling
   const renderPaymentStatus = (status?: string, amount?: number | null) => {
     let statusDisplay: React.ReactNode;
@@ -217,98 +227,103 @@ export const BookingRequestsList = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {requests.map((request) => (
-                <TableRow key={request.id} className="h-[72px]">
-                  <TableCell className="font-medium py-2">
-                    <div className="overflow-hidden">
-                      <div className="font-medium truncate">{request.requester_name}</div>
-                      <div className="text-sm text-muted-foreground truncate">{request.requester_email || request.requester_phone}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    {renderPaymentStatus(request.payment_status, request.payment_amount)}
-                  </TableCell>
-                  <TableCell className="text-sm py-2">
-                    {request.start_date && (
-                      <>
-                        {formatDate(new Date(request.start_date), 'MMM d, yyyy')}
-                        <br />
-                        {formatDate(new Date(request.start_date), 'h:mm a')} - {request.end_date ? formatDate(new Date(request.end_date), 'h:mm a') : ''}
-                      </>
-                    )}
-                  </TableCell>
-                  <TableCell className="py-2">
-                    {request.description ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="max-w-[150px] truncate cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
-                              {request.description}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-md">
-                            <p className="whitespace-normal">{request.description}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="py-2">
-                    {request.file_path ? (
-                      <Button variant="ghost" size="sm" className="p-1 h-auto" onClick={() => handleAttachmentClick(request.file_path)}>
-                        <Paperclip className="h-4 w-4 mr-1" />
-                        <span className="text-xs truncate max-w-[80px]">{request.filename || 'File'}</span>
-                      </Button>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right py-2">
-                    {/* Improve action buttons layout - stack on mobile */}
-                    <div className="flex flex-wrap gap-2 justify-end sm:justify-end">
-                      {type === 'pending' && onApprove && (
-                        <Button 
-                          variant="approve" 
-                          size="sm" 
-                          className="flex gap-1 items-center w-full sm:w-auto" 
-                          onClick={() => onApprove(request.id)}
-                        >
-                          <Check className="h-4 w-4" />
-                          <span>
-                            {renderGeorgianText("business.approve")}
-                          </span>
-                        </Button>
+              {requests.map((request) => {
+                // Debug log for each request to trace file attachments
+                console.log(`Request ${request.id} has file_path: ${request.file_path}`);
+                
+                return (
+                  <TableRow key={request.id} className="h-[72px]">
+                    <TableCell className="font-medium py-2">
+                      <div className="overflow-hidden">
+                        <div className="font-medium truncate">{request.requester_name}</div>
+                        <div className="text-sm text-muted-foreground truncate">{request.requester_email || request.requester_phone}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      {renderPaymentStatus(request.payment_status, request.payment_amount)}
+                    </TableCell>
+                    <TableCell className="text-sm py-2">
+                      {request.start_date && (
+                        <>
+                          {formatDate(new Date(request.start_date), 'MMM d, yyyy')}
+                          <br />
+                          {formatDate(new Date(request.start_date), 'h:mm a')} - {request.end_date ? formatDate(new Date(request.end_date), 'h:mm a') : ''}
+                        </>
                       )}
-                      {type === 'pending' && onReject && (
+                    </TableCell>
+                    <TableCell className="py-2">
+                      {request.description ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="max-w-[150px] truncate cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+                                {request.description}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-md">
+                              <p className="whitespace-normal">{request.description}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-2">
+                      {request.file_path ? (
+                        <Button variant="ghost" size="sm" className="p-1 h-auto" onClick={() => handleAttachmentClick(request.file_path)}>
+                          <Paperclip className="h-4 w-4 mr-1" />
+                          <span className="text-xs truncate max-w-[80px]">{request.filename || 'File'}</span>
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right py-2">
+                      {/* Improve action buttons layout - stack on mobile */}
+                      <div className="flex flex-wrap gap-2 justify-end sm:justify-end">
+                        {type === 'pending' && onApprove && (
+                          <Button 
+                            variant="approve" 
+                            size="sm" 
+                            className="flex gap-1 items-center w-full sm:w-auto" 
+                            onClick={() => onApprove(request.id)}
+                          >
+                            <Check className="h-4 w-4" />
+                            <span>
+                              {renderGeorgianText("business.approve")}
+                            </span>
+                          </Button>
+                        )}
+                        {type === 'pending' && onReject && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex gap-1 items-center hover:bg-red-100 hover:text-red-700 hover:border-red-300 w-full sm:w-auto" 
+                            onClick={() => onReject(request.id)}
+                          >
+                            <X className="h-4 w-4 text-red-600" />
+                            <span>
+                              {renderGeorgianText("business.reject")}
+                            </span>
+                          </Button>
+                        )}
                         <Button 
                           variant="outline" 
-                          size="sm" 
-                          className="flex gap-1 items-center hover:bg-red-100 hover:text-red-700 hover:border-red-300 w-full sm:w-auto" 
-                          onClick={() => onReject(request.id)}
+                          size="sm"
+                          className="text-destructive flex gap-1 items-center hover:bg-destructive/10 w-full sm:w-auto" 
+                          onClick={() => handleDeleteClick(request.id)}
                         >
-                          <X className="h-4 w-4 text-red-600" />
+                          <Trash2 className="h-4 w-4" />
                           <span>
-                            {renderGeorgianText("business.reject")}
+                            {renderGeorgianText("business.delete")}
                           </span>
                         </Button>
-                      )}
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="text-destructive flex gap-1 items-center hover:bg-destructive/10 w-full sm:w-auto" 
-                        onClick={() => handleDeleteClick(request.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        <span>
-                          {renderGeorgianText("business.delete")}
-                        </span>
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
