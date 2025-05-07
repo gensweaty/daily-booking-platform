@@ -411,6 +411,7 @@ export const CustomerDialog = ({
         if (selectedFile && customerData) {
           try {
             uploadedFileData = await uploadFile(customerData.id, selectedFile);
+            console.log("File uploaded for customer:", uploadedFileData);
           } catch (uploadError) {
             console.error("File upload failed:", uploadError);
           }
@@ -466,15 +467,45 @@ export const CustomerDialog = ({
             // If we have a file, also associate it with the new event
             if (uploadedFileData && eventResult) {
               try {
-                // Copy the file data to event_files table to link it with the event
+                // FIX: Copy the file from customer_attachments to event_attachments bucket
+                const normalizedPath = uploadedFileData.file_path;
+                const sourcePathParts = normalizedPath.split('/');
+                const fileName = sourcePathParts[sourcePathParts.length - 1];
+                const newFilePath = `${eventResult.id}/${fileName}`;
+                
+                console.log("Copying file from:", normalizedPath, "to event bucket path:", newFilePath);
+                
+                // Copy from customer_attachments to event_attachments bucket
+                const { data: fileData, error: fetchError } = await supabase.storage
+                  .from('customer_attachments')
+                  .download(normalizedPath);
+                  
+                if (fetchError) {
+                  console.error("Error downloading file for copying:", fetchError);
+                  throw fetchError;
+                }
+                
+                // Upload the file to the event_attachments bucket
+                const { error: uploadError } = await supabase.storage
+                  .from('event_attachments')
+                  .upload(newFilePath, fileData);
+                  
+                if (uploadError) {
+                  console.error("Error uploading file to event bucket:", uploadError);
+                  throw uploadError;
+                }
+                
+                // Create the event_files record
                 const eventFileData = {
                   event_id: eventResult.id,
                   filename: uploadedFileData.filename,
-                  file_path: uploadedFileData.file_path, // Use the same file path
+                  file_path: newFilePath, // Use new path in event_attachments bucket
                   content_type: uploadedFileData.content_type,
                   size: uploadedFileData.size,
                   user_id: user.id
                 };
+                
+                console.log("Creating event file record:", eventFileData);
                 
                 const { error: eventFileError } = await supabase
                   .from('event_files')

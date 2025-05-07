@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -88,10 +87,10 @@ export const EventDialogFields = ({
   // Helper function for Georgian label text
   const renderGeorgianLabel = (text: string) => {
     if (isGeorgian) {
-      if (text === "events.fullName") return <GeorgianAuthText>სრული სახელი</GeorgianAuthText>;
-      if (text === "events.phoneNumber") return <GeorgianAuthText>ტელეფონის ნომერი</GeorgianAuthText>;
-      if (text === "events.socialLinkEmail") return <GeorgianAuthText>ელფოსტა</GeorgianAuthText>; 
-      if (text === "events.eventNotes") return <GeorgianAuthText>შენიშვნები</GeorgianAuthText>;
+      if (text === "events.fullName") return <GeorgianAuthText letterSpacing="-0.05px">სრული სახელი</GeorgianAuthText>;
+      if (text === "events.phoneNumber") return <GeorgianAuthText letterSpacing="-0.05px">ტელეფონის ნომერი</GeorgianAuthText>;
+      if (text === "events.socialLinkEmail") return <GeorgianAuthText letterSpacing="-0.05px">ელფოსტა</GeorgianAuthText>; 
+      if (text === "events.eventNotes") return <GeorgianAuthText letterSpacing="-0.05px">შენიშვნები</GeorgianAuthText>;
     }
     return <LanguageText>{t(text)}</LanguageText>;
   };
@@ -184,7 +183,7 @@ export const EventDialogFields = ({
               className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}
               style={georgianStyle}
             >
-              {isGeorgian ? <GeorgianAuthText>დაწყება</GeorgianAuthText> : <LanguageText>{t("events.start")}</LanguageText>}
+              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">დაწყება</GeorgianAuthText> : <LanguageText>{t("events.start")}</LanguageText>}
             </Label>
             <div className="relative">
               <Input 
@@ -204,7 +203,7 @@ export const EventDialogFields = ({
               className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}
               style={georgianStyle}
             >
-              {isGeorgian ? <GeorgianAuthText>დასრულება</GeorgianAuthText> : <LanguageText>{t("events.end")}</LanguageText>}
+              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">დასრულება</GeorgianAuthText> : <LanguageText>{t("events.end")}</LanguageText>}
             </Label>
             <div className="relative">
               <Input 
@@ -321,6 +320,7 @@ export const EventDialogFields = ({
             allowDelete={true} 
             onFileDeleted={onFileDeleted} 
             parentType="event" 
+            fallbackBuckets={["customer_attachments", "booking_attachments"]} 
           />
         </div>}
     </>;

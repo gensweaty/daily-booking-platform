@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink, FileText, FileSpreadsheet, PresentationIcon } from "lucide-react";
@@ -34,12 +33,40 @@ export const FileDisplay = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
-  // Remove duplicate files based on file_path to prevent showing the same file twice
+  // Create a robust file signature for deduplication
+  const getFileSignature = (file: FileRecord): string => {
+    const filePath = file.file_path || '';
+    const filename = file.filename || '';
+    const fileId = file.id || '';
+    const eventId = file.event_id || '';
+    const customerId = file.customer_id || '';
+    const source = file.source || '';
+    
+    // Create a unique signature from multiple properties
+    return `${filename}_${getPathSegment(filePath)}_${source}_${eventId}_${customerId}_${fileId}`;
+  };
+  
+  // Get the last segment of the file path for better comparison
+  const getPathSegment = (filePath: string): string => {
+    if (!filePath) return '';
+    const segments = filePath.split('/');
+    return segments[segments.length - 1] || '';
+  };
+
+  // Remove duplicate files using our robust signature
   const uniqueFiles = files.reduce((acc: FileRecord[], current) => {
-    const isDuplicate = acc.some(item => item.file_path === current.file_path);
+    // Skip undefined or files without paths
+    if (!current || !current.file_path) return acc;
+    
+    const signature = getFileSignature(current);
+    const isDuplicate = acc.some(item => getFileSignature(item) === signature);
+    
+    console.log(`File: ${current.filename}, Path: ${current.file_path}, Signature: ${signature}, Duplicate: ${isDuplicate}`);
+    
     if (!isDuplicate) {
       acc.push(current);
     }
+    
     return acc;
   }, []);
 

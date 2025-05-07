@@ -14,7 +14,7 @@ export const GeorgianAuthText = ({
   children, 
   className = '',
   fontWeight = 'normal',
-  letterSpacing
+  letterSpacing = '-0.2px'
 }: GeorgianAuthTextProps) => {
   // This component specifically targets Georgian text
   // with all the styling needed to ensure proper rendering
