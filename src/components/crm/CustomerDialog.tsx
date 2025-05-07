@@ -1,382 +1,699 @@
-
-import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import React, { useState, useEffect, useCallback } from "react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CustomerDialogFields } from "./CustomerDialogFields";
-import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/contexts/AuthContext";
-import { parseISO } from "date-fns";
+import { Trash2, AlertCircle } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { supabase, getStorageUrl } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
+import { CustomerDialogFields } from "./CustomerDialogFields";
 import { useLanguage } from "@/contexts/LanguageContext";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { testEmailSending } from "@/lib/api"; // Import the email sending function
 
 interface CustomerDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  customerId?: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  customerId?: string | null;
+  initialData?: any;
 }
 
-export const CustomerDialog = ({ isOpen, onClose, customerId }: CustomerDialogProps) => {
-  const [loading, setLoading] = useState(false);
-  const [title, setTitle] = useState("");
-  const [userSurname, setUserSurname] = useState("");
-  const [userNumber, setUserNumber] = useState("");
-  const [socialNetworkLink, setSocialNetworkLink] = useState("");
-  const [eventNotes, setEventNotes] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("");
-  const [paymentAmount, setPaymentAmount] = useState("");
+export const CustomerDialog = ({
+  open,
+  onOpenChange,
+  customerId,
+  initialData,
+}: CustomerDialogProps) => {
+  const { t, language } = useLanguage();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [formData, setFormData] = useState({
+    title: "",
+    user_number: "",
+    social_network_link: "",
+    event_notes: "",
+    payment_status: "not_paid",
+    payment_amount: "",
+    startDate: "",
+    endDate: "",
+  });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
+  const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  // Add state for delete confirmation dialog
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+  // Add state for event date/time pickers
+  const [eventStartDate, setEventStartDate] = useState<Date>(new Date());
+  const [eventEndDate, setEventEndDate] = useState<Date>(new Date());
   const [createEvent, setCreateEvent] = useState(false);
-  const [isEventData, setIsEventData] = useState(false);
-  const [associatedEventId, setAssociatedEventId] = useState<string | null>(null);
-  
-  const { toast } = useToast();
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const { t } = useLanguage();
 
   useEffect(() => {
-    const fetchCustomer = async () => {
-      if (!customerId || !user) {
-        resetForm();
+    if (initialData) {
+      setFormData({
+        title: initialData.title || "",
+        user_number: initialData.user_number || "",
+        social_network_link: initialData.social_network_link || "",
+        event_notes: initialData.event_notes || "",
+        payment_status: initialData.payment_status || "not_paid",
+        payment_amount: initialData.payment_amount?.toString() || "",
+        startDate: initialData.startDate || "",
+        endDate: initialData.endDate || "",
+      });
+      
+      // Set the create_event checkbox state from initialData
+      setCreateEvent(initialData.create_event || false);
+      
+      // Set event dates if they exist in initialData
+      if (initialData.start_date) {
+        setEventStartDate(new Date(initialData.start_date));
+      }
+      if (initialData.end_date) {
+        setEventEndDate(new Date(initialData.end_date));
+      }
+    } else {
+      setFormData({
+        title: "",
+        user_number: "",
+        social_network_link: "",
+        event_notes: "",
+        payment_status: "not_paid",
+        payment_amount: "",
+        startDate: "",
+        endDate: "",
+      });
+      setCreateEvent(false);
+    }
+  }, [initialData]);
+
+  useEffect(() => {
+    const loadFiles = async () => {
+      if (!customerId) {
+        setDisplayedFiles([]);
         return;
       }
-      
+
       try {
-        setLoading(true);
-
-        // Fetch customer data first
-        const { data: customerData, error: customerError } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('id', customerId)
-          .maybeSingle();
-
-        if (customerError && customerError.code !== 'PGRST116') {
-          console.error('Error fetching customer:', customerError);
-          throw customerError;
-        }
-
-        if (!customerData) {
-          toast({
-            title: "Error",
-            description: "Customer not found",
-            variant: "destructive",
-          });
-          onClose();
-          return;
-        }
-
-        // Set customer data
-        setTitle(customerData.title || "");
-        setUserSurname(customerData.user_surname || "");
-        setUserNumber(customerData.user_number || "");
-        setSocialNetworkLink(customerData.social_network_link || "");
-        setEventNotes(customerData.event_notes || "");
-        setStartDate(customerData.start_date ? new Date(customerData.start_date).toISOString().slice(0, 16) : "");
-        setEndDate(customerData.end_date ? new Date(customerData.end_date).toISOString().slice(0, 16) : "");
-        setPaymentStatus(customerData.payment_status || "");
-        setPaymentAmount(customerData.payment_amount?.toString() || "");
-        setCreateEvent(!!customerData.start_date && !!customerData.end_date);
-
-        // If customer has dates, try to find associated event
-        if (customerData.start_date && customerData.end_date) {
-          const { data: existingEvent, error: eventError } = await supabase
-            .from('events')
+        let filesData: any[] = [];
+        if (customerId.startsWith('event-')) {
+          const eventId = customerId.replace('event-', '');
+          const { data: eventFiles, error: eventFilesError } = await supabase
+            .from('event_files')
             .select('*')
-            .eq('title', customerData.title)
-            .eq('start_date', customerData.start_date)
-            .eq('end_date', customerData.end_date)
-            .maybeSingle();
+            .eq('event_id', eventId);
 
-          if (eventError && eventError.code !== 'PGRST116') {
-            console.error('Error fetching event:', eventError);
-            throw eventError;
+          if (eventFilesError) {
+            console.error("Error loading event files:", eventFilesError);
+          } else {
+            filesData = eventFiles || [];
           }
+        } else {
+          const { data: customerFiles, error: customerFilesError } = await supabase
+            .from('customer_files_new')
+            .select('*')
+            .eq('customer_id', customerId);
 
-          if (existingEvent) {
-            setAssociatedEventId(existingEvent.id);
+          if (customerFilesError) {
+            console.error("Error loading customer files:", customerFilesError);
+          } else {
+            filesData = customerFiles || [];
           }
         }
 
-      } catch (error: any) {
-        console.error('Error fetching customer:', error);
-        toast({
-          title: "Error",
-          description: error.message || "Failed to load customer data",
-          variant: "destructive",
-        });
-        onClose();
-      } finally {
-        setLoading(false);
+        console.log("Files loaded for customer/event:", filesData);
+        setDisplayedFiles(filesData);
+      } catch (error) {
+        console.error("Error loading files:", error);
+        setDisplayedFiles([]);
       }
     };
 
-    if (isOpen && customerId) {
-      fetchCustomer();
+    if (open) {
+      loadFiles();
+      setSelectedFile(null);
+      setFileError("");
     }
-  }, [customerId, isOpen, user]); // Removed title from dependencies
+  }, [open, customerId]);
 
-  const checkTimeSlotAvailability = async (startDate: string, endDate: string, excludeEventId?: string): Promise<boolean> => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    const { data: existingEvents, error } = await supabase
-      .from('events')
-      .select('*')
-      .or(`start_date.lte.${end.toISOString()},end_date.gte.${start.toISOString()}`);
+  const uploadFile = async (customerId: string, file: File) => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${customerId}/${crypto.randomUUID()}.${fileExt}`;
 
-    if (error) {
-      console.error('Error checking time slot availability:', error);
-      return false;
+      const { error: uploadError } = await supabase.storage
+        .from('customer_attachments')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error('Error uploading file:', uploadError);
+        throw uploadError;
+      }
+
+      const fileData = {
+        filename: file.name,
+        file_path: filePath,
+        content_type: file.type,
+        size: file.size,
+        user_id: user?.id,
+        customer_id: customerId,
+      };
+
+      const { error: fileRecordError } = await supabase
+        .from('customer_files_new')
+        .insert(fileData);
+
+      if (fileRecordError) {
+        console.error('Error creating file record:', fileRecordError);
+        throw fileRecordError;
+      }
+
+      return fileData;
+    } catch (error: any) {
+      console.error("Error during file upload:", error);
+      toast({
+        title: t("common.error"),
+        description: error.message || t("common.uploadError"),
+        variant: "destructive",
+      });
+      throw error;
     }
+  };
 
-    if (!existingEvents) return true;
+  // Helper function to validate email format
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
 
-    return !existingEvents.some(event => {
-      if (excludeEventId && event.id === excludeEventId) return false;
+  // Helper function to send email notification for new event
+  const sendEventCreationEmail = async (eventData: any) => {
+    try {
+      // Check if we have a valid customer email to send to
+      const customerEmail = eventData.social_network_link;
+      if (!customerEmail || !isValidEmail(customerEmail)) {
+        console.warn("No valid customer email found for sending notification");
+        return;
+      }
       
-      const eventStart = parseISO(event.start_date);
-      const eventEnd = parseISO(event.end_date);
+      // Get user's business profile for the email
+      const { data: businessData } = await supabase
+        .from('business_profiles')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
       
-      return (start < eventEnd && end > eventStart);
-    });
+      console.log("Business data for email:", businessData);
+      
+      if (businessData) {
+        // Send email notification to the customer's email address
+        // Use the same email format/template as the calendar event emails
+        const emailResult = await testEmailSending(
+          customerEmail, // Customer's email
+          eventData.title || eventData.user_surname || '', // Customer name
+          businessData.business_name || '', // Business name from profile
+          eventData.start_date,
+          eventData.end_date,
+          eventData.payment_status || 'not_paid',
+          eventData.payment_amount || null,
+          businessData.contact_address || '',
+          eventData.id
+        );
+        
+        console.log("Event creation email result:", emailResult);
+        
+        if (emailResult?.error) {
+          console.warn("Failed to send event creation email:", emailResult.error);
+        } else {
+          console.log("Event creation email sent successfully to customer:", customerEmail);
+        }
+      } else {
+        console.warn("Missing business data for event notification");
+      }
+    } catch (error) {
+      console.error("Error sending event creation email:", error);
+      // Don't throw - we don't want to break the main flow if just the email fails
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!user) {
+
+    if (!user?.id) {
       toast({
-        title: "Error",
-        description: "You must be logged in to perform this action",
-        variant: "destructive",
+        translateKeys: {
+          titleKey: "common.error",
+          descriptionKey: "common.missingUserInfo"
+        }
       });
       return;
     }
 
+    setIsLoading(true);
     try {
-      setLoading(true);
+      const { title, user_number, social_network_link, event_notes, payment_status, payment_amount } = formData;
 
-      if (createEvent) {
-        const isTimeSlotAvailable = await checkTimeSlotAvailability(
-          startDate,
-          endDate,
-          associatedEventId || undefined
-        );
-
-        if (!isTimeSlotAvailable) {
-          toast({
-            title: "Error",
-            description: "This time slot is already booked",
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-
-      // Ensure dates are properly formatted
-      const formattedStartDate = createEvent ? new Date(startDate).toISOString() : null;
-      const formattedEndDate = createEvent ? new Date(endDate).toISOString() : null;
-
-      const customerData = {
-        title,
-        user_surname: userSurname,
-        user_number: userNumber,
-        social_network_link: socialNetworkLink,
-        event_notes: eventNotes,
-        payment_status: paymentStatus || null,
-        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-        user_id: user.id,
-        start_date: formattedStartDate,
-        end_date: formattedEndDate,
-      };
-
+      // For existing customers/events (update operation)
       if (customerId) {
-        // Update customer
-        const { error: customerError } = await supabase
-          .from('customers')
-          .update(customerData)
-          .eq('id', customerId);
-
-        if (customerError) throw customerError;
-
-        // Handle associated event
-        if (createEvent) {
-          const eventData = {
-            ...customerData,
-            type: 'customer_event',
-            start_date: formattedStartDate,
-            end_date: formattedEndDate,
-          };
-
-          if (associatedEventId) {
-            // Update existing event
-            const { error: eventError } = await supabase
-              .from('events')
-              .update(eventData)
-              .eq('id', associatedEventId);
-
-            if (eventError) throw eventError;
-          } else {
-            // Create new event
-            const { error: eventError } = await supabase
-              .from('events')
-              .insert([eventData]);
-
-            if (eventError) throw eventError;
-          }
-        }
-      } else {
-        // Create new customer
-        const { error: customerError } = await supabase
-          .from('customers')
-          .insert([customerData]);
-
-        if (customerError) throw customerError;
-
-        // Create new event if needed
-        if (createEvent) {
-          const eventData = {
-            ...customerData,
-            type: 'customer_event',
-            start_date: formattedStartDate,
-            end_date: formattedEndDate,
-          };
-
-          const { error: eventError } = await supabase
-            .from('events')
-            .insert([eventData]);
-
-          if (eventError) throw eventError;
-        }
-      }
-
-      // Handle file upload if a file is selected
-      if (selectedFile) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const filePath = `${crypto.randomUUID()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('customer_attachments')
-          .upload(filePath, selectedFile);
-
-        if (uploadError) throw uploadError;
-
-        const fileData = {
-          filename: selectedFile.name,
-          file_path: filePath,
-          content_type: selectedFile.type,
-          size: selectedFile.size,
+        const updates = {
+          title,
+          user_number,
+          social_network_link,
+          event_notes,
+          payment_status,
+          payment_amount: payment_amount ? parseFloat(payment_amount) : null,
           user_id: user.id,
-          customer_id: customerId
+          create_event: createEvent, // Make sure to update the create_event flag
+          start_date: createEvent ? eventStartDate.toISOString() : null,
+          end_date: createEvent ? eventEndDate.toISOString() : null
         };
 
-        const { error: fileError } = await supabase
-          .from('customer_files_new')
-          .insert([fileData]);
+        let tableToUpdate = 'customers';
+        let id = customerId;
 
-        if (fileError) throw fileError;
+        if (customerId.startsWith('event-')) {
+          tableToUpdate = 'events';
+          id = customerId.replace('event-', '');
+        }
+
+        const { data, error } = await supabase
+          .from(tableToUpdate)
+          .update(updates)
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // If this is a customer and create_event is checked, create or update the corresponding event
+        if (tableToUpdate === 'customers' && createEvent) {
+          // Check if there's already an event with this title
+          const { data: existingEvents, error: eventCheckError } = await supabase
+            .from('events')
+            .select('id')
+            .eq('title', title)
+            .eq('user_id', user.id)
+            .is('deleted_at', null);
+            
+          if (eventCheckError) {
+            console.error("Error checking for existing events:", eventCheckError);
+          }
+          
+          const eventData = {
+            title: title,
+            user_surname: title, // Fix: use title as user_surname instead of user_number
+            user_number: user_number,
+            social_network_link: social_network_link,
+            event_notes: event_notes,
+            payment_status: payment_status,
+            payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+            user_id: user.id,
+            start_date: eventStartDate.toISOString(),
+            end_date: eventEndDate.toISOString(),
+          };
+
+          let createdEventId: string | null = null;
+
+          if (existingEvents && existingEvents.length > 0) {
+            // Update existing event
+            const { data: updatedEvent, error: eventUpdateError } = await supabase
+              .from('events')
+              .update(eventData)
+              .eq('id', existingEvents[0].id)
+              .select()
+              .single();
+
+            if (eventUpdateError) {
+              console.error("Error updating event:", eventUpdateError);
+              toast({
+                title: t("common.warning"),
+                description: t("crm.eventUpdateFailed"),
+                variant: "destructive",
+              });
+            } else {
+              createdEventId = updatedEvent.id;
+            }
+          } else {
+            // Create new event
+            const { data: newEvent, error: eventCreateError } = await supabase
+              .from('events')
+              .insert(eventData)
+              .select()
+              .single();
+
+            if (eventCreateError) {
+              console.error("Error creating event:", eventCreateError);
+              toast({
+                title: t("common.warning"),
+                description: t("crm.eventCreationFailed"),
+                variant: "destructive",
+              });
+            } else {
+              createdEventId = newEvent.id;
+              
+              // Send email notification for the newly created event
+              await sendEventCreationEmail(newEvent);
+            }
+          }
+        }
+
+        if (selectedFile && customerId && !customerId.startsWith('event-')) {
+          try {
+            await uploadFile(customerId, selectedFile);
+          } catch (uploadError) {
+            console.error("File upload failed:", uploadError);
+          }
+        }
+      } 
+      // For new customers (insert operation)
+      else {
+        const newCustomer = {
+          title,
+          user_number,
+          social_network_link,
+          event_notes,
+          payment_status,
+          payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+          user_id: user.id,
+          create_event: createEvent,
+          start_date: createEvent ? eventStartDate.toISOString() : null,
+          end_date: createEvent ? eventEndDate.toISOString() : null
+        };
+
+        console.log("Creating new customer:", newCustomer);
+        
+        const { data: customerData, error: customerError } = await supabase
+          .from('customers')
+          .insert(newCustomer)
+          .select()
+          .single();
+
+        if (customerError) {
+          console.error("Error creating customer:", customerError);
+          throw customerError;
+        }
+
+        console.log("Customer created:", customerData);
+
+        // Handle file upload for the new customer if a file was selected
+        let uploadedFileData = null;
+        if (selectedFile && customerData) {
+          try {
+            uploadedFileData = await uploadFile(customerData.id, selectedFile);
+            console.log("File uploaded for customer:", uploadedFileData);
+          } catch (uploadError) {
+            console.error("File upload failed:", uploadError);
+          }
+        }
+
+        // Create corresponding event if checkbox was checked
+        if (createEvent && customerData) {
+          const eventData = {
+            title: title,
+            user_surname: title, // Use title as user_surname instead of user_number
+            user_number: user_number,
+            social_network_link: social_network_link, // This contains the email address
+            event_notes: event_notes,
+            payment_status: payment_status,
+            payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+            user_id: user.id,
+            start_date: eventStartDate.toISOString(),
+            end_date: eventEndDate.toISOString(),
+          };
+
+          console.log("Creating event from customer:", eventData);
+
+          const { data: eventResult, error: eventError } = await supabase
+            .from('events')
+            .insert(eventData)
+            .select()
+            .single();
+
+          if (eventError) {
+            console.error("Error creating event:", eventError);
+            toast({
+              title: t("common.warning"),
+              description: t("crm.eventCreationFailed"),
+              variant: "destructive",
+            });
+          } else {
+            console.log("Event created successfully:", eventResult);
+            
+            // Send email notification to customer's email when creating a new event
+            if (social_network_link && isValidEmail(social_network_link)) {
+              await sendEventCreationEmail({
+                id: eventResult.id,
+                title: title,
+                user_surname: title,
+                social_network_link: social_network_link,
+                start_date: eventStartDate.toISOString(),
+                end_date: eventEndDate.toISOString(),
+                payment_status: payment_status,
+                payment_amount: payment_amount ? parseFloat(payment_amount) : null
+              });
+            }
+            
+            // If we have a file, also associate it with the new event
+            if (uploadedFileData && eventResult) {
+              try {
+                // FIX: Copy the file from customer_attachments to event_attachments bucket
+                const normalizedPath = uploadedFileData.file_path;
+                const sourcePathParts = normalizedPath.split('/');
+                const fileName = sourcePathParts[sourcePathParts.length - 1];
+                const newFilePath = `${eventResult.id}/${fileName}`;
+                
+                console.log("Copying file from:", normalizedPath, "to event bucket path:", newFilePath);
+                
+                // Copy from customer_attachments to event_attachments bucket
+                const { data: fileData, error: fetchError } = await supabase.storage
+                  .from('customer_attachments')
+                  .download(normalizedPath);
+                  
+                if (fetchError) {
+                  console.error("Error downloading file for copying:", fetchError);
+                  throw fetchError;
+                }
+                
+                // Upload the file to the event_attachments bucket
+                const { error: uploadError } = await supabase.storage
+                  .from('event_attachments')
+                  .upload(newFilePath, fileData);
+                  
+                if (uploadError) {
+                  console.error("Error uploading file to event bucket:", uploadError);
+                  throw uploadError;
+                }
+                
+                // Create the event_files record
+                const eventFileData = {
+                  event_id: eventResult.id,
+                  filename: uploadedFileData.filename,
+                  file_path: newFilePath, // Use new path in event_attachments bucket
+                  content_type: uploadedFileData.content_type,
+                  size: uploadedFileData.size,
+                  user_id: user.id
+                };
+                
+                console.log("Creating event file record:", eventFileData);
+                
+                const { error: eventFileError } = await supabase
+                  .from('event_files')
+                  .insert(eventFileData);
+                  
+                if (eventFileError) {
+                  console.error("Error associating file with event:", eventFileError);
+                } else {
+                  console.log("File associated with event successfully");
+                }
+              } catch (fileAssociationError) {
+                console.error("Error associating file with event:", fileAssociationError);
+              }
+            }
+          }
+        }
       }
+
+      // Make sure to invalidate all the relevant queries
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
+      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+
+      // Update to use translation keys
+      toast({
+        translateKeys: {
+          titleKey: "common.success",
+          descriptionKey: customerId ? "crm.customerUpdated" : "crm.customerCreated"
+        }
+      });
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error("Error updating data:", error);
+      toast({
+        translateKeys: {
+          titleKey: "common.error",
+          descriptionKey: "common.errorOccurred"
+        }
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    // Open confirmation dialog instead of deleting immediately
+    setIsDeleteConfirmOpen(true);
+  };
+
+  // Add new function to handle confirmed deletion
+  const handleConfirmDelete = async () => {
+    if (!customerId || !user?.id) return;
+
+    try {
+      setIsLoading(true);
+
+      let tableToUpdate = 'customers';
+      let id = customerId;
+
+      if (customerId.startsWith('event-')) {
+        tableToUpdate = 'events';
+        id = customerId.replace('event-', '');
+      }
+
+      const { error } = await supabase
+        .from(tableToUpdate)
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       await queryClient.invalidateQueries({ queryKey: ['events'] });
+      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       
       toast({
-        title: "Success",
-        description: customerId ? "Customer updated successfully" : "Customer created successfully",
+        title: t("common.success"),
+        description: t("common.deleteSuccess"),
       });
 
-      onClose();
+      onOpenChange(false);
+      // Close delete confirmation dialog
+      setIsDeleteConfirmOpen(false);
     } catch (error: any) {
-      console.error('Error handling customer submission:', error);
+      console.error('Error deleting:', error);
       toast({
-        title: "Error",
-        description: error.message,
+        title: t("common.error"),
+        description: error.message || t("common.deleteError"),
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  };
-
-  const handleClose = () => {
-    if (!loading) {
-      resetForm();
-      onClose();
-    }
-  };
-
-  const resetForm = () => {
-    setTitle("");
-    setUserSurname("");
-    setUserNumber("");
-    setSocialNetworkLink("");
-    setEventNotes("");
-    setStartDate("");
-    setEndDate("");
-    setPaymentStatus("");
-    setPaymentAmount("");
-    setSelectedFile(null);
-    setFileError("");
-    setCreateEvent(false);
-    setIsEventData(false);
-    setAssociatedEventId(null);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent>
-        <DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl">
           <DialogTitle>
-            {customerId ? t("crm.editCustomer") : t("crm.newCustomer")}
+            {customerId ? t("crm.editCustomer") : t("crm.addCustomer")}
           </DialogTitle>
-        </DialogHeader>
-        
-        <form onSubmit={handleSubmit}>
-          <CustomerDialogFields
-            title={title}
-            setTitle={setTitle}
-            userSurname={userSurname}
-            setUserSurname={setUserSurname}
-            userNumber={userNumber}
-            setUserNumber={setUserNumber}
-            socialNetworkLink={socialNetworkLink}
-            setSocialNetworkLink={setSocialNetworkLink}
-            eventNotes={eventNotes}
-            setEventNotes={setEventNotes}
-            startDate={startDate}
-            setStartDate={setStartDate}
-            endDate={endDate}
-            setEndDate={setEndDate}
-            paymentStatus={paymentStatus}
-            setPaymentStatus={setPaymentStatus}
-            paymentAmount={paymentAmount}
-            setPaymentAmount={setPaymentAmount}
-            selectedFile={selectedFile}
-            setSelectedFile={setSelectedFile}
-            fileError={fileError}
-            setFileError={setFileError}
-            customerId={customerId}
-            createEvent={createEvent}
-            setCreateEvent={setCreateEvent}
-            isEventData={isEventData}
-            isOpen={isOpen}
-          />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <CustomerDialogFields
+              title={formData.title}
+              setTitle={(value) => setFormData({ ...formData, title: value })}
+              userSurname=""
+              setUserSurname={() => {}}
+              userNumber={formData.user_number}
+              setUserNumber={(value) => setFormData({ ...formData, user_number: value })}
+              socialNetworkLink={formData.social_network_link}
+              setSocialNetworkLink={(value) => setFormData({ ...formData, social_network_link: value })}
+              createEvent={createEvent}
+              setCreateEvent={setCreateEvent}
+              paymentStatus={formData.payment_status}
+              setPaymentStatus={(value) => setFormData({ ...formData, payment_status: value })}
+              paymentAmount={formData.payment_amount}
+              setPaymentAmount={(value) => setFormData({ ...formData, payment_amount: value })}
+              customerNotes={formData.event_notes}
+              setCustomerNotes={(value) => setFormData({ ...formData, event_notes: value })}
+              selectedFile={selectedFile}
+              setSelectedFile={setSelectedFile}
+              fileError={fileError}
+              setFileError={setFileError}
+              isEventBased={customerId?.startsWith('event-') || false}
+              startDate={formData.startDate}
+              endDate={formData.endDate}
+              customerId={customerId}
+              displayedFiles={displayedFiles}
+              onFileDeleted={(fileId) => {
+                setDisplayedFiles((prev) => prev.filter((file) => file.id !== fileId));
+              }}
+              eventStartDate={eventStartDate}
+              setEventStartDate={setEventStartDate}
+              eventEndDate={eventEndDate}
+              setEventEndDate={setEventEndDate}
+              // Fix here: use fileBucketName instead of removed prop
+              fileBucketName={customerId?.startsWith('event-') ? "event_attachments" : "customer_attachments"}
+              fallbackBuckets={["event_attachments", "customer_attachments", "booking_attachments"]}
+            />
 
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={handleClose} disabled={loading}>
-              {t("crm.cancel")}
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "..." : (customerId ? t("crm.update") : t("crm.create"))}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <div className="flex justify-between">
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="flex-1 mr-2"
+              >
+                {customerId ? t("common.update") : t("common.add")}
+              </Button>
+              {customerId && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  onClick={handleDelete}
+                  disabled={isLoading}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add deletion confirmation dialog */}
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              {t("common.deleteConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("common.deleteConfirmMessage")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };

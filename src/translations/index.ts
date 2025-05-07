@@ -1,11 +1,13 @@
 
-import { enTranslations } from './en';
-import { esTranslations } from './es';
+import en from './en';
+import { es } from './es';
+import { ka } from './ka';
 import { Language, TranslationType } from './types';
 
 export const translations: Record<Language, TranslationType> = {
-  en: enTranslations,
-  es: esTranslations,
-} as const;
+  en,
+  es,
+  ka,
+};
 
 export * from './types';

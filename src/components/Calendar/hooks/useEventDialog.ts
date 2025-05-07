@@ -1,13 +1,12 @@
-import { useState, useEffect } from "react";
+
+import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
-import { parseISO } from "date-fns";
-import { supabase } from "@/lib/supabase";
 
 interface UseEventDialogProps {
-  createEvent: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  updateEvent: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  deleteEvent: (id: string) => Promise<void>;
+  createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
+  updateEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
+  deleteEvent?: (id: string) => Promise<void>;
 }
 
 export const useEventDialog = ({
@@ -17,222 +16,123 @@ export const useEventDialog = ({
 }: UseEventDialogProps) => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
-
-  useEffect(() => {
-    if (selectedEvent) {
-      setSelectedDate(new Date(selectedEvent.start_date));
-    }
-  }, [selectedEvent]);
-
-  useEffect(() => {
-    console.log('useEventDialog - selectedDate changed:', selectedDate);
-  }, [selectedDate]);
-
-  useEffect(() => {
-    console.log('useEventDialog - dialog open state changed:', isNewEventDialogOpen);
-    console.log('useEventDialog - current selectedDate:', selectedDate);
-  }, [isNewEventDialogOpen]);
-
-  const checkTimeSlotAvailability = (
-    startDate: Date,
-    endDate: Date,
-    existingEvents: CalendarEventType[],
-    excludeEventId?: string
-  ): { available: boolean; conflictingEvent?: CalendarEventType } => {
-    const startTime = startDate.getTime();
-    const endTime = endDate.getTime();
-
-    const conflictingEvent = existingEvents.find((event) => {
-      if (excludeEventId && event.id === excludeEventId) return false;
-      
-      const eventStart = parseISO(event.start_date).getTime();
-      const eventEnd = parseISO(event.end_date).getTime();
-
-      if (startTime === eventEnd || endTime === eventStart) {
-        return false;
-      }
-
-      return (
-        (startTime < eventEnd && endTime > eventStart) ||
-        (startTime === eventStart && endTime === eventEnd)
-      );
-    });
-
-    return {
-      available: !conflictingEvent,
-      conflictingEvent,
-    };
-  };
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
-      console.log('handleCreateEvent - Received data:', data);
-      const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
+      // Ensure type is set to 'event'
+      const eventData = {
+        ...data,
+        type: 'event',
+        // Make sure title and user_surname match for consistency
+        title: data.user_surname || data.title,
+        user_surname: data.user_surname || data.title,
+        // Ensure payment_status is properly set and normalized
+        payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
+        // Don't check availability by default for faster creation
+        checkAvailability: false
+      };
       
-      const startDate = new Date(data.start_date as string);
-      const endDate = new Date(data.end_date as string);
-
-      console.log('handleCreateEvent - Parsed dates:', {
-        start: startDate,
-        end: endDate
-      });
-
-      const { available, conflictingEvent } = checkTimeSlotAvailability(
-        startDate,
-        endDate,
-        allEvents
-      );
-
-      if (!available && conflictingEvent) {
-        toast({
-          title: "Time Slot Unavailable",
-          description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
-          variant: "destructive",
-        });
-        throw new Error("Time slot conflict");
-      }
-
-      const result = await createEvent(data);
+      if (!createEvent) throw new Error("Create event function not provided");
+      
+      console.log("Creating event with data:", eventData);
+      const createdEvent = await createEvent(eventData);
+      
       setIsNewEventDialogOpen(false);
-      toast({
-        title: "Success",
-        description: "Event created successfully",
-      });
-      return result;
+      console.log("Event created successfully:", createdEvent);
+      
+      return createdEvent;
     } catch (error: any) {
-      console.error('handleCreateEvent - Error:', error);
-      if (error.message !== "Time slot conflict") {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
+      console.error("Failed to create event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create event",
+        variant: "destructive",
+      });
       throw error;
     }
   };
 
   const handleUpdateEvent = async (data: Partial<CalendarEventType>) => {
-    if (!selectedEvent) return;
-    
     try {
-      const allEvents = (window as any).__CALENDAR_EVENTS__ || [];
+      if (!updateEvent || !selectedEvent) {
+        throw new Error("Update event function not provided or no event selected");
+      }
       
-      const startDate = new Date(data.start_date as string);
-      const endDate = new Date(data.end_date as string);
-
-      const { available, conflictingEvent } = checkTimeSlotAvailability(
-        startDate,
-        endDate,
-        allEvents,
-        selectedEvent.id
-      );
-
-      if (!available && conflictingEvent) {
-        toast({
-          title: "Time Slot Unavailable",
-          description: `This time slot conflicts with "${conflictingEvent.title}" (${new Date(conflictingEvent.start_date).toLocaleTimeString()} - ${new Date(conflictingEvent.end_date).toLocaleTimeString()})`,
-          variant: "destructive",
-        });
-        throw new Error("Time slot conflict");
-      }
-
-      const result = await updateEvent(data);
-      setSelectedEvent(null);
-      toast({
-        title: "Success",
-        description: "Event updated successfully",
+      // Make sure to preserve the type field and ensure title and user_surname match
+      const eventData = {
+        ...data,
+        type: selectedEvent.type || 'event',
+        title: data.user_surname || data.title || selectedEvent.title,
+        user_surname: data.user_surname || data.title || selectedEvent.user_surname,
+        // Ensure payment_status is properly normalized and preserved
+        payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
+      };
+      
+      // Set checkAvailability flag in memory, but remove it before sending to the database
+      // to prevent the "column not found" error
+      const shouldCheckAvailability = true;
+      console.log("Updating event with data:", eventData);
+      
+      // Create a new object without the checkAvailability property to send to the database
+      const { checkAvailability, ...dataToSend } = eventData as any;
+      const updatedEvent = await updateEvent({
+        ...dataToSend,
+        // We'll handle the availability check in the useCalendarEvents hook
       });
-      return result;
+      
+      setSelectedEvent(null);
+      console.log("Event updated successfully:", updatedEvent);
+      
+      return updatedEvent;
     } catch (error: any) {
-      console.error('handleUpdateEvent - Error:', error);
-      if (error.message !== "Time slot conflict") {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
+      console.error("Failed to update event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update event",
+        variant: "destructive",
+      });
       throw error;
     }
   };
 
   const handleDeleteEvent = async () => {
-    if (!selectedEvent) return;
-    
     try {
-      const { data: customer, error: customerError } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('title', selectedEvent.title)
-        .eq('start_date', selectedEvent.start_date)
-        .eq('end_date', selectedEvent.end_date)
-        .maybeSingle();
-
-      if (customerError) {
-        console.error('Error finding associated customer:', customerError);
-        throw customerError;
-      }
-
-      if (customer) {
-        const { error: updateError } = await supabase
-          .from('customers')
-          .update({
-            start_date: null,
-            end_date: null
-          })
-          .eq('id', customer.id);
-
-        if (updateError) {
-          console.error('Error updating customer:', updateError);
-          throw updateError;
-        }
-      }
-
-      const { data: files } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', selectedEvent.id);
-
-      if (files && files.length > 0) {
-        for (const file of files) {
-          const { error: storageError } = await supabase.storage
-            .from('event_attachments')
-            .remove([file.file_path]);
-
-          if (storageError) {
-            console.error('Error deleting file from storage:', storageError);
-          }
-        }
-
-        const { error: filesDeleteError } = await supabase
-          .from('event_files')
-          .delete()
-          .eq('event_id', selectedEvent.id);
-
-        if (filesDeleteError) {
-          console.error('Error deleting file records:', filesDeleteError);
-          throw filesDeleteError;
-        }
-      }
-
+      if (!deleteEvent || !selectedEvent) throw new Error("Delete event function not provided or no event selected");
+      
       await deleteEvent(selectedEvent.id);
+      
       setSelectedEvent(null);
-      toast({
-        title: "Success",
-        description: "Event deleted successfully",
-      });
+      console.log("Event deleted successfully:", selectedEvent.id);
     } catch (error: any) {
-      console.error('handleDeleteEvent - Error:', error);
+      console.error("Failed to delete event:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to delete event",
         variant: "destructive",
       });
       throw error;
     }
+  };
+
+  // Helper function to normalize payment status values
+  const normalizePaymentStatus = (status: string | undefined): string | undefined => {
+    if (!status) return undefined;
+    
+    // Log the incoming status for debugging
+    console.log("Normalizing payment status:", status);
+    
+    // Normalize partly paid variants
+    if (status.includes('partly')) return 'partly_paid';
+    
+    // Normalize fully paid variants
+    if (status.includes('fully')) return 'fully_paid';
+    
+    // Normalize not paid variants
+    if (status.includes('not_paid') || status === 'not paid') return 'not_paid';
+    
+    return status;
   };
 
   return {

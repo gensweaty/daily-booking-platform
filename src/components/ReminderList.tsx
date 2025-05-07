@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getReminders, updateReminder, deleteReminder } from "@/lib/api";
 import { Reminder } from "@/lib/types";
@@ -51,7 +52,7 @@ export const ReminderList = () => {
     setEditingReminder(reminder);
     setEditTitle(reminder.title);
     setEditDescription(reminder.description || "");
-    const formattedDate = format(new Date(reminder.due_date), "yyyy-MM-dd'T'HH:mm");
+    const formattedDate = format(new Date(reminder.remind_at), "yyyy-MM-dd'T'HH:mm");
     setEditDueDate(formattedDate);
   };
 
@@ -62,7 +63,7 @@ export const ReminderList = () => {
       updates: {
         title: editTitle,
         description: editDescription,
-        due_date: editDueDate,
+        remind_at: editDueDate,
       },
     });
   };
@@ -73,7 +74,7 @@ export const ReminderList = () => {
     <>
       <ReminderNotificationManager reminders={reminders} />
       <div className="space-y-4">
-        {reminders?.map((reminder: Reminder) => (
+        {(reminders || []).map((reminder: Reminder) => (
           <div
             key={reminder.id}
             className="p-4 bg-white rounded-lg shadow border border-gray-200"
@@ -85,7 +86,7 @@ export const ReminderList = () => {
                   <p className="text-gray-600 mt-1">{reminder.description}</p>
                 )}
                 <div className="mt-2 text-sm text-gray-500">
-                  Due: {format(parseISO(reminder.due_date), 'PPpp')}
+                  Due: {format(parseISO(reminder.remind_at), 'PPpp')}
                 </div>
               </div>
               <div className="flex gap-2">

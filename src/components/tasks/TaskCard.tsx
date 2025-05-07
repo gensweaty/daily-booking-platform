@@ -1,9 +1,12 @@
+
 import { Task } from "@/lib/types";
 import { Draggable } from "@hello-pangea/dnd";
 import { Pencil, Trash2, Paperclip } from "lucide-react";
 import { Button } from "../ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { GeorgianAuthText } from "../shared/GeorgianAuthText";
 
 interface TaskCardProps {
   task: Task;
@@ -13,6 +16,9 @@ interface TaskCardProps {
 }
 
 export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
+  const { language } = useLanguage();
+  const isGeorgian = language === 'ka';
+  
   const { data: files } = useQuery({
     queryKey: ['taskFiles', task.id],
     queryFn: async () => {
@@ -47,7 +53,13 @@ export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
           <div className="flex justify-between items-start">
             <div className={task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'}>
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold">{task.title}</h3>
+                {isGeorgian ? (
+                  <h3 className="font-semibold">
+                    <GeorgianAuthText fontWeight="bold">{task.title}</GeorgianAuthText>
+                  </h3>
+                ) : (
+                  <h3 className="font-semibold">{task.title}</h3>
+                )}
                 {files && files.length > 0 && (
                   <div className="flex items-center text-gray-600">
                     <Paperclip className="h-4 w-4" />

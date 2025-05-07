@@ -1,3 +1,5 @@
+
+
 -- Add color column to notes table
 ALTER TABLE notes ADD COLUMN IF NOT EXISTS color VARCHAR(255);
 
@@ -37,3 +39,10 @@ CREATE POLICY "Enable delete access for users based on user_id" ON events
     FOR DELETE
     TO authenticated
     USING (auth.uid() = user_id);
+
+-- Add file fields to booking_requests table if they don't exist
+ALTER TABLE booking_requests ADD COLUMN IF NOT EXISTS file_path TEXT;
+ALTER TABLE booking_requests ADD COLUMN IF NOT EXISTS filename TEXT;
+ALTER TABLE booking_requests ADD COLUMN IF NOT EXISTS content_type TEXT;
+ALTER TABLE booking_requests ADD COLUMN IF NOT EXISTS size BIGINT;
+

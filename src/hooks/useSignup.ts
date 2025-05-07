@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { validateUsername, validatePassword } from "@/utils/signupValidation";
 
 export const useSignup = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -20,6 +21,44 @@ export const useSignup = () => {
 
     try {
       console.log('Starting signup process...');
+      
+      // Basic validation
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        toast({
+          title: "Password Error",
+          description: passwordError,
+          variant: "destructive",
+          duration: 5000,
+        });
+        setIsLoading(false);
+        return null;
+      }
+      
+      // Validate username
+      try {
+        const usernameError = await validateUsername(username, supabase);
+        if (usernameError) {
+          toast({
+            title: "Username Error",
+            description: usernameError,
+            variant: "destructive",
+            duration: 5000,
+          });
+          setIsLoading(false);
+          return null;
+        }
+      } catch (error) {
+        console.error('Username validation error:', error);
+        toast({
+          title: "Error",
+          description: "Error validating username",
+          variant: "destructive",
+          duration: 5000,
+        });
+        setIsLoading(false);
+        return null;
+      }
       
       let codeId: string | null = null;
 
@@ -42,7 +81,7 @@ export const useSignup = () => {
             duration: 5000,
           });
           setIsLoading(false);
-          return;
+          return null;
         }
 
         // The function always returns exactly one row
@@ -57,86 +96,85 @@ export const useSignup = () => {
             duration: 5000,
           });
           setIsLoading(false);
-          return;
+          return null;
         }
 
         codeId = validationResult.code_id;
       }
 
-      // Get current site URL for redirects
-      // For production, we need to ensure redirects go to the correct domain
-      // Don't use window.location.origin as it will differ between development and production
-      const origin = window.location.host.includes('localhost') || 
-                     window.location.host.includes('lovable.app') 
-                     ? window.location.origin 
-                     : 'https://smartbookly.com';
+      // Create user using admin API
+      console.log('Creating user and sending verification email...');
       
-      // Ensure the redirect URL explicitly includes the full path to avoid 404 errors
-      const emailRedirectTo = `${origin}/dashboard`;
-      
-      console.log('Email confirmation redirect URL:', emailRedirectTo);
+      try {
+        const { data: adminData, error: adminError } = await supabase.functions.invoke('create-user-admin', {
+          body: {
+            email,
+            password,
+            username
+          }
+        });
 
-      // Step 2: Create user account with email confirmation redirect
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { username },
-          emailRedirectTo: emailRedirectTo,
-        },
-      });
-
-      if (signUpError) {
-        if (signUpError.status === 429) {
+        // Check for errors with admin user creation
+        if (adminError) {
+          console.error('Admin user creation error:', adminError);
           toast({
-            title: "Rate Limit Exceeded",
-            description: "Please wait a moment before trying again.",
+            title: "Signup Failed",
+            description: adminError.message || "Failed to create user account",
             variant: "destructive",
             duration: 5000,
           });
           setIsLoading(false);
-          return;
+          return null;
         }
-        throw signUpError;
-      }
 
-      if (!authData?.user) {
-        throw new Error('Failed to create user account');
-      }
+        if (!adminData?.success) {
+          console.error('User creation failed:', adminData);
+          
+          // Special handling for email already exists error
+          if (adminData?.errorCode === "email_exists") {
+            toast({
+              title: "Email Already Registered",
+              description: "This email address is already registered. Please try signing in or use a different email.",
+              variant: "destructive",
+              duration: 5000,
+            });
+            setIsLoading(false);
+            return null;
+          }
+          
+          toast({
+            title: "Signup Failed",
+            description: adminData?.message || "Failed to create user account",
+            variant: "destructive",
+            duration: 5000,
+          });
+          setIsLoading(false);
+          return null;
+        }
 
-      // Step 3: Create subscription
-      const { data: subscription, error: subError } = await supabase
-        .rpc('create_user_subscription', {
-          p_user_id: authData.user.id,
-          p_plan_type: redeemCode ? 'ultimate' : 'monthly',
-          p_is_redeem_code: !!redeemCode
+        console.log('User created successfully, confirmation email sent');
+        
+        toast({
+          title: "Account Created",
+          description: "Your account has been created. Please check your email (including spam folder) to verify your account.",
+          duration: 8000,
         });
-
-      if (subError) {
-        throw new Error('Failed to setup subscription: ' + subError.message);
+        
+        clearForm();
+        
+        return {
+          success: true
+        };
+      } catch (adminError: any) {
+        console.error('Admin API error:', adminError);
+        toast({
+          title: "Signup Error",
+          description: adminError.message || "An unexpected error occurred during signup",
+          variant: "destructive",
+          duration: 5000,
+        });
+        return null;
       }
-
-      // Step 4: If we have a valid code, update it with user details
-      if (codeId) {
-        await supabase
-          .from('redeem_codes')
-          .update({
-            used_by: authData.user.id,
-            used_at: new Date().toISOString()
-          })
-          .eq('id', codeId);
-      }
-
-      toast({
-        title: "Success",
-        description: redeemCode 
-          ? "Account created with Ultimate plan! Please check your email to confirm your account."
-          : "Account created! Please check your email to confirm your account.",
-        duration: 5000,
-      });
-      
-      clearForm();
-
     } catch (error: any) {
       console.error('Signup error:', error);
       toast({
@@ -145,6 +183,7 @@ export const useSignup = () => {
         variant: "destructive",
         duration: 5000,
       });
+      return null;
     } finally {
       setIsLoading(false);
     }

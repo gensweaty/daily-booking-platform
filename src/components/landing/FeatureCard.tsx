@@ -5,6 +5,8 @@ import { ImageCarousel } from "./ImageCarousel";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { TranslationType } from "@/translations/types";
+import { LanguageText } from "@/components/shared/LanguageText";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface FeatureCardProps {
   icon: LucideIcon;
@@ -16,9 +18,11 @@ interface FeatureCardProps {
     src: string;
     alt: string;
     title?: string;
+    customStyle?: string;
+    customPadding?: string;
   }[];
   reverse?: boolean;
-  translationPrefix: 'booking' | 'analytics' | 'crm' | 'tasks';
+  translationPrefix: 'booking' | 'analytics' | 'crm' | 'tasks' | 'website';
 }
 
 export const FeatureCard = ({
@@ -32,9 +36,25 @@ export const FeatureCard = ({
   translationPrefix,
 }: FeatureCardProps) => {
   const { t } = useLanguage();
+  const isMobile = useMediaQuery("(max-width: 640px)");
+  const isTablet = useMediaQuery("(max-width: 1024px)");
   
-  const getTranslationKey = (key: string): keyof TranslationType => {
-    return `${translationPrefix}.${key}` as keyof TranslationType;
+  const getTranslationKey = (key: string): string => {
+    return `${translationPrefix}.${key}`;
+  };
+  
+  // Determine appropriate object-fit based on feature type
+  const getObjectFit = () => {
+    if (translationPrefix === 'website') return 'object-cover';
+    if (translationPrefix === 'booking') return 'object-contain';
+    return 'object-contain';
+  };
+  
+  // Determine responsive image height
+  const getImageHeight = () => {
+    if (isMobile) return 'h-[320px]';
+    if (isTablet) return 'h-[400px]';
+    return 'h-[480px]';
   };
   
   return (
@@ -43,21 +63,23 @@ export const FeatureCard = ({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
-      className={`grid md:grid-cols-2 gap-12 items-center mb-20 ${
+      className={`grid md:grid-cols-2 gap-8 md:gap-12 items-center mb-16 md:mb-20 ${
         reverse ? 'md:flex-row-reverse' : ''
       }`}
     >
-      <div className={`space-y-6 ${reverse ? 'md:order-2' : ''} order-1`}>
-        <div className="flex items-center gap-3 mb-4">
+      <div className={`space-y-4 md:space-y-6 ${reverse ? 'md:order-2' : ''} order-1`}>
+        <div className="flex items-center gap-3 mb-3 md:mb-4">
           <div className="p-2 rounded-lg bg-primary/10">
-            <Icon className="w-6 h-6 text-primary animate-pulse" />
+            <Icon className="w-5 h-5 md:w-6 md:h-6 text-primary animate-pulse" />
           </div>
-          <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            {t(getTranslationKey('title'))}
+          <h3 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <LanguageText>{t(getTranslationKey('title'))}</LanguageText>
           </h3>
         </div>
-        <p className="text-lg text-muted-foreground">{t(getTranslationKey('description'))}</p>
-        <ul className="space-y-3">
+        <p className="text-base md:text-lg text-muted-foreground">
+          <LanguageText>{t(getTranslationKey('description'))}</LanguageText>
+        </p>
+        <ul className="space-y-2 md:space-y-3">
           {benefits.map((benefit, idx) => (
             <motion.li
               key={idx}
@@ -67,8 +89,8 @@ export const FeatureCard = ({
               transition={{ delay: idx * 0.1 }}
               className="flex items-start gap-2"
             >
-              <CheckCircle className="w-5 h-5 text-primary mt-1" />
-              <span>{t(getTranslationKey(`feature${idx + 1}` as const))}</span>
+              <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-primary mt-1" />
+              <span className="text-base sm:text-base md:text-base"><LanguageText>{t(getTranslationKey(`feature${idx + 1}`))}</LanguageText></span>
             </motion.li>
           ))}
         </ul>
@@ -86,12 +108,14 @@ export const FeatureCard = ({
               images={carousel} 
               className="mx-[-1rem]"
               permanentArrows={true}
+              objectFit={getObjectFit()}
+              imageHeight={getImageHeight()}
             />
           ) : (
             <img 
               src={image} 
               alt={t(getTranslationKey('title'))} 
-              className="w-full h-[400px] object-contain p-4"
+              className={`w-full ${getImageHeight()} ${getObjectFit()} p-2 md:p-4`}
             />
           )}
         </div>

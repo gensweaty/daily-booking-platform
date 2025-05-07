@@ -45,19 +45,23 @@ export const ForgotPassword = () => {
       const origin = window.location.origin;
       console.log("Current origin:", origin);
       
-      // Request password reset with the correct redirect URL
-      // This is the key change - we're simply using the site origin without any path
-      // Supabase will handle the routing based on its site settings
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: origin,
+      // Use our custom password reset edge function instead of Supabase's built-in method
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/password-reset`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({ email })
       });
 
-      console.log("Reset password response:", { data, error });
+      const result = await response.json();
+      console.log("Password reset response:", result);
 
-      if (error) {
-        console.error("Password reset request error:", error);
+      if (!response.ok) {
+        console.error("Password reset request failed:", result.error);
         
-        if (error.message.includes('rate limit') || error.message.includes('too many requests')) {
+        if (result.error?.includes('rate limit') || result.error?.includes('too many requests')) {
           toast({
             title: "Too many attempts",
             description: "Please wait a moment before trying again",
@@ -154,7 +158,7 @@ export const ForgotPassword = () => {
               className="w-full"
               disabled={isLoading}
             >
-              {isLoading ? t("auth.sending") : t("auth.sendResetLink")}
+              {isLoading ? "Sending..." : t("auth.sendResetLink")}
             </Button>
           </form>
         )}

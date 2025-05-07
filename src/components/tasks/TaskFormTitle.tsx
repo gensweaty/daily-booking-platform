@@ -2,6 +2,8 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "../shared/LanguageText";
+import { cn } from "@/lib/utils";
 
 interface TaskFormTitleProps {
   title: string;
@@ -9,18 +11,26 @@ interface TaskFormTitleProps {
 }
 
 export const TaskFormTitle = ({ title, setTitle }: TaskFormTitleProps) => {
-  const { language } = useLanguage();
+  const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="title">{language === 'es' ? 'Título' : 'Title'}</Label>
+      <Label 
+        htmlFor="title"
+        className={cn(isGeorgian ? "font-georgian" : "")}
+        style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+      >
+        <LanguageText>{t("tasks.title")}</LanguageText>
+      </Label>
       <Input
         id="title"
-        placeholder={language === 'es' ? 'Título de la tarea' : 'Task title'}
+        placeholder={t("tasks.titlePlaceholder")}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         required
-        className="bg-background border-input"
+        className={cn("bg-background border-input", isGeorgian ? "placeholder:font-georgian" : "")}
+        style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
       />
     </div>
   );

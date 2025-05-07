@@ -3,13 +3,14 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { createTask, updateTask } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Task } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { TaskFormHeader } from "./tasks/TaskFormHeader";
 import { TaskFormFields } from "./tasks/TaskFormFields";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "./shared/LanguageText";
 
 interface AddTaskFormProps {
   onClose: () => void;
@@ -24,7 +25,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
 
   useEffect(() => {
     if (editingTask) {
@@ -37,12 +38,10 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      toast({
-        title: "Error",
+      toast.error({
         description: language === 'es' 
           ? "Debes iniciar sesión para crear tareas"
-          : "You must be logged in to create tasks",
-        variant: "destructive",
+          : "You must be logged in to create tasks"
       });
       return;
     }
@@ -52,7 +51,8 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         title,
         description,
         status: editingTask ? editingTask.status : ('todo' as const),
-        user_id: user.id
+        user_id: user.id,
+        position: editingTask?.position || 0
       };
 
       let taskResponse;
@@ -66,8 +66,9 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
+        // Use event_attachments bucket for all files
         const { error: uploadError } = await supabase.storage
-          .from('task_attachments')
+          .from('event_attachments')
           .upload(filePath, selectedFile);
 
         if (uploadError) throw uploadError;
@@ -89,25 +90,18 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       await queryClient.invalidateQueries({ queryKey: ['tasks'] });
       await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
       
-      toast({
-        title: language === 'es' ? "Éxito" : "Success",
-        description: language === 'es'
-          ? editingTask 
-            ? "Tarea actualizada exitosamente"
-            : "Tarea creada exitosamente"
-          : editingTask
-            ? "Task updated successfully"
-            : "Task created successfully",
-      });
+      if (editingTask) {
+        toast.task.updated();
+      } else {
+        toast.task.created();
+      }
       onClose();
     } catch (error: any) {
       console.error('Task operation error:', error);
-      toast({
-        title: "Error",
+      toast.error({
         description: language === 'es'
           ? `Error al ${editingTask ? 'actualizar' : 'crear'} la tarea. Por favor intenta de nuevo.`
-          : error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Please try again.`,
-        variant: "destructive",
+          : error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Please try again.`
       });
     }
   };
@@ -128,10 +122,9 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           editingTask={editingTask}
         />
         <Button type="submit" className="w-full">
-          {language === 'es'
-            ? editingTask ? 'Actualizar Tarea' : 'Agregar Tarea'
-            : editingTask ? 'Update Task' : 'Add Task'
-          }
+          <LanguageText>
+            {editingTask ? t("tasks.editTask") : t("tasks.addTask")}
+          </LanguageText>
         </Button>
       </form>
     </>

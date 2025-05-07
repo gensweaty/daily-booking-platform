@@ -4,37 +4,195 @@ import { supabase } from "@/lib/supabase";
 import { format, parseISO, eachDayOfInterval, endOfDay, startOfMonth, endOfMonth, differenceInMonths, addMonths, eachMonthOfInterval } from 'date-fns';
 
 export const useStatistics = (userId: string | undefined, dateRange: { start: Date; end: Date }) => {
-  const { data: taskStats } = useQuery({
-    queryKey: ['taskStats', userId],
+  // Memoize query keys to prevent unnecessary re-renders
+  const taskStatsQueryKey = ['taskStats', userId, dateRange.start.toISOString().split('T')[0], dateRange.end.toISOString().split('T')[0]];
+  const eventStatsQueryKey = ['eventStats', userId, dateRange.start.toISOString().split('T')[0], dateRange.end.toISOString().split('T')[0]];
+
+  // Optimize task stats query
+  const { data: taskStats, isLoading: isLoadingTaskStats } = useQuery({
+    queryKey: taskStatsQueryKey,
     queryFn: async () => {
-      const { data: tasks } = await supabase
+      if (!userId) return {
+        total: 0,
+        completed: 0,
+        inProgress: 0,
+        todo: 0,
+      };
+      
+      const { data: tasks, error } = await supabase
         .from('tasks')
         .select('status')
         .eq('user_id', userId);
 
+      if (error) {
+        console.error('Error fetching task stats:', error);
+        throw error;
+      }
+
       return {
         total: tasks?.length || 0,
         completed: tasks?.filter(t => t.status === 'done').length || 0,
-        inProgress: tasks?.filter(t => t.status === 'in-progress').length || 0,
+        inProgress: tasks?.filter(t => t.status === 'inprogress').length || 0,
         todo: tasks?.filter(t => t.status === 'todo').length || 0,
       };
     },
     enabled: !!userId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const { data: eventStats } = useQuery({
-    queryKey: ['eventStats', userId, dateRange.start, dateRange.end],
+  // Helper function to consistently parse payment amounts
+  const parsePaymentAmount = (amount: any): number => {
+    // If null or undefined, return 0
+    if (amount === null || amount === undefined) return 0;
+    
+    // Special handling for specific error cases
+    if (amount === 'NaN' || amount === '') return 0;
+    
+    // For string values (might include currency symbols)
+    if (typeof amount === 'string') {
+      try {
+        // Remove any non-numeric characters except dots and minus signs
+        const cleanedStr = amount.replace(/[^0-9.-]+/g, '');
+        const parsed = parseFloat(cleanedStr);
+        return isNaN(parsed) ? 0 : parsed;
+      } catch (e) {
+        console.error(`Failed to parse string payment amount: ${amount}`, e);
+        return 0;
+      }
+    }
+    
+    // For numeric values, ensure they're valid
+    if (typeof amount === 'number') {
+      return isNaN(amount) ? 0 : amount;
+    }
+    
+    // Try to convert other types to number
+    try {
+      const converted = Number(amount);
+      return isNaN(converted) ? 0 : converted;
+    } catch (e) {
+      console.error(`Failed to convert payment amount: ${amount}`, e);
+      return 0;
+    }
+  };
+
+  // Optimize events stats query with more efficient date handling and include CRM events
+  const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
+    queryKey: eventStatsQueryKey,
     queryFn: async () => {
-      const { data: events } = await supabase
+      if (!userId) return {
+        total: 0,
+        partlyPaid: 0,
+        fullyPaid: 0,
+        dailyStats: [],
+        monthlyIncome: [],
+        totalIncome: 0,
+        events: [],
+      };
+      
+      // Format dates for Supabase query
+      const startDateStr = dateRange.start.toISOString();
+      const endDateStr = endOfDay(dateRange.end).toISOString();
+      
+      // Get all calendar events
+      const { data: calendarEvents, error: calendarError } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
-        .gte('start_date', dateRange.start.toISOString())
-        .lte('start_date', endOfDay(dateRange.end).toISOString());
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
+        .is('deleted_at', null);
 
-      // Get payment status counts
-      const partlyPaid = events?.filter(e => e.payment_status === 'partly').length || 0;
-      const fullyPaid = events?.filter(e => e.payment_status === 'fully').length || 0;
+      if (calendarError) {
+        console.error('Error fetching calendar event stats:', calendarError);
+        throw calendarError;
+      }
+      
+      // Get all customers with create_event=true (events created from CRM)
+      const { data: crmEvents, error: crmError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('create_event', true)
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
+        .is('deleted_at', null);
+        
+      if (crmError) {
+        console.error('Error fetching CRM event stats:', crmError);
+        throw crmError;
+      }
+      
+      console.log(`Statistics - Found ${calendarEvents?.length || 0} calendar events and ${crmEvents?.length || 0} CRM events`);
+      
+      // Normalize payment status values
+      const normalizePaymentStatus = (status: string | null | undefined) => {
+        if (!status) return 'not_paid';
+        if (status.includes('partly')) return 'partly_paid';
+        if (status.includes('fully')) return 'fully_paid';
+        if (status.includes('not')) return 'not_paid';
+        return status;
+      };
+      
+      // Combine all events, ensuring CRM events aren't duplicated
+      // Use a Map to prevent duplications by start_date and end_date
+      const eventsMap = new Map();
+      
+      // First add calendar events
+      calendarEvents?.forEach(event => {
+        const key = `${event.start_date}-${event.end_date}-${event.title}`;
+        eventsMap.set(key, {
+          ...event,
+          payment_status: normalizePaymentStatus(event.payment_status)
+        });
+      });
+      
+      // Then add CRM events if they don't already exist
+      crmEvents?.forEach(event => {
+        const key = `${event.start_date}-${event.end_date}-${event.title}`;
+        if (!eventsMap.has(key)) {
+          eventsMap.set(key, {
+            id: event.id,
+            title: event.title,
+            user_surname: event.user_surname || event.title,
+            start_date: event.start_date,
+            end_date: event.end_date,
+            payment_status: normalizePaymentStatus(event.payment_status),
+            payment_amount: event.payment_amount,
+            type: event.type || 'event',
+            created_at: event.created_at,
+            user_id: event.user_id,
+            // Other fields can be null or defaults
+          });
+        }
+      });
+      
+      // Convert Map back to array
+      const allEvents = Array.from(eventsMap.values());
+      console.log(`Statistics - Combined into ${allEvents.length} total unique events`);
+      
+      // Log detailed payment information for each event with payment data
+      console.log('Event payment data:');
+      allEvents.forEach((event, index) => {
+        if (event.payment_amount !== undefined && event.payment_amount !== null) {
+          console.log(`Event ${index + 1} (${event.id}):`, {
+            title: event.title,
+            raw_payment_amount: event.payment_amount,
+            type_of: typeof event.payment_amount,
+            payment_status: event.payment_status,
+            parsed_amount: parsePaymentAmount(event.payment_amount)
+          });
+        }
+      });
+
+      // Get payment status counts using normalized values
+      const partlyPaid = allEvents.filter(e => 
+        normalizePaymentStatus(e.payment_status) === 'partly_paid'
+      ).length || 0;
+      
+      const fullyPaid = allEvents.filter(e => 
+        normalizePaymentStatus(e.payment_status) === 'fully_paid'
+      ).length || 0;
 
       // Get all days in the selected range for daily bookings
       const daysInRange = eachDayOfInterval({
@@ -43,7 +201,8 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       });
 
       const dailyBookings = daysInRange.map(day => {
-        const dayEvents = events?.filter(event => {
+        const dayEvents = allEvents.filter(event => {
+          if (!event.start_date) return false;
           const eventDate = parseISO(event.start_date);
           return format(eventDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
         });
@@ -56,7 +215,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         };
       });
 
-      // Get months for income comparison
+      // Optimize monthly income calculations
       let monthsToCompare;
       const currentDate = new Date();
       const isDefaultDateRange = 
@@ -77,48 +236,107 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           end: endOfMonth(dateRange.end)
         });
       }
-
-      const monthlyIncome = await Promise.all(monthsToCompare.map(async (month) => {
+      
+      // Calculate monthly income with consistent payment parsing
+      const monthlyIncome = monthsToCompare.map(month => {
         const monthStart = startOfMonth(month);
-        const monthEnd = endOfMonth(month);
+        const monthEnd = endOfDay(endOfMonth(month));
         
-        const { data: monthEvents } = await supabase
-          .from('events')
-          .select('*')
-          .eq('user_id', userId)
-          .gte('start_date', monthStart.toISOString())
-          .lte('start_date', endOfDay(monthEnd).toISOString());
-
+        // Filter events within this month
+        const monthEvents = allEvents.filter(event => {
+          if (!event.start_date) return false;
+          const eventDate = parseISO(event.start_date);
+          return eventDate >= monthStart && eventDate <= monthEnd;
+        });
+        
+        // Calculate income from events with valid payment status
+        let income = 0;
+        
+        monthEvents.forEach(event => {
+          const status = normalizePaymentStatus(event.payment_status);
+          const isPaid = status === 'fully_paid' || status === 'partly_paid';
+          
+          if (isPaid && (event.payment_amount !== undefined && event.payment_amount !== null)) {
+            const parsedAmount = parsePaymentAmount(event.payment_amount);
+            income += parsedAmount;
+            console.log(`Month ${format(month, 'MMM yyyy')} - Added ${parsedAmount} from event ${event.id}`);
+          }
+        });
+        
         return {
           month: format(month, 'MMM yyyy'),
-          income: monthEvents?.reduce((acc, event) => {
-            if (event.payment_status === 'fully' || event.payment_status === 'partly') {
-              return acc + (event.payment_amount || 0);
-            }
-            return acc;
-          }, 0) || 0,
+          income: income,
         };
-      }));
+      });
+      
+      // Debug: Monthly income data
+      console.log('Monthly income data:', monthlyIncome);
 
-      const totalIncome = events?.reduce((acc, event) => {
-        if (event.payment_status === 'fully' || event.payment_status === 'partly') {
-          return acc + (event.payment_amount || 0);
+      // Calculate total income directly from all events with consistent parsing
+      let totalIncome = 0;
+      let validPaymentCount = 0;
+      
+      allEvents.forEach(event => {
+        const status = normalizePaymentStatus(event.payment_status);
+        const isPaid = status === 'fully_paid' || status === 'partly_paid';
+                       
+        if (isPaid && (event.payment_amount !== undefined && event.payment_amount !== null)) {
+          const parsedAmount = parsePaymentAmount(event.payment_amount);
+          
+          if (parsedAmount > 0) {
+            validPaymentCount++;
+            console.log(`Total income: Adding ${parsedAmount} from event ${event.id} (${event.title})`);
+            totalIncome += parsedAmount;
+          }
         }
-        return acc;
-      }, 0) || 0;
+      });
+      
+      // Double check by calculating total from monthly income
+      const monthlyTotal = monthlyIncome.reduce((sum, month) => sum + month.income, 0);
+      
+      console.log('Income calculation summary:', {
+        totalDirectCalculation: totalIncome,
+        monthlyTotalSum: monthlyTotal, 
+        eventsWithValidPayment: validPaymentCount,
+        totalEventCount: allEvents.length,
+        mismatch: Math.abs(totalIncome - monthlyTotal) > 0.01 ? 'YES' : 'NO'
+      });
+      
+      // If there's a discrepancy, use the monthly sum as it's more reliable
+      if (Math.abs(totalIncome - monthlyTotal) > 0.01) {
+        console.warn('Income calculation discrepancy detected, using monthly sum instead:', {
+          directTotal: totalIncome,
+          monthlySum: monthlyTotal,
+          difference: totalIncome - monthlyTotal
+        });
+        totalIncome = monthlyTotal;
+      }
+
+      // Final validation to ensure totalIncome is a valid number
+      if (typeof totalIncome !== 'number' || isNaN(totalIncome)) {
+        console.error('Invalid totalIncome detected, resetting to 0:', totalIncome);
+        totalIncome = 0;
+      }
+
+      console.log(`Final totalIncome value: ${totalIncome}`);
 
       return {
-        total: events?.length || 0,
+        total: allEvents.length || 0,
         partlyPaid,
         fullyPaid,
         dailyStats: dailyBookings,
         monthlyIncome,
         totalIncome,
-        events: events || [],
+        events: allEvents || [],
       };
     },
     enabled: !!userId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  return { taskStats, eventStats };
+  return { 
+    taskStats, 
+    eventStats,
+    isLoading: isLoadingTaskStats || isLoadingEventStats
+  };
 };

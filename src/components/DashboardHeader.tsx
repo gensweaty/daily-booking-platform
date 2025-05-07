@@ -17,6 +17,8 @@ import { useTheme } from "next-themes";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { LanguageText } from "@/components/shared/LanguageText";
 
 interface DashboardHeaderProps {
   username: string;
@@ -34,7 +36,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { toast } = useToast();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const { theme } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
 
   useEffect(() => {
     const fetchSubscription = async () => {
@@ -135,7 +138,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           <Dialog>
             <DialogTrigger asChild>
               <Button 
-                variant="outline" 
+                variant="purple" 
                 size="icon"
                 className="text-foreground"
               >
@@ -148,7 +151,13 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
               </DialogHeader>
               <div className="py-4 space-y-4">
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">{t('auth.emailLabel')}</p>
+                  <p className="text-sm font-medium">
+                    {isGeorgian ? (
+                      <GeorgianAuthText fontWeight="medium">ელექტრონული ფოსტა</GeorgianAuthText>
+                    ) : (
+                      t('auth.emailLabel')
+                    )}
+                  </p>
                   <p className="text-sm text-muted-foreground">{user?.email}</p>
                 </div>
                 <div className="space-y-2">
@@ -176,7 +185,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 </div>
                 <div className="pt-4">
                   <Button 
-                    variant="outline" 
+                    variant="info" 
                     className="w-full"
                     onClick={handleChangePassword}
                   >
@@ -188,19 +197,33 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           </Dialog>
           <ThemeToggle />
           <Button 
-            variant="outline" 
-            className="flex items-center gap-2 text-foreground"
+            variant="orange" 
+            className="flex items-center gap-2 text-white"
             onClick={handleSignOut}
           >
             <LogOut className="w-4 h-4" />
-            {t('dashboard.signOut')}
+            {isGeorgian ? (
+              <GeorgianAuthText fontWeight="bold">გამოსვლა</GeorgianAuthText>
+            ) : (
+              t('dashboard.signOut')
+            )}
           </Button>
         </div>
       </div>
       <div className="text-center mb-2">
-        <h1 className="text-xl sm:text-2xl font-bold text-primary">{t('dashboard.welcome')}</h1>
-        <p className="text-sm text-foreground/80">
-          {t('dashboard.subtitle')}
+        <h1 className="text-xl sm:text-2xl font-bold text-primary">
+          {isGeorgian ? (
+            <GeorgianAuthText>მოგესალმებით</GeorgianAuthText>
+          ) : (
+            <LanguageText>{t('dashboard.welcome')}</LanguageText>
+          )}
+        </h1>
+        <p className="text-sm text-foreground/80 font-bold">
+          {isGeorgian ? (
+            <GeorgianAuthText>თქვენი პროდუქტიულობის ცენტრი</GeorgianAuthText>
+          ) : (
+            <LanguageText>{t('dashboard.subtitle')}</LanguageText>
+          )}
         </p>
       </div>
     </header>

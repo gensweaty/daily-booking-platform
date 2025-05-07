@@ -11,7 +11,6 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
-import { LanguageProvider } from "@/contexts/LanguageContext"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -45,47 +44,73 @@ const Index = () => {
   
   useSubscriptionRedirect()
 
-  // Handle email confirmation code if present
   useEffect(() => {
-    // This is a special handler for email confirmation codes on the dashboard route
+    // Check for both code and token parameters (Supabase uses both in different contexts)
     const code = searchParams.get('code');
+    const token = searchParams.get('token');
     
-    if (code && !processingCode) {
+    if ((code || token) && !processingCode) {
       setProcessingCode(true);
-      console.log('Index: Email confirmation code detected, processing...');
+      console.log('Index: Email confirmation detected, processing...', { code, token });
       
       (async () => {
         try {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-          
-          if (error) {
-            console.error('Error exchanging confirmation code:', error);
-            toast({
-              title: "Confirmation Error",
-              description: "Could not confirm your email. Please try again or contact support.",
-              variant: "destructive",
+          if (code) {
+            console.log('Exchanging code for session...');
+            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+            
+            if (error) {
+              console.error('Error exchanging confirmation code:', error);
+              toast({
+                title: "Confirmation Error",
+                description: "Could not confirm your email. Please contact support.",
+                variant: "destructive",
+              });
+            } else {
+              console.log('Email confirmation successful:', data.session ? 'Session created' : 'No session');
+              if (data.session) {
+                toast({
+                  title: "Email Confirmed",
+                  description: "Your email has been successfully confirmed!",
+                });
+                
+                // Always navigate to dashboard after successful confirmation
+                navigate('/dashboard', { replace: true });
+              }
+            }
+          } else if (token) {
+            // Handle token-based verification
+            console.log('Verifying token...');
+            const { data, error } = await supabase.auth.verifyOtp({
+              token_hash: token,
+              type: 'signup'
             });
-            navigate('/login', { replace: true });
-          } else {
-            console.log('Email confirmation successful:', data.session ? 'Session created' : 'No session');
-            if (data.session) {
+            
+            if (error) {
+              console.error('Error verifying token:', error);
+              toast({
+                title: "Confirmation Error",
+                description: "Could not confirm your email. Please contact support.",
+                variant: "destructive",
+              });
+            } else {
+              console.log('Email confirmation successful with token:', data);
               toast({
                 title: "Email Confirmed",
                 description: "Your email has been successfully confirmed!",
               });
               
-              // Refresh the page without the code parameter
+              // Navigate to dashboard
               navigate('/dashboard', { replace: true });
             }
           }
         } catch (err) {
-          console.error('Exception during code exchange in Index:', err);
+          console.error('Exception during verification in Index:', err);
           toast({
             title: "System Error",
             description: "An unexpected error occurred. Please try again later.",
             variant: "destructive",
           });
-          navigate('/login', { replace: true });
         } finally {
           setProcessingCode(false);
         }
@@ -120,7 +145,6 @@ const Index = () => {
     getProfile()
   }, [user])
 
-  // Show a loading state when processing confirmation code
   if (processingCode) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -133,43 +157,41 @@ const Index = () => {
     );
   }
 
-  const content = user ? (
-    <motion.div 
-      className="min-h-screen bg-background p-4"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {showTrialExpired && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-        >
-          <TrialExpiredDialog />
-        </motion.div>
-      )}
-      <motion.div variants={childVariants}>
-        <DashboardHeader username={username} />
-      </motion.div>
-      <motion.div variants={childVariants}>
-        <DashboardContent 
-          isTaskDialogOpen={isTaskDialogOpen}
-          setIsTaskDialogOpen={setIsTaskDialogOpen}
-        />
-      </motion.div>
-    </motion.div>
-  ) : (
-    <>
-      <CursorFollower />
-      <AuthUI />
-    </>
-  );
-
   return (
-    <LanguageProvider>
-      {content}
-    </LanguageProvider>
+    <>
+      {user ? (
+        <motion.div 
+          className="min-h-screen bg-background p-4"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          {showTrialExpired && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+            >
+              <TrialExpiredDialog />
+            </motion.div>
+          )}
+          <motion.div variants={childVariants}>
+            <DashboardHeader username={username} />
+          </motion.div>
+          <motion.div variants={childVariants}>
+            <DashboardContent 
+              isTaskDialogOpen={isTaskDialogOpen}
+              setIsTaskDialogOpen={setIsTaskDialogOpen}
+            />
+          </motion.div>
+        </motion.div>
+      ) : (
+        <>
+          <CursorFollower />
+          <AuthUI />
+        </>
+      )}
+    </>
   );
 }
 

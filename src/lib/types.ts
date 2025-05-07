@@ -1,10 +1,12 @@
+
 export interface Task {
   id: string;
   title: string;
   description?: string;
-  status: 'todo' | 'in-progress' | 'done';
+  status: 'todo' | 'inprogress' | 'done';
   created_at: string;
   user_id?: string;
+  position: number;
 }
 
 export interface Note {
@@ -22,7 +24,16 @@ export interface Reminder {
   id: string;
   title: string;
   description?: string;
-  due_date: string;
+  remind_at: string;
   created_at: string;
   user_id?: string;
 }
+
+// Export BookingRequest from database.ts
+export { type BookingRequest } from '../types/database';
+
+// Payment status type for consistency across components 
+// Includes both database and display formats
+export type PaymentStatus = 
+  'not_paid' | 'partly' | 'fully' | 
+  'partly_paid' | 'fully_paid';

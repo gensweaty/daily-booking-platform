@@ -10,6 +10,8 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "@/components/shared/LanguageText";
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 
 interface AuthUIProps {
   defaultTab?: "signin" | "signup";
@@ -19,8 +21,33 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const location = useLocation();
   const navigate = useNavigate();
-  const { theme } = useTheme();
-  const { t } = useLanguage();
+  const { theme, resolvedTheme } = useTheme();
+  const { t, language } = useLanguage();
+  const [mounted, setMounted] = useState(false);
+  const [currentLogo, setCurrentLogo] = useState<string>("/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png");
+
+  useEffect(() => {
+    setMounted(true);
+    
+    // Set the initial logo based on theme
+    updateLogoForTheme();
+  }, []);
+
+  // Function to update logo based on current theme
+  const updateLogoForTheme = () => {
+    // Get current theme from various sources in order of reliability
+    const isDarkTheme = 
+      document.documentElement.classList.contains('dark') || 
+      document.documentElement.getAttribute('data-theme') === 'dark' ||
+      (resolvedTheme || theme) === 'dark';
+    
+    const newLogoSrc = isDarkTheme 
+      ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" 
+      : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png";
+    
+    setCurrentLogo(newLogoSrc);
+    console.log("[AuthUI] Logo updated based on theme:", isDarkTheme ? "dark" : "light");
+  };
 
   useEffect(() => {
     if (location.pathname === "/signup") {
@@ -30,8 +57,36 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
     }
   }, [location.pathname]);
 
+  // Listen for theme changes
+  useEffect(() => {
+    if (!mounted) return;
+
+    const handleThemeChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const newTheme = customEvent.detail?.theme;
+      console.log("[AuthUI] Theme changed detected:", newTheme);
+      updateLogoForTheme();
+    };
+
+    // Listen for both initialization and changes
+    document.addEventListener('themeChanged', handleThemeChange);
+    document.addEventListener('themeInit', handleThemeChange);
+    
+    return () => {
+      document.removeEventListener('themeChanged', handleThemeChange);
+      document.removeEventListener('themeInit', handleThemeChange);
+    };
+  }, [mounted, theme, resolvedTheme]);
+
+  // Update logo when theme or resolvedTheme changes
+  useEffect(() => {
+    if (mounted) {
+      updateLogoForTheme();
+    }
+  }, [theme, resolvedTheme, mounted]);
+
   return (
-    <div className="min-h-screen bg-background p-4">
+    <div className="min-h-screen bg-background p-4" lang={language}>
       <header className="mb-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
@@ -45,10 +100,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
             </Button>
             <Link to="/" className="flex items-center gap-2">
               <img 
-                src={theme === 'dark' 
-                  ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
-                  : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
-                }
+                src={currentLogo}
                 alt="SmartBookly Logo" 
                 className="h-8 md:h-10 w-auto"
               />
@@ -60,18 +112,22 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
           </div>
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-1 text-center">
-          {t("auth.welcome")}
+          <LanguageText>{t("auth.welcome")}</LanguageText>
         </h1>
         <p className="text-foreground/80 text-center text-sm mb-4">
-          {t("auth.description")}
+          <LanguageText>{t("auth.description")}</LanguageText>
         </p>
       </header>
 
       <div className="w-full max-w-sm mx-auto">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "signin" | "signup")} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="signin">{t("auth.signInButton")}</TabsTrigger>
-            <TabsTrigger value="signup">{t("auth.signUpButton")}</TabsTrigger>
+            <TabsTrigger value="signin" className={language === 'ka' ? 'ka-text georgian-tab' : ''}>
+              {language === 'ka' ? <GeorgianAuthText>შესვლა</GeorgianAuthText> : t("auth.signInButton")}
+            </TabsTrigger>
+            <TabsTrigger value="signup" className={language === 'ka' ? 'ka-text georgian-tab' : ''}>
+              {language === 'ka' ? <GeorgianAuthText>რეგისტრაცია</GeorgianAuthText> : t("auth.signUpButton")}
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="signin">
             <SignIn />
@@ -84,3 +140,4 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
     </div>
   );
 };
+

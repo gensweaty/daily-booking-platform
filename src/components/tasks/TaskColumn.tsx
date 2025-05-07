@@ -3,6 +3,8 @@ import { Task } from "@/lib/types";
 import { Droppable } from "@hello-pangea/dnd";
 import { TaskCard } from "./TaskCard";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "../shared/LanguageText";
+import { GeorgianAuthText } from "../shared/GeorgianAuthText";
 
 interface TaskColumnProps {
   status: string;
@@ -13,7 +15,8 @@ interface TaskColumnProps {
 }
 
 export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColumnProps) => {
-  const { language } = useLanguage();
+  const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
   
   const getColumnStyle = (status: string) => {
     switch (status) {
@@ -27,19 +30,16 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
   };
 
   const getColumnTitle = (status: string) => {
-    if (language === 'es') {
-      switch (status) {
-        case 'todo':
-          return 'Pendiente';
-        case 'in-progress':
-          return 'En Progreso';
-        case 'done':
-          return 'Completado';
-        default:
-          return status;
-      }
+    switch (status) {
+      case 'todo':
+        return t('tasks.todo');
+      case 'in-progress':
+        return t('tasks.inProgress');
+      case 'done':
+        return t('tasks.done');
+      default:
+        return status;
     }
-    return status.replace('-', ' ');
   };
 
   return (
@@ -51,7 +51,13 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
           className={`p-4 rounded-lg min-h-[200px] border ${getColumnStyle(status)}`}
         >
           <h3 className="font-semibold mb-4 capitalize text-foreground">
-            {getColumnTitle(status)}
+            {isGeorgian ? (
+              <GeorgianAuthText fontWeight="bold">
+                <LanguageText>{getColumnTitle(status)}</LanguageText>
+              </GeorgianAuthText>
+            ) : (
+              <LanguageText>{getColumnTitle(status)}</LanguageText>
+            )}
           </h3>
           <div className="space-y-4">
             {tasks.map((task: Task, index: number) => (

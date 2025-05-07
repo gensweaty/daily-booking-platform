@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, memo } from "react";
 import { DateRange } from "react-day-picker";
 
 interface DateRangeSelectProps {
@@ -14,9 +14,10 @@ interface DateRangeSelectProps {
     end: Date;
   };
   onDateChange: (start: Date, end: Date | null) => void;
+  disabled?: boolean;
 }
 
-export const DateRangeSelect = ({ selectedDate, onDateChange }: DateRangeSelectProps) => {
+export const DateRangeSelect = memo(({ selectedDate, onDateChange, disabled }: DateRangeSelectProps) => {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<DateRange | undefined>({
     from: selectedDate.start,
@@ -30,11 +31,12 @@ export const DateRangeSelect = ({ selectedDate, onDateChange }: DateRangeSelectP
           <Button
             variant="outline"
             className={cn(
-              "w-full sm:w-[280px] justify-start text-left font-normal",
+              "w-full sm:w-[280px] justify-start text-left font-normal border-[#9b87f5]/30 hover:border-[#9b87f5] hover:bg-[#9b87f5]/5",
               !date && "text-muted-foreground"
             )}
+            disabled={disabled}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
+            <CalendarIcon className="mr-2 h-4 w-4 text-[#9b87f5]" />
             {date?.from ? (
               date.to ? (
                 <>
@@ -62,10 +64,12 @@ export const DateRangeSelect = ({ selectedDate, onDateChange }: DateRangeSelectP
               }
             }}
             numberOfMonths={2}
-            className="bg-background border rounded-md shadow-md"
+            className="bg-background border rounded-md shadow-md pointer-events-auto"
           />
         </PopoverContent>
       </Popover>
     </div>
   );
-};
+});
+
+DateRangeSelect.displayName = 'DateRangeSelect';
