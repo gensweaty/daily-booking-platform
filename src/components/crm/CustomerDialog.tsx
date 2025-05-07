@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -198,6 +199,13 @@ export const CustomerDialog = ({
   // Helper function to send email notification for new event
   const sendEventCreationEmail = async (eventData: any) => {
     try {
+      // Check if we have a valid customer email to send to
+      const customerEmail = eventData.social_network_link;
+      if (!customerEmail || !isValidEmail(customerEmail)) {
+        console.warn("No valid customer email found for sending notification");
+        return;
+      }
+      
       // Get user's business profile for the email
       const { data: businessData } = await supabase
         .from('business_profiles')
@@ -207,18 +215,19 @@ export const CustomerDialog = ({
       
       console.log("Business data for email:", businessData);
       
-      if (businessData && user?.email) {
-        // Send email notification using the same function used by calendar events
-        const emailResult = await testEmailSending(user.email);
+      if (businessData) {
+        // Send email notification to the customer's email address
+        // Use the same email format/template as the calendar event emails
+        const emailResult = await testEmailSending(customerEmail);
         console.log("Event creation email result:", emailResult);
         
         if (emailResult?.error) {
           console.warn("Failed to send event creation email:", emailResult.error);
         } else {
-          console.log("Event creation email sent successfully");
+          console.log("Event creation email sent successfully to customer:", customerEmail);
         }
       } else {
-        console.warn("Missing business data or user email for event notification");
+        console.warn("Missing business data for event notification");
       }
     } catch (error) {
       console.error("Error sending event creation email:", error);
@@ -400,9 +409,9 @@ export const CustomerDialog = ({
         if (createEvent && customerData) {
           const eventData = {
             title: title,
-            user_surname: title, // Fix: use title as user_surname instead of user_number
+            user_surname: title, // Use title as user_surname instead of user_number
             user_number: user_number,
-            social_network_link: social_network_link,
+            social_network_link: social_network_link, // This contains the email address
             event_notes: event_notes,
             payment_status: payment_status,
             payment_amount: payment_amount ? parseFloat(payment_amount) : null,
@@ -429,8 +438,19 @@ export const CustomerDialog = ({
           } else {
             console.log("Event created successfully:", eventResult);
             
-            // Send email notification for the newly created event
-            await sendEventCreationEmail(eventResult);
+            // Send email notification to customer's email when creating a new event
+            if (social_network_link && isValidEmail(social_network_link)) {
+              await sendEventCreationEmail({
+                id: eventResult.id,
+                title: title,
+                user_surname: title,
+                social_network_link: social_network_link,
+                start_date: eventStartDate.toISOString(),
+                end_date: eventEndDate.toISOString(),
+                payment_status: payment_status,
+                payment_amount: payment_amount ? parseFloat(payment_amount) : null
+              });
+            }
             
             // If we have a file, also associate it with the new event
             if (uploadedFileData && eventResult) {
