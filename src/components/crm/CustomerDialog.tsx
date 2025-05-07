@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -19,6 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { testEmailSending } from "@/lib/api"; // Import the email sending function
 
 interface CustomerDialogProps {
   open: boolean;
@@ -195,6 +195,37 @@ export const CustomerDialog = ({
     return emailRegex.test(email);
   };
 
+  // Helper function to send email notification for new event
+  const sendEventCreationEmail = async (eventData: any) => {
+    try {
+      // Get user's business profile for the email
+      const { data: businessData } = await supabase
+        .from('business_profiles')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+      
+      console.log("Business data for email:", businessData);
+      
+      if (businessData && user?.email) {
+        // Send email notification using the same function used by calendar events
+        const emailResult = await testEmailSending(user.email);
+        console.log("Event creation email result:", emailResult);
+        
+        if (emailResult?.error) {
+          console.warn("Failed to send event creation email:", emailResult.error);
+        } else {
+          console.log("Event creation email sent successfully");
+        }
+      } else {
+        console.warn("Missing business data or user email for event notification");
+      }
+    } catch (error) {
+      console.error("Error sending event creation email:", error);
+      // Don't throw - we don't want to break the main flow if just the email fails
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -310,8 +341,9 @@ export const CustomerDialog = ({
               });
             } else {
               createdEventId = newEvent.id;
-              // Note: The email will be sent automatically by useCalendarEvents hook 
-              // when the events list refreshes due to queryClient invalidation
+              
+              // Send email notification for the newly created event
+              await sendEventCreationEmail(newEvent);
             }
           }
         }
@@ -396,6 +428,9 @@ export const CustomerDialog = ({
             });
           } else {
             console.log("Event created successfully:", eventResult);
+            
+            // Send email notification for the newly created event
+            await sendEventCreationEmail(eventResult);
             
             // If we have a file, also associate it with the new event
             if (uploadedFileData && eventResult) {
