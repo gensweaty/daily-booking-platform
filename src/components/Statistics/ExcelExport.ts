@@ -20,6 +20,11 @@ interface StatsData {
     totalIncome: number;
     events: any[];
   };
+  customerStats?: {
+    total: number;
+    withBooking: number;
+    withoutBooking: number;
+  };
 }
 
 export const useExcelExport = () => {
@@ -50,6 +55,11 @@ export const useExcelExport = () => {
       [t('dashboard.total')]: data.eventStats?.total || 0,
       [t('dashboard.details')]: `${t('dashboard.partlyPaid')}: ${data.eventStats?.partlyPaid || 0}`,
       [t('dashboard.additionalInfo')]: `${t('dashboard.fullyPaid')}: ${data.eventStats?.fullyPaid || 0}`,
+    }, {
+      [t('dashboard.category')]: t('dashboard.totalCustomers'),
+      [t('dashboard.total')]: data.customerStats?.total || 0,
+      [t('dashboard.details')]: `${t('dashboard.withBooking')}: ${data.customerStats?.withBooking || 0}`,
+      [t('dashboard.additionalInfo')]: `${t('dashboard.withoutBooking')}: ${data.customerStats?.withoutBooking || 0}`,
     }, {
       [t('dashboard.category')]: '',
       [t('dashboard.total')]: '',

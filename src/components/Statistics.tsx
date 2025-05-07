@@ -1,4 +1,3 @@
-
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { useState, useCallback, useMemo, useEffect } from "react";
@@ -63,14 +62,16 @@ export const Statistics = () => {
 
   const handleExport = useCallback(() => {
     if (taskStats && eventStats) {
-      exportToExcel({ taskStats, eventStats });
+      // Pass customer stats to the export function
+      exportToExcel({ taskStats, eventStats, customerStats });
     }
-  }, [taskStats, eventStats, exportToExcel]);
+  }, [taskStats, eventStats, customerStats, exportToExcel]);
 
   const handleDateChange = useCallback((start: Date, end: Date | null) => {
     setDateRange({ start, end: end || start });
   }, []);
 
+  // Default task stats
   const defaultTaskStats = useMemo(() => ({ 
     total: 0, 
     completed: 0, 
@@ -142,14 +143,14 @@ export const Statistics = () => {
         <>
           {/* Log right before passing to StatsCards */}
           {console.log("Before rendering StatsCards - currentEventStats:", {
-            totalIncome: currentEventStats.totalIncome,
-            type: typeof currentEventStats.totalIncome
+            totalIncome: eventStats.totalIncome,
+            type: typeof eventStats.totalIncome
           })}
           
           <StatsCards 
-            taskStats={currentTaskStats} 
-            eventStats={currentEventStats}
-            customerStats={currentCustomerStats}
+            taskStats={taskStats} 
+            eventStats={eventStats}
+            customerStats={customerStats}
           />
 
           <div className="grid gap-4 md:grid-cols-2">
