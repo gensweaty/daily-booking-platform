@@ -243,6 +243,7 @@ export const useBookingRequests = () => {
       }
       
       // Remove the loading toast notification since we have button loading animations
+      // This was displaying "Processing approval... Please wait while we process your request."
       
       const { data: booking, error: fetchError } = await supabase
         .from('booking_requests')
@@ -272,13 +273,20 @@ export const useBookingRequests = () => {
         .eq('status', 'approved')
         .not('id', 'eq', bookingId)
         .filter('start_date', 'lt', booking.end_date)
-        .filter('end_date', 'gt', booking.start_date)
-        .is('deleted_at', null);
+        .filter('end_date', 'gt', booking.start_date);
       
       if ((conflictingEvents && conflictingEvents.length > 0) || 
           (conflictingBookings && conflictingBookings.length > 0)) {
         throw new Error('Time slot is no longer available');
       }
+      
+      // Use transaction to update booking status
+      const { error: updateError } = await supabase
+        .from('booking_requests')
+        .update({ status: 'approved' })
+        .eq('id', bookingId);
+      
+      if (updateError) throw updateError;
       
       // Prepare data for event and customer creation
       const eventData = {
@@ -290,14 +298,12 @@ export const useBookingRequests = () => {
         user_number: booking.requester_phone || booking.user_number || null,
         social_network_link: booking.requester_email || booking.social_network_link || null,
         event_notes: booking.description || booking.event_notes || null,
-        type: 'event', // Changed from 'booking_request' to 'event' to appear in internal calendar
+        type: 'booking_request',
         booking_request_id: booking.id,
         payment_status: booking.payment_status || 'not_paid',
         payment_amount: booking.payment_amount,
         language: booking.language || 'en' // Add language to event when creating from booking
       };
-      
-      console.log('Creating event from booking with data:', eventData);
       
       const customerData = {
         title: booking.requester_name,
@@ -308,7 +314,7 @@ export const useBookingRequests = () => {
         start_date: booking.start_date,
         end_date: booking.end_date,
         user_id: user.id,
-        type: 'customer',
+        type: 'booking_request',
         payment_status: booking.payment_status,
         payment_amount: booking.payment_amount,
         language: booking.language || 'en' // Add language to customer when creating from booking
@@ -332,22 +338,6 @@ export const useBookingRequests = () => {
       
       const eventData2 = eventResult.data;
       const customerData2 = customerResult.data;
-      
-      console.log('Successfully created event:', eventData2.id);
-      
-      // Now that the event is created, update the booking request status
-      const { error: updateError } = await supabase
-        .from('booking_requests')
-        .update({ 
-          status: 'approved',
-          deleted_at: new Date().toISOString() // Soft-delete to avoid duplicates
-        })
-        .eq('id', bookingId);
-      
-      if (updateError) {
-        console.error('Error updating booking request:', updateError);
-        throw updateError;
-      }
       
       // Process files in parallel instead of sequentially
       const processFiles = async () => {

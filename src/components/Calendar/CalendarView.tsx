@@ -25,7 +25,7 @@ export function CalendarView({
   onEventClick,
   isExternalCalendar = false,
 }: CalendarViewProps) {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const { theme, resolvedTheme } = useTheme();
   const [currentTheme, setCurrentTheme] = useState<string | undefined>(
     // Initialize with resolvedTheme first, fallback to theme, then check document class
@@ -98,12 +98,6 @@ export function CalendarView({
     return false;
   });
   
-  // Make sure all events have a language property
-  const eventsWithLanguage = filteredEvents.map(event => ({
-    ...event,
-    language: event.language || language || 'en' // Add language with fallback
-  }));
-  
   // Add debug log for events in CalendarView
   useEffect(() => {
     if (isExternalCalendar) {
@@ -112,15 +106,9 @@ export function CalendarView({
         console.log("[CalendarView] Filtered out deleted events:", events.filter(e => e.deleted_at));
       }
       if (filteredEvents.length > 0) {
-        console.log("[CalendarView] First external event sample:", filteredEvents[0]);
-      }
-    } else {
-      console.log(`[CalendarView] Rendering internal calendar with ${events.length} events, ${filteredEvents.length} after filtering deleted`);
-      if (filteredEvents.length > 0) {
-        console.log("[CalendarView] First internal event sample:", filteredEvents[0]);
+        console.log("[CalendarView] First event sample:", filteredEvents[0]);
       }
     }
-    
     // Debug theme state
     console.log("[CalendarView] Current theme state:", { 
       theme, 
@@ -136,7 +124,7 @@ export function CalendarView({
     <div className="h-full">
       <CalendarGrid
         days={daysToRender}
-        events={eventsWithLanguage} // Pass events with language added
+        events={filteredEvents} // Use the filtered events
         formattedSelectedDate={formattedSelectedDate}
         view={view}
         onDayClick={onDayClick}
