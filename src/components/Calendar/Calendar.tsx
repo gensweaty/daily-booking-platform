@@ -58,7 +58,7 @@ export const Calendar = ({
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
   
-  const { events: fetchedEvents, isLoadingEvents, error: eventsError, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
+  const { events: fetchedEvents, isLoadingEvents, eventsError, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
     !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
   );
