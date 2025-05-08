@@ -426,6 +426,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.log(`- Business name: ${businessProfile?.business_name || 'None'}`);
         console.log(`- Event ID: ${eventId}`);
         console.log(`- Recipient: ${email}`);
+        console.log(`- Language: ${emailLanguage || 'en'} (from parameter)`);
         
         const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
         const { data: sessionData } = await supabase.auth.getSession();
@@ -454,7 +455,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             paymentAmount: paymentAmount || 0,
             businessAddress: businessProfile?.contact_address || '',
             eventId: eventId,
-            source: 'useCalendarEvents' // Updated source to ensure consistent tracking
+            source: 'useCalendarEvents', // Updated source to ensure consistent tracking
+            language: emailLanguage || 'en'  // Add language parameter to email request
           })
         });
         
@@ -527,7 +529,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
     
     // Create the event - Ensure required fields are included
-    const eventPayload = {
+    const eventPayload: any = {
       title: event.title,
       start_date: event.start_date as string,
       end_date: event.end_date as string,
@@ -541,6 +543,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       payment_status: event.payment_status,
       payment_amount: event.payment_amount
     };
+    
+    // Only add language field if it exists
+    if (event.language) {
+      eventPayload.language = event.language;
+    }
     
     const { data, error } = await supabase
       .from('events')
@@ -637,7 +644,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         const bookingRequestId = event.id;
         
         // Create a new event without direct file fields
-        const eventPayload = {
+        const eventPayload: any = {
           // Use event payload data without file fields
           title: event.title,
           user_surname: event.user_surname,
@@ -650,8 +657,14 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           payment_amount: event.payment_amount,
           user_id: user.id,
           booking_request_id: bookingRequestId,
-          type: event.type || 'event'
+          // IMPORTANT: Use 'event' instead of passing through the type
+          type: 'event' // Always set to 'event' instead of using event.type
         };
+        
+        // Only add language if it exists
+        if (event.language) {
+          eventPayload.language = event.language;
+        }
         
         // Create a new event first
         const { data: newEvent, error: createError } = await supabase
@@ -688,7 +701,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           if (event.user_surname || event.requester_name) {
             console.log("Creating customer record from booking request");
             
-            const customerData = {
+            const customerData: any = {
               title: event.user_surname || event.requester_name || event.title || '',
               user_surname: event.user_surname || event.requester_name || event.title || '',
               user_number: event.user_number || event.requester_phone || '',
@@ -700,6 +713,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               start_date: event.start_date,
               end_date: event.end_date
             };
+            
+            // Only add language if it exists in the event
+            if (event.language) {
+              customerData.language = event.language;
+            }
             
             const { data: newCustomer, error: customerError } = await supabase
               .from('customers')
@@ -777,9 +795,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
       
       // Regular update for non-booking events or when not changing type
+      // Create a clean update payload without potentially problematic fields
+      const updatePayload: any = { ...event };
+      
+      // Only include language if it exists in event
+      if (!event.language) {
+        delete updatePayload.language;
+      }
+      
       const { data, error } = await supabase
         .from('events')
-        .update(event)
+        .update(updatePayload)
         .eq('id', event.id)
         .select()
         .single();

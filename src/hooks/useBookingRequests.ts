@@ -289,7 +289,7 @@ export const useBookingRequests = () => {
       if (updateError) throw updateError;
       
       // Prepare data for event and customer creation
-      const eventData = {
+      const eventData: any = {
         title: booking.title,
         start_date: booking.start_date,
         end_date: booking.end_date,
@@ -298,14 +298,18 @@ export const useBookingRequests = () => {
         user_number: booking.requester_phone || booking.user_number || null,
         social_network_link: booking.requester_email || booking.social_network_link || null,
         event_notes: booking.description || booking.event_notes || null,
-        type: 'booking_request',
+        type: 'event', // IMPORTANT! Always set to 'event' not 'booking_request'
         booking_request_id: booking.id,
         payment_status: booking.payment_status || 'not_paid',
-        payment_amount: booking.payment_amount,
-        language: booking.language || 'en' // Add language to event when creating from booking
+        payment_amount: booking.payment_amount
       };
       
-      const customerData = {
+      // Only add language if it exists
+      if (booking.language) {
+        eventData.language = booking.language;
+      }
+      
+      const customerData: any = {
         title: booking.requester_name,
         user_surname: booking.user_surname || null,
         user_number: booking.requester_phone || booking.user_number || null,
@@ -314,11 +318,15 @@ export const useBookingRequests = () => {
         start_date: booking.start_date,
         end_date: booking.end_date,
         user_id: user.id,
-        type: 'booking_request',
+        type: 'customer',
         payment_status: booking.payment_status,
-        payment_amount: booking.payment_amount,
-        language: booking.language || 'en' // Add language to customer when creating from booking
+        payment_amount: booking.payment_amount
       };
+      
+      // Only add language if it exists
+      if (booking.language) {
+        customerData.language = booking.language;
+      }
       
       // Create event and customer records in parallel
       const [eventResult, customerResult] = await Promise.all([
