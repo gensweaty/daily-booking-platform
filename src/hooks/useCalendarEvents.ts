@@ -116,7 +116,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       if (data && data.length > 0) {
         console.log("Sample event data:", data[0]);
         
-        // Check for events without a type
+        // Check for events without a type - critical for proper filtering
         const eventsWithoutType = data.filter(event => !event.type);
         if (eventsWithoutType.length > 0) {
           console.warn("Found events without type:", eventsWithoutType.length);
@@ -130,6 +130,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           }
           
           console.log("Updated events without type to have default type 'event'");
+        }
+
+        // Debug log for booking_request type events
+        const bookingEvents = data.filter(event => event.type === 'booking_request');
+        console.log(`Found ${bookingEvents.length} booking_request type events`);
+        if (bookingEvents.length > 0) {
+          console.log("Sample booking event:", bookingEvents[0]);
         }
       }
       
@@ -196,6 +203,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
       
       console.log("Fetched business events:", data?.length || 0);
+      
+      // Debug log for booking_request type events in business events
+      if (data && data.length > 0) {
+        const bookingEvents = data.filter(event => event.type === 'booking_request');
+        console.log(`Found ${bookingEvents.length} booking_request type events in business events`);
+        if (bookingEvents.length > 0) {
+          console.log("Sample business booking event:", bookingEvents[0]);
+        }
+      }
+      
       return data || [];
     } catch (error) {
       console.error("Error fetching business events:", error);
@@ -245,7 +262,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         .select('*')
         .eq('business_id', businessProfileId)
         .eq('status', 'approved')
-        .is('deleted_at', null); // Add check for soft-deleted bookings
+        .is('deleted_at', null); // Make sure we're filtering out soft-deleted bookings
         
       if (error) {
         console.error("Error fetching approved bookings:", error);
@@ -259,7 +276,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         title: booking.title || 'Booking',
         start_date: booking.start_date,
         end_date: booking.end_date,
-        type: 'booking_request',
+        type: 'booking_request', // This is critical for proper filtering
         created_at: booking.created_at || new Date().toISOString(),
         user_id: booking.user_id || '',
         user_surname: booking.requester_name || '',
@@ -270,8 +287,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         requester_email: booking.requester_email || '',
         requester_phone: booking.requester_phone || '',
         description: booking.description || '',
-        deleted_at: booking.deleted_at // Add deleted_at to the mapped object
+        payment_status: booking.payment_status || 'not_paid', // Make sure payment status is included
+        payment_amount: booking.payment_amount || 0, // Make sure payment amount is included
+        language: booking.language || 'en', // Make sure language is included
+        deleted_at: booking.deleted_at // Track deleted_at for filtering
       }));
+      
+      // Debug log for approved bookings
+      console.log("Mapped booking events:", bookingEvents.length);
+      if (bookingEvents.length > 0) {
+        console.log("Sample mapped booking event:", bookingEvents[0]);
+      }
       
       return bookingEvents;
     } catch (error) {
@@ -512,6 +538,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       event.type = 'event';
     }
     
+    // Log important fields for debugging
+    console.log("Creating event with type:", event.type);
+    console.log("Event language:", event.language || 'en');
+    
     // Ensure title is set (title is required by the database)
     if (!event.title) {
       event.title = "Untitled Event"; // Default title if none provided
@@ -530,8 +560,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       social_network_link: event.social_network_link,
       event_notes: event.event_notes,
       payment_status: event.payment_status,
-      payment_amount: event.payment_amount
+      payment_amount: event.payment_amount,
+      language: event.language || 'en' // Make sure language is always set
     };
+    
+    console.log("Event payload:", eventPayload);
     
     const { data, error } = await supabase
       .from('events')
@@ -543,6 +576,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.error('Error creating event:', error);
       throw error;
     }
+    
+    console.log('Created event with data:', data);
     
     // Send confirmation email in background only if we have a valid recipient email
     // and this is a new event (not from a booking request conversion)
@@ -759,7 +794,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     // Regular update for non-booking events or when not changing type
     const { data, error } = await supabase
       .from('events')
-      .update(event)
+      .update({
+        ...event,
+        language: event.language || existingEvent.language || 'en' // Always preserve language
+      })
       .eq('id', event.id)
       .select()
       .single();
@@ -768,6 +806,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.error('Error updating event:', error);
       throw error;
     }
+    
+    // Log important fields for debugging
+    console.log("Updating event with type:", event.type || 'unknown type');
+    console.log("Event language:", event.language || 'unknown language');
     
     // Send email if email address has changed
     const emailChanged = event.social_network_link && 
@@ -849,26 +891,32 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     queryFn: getEvents,
     enabled: !!user?.id,
     refetchOnWindowFocus: true,
-    refetchInterval: 60000,
+    refetchInterval: 60000, // Regular polling for events
   });
 
   const businessEventsQuery = useQuery({
     queryKey: ['business-events', businessId, businessUserId],
     queryFn: getBusinessEvents,
     enabled: !!(businessId || businessUserId),
+    refetchOnWindowFocus: true, // Add refetch on window focus
+    refetchInterval: 60000, // Add regular polling
   });
 
   const approvedBookingsQuery = useQuery({
     queryKey: ['approved-bookings', businessId, businessUserId, user?.id],
     queryFn: getApprovedBookings,
     enabled: !!(businessId || businessUserId || user?.id),
+    refetchOnWindowFocus: true, // Add refetch on window focus
+    refetchInterval: 60000, // Add regular polling
   });
 
   const createMutation = useMutation({
     mutationFn: createEvent,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
+      // Invalidate ALL relevant queries to ensure UI updates properly
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
       
       // Also invalidate statistics to reflect new event data
       queryClient.invalidateQueries({ queryKey: ['eventStats'] });
@@ -887,9 +935,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const updateMutation = useMutation({
     mutationFn: updateEvent,
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings', businessId, businessUserId] });
+      // Invalidate ALL queries without being specific to ensure UI updates properly
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
       
       // Also invalidate statistics to reflect updated event data
       queryClient.invalidateQueries({ queryKey: ['eventStats'] });
@@ -912,9 +961,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const deleteMutation = useMutation({
     mutationFn: deleteEvent,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings', businessId, businessUserId] });
+      // Invalidate ALL queries to ensure UI updates properly
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
       
       // Explicitly invalidate statistics to ensure deleted event's income is removed
       queryClient.invalidateQueries({ queryKey: ['eventStats'] });

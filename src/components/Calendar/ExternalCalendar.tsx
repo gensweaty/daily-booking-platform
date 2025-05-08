@@ -97,7 +97,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       
       try {
         // Get events from the API function which includes approved bookings and user events
-        // This now uses our security definer function to bypass RLS
+        // This uses the security definer function to bypass RLS
         const { events: apiEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
         
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
@@ -143,8 +143,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             requester_name: booking.requester_name || '',
             requester_email: booking.requester_email || '',
             deleted_at: booking.deleted_at,
-            payment_status: booking.payment_status,
-            payment_amount: booking.payment_amount,
+            payment_status: booking.payment_status || 'not_paid',
+            payment_amount: booking.payment_amount || 0,
             language: booking.language || 'en' // Ensure language is set for bookings
           }))
         ];

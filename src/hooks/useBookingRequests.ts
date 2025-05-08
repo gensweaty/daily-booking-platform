@@ -242,8 +242,7 @@ export const useBookingRequests = () => {
         throw new Error('User not authenticated');
       }
       
-      // Remove the loading toast notification since we have button loading animations
-      
+      // Get the booking first to check its data
       const { data: booking, error: fetchError } = await supabase
         .from('booking_requests')
         .select('*, language')
@@ -283,6 +282,7 @@ export const useBookingRequests = () => {
           .not('id', 'eq', bookingId) // Exclude current booking from conflict check
           .filter('start_date', 'lt', booking.end_date)
           .filter('end_date', 'gt', booking.start_date)
+          .is('deleted_at', null) // Add this to exclude any soft-deleted bookings
       ]);
       
       const conflictingEvents = eventsResult.data || [];
@@ -304,7 +304,7 @@ export const useBookingRequests = () => {
         throw new Error('Time slot is no longer available');
       }
       
-      // Use transaction to update booking status
+      // First update the booking status to approved
       const { error: updateError } = await supabase
         .from('booking_requests')
         .update({ status: 'approved' })
@@ -571,33 +571,45 @@ export const useBookingRequests = () => {
         });
       }
 
+      // After successful event creation, apply a soft delete to the booking request
+      // This helps prevent duplicate entries in the calendar views
+      const { error: softDeleteError } = await supabase
+        .from('booking_requests')
+        .update({
+          deleted_at: new Date().toISOString()
+        })
+        .eq('id', bookingId);
+        
+      if (softDeleteError) {
+        console.error('Error soft-deleting booking request:', softDeleteError);
+        // Continue with the process even if soft delete fails
+      } else {
+        console.log(`Successfully soft-deleted booking request ${bookingId}`);
+      }
+
       console.log('Booking approval process completed successfully');
       return booking;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
+      // Invalidate ALL related queries to ensure UI updates correctly
+      queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['business-events'] });
       queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      
       toast({
-        translateKeys: {
-          titleKey: "common.success",
-          descriptionKey: "bookings.requestApproved"
-        }
+        title: "Success",
+        description: "Booking request approved successfully",
       });
     },
     onError: (error: Error) => {
-      console.error('Error in approval mutation:', error);
+      console.error('Error approving booking request:', error);
       toast({
-        variant: "destructive",
-        translateKeys: {
-          titleKey: "common.error",
-          descriptionKey: "common.errorOccurred"
-        },
-        description: error.message || "Failed to approve booking request"
+        title: "Error",
+        description: error.message || "Failed to approve booking request",
+        variant: "destructive"
       });
     }
   });
@@ -669,8 +681,7 @@ export const useBookingRequests = () => {
     rejectedRequests,
     isLoading,
     error,
-    approveRequest: approveMutation.mutateAsync,
-    rejectRequest: rejectMutation.mutateAsync,
-    deleteBookingRequest: deleteMutation.mutateAsync,
+    approveBookingRequest: approveMutation.mutateAsync,
+    isApprovingBooking: approveMutation.isLoading
   };
 };

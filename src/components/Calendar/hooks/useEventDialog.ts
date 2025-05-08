@@ -24,7 +24,7 @@ export const useEventDialog = ({
       // Ensure type is set to 'event'
       const eventData = {
         ...data,
-        type: 'event',
+        type: data.type || 'event',
         // Make sure title and user_surname match for consistency
         title: data.user_surname || data.title,
         user_surname: data.user_surname || data.title,
@@ -65,7 +65,7 @@ export const useEventDialog = ({
       // Make sure to preserve the type field and ensure title and user_surname match
       const eventData = {
         ...data,
-        type: selectedEvent.type || 'event',
+        type: data.type || selectedEvent.type || 'event',
         title: data.user_surname || data.title || selectedEvent.title,
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         // Ensure payment_status is properly normalized and preserved
