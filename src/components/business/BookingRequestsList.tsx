@@ -19,8 +19,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { getStorageUrl } from "@/integrations/supabase/client";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import type { FileRecord } from "@/types/files";
-import { getCurrencySymbol } from "@/lib/currency";
-import { Language } from "@/translations/types";
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
@@ -127,28 +125,8 @@ export const BookingRequestsList = ({
   };
 
   // Format payment status for display with proper styling
-  const renderPaymentStatus = (status?: string, amount?: number | null, language?: string) => {
+  const renderPaymentStatus = (status?: string, amount?: number | null) => {
     let statusDisplay: React.ReactNode;
-    
-    // Determine the appropriate currency symbol based on booking language
-    // First get the language - use booking language if available, otherwise use UI language
-    const bookingLanguage = language || 'en';
-    
-    // Validate and convert to proper Language type
-    const typedLanguage = (bookingLanguage === 'en' || bookingLanguage === 'es' || bookingLanguage === 'ka') 
-      ? bookingLanguage as Language 
-      : 'en' as Language;
-
-    // Get currency symbol for this specific booking
-    const currencySymbol = getCurrencySymbol(typedLanguage);
-    
-    console.log("Payment status rendering:", {
-      status,
-      amount,
-      bookingLanguage,
-      typedLanguage,
-      currencySymbol
-    });
     
     if (!status || status === 'not_paid') {
       // Red for not paid
@@ -168,7 +146,7 @@ export const BookingRequestsList = ({
       if (amount) {
         text = (
           <>
-            {text} <span className="ml-1">({currencySymbol}{amount})</span>
+            {text} <span className="ml-1">(${amount})</span>
           </>
         );
       }
@@ -187,7 +165,7 @@ export const BookingRequestsList = ({
       if (amount) {
         text = (
           <>
-            {text} <span className="ml-1">({currencySymbol}{amount})</span>
+            {text} <span className="ml-1">(${amount})</span>
           </>
         );
       }
@@ -310,7 +288,7 @@ export const BookingRequestsList = ({
                     </div>
                   </TableCell>
                   <TableCell className="py-2">
-                    {renderPaymentStatus(request.payment_status, request.payment_amount, request.language)}
+                    {renderPaymentStatus(request.payment_status, request.payment_amount)}
                   </TableCell>
                   <TableCell className="text-sm py-2">
                     {request.start_date && (

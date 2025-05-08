@@ -19,7 +19,7 @@ export const useEventDialog = ({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
 
-  const handleCreateEvent = async (data: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+  const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
       // Ensure type is set to 'event'
       const eventData = {
@@ -54,7 +54,7 @@ export const useEventDialog = ({
     }
   };
 
-  const handleUpdateEvent = async (data: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+  const handleUpdateEvent = async (data: Partial<CalendarEventType>) => {
     try {
       if (!updateEvent || !selectedEvent) {
         throw new Error("Update event function not provided or no event selected");
@@ -97,7 +97,7 @@ export const useEventDialog = ({
     }
   };
 
-  const handleDeleteEvent = async (): Promise<void> => {
+  const handleDeleteEvent = async () => {
     try {
       if (!deleteEvent || !selectedEvent) throw new Error("Delete event function not provided or no event selected");
       

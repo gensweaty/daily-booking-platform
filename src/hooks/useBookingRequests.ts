@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -50,10 +49,10 @@ export const useBookingRequests = () => {
       
       console.log('Fetching booking requests with files for business_id:', businessId);
       
-      // Fetch booking requests - now including language field
+      // Fetch booking requests
       const { data: requests, error: requestsError } = await supabase
         .from('booking_requests')
-        .select('*, language')
+        .select('*')
         .eq('business_id', businessId)
         .order('created_at', { ascending: false });
       
@@ -152,8 +151,7 @@ export const useBookingRequests = () => {
     endDate, 
     paymentStatus, 
     paymentAmount, 
-    businessAddress,
-    language
+    businessAddress 
   }: {
     email: string;
     fullName: string;
@@ -163,7 +161,6 @@ export const useBookingRequests = () => {
     paymentStatus?: string;
     paymentAmount?: number;
     businessAddress?: string;
-    language?: string;
   }) => {
     if (!email || !email.includes('@')) {
       console.error("Invalid email format or missing email:", email);
@@ -182,8 +179,7 @@ export const useBookingRequests = () => {
         endDate: endDate,
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
-        businessAddress: businessAddress, // Pass the address as is
-        language: language || 'en' // Include language in email request
+        businessAddress: businessAddress // Pass the address as is
       };
       
       // Get access token for authenticated request
@@ -248,15 +244,12 @@ export const useBookingRequests = () => {
       
       const { data: booking, error: fetchError } = await supabase
         .from('booking_requests')
-        .select('*, language')
+        .select('*')
         .eq('id', bookingId)
         .single();
       
       if (fetchError) throw fetchError;
       if (!booking) throw new Error('Booking request not found');
-      
-      // Log the language of the booking being approved
-      console.log('Booking language:', booking.language || 'not set (using default en)');
       
       // Check for conflicts
       const { data: conflictingEvents } = await supabase
@@ -289,30 +282,23 @@ export const useBookingRequests = () => {
       
       if (updateError) throw updateError;
       
-      // CRITICAL FIX: Prepare data for event and customer creation with correct type
-      // Ensuring user_id is set to the business owner's ID, not the requester's ID
-      const eventData: any = {
+      // Prepare data for event and customer creation
+      const eventData = {
         title: booking.title,
         start_date: booking.start_date,
         end_date: booking.end_date,
-        user_id: user.id, // This is key - ensure event belongs to business owner
+        user_id: user.id,
         user_surname: booking.requester_name,
         user_number: booking.requester_phone || booking.user_number || null,
         social_network_link: booking.requester_email || booking.social_network_link || null,
         event_notes: booking.description || booking.event_notes || null,
-        type: 'event', // IMPORTANT! Always set to 'event' not 'booking_request'
+        type: 'booking_request',
         booking_request_id: booking.id,
         payment_status: booking.payment_status || 'not_paid',
         payment_amount: booking.payment_amount
       };
       
-      // Only add language if it exists
-      if (booking.language) {
-        eventData.language = booking.language;
-        console.log(`Setting language for new event to: ${booking.language}`);
-      }
-      
-      const customerData: any = {
+      const customerData = {
         title: booking.requester_name,
         user_surname: booking.user_surname || null,
         user_number: booking.requester_phone || booking.user_number || null,
@@ -321,15 +307,10 @@ export const useBookingRequests = () => {
         start_date: booking.start_date,
         end_date: booking.end_date,
         user_id: user.id,
-        type: 'customer',
+        type: 'booking_request',
         payment_status: booking.payment_status,
         payment_amount: booking.payment_amount
       };
-      
-      // Only add language if it exists
-      if (booking.language) {
-        customerData.language = booking.language;
-      }
       
       // Create event and customer records in parallel
       const [eventResult, customerResult] = await Promise.all([
@@ -533,8 +514,7 @@ export const useBookingRequests = () => {
           endDate: booking.end_date,
           paymentStatus: booking.payment_status,
           paymentAmount: booking.payment_amount,
-          businessAddress: contactAddress,
-          language: booking.language || 'en' // Include booking language in email
+          businessAddress: contactAddress
         };
         
         // Send email but don't block the approval process completion

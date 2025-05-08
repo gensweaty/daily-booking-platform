@@ -58,7 +58,6 @@ export type Database = {
           description: string | null
           end_date: string
           id: string
-          language: string | null
           payment_amount: number | null
           payment_status: string | null
           requester_email: string
@@ -77,7 +76,6 @@ export type Database = {
           description?: string | null
           end_date: string
           id?: string
-          language?: string | null
           payment_amount?: number | null
           payment_status?: string | null
           requester_email: string
@@ -96,7 +94,6 @@ export type Database = {
           description?: string | null
           end_date?: string
           id?: string
-          language?: string | null
           payment_amount?: number | null
           payment_status?: string | null
           requester_email?: string

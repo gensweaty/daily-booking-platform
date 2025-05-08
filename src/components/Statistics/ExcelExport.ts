@@ -5,7 +5,6 @@ import { useToast } from "../ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMemo } from 'react';
 import { getCurrencySymbol } from "@/lib/currency";
-import { Language } from '@/translations/types';
 
 interface StatsData {
   taskStats: {
@@ -20,7 +19,6 @@ interface StatsData {
     fullyPaid: number;
     totalIncome: number;
     events: any[];
-    defaultLanguage?: string; // Add optional defaultLanguage for currency display
   };
   customerStats?: {
     total: number;
@@ -34,7 +32,7 @@ export const useExcelExport = () => {
   const { t, language } = useLanguage();
   
   // Get currency symbol based on language
-  const defaultCurrencySymbol = useMemo(() => getCurrencySymbol(language), [language]);
+  const currencySymbol = useMemo(() => getCurrencySymbol(language), [language]);
 
   const exportToExcel = useMemo(() => (data: StatsData) => {
     if (!data.eventStats?.events) {
@@ -45,24 +43,6 @@ export const useExcelExport = () => {
       });
       return;
     }
-
-    // Use event-specific language if provided, otherwise fall back to UI language
-    const currencyLanguage = data.eventStats.defaultLanguage || language;
-    
-    // Ensure the language value is a valid Language type before passing it to getCurrencySymbol
-    const typedLanguage = (currencyLanguage === 'en' || currencyLanguage === 'es' || currencyLanguage === 'ka') 
-      ? currencyLanguage as Language 
-      : language;
-      
-    const currencySymbol = getCurrencySymbol(typedLanguage);
-
-    console.log("Excel Export - Using currency:", {
-      symbol: currencySymbol,
-      language: currencyLanguage,
-      typedLanguage,
-      uiLanguage: language,
-      defaultLanguage: data.eventStats.defaultLanguage
-    });
 
     // Create statistics summary data with properly translated values
     const statsData = [{
@@ -93,34 +73,22 @@ export const useExcelExport = () => {
     }];
 
     // Transform events data for Excel with translated headers
-    const eventsData = data.eventStats.events.map(event => {
-      // Get the correct currency symbol for this specific event
-      // If the event has a language field, use it; otherwise use the default
-      const eventLanguage = event.language || currencyLanguage;
-      const eventTypedLanguage = (eventLanguage === 'en' || eventLanguage === 'es' || eventLanguage === 'ka') 
-        ? eventLanguage as Language 
-        : typedLanguage;
-      const eventCurrencySymbol = getCurrencySymbol(eventTypedLanguage);
-        
-      return {
-        [t('events.fullNameRequired')]: `${event.title || ''} ${event.user_surname || ''}`.trim(),
-        [t('events.phoneNumber')]: event.user_number || '',
-        [t('events.socialLinkEmail')]: event.social_network_link || '',
-        [t('events.paymentStatus')]: event.payment_status ? (
-          event.payment_status === 'not_paid' ? t("crm.notPaid") : 
-          event.payment_status === 'partly' ? t("crm.paidPartly") :
-          event.payment_status === 'fully' ? t("crm.paidFully") :
-          event.payment_status
-        ) : '',
-        [t('events.paymentAmount')]: event.payment_amount ? `${eventCurrencySymbol}${event.payment_amount}` : '',
-        [t('events.date')]: event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
-        [t('events.time')]: event.start_date && event.end_date ? 
-          `${format(new Date(event.start_date), 'HH:mm')} - ${format(new Date(event.end_date), 'HH:mm')}` : '',
-        [t('events.eventNotes')]: event.event_notes || '',
-        // Add language debug info (can be removed in production)
-        'Language': event.language || 'not set'
-      };
-    });
+    const eventsData = data.eventStats.events.map(event => ({
+      [t('events.fullNameRequired')]: `${event.title || ''} ${event.user_surname || ''}`.trim(),
+      [t('events.phoneNumber')]: event.user_number || '',
+      [t('events.socialLinkEmail')]: event.social_network_link || '',
+      [t('events.paymentStatus')]: event.payment_status ? (
+        event.payment_status === 'not_paid' ? t("crm.notPaid") : 
+        event.payment_status === 'partly' ? t("crm.paidPartly") :
+        event.payment_status === 'fully' ? t("crm.paidFully") :
+        event.payment_status
+      ) : '',
+      [t('events.paymentAmount')]: event.payment_amount ? `${currencySymbol}${event.payment_amount}` : '',
+      [t('events.date')]: event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
+      [t('events.time')]: event.start_date && event.end_date ? 
+        `${format(new Date(event.start_date), 'HH:mm')} - ${format(new Date(event.end_date), 'HH:mm')}` : '',
+      [t('events.eventNotes')]: event.event_notes || '',
+    }));
 
     // Set Excel metadata in current language
     const wb = XLSX.utils.book_new();
@@ -157,7 +125,6 @@ export const useExcelExport = () => {
       { wch: 12 },
       { wch: 20 },
       { wch: 40 },
-      { wch: 10 }, // Language column width
     ];
 
     // Generate Excel file with localized filename
@@ -169,7 +136,7 @@ export const useExcelExport = () => {
       title: t("dashboard.exportSuccessful"),
       description: t("dashboard.exportSuccessMessage"),
     });
-  }, [toast, t, language, defaultCurrencySymbol]);
+  }, [toast, t, language, currencySymbol]);
 
   return { exportToExcel };
 };

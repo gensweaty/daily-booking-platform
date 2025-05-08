@@ -88,22 +88,14 @@ export function CalendarView({
   const daysToRender = view === 'month' ? getDaysWithSurroundingMonths() : days;
   
   // Strictly filter events to make sure deleted events don't show up
-  // CRITICAL FIX: Improve event filtering logic to ensure approved bookings show up
   const filteredEvents = events.filter(event => {
     // First check if deleted_at is undefined or null
-    if (event.deleted_at !== undefined && event.deleted_at !== null) {
-      return false; // Filter out deleted events
+    if (event.deleted_at === undefined || event.deleted_at === null) {
+      return true; // Keep events that don't have deleted_at field or it's null
     }
     
-    // Add additional logging for debugging event visibility
-    if (isExternalCalendar) {
-      // For debugging only: log events with specific types or properties
-      if (event.type === 'booking_request') {
-        console.log('[CalendarView] Found booking_request event in external calendar:', event.id);
-      }
-    }
-    
-    return true; // Keep all non-deleted events
+    // If deleted_at has a value (a timestamp), filter out this deleted event
+    return false;
   });
   
   // Add debug log for events in CalendarView
@@ -116,21 +108,7 @@ export function CalendarView({
       if (filteredEvents.length > 0) {
         console.log("[CalendarView] First event sample:", filteredEvents[0]);
       }
-      console.log("[CalendarView] Events by type:", 
-        filteredEvents.reduce((acc, event) => {
-          acc[event.type] = (acc[event.type] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>)
-      );
-      
-      // Log events with language field for debugging
-      const eventsWithLanguage = filteredEvents.filter(e => e.language);
-      if (eventsWithLanguage.length > 0) {
-        console.log("[CalendarView] Events with language field:", eventsWithLanguage.length);
-        console.log("[CalendarView] Language sample:", eventsWithLanguage[0].language);
-      }
     }
-    
     // Debug theme state
     console.log("[CalendarView] Current theme state:", { 
       theme, 

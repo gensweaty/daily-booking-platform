@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { getCurrencySymbol, parsePaymentAmount } from "@/lib/currency";
-import { Language } from "@/translations/types";
 
 interface StatsCardsProps {
   taskStats: {
@@ -26,7 +25,6 @@ interface StatsCardsProps {
     partlyPaid: number;
     fullyPaid: number;
     totalIncome: number | string | null | undefined;
-    defaultLanguage?: string; // Add optional defaultLanguage for currency display
   };
   customerStats: {
     total: number;
@@ -44,16 +42,8 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
     return null;
   }
   
-  // Use event-specific language if provided, otherwise fall back to UI language
-  const currencyLanguage = eventStats.defaultLanguage || language;
-  
-  // Ensure the language value is a valid Language type
-  const typedLanguage = (currencyLanguage === 'en' || currencyLanguage === 'es' || currencyLanguage === 'ka') 
-    ? currencyLanguage as Language 
-    : language;
-  
   // Get the appropriate currency symbol based on language
-  const currencySymbol = getCurrencySymbol(typedLanguage);
+  const currencySymbol = getCurrencySymbol(language);
 
   // Ensure totalIncome is a valid number - use fallback to 0 if invalid or undefined
   let validTotalIncome = 0;
@@ -75,8 +65,8 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
   const formattedIncome = `${currencySymbol}${(validTotalIncome || 0).toFixed(2)}`;
   
   // Choose the appropriate currency icon based on language
-  const CurrencyIcon = typedLanguage === 'es' ? EuroIcon : 
-                       typedLanguage === 'ka' ? BanknoteIcon : DollarSign;
+  const CurrencyIcon = language === 'es' ? EuroIcon : 
+                       language === 'ka' ? BanknoteIcon : DollarSign;
   
   // Enhanced debugging to verify income data at every step
   console.log("StatsCards - Rendering with income data:", {
@@ -84,11 +74,7 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
     rawIncomeType: typeof eventStats.totalIncome,
     afterParsing: validTotalIncome,
     formattedIncome,
-    currency: currencySymbol,
-    currencyLanguage,
-    typedLanguage,
-    uiLanguage: language,
-    defaultLanguage: eventStats.defaultLanguage
+    currency: currencySymbol
   });
 
   // Format the task details to show completed, in progress, and todo
