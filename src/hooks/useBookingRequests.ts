@@ -251,6 +251,8 @@ export const useBookingRequests = () => {
       if (fetchError) throw fetchError;
       if (!booking) throw new Error('Booking request not found');
       
+      console.log("Retrieved booking details:", booking);
+      
       // Check for conflicts
       const { data: conflictingEvents } = await supabase
         .from('events')
@@ -274,13 +276,8 @@ export const useBookingRequests = () => {
         throw new Error('Time slot is no longer available');
       }
       
-      // Use transaction to update booking status
-      const { error: updateError } = await supabase
-        .from('booking_requests')
-        .update({ status: 'approved' })
-        .eq('id', bookingId);
-      
-      if (updateError) throw updateError;
+      // IMPORTANT: First create event and customer records BEFORE updating booking status
+      // This ensures we have a valid event before marking the booking as approved
       
       // Prepare data for event and customer creation
       // Important! Set the event type to 'event' (not 'booking_request')
@@ -301,6 +298,8 @@ export const useBookingRequests = () => {
         language: booking.language // Preserve the language context
       };
       
+      console.log("Creating event with data:", eventData);
+      
       const customerData = {
         title: booking.requester_name,
         user_surname: booking.user_surname || null,
@@ -315,6 +314,8 @@ export const useBookingRequests = () => {
         payment_amount: booking.payment_amount,
         language: booking.language // Also preserve language for customers
       };
+      
+      console.log("Creating customer with data:", customerData);
       
       // Create event and customer records in parallel
       const [eventResult, customerResult] = await Promise.all([
@@ -334,6 +335,20 @@ export const useBookingRequests = () => {
       
       const eventData2 = eventResult.data;
       const customerData2 = customerResult.data;
+      
+      console.log("Successfully created event:", eventData2);
+      console.log("Successfully created customer:", customerData2);
+      
+      // Now that event and customer have been created successfully, update booking status
+      const { error: updateError } = await supabase
+        .from('booking_requests')
+        .update({ status: 'approved' })
+        .eq('id', bookingId);
+      
+      if (updateError) {
+        console.error('Error updating booking status:', updateError);
+        throw updateError;
+      }
       
       // Process files in parallel instead of sequentially
       const processFiles = async () => {
@@ -542,6 +557,7 @@ export const useBookingRequests = () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      queryClient.invalidateQueries({ queryKey: ['eventStats'] }); // Add this to update stats
       toast({
         translateKeys: {
           titleKey: "common.success",
