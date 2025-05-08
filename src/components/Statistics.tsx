@@ -30,7 +30,7 @@ export const Statistics = () => {
   const userId = useMemo(() => user?.id, [user?.id]);
   
   // Optimized hook usage with proper dependencies
-  const { taskStats, eventStats, isLoading } = useStatistics(userId, dateRange);
+  const { taskStats, eventStats, isLoading, error } = useStatistics(userId, dateRange);
   const { combinedData, isLoading: isLoadingCRM } = useCRMData(userId, dateRange);
   const { exportToExcel } = useExcelExport();
 
@@ -49,6 +49,13 @@ export const Statistics = () => {
     
     return { total, withBooking, withoutBooking };
   }, [combinedData]);
+
+  // Log error if there's an issue with the statistics
+  useEffect(() => {
+    if (error) {
+      console.error("Error loading statistics:", error);
+    }
+  }, [error]);
 
   // Add effect to validate eventStats and totalIncome specifically
   useEffect(() => {
@@ -104,8 +111,12 @@ export const Statistics = () => {
     total: 0, 
     partlyPaid: 0, 
     fullyPaid: 0, 
-    totalIncome: 0 
-  }), []);
+    totalIncome: 0,
+    currencyType: language, // Default to current language
+    events: [],
+    dailyStats: [],
+    monthlyIncome: []
+  }), [language]);
 
   // Default customer stats
   const defaultCustomerStats = useMemo(() => ({
@@ -118,8 +129,17 @@ export const Statistics = () => {
   const currentTaskStats = useMemo(() => taskStats || defaultTaskStats, [taskStats, defaultTaskStats]);
   const currentEventStats = useMemo(() => eventStats || defaultEventStats, [eventStats, defaultEventStats]);
   const currentCustomerStats = useMemo(() => customerStats || defaultCustomerStats, [customerStats, defaultCustomerStats]);
-  const chartData = useMemo(() => eventStats?.dailyStats || [], [eventStats?.dailyStats]);
-  const incomeData = useMemo(() => eventStats?.monthlyIncome || [], [eventStats?.monthlyIncome]);
+  
+  // Safely access chart data with fallbacks
+  const chartData = useMemo(() => 
+    eventStats?.dailyStats || defaultEventStats.dailyStats, 
+    [eventStats?.dailyStats, defaultEventStats.dailyStats]
+  );
+  
+  const incomeData = useMemo(() => 
+    eventStats?.monthlyIncome || defaultEventStats.monthlyIncome, 
+    [eventStats?.monthlyIncome, defaultEventStats.monthlyIncome]
+  );
 
   // Additional debugging to verify data
   useMemo(() => {
@@ -160,18 +180,19 @@ export const Statistics = () => {
             <Skeleton className="h-[300px] w-full" />
           </div>
         </div>
+      ) : error ? (
+        <div className="p-4 text-center">
+          <p className="text-red-500">
+            <LanguageText>Error loading statistics. Please try again later.</LanguageText>
+          </p>
+        </div>
       ) : (
         <>
-          {/* Log right before passing to StatsCards */}
-          {console.log("Before rendering StatsCards - currentEventStats:", {
-            totalIncome: eventStats.totalIncome,
-            type: typeof eventStats.totalIncome
-          })}
-          
+          {/* Pass safe event stats to StatsCards */}
           <StatsCards 
-            taskStats={taskStats} 
-            eventStats={eventStats}
-            customerStats={customerStats}
+            taskStats={currentTaskStats} 
+            eventStats={currentEventStats}
+            customerStats={currentCustomerStats}
           />
 
           <div className="grid gap-4 md:grid-cols-2">
