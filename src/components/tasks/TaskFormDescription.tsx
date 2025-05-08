@@ -14,8 +14,6 @@ export const TaskFormDescription = ({ description, setDescription }: TaskFormDes
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
 
-  console.log("TaskFormDescription rendering with description length:", description?.length || 0, "language:", language);
-
   return (
     <div className="space-y-2">
       <Label 
@@ -26,7 +24,7 @@ export const TaskFormDescription = ({ description, setDescription }: TaskFormDes
         <LanguageText>{t("tasks.descriptionLabel")}</LanguageText>
       </Label>
       <div 
-        className={cn(isGeorgian ? "is-editor-empty:before:font-georgian" : "")}
+        className={cn("min-h-[150px]", isGeorgian ? "is-editor-empty:before:font-georgian" : "")}
         style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
       >
         <RichTextEditor

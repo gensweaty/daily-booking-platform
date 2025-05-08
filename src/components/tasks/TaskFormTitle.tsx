@@ -14,8 +14,6 @@ export const TaskFormTitle = ({ title, setTitle }: TaskFormTitleProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
 
-  console.log("TaskFormTitle rendering with title:", title, "language:", language);
-
   return (
     <div className="space-y-2">
       <Label 
