@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { customerDataSchema } from "./schemas";
@@ -7,7 +8,7 @@ export const useCRMData = (
   userId: string | undefined,
   dateRange?: { start: Date; end: Date }
 ) => {
-  const { data: customersData, isLoading, error } = useQuery({
+  const { data: customersData, isLoading, error, isFetching } = useQuery({
     queryKey: ['crm', userId, dateRange?.start?.toString(), dateRange?.end?.toString()],
     queryFn: async () => {
       if (!userId) return [];
@@ -54,6 +55,7 @@ export const useCRMData = (
   return {
     combinedData,
     isLoading,
+    isFetching,
     error,
   };
 };
