@@ -413,6 +413,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     paymentAmount: number | null,
     emailLanguage: string
   ) => {
+    
     // Optimization: Skip email sending during event creation for faster response
     // Email will be sent asynchronously after the event is created
     
@@ -599,7 +600,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       );
     }
     
-    return data;
+    return data as CalendarEventType;
   };
 
   const updateEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
@@ -794,7 +795,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           console.error("Error updating booking status:", bookingUpdateError);
         }
         
-        return newEvent;
+        return newEvent as CalendarEventType;
       }
       
       // Regular update for non-booking events or when not changing type
@@ -810,17 +811,23 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         throw error;
       }
       
-      // Send email if email address has changed
-      const emailChanged = event.social_network_link && 
-                          existingEvent.social_network_link && 
-                          event.social_network_link !== existingEvent.social_network_link;
+      // Type guard to ensure data exists and has required properties
+      if (!data) {
+        throw new Error('No data returned from event update');
+      }
       
-      if (emailChanged && isValidEmail(event.social_network_link as string)) {
+      // Send email if email address has changed
+      // Use optional chaining and type assertions to handle potential undefined properties
+      const socialNetworkLinkChanged = event.social_network_link && 
+                                      existingEvent?.social_network_link !== undefined &&
+                                      event.social_network_link !== existingEvent.social_network_link;
+      
+      if (socialNetworkLinkChanged && event.social_network_link && isValidEmail(event.social_network_link)) {
         try {
           await sendBookingConfirmationEmail(
             data.id,
             event.title || event.user_surname || '',
-            event.social_network_link as string,
+            event.social_network_link,
             event.start_date as string,
             event.end_date as string,
             event.payment_status || 'not_paid',
@@ -832,7 +839,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       }
       
-      return data;
+      return data as CalendarEventType;
     } catch (error) {
       console.error('Error in updateEvent:', error);
       throw error;
@@ -902,95 +909,4 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const businessEventsQuery = useQuery({
     queryKey: ['business-events', businessId, businessUserId],
     queryFn: getBusinessEvents,
-    enabled: !!(businessId || businessUserId),
-  });
-
-  const approvedBookingsQuery = useQuery({
-    queryKey: ['approved-bookings', businessId, businessUserId, user?.id],
-    queryFn: getApprovedBookings,
-    enabled: !!(businessId || businessUserId || user?.id),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: createEvent,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
-      
-      // Also invalidate statistics to reflect new event data
-      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
-      queryClient.invalidateQueries({ queryKey: ['taskStats'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive"
-      });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: updateEvent,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings', businessId, businessUserId] });
-      
-      // Also invalidate statistics to reflect updated event data
-      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
-      
-      toast({
-        title: t("common.success"),
-        description: t("events.eventUpdated"),
-      });
-      return data;
-    },
-    onError: (error: Error) => {
-      toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive"
-      });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteEvent,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings', businessId, businessUserId] });
-      
-      // Explicitly invalidate statistics to ensure deleted event's income is removed
-      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
-      
-      toast({
-        title: t("common.success"),
-        description: t("events.eventDeleted"),
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive"
-      });
-    },
-  });
-
-  return {
-    events: eventsQuery.data || [],
-    businessEvents: businessEventsQuery.data || [],
-    approvedBookings: approvedBookingsQuery.data || [],
-    isLoading: eventsQuery.isLoading || businessEventsQuery.isLoading || approvedBookingsQuery.isLoading,
-    error: eventsQuery.error || businessEventsQuery.error || approvedBookingsQuery.error,
-    createEvent: createMutation.mutateAsync,
-    updateEvent: updateMutation.mutateAsync,
-    deleteEvent: deleteMutation.mutateAsync,
-  };
-};
-
-// Export the associateBookingFilesWithEvent function for external use
-export { associateBookingFilesWithEvent };
+    enabled:
