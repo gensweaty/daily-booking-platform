@@ -57,12 +57,12 @@ export const Statistics = () => {
         eventStats,
         totalIncomeType: typeof eventStats.totalIncome,
         totalIncomeValue: eventStats.totalIncome,
-        currencyType: eventStats.currencyType,
+        currencyType: eventStats.currencyType || language,
         isNumber: typeof eventStats.totalIncome === 'number',
         isValidNumber: typeof eventStats.totalIncome === 'number' && !isNaN(eventStats.totalIncome)
       });
     }
-  }, [eventStats]);
+  }, [eventStats, language]);
 
   // Add effect for real-time updates of statistics when relevant data changes
   useEffect(() => {

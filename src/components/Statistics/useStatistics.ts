@@ -88,6 +88,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         monthlyIncome: [],
         totalIncome: 0,
         events: [],
+        currencyType: 'en', // Default currency type
       };
       
       // Format dates for Supabase query
@@ -159,6 +160,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             end_date: event.end_date,
             payment_status: normalizePaymentStatus(event.payment_status),
             payment_amount: event.payment_amount,
+            currency_type: event.currency_type, // Ensure we get the currency type from CRM events
             type: event.type || 'event',
             created_at: event.created_at,
             user_id: event.user_id,
@@ -180,6 +182,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             raw_payment_amount: event.payment_amount,
             type_of: typeof event.payment_amount,
             payment_status: event.payment_status,
+            currency_type: event.currency_type, // Log currency type
             parsed_amount: parsePaymentAmount(event.payment_amount)
           });
         }
@@ -276,6 +279,10 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       let totalIncome = 0;
       let validPaymentCount = 0;
       
+      // Determine the most frequently used currency type from events
+      const currencyTypeMap = new Map<string, number>();
+      let dominantCurrencyType = 'en'; // Default currency type
+      
       allEvents.forEach(event => {
         const status = normalizePaymentStatus(event.payment_status);
         const isPaid = status === 'fully_paid' || status === 'partly_paid';
@@ -283,12 +290,32 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         if (isPaid && (event.payment_amount !== undefined && event.payment_amount !== null)) {
           const parsedAmount = parsePaymentAmount(event.payment_amount);
           
+          // Count currency types for each event with payment
+          if (event.currency_type) {
+            const count = currencyTypeMap.get(event.currency_type) || 0;
+            currencyTypeMap.set(event.currency_type, count + 1);
+          }
+          
           if (parsedAmount > 0) {
             validPaymentCount++;
             console.log(`Total income: Adding ${parsedAmount} from event ${event.id} (${event.title})`);
             totalIncome += parsedAmount;
           }
         }
+      });
+      
+      // Determine the dominant currency type
+      let maxCount = 0;
+      currencyTypeMap.forEach((count, currencyType) => {
+        if (count > maxCount) {
+          maxCount = count;
+          dominantCurrencyType = currencyType;
+        }
+      });
+      
+      console.log('Currency type statistics:', {
+        map: Object.fromEntries(currencyTypeMap.entries()),
+        dominantCurrency: dominantCurrencyType
       });
       
       // Double check by calculating total from monthly income
@@ -328,6 +355,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         monthlyIncome,
         totalIncome,
         events: allEvents || [],
+        currencyType: dominantCurrencyType || 'en' // Include the determined currency type
       };
     },
     enabled: !!userId,
