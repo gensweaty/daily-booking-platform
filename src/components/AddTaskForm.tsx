@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { TaskFormHeader } from "@/components/tasks/TaskFormHeader";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Task } from "@/lib/types";
 import { TaskFormFields } from "@/components/tasks/TaskFormFields";
+import { supabase } from "@/lib/supabase";
 
 interface AddTaskFormProps {
   isOpen: boolean;
