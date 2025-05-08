@@ -62,22 +62,39 @@ const PUBLIC_PATHS = ['/', '/login', '/signup', '/contact', '/legal', '/forgot-p
 
 // IMPROVED: Helper to check if the current path is public - Enhanced based on solution plan
 const isPublicPath = (path: string) => {
-  const fullPath = window.location.href;
-  
-  // IMPROVED: Check if this is a business page path (improved to be more robust)
+  // IMPROVED: Business pages - check FIRST
+  // Most comprehensive check for business pages
   if (path.startsWith('/business') || path.includes('/business/')) {
     console.log("[AuthContext] Business page path detected via path, treating as public:", path);
     return true;
   }
   
-  // NEW: Additional fallback check for SSR or route hydration lag
-  if (fullPath.includes('/business')) {
-    console.log("[AuthContext] Business page path detected via fullPath, treating as public:", fullPath);
+  // Additional URL check for SSR or hydration lag
+  if (window.location.href.includes('/business')) {
+    console.log("[AuthContext] Business page path detected via window.location, treating as public");
     return true;
   }
   
-  // NEW: Special case for direct links with query parameters
-  const urlObj = new URL(fullPath);
+  // Check for global flag set by route-detector.js
+  if (window.__IS_BUSINESS_PAGE__ === true) {
+    console.log("[AuthContext] Business page detected via global flag, treating as public");
+    return true;
+  }
+  
+  // Check session storage for business page flag
+  if (sessionStorage.getItem('onBusinessPage') === 'true') {
+    console.log("[AuthContext] Business page flag found in sessionStorage, treating as public");
+    return true;
+  }
+  
+  // Check localStorage as last resort
+  if (localStorage.getItem('isBusinessPage') === 'true') {
+    console.log("[AuthContext] Business page flag found in localStorage, treating as public");
+    return true;
+  }
+  
+  // Special case for direct links with query parameters
+  const urlObj = new URL(window.location.href);
   if (urlObj.searchParams.has('slug') || urlObj.searchParams.has('business')) {
     console.log("[AuthContext] Business page detected via query params, treating as public");
     return true;
@@ -91,6 +108,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialCheckComplete, setInitialCheckComplete] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -104,21 +122,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     console.log("[AuthContext] Is public path:", isPublicPath(location.pathname));
     console.log("[AuthContext] Authentication state:", user ? "Authenticated" : "Unauthenticated");
     
-    // NEW: Check for the business page flag
-    const isOnBusinessPage = sessionStorage.getItem('onBusinessPage') === 'true';
+    // Check for business page flags
+    const isOnBusinessPage = 
+      sessionStorage.getItem('onBusinessPage') === 'true' || 
+      window.__IS_BUSINESS_PAGE__ === true;
+      
     if (isOnBusinessPage) {
-      console.log("[AuthContext] Business page flag is set in sessionStorage");
+      console.log("[AuthContext] Business page flag is set in sessionStorage or global");
     }
   }, [location.pathname, user]);
 
-  const handleTokenError = useCallback(async () => {
-    console.log('Handling token error - clearing session');
+  // NEW: Special public business pages detector
+  useEffect(() => {
+    // Only run this on mount
+    const checkIfBusinessPage = () => {
+      if (window.location.href.includes('/business')) {
+        console.log("[AuthContext] Business page detected on AuthProvider mount");
+        sessionStorage.setItem('onBusinessPage', 'true');
+        localStorage.setItem('isBusinessPage', 'true');
+        window.__IS_BUSINESS_PAGE__ = true;
+        
+        // Skip auth check
+        setLoading(false);
+      }
+    };
     
-    // NEW: Check if we're on a business page (via sessionStorage flag)
-    if (sessionStorage.getItem('onBusinessPage') === 'true') {
-      console.log("[AuthContext] On business page (via flag), skipping auth redirect");
+    checkIfBusinessPage();
+  }, []);
+
+  const handleTokenError = useCallback(async () => {
+    console.log('[AuthContext] Handling token error - clearing session');
+    
+    // Check if we're on a business page
+    if (sessionStorage.getItem('onBusinessPage') === 'true' || 
+        localStorage.getItem('isBusinessPage') === 'true' ||
+        window.location.href.includes('/business') ||
+        window.__IS_BUSINESS_PAGE__ === true) {
+      console.log("[AuthContext] On business page, skipping auth redirect");
       setSession(null);
       setUser(null);
+      setLoading(false);
       return;
     }
     
@@ -151,26 +194,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshSession = useCallback(async () => {
     try {
-      // NEW: If we're on a business page (via sessionStorage flag), skip authentication checks
-      if (sessionStorage.getItem('onBusinessPage') === 'true') {
-        console.log("[AuthContext] On business page (via flag), skipping authentication checks");
+      // Early return for business pages
+      if (sessionStorage.getItem('onBusinessPage') === 'true' || 
+          localStorage.getItem('isBusinessPage') === 'true' ||
+          window.location.href.includes('/business') ||
+          window.__IS_BUSINESS_PAGE__ === true) {
+        console.log("[AuthContext] On business page, skipping authentication checks");
         setLoading(false);
         return;
       }
       
-      // If we have recovery parameters, don't refresh session as we're in password reset flow
-      if (hasRecoveryParams() || searchParams.has('code')) {
-        console.log("Recovery parameters detected, skipping session refresh");
-        setLoading(false);
-        
-        // Redirect to reset password page
-        if (location.pathname !== '/reset-password') {
-          console.log("Redirecting to reset password page from refreshSession");
-          navigate('/reset-password' + window.location.search + window.location.hash, { replace: true });
-        }
-        return;
-      }
-
       const { data: { session: currentSession }, error } = await supabase.auth.getSession();
       if (error) {
         if (error.message.includes('token_refresh_failed') || 
@@ -203,31 +236,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       await handleTokenError();
     } finally {
       setLoading(false);
+      setInitialCheckComplete(true);
     }
   }, [handleTokenError, location.pathname, navigate, location.search, location.hash, searchParams]);
 
+  // Initialize authentication
   useEffect(() => {
     const initSession = async () => {
       try {
-        // NEW: Check if we're on a business page first (via URL)
+        // Special handling for business pages
         const isBusinessPage = 
           location.pathname.startsWith('/business') || 
           location.pathname.includes('/business/') ||
-          window.location.href.includes('/business');
+          window.location.href.includes('/business') ||
+          sessionStorage.getItem('onBusinessPage') === 'true' ||
+          localStorage.getItem('isBusinessPage') === 'true' ||
+          window.__IS_BUSINESS_PAGE__ === true;
         
         if (isBusinessPage) {
           console.log("[AuthContext] Business page detected in initSession, setting flag");
           sessionStorage.setItem('onBusinessPage', 'true');
+          localStorage.setItem('isBusinessPage', 'true');
+          window.__IS_BUSINESS_PAGE__ = true;
           
-          // NEW: On business pages, we can skip some auth checks to prevent redirects
-          if (!hasRecoveryParams() && !hasEmailConfirmParams()) {
+          // For business pages without auth params, use fast path
+          if (!hasRecoveryParams() && !hasEmailConfirmParams() && !window.__ROUTE_LOCKED__) {
             console.log("[AuthContext] Business page without auth params, fast path");
             setLoading(false);
+            setInitialCheckComplete(true);
             return;
           }
         } else {
           // Not a business page, clear the flag
           sessionStorage.removeItem('onBusinessPage');
+          localStorage.removeItem('isBusinessPage');
         }
         
         // ... keep existing code (dashboard with code parameter handling, email confirmation, password reset flow)
@@ -235,6 +277,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await refreshSession();
       } catch (error) {
         console.error('Session initialization error:', error);
+        
+        // Special handling for business pages during errors
+        if (window.location.href.includes('/business')) {
+          console.log("[AuthContext] Error during init but we're on a business page, allowing access");
+          setLoading(false);
+          setInitialCheckComplete(true);
+          return;
+        }
         
         // Don't treat session errors as fatal on public paths
         if (!isPublicPath(location.pathname)) {
@@ -244,6 +294,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       } finally {
         setLoading(false);
+        setInitialCheckComplete(true);
       }
     };
 
@@ -270,8 +321,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event, newSession ? 'Session exists' : 'No session');
       
-      // NEW: If we're on a business page and this isn't a login event, don't redirect
-      if (sessionStorage.getItem('onBusinessPage') === 'true' && 
+      // For business pages, don't redirect except for explicit login/logout
+      if ((sessionStorage.getItem('onBusinessPage') === 'true' || 
+           window.location.href.includes('/business') ||
+           window.__IS_BUSINESS_PAGE__ === true) && 
           event !== 'SIGNED_IN' && 
           event !== 'SIGNED_OUT') {
         console.log("[AuthContext] On business page, skipping auth state change handling");
@@ -327,7 +380,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       // NEW: Don't redirect from business pages on signOut
-      const isBusinessPage = location.pathname.startsWith('/business');
+      const isBusinessPage = 
+        location.pathname.startsWith('/business') || 
+        window.location.href.includes('/business') ||
+        sessionStorage.getItem('onBusinessPage') === 'true' ||
+        window.__IS_BUSINESS_PAGE__ === true;
       
       console.log('Starting sign out process...');
       localStorage.removeItem('app-auth-token');

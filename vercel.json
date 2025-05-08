@@ -16,7 +16,9 @@
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
         { "key": "Pragma", "value": "no-cache" },
-        { "key": "Expires", "value": "0" }
+        { "key": "Expires", "value": "0" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "X-Business-Page", "value": "true" }
       ]
     },
     {
@@ -24,6 +26,17 @@
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
       ]
+    }
+  ],
+  "routes": [
+    { 
+      "src": "/business/(.*)", 
+      "dest": "/index.html",
+      "headers": { "X-Business-Page": "true" },
+      "continue": true
+    },
+    { 
+      "handle": "filesystem"
     }
   ]
 }

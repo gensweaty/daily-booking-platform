@@ -6,10 +6,12 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SmartBookly</title>
-    <!-- Pre-React route detector script -->
+    <!-- Pre-React route detector script - runs first -->
     <script src="/route-detector.js"></script>
+    <!-- Add a special meta tag for business pages -->
+    <meta name="public-pages-version" content="2.0">
     <style>
-      /* Quickly hide body until React loads to prevent flashes */
+      /* Initially hide body content until React loads to prevent flashes */
       .is-business-page body {
         visibility: hidden;
       }
@@ -26,7 +28,37 @@
       // Add react-loaded class after the page loads
       window.addEventListener('load', function() {
         document.documentElement.classList.add('react-loaded');
+        
+        // Check if we're on a business page and ensure the flag is set
+        if (window.location.href.includes('/business')) {
+          sessionStorage.setItem('onBusinessPage', 'true');
+          console.log("[PostLoad] Confirmed business page flag");
+        }
       });
+      
+      // Intercept navigation attempts during the critical loading period
+      if (window.location.href.includes('/business')) {
+        var originalPushState = history.pushState;
+        var originalReplaceState = history.replaceState;
+        
+        history.pushState = function() {
+          if (arguments[2] && !arguments[2].includes('/business') && 
+              document.readyState !== 'complete') {
+            console.warn("[Navigation] Blocked early redirect away from business page");
+            return;
+          }
+          return originalPushState.apply(this, arguments);
+        };
+        
+        history.replaceState = function() {
+          if (arguments[2] && !arguments[2].includes('/business') && 
+              document.readyState !== 'complete') {
+            console.warn("[Navigation] Blocked early redirect replacement from business page");
+            return;
+          }
+          return originalReplaceState.apply(this, arguments);
+        };
+      }
     </script>
   </body>
 </html>

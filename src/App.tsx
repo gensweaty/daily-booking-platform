@@ -1,4 +1,3 @@
-
 import { BrowserRouter, Route, Routes, useLocation, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
@@ -14,6 +13,15 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ForgotPassword } from "@/components/ForgotPassword";
 import { useEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { RouteGuard } from "@/components/RouteGuard";
+
+// Add global window property declaration
+declare global {
+  interface Window {
+    __IS_BUSINESS_PAGE__?: boolean;
+    __ROUTE_LOCKED__?: boolean;
+  }
+}
 
 // Create a client for React Query with improved retry logic
 const queryClient = new QueryClient({
@@ -148,21 +156,40 @@ const CacheBustingHeaders = () => {
   return null;
 };
 
-// NEW: Early Route Detection before React Router is fully initialized
+// Early Route Detection before React Router is fully initialized
 const EarlyRouteDetector = () => {
   useEffect(() => {
     if (window.location.href.includes('/business')) {
       console.log("[EarlyRouteDetector] Business page detected in URL, setting flag");
       sessionStorage.setItem('onBusinessPage', 'true');
-      
-      // Set a cookie for server-side detection
-      document.cookie = "isBusinessPage=true; path=/";
-      
-      // Use localStorage as another backup
+      document.cookie = "isBusinessPage=true; path=/; max-age=3600";
       localStorage.setItem('isBusinessPage', 'true');
-      
-      // Add a special class to the body that CSS can detect
       document.body.classList.add('is-business-page');
+      
+      // Set the global variable
+      window.__IS_BUSINESS_PAGE__ = true;
+      
+      // Create marker element for debugging
+      const marker = document.createElement('div');
+      marker.id = 'business-page-marker';
+      marker.style.display = 'none';
+      document.body.appendChild(marker);
+      
+      // Prevent any redirects during the critical hydration period
+      const preventRedirects = () => {
+        if (window.location.href.includes('/business')) {
+          window.__ROUTE_LOCKED__ = true;
+          console.log("[EarlyRouteDetector] Route locked during initialization");
+          
+          // Unlock after a delay
+          setTimeout(() => {
+            window.__ROUTE_LOCKED__ = false;
+            console.log("[EarlyRouteDetector] Route unlocked after initialization");
+          }, 5000);
+        }
+      };
+      
+      preventRedirects();
     }
   }, []);
   
@@ -181,31 +208,34 @@ function App() {
               <AuthProvider>
                 <SessionRecoveryWrapper>
                   <RouteAwareWrapper>
-                    <Routes>
-                      {/* REORDERED: Business page routes FIRST to ensure they have priority */}
-                      <Route path="/business/:slug" element={<PublicBusinessPage />} />
-                      <Route path="/business" element={<PublicBusinessPage />} />
-                      
-                      {/* Public routes that are ALWAYS accessible */}
-                      <Route path="/" element={<Landing />} />
-                      <Route path="/legal" element={<Legal />} />
-                      <Route path="/contact" element={<Contact />} />
-                      <Route path="/reset-password" element={<ResetPassword />} />
-                      <Route path="/forgot-password" element={<ForgotPassword />} />
-                      
-                      {/* Auth routes */}
-                      <Route path="/login" element={<Index />} />
-                      <Route path="/signup" element={<Index />} />
-                      
-                      {/* Dashboard routes that require authentication */}
-                      <Route path="/dashboard" element={<Index />} />
-                      <Route path="/dashboard/*" element={<Index />} />
-                      
-                      {/* Redirect legacy URLs or alternative formats */}
-                      <Route path="/business?slug=:slug" element={<Navigate to="/business/:slug" replace />} />
-                      <Route path="*" element={<Landing />} />
-                    </Routes>
-                    <Toaster />
+                    <RouteGuard>
+                      <Routes>
+                        {/* PUBLIC BUSINESS ROUTES - HIGHEST PRIORITY */}
+                        <Route path="/business/:slug" element={<PublicBusinessPage />} />
+                        <Route path="/business/:slug/*" element={<PublicBusinessPage />} />
+                        <Route path="/business" element={<PublicBusinessPage />} />
+                        
+                        {/* Public routes that are ALWAYS accessible */}
+                        <Route path="/" element={<Landing />} />
+                        <Route path="/legal" element={<Legal />} />
+                        <Route path="/contact" element={<Contact />} />
+                        <Route path="/reset-password" element={<ResetPassword />} />
+                        <Route path="/forgot-password" element={<ForgotPassword />} />
+                        
+                        {/* Auth routes */}
+                        <Route path="/login" element={<Index />} />
+                        <Route path="/signup" element={<Index />} />
+                        
+                        {/* Dashboard routes that require authentication */}
+                        <Route path="/dashboard" element={<Index />} />
+                        <Route path="/dashboard/*" element={<Index />} />
+                        
+                        {/* Redirect legacy URLs or alternative formats */}
+                        <Route path="/business?slug=:slug" element={<Navigate to="/business/:slug" replace />} />
+                        <Route path="*" element={<Landing />} />
+                      </Routes>
+                      <Toaster />
+                    </RouteGuard>
                   </RouteAwareWrapper>
                 </SessionRecoveryWrapper>
               </AuthProvider>

@@ -1,8 +1,8 @@
 
 # Business pages must be accessible publicly without requiring authentication
-/business/:slug /index.html 200
-/business/:slug/* /index.html 200
-/business/* /index.html 200
+/business/:slug /index.html 200!
+/business/:slug/* /index.html 200!
+/business/* /index.html 200!
 
 # Authentication pages
 /login /index.html 200
