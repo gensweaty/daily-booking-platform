@@ -1,4 +1,3 @@
-
 import { Card } from "@/components/ui/card";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { StatCard } from "./StatCard";
@@ -12,6 +11,7 @@ import {
 } from "lucide-react";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { getCurrencySymbol, parsePaymentAmount, getBookingCurrencySymbol } from "@/lib/currency";
+import { Language } from "@/translations/types";
 
 interface StatsCardsProps {
   taskStats: {
