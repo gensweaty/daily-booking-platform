@@ -596,7 +596,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         event.start_date as string,
         event.end_date as string,
         event.payment_status || 'not_paid',
-        event.payment_amount || null
+        event.payment_amount || null,
+        event.language || 'en' // Default to 'en' if language is missing
       );
     }
     

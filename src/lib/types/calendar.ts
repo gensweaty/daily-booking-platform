@@ -26,7 +26,7 @@ export interface CalendarEventType {
   content_type?: string;
   size?: number;
   checkAvailability?: boolean;
-  language?: string; // Make sure language field is properly typed
+  language?: string; // Ensure language field is properly typed
   files?: Array<{
     id: string;
     event_id: string;

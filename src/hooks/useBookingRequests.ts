@@ -42,7 +42,7 @@ export const useBookingRequests = () => {
     fetchBusinessProfile();
   }, [user]);
   
-  const { data: bookingRequestsData = [], isLoading, error } = useQuery({
+  const { data: bookingRequestsData = [], isLoading: fetchLoading, error } = useQuery({
     queryKey: ['booking_requests', businessId],
     queryFn: async () => {
       if (!businessId) return [];
@@ -679,9 +679,12 @@ export const useBookingRequests = () => {
     pendingRequests,
     approvedRequests,
     rejectedRequests,
-    isLoading,
+    isLoading: fetchLoading,
     error,
+    approveRequest: approveMutation.mutateAsync,
+    rejectRequest: rejectMutation.mutateAsync,
+    deleteBookingRequest: deleteMutation.mutateAsync,
     approveBookingRequest: approveMutation.mutateAsync,
-    isApprovingBooking: approveMutation.isLoading
+    isApprovingBooking: approveMutation.isPending // Using isPending instead of isLoading
   };
 };
