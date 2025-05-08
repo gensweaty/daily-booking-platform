@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -127,16 +128,16 @@ export const BookingRequestsList = ({
   };
 
   // Format payment status for display with proper styling
-  const renderPaymentStatus = (status?: string, amount?: number | null, language?: string) => {
+  const renderPaymentStatus = (status?: string, amount?: number | null, bookingLanguage?: string) => {
     let statusDisplay: React.ReactNode;
     
     // Determine the appropriate currency symbol based on booking language
     // First get the language - use booking language if available, otherwise use UI language
-    const bookingLanguage = language || 'en';
+    const requestLanguage = bookingLanguage || language || 'en';
     
     // Validate and convert to proper Language type
-    const typedLanguage = (bookingLanguage === 'en' || bookingLanguage === 'es' || bookingLanguage === 'ka') 
-      ? bookingLanguage as Language 
+    const typedLanguage = (requestLanguage === 'en' || requestLanguage === 'es' || requestLanguage === 'ka') 
+      ? requestLanguage as Language 
       : 'en' as Language;
 
     // Get currency symbol for this specific booking
@@ -145,9 +146,10 @@ export const BookingRequestsList = ({
     console.log("Payment status rendering:", {
       status,
       amount,
-      bookingLanguage,
+      requestLanguage,
       typedLanguage,
-      currencySymbol
+      currencySymbol,
+      bookingLanguage
     });
     
     if (!status || status === 'not_paid') {
@@ -352,7 +354,7 @@ export const BookingRequestsList = ({
                     )}
                   </TableCell>
                   <TableCell className="text-right py-2">
-                    {/* Improve action buttons layout - stack on mobile */}
+                    {/* Action buttons */}
                     <div className="flex flex-wrap gap-2 justify-end sm:justify-end">
                       {type === 'pending' && onApprove && (
                         <Button 

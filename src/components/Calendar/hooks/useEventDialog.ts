@@ -30,6 +30,8 @@ export const useEventDialog = ({
         user_surname: data.user_surname || data.title,
         // Ensure payment_status is properly set and normalized
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
+        // Preserve language if available, default to 'en'
+        language: data.language || 'en',
         // Don't check availability by default for faster creation
         checkAvailability: false
       };
@@ -68,6 +70,8 @@ export const useEventDialog = ({
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         // Ensure payment_status is properly normalized and preserved
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
+        // Preserve language field to avoid losing the setting
+        language: data.language || selectedEvent.language || 'en',
       };
       
       // Set checkAvailability flag in memory, but remove it before sending to the database

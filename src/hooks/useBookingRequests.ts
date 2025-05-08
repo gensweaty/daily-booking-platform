@@ -257,6 +257,7 @@ export const useBookingRequests = () => {
       
       // Log the language of the booking being approved
       console.log('Booking language:', booking.language || 'not set (using default en)');
+      console.log('Booking full data:', JSON.stringify(booking, null, 2));
       
       // Check for conflicts
       const { data: conflictingEvents } = await supabase
@@ -294,16 +295,17 @@ export const useBookingRequests = () => {
       const bookingLanguage = booking.language || 'en';
       console.log('Using language for new event:', bookingLanguage);
       
+      // Fix: Make sure all required fields are properly copied
       const eventData = {
-        title: booking.title,
+        title: booking.title || booking.requester_name || 'Booking',
         start_date: booking.start_date,
         end_date: booking.end_date,
         user_id: user.id,
-        user_surname: booking.requester_name,
+        user_surname: booking.requester_name || booking.user_surname || '',
         user_number: booking.requester_phone || booking.user_number || null,
         social_network_link: booking.requester_email || booking.social_network_link || null,
         event_notes: booking.description || booking.event_notes || null,
-        type: 'booking_request',
+        type: 'booking_request', // Explicitly set type for proper filtering
         booking_request_id: booking.id,
         payment_status: booking.payment_status || 'not_paid',
         payment_amount: booking.payment_amount,
@@ -311,8 +313,8 @@ export const useBookingRequests = () => {
       };
       
       const customerData = {
-        title: booking.requester_name,
-        user_surname: booking.user_surname || null,
+        title: booking.requester_name || 'Customer',
+        user_surname: booking.requester_name || booking.user_surname || null,
         user_number: booking.requester_phone || booking.user_number || null,
         social_network_link: booking.requester_email || booking.social_network_link || null,
         event_notes: booking.description || booking.event_notes || null,
@@ -325,8 +327,8 @@ export const useBookingRequests = () => {
         language: bookingLanguage // Ensure language is explicitly set
       };
       
-      console.log('Creating event with data:', eventData);
-      console.log('Creating customer with data:', customerData);
+      console.log('Creating event with data:', JSON.stringify(eventData, null, 2));
+      console.log('Creating customer with data:', JSON.stringify(customerData, null, 2));
       
       // Create event and customer records in parallel
       const [eventResult, customerResult] = await Promise.all([
@@ -347,8 +349,8 @@ export const useBookingRequests = () => {
       const eventData2 = eventResult.data;
       const customerData2 = customerResult.data;
       
-      console.log('Created event:', eventData2);
-      console.log('Created customer:', customerData2);
+      console.log('Created event:', JSON.stringify(eventData2, null, 2));
+      console.log('Created customer:', customerData2 ? JSON.stringify(customerData2, null, 2) : 'No customer created');
       
       // Process files in parallel instead of sequentially
       const processFiles = async () => {

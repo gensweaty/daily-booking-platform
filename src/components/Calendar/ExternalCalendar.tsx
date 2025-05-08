@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Calendar } from "./Calendar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -102,6 +103,14 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
         console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
         
+        // Log a sample of events to diagnose issues
+        if (apiEvents?.length) {
+          console.log("[External Calendar] Sample API event:", JSON.stringify(apiEvents[0], null, 2));
+        }
+        if (approvedBookings?.length) {
+          console.log("[External Calendar] Sample booking event:", JSON.stringify(approvedBookings[0], null, 2));
+        }
+        
         // Ensure we're working with arrays
         const safeApiEvents = Array.isArray(apiEvents) ? apiEvents : [];
         const safeBookings = Array.isArray(approvedBookings) ? approvedBookings : [];
@@ -134,6 +143,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             requester_name: booking.requester_name || '',
             requester_email: booking.requester_email || '',
             deleted_at: booking.deleted_at,
+            payment_status: booking.payment_status,
+            payment_amount: booking.payment_amount,
             language: booking.language || 'en' // Ensure language is set for bookings
           }))
         ];
