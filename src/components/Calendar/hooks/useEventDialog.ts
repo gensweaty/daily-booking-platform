@@ -24,14 +24,12 @@ export const useEventDialog = ({
       // Ensure type is set to 'event'
       const eventData = {
         ...data,
-        type: data.type || 'event',
+        type: 'event',
         // Make sure title and user_surname match for consistency
         title: data.user_surname || data.title,
         user_surname: data.user_surname || data.title,
         // Ensure payment_status is properly set and normalized
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
-        // Preserve language if available, default to 'en'
-        language: data.language || 'en',
         // Don't check availability by default for faster creation
         checkAvailability: false
       };
@@ -65,17 +63,16 @@ export const useEventDialog = ({
       // Make sure to preserve the type field and ensure title and user_surname match
       const eventData = {
         ...data,
-        type: data.type || selectedEvent.type || 'event',
+        type: selectedEvent.type || 'event',
         title: data.user_surname || data.title || selectedEvent.title,
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         // Ensure payment_status is properly normalized and preserved
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
-        // Preserve language field to avoid losing the setting
-        language: data.language || selectedEvent.language || 'en',
       };
       
       // Set checkAvailability flag in memory, but remove it before sending to the database
       // to prevent the "column not found" error
+      const shouldCheckAvailability = true;
       console.log("Updating event with data:", eventData);
       
       // Create a new object without the checkAvailability property to send to the database

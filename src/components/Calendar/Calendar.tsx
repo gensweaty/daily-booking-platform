@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -29,7 +28,6 @@ import { BookingRequestForm } from "../business/BookingRequestForm";
 import { useToast } from "@/hooks/use-toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
-import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -58,29 +56,13 @@ export const Calendar = ({
   const [view, setView] = useState<CalendarViewType>(defaultView);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
-  const { language: currentLanguage } = useLanguage();
   
   const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
     !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
   );
   
-  // Helper function to ensure events have language property
-  const ensureEventLanguage = (event: any): CalendarEventType => ({
-    ...event,
-    language: event.language || currentLanguage || 'en'
-  });
-  
-  // Add language to any event that might not have it
-  const processEvents = (eventsToProcess: any[]): CalendarEventType[] => {
-    return eventsToProcess.map(ensureEventLanguage);
-  };
-  
-  // Process events to ensure they all have the required language property
-  const events: CalendarEventType[] = directEvents ? 
-    processEvents(directEvents) : 
-    fetchedEvents ? processEvents(fetchedEvents) : [];
-    
+  const events = directEvents || fetchedEvents;
   const isLoading = !directEvents && isLoadingFromHook;
   
   const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
@@ -111,14 +93,8 @@ export const Calendar = ({
     });
     
     if (events?.length > 0) {
-      // Debug log events with language info
       console.log("[Calendar] First event:", events[0]);
-      console.log("[Calendar] Events with language:", events.map(e => ({
-        id: e.id,
-        title: e.title,
-        type: e.type,
-        language: e.language || 'not set'
-      })));
+      console.log("[Calendar] All events:", events); // Log all events to debug
     }
   }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
 
@@ -134,26 +110,17 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      const result = await createEvent?.({
-        ...data,
-        language: data.language || currentLanguage || 'en' // Ensure language is set
-      });
+      const result = await createEvent?.(data);
       return result;
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
-      console.log("Calendar passing to updateEvent:", { 
-        data, 
-        id: selectedEvent.id, 
-        type: selectedEvent.type,
-        language: data.language || selectedEvent.language || currentLanguage
-      });
+      console.log("Calendar passing to updateEvent:", { data, id: selectedEvent.id, type: selectedEvent.type });
       
       const result = await updateEvent?.({
         ...data,
         id: selectedEvent.id,
-        type: selectedEvent.type,  // Make sure to pass the type from the selected event
-        language: data.language || selectedEvent.language || currentLanguage // Make sure to pass the language
+        type: selectedEvent.type  // Make sure to pass the type from the selected event
       });
       return result;
     },
@@ -324,7 +291,7 @@ export const Calendar = ({
         <div className={`flex-1 ${gridBgClass} ${textClass}`}>
           <CalendarView
             days={getDaysForView()}
-            events={events}
+            events={events || []}
             selectedDate={selectedDate}
             view={view}
             onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}

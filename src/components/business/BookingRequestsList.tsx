@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -62,16 +61,7 @@ export const BookingRequestsList = ({
     // Set processing state to show loading indicator
     setProcessingId(id);
     try {
-      // Log which booking we're approving for debugging
-      console.log(`Approving booking request: ${id}`);
-      const requestToApprove = requests.find(req => req.id === id);
-      if (requestToApprove) {
-        console.log(`Request details: language=${requestToApprove.language}, payment=${requestToApprove.payment_status}`);
-      }
-      
       await onApprove?.(id);
-    } catch (error) {
-      console.error(`Error approving booking ${id}:`, error);
     } finally {
       // Clear processing state when done (success or error)
       setProcessingId(null);
@@ -137,16 +127,16 @@ export const BookingRequestsList = ({
   };
 
   // Format payment status for display with proper styling
-  const renderPaymentStatus = (status?: string, amount?: number | null, bookingLanguage?: string) => {
+  const renderPaymentStatus = (status?: string, amount?: number | null, language?: string) => {
     let statusDisplay: React.ReactNode;
     
     // Determine the appropriate currency symbol based on booking language
     // First get the language - use booking language if available, otherwise use UI language
-    const requestLanguage = bookingLanguage || language || 'en';
+    const bookingLanguage = language || 'en';
     
     // Validate and convert to proper Language type
-    const typedLanguage = (requestLanguage === 'en' || requestLanguage === 'es' || requestLanguage === 'ka') 
-      ? requestLanguage as Language 
+    const typedLanguage = (bookingLanguage === 'en' || bookingLanguage === 'es' || bookingLanguage === 'ka') 
+      ? bookingLanguage as Language 
       : 'en' as Language;
 
     // Get currency symbol for this specific booking
@@ -155,10 +145,9 @@ export const BookingRequestsList = ({
     console.log("Payment status rendering:", {
       status,
       amount,
-      requestLanguage,
+      bookingLanguage,
       typedLanguage,
-      currencySymbol,
-      bookingLanguage
+      currencySymbol
     });
     
     if (!status || status === 'not_paid') {
@@ -363,7 +352,7 @@ export const BookingRequestsList = ({
                     )}
                   </TableCell>
                   <TableCell className="text-right py-2">
-                    {/* Action buttons */}
+                    {/* Improve action buttons layout - stack on mobile */}
                     <div className="flex flex-wrap gap-2 justify-end sm:justify-end">
                       {type === 'pending' && onApprove && (
                         <Button 

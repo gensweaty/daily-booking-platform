@@ -1,3 +1,4 @@
+
 import { BusinessProfileForm } from "./BusinessProfileForm";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -18,17 +19,7 @@ export const BusinessPage = () => {
   const { user } = useAuth();
   const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<"profile" | "bookings">("profile");
-  // Use the names that the hook actually provides
-  const { 
-    bookingRequests, 
-    pendingRequests, 
-    approvedRequests, 
-    rejectedRequests, 
-    approveRequest, 
-    rejectRequest, 
-    deleteBookingRequest 
-  } = useBookingRequests();
-  
+  const { bookingRequests, pendingRequests, approvedRequests, rejectedRequests, approveRequest, rejectRequest, deleteBookingRequest } = useBookingRequests();
   const pendingCount = pendingRequests?.length || 0;
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');

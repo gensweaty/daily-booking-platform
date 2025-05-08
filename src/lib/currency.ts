@@ -7,8 +7,6 @@ import { Language } from '@/translations/types';
  * @returns The currency symbol for the given language
  */
 export function getCurrencySymbol(language: Language): string {
-  console.log("Getting currency symbol for language:", language);
-  
   switch (language) {
     case 'es':
       return '€';
@@ -35,7 +33,6 @@ export function formatCurrency(amount: number | string, language: Language): str
     return `${symbol}0.00`;
   }
   
-  console.log(`Formatting currency: ${numericAmount} for language ${language} with symbol ${symbol}`);
   return `${symbol}${numericAmount.toFixed(2)}`;
 }
 

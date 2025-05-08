@@ -107,17 +107,8 @@ export function CalendarView({
       }
       if (filteredEvents.length > 0) {
         console.log("[CalendarView] First event sample:", filteredEvents[0]);
-        
-        // Add detailed logging for language field in events
-        console.log("[CalendarView] Events with language info:", filteredEvents.map(e => ({
-          id: e.id,
-          type: e.type,
-          title: e.title,
-          language: e.language || 'not set'
-        })));
       }
     }
-    
     // Debug theme state
     console.log("[CalendarView] Current theme state:", { 
       theme, 

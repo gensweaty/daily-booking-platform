@@ -97,19 +97,11 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       
       try {
         // Get events from the API function which includes approved bookings and user events
-        // This uses the security definer function to bypass RLS
+        // This now uses our security definer function to bypass RLS
         const { events: apiEvents, bookings: approvedBookings } = await getPublicCalendarEvents(businessId);
         
         console.log(`[External Calendar] Fetched ${apiEvents?.length || 0} API events`);
         console.log(`[External Calendar] Fetched ${approvedBookings?.length || 0} approved booking requests`);
-        
-        // Log a sample of events to diagnose issues
-        if (apiEvents?.length) {
-          console.log("[External Calendar] Sample API event:", JSON.stringify(apiEvents[0], null, 2));
-        }
-        if (approvedBookings?.length) {
-          console.log("[External Calendar] Sample booking event:", JSON.stringify(approvedBookings[0], null, 2));
-        }
         
         // Ensure we're working with arrays
         const safeApiEvents = Array.isArray(apiEvents) ? apiEvents : [];
@@ -125,8 +117,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         const allEvents: CalendarEventType[] = [
           ...filteredApiEvents.map(event => ({
             ...event,
-            type: event.type || 'event',
-            language: event.language || 'en' // Ensure language is set for events
+            type: event.type || 'event'
           })),
           ...filteredBookings.map(booking => ({
             id: booking.id,
@@ -142,16 +133,13 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             event_notes: booking.description || '',
             requester_name: booking.requester_name || '',
             requester_email: booking.requester_email || '',
-            deleted_at: booking.deleted_at,
-            payment_status: booking.payment_status || 'not_paid',
-            payment_amount: booking.payment_amount || 0,
-            language: booking.language || 'en' // Ensure language is set for bookings
+            deleted_at: booking.deleted_at
           }))
         ];
         
         console.log(`[External Calendar] Combined ${allEvents.length} total events`);
         
-        // Validate all events have proper dates and are not deleted
+        // Validate all events have proper dates
         const validEvents = allEvents.filter(event => {
           try {
             // Check if start_date and end_date are valid
@@ -163,10 +151,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             
             if (!isNotDeleted) {
               console.log(`Filtering out deleted event with id ${event.id}, deleted_at: ${event.deleted_at}`);
-            }
-            
-            if (!startValid || !endValid) {
-              console.log(`Filtering out event with invalid dates: id=${event.id}, start=${event.start_date}, end=${event.end_date}`);
             }
             
             return startValid && endValid && isNotDeleted;
@@ -206,10 +190,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         } catch (e) {
           console.warn("Failed to store events in session storage:", e);
         }
-        
-        // Debug log all events with language to ensure they have it
-        console.log("[External Calendar] Final events with language check:", 
-          actuallyValid.map(e => ({ id: e.id, type: e.type, language: e.language })));
         
         // Update state with fetched events
         setEvents(actuallyValid);

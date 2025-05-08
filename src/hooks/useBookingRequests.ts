@@ -42,7 +42,7 @@ export const useBookingRequests = () => {
     fetchBusinessProfile();
   }, [user]);
   
-  const { data: bookingRequestsData = [], isLoading: fetchLoading, error } = useQuery({
+  const { data: bookingRequestsData = [], isLoading, error } = useQuery({
     queryKey: ['booking_requests', businessId],
     queryFn: async () => {
       if (!businessId) return [];
@@ -242,7 +242,9 @@ export const useBookingRequests = () => {
         throw new Error('User not authenticated');
       }
       
-      // Get the booking first to check its data
+      // Remove the loading toast notification since we have button loading animations
+      // This was displaying "Processing approval... Please wait while we process your request."
+      
       const { data: booking, error: fetchError } = await supabase
         .from('booking_requests')
         .select('*, language')
@@ -254,57 +256,31 @@ export const useBookingRequests = () => {
       
       // Log the language of the booking being approved
       console.log('Booking language:', booking.language || 'not set (using default en)');
-      console.log('Booking full data:', JSON.stringify(booking, null, 2));
       
-      // FIX: First get all conflicting events for this user to validate availability properly
-      // This includes both events and already approved bookings
-      // Note: we're specifically excluding the current booking ID when checking conflicts
-      console.log(`Checking for conflicts with booking ID: ${bookingId}`);
-      console.log(`Time slot: ${booking.start_date} - ${booking.end_date}`);
+      // Check for conflicts
+      const { data: conflictingEvents } = await supabase
+        .from('events')
+        .select('id, title')
+        .eq('user_id', user.id)
+        .filter('start_date', 'lt', booking.end_date)
+        .filter('end_date', 'gt', booking.start_date)
+        .is('deleted_at', null);
       
-      // Use Promise.all to run both queries concurrently
-      const [eventsResult, bookingsResult] = await Promise.all([
-        // Check for conflicting events
-        supabase
-          .from('events')
-          .select('id, title, start_date, end_date')
-          .eq('user_id', user.id)
-          .filter('start_date', 'lt', booking.end_date)
-          .filter('end_date', 'gt', booking.start_date)
-          .is('deleted_at', null),
-        
-        // Check for conflicting approved bookings
-        supabase
-          .from('booking_requests')
-          .select('id, title')
-          .eq('business_id', businessId)
-          .eq('status', 'approved')
-          .not('id', 'eq', bookingId) // Exclude current booking from conflict check
-          .filter('start_date', 'lt', booking.end_date)
-          .filter('end_date', 'gt', booking.start_date)
-          .is('deleted_at', null) // Add this to exclude any soft-deleted bookings
-      ]);
+      const { data: conflictingBookings } = await supabase
+        .from('booking_requests')
+        .select('id, title')
+        .eq('business_id', businessId)
+        .eq('status', 'approved')
+        .not('id', 'eq', bookingId)
+        .filter('start_date', 'lt', booking.end_date)
+        .filter('end_date', 'gt', booking.start_date);
       
-      const conflictingEvents = eventsResult.data || [];
-      const conflictingBookings = bookingsResult.data || [];
-      
-      console.log(`Found ${conflictingEvents.length} conflicting events`);
-      if (conflictingEvents.length > 0) {
-        console.log('Conflicting events:', JSON.stringify(conflictingEvents, null, 2));
-      }
-      
-      console.log(`Found ${conflictingBookings.length} conflicting bookings`);
-      if (conflictingBookings.length > 0) {
-        console.log('Conflicting bookings:', JSON.stringify(conflictingBookings, null, 2));
-      }
-      
-      // Check for conflicts and throw an error if any exist
       if ((conflictingEvents && conflictingEvents.length > 0) || 
           (conflictingBookings && conflictingBookings.length > 0)) {
         throw new Error('Time slot is no longer available');
       }
       
-      // First update the booking status to approved
+      // Use transaction to update booking status
       const { error: updateError } = await supabase
         .from('booking_requests')
         .update({ status: 'approved' })
@@ -313,30 +289,25 @@ export const useBookingRequests = () => {
       if (updateError) throw updateError;
       
       // Prepare data for event and customer creation
-      // Ensure language is properly set from the booking
-      const bookingLanguage = booking.language || 'en';
-      console.log('Using language for new event:', bookingLanguage);
-      
-      // Fix: Make sure all required fields are properly copied
       const eventData = {
-        title: booking.title || booking.requester_name || 'Booking',
+        title: booking.title,
         start_date: booking.start_date,
         end_date: booking.end_date,
         user_id: user.id,
-        user_surname: booking.requester_name || booking.user_surname || '',
+        user_surname: booking.requester_name,
         user_number: booking.requester_phone || booking.user_number || null,
         social_network_link: booking.requester_email || booking.social_network_link || null,
         event_notes: booking.description || booking.event_notes || null,
-        type: 'booking_request', // Explicitly set type for proper filtering
+        type: 'booking_request',
         booking_request_id: booking.id,
         payment_status: booking.payment_status || 'not_paid',
         payment_amount: booking.payment_amount,
-        language: bookingLanguage // Ensure language is explicitly set
+        language: booking.language || 'en' // Add language to event when creating from booking
       };
       
       const customerData = {
-        title: booking.requester_name || 'Customer',
-        user_surname: booking.requester_name || booking.user_surname || null,
+        title: booking.requester_name,
+        user_surname: booking.user_surname || null,
         user_number: booking.requester_phone || booking.user_number || null,
         social_network_link: booking.requester_email || booking.social_network_link || null,
         event_notes: booking.description || booking.event_notes || null,
@@ -346,11 +317,8 @@ export const useBookingRequests = () => {
         type: 'booking_request',
         payment_status: booking.payment_status,
         payment_amount: booking.payment_amount,
-        language: bookingLanguage // Ensure language is explicitly set
+        language: booking.language || 'en' // Add language to customer when creating from booking
       };
-      
-      console.log('Creating event with data:', JSON.stringify(eventData, null, 2));
-      console.log('Creating customer with data:', JSON.stringify(customerData, null, 2));
       
       // Create event and customer records in parallel
       const [eventResult, customerResult] = await Promise.all([
@@ -370,9 +338,6 @@ export const useBookingRequests = () => {
       
       const eventData2 = eventResult.data;
       const customerData2 = customerResult.data;
-      
-      console.log('Created event:', JSON.stringify(eventData2, null, 2));
-      console.log('Created customer:', customerData2 ? JSON.stringify(customerData2, null, 2) : 'No customer created');
       
       // Process files in parallel instead of sequentially
       const processFiles = async () => {
@@ -571,45 +536,33 @@ export const useBookingRequests = () => {
         });
       }
 
-      // After successful event creation, apply a soft delete to the booking request
-      // This helps prevent duplicate entries in the calendar views
-      const { error: softDeleteError } = await supabase
-        .from('booking_requests')
-        .update({
-          deleted_at: new Date().toISOString()
-        })
-        .eq('id', bookingId);
-        
-      if (softDeleteError) {
-        console.error('Error soft-deleting booking request:', softDeleteError);
-        // Continue with the process even if soft delete fails
-      } else {
-        console.log(`Successfully soft-deleted booking request ${bookingId}`);
-      }
-
       console.log('Booking approval process completed successfully');
       return booking;
     },
     onSuccess: () => {
-      // Invalidate ALL related queries to ensure UI updates correctly
-      queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
+      queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['business-events'] });
       queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      
+      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       toast({
-        title: "Success",
-        description: "Booking request approved successfully",
+        translateKeys: {
+          titleKey: "common.success",
+          descriptionKey: "bookings.requestApproved"
+        }
       });
     },
     onError: (error: Error) => {
-      console.error('Error approving booking request:', error);
+      console.error('Error in approval mutation:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to approve booking request",
-        variant: "destructive"
+        variant: "destructive",
+        translateKeys: {
+          titleKey: "common.error",
+          descriptionKey: "common.errorOccurred"
+        },
+        description: error.message || "Failed to approve booking request"
       });
     }
   });
@@ -679,12 +632,10 @@ export const useBookingRequests = () => {
     pendingRequests,
     approvedRequests,
     rejectedRequests,
-    isLoading: fetchLoading,
+    isLoading,
     error,
     approveRequest: approveMutation.mutateAsync,
     rejectRequest: rejectMutation.mutateAsync,
     deleteBookingRequest: deleteMutation.mutateAsync,
-    approveBookingRequest: approveMutation.mutateAsync,
-    isApprovingBooking: approveMutation.isPending // Using isPending instead of isLoading
   };
 };
