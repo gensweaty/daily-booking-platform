@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format, parseISO, eachDayOfInterval, endOfDay, startOfMonth, endOfMonth, differenceInMonths, addMonths, eachMonthOfInterval } from 'date-fns';
@@ -305,6 +306,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       });
       
       // If there's a discrepancy, use the monthly sum as it's more reliable
+      // THIS IS THE LINE WITH THE ERROR - Fix by ensuring proper type checking
       if (Math.abs(totalIncome - monthlyTotal) > 0.01) {
         console.warn('Income calculation discrepancy detected, using monthly sum instead:', {
           directTotal: totalIncome,
@@ -322,7 +324,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
 
       // Determine the most common language used in events for consistent currency display
       // This will help when no specific language is set
-      let languageCounts = {};
+      let languageCounts: Record<string, number> = {};
       allEvents.forEach(event => {
         if (event.language) {
           languageCounts[event.language] = (languageCounts[event.language] || 0) + 1;
