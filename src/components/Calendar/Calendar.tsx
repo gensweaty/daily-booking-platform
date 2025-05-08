@@ -64,6 +64,8 @@ export const Calendar = ({
   
   const events = directEvents || fetchedEvents;
   const isLoading = !directEvents && isLoadingEvents;
+  
+  // Use eventsError instead of error (which doesn't exist in the return type)
   const error = eventsError;
   
   const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);

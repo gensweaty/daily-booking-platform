@@ -1,4 +1,3 @@
-
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
 import { CalendarGrid } from "./CalendarGrid";
@@ -114,6 +113,13 @@ export function CalendarView({
           return acc;
         }, {} as Record<string, number>)
       );
+      
+      // Log events with language field for debugging
+      const eventsWithLanguage = filteredEvents.filter(e => e.language);
+      if (eventsWithLanguage.length > 0) {
+        console.log("[CalendarView] Events with language field:", eventsWithLanguage.length);
+        console.log("[CalendarView] Language sample:", eventsWithLanguage[0].language);
+      }
     }
     
     // Debug theme state
