@@ -1,5 +1,6 @@
+
 import { useState, useEffect, useRef } from "react";
-import { useParams, useLocation, useNavigate } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import { supabase, forceBucketCreation } from "@/lib/supabase";
 import { BusinessProfile } from "@/types/database";
 import { Button } from "@/components/ui/button";
@@ -12,116 +13,45 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
-import { useToast } from "@/components/ui/use-toast";
-
-// Helper to normalize slugs for consistency between environments
-const normalizeSlug = (slug: string): string => {
-  return slug?.toLowerCase().trim() || '';
-};
-
-// Added hydration safety component
-const HydrationSafetyWrapper = ({ children }: { children: React.ReactNode }) => {
-  const [isHydrated, setIsHydrated] = useState(false);
-  
-  useEffect(() => {
-    // This effect runs after hydration is complete
-    setIsHydrated(true);
-    
-    // Set business page flag
-    sessionStorage.setItem('onBusinessPage', 'true');
-    
-    return () => {
-      // Clean up when unmounting
-      sessionStorage.removeItem('onBusinessPage');
-    };
-  }, []);
-  
-  // During SSR or before hydration, render a minimal version
-  if (!isHydrated) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <LoaderCircle className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-  
-  return <>{children}</>;
-};
 
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
-  const navigate = useNavigate();
   const { t, language } = useLanguage();
   const { theme } = useTheme();
-  const { toast } = useToast();
   const isGeorgian = language === 'ka';
   
-  // Set the business page flag on mount
+  // Set the flag to prevent authentication redirects
   useEffect(() => {
-    console.log("[PublicBusinessPage] Setting onBusinessPage flag in sessionStorage");
-    sessionStorage.setItem('onBusinessPage', 'true');
+    localStorage.setItem('accessing_public_business_page', 'true');
+    localStorage.setItem('last_business_path', location.pathname);
     
-    // Cleanup on unmount
     return () => {
-      // Only remove the flag if we're not navigating to another business page
-      if (!location.pathname.includes('/business')) {
-        console.log("[PublicBusinessPage] Removing onBusinessPage flag on unmount");
-        sessionStorage.removeItem('onBusinessPage');
+      // Only remove the flag if we're navigating away from business pages
+      if (!location.pathname.startsWith('/business')) {
+        localStorage.removeItem('accessing_public_business_page');
       }
     };
   }, [location.pathname]);
   
-  // Detect if user is redirected too many times
-  useEffect(() => {
-    const redirectCount = sessionStorage.getItem('redirectCount');
-    const count = redirectCount ? parseInt(redirectCount) : 0;
-    
-    if (count > 3) {
-      console.error("[PublicBusinessPage] Too many redirects detected, forcing page to stay");
-      sessionStorage.removeItem('redirectCount');
-      // Force page to stay
-      window.history.pushState(null, '', location.pathname);
-    } else {
-      sessionStorage.setItem('redirectCount', (count + 1).toString());
-      
-      // Reset counter after 5 seconds
-      setTimeout(() => {
-        sessionStorage.removeItem('redirectCount');
-      }, 5000);
-    }
-  }, [location.pathname]);
-  
   const getBusinessSlug = () => {
-    // Try multiple sources to get the slug with priority order
-    let businessSlug = null;
-
-    // 1. First check URL params (most reliable)
-    if (slug) businessSlug = normalizeSlug(slug);
+    // Check for slug in URL path parameters
+    if (slug) return slug;
     
-    // 2. Check path pattern /business/[slug]
-    if (!businessSlug) {
-      const pathMatch = location.pathname.match(/\/business\/([^\/]+)/);
-      if (pathMatch && pathMatch[1]) businessSlug = normalizeSlug(pathMatch[1]);
-    }
+    // Check for slug in pathname (e.g., /business/slug-name)
+    const pathMatch = location.pathname.match(/\/business\/([^\/]+)/);
+    if (pathMatch && pathMatch[1]) return pathMatch[1];
     
-    // 3. Check query params
-    if (!businessSlug) {
-      const searchParams = new URLSearchParams(location.search);
-      const slugFromSearch = searchParams.get('slug') || searchParams.get('business');
-      if (slugFromSearch) businessSlug = normalizeSlug(slugFromSearch);
-    }
+    // Check for slug in query parameters
+    const searchParams = new URLSearchParams(location.search);
+    const slugFromSearch = searchParams.get('slug') || searchParams.get('business');
+    if (slugFromSearch) return slugFromSearch;
     
-    // 4. Fallback to localStorage (least reliable)
-    if (!businessSlug) {
-      businessSlug = localStorage.getItem('lastVisitedBusinessSlug');
-      if (businessSlug) {
-        console.log("[PublicBusinessPage] Using slug from localStorage:", businessSlug);
-        businessSlug = normalizeSlug(businessSlug);
-      }
-    }
+    // Fall back to cached slug (if any)
+    const cachedSlug = localStorage.getItem('lastVisitedBusinessSlug');
+    if (cachedSlug) return cachedSlug;
     
-    return businessSlug;
+    return null;
   };
 
   const businessSlug = getBusinessSlug();
@@ -133,69 +63,32 @@ export const PublicBusinessPage = () => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const imageRetryCount = useRef(0);
-  const fetchAttempts = useRef(0);
-  const maxFetchAttempts = 5;
   const maxRetryCount = 3;
 
   console.log("[PublicBusinessPage] Using business slug:", businessSlug);
   console.log("[PublicBusinessPage] Current theme:", theme);
   console.log("[PublicBusinessPage] Current path:", location.pathname);
-  console.log("[PublicBusinessPage] Current search params:", location.search);
+  console.log("[PublicBusinessPage] Current URL:", window.location.href);
 
-  // Increase retry attempts for reliability in production
+  // Retry logic for fetching the business profile
   useEffect(() => {
     const intervalId = setInterval(() => {
-      if (retryCount < 5 && !business) {
-        console.log("[PublicBusinessPage] Retrying fetch, attempt #", retryCount + 1);
+      if (retryCount < 3 && !business) {
         setRetryCount(prev => prev + 1);
       }
-    }, 3000); // Slightly longer intervals for production
+    }, 5000);
     
     return () => clearInterval(intervalId);
   }, [business, retryCount]);
 
-  // Save slug to localStorage for recovery
+  // Cache the business slug for future visits
   useEffect(() => {
     if (businessSlug) {
-      try {
-        localStorage.setItem('lastVisitedBusinessSlug', businessSlug);
-        console.log("[PublicBusinessPage] Saved slug to localStorage:", businessSlug);
-        
-        // Also set a session flag to indicate we're on a business page
-        sessionStorage.setItem('onBusinessPage', 'true');
-      } catch (err) {
-        console.warn("[PublicBusinessPage] Failed to save slug to localStorage", err);
-      }
+      localStorage.setItem('lastVisitedBusinessSlug', businessSlug);
     }
-    
-    // Cleanup function
-    return () => {
-      sessionStorage.removeItem('onBusinessPage');
-    };
   }, [businessSlug]);
 
-  // On mount, try to detect and clear stale cache
-  useEffect(() => {
-    const checkForCacheIssues = async () => {
-      try {
-        // Force browser to clear potential cache issues
-        const cacheBuster = `?cb=${Date.now()}`;
-        if (businessSlug) {
-          const testUrl = `${window.location.origin}/business/${businessSlug}${cacheBuster}`;
-          console.log("[PublicBusinessPage] Cache test URL:", testUrl);
-          
-          // Just create a head request to prime any cache issues
-          await fetch(testUrl, { method: 'HEAD', cache: 'no-store' })
-            .catch(() => console.log("[PublicBusinessPage] Cache priming request completed"));
-        }
-      } catch (err) {
-        console.warn("[PublicBusinessPage] Cache check error:", err);
-      }
-    };
-    
-    checkForCacheIssues();
-  }, [businessSlug]);
-
+  // Fetch the business profile
   useEffect(() => {
     const fetchBusinessProfile = async () => {
       if (!businessSlug) {
@@ -206,73 +99,25 @@ export const PublicBusinessPage = () => {
       
       try {
         setIsLoading(true);
-        fetchAttempts.current += 1;
-        
-        console.log(
-          `[PublicBusinessPage] Fetching business profile for slug: "${businessSlug}" (attempt ${fetchAttempts.current})`
-        );
+        console.log("[PublicBusinessPage] Fetching business profile for slug:", businessSlug);
         
         await forceBucketCreation();
-
-        // Add cache busting parameter to avoid stale results
-        const timestamp = Date.now();
         
         const { data, error } = await supabase
           .from("business_profiles")
           .select("*")
           .eq("slug", businessSlug)
-          .maybeSingle();
+          .single();
 
         if (error) {
           console.error("Error fetching business profile:", error);
-          
-          // Retry for network-related errors
-          if (fetchAttempts.current < maxFetchAttempts) {
-            console.log(`[PublicBusinessPage] Will retry in ${fetchAttempts.current * 1000}ms`);
-            setTimeout(() => {
-              setRetryCount(prev => prev + 1);
-            }, fetchAttempts.current * 1000);
-          } else {
-            setError("Failed to load business information. Please try again later.");
-            
-            // Show a toast for user feedback
-            toast({
-              title: t("business.fetchError"),
-              description: t("business.tryAgainLater"),
-              variant: "destructive",
-            });
-          }
+          setError("Failed to load business information");
           return;
         }
         
         if (!data) {
           console.error("No business found with slug:", businessSlug);
-          
-          // Try with a case-insensitive search as fallback
-          console.log("[PublicBusinessPage] Trying case-insensitive search as fallback");
-          
-          const { data: dataFallback, error: errorFallback } = await supabase
-            .from("business_profiles")
-            .select("*")
-            .ilike("slug", businessSlug)
-            .maybeSingle();
-            
-          if (errorFallback || !dataFallback) {
-            setError("Business not found");
-            return;
-          }
-          
-          console.log("[PublicBusinessPage] Found business with case-insensitive search:", dataFallback);
-          setBusiness(dataFallback as BusinessProfile);
-          
-          if (dataFallback.cover_photo_url) {
-            handleCoverPhotoUrl(dataFallback.cover_photo_url);
-          }
-          
-          if (dataFallback?.business_name) {
-            document.title = `${dataFallback.business_name} - Book Now`;
-          }
-          
+          setError("Business not found");
           return;
         }
         
@@ -280,46 +125,50 @@ export const PublicBusinessPage = () => {
         setBusiness(data as BusinessProfile);
         
         if (data.cover_photo_url) {
-          handleCoverPhotoUrl(data.cover_photo_url);
+          if (!data.cover_photo_url.startsWith('blob:')) {
+            const timestamp = Date.now();
+            let photoUrl = data.cover_photo_url.split('?')[0];
+            photoUrl = `${photoUrl}?t=${timestamp}`;
+            
+            console.log("[PublicBusinessPage] Setting cover photo URL with cache busting:", photoUrl);
+            setCoverPhotoUrl(photoUrl);
+            setImageLoaded(false);
+            imageRetryCount.current = 0;
+          } else {
+            console.warn("[PublicBusinessPage] Ignoring blob URL:", data.cover_photo_url);
+            setCoverPhotoUrl(null);
+          }
         }
         
         if (data?.business_name) {
           document.title = `${data.business_name} - Book Now`;
+          
+          // Update meta tags for better SEO
+          const metaDescription = document.querySelector('meta[name="description"]');
+          if (metaDescription) {
+            metaDescription.setAttribute('content', `Book appointments with ${data.business_name}. ${data.description || 'Online booking available.'}`);
+          }
+          
+          const ogTitle = document.querySelector('meta[property="og:title"]');
+          if (ogTitle) {
+            ogTitle.setAttribute('content', `${data.business_name} - Book Now | Smartbookly`);
+          }
+          
+          const ogDescription = document.querySelector('meta[property="og:description"]');
+          if (ogDescription) {
+            ogDescription.setAttribute('content', `Book appointments with ${data.business_name}. ${data.description || 'Online booking available.'}`);
+          }
         }
       } catch (error) {
         console.error("Exception in fetchBusinessProfile:", error);
         setError("An unexpected error occurred");
-        
-        // Retry on general exceptions
-        if (fetchAttempts.current < maxFetchAttempts) {
-          setTimeout(() => {
-            setRetryCount(prev => prev + 1);
-          }, fetchAttempts.current * 1000);
-        }
       } finally {
         setIsLoading(false);
       }
     };
-    
-    fetchBusinessProfile();
-  }, [businessSlug, retryCount, toast, t]);
 
-  // Helper function to handle cover photo URL processing
-  const handleCoverPhotoUrl = (url: string) => {
-    if (!url.startsWith('blob:')) {
-      const timestamp = Date.now();
-      let photoUrl = url.split('?')[0];
-      photoUrl = `${photoUrl}?t=${timestamp}`;
-      
-      console.log("[PublicBusinessPage] Setting cover photo URL with cache busting:", photoUrl);
-      setCoverPhotoUrl(photoUrl);
-      setImageLoaded(false);
-      imageRetryCount.current = 0;
-    } else {
-      console.warn("[PublicBusinessPage] Ignoring blob URL:", url);
-      setCoverPhotoUrl(null);
-    }
-  };
+    fetchBusinessProfile();
+  }, [businessSlug, retryCount]);
 
   const handleImageLoad = () => {
     console.log("[PublicBusinessPage] Cover photo loaded successfully");
@@ -379,142 +228,139 @@ export const PublicBusinessPage = () => {
     } : undefined;
   };
 
-  // Wrap with hydration safety
   return (
-    <HydrationSafetyWrapper>
-      <div className="min-h-screen bg-background">
-        <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
-          <ThemeToggle />
-          <LanguageSwitcher />
-        </div>
+    <div className="min-h-screen bg-background">
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+        <ThemeToggle />
+        <LanguageSwitcher />
+      </div>
+      
+      {/* Hero section with cover photo */}
+      <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white dark:from-blue-800 dark:to-indigo-900"
+        style={{
+          backgroundImage: `url(${displayCoverUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          minHeight: '44vh',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between'
+        }}
+      >
+        <div className="absolute inset-0 bg-black bg-opacity-50"></div>
         
-        {/* Hero section with cover photo */}
-        <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white dark:from-blue-800 dark:to-indigo-900"
-          style={{
-            backgroundImage: `url(${displayCoverUrl})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            minHeight: '44vh',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between'
-          }}
-        >
-          <div className="absolute inset-0 bg-black bg-opacity-50"></div>
-          
-          <div className="container mx-auto px-4 relative h-full flex flex-col justify-end">
-            {/* Business info moved lower in the cover section */}
-            <div className="py-16 mb-16">
-              <h1 
-                className={cn("text-4xl md:text-5xl font-bold mb-6", isGeorgian ? "font-georgian" : "")}
+        <div className="container mx-auto px-4 relative h-full flex flex-col justify-end">
+          {/* Business info moved lower in the cover section */}
+          <div className="py-16 mb-16">
+            <h1 
+              className={cn("text-4xl md:text-5xl font-bold mb-6", isGeorgian ? "font-georgian" : "")}
+              style={applyGeorgianFont(isGeorgian)}
+            >
+              {business.business_name}
+            </h1>
+            {business.description && (
+              <p 
+                className={cn("text-lg opacity-90 max-w-2xl mb-8", isGeorgian ? "font-georgian" : "")}
                 style={applyGeorgianFont(isGeorgian)}
               >
-                {business.business_name}
-              </h1>
-              {business.description && (
-                <p 
-                  className={cn("text-lg opacity-90 max-w-2xl mb-8", isGeorgian ? "font-georgian" : "")}
-                  style={applyGeorgianFont(isGeorgian)}
-                >
-                  {business.description}
-                </p>
+                {business.description}
+              </p>
+            )}
+            
+            <div className="flex gap-4 mb-6">
+              <Button 
+                size="lg" 
+                className={cn("bg-white text-blue-700 hover:bg-blue-50 dark:bg-white/90 dark:hover:bg-white", isGeorgian ? "georgian-text-fix font-georgian" : "")}
+                style={applyGeorgianFont(isGeorgian)}
+                onClick={() => {
+                  document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                <LanguageText withFont={true}>{t("calendar.bookNow")}</LanguageText>
+              </Button>
+            </div>
+          </div>
+        </div>
+          
+        {/* Contact information moved to bottom of the hero section as requested */}
+        <div className="bg-white/15 backdrop-blur-sm mt-auto dark:bg-black/30">
+          <div className="container mx-auto px-4">
+            <div className="grid md:grid-cols-2 gap-6 py-4">
+              {business.contact_email && (
+                <div className="flex items-center gap-3">
+                  <Mail className="h-5 w-5 text-blue-100" />
+                  <a href={`mailto:${business.contact_email}`} className="hover:underline text-white">
+                    {business.contact_email}
+                  </a>
+                </div>
               )}
               
-              <div className="flex gap-4 mb-6">
-                <Button 
-                  size="lg" 
-                  className={cn("bg-white text-blue-700 hover:bg-blue-50 dark:bg-white/90 dark:hover:bg-white", isGeorgian ? "georgian-text-fix font-georgian" : "")}
-                  style={applyGeorgianFont(isGeorgian)}
-                  onClick={() => {
-                    document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                >
-                  <LanguageText withFont={true}>{t("calendar.bookNow")}</LanguageText>
-                </Button>
-              </div>
+              {business.contact_phone && (
+                <div className="flex items-center gap-3">
+                  <Phone className="h-5 w-5 text-blue-100" />
+                  <a href={`tel:${business.contact_phone}`} className="hover:underline text-white">
+                    {business.contact_phone}
+                  </a>
+                </div>
+              )}
+              
+              {business.contact_address && (
+                <div className="flex items-center gap-3">
+                  <MapPin className="h-5 w-5 text-blue-100" />
+                  <span className="text-white">{business.contact_address}</span>
+                </div>
+              )}
+              
+              {business.contact_website && (
+                <div className="flex items-center gap-3">
+                  <Globe className="h-5 w-5 text-blue-100" />
+                  <a 
+                    href={business.contact_website} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hover:underline text-white"
+                  >
+                    {business.contact_website.replace(/^https?:\/\//, '')}
+                  </a>
+                </div>
+              )}
             </div>
-          </div>
-            
-          {/* Contact information moved to bottom of the hero section as requested */}
-          <div className="bg-white/15 backdrop-blur-sm mt-auto dark:bg-black/30">
-            <div className="container mx-auto px-4">
-              <div className="grid md:grid-cols-2 gap-6 py-4">
-                {business.contact_email && (
-                  <div className="flex items-center gap-3">
-                    <Mail className="h-5 w-5 text-blue-100" />
-                    <a href={`mailto:${business.contact_email}`} className="hover:underline text-white">
-                      {business.contact_email}
-                    </a>
-                  </div>
-                )}
-                
-                {business.contact_phone && (
-                  <div className="flex items-center gap-3">
-                    <Phone className="h-5 w-5 text-blue-100" />
-                    <a href={`tel:${business.contact_phone}`} className="hover:underline text-white">
-                      {business.contact_phone}
-                    </a>
-                  </div>
-                )}
-                
-                {business.contact_address && (
-                  <div className="flex items-center gap-3">
-                    <MapPin className="h-5 w-5 text-blue-100" />
-                    <span className="text-white">{business.contact_address}</span>
-                  </div>
-                )}
-                
-                {business.contact_website && (
-                  <div className="flex items-center gap-3">
-                    <Globe className="h-5 w-5 text-blue-100" />
-                    <a 
-                      href={business.contact_website} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="hover:underline text-white"
-                    >
-                      {business.contact_website.replace(/^https?:\/\//, '')}
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {coverPhotoUrl && (
-          <img 
-            src={coverPhotoUrl} 
-            alt=""
-            className="hidden" 
-            onLoad={handleImageLoad}
-            onError={handleImageError}
-          />
-        )}
-
-        <div className="container mx-auto px-4 py-6">
-          <div id="calendar-section" className="bg-background">
-            <div className="flex justify-between items-center mb-4">
-              <h2 
-                className={cn("text-2xl font-bold", isGeorgian ? "font-georgian" : "")}
-                style={applyGeorgianFont(isGeorgian)}
-              >
-                <LanguageText>{t("business.availableTimes")}</LanguageText>
-              </h2>
-              <div 
-                className={cn("text-sm text-muted-foreground", isGeorgian ? "font-georgian" : "")}
-                style={applyGeorgianFont(isGeorgian)}
-              >
-                <LanguageText>{t("business.clickToRequest")}</LanguageText>
-              </div>
-            </div>
-            
-            {business.id && (
-              <ExternalCalendar businessId={business.id} />
-            )}
           </div>
         </div>
       </div>
-    </HydrationSafetyWrapper>
+
+      {coverPhotoUrl && (
+        <img 
+          src={coverPhotoUrl} 
+          alt=""
+          className="hidden" 
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+        />
+      )}
+
+      <div className="container mx-auto px-4 py-6">
+        <div id="calendar-section" className="bg-background">
+          <div className="flex justify-between items-center mb-4">
+            <h2 
+              className={cn("text-2xl font-bold", isGeorgian ? "font-georgian" : "")}
+              style={applyGeorgianFont(isGeorgian)}
+            >
+              <LanguageText>{t("business.availableTimes")}</LanguageText>
+            </h2>
+            <div 
+              className={cn("text-sm text-muted-foreground", isGeorgian ? "font-georgian" : "")}
+              style={applyGeorgianFont(isGeorgian)}
+            >
+              <LanguageText>{t("business.clickToRequest")}</LanguageText>
+            </div>
+          </div>
+          
+          {business.id && (
+            <ExternalCalendar businessId={business.id} />
+          )}
+        </div>
+      </div>
+    </div>
   );
 };

@@ -1,5 +1,5 @@
 
-import { BrowserRouter, Route, Routes, useLocation, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -13,7 +13,6 @@ import { PublicBusinessPage } from "@/components/business/PublicBusinessPage";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ForgotPassword } from "@/components/ForgotPassword";
 import { useEffect } from "react";
-import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Create a client for React Query with improved retry logic
 const queryClient = new QueryClient({
@@ -69,7 +68,18 @@ const RouteAwareThemeProvider = ({ children }: { children: React.ReactNode }) =>
 // A separate component to handle route awareness
 const RouteAwareWrapper = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
-  const isExternalPage = location.pathname.startsWith('/business/');
+  
+  // More reliable business page detection
+  const isExternalPage = location.pathname.startsWith('/business/') || location.pathname === '/business';
+  
+  // If accessing from business path, set the flag early
+  useEffect(() => {
+    if (isExternalPage) {
+      console.log("[RouteAwareWrapper] Business page detected:", location.pathname);
+      localStorage.setItem('accessing_public_business_page', 'true');
+      localStorage.setItem('last_business_path', location.pathname);
+    }
+  }, [location.pathname, isExternalPage]);
   
   useEffect(() => {
     if (isExternalPage) {
@@ -98,73 +108,42 @@ const RouteAwareWrapper = ({ children }: { children: React.ReactNode }) => {
       document.documentElement.setAttribute('data-theme', 'light');
       console.log("[InitTheme] Applied system light theme");
     }
+    
+    // Make sure visibility is restored in case it was hidden by early detection
+    document.documentElement.style.visibility = 'visible';
   }, [isExternalPage, location.pathname]);
   
   return <>{children}</>;
 };
 
-// Add this cache busting header for all business page requests
-const CacheBustingHeaders = () => {
+// Business page route interceptor
+const BusinessRouteInterceptor = () => {
   const location = useLocation();
-  const isBusinessPage = location.pathname.startsWith('/business/');
   
   useEffect(() => {
-    if (isBusinessPage) {
-      // Add cache-control meta tag
-      const metaTag = document.createElement('meta');
-      metaTag.httpEquiv = 'Cache-Control';
-      metaTag.content = 'no-cache, no-store, must-revalidate';
-      document.head.appendChild(metaTag);
-      
-      // Add pragma meta tag
-      const pragmaTag = document.createElement('meta');
-      pragmaTag.httpEquiv = 'Pragma';
-      pragmaTag.content = 'no-cache';
-      document.head.appendChild(pragmaTag);
-      
-      // Add expires meta tag
-      const expiresTag = document.createElement('meta');
-      expiresTag.httpEquiv = 'Expires';
-      expiresTag.content = '0';
-      document.head.appendChild(expiresTag);
-      
-      // Set a session flag to indicate we're on a business page
-      sessionStorage.setItem('onBusinessPage', 'true');
-      
-      return () => {
-        // Clean up when component unmounts
-        document.head.removeChild(metaTag);
-        document.head.removeChild(pragmaTag);
-        document.head.removeChild(expiresTag);
+    // Check if we're directly accessing a business path
+    if (location.pathname.startsWith('/business')) {
+      console.log("[BusinessRouteInterceptor] Intercepting business path:", location.pathname);
+      localStorage.setItem('accessing_public_business_page', 'true');
+      localStorage.setItem('last_business_path', location.pathname);
+    }
+    
+    // Check if there's any redirection needed
+    const redirectNeeded = localStorage.getItem('redirect_after_load');
+    if (redirectNeeded) {
+      const targetPath = localStorage.getItem('redirect_target_path');
+      if (targetPath) {
+        console.log(`[BusinessRouteInterceptor] Performing delayed redirect to: ${targetPath}`);
+        localStorage.removeItem('redirect_after_load');
+        localStorage.removeItem('redirect_target_path');
         
-        // Only remove the flag if we're not navigating to another business page
-        if (!location.pathname.includes('/business')) {
-          sessionStorage.removeItem('onBusinessPage');
-        }
-      };
+        // Use timeout to ensure app is fully loaded
+        setTimeout(() => {
+          window.location.href = targetPath;
+        }, 100);
+      }
     }
-  }, [isBusinessPage, location.pathname]);
-  
-  return null;
-};
-
-// NEW: Early Route Detection before React Router is fully initialized
-const EarlyRouteDetector = () => {
-  useEffect(() => {
-    if (window.location.href.includes('/business')) {
-      console.log("[EarlyRouteDetector] Business page detected in URL, setting flag");
-      sessionStorage.setItem('onBusinessPage', 'true');
-      
-      // Set a cookie for server-side detection
-      document.cookie = "isBusinessPage=true; path=/";
-      
-      // Use localStorage as another backup
-      localStorage.setItem('isBusinessPage', 'true');
-      
-      // Add a special class to the body that CSS can detect
-      document.body.classList.add('is-business-page');
-    }
-  }, []);
+  }, [location]);
   
   return null;
 };
@@ -173,44 +152,31 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <EarlyRouteDetector />
-        <CacheBustingHeaders />
+        <BusinessRouteInterceptor />
         <ThemeProvider defaultTheme="system">
-          <TooltipProvider>
-            <LanguageProvider>
-              <AuthProvider>
-                <SessionRecoveryWrapper>
-                  <RouteAwareWrapper>
-                    <Routes>
-                      {/* REORDERED: Business page routes FIRST to ensure they have priority */}
-                      <Route path="/business/:slug" element={<PublicBusinessPage />} />
-                      <Route path="/business" element={<PublicBusinessPage />} />
-                      
-                      {/* Public routes that are ALWAYS accessible */}
-                      <Route path="/" element={<Landing />} />
-                      <Route path="/legal" element={<Legal />} />
-                      <Route path="/contact" element={<Contact />} />
-                      <Route path="/reset-password" element={<ResetPassword />} />
-                      <Route path="/forgot-password" element={<ForgotPassword />} />
-                      
-                      {/* Auth routes */}
-                      <Route path="/login" element={<Index />} />
-                      <Route path="/signup" element={<Index />} />
-                      
-                      {/* Dashboard routes that require authentication */}
-                      <Route path="/dashboard" element={<Index />} />
-                      <Route path="/dashboard/*" element={<Index />} />
-                      
-                      {/* Redirect legacy URLs or alternative formats */}
-                      <Route path="/business?slug=:slug" element={<Navigate to="/business/:slug" replace />} />
-                      <Route path="*" element={<Landing />} />
-                    </Routes>
-                    <Toaster />
-                  </RouteAwareWrapper>
-                </SessionRecoveryWrapper>
-              </AuthProvider>
-            </LanguageProvider>
-          </TooltipProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <SessionRecoveryWrapper>
+                <RouteAwareWrapper>
+                  <Routes>
+                    <Route path="/" element={<Landing />} />
+                    <Route path="/dashboard" element={<Index />} />
+                    <Route path="/dashboard/*" element={<Index />} />
+                    <Route path="/legal" element={<Legal />} />
+                    <Route path="/contact" element={<Contact />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/business/:slug" element={<PublicBusinessPage />} />
+                    <Route path="/business" element={<PublicBusinessPage />} />
+                    <Route path="/login" element={<Index />} />
+                    <Route path="/signup" element={<Index />} />
+                    <Route path="*" element={<Landing />} />
+                  </Routes>
+                  <Toaster />
+                </RouteAwareWrapper>
+              </SessionRecoveryWrapper>
+            </AuthProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </BrowserRouter>
     </QueryClientProvider>

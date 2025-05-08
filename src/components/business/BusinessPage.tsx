@@ -1,3 +1,4 @@
+
 import { BusinessProfileForm } from "./BusinessProfileForm";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -13,7 +14,6 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { TooltipProvider } from "@/components/ui/tooltip";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
@@ -91,119 +91,117 @@ export const BusinessPage = () => {
   };
 
   return (
-    <TooltipProvider>
-      <div className="space-y-6">
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="mb-6 bg-background/80 border rounded-lg p-1 shadow-sm">
-            <TabsTrigger 
-              value="profile" 
-              className="data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
-            >
+    <div className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="mb-6 bg-background/80 border rounded-lg p-1 shadow-sm">
+          <TabsTrigger 
+            value="profile" 
+            className="data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
+          >
+            {isGeorgian ? (
+              <GeorgianAuthText>ბიზნეს პროფილი</GeorgianAuthText>
+            ) : (
+              <LanguageText>{t("business.businessProfile")}</LanguageText>
+            )}
+          </TabsTrigger>
+          <TabsTrigger 
+            value="bookings" 
+            className="relative data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
+          >
+            <LanguageText>{t("business.bookingRequests")}</LanguageText>
+            {pendingCount > 0 && (
+              <Badge 
+                variant="orange" 
+                className="absolute -top-2 -right-2 flex items-center justify-center h-5 min-w-5 p-0 text-xs"
+              >
+                {pendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="profile" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">
               {isGeorgian ? (
-                <GeorgianAuthText>ბიზნეს პროფილი</GeorgianAuthText>
+                <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
               ) : (
-                <LanguageText>{t("business.businessProfile")}</LanguageText>
+                <LanguageText>{t("business.myBusiness")}</LanguageText>
               )}
-            </TabsTrigger>
-            <TabsTrigger 
-              value="bookings" 
-              className="relative data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
-            >
-              <LanguageText>{t("business.bookingRequests")}</LanguageText>
-              {pendingCount > 0 && (
-                <Badge 
-                  variant="orange" 
-                  className="absolute -top-2 -right-2 flex items-center justify-center h-5 min-w-5 p-0 text-xs"
-                >
-                  {pendingCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
+            </h1>
+            {renderViewPublicPageButton()}
+          </div>
 
-          <TabsContent value="profile" className="space-y-6">
-            <div className="flex justify-between items-center">
+          <BusinessProfileForm />
+        </TabsContent>
+
+        <TabsContent value="bookings" className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
+            <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold">
-                {isGeorgian ? (
-                  <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
-                ) : (
-                  <LanguageText>{t("business.myBusiness")}</LanguageText>
-                )}
+                <LanguageText>{t("business.bookingRequests")}</LanguageText>
               </h1>
-              {renderViewPublicPageButton()}
-            </div>
-
-            <BusinessProfileForm />
-          </TabsContent>
-
-          <TabsContent value="bookings" className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold">
-                  <LanguageText>{t("business.bookingRequests")}</LanguageText>
-                </h1>
-                {pendingCount > 0 && (
-                  <div className="flex items-center gap-2 text-destructive bg-destructive/10 px-3 py-1 rounded-full">
-                    <MessageSquare className="h-4 w-4" />
-                    <span className="font-medium">
-                      {pendingCount} <LanguageText>{pendingCount === 1 ? t("common.new") : t("common.new")}</LanguageText>{" "}
-                      <LanguageText>{pendingCount === 1 ? t("common.request") : t("common.requests")}</LanguageText>
-                    </span>
-                  </div>
-                )}
-              </div>
-              
-              {/* View Public Page button for mobile - positioned below heading */}
-              {isMobile && publicUrl && (
-                <div className="w-full mt-3 mb-2">{renderViewPublicPageButton()}</div>
+              {pendingCount > 0 && (
+                <div className="flex items-center gap-2 text-destructive bg-destructive/10 px-3 py-1 rounded-full">
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="font-medium">
+                    {pendingCount} <LanguageText>{pendingCount === 1 ? t("common.new") : t("common.new")}</LanguageText>{" "}
+                    <LanguageText>{pendingCount === 1 ? t("common.request") : t("common.requests")}</LanguageText>
+                  </span>
+                </div>
               )}
-              
-              {/* View Public Page button for desktop - positioned to the right */}
-              {!isMobile && publicUrl && renderViewPublicPageButton()}
+            </div>
+            
+            {/* View Public Page button for mobile - positioned below heading */}
+            {isMobile && publicUrl && (
+              <div className="w-full mt-3 mb-2">{renderViewPublicPageButton()}</div>
+            )}
+            
+            {/* View Public Page button for desktop - positioned to the right */}
+            {!isMobile && publicUrl && renderViewPublicPageButton()}
+          </div>
+
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                {renderSectionHeading("business.pendingRequests")} 
+                <Badge variant="orange" className="ml-2">({pendingRequests.length})</Badge>
+              </h2>
+              <BookingRequestsList
+                requests={pendingRequests}
+                type="pending"
+                onApprove={approveRequest}
+                onReject={rejectRequest}
+                onDelete={deleteBookingRequest}
+              />
             </div>
 
-            <div className="space-y-8">
-              <div>
-                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  {renderSectionHeading("business.pendingRequests")} 
-                  <Badge variant="orange" className="ml-2">({pendingRequests.length})</Badge>
-                </h2>
-                <BookingRequestsList
-                  requests={pendingRequests}
-                  type="pending"
-                  onApprove={approveRequest}
-                  onReject={rejectRequest}
-                  onDelete={deleteBookingRequest}
-                />
-              </div>
-
-              <div>
-                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  {renderSectionHeading("business.approvedRequests")}
-                  <Badge variant="green" className="ml-2">({approvedRequests.length})</Badge>
-                </h2>
-                <BookingRequestsList
-                  requests={approvedRequests}
-                  type="approved"
-                  onDelete={deleteBookingRequest}
-                />
-              </div>
-
-              <div>
-                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  {renderSectionHeading("business.rejectedRequests")}
-                  <Badge variant="destructive" className="ml-2">({rejectedRequests.length})</Badge>
-                </h2>
-                <BookingRequestsList
-                  requests={rejectedRequests}
-                  type="rejected"
-                  onDelete={deleteBookingRequest}
-                />
-              </div>
+            <div>
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                {renderSectionHeading("business.approvedRequests")}
+                <Badge variant="green" className="ml-2">({approvedRequests.length})</Badge>
+              </h2>
+              <BookingRequestsList
+                requests={approvedRequests}
+                type="approved"
+                onDelete={deleteBookingRequest}
+              />
             </div>
-          </TabsContent>
-        </Tabs>
-      </div>
-    </TooltipProvider>
+
+            <div>
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                {renderSectionHeading("business.rejectedRequests")}
+                <Badge variant="destructive" className="ml-2">({rejectedRequests.length})</Badge>
+              </h2>
+              <BookingRequestsList
+                requests={rejectedRequests}
+                type="rejected"
+                onDelete={deleteBookingRequest}
+              />
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
