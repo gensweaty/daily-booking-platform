@@ -15,6 +15,7 @@ import { LanguageText } from '@/components/shared/LanguageText';
 import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
 import { Asterisk } from 'lucide-react';
 import { getGeorgianFontStyle } from '@/lib/font-utils';
+import { getCurrencySymbol } from '@/lib/currency';
 
 export interface BookingRequestFormProps {
   businessId: string;
@@ -57,6 +58,9 @@ export const BookingRequestForm = ({
   const [endDate, setEndDate] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('not_paid');
   const [paymentAmount, setPaymentAmount] = useState('');
+
+  // Get appropriate currency symbol based on language
+  const currencySymbol = getCurrencySymbol(language);
 
   // Move date initialization to useEffect
   useEffect(() => {
@@ -219,7 +223,7 @@ export const BookingRequestForm = ({
         }
       }
 
-      // Create booking data object
+      // Create booking data object with language/currency info
       const bookingData = {
         business_id: businessId,
         requester_name: fullName,
@@ -232,6 +236,8 @@ export const BookingRequestForm = ({
         payment_status: paymentStatus,
         payment_amount: finalPaymentAmount,
         status: 'pending',
+        // Add currency information based on the current language
+        currency_type: language // Store the language code which determines currency
       };
 
       console.log('Submitting booking request:', bookingData);
@@ -322,7 +328,8 @@ export const BookingRequestForm = ({
             paymentStatus: paymentStatus,
             paymentAmount: finalPaymentAmount,
             businessName: businessNameToUse,
-            businessAddress: businessData?.businessAddress
+            businessAddress: businessData?.businessAddress,
+            currencyType: language // Add currency type based on language
           };
           
           // Log notification data
@@ -607,21 +614,26 @@ export const BookingRequestForm = ({
                 t("events.paymentAmount")
               )}
             </Label>
-            <Input
-              id="paymentAmount"
-              value={paymentAmount}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                  setPaymentAmount(value);
-                }
-              }}
-              placeholder="0.00"
-              type="text"
-              inputMode="decimal"
-              className={isGeorgian ? "font-georgian" : ""}
-              style={georgianFontStyle}
-            />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <span className="text-gray-500">{currencySymbol}</span>
+              </div>
+              <Input
+                id="paymentAmount"
+                value={paymentAmount}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                    setPaymentAmount(value);
+                  }
+                }}
+                placeholder="0.00"
+                type="text"
+                inputMode="decimal"
+                className={`pl-7 ${isGeorgian ? "font-georgian" : ""}`}
+                style={georgianFontStyle}
+              />
+            </div>
           </div>
         )}
         

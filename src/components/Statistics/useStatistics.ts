@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format, parseISO, eachDayOfInterval, endOfDay, startOfMonth, endOfMonth, differenceInMonths, addMonths, eachMonthOfInterval } from 'date-fns';
@@ -88,6 +87,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         monthlyIncome: [],
         totalIncome: 0,
         events: [],
+        currencyType: null,
       };
       
       // Format dates for Supabase query
@@ -97,7 +97,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       // Get all calendar events - IMPORTANT: Now explicitly filtering out deleted events
       const { data: calendarEvents, error: calendarError } = await supabase
         .from('events')
-        .select('*')
+        .select('*, currency_type')
         .eq('user_id', userId)
         .gte('start_date', startDateStr)
         .lte('start_date', endDateStr)
@@ -111,7 +111,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       // Get all customers with create_event=true (events created from CRM)
       const { data: crmEvents, error: crmError } = await supabase
         .from('customers')
-        .select('*')
+        .select('*, currency_type')
         .eq('user_id', userId)
         .eq('create_event', true)
         .gte('start_date', startDateStr)
@@ -122,8 +122,23 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         console.error('Error fetching CRM event stats:', crmError);
         throw crmError;
       }
+
+      // Also get booking requests that have been approved
+      const { data: bookingEvents, error: bookingError } = await supabase
+        .from('booking_requests')
+        .select('*, currency_type')
+        .eq('user_id', userId)
+        .eq('status', 'approved')
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
+        .is('deleted_at', null);
+
+      if (bookingError) {
+        console.error('Error fetching booking event stats:', bookingError);
+        // Don't throw, just continue with the data we have
+      }
       
-      console.log(`Statistics - Found ${calendarEvents?.length || 0} calendar events and ${crmEvents?.length || 0} CRM events`);
+      console.log(`Statistics - Found ${calendarEvents?.length || 0} calendar events, ${crmEvents?.length || 0} CRM events, and ${bookingEvents?.length || 0} booking events`);
       
       // Normalize payment status values
       const normalizePaymentStatus = (status: string | null | undefined) => {
@@ -162,6 +177,28 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             type: event.type || 'event',
             created_at: event.created_at,
             user_id: event.user_id,
+            currency_type: event.currency_type,
+            // Other fields can be null or defaults
+          });
+        }
+      });
+      
+      // Add booking events if they don't already exist
+      bookingEvents?.forEach(event => {
+        const key = `${event.start_date}-${event.end_date}-${event.title}`;
+        if (!eventsMap.has(key)) {
+          eventsMap.set(key, {
+            id: event.id,
+            title: event.title,
+            user_surname: event.requester_name || event.title,
+            start_date: event.start_date,
+            end_date: event.end_date,
+            payment_status: normalizePaymentStatus(event.payment_status),
+            payment_amount: event.payment_amount,
+            type: 'booking_request',
+            created_at: event.created_at,
+            user_id: event.user_id,
+            currency_type: event.currency_type,
             // Other fields can be null or defaults
           });
         }
@@ -170,6 +207,28 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       // Convert Map back to array
       const allEvents = Array.from(eventsMap.values());
       console.log(`Statistics - Combined into ${allEvents.length} total unique events`);
+
+      // Track currency types and their frequencies
+      const currencyCount: Record<string, number> = {};
+      let dominantCurrency: string | null = null;
+      let maxCount = 0;
+
+      // Analyze all events for currency information
+      allEvents.forEach(event => {
+        if (event.currency_type) {
+          currencyCount[event.currency_type] = (currencyCount[event.currency_type] || 0) + 1;
+          if (currencyCount[event.currency_type] > maxCount) {
+            maxCount = currencyCount[event.currency_type];
+            dominantCurrency = event.currency_type;
+          }
+        }
+      });
+
+      console.log('Currency analysis:', {
+        currencyCount,
+        dominantCurrency,
+        maxCount
+      });
       
       // Log detailed payment information for each event with payment data
       console.log('Event payment data:');
@@ -180,7 +239,8 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             raw_payment_amount: event.payment_amount,
             type_of: typeof event.payment_amount,
             payment_status: event.payment_status,
-            parsed_amount: parsePaymentAmount(event.payment_amount)
+            parsed_amount: parsePaymentAmount(event.payment_amount),
+            currency_type: event.currency_type || 'unknown'
           });
         }
       });
@@ -237,7 +297,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         });
       }
       
-      // Calculate monthly income with consistent payment parsing
+      // Calculate monthly income with consistent payment parsing and respect currency
       const monthlyIncome = monthsToCompare.map(month => {
         const monthStart = startOfMonth(month);
         const monthEnd = endOfDay(endOfMonth(month));
@@ -259,7 +319,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           if (isPaid && (event.payment_amount !== undefined && event.payment_amount !== null)) {
             const parsedAmount = parsePaymentAmount(event.payment_amount);
             income += parsedAmount;
-            console.log(`Month ${format(month, 'MMM yyyy')} - Added ${parsedAmount} from event ${event.id}`);
+            console.log(`Month ${format(month, 'MMM yyyy')} - Added ${parsedAmount} from event ${event.id} (currency: ${event.currency_type || 'unknown'})`);
           }
         });
         
@@ -285,7 +345,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           
           if (parsedAmount > 0) {
             validPaymentCount++;
-            console.log(`Total income: Adding ${parsedAmount} from event ${event.id} (${event.title})`);
+            console.log(`Total income: Adding ${parsedAmount} from event ${event.id} (${event.title}) with currency: ${event.currency_type || 'unknown'}`);
             totalIncome += parsedAmount;
           }
         }
@@ -299,7 +359,8 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         monthlyTotalSum: monthlyTotal, 
         eventsWithValidPayment: validPaymentCount,
         totalEventCount: allEvents.length,
-        mismatch: Math.abs(totalIncome - monthlyTotal) > 0.01 ? 'YES' : 'NO'
+        mismatch: Math.abs(totalIncome - monthlyTotal) > 0.01 ? 'YES' : 'NO',
+        dominantCurrency
       });
       
       // If there's a discrepancy, use the monthly sum as it's more reliable
@@ -318,7 +379,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         totalIncome = 0;
       }
 
-      console.log(`Final totalIncome value: ${totalIncome}`);
+      console.log(`Final totalIncome value: ${totalIncome} with currency: ${dominantCurrency || 'based on language'}`);
 
       return {
         total: allEvents.length || 0,
@@ -328,6 +389,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         monthlyIncome,
         totalIncome,
         events: allEvents || [],
+        currencyType: dominantCurrency,  // Add the dominant currency type to the stats
       };
     },
     enabled: !!userId,

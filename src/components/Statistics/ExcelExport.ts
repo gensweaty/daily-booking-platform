@@ -18,6 +18,7 @@ interface StatsData {
     partlyPaid: number;
     fullyPaid: number;
     totalIncome: number;
+    currencyType?: string;
     events: any[];
   };
   customerStats?: {
@@ -32,7 +33,7 @@ export const useExcelExport = () => {
   const { t, language } = useLanguage();
   
   // Get currency symbol based on language
-  const currencySymbol = useMemo(() => getCurrencySymbol(language), [language]);
+  const defaultCurrencySymbol = useMemo(() => getCurrencySymbol(language), [language]);
 
   const exportToExcel = useMemo(() => (data: StatsData) => {
     if (!data.eventStats?.events) {
@@ -43,6 +44,17 @@ export const useExcelExport = () => {
       });
       return;
     }
+    
+    // Determine which currency to use for display - use the event stat's currency type if available
+    const displayCurrency = data.eventStats.currencyType || language;
+    const currencySymbol = getCurrencySymbol(displayCurrency as any);
+    
+    console.log('Excel export - Using currency:', {
+      displayCurrency,
+      symbol: currencySymbol,
+      defaultLanguage: language,
+      eventStatsCurrency: data.eventStats.currencyType
+    });
 
     // Create statistics summary data with properly translated values
     const statsData = [{
@@ -69,26 +81,39 @@ export const useExcelExport = () => {
       [t('dashboard.category')]: t('dashboard.financialSummary'),
       [t('dashboard.total')]: t('dashboard.totalIncome'),
       [t('dashboard.details')]: `${currencySymbol}${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
-      [t('dashboard.additionalInfo')]: t('dashboard.fromAllEvents'),
+      [t('dashboard.additionalInfo')]: `${t('dashboard.fromAllEvents')} (${t(`common.currency.${displayCurrency}`) || displayCurrency})`,
     }];
 
+    // Function to determine the currency symbol for each event
+    const getEventCurrencySymbol = (event: any) => {
+      if (event.currency_type) {
+        return getCurrencySymbol(event.currency_type);
+      }
+      return currencySymbol; // Default to the display currency
+    };
+
     // Transform events data for Excel with translated headers
-    const eventsData = data.eventStats.events.map(event => ({
-      [t('events.fullNameRequired')]: `${event.title || ''} ${event.user_surname || ''}`.trim(),
-      [t('events.phoneNumber')]: event.user_number || '',
-      [t('events.socialLinkEmail')]: event.social_network_link || '',
-      [t('events.paymentStatus')]: event.payment_status ? (
-        event.payment_status === 'not_paid' ? t("crm.notPaid") : 
-        event.payment_status === 'partly' ? t("crm.paidPartly") :
-        event.payment_status === 'fully' ? t("crm.paidFully") :
-        event.payment_status
-      ) : '',
-      [t('events.paymentAmount')]: event.payment_amount ? `${currencySymbol}${event.payment_amount}` : '',
-      [t('events.date')]: event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
-      [t('events.time')]: event.start_date && event.end_date ? 
-        `${format(new Date(event.start_date), 'HH:mm')} - ${format(new Date(event.end_date), 'HH:mm')}` : '',
-      [t('events.eventNotes')]: event.event_notes || '',
-    }));
+    const eventsData = data.eventStats.events.map(event => {
+      const eventCurrencySymbol = getEventCurrencySymbol(event);
+      
+      return {
+        [t('events.fullNameRequired')]: `${event.title || ''} ${event.user_surname || ''}`.trim(),
+        [t('events.phoneNumber')]: event.user_number || '',
+        [t('events.socialLinkEmail')]: event.social_network_link || '',
+        [t('events.paymentStatus')]: event.payment_status ? (
+          event.payment_status === 'not_paid' ? t("crm.notPaid") : 
+          event.payment_status === 'partly' || event.payment_status === 'partly_paid' ? t("crm.paidPartly") :
+          event.payment_status === 'fully' || event.payment_status === 'fully_paid' ? t("crm.paidFully") :
+          event.payment_status
+        ) : '',
+        [t('events.paymentAmount')]: event.payment_amount ? `${eventCurrencySymbol}${event.payment_amount}` : '',
+        [t('events.currency')]: event.currency_type ? t(`common.currency.${event.currency_type}`) || event.currency_type : '',
+        [t('events.date')]: event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
+        [t('events.time')]: event.start_date && event.end_date ? 
+          `${format(new Date(event.start_date), 'HH:mm')} - ${format(new Date(event.end_date), 'HH:mm')}` : '',
+        [t('events.eventNotes')]: event.event_notes || '',
+      };
+    });
 
     // Set Excel metadata in current language
     const wb = XLSX.utils.book_new();
@@ -122,6 +147,7 @@ export const useExcelExport = () => {
       { wch: 30 },
       { wch: 15 },
       { wch: 15 },
+      { wch: 15 },
       { wch: 12 },
       { wch: 20 },
       { wch: 40 },
@@ -136,7 +162,7 @@ export const useExcelExport = () => {
       title: t("dashboard.exportSuccessful"),
       description: t("dashboard.exportSuccessMessage"),
     });
-  }, [toast, t, language, currencySymbol]);
+  }, [toast, t, language, defaultCurrencySymbol]);
 
   return { exportToExcel };
 };

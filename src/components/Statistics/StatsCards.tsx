@@ -25,6 +25,7 @@ interface StatsCardsProps {
     partlyPaid: number;
     fullyPaid: number;
     totalIncome: number | string | null | undefined;
+    currencyType?: string; // Add support for currency type
   };
   customerStats: {
     total: number;
@@ -42,8 +43,11 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
     return null;
   }
   
-  // Get the appropriate currency symbol based on language
-  const currencySymbol = getCurrencySymbol(language);
+  // Determine the currency to display - use event currency if available, otherwise use language
+  const displayCurrency = eventStats.currencyType || language;
+  
+  // Get the appropriate currency symbol based on currency type or fallback to language
+  const currencySymbol = getCurrencySymbol(displayCurrency as any);
 
   // Ensure totalIncome is a valid number - use fallback to 0 if invalid or undefined
   let validTotalIncome = 0;
@@ -64,9 +68,9 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
   // Format the income value to have 2 decimal places and add currency symbol
   const formattedIncome = `${currencySymbol}${(validTotalIncome || 0).toFixed(2)}`;
   
-  // Choose the appropriate currency icon based on language
-  const CurrencyIcon = language === 'es' ? EuroIcon : 
-                       language === 'ka' ? BanknoteIcon : DollarSign;
+  // Choose the appropriate currency icon based on display currency
+  const CurrencyIcon = displayCurrency === 'es' ? EuroIcon : 
+                       displayCurrency === 'ka' ? BanknoteIcon : DollarSign;
   
   // Enhanced debugging to verify income data at every step
   console.log("StatsCards - Rendering with income data:", {
@@ -74,7 +78,9 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
     rawIncomeType: typeof eventStats.totalIncome,
     afterParsing: validTotalIncome,
     formattedIncome,
-    currency: currencySymbol
+    currency: currencySymbol,
+    displayCurrency,
+    eventCurrency: eventStats.currencyType
   });
 
   // Format the task details to show completed, in progress, and todo
