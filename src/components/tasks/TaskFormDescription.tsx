@@ -14,6 +14,8 @@ export const TaskFormDescription = ({ description, setDescription }: TaskFormDes
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
 
+  console.log("TaskFormDescription rendering with description length:", description?.length || 0, "language:", language);
+
   return (
     <div className="space-y-2">
       <Label 
@@ -31,6 +33,7 @@ export const TaskFormDescription = ({ description, setDescription }: TaskFormDes
           content={description}
           onChange={setDescription}
           placeholder={isGeorgian ? "აღწერა..." : "Description..."}
+          key={language} // Add a key that changes with language to force re-render
         />
       </div>
     </div>

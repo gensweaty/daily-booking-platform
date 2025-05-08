@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { createTask, updateTask } from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,6 +10,10 @@ import { TaskFormDescription } from "@/components/tasks/TaskFormDescription";
 import { TaskFormHeader } from "@/components/tasks/TaskFormHeader";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Task } from "@/lib/types";
+import { FileUploadField } from "@/components/shared/FileUploadField";
+import { FileDisplay } from "@/components/shared/FileDisplay";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 
 interface AddTaskFormProps {
   isOpen: boolean;
@@ -21,13 +24,31 @@ interface AddTaskFormProps {
 }
 
 export const AddTaskForm = ({ isOpen, onClose, onSuccess, initialColumn = "todo", editingTask }: AddTaskFormProps) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState(initialColumn as "todo" | "inprogress" | "done");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
+  const isGeorgian = language === 'ka';
+
+  const { data: existingFiles = [], refetch } = useQuery({
+    queryKey: ['taskFiles', editingTask?.id],
+    queryFn: async () => {
+      if (!editingTask?.id) return [];
+      const { data, error } = await supabase
+        .from('files')
+        .select('*')
+        .eq('task_id', editingTask.id);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!editingTask?.id && isOpen,
+  });
 
   // Initialize form when editing an existing task
   useEffect(() => {
@@ -41,7 +62,19 @@ export const AddTaskForm = ({ isOpen, onClose, onSuccess, initialColumn = "todo"
       setDescription("");
       setStatus(initialColumn as "todo" | "inprogress" | "done");
     }
-  }, [editingTask, initialColumn]);
+    
+    // Reset file state
+    setSelectedFile(null);
+    setFileError("");
+  }, [editingTask, initialColumn, isOpen]);
+
+  const handleFileDeleted = () => {
+    refetch();
+    toast({
+      title: t("common.success"),
+      description: t("common.fileDeleted"),
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +100,8 @@ export const AddTaskForm = ({ isOpen, onClose, onSuccess, initialColumn = "todo"
     setIsSubmitting(true);
     
     try {
+      let taskId: string;
+      
       if (editingTask) {
         // Update existing task
         await updateTask(editingTask.id, {
@@ -74,6 +109,8 @@ export const AddTaskForm = ({ isOpen, onClose, onSuccess, initialColumn = "todo"
           description,
           status,
         });
+        
+        taskId = editingTask.id;
         
         toast({
           title: t("tasks.taskUpdated"),
@@ -85,7 +122,7 @@ export const AddTaskForm = ({ isOpen, onClose, onSuccess, initialColumn = "todo"
         const response = await fetch('/api/tasks/max-position?status=' + status);
         const maxPosition = response.ok ? await response.json() : { position: 0 };
         
-        await createTask({
+        const newTask = await createTask({
           title,
           description,
           status,
@@ -93,14 +130,58 @@ export const AddTaskForm = ({ isOpen, onClose, onSuccess, initialColumn = "todo"
           position: maxPosition.position + 1 // Use position instead of order
         });
         
+        taskId = newTask.id;
+        
         toast({
           title: t("tasks.taskCreated"),
           description: t("tasks.taskCreatedDescription")
         });
       }
       
+      // Handle file upload if a file is selected
+      if (selectedFile && taskId) {
+        try {
+          const fileExt = selectedFile.name.split('.').pop();
+          const filePath = `${taskId}/${crypto.randomUUID()}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('event_attachments')
+            .upload(filePath, selectedFile);
+
+          if (uploadError) {
+            console.error('Error uploading file:', uploadError);
+            throw uploadError;
+          }
+
+          // Create file record
+          const { error: fileRecordError } = await supabase
+            .from('files')
+            .insert({
+              task_id: taskId,
+              filename: selectedFile.name,
+              file_path: filePath,
+              content_type: selectedFile.type,
+              size: selectedFile.size,
+              user_id: user.id
+            });
+            
+          if (fileRecordError) {
+            console.error('Error creating file record:', fileRecordError);
+            throw fileRecordError;
+          }
+        } catch (fileError) {
+          console.error("Error handling file upload:", fileError);
+          toast({
+            title: t("common.warning"),
+            description: t("common.fileUploadError"),
+            variant: "destructive",
+          });
+        }
+      }
+      
       setTitle("");
       setDescription("");
+      setSelectedFile(null);
       onSuccess();
       onClose();
     } catch (error) {
@@ -116,6 +197,9 @@ export const AddTaskForm = ({ isOpen, onClose, onSuccess, initialColumn = "todo"
       setIsSubmitting(false);
     }
   };
+
+  // The acceptedFormats for file uploads
+  const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -135,6 +219,26 @@ export const AddTaskForm = ({ isOpen, onClose, onSuccess, initialColumn = "todo"
           <TaskFormDescription 
             description={description} 
             setDescription={setDescription} 
+          />
+          
+          {editingTask?.id && existingFiles && existingFiles.length > 0 && (
+            <div className="space-y-2">
+              <FileDisplay 
+                files={existingFiles} 
+                bucketName="event_attachments"
+                allowDelete
+                onFileDeleted={handleFileDeleted}
+                parentId={editingTask.id}
+                parentType="task"
+              />
+            </div>
+          )}
+          
+          <FileUploadField 
+            onChange={setSelectedFile}
+            fileError={fileError}
+            setFileError={setFileError}
+            acceptedFileTypes={acceptedFormats}
           />
           
           <DialogFooter className="mt-6">
