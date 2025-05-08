@@ -1,347 +1,191 @@
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { toast } from "sonner";
-import { LanguageText } from "@/components/shared/LanguageText";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { getCurrencySymbol } from "@/lib/currency";
+import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { LanguageText } from '@/components/shared/LanguageText';
+import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
+import { supabase } from '@/lib/supabase';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { CalendarEventType } from '@/lib/types/calendar';
 
-// Schema updated to include payment fields
-const bookingSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters."),
-  email: z.string().email("Please enter a valid email address."),
-  phone: z.string().optional(),
-  date: z.date({
-    required_error: "Please select a date.",
-  }),
-  time: z.string().min(1, "Please select a time."),
-  duration: z.string().min(1, "Please select a duration."),
-  notes: z.string().optional(),
-  paymentStatus: z.string().optional(),
-  paymentAmount: z.string().optional(),
-});
+// Define props interface with all required properties
+interface BookingRequestFormProps {
+  businessId: string;
+  selectedDate?: Date;
+  startTime?: string;
+  endTime?: string;
+  onSuccess?: () => void;
+  isExternalBooking?: boolean;
+}
 
-export function BookingRequestForm({ businessId }: { businessId: string }) {
+export const BookingRequestForm = ({ 
+  businessId, 
+  selectedDate,
+  startTime,
+  endTime,
+  onSuccess,
+  isExternalBooking = false
+}: BookingRequestFormProps) => {
+  const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [searchParams] = useSearchParams();
-  const dateParam = searchParams.get("date");
-  const timeParam = searchParams.get("time");
-  const { language, t } = useLanguage();
-  const [selectedPaymentStatus, setSelectedPaymentStatus] = useState("not_paid");
-  const currencySymbol = getCurrencySymbol(language);
 
-  const form = useForm<z.infer<typeof bookingSchema>>({
-    resolver: zodResolver(bookingSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      phone: "",
-      date: dateParam ? new Date(dateParam) : new Date(),
-      time: timeParam || "09:00",
-      duration: "30",
-      notes: "",
-      paymentStatus: "not_paid",
-      paymentAmount: "",
-    },
+  const formSchema = z.object({
+    requester_name: z.string().min(2, {
+      message: t("validation.nameRequired"),
+    }),
+    requester_phone: z.string().min(5, {
+      message: t("validation.phoneRequired"),
+    }),
+    requester_email: z.string().email({
+      message: t("validation.emailInvalid"),
+    }),
+    description: z.string().optional(),
   });
 
-  const handleSubmit = async (values: z.infer<typeof bookingSchema>) => {
+  const { register, handleSubmit, formState: { errors } } = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+  });
+
+  const { toast } = useToast();
+
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-
     try {
-      const { name, email, phone, date, time, duration, notes, paymentStatus, paymentAmount } = values;
+      if (!businessId || !selectedDate || !startTime || !endTime) {
+        console.error("Missing required props:", { businessId, selectedDate, startTime, endTime });
+        toast({
+          title: t("common.error"),
+          description: t("validation.missingFields"),
+        });
+        return;
+      }
 
-      const startDateTime = new Date(date);
-      const [hours, minutes] = time.split(":").map(Number);
+      const startDateTime = new Date(selectedDate);
+      const [hours, minutes] = startTime.split(':').map(Number);
       startDateTime.setHours(hours, minutes, 0, 0);
 
-      const durationInMinutes = parseInt(duration, 10);
-      const endDateTime = new Date(startDateTime.getTime() + durationInMinutes * 60000);
+      const endDateTime = new Date(selectedDate);
+      const [endHours, endMinutes] = endTime.split(':').map(Number);
+      endDateTime.setHours(endHours, endMinutes, 0, 0);
 
-      const { data, error } = await supabase
-        .from("booking_requests")
-        .insert([
-          {
-            business_id: businessId,
-            requester_name: name,
-            requester_email: email,
-            requester_phone: phone,
-            title: `Booking Request by ${name}`,
-            start_date: startDateTime.toISOString(),
-            end_date: endDateTime.toISOString(),
-            description: notes,
-            status: "pending",
-            payment_status: paymentStatus,
-            payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-          },
-        ]);
+      const newBookingRequest: Omit<CalendarEventType, 'id'> = {
+        business_id: businessId,
+        title: data.requester_name,
+        requester_name: data.requester_name,
+        requester_phone: data.requester_phone,
+        requester_email: data.requester_email,
+        description: data.description,
+        start_date: startDateTime.toISOString(),
+        end_date: endDateTime.toISOString(),
+        type: 'booking_request',
+        user_id: '',
+        user_surname: '',
+        user_number: '',
+        social_network_link: '',
+        event_notes: '',
+        payment_status: 'not_paid',
+        payment_amount: 0,
+      };
+
+      const { error } = await supabase
+        .from('booking_requests')
+        .insert(newBookingRequest);
 
       if (error) {
         console.error("Error submitting booking request:", error);
-        toast.error(t("common.requestFailed"));
+        toast({
+          title: t("common.error"),
+          description: t("validation.requestFailed"),
+        });
       } else {
-        toast.success(t("common.requestSubmitted"));
-        form.reset();
+        toast({
+          title: t("common.success"),
+          description: t("validation.requestSubmitted"),
+        });
+        if (onSuccess) {
+          onSuccess();
+        }
       }
     } catch (error) {
-      console.error("Unexpected error:", error);
-      toast.error(t("common.requestFailed"));
+      console.error("Error during booking request submission:", error);
+      toast({
+        title: t("common.error"),
+        description: t("validation.requestFailed"),
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const formatDate = (date: Date | undefined) => {
-    return date ? format(date, "PPP") : "";
-  };
-  
-  // Render the payment amount field only when payment status is partly or fully paid
-  const showPaymentAmount = selectedPaymentStatus === "partly_paid" || selectedPaymentStatus === "fully_paid";
-
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                <LanguageText>{t("common.name")}</LanguageText>
-              </FormLabel>
-              <FormControl>
-                <Input placeholder={t("common.yourName")} {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div>
+        <label htmlFor="requester_name" className="block text-sm font-medium text-gray-700">
+          {isGeorgian ? <GeorgianAuthText>თქვენი სახელი</GeorgianAuthText> : <LanguageText>{t("booking.yourName")}</LanguageText>}
+        </label>
+        <Input
+          type="text"
+          id="requester_name"
+          {...register("requester_name")}
+          className={cn("mt-1 block w-full dark:text-white", isGeorgian ? "font-georgian" : "")}
         />
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                <LanguageText>{t("common.email")}</LanguageText>
-              </FormLabel>
-              <FormControl>
-                <Input placeholder="email@example.com" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="phone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                <LanguageText>{t("common.phone")}</LanguageText>
-              </FormLabel>
-              <FormControl>
-                <Input placeholder={t("common.phoneNumber")} {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="date"
-          render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel>
-                <LanguageText>{t("common.date")}</LanguageText>
-              </FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-[240px] pl-3 text-left font-normal",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {formatDate(field.value)}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={field.onChange}
-                    disabled={(date) =>
-                      date < new Date()
-                    }
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
-          <FormField
-            control={form.control}
-            name="time"
-            render={({ field }) => (
-              <FormItem className="w-full">
-                <FormLabel>
-                  <LanguageText>{t("common.time")}</LanguageText>
-                </FormLabel>
-                <FormControl>
-                  <Input type="time" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="duration"
-            render={({ field }) => (
-              <FormItem className="w-full">
-                <FormLabel>
-                  <LanguageText>{t("common.duration")}</LanguageText>
-                </FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("common.selectDuration")} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="30">30 {t("common.minutes")}</SelectItem>
-                    <SelectItem value="60">1 {t("common.hour")}</SelectItem>
-                    <SelectItem value="90">1.5 {t("common.hours")}</SelectItem>
-                    <SelectItem value="120">2 {t("common.hours")}</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        
-        <FormField
-          control={form.control}
-          name="paymentStatus"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                <LanguageText>{t("events.paymentStatus")}</LanguageText>
-              </FormLabel>
-              <Select
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  setSelectedPaymentStatus(value);
-                }}
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("events.selectPaymentStatus")} />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="not_paid">
-                    <LanguageText>{t("crm.notPaid")}</LanguageText>
-                  </SelectItem>
-                  <SelectItem value="partly_paid">
-                    <LanguageText>{t("crm.paidPartly")}</LanguageText>
-                  </SelectItem>
-                  <SelectItem value="fully_paid">
-                    <LanguageText>{t("crm.paidFully")}</LanguageText>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {showPaymentAmount && (
-          <FormField
-            control={form.control}
-            name="paymentAmount"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  <LanguageText>{t("events.paymentAmount")}</LanguageText>
-                </FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                      <span className="text-gray-500">{currencySymbol}</span>
-                    </div>
-                    <Input
-                      placeholder="0.00"
-                      type="text"
-                      inputMode="decimal"
-                      className="pl-7"
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                          field.onChange(value);
-                        }
-                      }}
-                      value={field.value}
-                    />
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        {errors.requester_name && (
+          <p className="text-red-500 text-xs mt-1">{errors.requester_name.message}</p>
         )}
-        
-        <FormField
-          control={form.control}
-          name="notes"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                <LanguageText>{t("events.eventNotes")}</LanguageText>
-              </FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder={t("events.addEventNotes")}
-                  className="resize-none min-h-[100px]"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+      </div>
+      <div>
+        <label htmlFor="requester_phone" className="block text-sm font-medium text-gray-700">
+          {isGeorgian ? <GeorgianAuthText>თქვენი ტელეფონი</GeorgianAuthText> : <LanguageText>{t("booking.yourPhone")}</LanguageText>}
+        </label>
+        <Input
+          type="tel"
+          id="requester_phone"
+          {...register("requester_phone")}
+          className={cn("mt-1 block w-full dark:text-white", isGeorgian ? "font-georgian" : "")}
         />
-        
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? (
-            <LanguageText>{t("common.submitting")}</LanguageText>
-          ) : (
-            <LanguageText>{t("common.submitRequest")}</LanguageText>
-          )}
-        </Button>
-      </form>
-    </Form>
+        {errors.requester_phone && (
+          <p className="text-red-500 text-xs mt-1">{errors.requester_phone.message}</p>
+        )}
+      </div>
+      <div>
+        <label htmlFor="requester_email" className="block text-sm font-medium text-gray-700">
+          {isGeorgian ? <GeorgianAuthText>თქვენი ელ. ფოსტა</GeorgianAuthText> : <LanguageText>{t("booking.yourEmail")}</LanguageText>}
+        </label>
+        <Input
+          type="email"
+          id="requester_email"
+          {...register("requester_email")}
+          className={cn("mt-1 block w-full dark:text-white", isGeorgian ? "font-georgian" : "")}
+        />
+        {errors.requester_email && (
+          <p className="text-red-500 text-xs mt-1">{errors.requester_email.message}</p>
+        )}
+      </div>
+      <div>
+        <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+          {isGeorgian ? <GeorgianAuthText>აღწერა</GeorgianAuthText> : <LanguageText>{t("booking.description")}</LanguageText>}
+        </label>
+        <Textarea
+          id="description"
+          {...register("description")}
+          rows={3}
+          className={cn("mt-1 block w-full dark:text-white", isGeorgian ? "font-georgian" : "")}
+        />
+      </div>
+      <Button type="submit" disabled={isSubmitting} className="w-full">
+        {isSubmitting ? (
+          isGeorgian ? <GeorgianAuthText>გაგზავნა...</GeorgianAuthText> : <LanguageText>{t("booking.submitting")}</LanguageText>
+        ) : (
+          isGeorgian ? <GeorgianAuthText>გაგზავნა</GeorgianAuthText> : <LanguageText>{t("booking.submit")}</LanguageText>
+        )}
+      </Button>
+    </form>
   );
-}
+};
