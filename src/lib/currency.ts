@@ -33,6 +33,7 @@ export function formatCurrency(amount: number | string, language: Language): str
     return `${symbol}0.00`;
   }
   
+  // Format the numeric amount with the appropriate symbol and decimal places
   return `${symbol}${numericAmount.toFixed(2)}`;
 }
 
