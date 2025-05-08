@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -24,6 +23,8 @@ import { cn } from "@/lib/utils"
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
   setIsTaskDialogOpen: (open: boolean) => void
+  showAddTaskModal: boolean
+  setShowAddTaskModal: (open: boolean) => void
 }
 
 const tabVariants = {
@@ -51,7 +52,9 @@ const cardVariants = {
 
 export const DashboardContent = ({ 
   isTaskDialogOpen, 
-  setIsTaskDialogOpen 
+  setIsTaskDialogOpen, 
+  showAddTaskModal, 
+  setShowAddTaskModal 
 }: DashboardContentProps) => {
   const { t, language } = useLanguage()
   const { pendingRequests } = useBookingRequests()
@@ -270,11 +273,13 @@ export const DashboardContent = ({
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <AddTaskForm 
-                        isOpen={isTaskDialogOpen} 
-                        onClose={() => setIsTaskDialogOpen(false)} 
-                        onSuccess={handleTaskSuccess}
-                      />
+                      {showAddTaskModal && (
+                        <AddTaskForm 
+                          isOpen={showAddTaskModal}
+                          onClose={() => setShowAddTaskModal(false)}
+                          onSuccess={handleTaskSuccess}
+                        />
+                      )}
                     </motion.div>
                   </DialogContent>
                 </Dialog>

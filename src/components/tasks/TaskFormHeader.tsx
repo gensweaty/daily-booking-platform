@@ -9,7 +9,7 @@ import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 interface TaskFormHeaderProps {
   onAddTask?: () => void;
   editingTask?: Task | null;
-  titleKey?: string;
+  titleKey?: string; // Added titleKey to the interface
 }
 
 export const TaskFormHeader = ({ onAddTask, editingTask, titleKey }: TaskFormHeaderProps) => {

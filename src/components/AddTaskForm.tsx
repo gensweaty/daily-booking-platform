@@ -81,16 +81,16 @@ export const AddTaskForm = ({ isOpen, onClose, onSuccess, initialColumn = "todo"
         });
       } else {
         // Create new task
-        // Get the maximum order value for tasks with the current status
-        const response = await fetch('/api/tasks/max-order?status=' + status);
-        const maxOrder = response.ok ? await response.json() : { order: 0 };
+        // Get the maximum position value for tasks with the current status
+        const response = await fetch('/api/tasks/max-position?status=' + status);
+        const maxPosition = response.ok ? await response.json() : { position: 0 };
         
         await createTask({
           title,
           description,
           status,
           user_id: user.id,
-          order: maxOrder.order + 1 // Use order instead of position
+          position: maxPosition.position + 1 // Use position instead of order
         });
         
         toast({

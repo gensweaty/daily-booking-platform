@@ -297,7 +297,7 @@ export const useBookingRequests = () => {
         
         // Step 3: Prepare data for event and customer creation
         // Important! Set the event type to 'event' (not 'booking_request')
-        // And preserve the language field from the booking request
+        // Remove the language field since it doesn't exist in the events table
         const eventData = {
           title: booking.title,
           start_date: booking.start_date,
@@ -310,8 +310,8 @@ export const useBookingRequests = () => {
           type: 'event', // Change type to 'event' instead of 'booking_request'
           booking_request_id: booking.id,
           payment_status: booking.payment_status || 'not_paid',
-          payment_amount: booking.payment_amount,
-          language: booking.language // Preserve the language context
+          payment_amount: booking.payment_amount
+          // language field removed since it doesn't exist in the events table yet
         };
         
         console.log("Creating event with data:", eventData);
@@ -328,7 +328,7 @@ export const useBookingRequests = () => {
           type: 'event', // Make this consistent with the event type
           payment_status: booking.payment_status,
           payment_amount: booking.payment_amount,
-          language: booking.language // Also preserve language for customers
+          language: booking.language // Keep language for customers since this field exists in that table
         };
         
         console.log("Creating customer with data:", customerData);

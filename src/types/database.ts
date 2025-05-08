@@ -4,7 +4,7 @@ export interface Task {
   title: string;
   description?: string;
   status: 'todo' | 'inprogress' | 'done';
-  order: number;
+  position: number; // Changed from 'order' to 'position' to match database schema
   created_at: string;
   user_id: string;
 }

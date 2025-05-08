@@ -166,7 +166,7 @@ export const getTasks = async (): Promise<Task[]> => {
       .from("tasks")
       .select("*")
       .eq("user_id", userData.user.id)
-      .order("order", { ascending: true });
+      .order("position", { ascending: true });
       
     if (error) throw error;
     return data || [];
