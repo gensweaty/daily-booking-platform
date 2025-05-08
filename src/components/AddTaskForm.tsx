@@ -5,15 +5,10 @@ import { Button } from "@/components/ui/button";
 import { createTask, updateTask } from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { TaskFormTitle } from "@/components/tasks/TaskFormTitle";
-import { TaskFormDescription } from "@/components/tasks/TaskFormDescription";
 import { TaskFormHeader } from "@/components/tasks/TaskFormHeader";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Task } from "@/lib/types";
-import { FileUploadField } from "@/components/shared/FileUploadField";
-import { FileDisplay } from "@/components/shared/FileDisplay";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { TaskFormFields } from "@/components/tasks/TaskFormFields";
 
 interface AddTaskFormProps {
   isOpen: boolean;
@@ -24,7 +19,7 @@ interface AddTaskFormProps {
 }
 
 export const AddTaskForm = ({ isOpen, onClose, onSuccess, initialColumn = "todo", editingTask }: AddTaskFormProps) => {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState(initialColumn as "todo" | "inprogress" | "done");
@@ -33,22 +28,6 @@ export const AddTaskForm = ({ isOpen, onClose, onSuccess, initialColumn = "todo"
   const [fileError, setFileError] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
-  const isGeorgian = language === 'ka';
-
-  const { data: existingFiles = [], refetch } = useQuery({
-    queryKey: ['taskFiles', editingTask?.id],
-    queryFn: async () => {
-      if (!editingTask?.id) return [];
-      const { data, error } = await supabase
-        .from('files')
-        .select('*')
-        .eq('task_id', editingTask.id);
-      
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!editingTask?.id && isOpen,
-  });
 
   // Initialize form when editing an existing task
   useEffect(() => {
@@ -67,14 +46,6 @@ export const AddTaskForm = ({ isOpen, onClose, onSuccess, initialColumn = "todo"
     setSelectedFile(null);
     setFileError("");
   }, [editingTask, initialColumn, isOpen]);
-
-  const handleFileDeleted = () => {
-    refetch();
-    toast({
-      title: t("common.success"),
-      description: t("common.fileDeleted"),
-    });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,9 +169,6 @@ export const AddTaskForm = ({ isOpen, onClose, onSuccess, initialColumn = "todo"
     }
   };
 
-  // The acceptedFormats for file uploads
-  const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
-
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[500px]">
@@ -211,34 +179,16 @@ export const AddTaskForm = ({ isOpen, onClose, onSuccess, initialColumn = "todo"
         </DialogTitle>
         
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-          <TaskFormTitle 
-            title={title} 
-            setTitle={setTitle} 
-          />
-          
-          <TaskFormDescription 
-            description={description} 
-            setDescription={setDescription} 
-          />
-          
-          {editingTask?.id && existingFiles && existingFiles.length > 0 && (
-            <div className="space-y-2">
-              <FileDisplay 
-                files={existingFiles} 
-                bucketName="event_attachments"
-                allowDelete
-                onFileDeleted={handleFileDeleted}
-                parentId={editingTask.id}
-                parentType="task"
-              />
-            </div>
-          )}
-          
-          <FileUploadField 
-            onChange={setSelectedFile}
+          <TaskFormFields 
+            title={title}
+            setTitle={setTitle}
+            description={description}
+            setDescription={setDescription}
+            selectedFile={selectedFile}
+            setSelectedFile={setSelectedFile}
             fileError={fileError}
             setFileError={setFileError}
-            acceptedFileTypes={acceptedFormats}
+            editingTask={editingTask}
           />
           
           <DialogFooter className="mt-6">
