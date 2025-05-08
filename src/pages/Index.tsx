@@ -34,6 +34,7 @@ const childVariants = {
 
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false)
+  const [showAddTaskModal, setShowAddTaskModal] = useState(false)
   const [username, setUsername] = useState("")
   const [showTrialExpired, setShowTrialExpired] = useState(false)
   const [processingCode, setProcessingCode] = useState(false)
@@ -182,6 +183,8 @@ const Index = () => {
             <DashboardContent 
               isTaskDialogOpen={isTaskDialogOpen}
               setIsTaskDialogOpen={setIsTaskDialogOpen}
+              showAddTaskModal={showAddTaskModal}
+              setShowAddTaskModal={setShowAddTaskModal}
             />
           </motion.div>
         </motion.div>
