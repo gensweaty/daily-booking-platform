@@ -296,8 +296,7 @@ export const useBookingRequests = () => {
         console.log("No conflicts found, preparing to create event and customer records");
         
         // Step 3: Prepare data for event and customer creation
-        // Important! Set the event type to 'event' (not 'booking_request')
-        // Remove the language field since it doesn't exist in the events table
+        // IMPORTANT! Set the event type to 'booking_request' instead of 'event' to ensure it shows as green
         const eventData = {
           title: booking.title,
           start_date: booking.start_date,
@@ -307,11 +306,10 @@ export const useBookingRequests = () => {
           user_number: booking.requester_phone || booking.user_number || null,
           social_network_link: booking.requester_email || booking.social_network_link || null,
           event_notes: booking.description || booking.event_notes || null,
-          type: 'event', // Change type to 'event' instead of 'booking_request'
+          type: 'booking_request', // Fix: Keep 'booking_request' type to ensure it appears green in calendar
           booking_request_id: booking.id,
           payment_status: booking.payment_status || 'not_paid',
           payment_amount: booking.payment_amount
-          // language field removed since it doesn't exist in the events table yet
         };
         
         console.log("Creating event with data:", eventData);
@@ -325,7 +323,7 @@ export const useBookingRequests = () => {
           start_date: booking.start_date,
           end_date: booking.end_date,
           user_id: user.id,
-          type: 'event', // Make this consistent with the event type
+          type: 'booking_request', // Fix: Make this consistent with the event type
           payment_status: booking.payment_status,
           payment_amount: booking.payment_amount,
           language: booking.language // Keep language for customers since this field exists in that table
@@ -333,24 +331,34 @@ export const useBookingRequests = () => {
         
         console.log("Creating customer with data:", customerData);
         
-        // Step 4: Create event and customer records in parallel with proper error handling
-        const eventPromise = supabase.from('events').insert([eventData]).select();
-        const customerPromise = supabase.from('customers').insert([customerData]).select();
+        // Step 4: Create event and customer records with better error handling
+        let eventResult, customerResult;
         
-        const [eventResult, customerResult] = await Promise.all([eventPromise, customerPromise]);
+        // Create event first
+        eventResult = await supabase.from('events').insert([eventData]).select();
         
         if (eventResult.error) {
           console.error('Error creating event from booking:', eventResult.error);
           throw new Error(`Failed to create event: ${eventResult.error.message}`);
         }
         
-        if (customerResult.error) {
-          console.error('Error creating customer from booking:', customerResult.error);
-          // Log error but continue with the process
+        // Create customer with additional error handling
+        try {
+          customerResult = await supabase.from('customers').insert([customerData]).select();
+          
+          if (customerResult.error) {
+            console.error('Error creating customer from booking:', customerResult.error);
+            // Log error but continue with the process - don't fail the entire approval
+          } else {
+            console.log("Successfully created customer record:", customerResult.data);
+          }
+        } catch (customerError) {
+          console.error('Exception during customer creation:', customerError);
+          // Continue with approval even if customer creation fails
         }
         
         const createdEvent = eventResult.data?.[0];
-        const createdCustomer = customerResult.data?.[0];
+        const createdCustomer = customerResult?.data?.[0];
         
         if (!createdEvent) {
           console.error('Event was not created properly');
@@ -360,6 +368,8 @@ export const useBookingRequests = () => {
         console.log("Successfully created event:", createdEvent);
         if (createdCustomer) {
           console.log("Successfully created customer:", createdCustomer);
+        } else {
+          console.warn("No customer record was created or returned");
         }
         
         // Step 5: Update booking status to approved
@@ -603,8 +613,8 @@ export const useBookingRequests = () => {
         console.log('Booking approval process completed successfully');
         return { 
           booking,
-          eventId,
-          customerId
+          eventId: createdEvent.id,
+          customerId: createdCustomer?.id
         };
       } catch (error) {
         console.error('Error during booking approval process:', error);

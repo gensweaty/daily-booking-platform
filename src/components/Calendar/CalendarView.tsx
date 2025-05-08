@@ -1,4 +1,3 @@
-
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
 import { CalendarGrid } from "./CalendarGrid";
@@ -103,9 +102,9 @@ export function CalendarView({
   useEffect(() => {
     console.log(`[CalendarView] Rendering calendar with ${events.length} events, ${filteredEvents.length} after filtering deleted`);
     
-    // Debug log for events to check if they have language field
+    // Debug log for events to check event types for proper coloring
     if (filteredEvents.length > 0) {
-      console.log("[CalendarView] Events with languages:", filteredEvents.map(e => ({
+      console.log("[CalendarView] Events with types:", filteredEvents.map(e => ({
         id: e.id,
         title: e.title,
         type: e.type,
