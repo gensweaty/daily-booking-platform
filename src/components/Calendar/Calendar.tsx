@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -57,13 +58,14 @@ export const Calendar = ({
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
   
-  const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
+  const { events: fetchedEvents, isLoadingEvents, error: eventsError, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
     !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
   );
   
   const events = directEvents || fetchedEvents;
-  const isLoading = !directEvents && isLoadingFromHook;
+  const isLoading = !directEvents && isLoadingEvents;
+  const error = eventsError;
   
   const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
   const [bookingDate, setBookingDate] = useState<Date | undefined>(undefined);
@@ -110,22 +112,26 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      const result = await createEvent?.(data);
+      if (!createEvent) return {} as CalendarEventType;
+      const result = await createEvent(data);
       return result;
     },
     updateEvent: async (data) => {
-      if (!selectedEvent) throw new Error("No event selected");
-      console.log("Calendar passing to updateEvent:", { data, id: selectedEvent.id, type: selectedEvent.type });
+      if (!updateEvent || !selectedEvent) {
+        throw new Error("Update event function not provided or no event selected");
+      }
       
-      const result = await updateEvent?.({
+      const result = await updateEvent({
         ...data,
         id: selectedEvent.id,
-        type: selectedEvent.type  // Make sure to pass the type from the selected event
+        type: selectedEvent.type
       });
       return result;
     },
     deleteEvent: async (id) => {
-      await deleteEvent?.(id);
+      if (deleteEvent) {
+        await deleteEvent(id);
+      }
     }
   });
 
