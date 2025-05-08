@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -417,6 +418,9 @@ export const BookingRequestForm = ({
     return t("events.addEventNotes");
   };
 
+  // Get the current currency symbol based on selected language
+  const currencySymbol = getCurrencySymbol(language);
+
   return (
     <div className="space-y-4 p-1">
       <h3 className="text-xl font-semibold">
@@ -611,7 +615,7 @@ export const BookingRequestForm = ({
             </Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2">
-                {getCurrencySymbol(language)}
+                {currencySymbol}
               </span>
               <Input
                 id="paymentAmount"

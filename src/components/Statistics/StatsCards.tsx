@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { StatCard } from "./StatCard";
@@ -45,6 +46,13 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
   
   // Get the appropriate currency symbol based on event stats language (if available) or user language
   const currencySymbol = getBookingCurrencySymbol(eventStats, language);
+
+  // Add debugging info for currency selection
+  console.log("StatsCards - Currency Info:", {
+    eventStatsLanguage: eventStats.language,
+    userLanguage: language,
+    selectedCurrencySymbol: currencySymbol
+  });
 
   // Ensure totalIncome is a valid number - use fallback to 0 if invalid or undefined
   let validTotalIncome = 0;
