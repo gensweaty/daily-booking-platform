@@ -9,7 +9,7 @@ import { TaskFormHeader } from "@/components/tasks/TaskFormHeader";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Task } from "@/lib/types";
 import { TaskFormFields } from "@/components/tasks/TaskFormFields";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase"; // Fix: Import supabase client
 
 interface AddTaskFormProps {
   isOpen: boolean;
