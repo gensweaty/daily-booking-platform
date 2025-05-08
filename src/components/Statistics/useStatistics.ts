@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format, parseISO, eachDayOfInterval, endOfDay, startOfMonth, endOfMonth, differenceInMonths, addMonths, eachMonthOfInterval } from 'date-fns';
@@ -320,6 +319,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
 
       console.log(`Final totalIncome value: ${totalIncome}`);
 
+      // Add the language detection for the output
       return {
         total: allEvents.length || 0,
         partlyPaid,

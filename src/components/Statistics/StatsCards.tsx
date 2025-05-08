@@ -1,122 +1,135 @@
 
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { StatCard } from "./StatCard";
-import {
-  CheckCircle2,
-  Users,
-  CalendarCheck,
-  DollarSign,
-  EuroIcon,
-  BanknoteIcon,
-} from "lucide-react";
-import { LanguageText } from "@/components/shared/LanguageText";
-import { getCurrencySymbol, parsePaymentAmount } from "@/lib/currency";
+import { LanguageText } from "../shared/LanguageText";
+import { getCurrencySymbol, formatCurrency } from "@/lib/currency";
 
 interface StatsCardsProps {
-  taskStats: {
-    total: number;
-    completed: number;
-    inProgress: number;
-    todo: number;
-  };
-  eventStats: {
-    total: number;
-    partlyPaid: number;
-    fullyPaid: number;
-    totalIncome: number | string | null | undefined;
-  };
-  customerStats: {
-    total: number;
-    withBooking: number;
-    withoutBooking: number;
-  };
+  taskStats: any;
+  eventStats: any;
+  customerStats: any;
 }
 
 export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsProps) => {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   
-  // Early return with warning if eventStats is missing entirely
-  if (!eventStats) {
-    console.warn("StatsCards: eventStats is missing or undefined");
-    return null;
-  }
+  // Ensure totalIncome is a valid number
+  const totalIncome = typeof eventStats?.totalIncome === 'number' ? 
+    eventStats.totalIncome : 
+    0;
   
-  // Get the appropriate currency symbol based on language
-  const currencySymbol = getCurrencySymbol(language);
-
-  // Ensure totalIncome is a valid number - use fallback to 0 if invalid or undefined
-  let validTotalIncome = 0;
+  console.log("StatsCards - totalIncome:", totalIncome, "type:", typeof totalIncome);
   
-  if (eventStats.totalIncome === undefined || eventStats.totalIncome === null) {
-    console.warn("StatsCards: totalIncome is null or undefined, using default 0");
-  } else {
-    // Use our shared utility function to parse the payment amount
-    validTotalIncome = parsePaymentAmount(eventStats.totalIncome);
-    
-    // Additional validation to ensure we have a number
-    if (isNaN(validTotalIncome) || !isFinite(validTotalIncome)) {
-      console.error("StatsCards: Invalid number after parsing:", eventStats.totalIncome);
-      validTotalIncome = 0;
-    }
-  }
-
-  // Format the income value to have 2 decimal places and add currency symbol
-  const formattedIncome = `${currencySymbol}${(validTotalIncome || 0).toFixed(2)}`;
-  
-  // Choose the appropriate currency icon based on language
-  const CurrencyIcon = language === 'es' ? EuroIcon : 
-                       language === 'ka' ? BanknoteIcon : DollarSign;
-  
-  // Enhanced debugging to verify income data at every step
-  console.log("StatsCards - Rendering with income data:", {
-    rawIncome: eventStats.totalIncome,
-    rawIncomeType: typeof eventStats.totalIncome,
-    afterParsing: validTotalIncome,
-    formattedIncome,
-    currency: currencySymbol
-  });
-
-  // Format the task details to show completed, in progress, and todo
-  const taskDetailsText = `${taskStats.completed} ${t("dashboard.completed")}, ${taskStats.inProgress} ${t("dashboard.inProgress")}, ${taskStats.todo} ${t("dashboard.todo")}`;
-
-  // Format the customer details text using proper translations
-  // Using separate translation keys for "with booking" and "without booking"
-  const withBookingText = t("dashboard.withBooking");
-  const withoutBookingText = t("dashboard.withoutBooking");
-  const customerDetailsText = `${customerStats.withBooking} ${withBookingText}, ${customerStats.withoutBooking} ${withoutBookingText}`;
-
   return (
-    <div className="grid gap-4 md:grid-cols-4">
-      <StatCard
-        title={t("dashboard.totalTasks")}
-        value={taskStats.total}
-        description={taskDetailsText}
-        icon={CheckCircle2}
-        color="purple"
-      />
-      <StatCard
-        title={t("dashboard.totalCustomers")}
-        value={customerStats.total}
-        description={customerDetailsText}
-        icon={Users}
-        color="orange"
-      />
-      <StatCard
-        title={t("dashboard.totalEvents")}
-        value={eventStats.total}
-        description={`${eventStats.partlyPaid} ${t("dashboard.partlyPaid")}, ${eventStats.fullyPaid} ${t("dashboard.fullyPaid")}`}
-        icon={CalendarCheck}
-        color="green"
-      />
-      <StatCard
-        title={t("dashboard.totalIncome")}
-        value={formattedIncome}
-        description={t("dashboard.fromAllEvents")}
-        icon={CurrencyIcon}
-        valueClassName="text-2xl"
-        color="blue"
-      />
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">
+            <LanguageText>stats.totalTasks</LanguageText>
+          </CardTitle>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            className="h-4 w-4 text-muted-foreground"
+          >
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+          </svg>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{taskStats?.total || 0}</div>
+          <p className="text-xs text-muted-foreground">
+            <LanguageText>stats.completedTasks</LanguageText>: {taskStats?.completed || 0}
+          </p>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">
+            <LanguageText>stats.totalBookings</LanguageText>
+          </CardTitle>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            className="h-4 w-4 text-muted-foreground"
+          >
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M8 12h8M12 8v8" />
+          </svg>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{eventStats?.total || 0}</div>
+          <p className="text-xs text-muted-foreground">
+            <LanguageText>stats.paidBookings</LanguageText>: {(eventStats?.fullyPaid || 0) + (eventStats?.partlyPaid || 0)}
+          </p>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">
+            <LanguageText>stats.totalIncome</LanguageText>
+          </CardTitle>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            className="h-4 w-4 text-muted-foreground"
+          >
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            {formatCurrency(totalIncome, language)}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            <LanguageText>stats.from</LanguageText> {eventStats?.fullyPaid || 0} <LanguageText>stats.fullyPaid</LanguageText>
+          </p>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">
+            <LanguageText>stats.totalCustomers</LanguageText>
+          </CardTitle>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            className="h-4 w-4 text-muted-foreground"
+          >
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+          </svg>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{customerStats?.total || 0}</div>
+          <p className="text-xs text-muted-foreground">
+            <LanguageText>stats.withBooking</LanguageText>: {customerStats?.withBooking || 0}
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 };
