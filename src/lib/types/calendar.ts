@@ -27,8 +27,6 @@ export interface CalendarEventType {
   size?: number;
   checkAvailability?: boolean;
   language?: string;
-  customer_id?: string | null; // Added missing property
-  shouldCreateCustomer?: boolean; // Added missing property
   files?: Array<{
     id: string;
     event_id: string;

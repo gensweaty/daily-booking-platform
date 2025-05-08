@@ -155,14 +155,6 @@ export const forceBucketCreation = async () => {
 // Export the storage URL as a standalone function instead of attaching to supabase
 export const getStorageUrl = () => `${supabaseUrl}/storage/v1`;
 
-// Add the getFileUrl function
-export const getFileUrl = (bucketName: string, filePath: string): string => {
-  if (!filePath) return "";
-  // Normalize the path
-  const normalizedPath = normalizeFilePath(filePath);
-  return `${getStorageUrl()}/object/public/${bucketName}/${normalizedPath}`;
-};
-
 // Helper to normalize file paths for storage URLs (handle double slashes)
 export const normalizeFilePath = (filePath: string) => {
   if (!filePath) return "";

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -77,7 +77,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { t, language } = useLanguage();  // Make sure we import language from context
+  const { t } = useLanguage();
 
   // Helper to determine if times have changed between original and new dates
   const haveTimesChanged = (
@@ -488,96 +488,84 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     return true;
   };
 
-  const createEvent = async (eventData: Partial<CalendarEventType>) => {
-    try {
-      // Check if we should create a customer for this event - safely access property
-      const shouldCreateCustomer = eventData.shouldCreateCustomer !== false;
-      const isFromCrm = !!eventData.customer_id;
+  const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+    if (!user) throw new Error("User must be authenticated to create events");
+    
+    const startDateTime = new Date(event.start_date as string);
+    const endDateTime = new Date(event.end_date as string);
+    
+    // OPTIMIZATION: Only check availability if requested by adding a flag
+    // This makes normal event creation faster but still allows for checking when needed
+    if (event.checkAvailability) {
+      const { available, conflictDetails } = await checkTimeSlotAvailability(
+        startDateTime,
+        endDateTime
+      );
       
-      console.log("Creating event with data:", {
-        ...eventData,
-        shouldCreateCustomer,
-        isFromCrm
-      });
-      
-      // Create the event first
-      const { data: event, error } = await supabase
-        .from("events")
-        .insert({
-          title: eventData.title,
-          user_surname: eventData.user_surname || eventData.title,
-          user_number: eventData.user_number || "",
-          social_network_link: eventData.social_network_link || "",
-          event_notes: eventData.event_notes || "",
-          start_date: eventData.start_date,
-          end_date: eventData.end_date,
-          type: eventData.type || "event",
-          payment_status: eventData.payment_status || "not_paid",
-          payment_amount: eventData.payment_amount,
-          user_id: user.id,
-          language: eventData.language || language,  // Use the language from context
-          customer_id: eventData.customer_id || null  // Keep existing customer ID if set
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      // Now create a customer if needed (not from CRM and no customer ID already set)
-      if (shouldCreateCustomer && !isFromCrm && event) {
-        try {
-          console.log("Creating customer for event:", event.id);
-          
-          // Create customer based on event data using correct field names
-          const { data: customer, error: customerError } = await supabase
-            .from("customers")
-            .insert({
-              // Use proper customer table field names
-              title: event.user_surname || event.title,
-              user_surname: event.user_surname || event.title,
-              user_number: event.user_number || "",
-              social_network_link: event.social_network_link || "",
-              event_notes: event.event_notes || "",
-              user_id: user.id,
-              // Set source type based on event type
-              source: "calendar",
-              // Make sure to set type to match the event type
-              type: event.type || "event"
-            })
-            .select()
-            .single();
-            
-          if (customerError) {
-            console.error("Error creating customer:", customerError);
-            // Log error but don't throw to prevent event creation failure
-          } else if (customer) {
-            console.log("Customer created:", customer.id);
-            
-            // Update the event with the new customer ID
-            const { error: updateError } = await supabase
-              .from("events")
-              .update({ customer_id: customer.id })
-              .eq("id", event.id);
-              
-            if (updateError) {
-              console.error("Error linking customer to event:", updateError);
-            } else {
-              console.log("Event updated with customer ID:", customer.id);
-              // Update our local event object with the customer ID
-              event.customer_id = customer.id;
-            }
-          }
-        } catch (customerCreationError) {
-          console.error("Exception in customer creation:", customerCreationError);
-          // Don't throw to allow event creation to succeed even if customer creation fails
-        }
+      if (!available) {
+        throw new Error(`Time slot is no longer available: ${conflictDetails}`);
       }
-
-      return event;
-    } catch (error) {
-      console.error("Error in createEvent:", error);
+    }
+    
+    // Make sure the type field is set, defaulting to 'event'
+    if (!event.type) {
+      event.type = 'event';
+    }
+    
+    // Ensure title is set (title is required by the database)
+    if (!event.title) {
+      event.title = "Untitled Event"; // Default title if none provided
+    }
+    
+    // Create the event - Ensure required fields are included
+    const eventPayload = {
+      title: event.title,
+      start_date: event.start_date as string,
+      end_date: event.end_date as string,
+      user_id: user.id,
+      type: event.type,
+      // Add other optional fields
+      user_surname: event.user_surname,
+      user_number: event.user_number,
+      social_network_link: event.social_network_link,
+      event_notes: event.event_notes,
+      payment_status: event.payment_status,
+      payment_amount: event.payment_amount
+    };
+    
+    const { data, error } = await supabase
+      .from('events')
+      .insert(eventPayload)
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error creating event:', error);
       throw error;
     }
+    
+    // Send confirmation email in background only if we have a valid recipient email
+    // and this is a new event (not from a booking request conversion)
+    const recipientEmail = event.social_network_link;
+    if (
+      recipientEmail && 
+      isValidEmail(recipientEmail) && 
+      !event.id && // Check if this is a new event, not an existing one
+      data
+    ) {
+      // Don't await this call anymore - make it run in the background
+      sendBookingConfirmationEmail(
+        data.id,
+        event.title || event.user_surname || '',
+        recipientEmail,
+        event.start_date as string,
+        event.end_date as string,
+        event.payment_status || 'not_paid',
+        event.payment_amount || null
+      );
+    }
+    
+    return data;
   };
 
   const updateEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
