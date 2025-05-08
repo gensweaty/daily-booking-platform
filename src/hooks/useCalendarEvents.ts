@@ -798,12 +798,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     // First check if this is an event created from a booking request
     const { data: event, error: fetchError } = await supabase
       .from('events')
-      .select('booking_request_id')
+      .select('booking_request_id, payment_status, payment_amount')
       .eq('id', eventId)
       .maybeSingle();
       
     if (fetchError) {
       console.error("Error fetching event:", fetchError);
+    }
+    
+    // Log the payment information that will be removed
+    if (event?.payment_status === 'partly_paid' || event?.payment_status === 'fully_paid') {
+      console.log(`Deleting event will remove payment amount ${event.payment_amount} from statistics`);
     }
     
     // If this was created from a booking request, also update the request status
@@ -831,6 +836,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.error('Error deleting event:', error);
       throw error;
     }
+    
+    // Invalidate all relevant queries to ensure data is refreshed
+    queryClient.invalidateQueries({ queryKey: ['events'] });
+    queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+    queryClient.invalidateQueries({ queryKey: ['business-events'] });
+    queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
   };
 
   const eventsQuery = useQuery({
@@ -858,6 +869,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
+      
+      // Also invalidate statistics to reflect new event data
+      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+      queryClient.invalidateQueries({ queryKey: ['taskStats'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
     },
     onError: (error: Error) => {
       toast({
@@ -874,6 +890,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
       queryClient.invalidateQueries({ queryKey: ['approved-bookings', businessId, businessUserId] });
+      
+      // Also invalidate statistics to reflect updated event data
+      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+      
       toast({
         title: t("common.success"),
         description: t("events.eventUpdated"),
@@ -895,6 +915,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
       queryClient.invalidateQueries({ queryKey: ['approved-bookings', businessId, businessUserId] });
+      
+      // Explicitly invalidate statistics to ensure deleted event's income is removed
+      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+      
       toast({
         title: t("common.success"),
         description: t("events.eventDeleted"),

@@ -1,3 +1,4 @@
+
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { useState, useCallback, useMemo, useEffect } from "react";
@@ -12,10 +13,12 @@ import { Skeleton } from "./ui/skeleton";
 import { LanguageText } from "./shared/LanguageText";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { GeorgianAuthText } from "./shared/GeorgianAuthText";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const Statistics = () => {
   const { user } = useAuth();
   const { language } = useLanguage();
+  const queryClient = useQueryClient();
   const isGeorgian = language === 'ka';
   const currentDate = useMemo(() => new Date(), []);
   const [dateRange, setDateRange] = useState({ 
@@ -59,6 +62,24 @@ export const Statistics = () => {
       });
     }
   }, [eventStats]);
+
+  // Add effect for real-time updates of statistics when relevant data changes
+  useEffect(() => {
+    // Function to refresh data
+    const refreshData = () => {
+      console.log("Refreshing statistics data");
+      queryClient.invalidateQueries({ queryKey: ['taskStats'] });
+      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+      queryClient.invalidateQueries({ queryKey: ['customerStats'] });
+    };
+
+    // Set up periodic refresh every minute
+    const intervalId = setInterval(refreshData, 60000); // 1 minute
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [queryClient]);
 
   const handleExport = useCallback(() => {
     if (taskStats && eventStats) {

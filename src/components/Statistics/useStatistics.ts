@@ -94,14 +94,14 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       const startDateStr = dateRange.start.toISOString();
       const endDateStr = endOfDay(dateRange.end).toISOString();
       
-      // Get all calendar events
+      // Get all calendar events - IMPORTANT: Now explicitly filtering out deleted events
       const { data: calendarEvents, error: calendarError } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
         .gte('start_date', startDateStr)
         .lte('start_date', endDateStr)
-        .is('deleted_at', null);
+        .is('deleted_at', null); // This ensures we only count non-deleted events
 
       if (calendarError) {
         console.error('Error fetching calendar event stats:', calendarError);
@@ -116,7 +116,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         .eq('create_event', true)
         .gte('start_date', startDateStr)
         .lte('start_date', endDateStr)
-        .is('deleted_at', null);
+        .is('deleted_at', null); // Also ensure we only count non-deleted CRM events
         
       if (crmError) {
         console.error('Error fetching CRM event stats:', crmError);
