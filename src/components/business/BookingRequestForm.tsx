@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -75,7 +76,10 @@ export const BookingRequestForm = ({
       const [endHours, endMinutes] = endTime.split(':').map(Number);
       endDateTime.setHours(endHours, endMinutes, 0, 0);
 
-      const newBookingRequest: Omit<CalendarEventType, 'id'> = {
+      // Create the booking request object
+      // Note: We're using a separate object with the specific fields
+      // needed for the booking_requests table
+      const newBookingRequest = {
         business_id: businessId,
         title: data.requester_name,
         requester_name: data.requester_name,
@@ -86,10 +90,6 @@ export const BookingRequestForm = ({
         end_date: endDateTime.toISOString(),
         type: 'booking_request',
         user_id: '',
-        user_surname: '',
-        user_number: '',
-        social_network_link: '',
-        event_notes: '',
         payment_status: 'not_paid',
         payment_amount: 0,
       };
