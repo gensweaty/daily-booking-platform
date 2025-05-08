@@ -77,7 +77,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();  // Make sure we import language from context
 
   // Helper to determine if times have changed between original and new dates
   const haveTimesChanged = (
@@ -490,7 +490,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
 
   const createEvent = async (eventData: Partial<CalendarEventType>) => {
     try {
-      // Check if we should create a customer for this event
+      // Check if we should create a customer for this event - safely access property
       const shouldCreateCustomer = eventData.shouldCreateCustomer !== false;
       const isFromCrm = !!eventData.customer_id;
       
@@ -515,11 +515,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           payment_status: eventData.payment_status || "not_paid",
           payment_amount: eventData.payment_amount,
           user_id: user.id,
-          language: eventData.language || language,
-          customer_id: eventData.customer_id || null,  // Keep existing customer ID if set
-          // Important: Delete fields that aren't in the table schema
-          checkAvailability: undefined,
-          shouldCreateCustomer: undefined
+          language: eventData.language || language,  // Use the language from context
+          customer_id: eventData.customer_id || null  // Keep existing customer ID if set
         })
         .select()
         .single();
@@ -531,14 +528,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         try {
           console.log("Creating customer for event:", event.id);
           
-          // Create customer based on event data
+          // Create customer based on event data using correct field names
           const { data: customer, error: customerError } = await supabase
             .from("customers")
             .insert({
-              name: event.user_surname || event.title,
-              phone: event.user_number || "",
-              email: event.social_network_link || "",
-              notes: event.event_notes || "",
+              // Use proper customer table field names
+              title: event.user_surname || event.title,
+              user_surname: event.user_surname || event.title,
+              user_number: event.user_number || "",
+              social_network_link: event.social_network_link || "",
+              event_notes: event.event_notes || "",
               user_id: user.id,
               // Set source type based on event type
               source: "calendar",

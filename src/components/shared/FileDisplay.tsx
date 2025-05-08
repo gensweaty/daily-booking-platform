@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FileText, Loader2, Trash2 } from "lucide-react";
@@ -25,6 +26,7 @@ interface FileDisplayProps {
   onFileDeleted?: (fileId: string) => void;
   parentId?: string;
   parentType?: 'event' | 'customer' | 'task' | 'note';
+  fallbackBuckets?: string[]; // Added the fallbackBuckets property
 }
 
 export const FileDisplay = ({
@@ -34,6 +36,7 @@ export const FileDisplay = ({
   onFileDeleted,
   parentId,
   parentType,
+  fallbackBuckets = [], // Added with default empty array
 }: FileDisplayProps) => {
   const [loadingFileId, setLoadingFileId] = useState<string | null>(null);
   const { toast } = useToast();
