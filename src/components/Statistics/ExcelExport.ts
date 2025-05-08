@@ -18,7 +18,6 @@ interface StatsData {
     partlyPaid: number;
     fullyPaid: number;
     totalIncome: number;
-    currencyType?: string;
     events: any[];
   };
   customerStats?: {
@@ -45,10 +44,6 @@ export const useExcelExport = () => {
       return;
     }
 
-    // Get currency type from data or default to current language
-    const currencyType = data.eventStats?.currencyType || language;
-    const usedCurrencySymbol = getCurrencySymbol(currencyType as any);
-
     // Create statistics summary data with properly translated values
     const statsData = [{
       [t('dashboard.category')]: t('dashboard.taskStatistics'),
@@ -73,40 +68,27 @@ export const useExcelExport = () => {
     }, {
       [t('dashboard.category')]: t('dashboard.financialSummary'),
       [t('dashboard.total')]: t('dashboard.totalIncome'),
-      [t('dashboard.details')]: `${usedCurrencySymbol}${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
+      [t('dashboard.details')]: `${currencySymbol}${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
       [t('dashboard.additionalInfo')]: t('dashboard.fromAllEvents'),
     }];
 
     // Transform events data for Excel with translated headers
-    const eventsData = data.eventStats.events.map(event => {
-      // Determine what currency symbol to use for each event
-      const eventCurrency = event.currency_type 
-        ? getCurrencySymbol(event.currency_type) 
-        : usedCurrencySymbol;
-        
-      return {
-        [t('events.fullNameRequired')]: `${event.title || ''} ${event.user_surname || ''}`.trim(),
-        [t('events.phoneNumber')]: event.user_number || '',
-        [t('events.socialLinkEmail')]: event.social_network_link || '',
-        [t('events.paymentStatus')]: event.payment_status ? (
-          event.payment_status === 'not_paid' ? t("crm.notPaid") : 
-          event.payment_status === 'partly' ? t("crm.paidPartly") :
-          event.payment_status === 'fully' ? t("crm.paidFully") :
-          event.payment_status
-        ) : '',
-        [t('events.paymentAmount')]: event.payment_amount ? `${eventCurrency}${event.payment_amount}` : '',
-        [t('events.currencyType')]: event.currency_type ? (
-          event.currency_type === 'en' ? t("common.currencyUSD") :
-          event.currency_type === 'es' ? t("common.currencyEUR") :
-          event.currency_type === 'ka' ? t("common.currencyGEL") :
-          t("common.currencyUSD")
-        ) : t("common.currencyUSD"),
-        [t('events.date')]: event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
-        [t('events.time')]: event.start_date && event.end_date ? 
-          `${format(new Date(event.start_date), 'HH:mm')} - ${format(new Date(event.end_date), 'HH:mm')}` : '',
-        [t('events.eventNotes')]: event.event_notes || '',
-      };
-    });
+    const eventsData = data.eventStats.events.map(event => ({
+      [t('events.fullNameRequired')]: `${event.title || ''} ${event.user_surname || ''}`.trim(),
+      [t('events.phoneNumber')]: event.user_number || '',
+      [t('events.socialLinkEmail')]: event.social_network_link || '',
+      [t('events.paymentStatus')]: event.payment_status ? (
+        event.payment_status === 'not_paid' ? t("crm.notPaid") : 
+        event.payment_status === 'partly' ? t("crm.paidPartly") :
+        event.payment_status === 'fully' ? t("crm.paidFully") :
+        event.payment_status
+      ) : '',
+      [t('events.paymentAmount')]: event.payment_amount ? `${currencySymbol}${event.payment_amount}` : '',
+      [t('events.date')]: event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
+      [t('events.time')]: event.start_date && event.end_date ? 
+        `${format(new Date(event.start_date), 'HH:mm')} - ${format(new Date(event.end_date), 'HH:mm')}` : '',
+      [t('events.eventNotes')]: event.event_notes || '',
+    }));
 
     // Set Excel metadata in current language
     const wb = XLSX.utils.book_new();
@@ -138,7 +120,6 @@ export const useExcelExport = () => {
       { wch: 20 },
       { wch: 15 },
       { wch: 30 },
-      { wch: 15 },
       { wch: 15 },
       { wch: 15 },
       { wch: 12 },

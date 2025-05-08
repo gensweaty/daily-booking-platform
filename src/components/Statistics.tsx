@@ -57,12 +57,11 @@ export const Statistics = () => {
         eventStats,
         totalIncomeType: typeof eventStats.totalIncome,
         totalIncomeValue: eventStats.totalIncome,
-        currencyType: eventStats.currencyType || language,
         isNumber: typeof eventStats.totalIncome === 'number',
         isValidNumber: typeof eventStats.totalIncome === 'number' && !isNaN(eventStats.totalIncome)
       });
     }
-  }, [eventStats, language]);
+  }, [eventStats]);
 
   // Add effect for real-time updates of statistics when relevant data changes
   useEffect(() => {
@@ -105,9 +104,8 @@ export const Statistics = () => {
     total: 0, 
     partlyPaid: 0, 
     fullyPaid: 0, 
-    totalIncome: 0,
-    currencyType: language
-  }), [language]);
+    totalIncome: 0 
+  }), []);
 
   // Default customer stats
   const defaultCustomerStats = useMemo(() => ({
@@ -118,32 +116,27 @@ export const Statistics = () => {
 
   // Memoize the stats data to avoid unnecessary re-renders
   const currentTaskStats = useMemo(() => taskStats || defaultTaskStats, [taskStats, defaultTaskStats]);
-  const currentEventStats = useMemo(() => {
-    if (!eventStats) return defaultEventStats;
-    
-    // Make sure we have the currency type, falling back to the user's language if needed
-    return {
-      ...eventStats,
-      currencyType: eventStats.currencyType || language
-    };
-  }, [eventStats, defaultEventStats, language]);
-  
+  const currentEventStats = useMemo(() => eventStats || defaultEventStats, [eventStats, defaultEventStats]);
   const currentCustomerStats = useMemo(() => customerStats || defaultCustomerStats, [customerStats, defaultCustomerStats]);
   const chartData = useMemo(() => eventStats?.dailyStats || [], [eventStats?.dailyStats]);
   const incomeData = useMemo(() => eventStats?.monthlyIncome || [], [eventStats?.monthlyIncome]);
 
   // Additional debugging to verify data
-  useEffect(() => {
+  useMemo(() => {
     if (eventStats) {
       console.log("Statistics component - Displaying stats:", { 
         total: eventStats.total,
         partlyPaid: eventStats.partlyPaid,
         fullyPaid: eventStats.fullyPaid,
-        totalIncome: eventStats.totalIncome,
-        currencyType: eventStats.currencyType || language
+        totalIncome: eventStats.totalIncome
       });
     }
-  }, [eventStats, language]);
+  }, [eventStats]);
+
+  // Log customer stats
+  useEffect(() => {
+    console.log("Statistics - Customer Stats:", currentCustomerStats);
+  }, [currentCustomerStats]);
 
   return (
     <div className="space-y-6">
@@ -171,16 +164,14 @@ export const Statistics = () => {
         <>
           {/* Log right before passing to StatsCards */}
           {console.log("Before rendering StatsCards - currentEventStats:", {
-            eventStats: currentEventStats,
-            totalIncome: currentEventStats.totalIncome,
-            type: typeof currentEventStats.totalIncome,
-            currencyType: currentEventStats.currencyType
+            totalIncome: eventStats.totalIncome,
+            type: typeof eventStats.totalIncome
           })}
           
           <StatsCards 
-            taskStats={currentTaskStats} 
-            eventStats={currentEventStats}
-            customerStats={currentCustomerStats}
+            taskStats={taskStats} 
+            eventStats={eventStats}
+            customerStats={customerStats}
           />
 
           <div className="grid gap-4 md:grid-cols-2">

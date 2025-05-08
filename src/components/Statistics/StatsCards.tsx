@@ -25,7 +25,6 @@ interface StatsCardsProps {
     partlyPaid: number;
     fullyPaid: number;
     totalIncome: number | string | null | undefined;
-    currencyType?: string; // Add currency type 
   };
   customerStats: {
     total: number;
@@ -43,10 +42,8 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
     return null;
   }
   
-  // Get the appropriate currency symbol based on stored currency type or fall back to language
-  const currencySymbol = eventStats.currencyType 
-    ? getCurrencySymbol(eventStats.currencyType as any) 
-    : getCurrencySymbol(language);
+  // Get the appropriate currency symbol based on language
+  const currencySymbol = getCurrencySymbol(language);
 
   // Ensure totalIncome is a valid number - use fallback to 0 if invalid or undefined
   let validTotalIncome = 0;
@@ -67,10 +64,9 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
   // Format the income value to have 2 decimal places and add currency symbol
   const formattedIncome = `${currencySymbol}${(validTotalIncome || 0).toFixed(2)}`;
   
-  // Choose the appropriate currency icon based on language or stored currency type
-  const currencyType = eventStats.currencyType || language;
-  const CurrencyIcon = currencyType === 'es' ? EuroIcon : 
-                       currencyType === 'ka' ? BanknoteIcon : DollarSign;
+  // Choose the appropriate currency icon based on language
+  const CurrencyIcon = language === 'es' ? EuroIcon : 
+                       language === 'ka' ? BanknoteIcon : DollarSign;
   
   // Enhanced debugging to verify income data at every step
   console.log("StatsCards - Rendering with income data:", {
@@ -78,8 +74,7 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
     rawIncomeType: typeof eventStats.totalIncome,
     afterParsing: validTotalIncome,
     formattedIncome,
-    currency: currencySymbol,
-    currencyType: eventStats.currencyType || language
+    currency: currencySymbol
   });
 
   // Format the task details to show completed, in progress, and todo
