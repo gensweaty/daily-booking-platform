@@ -1,14 +1,3 @@
 
-# Business pages must be accessible publicly without requiring authentication
-/business/:slug /index.html 200!
-/business/:slug/* /index.html 200!
-/business/* /index.html 200!
-
-# Authentication pages
-/login /index.html 200
-/signup /index.html 200
-/reset-password /index.html 200
-/forgot-password /index.html 200
-
-# All other pages
 /* /index.html 200
+

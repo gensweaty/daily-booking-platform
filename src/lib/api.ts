@@ -15,7 +15,7 @@ export const getFileUrl = (bucketName: string, filePath: string) => {
   return `${baseUrl}/storage/v1/object/public/event_attachments/${normalizedPath}`;
 };
 
-// Add this function to check if user is rate limited for booking requests
+// Check if user is rate limited for booking requests
 export const checkRateLimitStatus = async (): Promise<{ isLimited: boolean, remainingTime: number }> => {
   try {
     // Get last request timestamp from localStorage

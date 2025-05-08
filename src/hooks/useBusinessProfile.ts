@@ -10,11 +10,6 @@ export const useBusinessProfile = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Helper function to normalize slugs consistently
-  const normalizeSlug = (slug: string): string => {
-    return slug.toLowerCase().trim();
-  };
-
   const getBusinessProfile = async (): Promise<BusinessProfile | null> => {
     if (!user) return null;
     
@@ -31,86 +26,28 @@ export const useBusinessProfile = () => {
   const createBusinessProfile = async (profile: Omit<BusinessProfile, "id" | "created_at" | "updated_at" | "user_id">): Promise<BusinessProfile> => {
     if (!user) throw new Error("User must be authenticated to create a business profile");
     
-    // Normalize the slug for consistency
-    const normalizedProfile = {
-      ...profile,
-      slug: normalizeSlug(profile.slug)
-    };
-    
-    // Verify slug uniqueness
-    const { data: existingProfile, error: checkError } = await supabase
+    const { data, error } = await supabase
       .from("business_profiles")
-      .select("id")
-      .eq("slug", normalizedProfile.slug)
-      .maybeSingle();
-      
-    if (checkError) throw checkError;
-    
-    if (existingProfile && existingProfile.id) {
-      throw new Error("A business with this URL slug already exists. Please choose a different slug.");
-    }
-    
-    try {
-      const { data, error } = await supabase
-        .from("business_profiles")
-        .insert([{ ...normalizedProfile, user_id: user.id }])
-        .select()
-        .single();
+      .insert([{ ...profile, user_id: user.id }])
+      .select()
+      .single();
 
-      if (error) throw error;
-      return data;
-    } catch (error: any) {
-      console.error("Error in createBusinessProfile:", error);
-      throw error;
-    }
+    if (error) throw error;
+    return data;
   };
 
   const updateBusinessProfile = async (updates: Partial<BusinessProfile>): Promise<BusinessProfile> => {
     if (!user || !businessProfile) throw new Error("User must be authenticated and have a business profile to update it");
     
-    let normalizedUpdates = { ...updates };
-    
-    // If slug is being updated, normalize it
-    if (updates.slug) {
-      normalizedUpdates.slug = normalizeSlug(updates.slug);
-      
-      // Check if this slug already exists for another business
-      const { data: existingProfile, error: checkError } = await supabase
-        .from("business_profiles")
-        .select("id")
-        .eq("slug", normalizedUpdates.slug)
-        .neq("id", businessProfile.id) // Exclude current business
-        .maybeSingle();
-        
-      if (checkError) throw checkError;
-      
-      if (existingProfile && existingProfile.id) {
-        throw new Error("A business with this URL slug already exists. Please choose a different slug.");
-      }
-    }
-    
-    try {
-      console.log("Updating business profile:", normalizedUpdates);
-      
-      const { data, error } = await supabase
-        .from("business_profiles")
-        .update(normalizedUpdates)
-        .eq("id", businessProfile.id)
-        .select()
-        .single();
+    const { data, error } = await supabase
+      .from("business_profiles")
+      .update(updates)
+      .eq("id", businessProfile.id)
+      .select()
+      .single();
 
-      if (error) throw error;
-      
-      // Force a cache invalidation with a slight delay to ensure it's picked up
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["businessProfile", user?.id] });
-      }, 500);
-      
-      return data;
-    } catch (error: any) {
-      console.error("Error in updateBusinessProfile:", error);
-      throw error;
-    }
+    if (error) throw error;
+    return data;
   };
 
   const uploadCoverPhoto = async (file: File) => {
@@ -292,8 +229,7 @@ export const useBusinessProfile = () => {
     return businessName
       .toLowerCase()
       .replace(/[^\w\s]/gi, "")
-      .replace(/\s+/g, "-")
-      .trim();
+      .replace(/\s+/g, "-");
   };
 
   return {
