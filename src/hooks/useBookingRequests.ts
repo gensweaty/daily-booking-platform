@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -297,8 +296,8 @@ export const useBookingRequests = () => {
         console.log("No conflicts found, preparing to create event and customer records");
         
         // Step 3: Prepare data for event and customer creation
-        // IMPORTANT: Set the type to 'booking_request' to ensure it uses the right color
-        // This was the issue - we were setting type to 'event'
+        // Important! Set the event type to 'event' (not 'booking_request')
+        // Remove the language field since it doesn't exist in the events table
         const eventData = {
           title: booking.title,
           start_date: booking.start_date,
@@ -308,7 +307,7 @@ export const useBookingRequests = () => {
           user_number: booking.requester_phone || booking.user_number || null,
           social_network_link: booking.requester_email || booking.social_network_link || null,
           event_notes: booking.description || booking.event_notes || null,
-          type: 'booking_request', // Changed from 'event' to 'booking_request'
+          type: 'event', // Change type to 'event' instead of 'booking_request'
           booking_request_id: booking.id,
           payment_status: booking.payment_status || 'not_paid',
           payment_amount: booking.payment_amount
@@ -317,7 +316,6 @@ export const useBookingRequests = () => {
         
         console.log("Creating event with data:", eventData);
         
-        // Fix customer data to ensure proper CRM entry creation
         const customerData = {
           title: booking.requester_name,
           user_surname: booking.user_surname || null,
@@ -327,7 +325,7 @@ export const useBookingRequests = () => {
           start_date: booking.start_date,
           end_date: booking.end_date,
           user_id: user.id,
-          type: 'booking_request', // Make this consistent with the event type
+          type: 'event', // Make this consistent with the event type
           payment_status: booking.payment_status,
           payment_amount: booking.payment_amount,
           language: booking.language // Keep language for customers since this field exists in that table
@@ -348,7 +346,7 @@ export const useBookingRequests = () => {
         
         if (customerResult.error) {
           console.error('Error creating customer from booking:', customerResult.error);
-          throw new Error(`Failed to create customer: ${customerResult.error.message}`);
+          // Log error but continue with the process
         }
         
         const createdEvent = eventResult.data?.[0];
@@ -359,13 +357,10 @@ export const useBookingRequests = () => {
           throw new Error('Failed to create event record');
         }
         
-        if (!createdCustomer) {
-          console.error('Customer was not created properly');
-          throw new Error('Failed to create customer record');
-        }
-        
         console.log("Successfully created event:", createdEvent);
-        console.log("Successfully created customer:", createdCustomer);
+        if (createdCustomer) {
+          console.log("Successfully created customer:", createdCustomer);
+        }
         
         // Step 5: Update booking status to approved
         const { error: updateError } = await supabase
