@@ -77,15 +77,15 @@ export const BookingRequestsList = ({
     }
   };
 
-  // Improved function to deduplicate files
+  // Improved function to deduplicate files with more robust signature creation
   const mapRequestFilesToFileRecords = (request: BookingRequest): FileRecord[] => {
     const files: FileRecord[] = [];
     const fileSignatures = new Set<string>(); // Track file signatures to prevent duplicates
     
     // Helper function to add a file if it's not a duplicate
     const addUniqueFile = (file: FileRecord) => {
-      // Create a unique signature for the file based on path and name
-      const signature = `${file.filename}:${file.file_path}`;
+      // Create a more robust unique signature for the file based on id, path and name
+      const signature = `${file.id || ''}:${file.filename}:${file.file_path}`;
       
       if (!fileSignatures.has(signature)) {
         fileSignatures.add(signature);
