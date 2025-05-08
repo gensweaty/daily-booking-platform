@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -909,4 +910,101 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const businessEventsQuery = useQuery({
     queryKey: ['business-events', businessId, businessUserId],
     queryFn: getBusinessEvents,
-    enabled:
+    enabled: !!(businessId || businessUserId),
+    refetchOnWindowFocus: true,
+    refetchInterval: 60000,
+  });
+
+  const approvedBookingsQuery = useQuery({
+    queryKey: ['approved-bookings', businessId, businessUserId],
+    queryFn: getApprovedBookings,
+    enabled: !!(businessId || businessUserId || user?.id),
+    refetchOnWindowFocus: true,
+    refetchInterval: 60000,
+  });
+
+  const createEventMutation = useMutation({
+    mutationFn: createEvent,
+    onSuccess: () => {
+      toast({
+        title: t('calendar.event_created'),
+        description: t('calendar.event_created_message'),
+      });
+      
+      // Invalidate and refetch
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+    },
+    onError: (error) => {
+      console.error('Error creating event:', error);
+      toast({
+        title: t('common.error'),
+        description: error instanceof Error ? error.message : t('calendar.event_creation_failed'),
+        variant: "destructive",
+      });
+    }
+  });
+
+  const updateEventMutation = useMutation({
+    mutationFn: updateEvent,
+    onSuccess: () => {
+      toast({
+        title: t('calendar.event_updated'),
+        description: t('calendar.event_updated_message'),
+      });
+      
+      // Invalidate and refetch
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+    },
+    onError: (error) => {
+      console.error('Error updating event:', error);
+      toast({
+        title: t('common.error'),
+        description: error instanceof Error ? error.message : t('calendar.event_update_failed'),
+        variant: "destructive",
+      });
+    }
+  });
+
+  const deleteEventMutation = useMutation({
+    mutationFn: deleteEvent,
+    onSuccess: () => {
+      toast({
+        title: t('calendar.event_deleted'),
+        description: t('calendar.event_deleted_message'),
+      });
+      
+      // Invalidate and refetch
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+    },
+    onError: (error) => {
+      console.error('Error deleting event:', error);
+      toast({
+        title: t('common.error'),
+        description: error instanceof Error ? error.message : t('calendar.event_deletion_failed'),
+        variant: "destructive",
+      });
+    }
+  });
+
+  return {
+    events: eventsQuery.data || [],
+    businessEvents: businessEventsQuery.data || [],
+    approvedBookings: approvedBookingsQuery.data || [],
+    isLoadingEvents: eventsQuery.isLoading,
+    isLoadingBusinessEvents: businessEventsQuery.isLoading,
+    isLoadingApprovedBookings: approvedBookingsQuery.isLoading,
+    createEvent: createEventMutation.mutate,
+    updateEvent: updateEventMutation.mutate,
+    deleteEvent: deleteEventMutation.mutate,
+    checkTimeSlotAvailability,
+    sendBookingConfirmationEmail,
+  };
+};
