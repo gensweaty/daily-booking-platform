@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -77,7 +78,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language: currentLanguage } = useLanguage(); // Get current language from context
 
   // Helper to determine if times have changed between original and new dates
   const haveTimesChanged = (
@@ -140,7 +141,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       }
       
-      return data || [];
+      // Ensure all events have the language property
+      const eventsWithLanguage = (data || []).map(event => ({
+        ...event,
+        language: event.language || currentLanguage || 'en' // Default to current language or 'en'
+      }));
+      
+      return eventsWithLanguage;
     } catch (err) {
       console.error("Exception in getEvents:", err);
       return [];
@@ -213,7 +220,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       }
       
-      return data || [];
+      // Ensure all events have the language property
+      const eventsWithLanguage = (data || []).map(event => ({
+        ...event,
+        language: event.language || currentLanguage || 'en'
+      }));
+      
+      return eventsWithLanguage;
     } catch (error) {
       console.error("Error fetching business events:", error);
       return [];
@@ -289,7 +302,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         description: booking.description || '',
         payment_status: booking.payment_status || 'not_paid', // Make sure payment status is included
         payment_amount: booking.payment_amount || 0, // Make sure payment amount is included
-        language: booking.language || 'en', // Make sure language is included
+        language: booking.language || currentLanguage || 'en', // Make sure language is always included
         deleted_at: booking.deleted_at // Track deleted_at for filtering
       }));
       
@@ -411,7 +424,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     endDate: string,
     paymentStatus: string,
     paymentAmount: number | null,
-    language?: string // Make language parameter optional
+    language: string = 'en' // Default to English if not specified
   ) => {
     // Optimization: Skip email sending during event creation for faster response
     // Email will be sent asynchronously after the event is created
@@ -543,7 +556,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     
     // Log important fields for debugging
     console.log("Creating event with type:", event.type);
-    console.log("Event language:", event.language || 'en');
+    console.log("Event language:", event.language || currentLanguage || 'en');
     
     // Ensure title is set (title is required by the database)
     if (!event.title) {
@@ -564,7 +577,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       event_notes: event.event_notes,
       payment_status: event.payment_status,
       payment_amount: event.payment_amount,
-      language: event.language || 'en' // Make sure language is always set
+      language: event.language || currentLanguage || 'en' // Make sure language is always set
     };
     
     console.log("Event payload:", eventPayload);
@@ -600,11 +613,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         event.end_date as string,
         event.payment_status || 'not_paid',
         event.payment_amount || null,
-        event.language || 'en' // Pass the language
+        event.language || currentLanguage || 'en' // Pass the language
       );
     }
     
-    return data;
+    // Ensure language property exists in the returned data
+    return {
+      ...data,
+      language: data.language || currentLanguage || 'en'
+    };
   };
 
   const updateEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
@@ -622,13 +639,23 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       throw fetchError;
     }
     
+    // If there's a database error, ensure we have a fallback value
+    const existingEventData = existingEvent || { 
+      id: event.id, 
+      start_date: event.start_date || '', 
+      end_date: event.end_date || '', 
+      type: event.type || '',
+      social_network_link: '',
+      language: currentLanguage || 'en'
+    };
+    
     const startDateTime = new Date(event.start_date as string);
     const endDateTime = new Date(event.end_date as string);
     
     // Only check availability if times have changed
     const timesChanged = haveTimesChanged(
-      existingEvent.start_date,
-      existingEvent.end_date,
+      existingEventData.start_date,
+      existingEventData.end_date,
       event.start_date as string,
       event.end_date as string
     );
@@ -647,7 +674,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     
     // If an event's type is booking_request but update sets it to something else,
     // this indicates approving a booking request
-    const wasBookingRequest = existingEvent.type === 'booking_request';
+    const wasBookingRequest = existingEventData.type === 'booking_request';
     const isChangingType = event.type && event.type !== 'booking_request';
     
     if (wasBookingRequest && isChangingType) {
@@ -670,7 +697,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         payment_amount: event.payment_amount,
         user_id: user.id,
         booking_request_id: bookingRequestId,
-        type: event.type || 'event'
+        type: event.type || 'event',
+        language: event.language || existingEventData.language || currentLanguage || 'en'
       };
       
       // Create a new event first
@@ -718,7 +746,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             type: 'customer',
             // Optional: link to event dates
             start_date: event.start_date,
-            end_date: event.end_date
+            end_date: event.end_date,
+            language: event.language || existingEventData.language || currentLanguage || 'en'
           };
           
           const { data: newCustomer, error: customerError } = await supabase
@@ -729,7 +758,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             
           if (customerError) {
             console.error("Error creating customer from booking:", customerError);
-          } else if (newCustomer && associatedFiles.length > 0) {
+          } else if (newCustomer && associatedFiles && associatedFiles.length > 0) {
             console.log("Created customer from booking, now linking files");
             
             // Create file links for the customer using the new file paths
@@ -768,7 +797,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             event.start_date as string,
             event.end_date as string,
             event.payment_status || 'not_paid',
-            event.payment_amount || null
+            event.payment_amount || null,
+            event.language || existingEventData.language || currentLanguage || 'en'
           );
         } catch (emailError) {
           console.error('Error sending booking approval email:', emailError);
@@ -792,7 +822,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.error("Error updating booking status:", bookingUpdateError);
       }
       
-      return newEvent;
+      // Ensure language property exists in the returned data
+      return {
+        ...newEvent,
+        language: newEvent.language || existingEventData.language || currentLanguage || 'en'
+      };
     }
     
     // Regular update for non-booking events or when not changing type
@@ -800,7 +834,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       .from('events')
       .update({
         ...event,
-        language: event.language || existingEvent.language || 'en' // Always preserve language
+        language: event.language || existingEventData.language || currentLanguage || 'en'
       })
       .eq('id', event.id)
       .select()
@@ -813,18 +847,19 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     
     // Log important fields for debugging
     console.log("Updating event with type:", event.type || 'unknown type');
-    console.log("Event language:", event.language || 'unknown language');
+    console.log("Event language:", event.language || existingEventData.language || 'unknown language');
     
     // Send email if email address has changed
     const emailChanged = event.social_network_link && 
-                        event.social_network_link !== existingEvent.social_network_link;
+                         event.social_network_link !== existingEventData.social_network_link;
     
     if (emailChanged && isValidEmail(event.social_network_link as string)) {
       try {
         // Get the language either from the event update or from the existing event
         const eventLanguage = event.language || 
-                             (existingEvent as any).language || // Cast to any to prevent TypeScript errors
-                             'en';
+                              existingEventData.language || 
+                              currentLanguage || 
+                              'en';
         
         await sendBookingConfirmationEmail(
           data.id,
@@ -841,7 +876,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
     }
     
-    return data;
+    // Ensure language property exists in the returned data
+    return {
+      ...data,
+      language: data.language || existingEventData.language || currentLanguage || 'en'
+    };
   };
 
   const deleteEvent = async (eventId: string): Promise<void> => {
