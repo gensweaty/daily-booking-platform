@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format, parseISO, eachDayOfInterval, endOfDay, startOfMonth, endOfMonth, differenceInMonths, addMonths, eachMonthOfInterval } from 'date-fns';
@@ -76,11 +77,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
   };
 
   // Optimize events stats query with more efficient date handling and include CRM events
-  const { 
-    data: eventStats, 
-    isLoading: isLoadingEventStats,
-    error
-  } = useQuery({
+  const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
     queryKey: eventStatsQueryKey,
     queryFn: async () => {
       if (!userId) return {
@@ -91,384 +88,255 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         monthlyIncome: [],
         totalIncome: 0,
         events: [],
-        currencyType: null,
       };
       
       // Format dates for Supabase query
       const startDateStr = dateRange.start.toISOString();
       const endDateStr = endOfDay(dateRange.end).toISOString();
       
-      try {
-        // Get all calendar events - Check if currency_type column exists
-        let calendarEvents = [];
-        let tableHasCurrencyType = true;
-        
-        try {
-          const { data, error } = await supabase
-            .from('events')
-            .select('*, currency_type')
-            .eq('user_id', userId)
-            .gte('start_date', startDateStr)
-            .lte('start_date', endDateStr)
-            .is('deleted_at', null);
-            
-          if (error) {
-            // Check if error is related to missing column
-            if (error.message.includes("column events.currency_type does not exist")) {
-              tableHasCurrencyType = false;
-            } else {
-              throw error;
-            }
-          } else {
-            calendarEvents = data || [];
-          }
-        } catch (columnError) {
-          console.error('Error checking for currency_type column:', columnError);
-          tableHasCurrencyType = false;
-        }
-        
-        // If currency_type doesn't exist, get events without it
-        if (!tableHasCurrencyType) {
-          console.log('Currency type column does not exist yet, fetching without it');
-          const { data: events, error: eventsError } = await supabase
-            .from('events')
-            .select('*')
-            .eq('user_id', userId)
-            .gte('start_date', startDateStr)
-            .lte('start_date', endDateStr)
-            .is('deleted_at', null);
-            
-          if (eventsError) {
-            throw eventsError;
-          }
-          
-          calendarEvents = events || [];
-        }
-        
-        // Get all customers with create_event=true (events created from CRM)
-        // Also handle potential missing currency_type
-        let crmEvents = [];
-        try {
-          const { data, error } = await supabase
-            .from('customers')
-            .select('*')
-            .eq('user_id', userId)
-            .eq('create_event', true)
-            .gte('start_date', startDateStr)
-            .lte('start_date', endDateStr)
-            .is('deleted_at', null);
-            
-          if (error) {
-            console.error('Error fetching CRM event stats:', error);
-            // Continue without throwing to get at least some data
-          } else {
-            crmEvents = data || [];
-          }
-        } catch (crmError) {
-          console.error('Error fetching CRM events:', crmError);
-          // Continue with empty array
-        }
+      // Get all calendar events - IMPORTANT: Now explicitly filtering out deleted events
+      const { data: calendarEvents, error: calendarError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
+        .is('deleted_at', null); // This ensures we only count non-deleted events
 
-        // Also get booking requests that have been approved
-        let bookingEvents = [];
-        try {
-          const { data, error } = await supabase
-            .from('booking_requests')
-            .select('*')
-            .eq('user_id', userId)
-            .eq('status', 'approved')
-            .gte('start_date', startDateStr)
-            .lte('start_date', endDateStr)
-            .is('deleted_at', null);
-
-          if (error) {
-            console.error('Error fetching booking event stats:', error);
-            // Continue without throwing
-          } else {
-            bookingEvents = data || [];
-          }
-        } catch (bookingError) {
-          console.error('Error fetching booking events:', bookingError);
-          // Continue with empty array
-        }
+      if (calendarError) {
+        console.error('Error fetching calendar event stats:', calendarError);
+        throw calendarError;
+      }
+      
+      // Get all customers with create_event=true (events created from CRM)
+      const { data: crmEvents, error: crmError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('create_event', true)
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
+        .is('deleted_at', null); // Also ensure we only count non-deleted CRM events
         
-        console.log(`Statistics - Found ${calendarEvents?.length || 0} calendar events, ${crmEvents?.length || 0} CRM events, and ${bookingEvents?.length || 0} booking events`);
-        
-        // Normalize payment status values
-        const normalizePaymentStatus = (status: string | null | undefined) => {
-          if (!status) return 'not_paid';
-          if (status.includes('partly')) return 'partly_paid';
-          if (status.includes('fully')) return 'fully_paid';
-          if (status.includes('not')) return 'not_paid';
-          return status;
-        };
-        
-        // Combine all events, ensuring CRM events aren't duplicated
-        // Use a Map to prevent duplications by start_date and end_date
-        const eventsMap = new Map();
-        
-        // First add calendar events
-        calendarEvents?.forEach(event => {
-          const key = `${event.start_date}-${event.end_date}-${event.title}`;
+      if (crmError) {
+        console.error('Error fetching CRM event stats:', crmError);
+        throw crmError;
+      }
+      
+      console.log(`Statistics - Found ${calendarEvents?.length || 0} calendar events and ${crmEvents?.length || 0} CRM events`);
+      
+      // Normalize payment status values
+      const normalizePaymentStatus = (status: string | null | undefined) => {
+        if (!status) return 'not_paid';
+        if (status.includes('partly')) return 'partly_paid';
+        if (status.includes('fully')) return 'fully_paid';
+        if (status.includes('not')) return 'not_paid';
+        return status;
+      };
+      
+      // Combine all events, ensuring CRM events aren't duplicated
+      // Use a Map to prevent duplications by start_date and end_date
+      const eventsMap = new Map();
+      
+      // First add calendar events
+      calendarEvents?.forEach(event => {
+        const key = `${event.start_date}-${event.end_date}-${event.title}`;
+        eventsMap.set(key, {
+          ...event,
+          payment_status: normalizePaymentStatus(event.payment_status)
+        });
+      });
+      
+      // Then add CRM events if they don't already exist
+      crmEvents?.forEach(event => {
+        const key = `${event.start_date}-${event.end_date}-${event.title}`;
+        if (!eventsMap.has(key)) {
           eventsMap.set(key, {
-            ...event,
-            payment_status: normalizePaymentStatus(event.payment_status)
-          });
-        });
-        
-        // Then add CRM events if they don't already exist
-        crmEvents?.forEach(event => {
-          const key = `${event.start_date}-${event.end_date}-${event.title}`;
-          if (!eventsMap.has(key)) {
-            eventsMap.set(key, {
-              id: event.id,
-              title: event.title,
-              user_surname: event.user_surname || event.title,
-              start_date: event.start_date,
-              end_date: event.end_date,
-              payment_status: normalizePaymentStatus(event.payment_status),
-              payment_amount: event.payment_amount,
-              type: event.type || 'event',
-              created_at: event.created_at,
-              user_id: event.user_id,
-              currency_type: event.currency_type,
-              // Other fields can be null or defaults
-            });
-          }
-        });
-        
-        // Add booking events if they don't already exist
-        bookingEvents?.forEach(event => {
-          const key = `${event.start_date}-${event.end_date}-${event.title}`;
-          if (!eventsMap.has(key)) {
-            eventsMap.set(key, {
-              id: event.id,
-              title: event.title,
-              user_surname: event.requester_name || event.title,
-              start_date: event.start_date,
-              end_date: event.end_date,
-              payment_status: normalizePaymentStatus(event.payment_status),
-              payment_amount: event.payment_amount,
-              type: 'booking_request',
-              created_at: event.created_at,
-              user_id: event.user_id,
-              currency_type: event.currency_type,
-              // Other fields can be null or defaults
-            });
-          }
-        });
-        
-        // Convert Map back to array
-        const allEvents = Array.from(eventsMap.values());
-        console.log(`Statistics - Combined into ${allEvents.length} total unique events`);
-  
-        // Track currency types and their frequencies
-        const currencyCount: Record<string, number> = {};
-        let dominantCurrency: string | null = null;
-        let maxCount = 0;
-  
-        // Analyze all events for currency information
-        allEvents.forEach(event => {
-          if (event.currency_type) {
-            currencyCount[event.currency_type] = (currencyCount[event.currency_type] || 0) + 1;
-            if (currencyCount[event.currency_type] > maxCount) {
-              maxCount = currencyCount[event.currency_type];
-              dominantCurrency = event.currency_type;
-            }
-          }
-        });
-  
-        console.log('Currency analysis:', {
-          currencyCount,
-          dominantCurrency,
-          maxCount
-        });
-        
-        // Log detailed payment information for each event with payment data
-        console.log('Event payment data:');
-        allEvents.forEach((event, index) => {
-          if (event.payment_amount !== undefined && event.payment_amount !== null) {
-            console.log(`Event ${index + 1} (${event.id}):`, {
-              title: event.title,
-              raw_payment_amount: event.payment_amount,
-              type_of: typeof event.payment_amount,
-              payment_status: event.payment_status,
-              parsed_amount: parsePaymentAmount(event.payment_amount),
-              currency_type: event.currency_type || 'unknown'
-            });
-          }
-        });
-  
-        // Get payment status counts using normalized values
-        const partlyPaid = allEvents.filter(e => 
-          normalizePaymentStatus(e.payment_status) === 'partly_paid'
-        ).length || 0;
-        
-        const fullyPaid = allEvents.filter(e => 
-          normalizePaymentStatus(e.payment_status) === 'fully_paid'
-        ).length || 0;
-  
-        // Get all days in the selected range for daily bookings
-        const daysInRange = eachDayOfInterval({
-          start: dateRange.start,
-          end: dateRange.end
-        });
-  
-        const dailyBookings = daysInRange.map(day => {
-          const dayEvents = allEvents.filter(event => {
-            if (!event.start_date) return false;
-            const eventDate = parseISO(event.start_date);
-            return format(eventDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
-          });
-  
-          return {
-            day: format(day, 'dd'),
-            date: day,
-            month: format(day, 'MMM yyyy'),
-            bookings: dayEvents?.length || 0,
-          };
-        });
-  
-        // Optimize monthly income calculations
-        let monthsToCompare;
-        const currentDate = new Date();
-        const isDefaultDateRange = 
-          format(dateRange.start, 'yyyy-MM-dd') === format(startOfMonth(currentDate), 'yyyy-MM-dd') &&
-          format(dateRange.end, 'yyyy-MM-dd') === format(endOfMonth(currentDate), 'yyyy-MM-dd');
-  
-        if (isDefaultDateRange) {
-          // For default view, show current month and previous 2 months
-          monthsToCompare = [
-            addMonths(startOfMonth(currentDate), -2),
-            addMonths(startOfMonth(currentDate), -1),
-            startOfMonth(currentDate)
-          ];
-        } else {
-          // For manually selected date range, use those months
-          monthsToCompare = eachMonthOfInterval({
-            start: startOfMonth(dateRange.start),
-            end: endOfMonth(dateRange.end)
+            id: event.id,
+            title: event.title,
+            user_surname: event.user_surname || event.title,
+            start_date: event.start_date,
+            end_date: event.end_date,
+            payment_status: normalizePaymentStatus(event.payment_status),
+            payment_amount: event.payment_amount,
+            type: event.type || 'event',
+            created_at: event.created_at,
+            user_id: event.user_id,
+            // Other fields can be null or defaults
           });
         }
+      });
+      
+      // Convert Map back to array
+      const allEvents = Array.from(eventsMap.values());
+      console.log(`Statistics - Combined into ${allEvents.length} total unique events`);
+      
+      // Log detailed payment information for each event with payment data
+      console.log('Event payment data:');
+      allEvents.forEach((event, index) => {
+        if (event.payment_amount !== undefined && event.payment_amount !== null) {
+          console.log(`Event ${index + 1} (${event.id}):`, {
+            title: event.title,
+            raw_payment_amount: event.payment_amount,
+            type_of: typeof event.payment_amount,
+            payment_status: event.payment_status,
+            parsed_amount: parsePaymentAmount(event.payment_amount)
+          });
+        }
+      });
+
+      // Get payment status counts using normalized values
+      const partlyPaid = allEvents.filter(e => 
+        normalizePaymentStatus(e.payment_status) === 'partly_paid'
+      ).length || 0;
+      
+      const fullyPaid = allEvents.filter(e => 
+        normalizePaymentStatus(e.payment_status) === 'fully_paid'
+      ).length || 0;
+
+      // Get all days in the selected range for daily bookings
+      const daysInRange = eachDayOfInterval({
+        start: dateRange.start,
+        end: dateRange.end
+      });
+
+      const dailyBookings = daysInRange.map(day => {
+        const dayEvents = allEvents.filter(event => {
+          if (!event.start_date) return false;
+          const eventDate = parseISO(event.start_date);
+          return format(eventDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
+        });
+
+        return {
+          day: format(day, 'dd'),
+          date: day,
+          month: format(day, 'MMM yyyy'),
+          bookings: dayEvents?.length || 0,
+        };
+      });
+
+      // Optimize monthly income calculations
+      let monthsToCompare;
+      const currentDate = new Date();
+      const isDefaultDateRange = 
+        format(dateRange.start, 'yyyy-MM-dd') === format(startOfMonth(currentDate), 'yyyy-MM-dd') &&
+        format(dateRange.end, 'yyyy-MM-dd') === format(endOfMonth(currentDate), 'yyyy-MM-dd');
+
+      if (isDefaultDateRange) {
+        // For default view, show current month and previous 2 months
+        monthsToCompare = [
+          addMonths(startOfMonth(currentDate), -2),
+          addMonths(startOfMonth(currentDate), -1),
+          startOfMonth(currentDate)
+        ];
+      } else {
+        // For manually selected date range, use those months
+        monthsToCompare = eachMonthOfInterval({
+          start: startOfMonth(dateRange.start),
+          end: endOfMonth(dateRange.end)
+        });
+      }
+      
+      // Calculate monthly income with consistent payment parsing
+      const monthlyIncome = monthsToCompare.map(month => {
+        const monthStart = startOfMonth(month);
+        const monthEnd = endOfDay(endOfMonth(month));
         
-        // Calculate monthly income with consistent payment parsing and respect currency
-        const monthlyIncome = monthsToCompare.map(month => {
-          const monthStart = startOfMonth(month);
-          const monthEnd = endOfDay(endOfMonth(month));
-          
-          // Filter events within this month
-          const monthEvents = allEvents.filter(event => {
-            if (!event.start_date) return false;
-            const eventDate = parseISO(event.start_date);
-            return eventDate >= monthStart && eventDate <= monthEnd;
-          });
-          
-          // Calculate income from events with valid payment status
-          let income = 0;
-          
-          monthEvents.forEach(event => {
-            const status = normalizePaymentStatus(event.payment_status);
-            const isPaid = status === 'fully_paid' || status === 'partly_paid';
-            
-            if (isPaid && (event.payment_amount !== undefined && event.payment_amount !== null)) {
-              const parsedAmount = parsePaymentAmount(event.payment_amount);
-              income += parsedAmount;
-              console.log(`Month ${format(month, 'MMM yyyy')} - Added ${parsedAmount} from event ${event.id} (currency: ${event.currency_type || 'unknown'})`);
-            }
-          });
-          
-          return {
-            month: format(month, 'MMM yyyy'),
-            income: income,
-          };
+        // Filter events within this month
+        const monthEvents = allEvents.filter(event => {
+          if (!event.start_date) return false;
+          const eventDate = parseISO(event.start_date);
+          return eventDate >= monthStart && eventDate <= monthEnd;
         });
         
-        // Debug: Monthly income data
-        console.log('Monthly income data:', monthlyIncome);
-  
-        // Calculate total income directly from all events with consistent parsing
-        let totalIncome = 0;
-        let validPaymentCount = 0;
+        // Calculate income from events with valid payment status
+        let income = 0;
         
-        allEvents.forEach(event => {
+        monthEvents.forEach(event => {
           const status = normalizePaymentStatus(event.payment_status);
           const isPaid = status === 'fully_paid' || status === 'partly_paid';
-                         
+          
           if (isPaid && (event.payment_amount !== undefined && event.payment_amount !== null)) {
             const parsedAmount = parsePaymentAmount(event.payment_amount);
-            
-            if (parsedAmount > 0) {
-              validPaymentCount++;
-              console.log(`Total income: Adding ${parsedAmount} from event ${event.id} (${event.title}) with currency: ${event.currency_type || 'unknown'}`);
-              totalIncome += parsedAmount;
-            }
+            income += parsedAmount;
+            console.log(`Month ${format(month, 'MMM yyyy')} - Added ${parsedAmount} from event ${event.id}`);
           }
         });
         
-        // Double check by calculating total from monthly income
-        const monthlyTotal = monthlyIncome.reduce((sum, month) => sum + month.income, 0);
-        
-        console.log('Income calculation summary:', {
-          totalDirectCalculation: totalIncome,
-          monthlyTotalSum: monthlyTotal, 
-          eventsWithValidPayment: validPaymentCount,
-          totalEventCount: allEvents.length,
-          mismatch: Math.abs(totalIncome - monthlyTotal) > 0.01 ? 'YES' : 'NO',
-          dominantCurrency
+        return {
+          month: format(month, 'MMM yyyy'),
+          income: income,
+        };
+      });
+      
+      // Debug: Monthly income data
+      console.log('Monthly income data:', monthlyIncome);
+
+      // Calculate total income directly from all events with consistent parsing
+      let totalIncome = 0;
+      let validPaymentCount = 0;
+      
+      allEvents.forEach(event => {
+        const status = normalizePaymentStatus(event.payment_status);
+        const isPaid = status === 'fully_paid' || status === 'partly_paid';
+                       
+        if (isPaid && (event.payment_amount !== undefined && event.payment_amount !== null)) {
+          const parsedAmount = parsePaymentAmount(event.payment_amount);
+          
+          if (parsedAmount > 0) {
+            validPaymentCount++;
+            console.log(`Total income: Adding ${parsedAmount} from event ${event.id} (${event.title})`);
+            totalIncome += parsedAmount;
+          }
+        }
+      });
+      
+      // Double check by calculating total from monthly income
+      const monthlyTotal = monthlyIncome.reduce((sum, month) => sum + month.income, 0);
+      
+      console.log('Income calculation summary:', {
+        totalDirectCalculation: totalIncome,
+        monthlyTotalSum: monthlyTotal, 
+        eventsWithValidPayment: validPaymentCount,
+        totalEventCount: allEvents.length,
+        mismatch: Math.abs(totalIncome - monthlyTotal) > 0.01 ? 'YES' : 'NO'
+      });
+      
+      // If there's a discrepancy, use the monthly sum as it's more reliable
+      if (Math.abs(totalIncome - monthlyTotal) > 0.01) {
+        console.warn('Income calculation discrepancy detected, using monthly sum instead:', {
+          directTotal: totalIncome,
+          monthlySum: monthlyTotal,
+          difference: totalIncome - monthlyTotal
         });
-        
-        // If there's a discrepancy, use the monthly sum as it's more reliable
-        if (Math.abs(totalIncome - monthlyTotal) > 0.01) {
-          console.warn('Income calculation discrepancy detected, using monthly sum instead:', {
-            directTotal: totalIncome,
-            monthlySum: monthlyTotal,
-            difference: totalIncome - monthlyTotal
-          });
-          totalIncome = monthlyTotal;
-        }
-  
-        // Final validation to ensure totalIncome is a valid number
-        if (typeof totalIncome !== 'number' || isNaN(totalIncome)) {
-          console.error('Invalid totalIncome detected, resetting to 0:', totalIncome);
-          totalIncome = 0;
-        }
-  
-        console.log(`Final totalIncome value: ${totalIncome} with currency: ${dominantCurrency || 'based on language'}`);
-  
-        return {
-          total: allEvents.length || 0,
-          partlyPaid,
-          fullyPaid,
-          dailyStats: dailyBookings,
-          monthlyIncome,
-          totalIncome,
-          events: allEvents || [],
-          currencyType: dominantCurrency,  // Add the dominant currency type to the stats
-        };
-      } catch (error) {
-        console.error('Error processing event statistics:', error);
-        // Return default values on error
-        return {
-          total: 0,
-          partlyPaid: 0,
-          fullyPaid: 0,
-          dailyStats: [],
-          monthlyIncome: [],
-          totalIncome: 0,
-          events: [],
-          currencyType: null,
-        };
+        totalIncome = monthlyTotal;
       }
+
+      // Final validation to ensure totalIncome is a valid number
+      if (typeof totalIncome !== 'number' || isNaN(totalIncome)) {
+        console.error('Invalid totalIncome detected, resetting to 0:', totalIncome);
+        totalIncome = 0;
+      }
+
+      console.log(`Final totalIncome value: ${totalIncome}`);
+
+      return {
+        total: allEvents.length || 0,
+        partlyPaid,
+        fullyPaid,
+        dailyStats: dailyBookings,
+        monthlyIncome,
+        totalIncome,
+        events: allEvents || [],
+      };
     },
     enabled: !!userId,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: 1, // Limit retries for database issues
   });
 
   return { 
     taskStats, 
     eventStats,
-    error,
     isLoading: isLoadingTaskStats || isLoadingEventStats
   };
 };
