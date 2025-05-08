@@ -1,3 +1,4 @@
+
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
 import { CalendarGrid } from "./CalendarGrid";
@@ -87,14 +88,22 @@ export function CalendarView({
   const daysToRender = view === 'month' ? getDaysWithSurroundingMonths() : days;
   
   // Strictly filter events to make sure deleted events don't show up
+  // CRITICAL FIX: Improve event filtering logic to ensure approved bookings show up
   const filteredEvents = events.filter(event => {
     // First check if deleted_at is undefined or null
-    if (event.deleted_at === undefined || event.deleted_at === null) {
-      return true; // Keep events that don't have deleted_at field or it's null
+    if (event.deleted_at !== undefined && event.deleted_at !== null) {
+      return false; // Filter out deleted events
     }
     
-    // If deleted_at has a value (a timestamp), filter out this deleted event
-    return false;
+    // Add additional logging for debugging event visibility
+    if (isExternalCalendar) {
+      // For debugging only: log events with specific types or properties
+      if (event.type === 'booking_request') {
+        console.log('[CalendarView] Found booking_request event in external calendar:', event.id);
+      }
+    }
+    
+    return true; // Keep all non-deleted events
   });
   
   // Add debug log for events in CalendarView

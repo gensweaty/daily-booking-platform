@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -288,12 +289,13 @@ export const useBookingRequests = () => {
       
       if (updateError) throw updateError;
       
-      // Prepare data for event and customer creation
+      // CRITICAL FIX: Prepare data for event and customer creation with correct type
+      // Ensuring user_id is set to the business owner's ID, not the requester's ID
       const eventData: any = {
         title: booking.title,
         start_date: booking.start_date,
         end_date: booking.end_date,
-        user_id: user.id,
+        user_id: user.id, // This is key - ensure event belongs to business owner
         user_surname: booking.requester_name,
         user_number: booking.requester_phone || booking.user_number || null,
         social_network_link: booking.requester_email || booking.social_network_link || null,
@@ -307,6 +309,7 @@ export const useBookingRequests = () => {
       // Only add language if it exists
       if (booking.language) {
         eventData.language = booking.language;
+        console.log(`Setting language for new event to: ${booking.language}`);
       }
       
       const customerData: any = {

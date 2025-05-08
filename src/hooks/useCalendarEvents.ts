@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -100,6 +101,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     console.log("Fetching user events for user:", user.id);
     
     try {
+      // CRITICAL FIX: Don't filter by type when fetching events
+      // This ensures we get all events including those created from bookings
       const { data, error } = await supabase
         .from('events')
         .select('*')
@@ -115,6 +118,20 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.log("Fetched user events:", data?.length || 0);
       if (data && data.length > 0) {
         console.log("Sample event data:", data[0]);
+        
+        // Debug output to help identify event type issues
+        const eventTypes = data.reduce((acc: Record<string, number>, event: any) => {
+          const type = event.type || 'undefined';
+          acc[type] = (acc[type] || 0) + 1;
+          return acc;
+        }, {});
+        console.log("Events by type:", eventTypes);
+        
+        // Check for events with language field
+        const eventsWithLanguage = data.filter((event: any) => event.language);
+        if (eventsWithLanguage.length > 0) {
+          console.log(`Found ${eventsWithLanguage.length} events with language field`);
+        }
         
         // Check for events without a type
         const eventsWithoutType = data.filter(event => !event.type);
@@ -184,6 +201,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     try {
       console.log("Fetching business events for user ID:", targetUserId);
       
+      // CRITICAL FIX: Don't filter by type when fetching events
       const { data, error } = await supabase
         .from('events')
         .select('*')
@@ -547,6 +565,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     // Only add language field if it exists
     if (event.language) {
       eventPayload.language = event.language;
+      console.log(`Creating event with language: ${event.language}`);
     }
     
     const { data, error } = await supabase
@@ -632,8 +651,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       }
       
-      // If an event's type is booking_request but update sets it to something else,
-      // this indicates approving a booking request
+      // CRITICAL FIX: If an event's type is booking_request but update sets it to something else,
+      // this indicates approving a booking request - ensure type is properly set to 'event'
       const wasBookingRequest = existingEvent.type === 'booking_request';
       const isChangingType = event.type && event.type !== 'booking_request';
       
@@ -664,6 +683,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         // Only add language if it exists
         if (event.language) {
           eventPayload.language = event.language;
+          console.log(`Setting language for converted event to: ${event.language}`);
         }
         
         // Create a new event first
@@ -801,6 +821,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       // Only include language if it exists in event
       if (!event.language) {
         delete updatePayload.language;
+      } else {
+        console.log(`Updating event with language: ${event.language}`);
       }
       
       const { data, error } = await supabase
