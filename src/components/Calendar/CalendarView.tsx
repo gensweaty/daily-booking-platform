@@ -25,7 +25,7 @@ export function CalendarView({
   onEventClick,
   isExternalCalendar = false,
 }: CalendarViewProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { theme, resolvedTheme } = useTheme();
   const [currentTheme, setCurrentTheme] = useState<string | undefined>(
     // Initialize with resolvedTheme first, fallback to theme, then check document class
@@ -98,6 +98,12 @@ export function CalendarView({
     return false;
   });
   
+  // Make sure all events have a language property
+  const eventsWithLanguage = filteredEvents.map(event => ({
+    ...event,
+    language: event.language || language || 'en' // Add language with fallback
+  }));
+  
   // Add debug log for events in CalendarView
   useEffect(() => {
     if (isExternalCalendar) {
@@ -130,7 +136,7 @@ export function CalendarView({
     <div className="h-full">
       <CalendarGrid
         days={daysToRender}
-        events={filteredEvents} // Use the filtered events
+        events={eventsWithLanguage} // Pass events with language added
         formattedSelectedDate={formattedSelectedDate}
         view={view}
         onDayClick={onDayClick}
