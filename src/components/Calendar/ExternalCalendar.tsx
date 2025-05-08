@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Calendar } from "./Calendar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -117,7 +116,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         const allEvents: CalendarEventType[] = [
           ...filteredApiEvents.map(event => ({
             ...event,
-            type: event.type || 'event'
+            type: event.type || 'event',
+            language: event.language || 'en' // Ensure language is set for events
           })),
           ...filteredBookings.map(booking => ({
             id: booking.id,
@@ -133,13 +133,14 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             event_notes: booking.description || '',
             requester_name: booking.requester_name || '',
             requester_email: booking.requester_email || '',
-            deleted_at: booking.deleted_at
+            deleted_at: booking.deleted_at,
+            language: booking.language || 'en' // Ensure language is set for bookings
           }))
         ];
         
         console.log(`[External Calendar] Combined ${allEvents.length} total events`);
         
-        // Validate all events have proper dates
+        // Validate all events have proper dates and are not deleted
         const validEvents = allEvents.filter(event => {
           try {
             // Check if start_date and end_date are valid
@@ -151,6 +152,10 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             
             if (!isNotDeleted) {
               console.log(`Filtering out deleted event with id ${event.id}, deleted_at: ${event.deleted_at}`);
+            }
+            
+            if (!startValid || !endValid) {
+              console.log(`Filtering out event with invalid dates: id=${event.id}, start=${event.start_date}, end=${event.end_date}`);
             }
             
             return startValid && endValid && isNotDeleted;

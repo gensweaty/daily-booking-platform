@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -289,6 +290,10 @@ export const useBookingRequests = () => {
       if (updateError) throw updateError;
       
       // Prepare data for event and customer creation
+      // Ensure language is properly set from the booking
+      const bookingLanguage = booking.language || 'en';
+      console.log('Using language for new event:', bookingLanguage);
+      
       const eventData = {
         title: booking.title,
         start_date: booking.start_date,
@@ -302,7 +307,7 @@ export const useBookingRequests = () => {
         booking_request_id: booking.id,
         payment_status: booking.payment_status || 'not_paid',
         payment_amount: booking.payment_amount,
-        language: booking.language || 'en' // Add language to event when creating from booking
+        language: bookingLanguage // Ensure language is explicitly set
       };
       
       const customerData = {
@@ -317,8 +322,11 @@ export const useBookingRequests = () => {
         type: 'booking_request',
         payment_status: booking.payment_status,
         payment_amount: booking.payment_amount,
-        language: booking.language || 'en' // Add language to customer when creating from booking
+        language: bookingLanguage // Ensure language is explicitly set
       };
+      
+      console.log('Creating event with data:', eventData);
+      console.log('Creating customer with data:', customerData);
       
       // Create event and customer records in parallel
       const [eventResult, customerResult] = await Promise.all([
@@ -338,6 +346,9 @@ export const useBookingRequests = () => {
       
       const eventData2 = eventResult.data;
       const customerData2 = customerResult.data;
+      
+      console.log('Created event:', eventData2);
+      console.log('Created customer:', customerData2);
       
       // Process files in parallel instead of sequentially
       const processFiles = async () => {
