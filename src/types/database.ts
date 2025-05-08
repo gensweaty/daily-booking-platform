@@ -65,6 +65,7 @@ export interface BookingRequest {
   payment_status?: string;
   payment_amount?: number | null;
   language?: string;
+  customer_id?: string | null; // Add customer_id field
   // File fields explicitly defined
   file_path?: string;
   filename?: string;
@@ -92,6 +93,7 @@ export interface EventFile {
   user_id?: string;
   created_at: string;
   source?: string;
+  customer_id?: string | null; // Add customer_id field
 }
 
 // Add CustomerFile interface to match customer_files_new table
