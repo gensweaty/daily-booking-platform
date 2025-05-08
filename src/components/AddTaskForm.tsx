@@ -52,7 +52,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         description,
         status: editingTask ? editingTask.status : ('todo' as const),
         user_id: user.id,
-        position: editingTask?.position || 0
+        order: editingTask?.order || 0
       };
 
       let taskResponse;

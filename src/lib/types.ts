@@ -106,3 +106,11 @@ export interface CustomerFile {
   created_at: string;
   source?: string;
 }
+
+// Payment status type for consistency across components 
+export type PaymentStatus = 
+  'not_paid' | 'partly' | 'fully' | 
+  'partly_paid' | 'fully_paid';
+
+// Re-export CalendarEventType as CalendarEvent for backward compatibility
+export type { CalendarEventType as CalendarEvent } from './types/calendar';
