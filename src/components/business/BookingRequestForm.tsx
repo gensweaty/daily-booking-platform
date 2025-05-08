@@ -219,7 +219,7 @@ export const BookingRequestForm = ({
         }
       }
 
-      // Create booking data object
+      // Create booking data object - include current language for currency context
       const bookingData = {
         business_id: businessId,
         requester_name: fullName,
@@ -232,6 +232,7 @@ export const BookingRequestForm = ({
         payment_status: paymentStatus,
         payment_amount: finalPaymentAmount,
         status: 'pending',
+        language: language // Store the language to know which currency symbol to use later
       };
 
       console.log('Submitting booking request:', bookingData);
@@ -322,7 +323,8 @@ export const BookingRequestForm = ({
             paymentStatus: paymentStatus,
             paymentAmount: finalPaymentAmount,
             businessName: businessNameToUse,
-            businessAddress: businessData?.businessAddress
+            businessAddress: businessData?.businessAddress,
+            language: language // Include language in notification to determine currency
           };
           
           // Log notification data
@@ -607,21 +609,26 @@ export const BookingRequestForm = ({
                 t("events.paymentAmount")
               )}
             </Label>
-            <Input
-              id="paymentAmount"
-              value={paymentAmount}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                  setPaymentAmount(value);
-                }
-              }}
-              placeholder="0.00"
-              type="text"
-              inputMode="decimal"
-              className={isGeorgian ? "font-georgian" : ""}
-              style={georgianFontStyle}
-            />
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2">
+                {getCurrencySymbol(language)}
+              </span>
+              <Input
+                id="paymentAmount"
+                value={paymentAmount}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                    setPaymentAmount(value);
+                  }
+                }}
+                placeholder="0.00"
+                type="text"
+                inputMode="decimal"
+                className={cn("pl-7", isGeorgian ? "font-georgian" : "")}
+                style={georgianFontStyle}
+              />
+            </div>
           </div>
         )}
         

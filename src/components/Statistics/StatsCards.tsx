@@ -11,7 +11,7 @@ import {
   BanknoteIcon,
 } from "lucide-react";
 import { LanguageText } from "@/components/shared/LanguageText";
-import { getCurrencySymbol, parsePaymentAmount } from "@/lib/currency";
+import { getCurrencySymbol, parsePaymentAmount, getBookingCurrencySymbol } from "@/lib/currency";
 
 interface StatsCardsProps {
   taskStats: {
@@ -25,6 +25,7 @@ interface StatsCardsProps {
     partlyPaid: number;
     fullyPaid: number;
     totalIncome: number | string | null | undefined;
+    language?: string; // Add language field to properly determine currency
   };
   customerStats: {
     total: number;
@@ -42,8 +43,8 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
     return null;
   }
   
-  // Get the appropriate currency symbol based on language
-  const currencySymbol = getCurrencySymbol(language);
+  // Get the appropriate currency symbol based on event stats language (if available) or user language
+  const currencySymbol = getBookingCurrencySymbol(eventStats, language);
 
   // Ensure totalIncome is a valid number - use fallback to 0 if invalid or undefined
   let validTotalIncome = 0;
@@ -65,8 +66,9 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
   const formattedIncome = `${currencySymbol}${(validTotalIncome || 0).toFixed(2)}`;
   
   // Choose the appropriate currency icon based on language
-  const CurrencyIcon = language === 'es' ? EuroIcon : 
-                       language === 'ka' ? BanknoteIcon : DollarSign;
+  const bookingLanguage = eventStats.language as Language || language;
+  const CurrencyIcon = bookingLanguage === 'es' ? EuroIcon : 
+                       bookingLanguage === 'ka' ? BanknoteIcon : DollarSign;
   
   // Enhanced debugging to verify income data at every step
   console.log("StatsCards - Rendering with income data:", {
@@ -74,7 +76,9 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
     rawIncomeType: typeof eventStats.totalIncome,
     afterParsing: validTotalIncome,
     formattedIncome,
-    currency: currencySymbol
+    currency: currencySymbol,
+    bookingLanguage,
+    userLanguage: language
   });
 
   // Format the task details to show completed, in progress, and todo
