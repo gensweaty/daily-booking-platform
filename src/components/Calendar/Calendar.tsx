@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -64,12 +65,15 @@ export const Calendar = ({
     !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
   );
   
+  // Helper function to ensure events have language property
+  const ensureEventLanguage = (event: any): CalendarEventType => ({
+    ...event,
+    language: event.language || currentLanguage || 'en'
+  });
+  
   // Add language to any event that might not have it
   const processEvents = (eventsToProcess: any[]): CalendarEventType[] => {
-    return eventsToProcess.map(event => ({
-      ...event,
-      language: event.language || currentLanguage || 'en'
-    }));
+    return eventsToProcess.map(ensureEventLanguage);
   };
   
   // Process events to ensure they all have the required language property

@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -79,6 +78,19 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const { user } = useAuth();
   const { toast } = useToast();
   const { t, language: currentLanguage } = useLanguage(); // Get current language from context
+  
+  // Add helper to ensure language property exists on all events
+  const ensureLanguageField = <T extends Record<string, any>>(data: T): T & { language: string } => {
+    return {
+      ...data,
+      language: data.language || currentLanguage || 'en'
+    };
+  };
+  
+  // Helper to ensure language field on array of events
+  const ensureLanguageOnArray = <T extends Record<string, any>[]>(data: T): (T[0] & { language: string })[] => {
+    return data.map(item => ensureLanguageField(item));
+  };
 
   // Helper to determine if times have changed between original and new dates
   const haveTimesChanged = (
@@ -141,11 +153,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       }
       
-      // Ensure all events have the language property
-      const eventsWithLanguage = (data || []).map(event => ({
-        ...event,
-        language: event.language || currentLanguage || 'en' // Default to current language or 'en'
-      })) as CalendarEventType[];
+      // Ensure all events have the language property using the helper function
+      const eventsWithLanguage = ensureLanguageOnArray(data || []) as CalendarEventType[];
       
       return eventsWithLanguage;
     } catch (err) {
@@ -220,11 +229,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       }
       
-      // Ensure all events have the language property
-      const eventsWithLanguage = (data || []).map(event => ({
-        ...event,
-        language: event.language || currentLanguage || 'en'
-      })) as CalendarEventType[];
+      // Ensure all events have the language property using the helper function
+      const eventsWithLanguage = ensureLanguageOnArray(data || []) as CalendarEventType[];
       
       return eventsWithLanguage;
     } catch (error) {
@@ -284,7 +290,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       console.log("Fetched approved bookings:", data?.length || 0);
       
-      const bookingEvents = (data || []).map(booking => ({
+      // Process and ensure language field is present using our helper
+      const processedData = data ? ensureLanguageOnArray(data) : [];
+      
+      const bookingEvents = processedData.map(booking => ({
         id: booking.id,
         title: booking.title || 'Booking',
         start_date: booking.start_date,
@@ -617,11 +626,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       );
     }
     
-    // Ensure language property exists in the returned data
-    const finalEvent: CalendarEventType = {
-      ...data,
-      language: data.language || currentLanguage || 'en'
-    };
+    // Use our helper to ensure language is set
+    const finalEvent = ensureLanguageField(data) as CalendarEventType;
     
     return finalEvent;
   };
@@ -631,7 +637,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     if (!event.id) throw new Error("Event ID is required for updates");
     
     // Fetch existing event with explicit error handling
-    let existingEventData: any = {
+    let existingEventData: Record<string, any> = {
       id: event.id,
       start_date: event.start_date || '',
       end_date: event.end_date || '',
@@ -651,6 +657,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.error('Error fetching existing event:', fetchError);
       } else if (existingEvent) {
         existingEventData = existingEvent;
+        // Ensure language exists on existing event data
+        existingEventData.language = existingEventData.language || currentLanguage || 'en';
       }
     } catch (error) {
       console.error('Exception fetching existing event:', error);
@@ -743,6 +751,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         if (event.user_surname || event.requester_name) {
           console.log("Creating customer record from booking request");
           
+          // Ensure all required fields have values, including language
           const customerData = {
             title: event.user_surname || event.requester_name || event.title || '',
             user_surname: event.user_surname || event.requester_name || event.title || '',
@@ -829,11 +838,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.error("Error updating booking status:", bookingUpdateError);
       }
       
-      // Ensure language property exists in the returned data
-      const finalEvent: CalendarEventType = {
-        ...newEvent,
-        language: newEvent.language || existingEventData.language || currentLanguage || 'en'
-      };
+      // Use our helper to ensure language property exists
+      const finalEvent = ensureLanguageField(newEvent) as CalendarEventType;
       
       return finalEvent;
     }
@@ -887,11 +893,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
     }
     
-    // Ensure language property exists in the returned data
-    const finalEvent: CalendarEventType = {
-      ...data,
-      language: data.language || existingEventData.language || currentLanguage || 'en'
-    };
+    // Use our helper to ensure language property exists
+    const finalEvent = ensureLanguageField(data) as CalendarEventType;
     
     return finalEvent;
   };
