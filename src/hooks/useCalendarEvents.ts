@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -152,7 +153,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       // Ensure all returned events have the language property
       return (data || []).map(event => ({
         ...event,
-        language: event.language || 'en' // Ensure language has a fallback value
+        language: event.language || language || 'en' // Ensure language has a fallback value
       }));
     } catch (err) {
       console.error("Exception in getEvents:", err);
@@ -218,7 +219,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.log("Fetched business events:", data?.length || 0);
       return (data || []).map(event => ({
         ...event,
-        language: event.language || 'en' // Ensure language has a fallback value
+        language: event.language || language || 'en' // Ensure language has a fallback value
       }));
     } catch (error) {
       console.error("Error fetching business events:", error);
@@ -294,7 +295,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         requester_phone: booking.requester_phone || '',
         description: booking.description || '',
         deleted_at: booking.deleted_at, // Add deleted_at to the mapped object
-        language: booking.language || 'en', // Ensure language has a fallback value
+        language: booking.language || language || 'en', // Ensure language has a fallback value
         payment_status: booking.payment_status || 'not_paid',
         payment_amount: booking.payment_amount || 0
       }));
@@ -411,7 +412,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     endDate: string,
     paymentStatus: string,
     paymentAmount: number | null,
-    language: string
+    emailLanguage: string
   ) => {
     // Optimization: Skip email sending during event creation for faster response
     // Email will be sent asynchronously after the event is created
@@ -617,6 +618,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       throw fetchError;
     }
     
+    // Store the current language for use later
+    const currentLanguage = existingEvent.language || language || 'en';
+    
     const startDateTime = new Date(event.start_date as string);
     const endDateTime = new Date(event.end_date as string);
     
@@ -666,7 +670,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         user_id: user.id,
         booking_request_id: bookingRequestId,
         type: event.type || 'event',
-        language: eventLanguage // Ensure language is included
+        language: currentLanguage // Use currentLanguage instead of eventLanguage
       };
       
       // Create a new event first
@@ -712,7 +716,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             event_notes: event.event_notes || event.description || '',
             user_id: user.id,
             type: 'customer',
-            language: eventLanguage, // Include language in customer data
+            language: currentLanguage, // Use currentLanguage instead of eventLanguage
             // Optional: link to event dates
             start_date: event.start_date,
             end_date: event.end_date
@@ -766,7 +770,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             event.end_date as string,
             event.payment_status || 'not_paid',
             event.payment_amount || null,
-            eventLanguage
+            currentLanguage // Use currentLanguage instead of eventLanguage
           );
         } catch (emailError) {
           console.error('Error sending booking approval email:', emailError);
@@ -808,6 +812,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     
     // Send email if email address has changed
     const emailChanged = event.social_network_link && 
+                        existingEvent.social_network_link && 
                         event.social_network_link !== existingEvent.social_network_link;
     
     if (emailChanged && isValidEmail(event.social_network_link as string)) {
@@ -820,7 +825,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           event.end_date as string,
           event.payment_status || 'not_paid',
           event.payment_amount || null,
-          event.language
+          event.language || currentLanguage
         );
       } catch (emailError) {
         console.error('Error sending updated booking email:', emailError);
