@@ -26,7 +26,7 @@ export interface CalendarEventType {
   content_type?: string;
   size?: number;
   checkAvailability?: boolean;
-  language?: string; // Keep as optional but ensure it's defined
+  language?: string;
   files?: Array<{
     id: string;
     event_id: string;
