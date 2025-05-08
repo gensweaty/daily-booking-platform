@@ -25,6 +25,8 @@ interface StatsCardsProps {
     partlyPaid: number;
     fullyPaid: number;
     totalIncome: number | string | null | undefined;
+    // Add language property to eventStats
+    language?: string;
   };
   customerStats: {
     total: number;
@@ -42,8 +44,15 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
     return null;
   }
   
-  // Get the appropriate currency symbol based on language
-  const currencySymbol = getCurrencySymbol(language);
+  // Get the appropriate currency symbol based on language, prioritizing event language if available
+  const eventLanguage = eventStats.language || language;
+  const currencySymbol = getCurrencySymbol(eventLanguage as any);
+
+  console.log("StatsCards - Using currency symbol based on:", {
+    eventLanguage,
+    userLanguage: language,
+    resultCurrencySymbol: currencySymbol
+  });
 
   // Ensure totalIncome is a valid number - use fallback to 0 if invalid or undefined
   let validTotalIncome = 0;
@@ -64,9 +73,9 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
   // Format the income value to have 2 decimal places and add currency symbol
   const formattedIncome = `${currencySymbol}${(validTotalIncome || 0).toFixed(2)}`;
   
-  // Choose the appropriate currency icon based on language
-  const CurrencyIcon = language === 'es' ? EuroIcon : 
-                       language === 'ka' ? BanknoteIcon : DollarSign;
+  // Choose the appropriate currency icon based on event language or user language
+  const CurrencyIcon = eventLanguage === 'es' ? EuroIcon : 
+                       eventLanguage === 'ka' ? BanknoteIcon : DollarSign;
   
   // Enhanced debugging to verify income data at every step
   console.log("StatsCards - Rendering with income data:", {
@@ -74,7 +83,9 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
     rawIncomeType: typeof eventStats.totalIncome,
     afterParsing: validTotalIncome,
     formattedIncome,
-    currency: currencySymbol
+    currency: currencySymbol,
+    eventLanguage,
+    userLanguage: language
   });
 
   // Format the task details to show completed, in progress, and todo

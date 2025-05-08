@@ -283,6 +283,8 @@ export const useBookingRequests = () => {
       if (updateError) throw updateError;
       
       // Prepare data for event and customer creation
+      // Important! Set the event type to 'event' (not 'booking_request')
+      // And preserve the language field from the booking request
       const eventData = {
         title: booking.title,
         start_date: booking.start_date,
@@ -292,10 +294,11 @@ export const useBookingRequests = () => {
         user_number: booking.requester_phone || booking.user_number || null,
         social_network_link: booking.requester_email || booking.social_network_link || null,
         event_notes: booking.description || booking.event_notes || null,
-        type: 'booking_request',
+        type: 'event', // Change type to 'event' instead of 'booking_request'
         booking_request_id: booking.id,
         payment_status: booking.payment_status || 'not_paid',
-        payment_amount: booking.payment_amount
+        payment_amount: booking.payment_amount,
+        language: booking.language // Preserve the language context
       };
       
       const customerData = {
@@ -307,9 +310,10 @@ export const useBookingRequests = () => {
         start_date: booking.start_date,
         end_date: booking.end_date,
         user_id: user.id,
-        type: 'booking_request',
+        type: 'event', // Make this consistent with the event type
         payment_status: booking.payment_status,
-        payment_amount: booking.payment_amount
+        payment_amount: booking.payment_amount,
+        language: booking.language // Also preserve language for customers
       };
       
       // Create event and customer records in parallel

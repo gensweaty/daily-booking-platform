@@ -10,7 +10,7 @@ export interface CalendarEventType {
   event_notes?: string;
   start_date: string;
   end_date: string;
-  type: 'birthday' | 'private_party' | 'booking_request' | string;
+  type: 'birthday' | 'private_party' | 'booking_request' | 'event' | string;
   payment_status?: string;
   payment_amount?: number;
   created_at: string;
@@ -26,6 +26,7 @@ export interface CalendarEventType {
   content_type?: string;
   size?: number;
   checkAvailability?: boolean;
+  language?: string;
   files?: Array<{
     id: string;
     event_id: string;

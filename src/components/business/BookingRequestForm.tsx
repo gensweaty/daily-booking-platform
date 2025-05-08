@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -15,6 +14,7 @@ import { LanguageText } from '@/components/shared/LanguageText';
 import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
 import { Asterisk } from 'lucide-react';
 import { getGeorgianFontStyle } from '@/lib/font-utils';
+import { getCurrencySymbol } from '@/lib/currency';
 
 export interface BookingRequestFormProps {
   businessId: string;
@@ -58,6 +58,9 @@ export const BookingRequestForm = ({
   const [paymentStatus, setPaymentStatus] = useState('not_paid');
   const [paymentAmount, setPaymentAmount] = useState('');
 
+  // Get the appropriate currency symbol based on language
+  const currencySymbol = getCurrencySymbol(language);
+  
   // Move date initialization to useEffect
   useEffect(() => {
     try {
@@ -219,7 +222,7 @@ export const BookingRequestForm = ({
         }
       }
 
-      // Create booking data object
+      // Create booking data object with language field
       const bookingData = {
         business_id: businessId,
         requester_name: fullName,
@@ -232,9 +235,10 @@ export const BookingRequestForm = ({
         payment_status: paymentStatus,
         payment_amount: finalPaymentAmount,
         status: 'pending',
+        language: language // Add the language field to store the context
       };
 
-      console.log('Submitting booking request:', bookingData);
+      console.log('Submitting booking request with language:', bookingData);
 
       // Step 1: Create booking request in database
       const { data: bookingResponse, error: bookingError } = await supabase
@@ -607,21 +611,26 @@ export const BookingRequestForm = ({
                 t("events.paymentAmount")
               )}
             </Label>
-            <Input
-              id="paymentAmount"
-              value={paymentAmount}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                  setPaymentAmount(value);
-                }
-              }}
-              placeholder="0.00"
-              type="text"
-              inputMode="decimal"
-              className={isGeorgian ? "font-georgian" : ""}
-              style={georgianFontStyle}
-            />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <span className="text-gray-500">{currencySymbol}</span>
+              </div>
+              <Input
+                id="paymentAmount"
+                value={paymentAmount}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                    setPaymentAmount(value);
+                  }
+                }}
+                placeholder="0.00"
+                type="text"
+                inputMode="decimal"
+                className={cn("pl-7", isGeorgian ? "font-georgian" : "")}
+                style={georgianFontStyle}
+              />
+            </div>
           </div>
         )}
         
