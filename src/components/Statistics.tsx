@@ -83,10 +83,10 @@ export const Statistics = () => {
 
   const handleExport = useCallback(() => {
     if (taskStats && eventStats) {
-      // Pass customer stats and language to the export function
-      exportToExcel({ taskStats, eventStats, customerStats, language });
+      // Pass customer stats to the export function
+      exportToExcel({ taskStats, eventStats, customerStats });
     }
-  }, [taskStats, eventStats, customerStats, exportToExcel, language]);
+  }, [taskStats, eventStats, customerStats, exportToExcel]);
 
   const handleDateChange = useCallback((start: Date, end: Date | null) => {
     setDateRange({ start, end: end || start });
@@ -162,6 +162,12 @@ export const Statistics = () => {
         </div>
       ) : (
         <>
+          {/* Log right before passing to StatsCards */}
+          {console.log("Before rendering StatsCards - currentEventStats:", {
+            totalIncome: eventStats.totalIncome,
+            type: typeof eventStats.totalIncome
+          })}
+          
           <StatsCards 
             taskStats={taskStats} 
             eventStats={eventStats}
