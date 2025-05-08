@@ -613,7 +613,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     
     const { data: existingEvent, error: fetchError } = await supabase
       .from('events')
-      .select('id, start_date, end_date, type, social_network_link')
+      .select('id, start_date, end_date, type, social_network_link, language')
       .eq('id', event.id)
       .single();
       
