@@ -410,7 +410,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     startDate: string,
     endDate: string,
     paymentStatus: string,
-    paymentAmount: number | null
+    paymentAmount: number | null,
+    language?: string // Make language parameter optional
   ) => {
     // Optimization: Skip email sending during event creation for faster response
     // Email will be sent asynchronously after the event is created
@@ -443,6 +444,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.log(`- Business name: ${businessProfile?.business_name || 'None'}`);
         console.log(`- Event ID: ${eventId}`);
         console.log(`- Recipient: ${email}`);
+        console.log(`- Language: ${language || 'en'}`);
         
         const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
         const { data: sessionData } = await supabase.auth.getSession();
@@ -471,6 +473,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             paymentAmount: paymentAmount || 0,
             businessAddress: businessProfile?.contact_address || '',
             eventId: eventId,
+            language: language || 'en', // Pass language to email function
             source: 'useCalendarEvents' // Updated source to ensure consistent tracking
           })
         });
@@ -597,7 +600,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         event.end_date as string,
         event.payment_status || 'not_paid',
         event.payment_amount || null,
-        event.language || 'en' // Default to 'en' if language is missing
+        event.language || 'en' // Pass the language
       );
     }
     
@@ -818,6 +821,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     
     if (emailChanged && isValidEmail(event.social_network_link as string)) {
       try {
+        // Get the language either from the event update or from the existing event
+        const eventLanguage = event.language || 
+                             (existingEvent as any).language || // Cast to any to prevent TypeScript errors
+                             'en';
+        
         await sendBookingConfirmationEmail(
           data.id,
           event.title || event.user_surname || '',
@@ -825,7 +833,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           event.start_date as string,
           event.end_date as string,
           event.payment_status || 'not_paid',
-          event.payment_amount || null
+          event.payment_amount || null,
+          eventLanguage // Pass the language
         );
       } catch (emailError) {
         console.error('Error sending updated booking email:', emailError);
