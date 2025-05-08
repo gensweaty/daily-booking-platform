@@ -57,6 +57,7 @@ export const Statistics = () => {
         eventStats,
         totalIncomeType: typeof eventStats.totalIncome,
         totalIncomeValue: eventStats.totalIncome,
+        currencyType: eventStats.currencyType,
         isNumber: typeof eventStats.totalIncome === 'number',
         isValidNumber: typeof eventStats.totalIncome === 'number' && !isNaN(eventStats.totalIncome)
       });
@@ -104,8 +105,9 @@ export const Statistics = () => {
     total: 0, 
     partlyPaid: 0, 
     fullyPaid: 0, 
-    totalIncome: 0 
-  }), []);
+    totalIncome: 0,
+    currencyType: language
+  }), [language]);
 
   // Default customer stats
   const defaultCustomerStats = useMemo(() => ({
@@ -116,27 +118,32 @@ export const Statistics = () => {
 
   // Memoize the stats data to avoid unnecessary re-renders
   const currentTaskStats = useMemo(() => taskStats || defaultTaskStats, [taskStats, defaultTaskStats]);
-  const currentEventStats = useMemo(() => eventStats || defaultEventStats, [eventStats, defaultEventStats]);
+  const currentEventStats = useMemo(() => {
+    if (!eventStats) return defaultEventStats;
+    
+    // Make sure we have the currency type, falling back to the user's language if needed
+    return {
+      ...eventStats,
+      currencyType: eventStats.currencyType || language
+    };
+  }, [eventStats, defaultEventStats, language]);
+  
   const currentCustomerStats = useMemo(() => customerStats || defaultCustomerStats, [customerStats, defaultCustomerStats]);
   const chartData = useMemo(() => eventStats?.dailyStats || [], [eventStats?.dailyStats]);
   const incomeData = useMemo(() => eventStats?.monthlyIncome || [], [eventStats?.monthlyIncome]);
 
   // Additional debugging to verify data
-  useMemo(() => {
+  useEffect(() => {
     if (eventStats) {
       console.log("Statistics component - Displaying stats:", { 
         total: eventStats.total,
         partlyPaid: eventStats.partlyPaid,
         fullyPaid: eventStats.fullyPaid,
-        totalIncome: eventStats.totalIncome
+        totalIncome: eventStats.totalIncome,
+        currencyType: eventStats.currencyType || language
       });
     }
-  }, [eventStats]);
-
-  // Log customer stats
-  useEffect(() => {
-    console.log("Statistics - Customer Stats:", currentCustomerStats);
-  }, [currentCustomerStats]);
+  }, [eventStats, language]);
 
   return (
     <div className="space-y-6">
@@ -164,14 +171,16 @@ export const Statistics = () => {
         <>
           {/* Log right before passing to StatsCards */}
           {console.log("Before rendering StatsCards - currentEventStats:", {
-            totalIncome: eventStats.totalIncome,
-            type: typeof eventStats.totalIncome
+            eventStats: currentEventStats,
+            totalIncome: currentEventStats.totalIncome,
+            type: typeof currentEventStats.totalIncome,
+            currencyType: currentEventStats.currencyType
           })}
           
           <StatsCards 
-            taskStats={taskStats} 
-            eventStats={eventStats}
-            customerStats={customerStats}
+            taskStats={currentTaskStats} 
+            eventStats={currentEventStats}
+            customerStats={currentCustomerStats}
           />
 
           <div className="grid gap-4 md:grid-cols-2">
