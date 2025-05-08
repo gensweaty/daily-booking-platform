@@ -5,6 +5,7 @@ import { useToast } from "../ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMemo } from 'react';
 import { getCurrencySymbol } from "@/lib/currency";
+import { Language } from '@/translations/types';
 
 interface StatsData {
   taskStats: {
@@ -47,11 +48,18 @@ export const useExcelExport = () => {
 
     // Use event-specific language if provided, otherwise fall back to UI language
     const currencyLanguage = data.eventStats.defaultLanguage || language;
-    const currencySymbol = getCurrencySymbol(currencyLanguage);
+    
+    // Ensure the language value is a valid Language type before passing it to getCurrencySymbol
+    const typedLanguage = (currencyLanguage === 'en' || currencyLanguage === 'es' || currencyLanguage === 'ka') 
+      ? currencyLanguage as Language 
+      : language;
+      
+    const currencySymbol = getCurrencySymbol(typedLanguage);
 
     console.log("Excel Export - Using currency:", {
       symbol: currencySymbol,
       language: currencyLanguage,
+      typedLanguage,
       uiLanguage: language,
       defaultLanguage: data.eventStats.defaultLanguage
     });
@@ -88,9 +96,11 @@ export const useExcelExport = () => {
     const eventsData = data.eventStats.events.map(event => {
       // Get the correct currency symbol for this specific event
       // If the event has a language field, use it; otherwise use the default
-      const eventCurrencySymbol = event.language ? 
-        getCurrencySymbol(event.language) : 
-        currencySymbol;
+      const eventLanguage = event.language || currencyLanguage;
+      const eventTypedLanguage = (eventLanguage === 'en' || eventLanguage === 'es' || eventLanguage === 'ka') 
+        ? eventLanguage as Language 
+        : typedLanguage;
+      const eventCurrencySymbol = getCurrencySymbol(eventTypedLanguage);
         
       return {
         [t('events.fullNameRequired')]: `${event.title || ''} ${event.user_surname || ''}`.trim(),
