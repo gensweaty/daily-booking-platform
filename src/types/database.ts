@@ -64,6 +64,7 @@ export interface BookingRequest {
   event_notes?: string;
   payment_status?: string;
   payment_amount?: number | null;
+  language?: string; // Add language field to store the interface language used when creating
   // File fields explicitly defined
   file_path?: string;
   filename?: string;

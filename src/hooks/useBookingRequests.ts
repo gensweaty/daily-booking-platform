@@ -49,10 +49,10 @@ export const useBookingRequests = () => {
       
       console.log('Fetching booking requests with files for business_id:', businessId);
       
-      // Fetch booking requests
+      // Fetch booking requests - now including language field
       const { data: requests, error: requestsError } = await supabase
         .from('booking_requests')
-        .select('*')
+        .select('*, language')
         .eq('business_id', businessId)
         .order('created_at', { ascending: false });
       
@@ -151,7 +151,8 @@ export const useBookingRequests = () => {
     endDate, 
     paymentStatus, 
     paymentAmount, 
-    businessAddress 
+    businessAddress,
+    language
   }: {
     email: string;
     fullName: string;
@@ -161,6 +162,7 @@ export const useBookingRequests = () => {
     paymentStatus?: string;
     paymentAmount?: number;
     businessAddress?: string;
+    language?: string;
   }) => {
     if (!email || !email.includes('@')) {
       console.error("Invalid email format or missing email:", email);
@@ -179,7 +181,8 @@ export const useBookingRequests = () => {
         endDate: endDate,
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
-        businessAddress: businessAddress // Pass the address as is
+        businessAddress: businessAddress, // Pass the address as is
+        language: language || 'en' // Include language in email request
       };
       
       // Get access token for authenticated request
@@ -244,12 +247,15 @@ export const useBookingRequests = () => {
       
       const { data: booking, error: fetchError } = await supabase
         .from('booking_requests')
-        .select('*')
+        .select('*, language')
         .eq('id', bookingId)
         .single();
       
       if (fetchError) throw fetchError;
       if (!booking) throw new Error('Booking request not found');
+      
+      // Log the language of the booking being approved
+      console.log('Booking language:', booking.language || 'not set (using default en)');
       
       // Check for conflicts
       const { data: conflictingEvents } = await supabase
@@ -295,7 +301,8 @@ export const useBookingRequests = () => {
         type: 'booking_request',
         booking_request_id: booking.id,
         payment_status: booking.payment_status || 'not_paid',
-        payment_amount: booking.payment_amount
+        payment_amount: booking.payment_amount,
+        language: booking.language || 'en' // Add language to event when creating from booking
       };
       
       const customerData = {
@@ -309,7 +316,8 @@ export const useBookingRequests = () => {
         user_id: user.id,
         type: 'booking_request',
         payment_status: booking.payment_status,
-        payment_amount: booking.payment_amount
+        payment_amount: booking.payment_amount,
+        language: booking.language || 'en' // Add language to customer when creating from booking
       };
       
       // Create event and customer records in parallel
@@ -514,7 +522,8 @@ export const useBookingRequests = () => {
           endDate: booking.end_date,
           paymentStatus: booking.payment_status,
           paymentAmount: booking.payment_amount,
-          businessAddress: contactAddress
+          businessAddress: contactAddress,
+          language: booking.language || 'en' // Include booking language in email
         };
         
         // Send email but don't block the approval process completion

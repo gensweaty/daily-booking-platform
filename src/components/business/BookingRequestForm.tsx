@@ -15,6 +15,7 @@ import { LanguageText } from '@/components/shared/LanguageText';
 import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
 import { Asterisk } from 'lucide-react';
 import { getGeorgianFontStyle } from '@/lib/font-utils';
+import { getCurrencySymbol } from '@/lib/currency';
 
 export interface BookingRequestFormProps {
   businessId: string;
@@ -57,6 +58,9 @@ export const BookingRequestForm = ({
   const [endDate, setEndDate] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('not_paid');
   const [paymentAmount, setPaymentAmount] = useState('');
+
+  // Get the currency symbol based on current language
+  const currencySymbol = getCurrencySymbol(language);
 
   // Move date initialization to useEffect
   useEffect(() => {
@@ -219,6 +223,9 @@ export const BookingRequestForm = ({
         }
       }
 
+      // Log the language being saved with the booking
+      console.log(`Saving booking with language: ${language}`);
+
       // Create booking data object
       const bookingData = {
         business_id: businessId,
@@ -232,6 +239,7 @@ export const BookingRequestForm = ({
         payment_status: paymentStatus,
         payment_amount: finalPaymentAmount,
         status: 'pending',
+        language: language, // Add language field to store current UI language
       };
 
       console.log('Submitting booking request:', bookingData);
@@ -250,6 +258,7 @@ export const BookingRequestForm = ({
 
       const bookingId = bookingResponse.id;
       console.log('Booking request created with ID:', bookingId);
+      console.log('Booking language saved as:', bookingResponse.language);
 
       // Flag to track if we need to upload a file
       let hasFile = !!selectedFile;
@@ -322,7 +331,8 @@ export const BookingRequestForm = ({
             paymentStatus: paymentStatus,
             paymentAmount: finalPaymentAmount,
             businessName: businessNameToUse,
-            businessAddress: businessData?.businessAddress
+            businessAddress: businessData?.businessAddress,
+            language: language // Include language in the notification data
           };
           
           // Log notification data
@@ -607,21 +617,26 @@ export const BookingRequestForm = ({
                 t("events.paymentAmount")
               )}
             </Label>
-            <Input
-              id="paymentAmount"
-              value={paymentAmount}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                  setPaymentAmount(value);
-                }
-              }}
-              placeholder="0.00"
-              type="text"
-              inputMode="decimal"
-              className={isGeorgian ? "font-georgian" : ""}
-              style={georgianFontStyle}
-            />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <span className="text-gray-500">{currencySymbol}</span>
+              </div>
+              <Input
+                id="paymentAmount"
+                value={paymentAmount}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                    setPaymentAmount(value);
+                  }
+                }}
+                placeholder="0.00"
+                type="text"
+                inputMode="decimal"
+                className={cn(isGeorgian ? "font-georgian pl-7" : "pl-7")}
+                style={georgianFontStyle}
+              />
+            </div>
           </div>
         )}
         
