@@ -88,7 +88,6 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         monthlyIncome: [],
         totalIncome: 0,
         events: [],
-        language: 'en' // Default language as fallback
       };
       
       // Format dates for Supabase query
@@ -98,7 +97,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       // Get all calendar events - IMPORTANT: Now explicitly filtering out deleted events
       const { data: calendarEvents, error: calendarError } = await supabase
         .from('events')
-        .select('*, language') // Explicitly include language field
+        .select('*')
         .eq('user_id', userId)
         .gte('start_date', startDateStr)
         .lte('start_date', endDateStr)
@@ -112,7 +111,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       // Get all customers with create_event=true (events created from CRM)
       const { data: crmEvents, error: crmError } = await supabase
         .from('customers')
-        .select('*, language') // Explicitly include language field
+        .select('*')
         .eq('user_id', userId)
         .eq('create_event', true)
         .gte('start_date', startDateStr)
@@ -163,7 +162,6 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             type: event.type || 'event',
             created_at: event.created_at,
             user_id: event.user_id,
-            language: event.language // Keep language from event
             // Other fields can be null or defaults
           });
         }
@@ -182,7 +180,6 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             raw_payment_amount: event.payment_amount,
             type_of: typeof event.payment_amount,
             payment_status: event.payment_status,
-            language: event.language, // Log the language as well
             parsed_amount: parsePaymentAmount(event.payment_amount)
           });
         }
@@ -262,7 +259,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           if (isPaid && (event.payment_amount !== undefined && event.payment_amount !== null)) {
             const parsedAmount = parsePaymentAmount(event.payment_amount);
             income += parsedAmount;
-            console.log(`Month ${format(month, 'MMM yyyy')} - Added ${parsedAmount} from event ${event.id} (language: ${event.language || 'not set'})`);
+            console.log(`Month ${format(month, 'MMM yyyy')} - Added ${parsedAmount} from event ${event.id}`);
           }
         });
         
@@ -288,7 +285,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           
           if (parsedAmount > 0) {
             validPaymentCount++;
-            console.log(`Total income: Adding ${parsedAmount} from event ${event.id} (${event.title}) with language: ${event.language || 'not set'}`);
+            console.log(`Total income: Adding ${parsedAmount} from event ${event.id} (${event.title})`);
             totalIncome += parsedAmount;
           }
         }
@@ -306,7 +303,6 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       });
       
       // If there's a discrepancy, use the monthly sum as it's more reliable
-      // THIS IS THE LINE WITH THE ERROR - Fix by ensuring proper type checking
       if (Math.abs(totalIncome - monthlyTotal) > 0.01) {
         console.warn('Income calculation discrepancy detected, using monthly sum instead:', {
           directTotal: totalIncome,
@@ -322,26 +318,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         totalIncome = 0;
       }
 
-      // Determine the most common language used in events for consistent currency display
-      // This will help when no specific language is set
-      let languageCounts: Record<string, number> = {};
-      allEvents.forEach(event => {
-        if (event.language) {
-          languageCounts[event.language] = (languageCounts[event.language] || 0) + 1;
-        }
-      });
-      
-      // Find the most common language
-      let mostCommonLanguage = 'en';
-      let maxCount = 0;
-      Object.entries(languageCounts).forEach(([lang, count]) => {
-        if (count > maxCount) {
-          mostCommonLanguage = lang;
-          maxCount = count as number;
-        }
-      });
-
-      console.log(`Final totalIncome value: ${totalIncome}, using language: ${mostCommonLanguage}`);
+      console.log(`Final totalIncome value: ${totalIncome}`);
 
       return {
         total: allEvents.length || 0,
@@ -351,7 +328,6 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         monthlyIncome,
         totalIncome,
         events: allEvents || [],
-        language: mostCommonLanguage // Store most common language
       };
     },
     enabled: !!userId,

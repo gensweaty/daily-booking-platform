@@ -75,34 +75,3 @@ export function parsePaymentAmount(amount: any): number {
     return 0;
   }
 }
-
-/**
- * Gets the currency symbol for a booking based on the stored language,
- * falling back to the current user language if not available
- * @param booking The booking request or event object
- * @param currentLanguage The current application language as fallback
- * @returns The appropriate currency symbol
- */
-export function getBookingCurrencySymbol(booking: { language?: string } | undefined | null, currentLanguage: Language): string {
-  // Use booking's stored language if available, otherwise fall back to current language
-  const languageToUse = booking?.language || currentLanguage;
-  return getCurrencySymbol(languageToUse as Language);
-}
-
-/**
- * Formats a booking amount with the correct currency symbol based on stored language
- * @param amount The amount to format
- * @param booking The booking object that may contain language info
- * @param currentLanguage Current application language as fallback
- * @returns Formatted amount with appropriate currency symbol
- */
-export function formatBookingAmount(amount: number | string | null | undefined, 
-                                   booking: { language?: string } | undefined | null,
-                                   currentLanguage: Language): string {
-  if (amount === null || amount === undefined) {
-    return `${getBookingCurrencySymbol(booking, currentLanguage)}0.00`;
-  }
-  
-  const numericAmount = parsePaymentAmount(amount);
-  return `${getBookingCurrencySymbol(booking, currentLanguage)}${numericAmount.toFixed(2)}`;
-}

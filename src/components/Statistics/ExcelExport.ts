@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { useToast } from "../ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMemo } from 'react';
-import { getCurrencySymbol, getBookingCurrencySymbol } from "@/lib/currency";
+import { getCurrencySymbol } from "@/lib/currency";
 
 interface StatsData {
   taskStats: {
@@ -19,7 +19,6 @@ interface StatsData {
     fullyPaid: number;
     totalIncome: number;
     events: any[];
-    language?: string; // Add language field for correct currency formatting
   };
   customerStats?: {
     total: number;
@@ -45,9 +44,6 @@ export const useExcelExport = () => {
       return;
     }
 
-    // Get the appropriate currency symbol based on eventStats language or user language
-    const reportCurrencySymbol = getBookingCurrencySymbol(data.eventStats, language);
-    
     // Create statistics summary data with properly translated values
     const statsData = [{
       [t('dashboard.category')]: t('dashboard.taskStatistics'),
@@ -72,32 +68,27 @@ export const useExcelExport = () => {
     }, {
       [t('dashboard.category')]: t('dashboard.financialSummary'),
       [t('dashboard.total')]: t('dashboard.totalIncome'),
-      [t('dashboard.details')]: `${reportCurrencySymbol}${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
+      [t('dashboard.details')]: `${currencySymbol}${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
       [t('dashboard.additionalInfo')]: t('dashboard.fromAllEvents'),
     }];
 
     // Transform events data for Excel with translated headers
-    const eventsData = data.eventStats.events.map(event => {
-      // Determine the currency symbol for this particular event based on its language or default
-      const eventCurrencySymbol = getBookingCurrencySymbol(event, language);
-      
-      return {
-        [t('events.fullNameRequired')]: `${event.title || ''} ${event.user_surname || ''}`.trim(),
-        [t('events.phoneNumber')]: event.user_number || '',
-        [t('events.socialLinkEmail')]: event.social_network_link || '',
-        [t('events.paymentStatus')]: event.payment_status ? (
-          event.payment_status === 'not_paid' ? t("crm.notPaid") : 
-          event.payment_status === 'partly' ? t("crm.paidPartly") :
-          event.payment_status === 'fully' ? t("crm.paidFully") :
-          event.payment_status
-        ) : '',
-        [t('events.paymentAmount')]: event.payment_amount ? `${eventCurrencySymbol}${event.payment_amount}` : '',
-        [t('events.date')]: event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
-        [t('events.time')]: event.start_date && event.end_date ? 
-          `${format(new Date(event.start_date), 'HH:mm')} - ${format(new Date(event.end_date), 'HH:mm')}` : '',
-        [t('events.eventNotes')]: event.event_notes || '',
-      };
-    });
+    const eventsData = data.eventStats.events.map(event => ({
+      [t('events.fullNameRequired')]: `${event.title || ''} ${event.user_surname || ''}`.trim(),
+      [t('events.phoneNumber')]: event.user_number || '',
+      [t('events.socialLinkEmail')]: event.social_network_link || '',
+      [t('events.paymentStatus')]: event.payment_status ? (
+        event.payment_status === 'not_paid' ? t("crm.notPaid") : 
+        event.payment_status === 'partly' ? t("crm.paidPartly") :
+        event.payment_status === 'fully' ? t("crm.paidFully") :
+        event.payment_status
+      ) : '',
+      [t('events.paymentAmount')]: event.payment_amount ? `${currencySymbol}${event.payment_amount}` : '',
+      [t('events.date')]: event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
+      [t('events.time')]: event.start_date && event.end_date ? 
+        `${format(new Date(event.start_date), 'HH:mm')} - ${format(new Date(event.end_date), 'HH:mm')}` : '',
+      [t('events.eventNotes')]: event.event_notes || '',
+    }));
 
     // Set Excel metadata in current language
     const wb = XLSX.utils.book_new();
