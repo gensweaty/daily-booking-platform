@@ -9,21 +9,25 @@ import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 interface TaskFormHeaderProps {
   onAddTask?: () => void;
   editingTask?: Task | null;
+  titleKey?: string;
 }
 
-export const TaskFormHeader = ({ onAddTask, editingTask }: TaskFormHeaderProps) => {
+export const TaskFormHeader = ({ onAddTask, editingTask, titleKey }: TaskFormHeaderProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
+  
+  // Determine what title to show - use titleKey if provided, otherwise determine based on editingTask
+  const title = titleKey ? t(titleKey) : (editingTask ? t("tasks.editTask") : t("tasks.addTask"));
   
   return (
     <div className="flex items-center justify-between mb-6">
       <h2 className="text-xl font-bold">
         {isGeorgian ? (
           <GeorgianAuthText fontWeight="bold">
-            <LanguageText>{editingTask ? t("tasks.editTask") : t("tasks.addTask")}</LanguageText>
+            <LanguageText>{title}</LanguageText>
           </GeorgianAuthText>
         ) : (
-          <LanguageText>{editingTask ? t("tasks.editTask") : t("tasks.addTask")}</LanguageText>
+          <LanguageText>{title}</LanguageText>
         )}
       </h2>
       {onAddTask && (

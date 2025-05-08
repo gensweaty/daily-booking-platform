@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -57,6 +58,12 @@ export const DashboardContent = ({
   const { toast } = useToast()
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
+  
+  // Function to handle successful task operations
+  const handleTaskSuccess = () => {
+    // This function will be called when a task is successfully created
+    // You can add any additional logic here if needed
+  };
 
   useEffect(() => {
     if (pendingCount > 0) {
@@ -263,7 +270,11 @@ export const DashboardContent = ({
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <AddTaskForm onClose={() => setIsTaskDialogOpen(false)} />
+                      <AddTaskForm 
+                        isOpen={isTaskDialogOpen} 
+                        onClose={() => setIsTaskDialogOpen(false)} 
+                        onSuccess={handleTaskSuccess}
+                      />
                     </motion.div>
                   </DialogContent>
                 </Dialog>

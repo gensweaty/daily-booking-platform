@@ -101,6 +101,11 @@ export const TaskList = () => {
     done: tasks.filter((task: Task) => task.status === 'done'),
   };
 
+  // Function to handle successful task operations
+  const handleTaskSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+  };
+
   return (
     <>
       <DragDropContext onDragEnd={handleDragEnd}>
@@ -118,10 +123,12 @@ export const TaskList = () => {
         </div>
       </DragDropContext>
 
-      <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
+      <Dialog open={!!editingTask} onOpenChange={(open) => !open && setEditingTask(null)}>
         <DialogContent className="bg-background border-border">
           <AddTaskForm 
+            isOpen={!!editingTask}
             onClose={() => setEditingTask(null)} 
+            onSuccess={handleTaskSuccess}
             editingTask={editingTask}
           />
         </DialogContent>
