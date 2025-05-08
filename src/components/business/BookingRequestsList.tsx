@@ -62,7 +62,16 @@ export const BookingRequestsList = ({
     // Set processing state to show loading indicator
     setProcessingId(id);
     try {
+      // Log which booking we're approving for debugging
+      console.log(`Approving booking request: ${id}`);
+      const requestToApprove = requests.find(req => req.id === id);
+      if (requestToApprove) {
+        console.log(`Request details: language=${requestToApprove.language}, payment=${requestToApprove.payment_status}`);
+      }
+      
       await onApprove?.(id);
+    } catch (error) {
+      console.error(`Error approving booking ${id}:`, error);
     } finally {
       // Clear processing state when done (success or error)
       setProcessingId(null);

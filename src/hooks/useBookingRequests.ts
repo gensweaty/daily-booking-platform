@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -244,7 +243,6 @@ export const useBookingRequests = () => {
       }
       
       // Remove the loading toast notification since we have button loading animations
-      // This was displaying "Processing approval... Please wait while we process your request."
       
       const { data: booking, error: fetchError } = await supabase
         .from('booking_requests')
@@ -259,24 +257,48 @@ export const useBookingRequests = () => {
       console.log('Booking language:', booking.language || 'not set (using default en)');
       console.log('Booking full data:', JSON.stringify(booking, null, 2));
       
-      // Check for conflicts
-      const { data: conflictingEvents } = await supabase
-        .from('events')
-        .select('id, title')
-        .eq('user_id', user.id)
-        .filter('start_date', 'lt', booking.end_date)
-        .filter('end_date', 'gt', booking.start_date)
-        .is('deleted_at', null);
+      // FIX: First get all conflicting events for this user to validate availability properly
+      // This includes both events and already approved bookings
+      // Note: we're specifically excluding the current booking ID when checking conflicts
+      console.log(`Checking for conflicts with booking ID: ${bookingId}`);
+      console.log(`Time slot: ${booking.start_date} - ${booking.end_date}`);
       
-      const { data: conflictingBookings } = await supabase
-        .from('booking_requests')
-        .select('id, title')
-        .eq('business_id', businessId)
-        .eq('status', 'approved')
-        .not('id', 'eq', bookingId)
-        .filter('start_date', 'lt', booking.end_date)
-        .filter('end_date', 'gt', booking.start_date);
+      // Use Promise.all to run both queries concurrently
+      const [eventsResult, bookingsResult] = await Promise.all([
+        // Check for conflicting events
+        supabase
+          .from('events')
+          .select('id, title, start_date, end_date')
+          .eq('user_id', user.id)
+          .filter('start_date', 'lt', booking.end_date)
+          .filter('end_date', 'gt', booking.start_date)
+          .is('deleted_at', null),
+        
+        // Check for conflicting approved bookings
+        supabase
+          .from('booking_requests')
+          .select('id, title')
+          .eq('business_id', businessId)
+          .eq('status', 'approved')
+          .not('id', 'eq', bookingId) // Exclude current booking from conflict check
+          .filter('start_date', 'lt', booking.end_date)
+          .filter('end_date', 'gt', booking.start_date)
+      ]);
       
+      const conflictingEvents = eventsResult.data || [];
+      const conflictingBookings = bookingsResult.data || [];
+      
+      console.log(`Found ${conflictingEvents.length} conflicting events`);
+      if (conflictingEvents.length > 0) {
+        console.log('Conflicting events:', JSON.stringify(conflictingEvents, null, 2));
+      }
+      
+      console.log(`Found ${conflictingBookings.length} conflicting bookings`);
+      if (conflictingBookings.length > 0) {
+        console.log('Conflicting bookings:', JSON.stringify(conflictingBookings, null, 2));
+      }
+      
+      // Check for conflicts and throw an error if any exist
       if ((conflictingEvents && conflictingEvents.length > 0) || 
           (conflictingBookings && conflictingBookings.length > 0)) {
         throw new Error('Time slot is no longer available');

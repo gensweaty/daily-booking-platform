@@ -207,6 +207,10 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           console.warn("Failed to store events in session storage:", e);
         }
         
+        // Debug log all events with language to ensure they have it
+        console.log("[External Calendar] Final events with language check:", 
+          actuallyValid.map(e => ({ id: e.id, type: e.type, language: e.language })));
+        
         // Update state with fetched events
         setEvents(actuallyValid);
         setLoadingError(null);

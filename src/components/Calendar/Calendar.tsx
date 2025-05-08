@@ -93,8 +93,14 @@ export const Calendar = ({
     });
     
     if (events?.length > 0) {
+      // Debug log events with language info
       console.log("[Calendar] First event:", events[0]);
-      console.log("[Calendar] All events:", events); // Log all events to debug
+      console.log("[Calendar] Events with language:", events.map(e => ({
+        id: e.id,
+        title: e.title,
+        type: e.type,
+        language: e.language || 'not set'
+      })));
     }
   }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
 

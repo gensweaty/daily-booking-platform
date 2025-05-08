@@ -76,7 +76,6 @@ export const useEventDialog = ({
       
       // Set checkAvailability flag in memory, but remove it before sending to the database
       // to prevent the "column not found" error
-      const shouldCheckAvailability = true;
       console.log("Updating event with data:", eventData);
       
       // Create a new object without the checkAvailability property to send to the database
