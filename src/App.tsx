@@ -68,7 +68,18 @@ const RouteAwareThemeProvider = ({ children }: { children: React.ReactNode }) =>
 // A separate component to handle route awareness
 const RouteAwareWrapper = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
-  const isExternalPage = location.pathname.startsWith('/business/');
+  
+  // More reliable business page detection
+  const isExternalPage = location.pathname.startsWith('/business/') || location.pathname === '/business';
+  
+  // If accessing from business path, set the flag early
+  useEffect(() => {
+    if (isExternalPage) {
+      console.log("[RouteAwareWrapper] Business page detected:", location.pathname);
+      localStorage.setItem('accessing_public_business_page', 'true');
+      localStorage.setItem('last_business_path', location.pathname);
+    }
+  }, [location.pathname, isExternalPage]);
   
   useEffect(() => {
     if (isExternalPage) {
@@ -97,15 +108,51 @@ const RouteAwareWrapper = ({ children }: { children: React.ReactNode }) => {
       document.documentElement.setAttribute('data-theme', 'light');
       console.log("[InitTheme] Applied system light theme");
     }
+    
+    // Make sure visibility is restored in case it was hidden by early detection
+    document.documentElement.style.visibility = 'visible';
   }, [isExternalPage, location.pathname]);
   
   return <>{children}</>;
+};
+
+// Business page route interceptor
+const BusinessRouteInterceptor = () => {
+  const location = useLocation();
+  
+  useEffect(() => {
+    // Check if we're directly accessing a business path
+    if (location.pathname.startsWith('/business')) {
+      console.log("[BusinessRouteInterceptor] Intercepting business path:", location.pathname);
+      localStorage.setItem('accessing_public_business_page', 'true');
+      localStorage.setItem('last_business_path', location.pathname);
+    }
+    
+    // Check if there's any redirection needed
+    const redirectNeeded = localStorage.getItem('redirect_after_load');
+    if (redirectNeeded) {
+      const targetPath = localStorage.getItem('redirect_target_path');
+      if (targetPath) {
+        console.log(`[BusinessRouteInterceptor] Performing delayed redirect to: ${targetPath}`);
+        localStorage.removeItem('redirect_after_load');
+        localStorage.removeItem('redirect_target_path');
+        
+        // Use timeout to ensure app is fully loaded
+        setTimeout(() => {
+          window.location.href = targetPath;
+        }, 100);
+      }
+    }
+  }, [location]);
+  
+  return null;
 };
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <BusinessRouteInterceptor />
         <ThemeProvider defaultTheme="system">
           <LanguageProvider>
             <AuthProvider>

@@ -180,6 +180,20 @@ export const useBusinessProfile = () => {
     }
   };
 
+  const getPublicBusinessUrl = (slug: string) => {
+    // Use absolute URLs that work across all environments
+    const isProduction = window.location.hostname === 'smartbookly.com' || 
+                         window.location.hostname === 'www.smartbookly.com';
+    
+    if (isProduction) {
+      // On production, use the main domain
+      return `https://smartbookly.com/business/${slug}`;
+    } else {
+      // On development or preview, use the current origin
+      return `${window.location.origin}/business/${slug}`;
+    }
+  };
+
   const { data: businessProfile, isLoading, error } = useQuery({
     queryKey: ["businessProfile", user?.id],
     queryFn: getBusinessProfile,
@@ -240,5 +254,6 @@ export const useBusinessProfile = () => {
     updateBusinessProfile: updateProfileMutation.mutate,
     generateSlug,
     uploadCoverPhoto,
+    getPublicBusinessUrl,
   };
 };

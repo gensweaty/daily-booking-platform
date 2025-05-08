@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { supabase, forceBucketCreation } from "@/lib/supabase";
@@ -20,17 +21,37 @@ export const PublicBusinessPage = () => {
   const { theme } = useTheme();
   const isGeorgian = language === 'ka';
   
+  // Set the flag to prevent authentication redirects
+  useEffect(() => {
+    localStorage.setItem('accessing_public_business_page', 'true');
+    localStorage.setItem('last_business_path', location.pathname);
+    
+    return () => {
+      // Only remove the flag if we're navigating away from business pages
+      if (!location.pathname.startsWith('/business')) {
+        localStorage.removeItem('accessing_public_business_page');
+      }
+    };
+  }, [location.pathname]);
+  
   const getBusinessSlug = () => {
+    // Check for slug in URL path parameters
     if (slug) return slug;
     
+    // Check for slug in pathname (e.g., /business/slug-name)
     const pathMatch = location.pathname.match(/\/business\/([^\/]+)/);
     if (pathMatch && pathMatch[1]) return pathMatch[1];
     
+    // Check for slug in query parameters
     const searchParams = new URLSearchParams(location.search);
     const slugFromSearch = searchParams.get('slug') || searchParams.get('business');
     if (slugFromSearch) return slugFromSearch;
     
-    return localStorage.getItem('lastVisitedBusinessSlug') || null;
+    // Fall back to cached slug (if any)
+    const cachedSlug = localStorage.getItem('lastVisitedBusinessSlug');
+    if (cachedSlug) return cachedSlug;
+    
+    return null;
   };
 
   const businessSlug = getBusinessSlug();
@@ -46,7 +67,10 @@ export const PublicBusinessPage = () => {
 
   console.log("[PublicBusinessPage] Using business slug:", businessSlug);
   console.log("[PublicBusinessPage] Current theme:", theme);
+  console.log("[PublicBusinessPage] Current path:", location.pathname);
+  console.log("[PublicBusinessPage] Current URL:", window.location.href);
 
+  // Retry logic for fetching the business profile
   useEffect(() => {
     const intervalId = setInterval(() => {
       if (retryCount < 3 && !business) {
@@ -57,12 +81,14 @@ export const PublicBusinessPage = () => {
     return () => clearInterval(intervalId);
   }, [business, retryCount]);
 
+  // Cache the business slug for future visits
   useEffect(() => {
     if (businessSlug) {
       localStorage.setItem('lastVisitedBusinessSlug', businessSlug);
     }
   }, [businessSlug]);
 
+  // Fetch the business profile
   useEffect(() => {
     const fetchBusinessProfile = async () => {
       if (!businessSlug) {
@@ -116,6 +142,22 @@ export const PublicBusinessPage = () => {
         
         if (data?.business_name) {
           document.title = `${data.business_name} - Book Now`;
+          
+          // Update meta tags for better SEO
+          const metaDescription = document.querySelector('meta[name="description"]');
+          if (metaDescription) {
+            metaDescription.setAttribute('content', `Book appointments with ${data.business_name}. ${data.description || 'Online booking available.'}`);
+          }
+          
+          const ogTitle = document.querySelector('meta[property="og:title"]');
+          if (ogTitle) {
+            ogTitle.setAttribute('content', `${data.business_name} - Book Now | Smartbookly`);
+          }
+          
+          const ogDescription = document.querySelector('meta[property="og:description"]');
+          if (ogDescription) {
+            ogDescription.setAttribute('content', `Book appointments with ${data.business_name}. ${data.description || 'Online booking available.'}`);
+          }
         }
       } catch (error) {
         console.error("Exception in fetchBusinessProfile:", error);

@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -28,6 +29,29 @@
     <link rel="icon" type="image/png" href="/lovable-uploads/fc3d2883-6b57-4178-9938-fd39d77f307a.png" />
     <link rel="canonical" href="https://smartbookly.com" />
     <meta name="theme-color" content="#9b87f5" />
+    <meta name="business-page" content="enabled" />
+    <!-- Early route detection for public business pages -->
+    <script>
+      (function() {
+        // Detect business pages before React loads
+        var path = window.location.pathname;
+        var isBusinessPage = path.startsWith('/business/') || (path === '/business');
+        
+        // Set flag in localStorage to prevent redirects for business pages
+        if (isBusinessPage) {
+          localStorage.setItem('accessing_public_business_page', 'true');
+          localStorage.setItem('last_business_path', path);
+          // Hide body content initially to prevent flashing
+          document.documentElement.style.visibility = 'hidden';
+          // Will be made visible again once the app is loaded
+          setTimeout(function() {
+            document.documentElement.style.visibility = 'visible';
+          }, 300);
+        } else {
+          localStorage.removeItem('accessing_public_business_page');
+        }
+      })();
+    </script>
   </head>
 
   <body>
