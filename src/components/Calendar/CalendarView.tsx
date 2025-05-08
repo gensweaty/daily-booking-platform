@@ -106,9 +106,15 @@ export function CalendarView({
         console.log("[CalendarView] Filtered out deleted events:", events.filter(e => e.deleted_at));
       }
       if (filteredEvents.length > 0) {
-        console.log("[CalendarView] First event sample:", filteredEvents[0]);
+        console.log("[CalendarView] First external event sample:", filteredEvents[0]);
+      }
+    } else {
+      console.log(`[CalendarView] Rendering internal calendar with ${events.length} events, ${filteredEvents.length} after filtering deleted`);
+      if (filteredEvents.length > 0) {
+        console.log("[CalendarView] First internal event sample:", filteredEvents[0]);
       }
     }
+    
     // Debug theme state
     console.log("[CalendarView] Current theme state:", { 
       theme, 

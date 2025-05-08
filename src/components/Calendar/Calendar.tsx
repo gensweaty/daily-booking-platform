@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -55,7 +56,8 @@ export const Calendar = ({
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
   const isMobile = useMediaQuery("(max-width: 640px)");
-  const { theme } = useTheme();
+  const { theme, resolvedTheme } = useTheme();
+  const { language } = useLanguage();
   
   const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
@@ -89,14 +91,29 @@ export const Calendar = ({
       directEvents: directEvents?.length || 0,
       fetchedEvents: fetchedEvents?.length || 0,
       eventsCount: events?.length || 0,
-      view
+      view,
+      theme: resolvedTheme || theme
     });
     
     if (events?.length > 0) {
-      console.log("[Calendar] First event:", events[0]);
-      console.log("[Calendar] All events:", events); // Log all events to debug
+      const eventSample = events[0];
+      console.log("[Calendar] First event sample:", {
+        id: eventSample.id,
+        title: eventSample.title,
+        start_date: eventSample.start_date,
+        end_date: eventSample.end_date,
+        type: eventSample.type,
+        deleted_at: eventSample.deleted_at,
+        language: eventSample.language || 'not set'
+      }); 
     }
-  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
+  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents, theme, resolvedTheme]);
+
+  // Make sure all events have the language field
+  const eventsWithLanguage = events?.map(event => ({
+    ...event,
+    language: event.language || language || 'en' // Add language with fallback
+  })) || [];
 
   const {
     selectedEvent,
@@ -110,17 +127,28 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      const result = await createEvent?.(data);
+      // Ensure language is set
+      const dataWithLanguage = {
+        ...data,
+        language: data.language || language || 'en'
+      };
+      const result = await createEvent?.(dataWithLanguage);
       return result;
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
-      console.log("Calendar passing to updateEvent:", { data, id: selectedEvent.id, type: selectedEvent.type });
+      console.log("Calendar passing to updateEvent:", { 
+        data, 
+        id: selectedEvent.id, 
+        type: selectedEvent.type,
+        language: data.language || selectedEvent.language || language || 'en'
+      });
       
       const result = await updateEvent?.({
         ...data,
         id: selectedEvent.id,
-        type: selectedEvent.type  // Make sure to pass the type from the selected event
+        type: selectedEvent.type,
+        language: data.language || selectedEvent.language || language || 'en'
       });
       return result;
     },
@@ -270,7 +298,7 @@ export const Calendar = ({
     );
   }
   
-  const isDarkTheme = theme === "dark";
+  const isDarkTheme = resolvedTheme === "dark" || theme === "dark";
   const gridBgClass = isDarkTheme ? "bg-gray-900" : "bg-white";
   const textClass = isDarkTheme ? "text-white" : "text-foreground";
 
@@ -291,7 +319,7 @@ export const Calendar = ({
         <div className={`flex-1 ${gridBgClass} ${textClass}`}>
           <CalendarView
             days={getDaysForView()}
-            events={events || []}
+            events={eventsWithLanguage}
             selectedDate={selectedDate}
             view={view}
             onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}
