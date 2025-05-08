@@ -18,6 +18,7 @@ interface StatsData {
     partlyPaid: number;
     fullyPaid: number;
     totalIncome: number;
+    currency_type?: string; // Add support for currency_type
     events: any[];
   };
   customerStats?: {
@@ -44,6 +45,11 @@ export const useExcelExport = () => {
       return;
     }
 
+    // Get appropriate currency symbol based on stored currency_type or fallback to language
+    const effectiveCurrencySymbol = data.eventStats.currency_type 
+      ? getCurrencySymbol(data.eventStats.currency_type as any) 
+      : currencySymbol;
+
     // Create statistics summary data with properly translated values
     const statsData = [{
       [t('dashboard.category')]: t('dashboard.taskStatistics'),
@@ -68,9 +74,15 @@ export const useExcelExport = () => {
     }, {
       [t('dashboard.category')]: t('dashboard.financialSummary'),
       [t('dashboard.total')]: t('dashboard.totalIncome'),
-      [t('dashboard.details')]: `${currencySymbol}${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
+      [t('dashboard.details')]: `${effectiveCurrencySymbol}${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
       [t('dashboard.additionalInfo')]: t('dashboard.fromAllEvents'),
     }];
+
+    // Get currency symbol for each event based on its currency_type or default
+    const getEventCurrency = (event: any) => {
+      const eventCurrency = event.currency_type || data.eventStats.currency_type || language;
+      return getCurrencySymbol(eventCurrency as any);
+    };
 
     // Transform events data for Excel with translated headers
     const eventsData = data.eventStats.events.map(event => ({
@@ -83,7 +95,7 @@ export const useExcelExport = () => {
         event.payment_status === 'fully' ? t("crm.paidFully") :
         event.payment_status
       ) : '',
-      [t('events.paymentAmount')]: event.payment_amount ? `${currencySymbol}${event.payment_amount}` : '',
+      [t('events.paymentAmount')]: event.payment_amount ? `${getEventCurrency(event)}${event.payment_amount}` : '',
       [t('events.date')]: event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
       [t('events.time')]: event.start_date && event.end_date ? 
         `${format(new Date(event.start_date), 'HH:mm')} - ${format(new Date(event.end_date), 'HH:mm')}` : '',

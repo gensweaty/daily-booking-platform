@@ -25,6 +25,7 @@ interface StatsCardsProps {
     partlyPaid: number;
     fullyPaid: number;
     totalIncome: number | string | null | undefined;
+    currency_type?: string; // Add support for currency_type
   };
   customerStats: {
     total: number;
@@ -42,8 +43,10 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
     return null;
   }
   
-  // Get the appropriate currency symbol based on language
-  const currencySymbol = getCurrencySymbol(language);
+  // Get the appropriate currency symbol based on stored currency_type or fallback to language setting
+  const currencySymbol = eventStats.currency_type 
+    ? getCurrencySymbol(eventStats.currency_type as any) 
+    : getCurrencySymbol(language);
 
   // Ensure totalIncome is a valid number - use fallback to 0 if invalid or undefined
   let validTotalIncome = 0;
@@ -64,9 +67,10 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
   // Format the income value to have 2 decimal places and add currency symbol
   const formattedIncome = `${currencySymbol}${(validTotalIncome || 0).toFixed(2)}`;
   
-  // Choose the appropriate currency icon based on language
-  const CurrencyIcon = language === 'es' ? EuroIcon : 
-                       language === 'ka' ? BanknoteIcon : DollarSign;
+  // Choose the appropriate currency icon based on currency_type or language
+  const currencyType = eventStats.currency_type || language;
+  const CurrencyIcon = currencyType === 'es' ? EuroIcon : 
+                       currencyType === 'ka' ? BanknoteIcon : DollarSign;
   
   // Enhanced debugging to verify income data at every step
   console.log("StatsCards - Rendering with income data:", {
@@ -74,7 +78,9 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
     rawIncomeType: typeof eventStats.totalIncome,
     afterParsing: validTotalIncome,
     formattedIncome,
-    currency: currencySymbol
+    currency: currencySymbol,
+    currencyType: eventStats.currency_type,
+    languageFallback: language
   });
 
   // Format the task details to show completed, in progress, and todo
