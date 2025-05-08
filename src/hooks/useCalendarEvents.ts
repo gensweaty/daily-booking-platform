@@ -145,7 +145,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       const eventsWithLanguage = (data || []).map(event => ({
         ...event,
         language: event.language || currentLanguage || 'en' // Default to current language or 'en'
-      }));
+      })) as CalendarEventType[];
       
       return eventsWithLanguage;
     } catch (err) {
@@ -224,7 +224,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       const eventsWithLanguage = (data || []).map(event => ({
         ...event,
         language: event.language || currentLanguage || 'en'
-      }));
+      })) as CalendarEventType[];
       
       return eventsWithLanguage;
     } catch (error) {
@@ -304,7 +304,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         payment_amount: booking.payment_amount || 0, // Make sure payment amount is included
         language: booking.language || currentLanguage || 'en', // Make sure language is always included
         deleted_at: booking.deleted_at // Track deleted_at for filtering
-      }));
+      })) as CalendarEventType[];
       
       // Debug log for approved bookings
       console.log("Mapped booking events:", bookingEvents.length);
@@ -618,36 +618,43 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
     
     // Ensure language property exists in the returned data
-    return {
+    const finalEvent: CalendarEventType = {
       ...data,
       language: data.language || currentLanguage || 'en'
     };
+    
+    return finalEvent;
   };
 
   const updateEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
     if (!event.id) throw new Error("Event ID is required for updates");
     
-    const { data: existingEvent, error: fetchError } = await supabase
-      .from('events')
-      .select('id, start_date, end_date, type, social_network_link, language')
-      .eq('id', event.id)
-      .single();
-      
-    if (fetchError) {
-      console.error('Error fetching existing event:', fetchError);
-      throw fetchError;
-    }
-    
-    // If there's a database error, ensure we have a fallback value
-    const existingEventData = existingEvent || { 
-      id: event.id, 
-      start_date: event.start_date || '', 
-      end_date: event.end_date || '', 
+    // Fetch existing event with explicit error handling
+    let existingEventData: any = {
+      id: event.id,
+      start_date: event.start_date || '',
+      end_date: event.end_date || '',
       type: event.type || '',
       social_network_link: '',
       language: currentLanguage || 'en'
     };
+    
+    try {
+      const { data: existingEvent, error: fetchError } = await supabase
+        .from('events')
+        .select('id, start_date, end_date, type, social_network_link, language')
+        .eq('id', event.id)
+        .single();
+        
+      if (fetchError) {
+        console.error('Error fetching existing event:', fetchError);
+      } else if (existingEvent) {
+        existingEventData = existingEvent;
+      }
+    } catch (error) {
+      console.error('Exception fetching existing event:', error);
+    }
     
     const startDateTime = new Date(event.start_date as string);
     const endDateTime = new Date(event.end_date as string);
@@ -823,19 +830,23 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
       
       // Ensure language property exists in the returned data
-      return {
+      const finalEvent: CalendarEventType = {
         ...newEvent,
         language: newEvent.language || existingEventData.language || currentLanguage || 'en'
       };
+      
+      return finalEvent;
     }
     
     // Regular update for non-booking events or when not changing type
+    const updatePayload = {
+      ...event,
+      language: event.language || existingEventData.language || currentLanguage || 'en'
+    };
+    
     const { data, error } = await supabase
       .from('events')
-      .update({
-        ...event,
-        language: event.language || existingEventData.language || currentLanguage || 'en'
-      })
+      .update(updatePayload)
       .eq('id', event.id)
       .select()
       .single();
@@ -877,10 +888,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
     
     // Ensure language property exists in the returned data
-    return {
+    const finalEvent: CalendarEventType = {
       ...data,
       language: data.language || existingEventData.language || currentLanguage || 'en'
     };
+    
+    return finalEvent;
   };
 
   const deleteEvent = async (eventId: string): Promise<void> => {

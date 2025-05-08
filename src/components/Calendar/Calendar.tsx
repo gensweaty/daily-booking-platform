@@ -130,17 +130,26 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      const result = await createEvent?.(data);
+      const result = await createEvent?.({
+        ...data,
+        language: data.language || currentLanguage || 'en' // Ensure language is set
+      });
       return result;
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
-      console.log("Calendar passing to updateEvent:", { data, id: selectedEvent.id, type: selectedEvent.type });
+      console.log("Calendar passing to updateEvent:", { 
+        data, 
+        id: selectedEvent.id, 
+        type: selectedEvent.type,
+        language: data.language || selectedEvent.language || currentLanguage
+      });
       
       const result = await updateEvent?.({
         ...data,
         id: selectedEvent.id,
-        type: selectedEvent.type  // Make sure to pass the type from the selected event
+        type: selectedEvent.type,  // Make sure to pass the type from the selected event
+        language: data.language || selectedEvent.language || currentLanguage // Make sure to pass the language
       });
       return result;
     },

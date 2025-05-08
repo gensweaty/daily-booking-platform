@@ -26,7 +26,7 @@ export interface CalendarEventType {
   content_type?: string;
   size?: number;
   checkAvailability?: boolean;
-  language: string; // Changed from optional to required
+  language: string; // Required field
   files?: Array<{
     id: string;
     event_id: string;
