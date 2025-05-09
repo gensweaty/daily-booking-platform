@@ -625,7 +625,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         // Always preserve original booking ID
         const bookingRequestId = event.id;
         
-        // IMPORTANT FIX: Fetch the original booking request to get its language
+        // IMPORTANT: Fetch the original booking request to get its language
         // This ensures we maintain the language from an external booking request
         const { data: originalBooking, error: bookingFetchError } = await supabase
           .from('booking_requests')
@@ -635,10 +635,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         
         if (bookingFetchError) {
           console.error("Error fetching original booking request:", bookingFetchError);
+        } else {
+          console.log("Original booking data:", originalBooking);
         }
         
         // Use booking language if available, with proper fallbacks
-        const bookingLanguage = originalBooking?.language || 'en';
+        const bookingLanguage = originalBooking?.language || '';
         console.log("Original booking language:", bookingLanguage);
         
         // Make sure payment amount is properly formatted as a number if present

@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { translations } from '@/translations';
 import { Language, LanguageContextType } from '@/translations/types';
+import { getCurrencySymbol } from '@/lib/currency'; // Import the centralized currency function
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
@@ -89,3 +90,6 @@ export const useLanguage = () => {
   }
   return context;
 };
+
+// Export getCurrencySymbol directly for convenience
+export { getCurrencySymbol };
