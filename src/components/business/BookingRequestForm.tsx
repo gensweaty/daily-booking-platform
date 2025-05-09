@@ -56,13 +56,19 @@ const formSchema = z.object({
 
 interface BookingRequestFormProps {
   businessId: string;
-  isOpen: boolean;
-  onClose: () => void;
-  onRequestSubmitted: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+  onRequestSubmitted?: () => void;
+  onSuccess?: () => void;
   businessInfo?: {
     business_name?: string;
     contact_address?: string;
   };
+  // Add props needed by Calendar.tsx
+  selectedDate?: Date;
+  startTime?: string;
+  endTime?: string;
+  isExternalBooking?: boolean;
 }
 
 export type FileUploadResult = {
@@ -71,7 +77,18 @@ export type FileUploadResult = {
   id: string;
 }
 
-export const BookingRequestForm = ({ businessId, isOpen, onClose, onRequestSubmitted, businessInfo }: BookingRequestFormProps) => {
+export const BookingRequestForm = ({ 
+  businessId, 
+  isOpen = false, 
+  onClose = () => {}, 
+  onRequestSubmitted = () => {}, 
+  onSuccess = () => {},
+  businessInfo,
+  selectedDate: initialSelectedDate,
+  startTime,
+  endTime,
+  isExternalBooking = false
+}: BookingRequestFormProps) => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const isMobile = useMediaQuery("(max-width: 640px)");
@@ -81,7 +98,7 @@ export const BookingRequestForm = ({ businessId, isOpen, onClose, onRequestSubmi
   const [showPaymentAmount, setShowPaymentAmount] = useState(false);
   const currencySymbol = getCurrencySymbol(language);
   
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(initialSelectedDate || new Date());
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -98,9 +115,27 @@ export const BookingRequestForm = ({ businessId, isOpen, onClose, onRequestSubmi
   });
 
   useEffect(() => {
-    form.setValue("startDate", selectedDate);
-    form.setValue("endDate", selectedDate);
-  }, [selectedDate, form]);
+    if (initialSelectedDate) {
+      setSelectedDate(initialSelectedDate);
+      form.setValue("startDate", initialSelectedDate);
+      form.setValue("endDate", initialSelectedDate);
+    }
+  }, [initialSelectedDate, form]);
+
+  // Set initial time values if provided
+  useEffect(() => {
+    if (startTime) {
+      const [hours, minutes] = startTime.split(':').map(Number);
+      form.setValue("startHour", hours);
+      form.setValue("startMinute", minutes);
+    }
+    
+    if (endTime) {
+      const [hours, minutes] = endTime.split(':').map(Number);
+      form.setValue("endHour", hours);
+      form.setValue("endMinute", minutes);
+    }
+  }, [startTime, endTime, form]);
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
@@ -193,8 +228,8 @@ export const BookingRequestForm = ({ businessId, isOpen, onClose, onRequestSubmi
             requesterEmail: data.email,
             requesterPhone: data.phone,
             notes: data.notes || 'No additional notes',
-            startDate: selectedDate.setHours(data.startHour || 0, data.startMinute || 0),
-            endDate: selectedDate.setHours(data.endHour || 0, data.endMinute || 0),
+            startDate: startDateTime,
+            endDate: endDateTime,
             hasAttachment: files.length > 0,
             paymentStatus: data.paymentStatus,
             paymentAmount: data.paymentAmount,
@@ -216,7 +251,7 @@ export const BookingRequestForm = ({ businessId, isOpen, onClose, onRequestSubmi
         console.error('Error sending booking notification:', error);
       }
       
-      // Create the booking request in the database
+      // Create the booking request in the database - Fix the property name to match the database schema
       const { error } = await supabase
         .from('booking_requests')
         .insert({
@@ -225,6 +260,7 @@ export const BookingRequestForm = ({ businessId, isOpen, onClose, onRequestSubmi
           requester_email: data.email,
           requester_phone: data.phone,
           description: data.notes || 'No additional notes',
+          title: 'Booking Request',  // Add title field as it's required
           start_date: selectedDate.setHours(data.startHour || 0, data.startMinute || 0),
           end_date: selectedDate.setHours(data.endHour || 0, data.endMinute || 0),
           attachment_ids: fileIds,
@@ -250,6 +286,7 @@ export const BookingRequestForm = ({ businessId, isOpen, onClose, onRequestSubmi
       setFiles([]);
       setStep('date');
       onRequestSubmitted();
+      if (onSuccess) onSuccess();
     } catch (error) {
       console.error('Error submitting booking request:', error);
       toast({
