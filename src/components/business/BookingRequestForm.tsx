@@ -1,698 +1,526 @@
-import { useState, useRef, useEffect } from 'react';
-import { format } from 'date-fns';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/lib/supabase';
-import { toast } from '@/components/ui/use-toast';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { FileUploadField } from '@/components/shared/FileUploadField';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
-import { LanguageText } from '@/components/shared/LanguageText';
-import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
-import { Asterisk } from 'lucide-react';
-import { getGeorgianFontStyle } from '@/lib/font-utils';
+import React, { useState, useEffect, useRef } from 'react';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { CalendarIcon, X } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import FileUploadField from '../shared/FileUploadField';
+import { FileRecord } from '@/types/files';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from "@/components/ui/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { getCurrencySymbol } from '@/lib/currency';
 
-export interface BookingRequestFormProps {
+const formSchema = z.object({
+  name: z.string().min(2, {
+    message: "Name must be at least 2 characters.",
+  }),
+  email: z.string().email({
+    message: "Invalid email address.",
+  }),
+  phone: z.string().optional(),
+  notes: z.string().optional(),
+  startDate: z.date(),
+  endDate: z.date(),
+  startHour: z.number().optional(),
+  startMinute: z.number().optional(),
+  endHour: z.number().optional(),
+  endMinute: z.number().optional(),
+  hasAttachment: z.boolean().default(false).optional(),
+  paymentStatus: z.string().optional(),
+  paymentAmount: z.number().optional(),
+});
+
+interface BookingRequestFormProps {
   businessId: string;
-  selectedDate: Date;
-  startTime?: string;
-  endTime?: string;
-  onSuccess?: () => void;
-  isExternalBooking?: boolean;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
+  isOpen: boolean;
+  onClose: () => void;
+  onRequestSubmitted: () => void;
+  businessInfo?: {
+    business_name?: string;
+    contact_address?: string;
+  };
 }
 
-export const BookingRequestForm = ({
-  businessId,
-  selectedDate,
-  startTime = '09:00',
-  endTime = '10:00',
-  onSuccess,
-  isExternalBooking = false,
-  open,
-  onOpenChange
-}: BookingRequestFormProps) => {
+export type FileUploadResult = {
+  file_path: string;
+  filename: string;
+  id: string;
+}
+
+export const BookingRequestForm = ({ businessId, isOpen, onClose, onRequestSubmitted, businessInfo }: BookingRequestFormProps) => {
   const { t, language } = useLanguage();
-  const isGeorgian = language === 'ka';
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [businessData, setBusinessData] = useState<{businessName?: string, businessEmail?: string, businessAddress?: string} | null>(null);
-  
-  // Replace useState with fullName state
-  const [fullName, setFullName] = useState('');
-  
-  // Add new state variables to match EventDialog structure
-  const [userSurname, setUserSurname] = useState('');
-  const [userNumber, setUserNumber] = useState('');
-  const [socialNetworkLink, setSocialNetworkLink] = useState('');
-  const [eventNotes, setEventNotes] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [paymentStatus, setPaymentStatus] = useState('not_paid');
-  const [paymentAmount, setPaymentAmount] = useState('');
-
-  // Get currency symbol based on language
+  const { toast } = useToast();
+  const isMobile = useMediaQuery("(max-width: 640px)");
+  const [submitting, setSubmitting] = useState(false);
+  const [files, setFiles] = useState<FileRecord[]>([]);
+  const [step, setStep] = useState<'date' | 'details'>('date');
+  const [showPaymentAmount, setShowPaymentAmount] = useState(false);
   const currencySymbol = getCurrencySymbol(language);
-
-  // Move date initialization to useEffect
-  useEffect(() => {
-    try {
-      const start = combineDateAndTime(selectedDate, startTime);
-      const end = combineDateAndTime(selectedDate, endTime);
-      
-      setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
-    } catch (error) {
-      console.error('Error initializing dates:', error);
-      // Set fallback dates in case of error
-      const now = new Date();
-      const oneHourLater = new Date(now);
-      oneHourLater.setHours(oneHourLater.getHours() + 1);
-      
-      setStartDate(format(now, "yyyy-MM-dd'T'HH:mm"));
-      setEndDate(format(oneHourLater, "yyyy-MM-dd'T'HH:mm"));
-    }
-  }, [selectedDate, startTime, endTime]);
-
-  // Fetch business data early and cache it
-  useEffect(() => {
-    const fetchBusinessData = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('business_profiles')
-          .select('business_name, contact_email, contact_address')
-          .eq('id', businessId)
-          .single();
-
-        if (error) {
-          console.error("Error fetching business data:", error);
-          return;
-        }
-
-        setBusinessData({
-          businessName: data?.business_name,
-          businessEmail: data?.contact_email,
-          businessAddress: data?.contact_address
-        });
-        
-        console.log("Cached business data:", data);
-      } catch (err) {
-        console.error("Error in business data fetch:", err);
-      }
-    };
-
-    if (businessId) {
-      fetchBusinessData();
-    }
-  }, [businessId]);
-
-  // Common Georgian font styling for consistent rendering
-  const georgianFontStyle = isGeorgian ? getGeorgianFontStyle() : undefined;
   
-  const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
-  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      notes: "",
+      startDate: selectedDate,
+      endDate: selectedDate,
+      hasAttachment: false,
+      paymentStatus: 'not_paid',
+      paymentAmount: 0,
+    },
+  });
 
-  // Create a required field indicator component
-  const RequiredFieldIndicator = () => (
-    <Asterisk className="inline h-3 w-3 text-destructive ml-1" />
-  );
+  useEffect(() => {
+    form.setValue("startDate", selectedDate);
+    form.setValue("endDate", selectedDate);
+  }, [selectedDate, form]);
 
-  const combineDateAndTime = (date: Date, timeString: string) => {
-    if (!timeString) return new Date(date);
-    const [hours, minutes] = timeString.split(':').map(Number);
-    const newDate = new Date(date);
-    newDate.setHours(hours, minutes, 0, 0);
-    return newDate;
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setSelectedDate(date);
+      form.setValue("startDate", date);
+      form.setValue("endDate", date);
+    }
   };
 
-  // Handle name change to update both fullName and userSurname
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setFullName(value);
-    setUserSurname(value);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
   };
 
-  const handleFileChange = (file: File | null) => {
-    setSelectedFile(file);
-    setFileError('');
+  const handleFilesUploaded = (newFiles: FileRecord[]) => {
+    setFiles(newFiles);
+    form.setValue("hasAttachment", newFiles.length > 0);
   };
 
-  // Helper function for Georgian text to ensure consistent rendering
-  const renderGeorgianText = (text: string) => {
-    if (!isGeorgian) return text;
+  const handleRemoveFile = (fileToRemove: FileRecord) => {
+    setFiles(prevFiles => prevFiles.filter(file => file.id !== fileToRemove.id));
+    form.setValue("hasAttachment", files.length > 0);
+  };
+
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
+    setSubmitting(true);
     
-    return (
-      <span 
-        className="font-georgian georgian-text-fix"
-        style={georgianFontStyle}
-      >
-        {text}
-      </span>
-    );
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    console.log("Starting form submission...");
-
     try {
-      // Validate required fields
-      if (!fullName) {
-        toast({
-          translateKeys: {
-            titleKey: "common.error",
-            descriptionKey: "events.fullNameRequired"
-          }
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (!userNumber) {
-        toast({
-          translateKeys: {
-            titleKey: "common.error",
-            descriptionKey: "events.phoneNumberRequired"
-          }
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (!socialNetworkLink || !socialNetworkLink.includes('@')) {
-        toast({
-          translateKeys: {
-            titleKey: "common.error",
-            descriptionKey: "events.validEmailRequired"
-          }
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      const startDateTime = new Date(startDate);
-      const endDateTime = new Date(endDate);
-
-      // Additional validation for dates
-      if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-        toast({
-          translateKeys: {
-            titleKey: "common.error",
-            descriptionKey: "events.validDatesRequired"
-          }
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Process payment amount - Parse numeric value only without currency symbol
-      let finalPaymentAmount = null;
-      if (showPaymentAmount && paymentAmount) {
-        // Remove any currency symbols or non-numeric characters except decimal point
-        const cleanedAmount = paymentAmount.replace(/[^\d.]/g, '');
-        const amount = parseFloat(cleanedAmount);
-        if (!isNaN(amount)) {
-          finalPaymentAmount = amount;
-        }
-      }
-
-      // Create booking data object
-      const bookingData = {
-        business_id: businessId,
-        requester_name: fullName,
-        requester_email: socialNetworkLink,
-        requester_phone: userNumber,
-        title: `${fullName}`,
-        description: eventNotes || null,
-        start_date: startDateTime.toISOString(),
-        end_date: endDateTime.toISOString(),
-        payment_status: paymentStatus,
-        payment_amount: finalPaymentAmount,
-        status: 'pending',
-      };
-
-      console.log('Submitting booking request:', bookingData);
-
-      // Step 1: Create booking request in database
-      const { data: bookingResponse, error: bookingError } = await supabase
-        .from('booking_requests')
-        .insert(bookingData)
-        .select()
-        .single();
-
-      if (bookingError) {
-        console.error('Error submitting booking request:', bookingError);
-        throw bookingError;
-      }
-
-      const bookingId = bookingResponse.id;
-      console.log('Booking request created with ID:', bookingId);
-
-      // Flag to track if we need to upload a file
-      let hasFile = !!selectedFile;
-
-      // Step 2: Start email notification in parallel to file upload
-      // We'll use Promise.all to run these operations in parallel
-      
-      // Prepare file upload promise if a file is selected
-      const fileUploadPromise = selectedFile && bookingId ? (async () => {
-        try {
-          const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `${bookingId}/${Date.now()}.${fileExt}`;
-
-          console.log('Uploading file to path:', filePath);
-          const { error: uploadError } = await supabase.storage
-            .from('booking_attachments')
-            .upload(filePath, selectedFile);
-
+      // First, upload any files to storage
+      let fileIds: string[] = [];
+      if (files.length > 0) {
+        const uploadPromises = files.map(async (file) => {
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('booking-attachments')
+            .upload(`${businessId}/${file.filename}`, file.file, {
+              cacheControl: '3600',
+              upsert: false
+            });
+          
           if (uploadError) {
             console.error('Error uploading file:', uploadError);
-            return { success: false, error: uploadError };
-          }
-
-          console.log('File uploaded successfully to path:', filePath);
-
-          const fileRecord = {
-            filename: selectedFile.name,
-            file_path: filePath,
-            content_type: selectedFile.type,
-            size: selectedFile.size,
-            event_id: bookingId
-          };
-
-          const { error: fileRecordError } = await supabase
-            .from('event_files')
-            .insert(fileRecord);
-
-          if (fileRecordError) {
-            console.error('Error creating file record:', fileRecordError);
-            return { success: false, error: fileRecordError };
+            throw new Error(t('bookingRequest.fileUploadError'));
           }
           
-          console.log('File record created successfully in event_files');
-          return { success: true };
-        } catch (fileError) {
-          console.error('Error handling file upload:', fileError);
-          return { success: false, error: fileError };
-        }
-      })() : Promise.resolve({ success: true });
-
-      // Prepare email notification promise
-      const emailNotificationPromise = (async () => {
-        try {
-          console.log('Sending notification email...');
-          
-          // Use cached business data instead of fetching again
-          const businessNameToUse = businessData?.businessName || "Business";
-          
-          // Prepare notification data with the business email if we have it
-          const notificationData = {
-            businessId: businessId,
-            businessEmail: businessData?.businessEmail, // Use cached email if available
-            requesterName: fullName,
-            requesterEmail: socialNetworkLink,
-            requesterPhone: userNumber,
-            notes: eventNotes || "No additional notes",
-            startDate: startDateTime.toISOString(),
-            endDate: endDateTime.toISOString(),
-            hasAttachment: hasFile,
-            paymentStatus: paymentStatus,
-            paymentAmount: finalPaymentAmount,
-            businessName: businessNameToUse,
-            businessAddress: businessData?.businessAddress
-          };
-          
-          // Log notification data
-          console.log("Sending email notification with data:", JSON.stringify(notificationData));
-          
-          // Use the full function URL with a timeout to prevent long waits
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-          
-          try {
-            const response = await fetch(
-              "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(notificationData),
-                signal: controller.signal
-              }
-            );
-            
-            clearTimeout(timeoutId);
-            console.log("Email notification response status:", response.status);
-            
-            return { success: true };
-          } catch (fetchError) {
-            clearTimeout(timeoutId);
-            console.warn("Email notification request error (continuing anyway):", fetchError);
-            return { success: false, error: fetchError };
-          }
-        } catch (emailError) {
-          console.error("Failed to send email notification:", emailError);
-          return { success: false, error: emailError };
-        }
-      })();
-
-      // Start both operations in parallel but don't wait for them to complete
-      Promise.all([fileUploadPromise, emailNotificationPromise])
-        .then(results => {
-          console.log("Background operations completed:", results);
-        })
-        .catch(error => {
-          console.error("Error in background operations:", error);
+          return uploadData?.path;
         });
-
-      // Show success message immediately after booking creation
-      setIsSubmitting(false);
+        
+        const uploadedPaths = await Promise.all(uploadPromises);
+        fileIds = uploadedPaths.filter(path => path !== undefined) as string[];
+      }
       
-      // Reset form
-      setFullName('');
-      setUserSurname('');
-      setUserNumber('');
-      setSocialNetworkLink('');
-      setEventNotes('');
-      setPaymentStatus('not_paid');
-      setPaymentAmount('');
-      setSelectedFile(null);
-      
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-
-      // Use the dedicated toast helper for booking submissions
-      toast.event.bookingSubmitted();
-
-      if (onSuccess) {
-        onSuccess();
-      }
-
-      if (onOpenChange) {
-        onOpenChange(false);
-      }
-
-    } catch (error) {
-      console.error('Error submitting form:', error);
-      setIsSubmitting(false);
-      toast({
-        translateKeys: {
-          titleKey: "common.error",
-          descriptionKey: "common.errorOccurred"
+      // Send notification to business owner
+      try {
+        const startDateTime = selectedDate.setHours(data.startHour || 0, data.startMinute || 0);
+        const endDateTime = selectedDate.setHours(data.endHour || 0, data.endMinute || 0);
+        
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-booking-request-notification`, {
+          method: 'POST', 
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            businessId,
+            requesterName: data.name,
+            requesterEmail: data.email,
+            requesterPhone: data.phone,
+            notes: data.notes || 'No additional notes',
+            startDate: selectedDate.setHours(data.startHour || 0, data.startMinute || 0),
+            endDate: selectedDate.setHours(data.endHour || 0, data.endMinute || 0),
+            hasAttachment: files.length > 0,
+            paymentStatus: data.paymentStatus,
+            paymentAmount: data.paymentAmount,
+            businessName: businessInfo?.business_name || '',
+            businessAddress: businessInfo?.contact_address || '',
+            language: language
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Failed to send booking notification:', errorData);
+          throw new Error(t('bookingRequest.notificationError'));
         }
+        
+        const responseData = await response.json();
+        console.log('Booking notification sent:', responseData);
+      } catch (error) {
+        console.error('Error sending booking notification:', error);
+      }
+      
+      // Create the booking request in the database
+      const { error } = await supabase
+        .from('booking_requests')
+        .insert({
+          business_id: businessId,
+          requester_name: data.name,
+          requester_email: data.email,
+          requester_phone: data.phone,
+          description: data.notes || 'No additional notes',
+          start_date: selectedDate.setHours(data.startHour || 0, data.startMinute || 0),
+          end_date: selectedDate.setHours(data.endHour || 0, data.endMinute || 0),
+          attachment_ids: fileIds,
+          status: 'pending',
+          payment_status: data.paymentStatus,
+          payment_amount: data.paymentAmount,
+        });
+      
+      if (error) {
+        console.error('Error creating booking request:', error);
+        throw new Error(t('bookingRequest.createError'));
+      }
+      
+      // Success path
+      toast({
+        title: t('bookingRequest.success'),
+        description: t('bookingRequest.successMessage'),
       });
+      
+      // Reset fields
+      reset();
+      setFiles([]);
+      setStep('date');
+      onRequestSubmitted();
+    } catch (error) {
+      console.error('Error submitting booking request:', error);
+      toast({
+        title: t('common.error'),
+        description: t('bookingRequest.errorMessage'),
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+      onClose();
     }
   };
-
-  // Get the correct Georgian placeholder text for event notes
-  const getEventNotesPlaceholder = () => {
-    if (isGeorgian) {
-      return "დაამატეთ შენიშვნები თქვენი მოთხოვნის შესახებ";
-    }
-    return t("events.addEventNotes");
-  };
+  
+  const { reset } = form;
 
   return (
-    <div className="space-y-4 p-1">
-      <h3 className="text-xl font-semibold">
-        {isGeorgian ? (
-          <GeorgianAuthText fontWeight="semibold">
-            მოთხოვნის გაგზავნა
-          </GeorgianAuthText>
-        ) : (
-          <LanguageText>
-            {t('booking.bookAppointment')}
-          </LanguageText>
-        )}
-      </h3>
-      
-      <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-        {/* Full Name Field */}
-        <div>
-          <Label htmlFor="fullName" className={labelClass} style={georgianFontStyle}>
-            {isGeorgian ? (
-              <>
-                <GeorgianAuthText fontWeight="medium">სრული სახელი</GeorgianAuthText>
-                <RequiredFieldIndicator />
-              </>
-            ) : (
-              <>
-                {t("events.fullName")}
-                <RequiredFieldIndicator />
-              </>
-            )}
-          </Label>
-          <Input
-            id="fullName"
-            value={fullName}
-            onChange={handleNameChange}
-            placeholder={isGeorgian ? "სრული სახელი" : t("events.fullName")}
-            required
-            className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
-            style={georgianFontStyle}
-          />
-        </div>
-
-        {/* Phone Number Field */}
-        <div>
-          <Label htmlFor="userNumber" className={labelClass} style={georgianFontStyle}>
-            {isGeorgian ? (
-              <>
-                <GeorgianAuthText fontWeight="medium">ტელეფონის ნომერი</GeorgianAuthText>
-                <RequiredFieldIndicator />
-              </>
-            ) : (
-              <>
-                {t("events.phoneNumber")}
-                <RequiredFieldIndicator />
-              </>
-            )}
-          </Label>
-          <Input
-            id="userNumber"
-            value={userNumber}
-            onChange={(e) => setUserNumber(e.target.value)}
-            placeholder={isGeorgian ? "ტელეფონის ნომერი" : t("events.phoneNumber")}
-            required
-            className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
-            style={georgianFontStyle}
-          />
-        </div>
-
-        {/* Email Field */}
-        <div>
-          <Label htmlFor="socialNetworkLink" className={labelClass} style={georgianFontStyle}>
-            {isGeorgian ? (
-              <>
-                <GeorgianAuthText fontWeight="medium">ელფოსტა / სოციალური ქსელის ბმული</GeorgianAuthText>
-                <RequiredFieldIndicator />
-              </>
-            ) : (
-              <>
-                {t("events.socialLinkEmail")}
-                <RequiredFieldIndicator />
-              </>
-            )}
-          </Label>
-          <Input
-            id="socialNetworkLink"
-            value={socialNetworkLink}
-            onChange={(e) => setSocialNetworkLink(e.target.value)}
-            placeholder="email@example.com"
-            type="email"
-            required
-            style={georgianFontStyle}
-          />
-        </div>
-
-        {/* Date and Time Fields */}
-        <div>
-          <Label htmlFor="dateTime" className={labelClass} style={georgianFontStyle}>
-            {isGeorgian ? (
-              <>
-                <GeorgianAuthText fontWeight="medium">თარიღი და დრო</GeorgianAuthText>
-                <RequiredFieldIndicator />
-              </>
-            ) : (
-              <>
-                {t("events.dateAndTime")}
-                <RequiredFieldIndicator />
-              </>
-            )}
-          </Label>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label htmlFor="startDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")} style={georgianFontStyle}>
-                {isGeorgian ? (
-                  <GeorgianAuthText>დაწყება</GeorgianAuthText>
-                ) : (
-                  t("events.start")
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>{t('bookingRequest.title')}</DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          {step === 'date' && (
+            <div className="grid gap-4 py-4">
+              <FormField
+                control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>{t('bookingRequest.date')}</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-[240px] pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>{t('bookingRequest.pickDate')}</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={handleDateSelect}
+                          disabled={(date) =>
+                            date < new Date()
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
                 )}
-              </Label>
-              <div className="relative">
-                <Input
-                  id="startDate"
-                  type="datetime-local"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  required
-                  className="w-full"
-                  style={{ colorScheme: 'auto' }}
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="endDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")} style={georgianFontStyle}>
-                {isGeorgian ? (
-                  <GeorgianAuthText>დასრულება</GeorgianAuthText>
-                ) : (
-                  t("events.end")
-                )}
-              </Label>
-              <div className="relative">
-                <Input
-                  id="endDate"
-                  type="datetime-local"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  required
-                  className="w-full"
-                  style={{ colorScheme: 'auto' }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Payment Status Dropdown */}
-        <div>
-          <Label htmlFor="paymentStatus" className={labelClass} style={georgianFontStyle}>
-            {isGeorgian ? (
-              <GeorgianAuthText fontWeight="medium">გადახდის სტატუსი</GeorgianAuthText>
-            ) : (
-              t("events.paymentStatus")
-            )}
-          </Label>
-          <Select
-            value={paymentStatus}
-            onValueChange={setPaymentStatus}
-          >
-            <SelectTrigger id="paymentStatus" className={isGeorgian ? "font-georgian" : ""} style={georgianFontStyle}>
-              <SelectValue placeholder={isGeorgian ? "აირჩიეთ გადახდის სტატუსი" : t("events.selectPaymentStatus")} />
-            </SelectTrigger>
-            <SelectContent className={`bg-background ${isGeorgian ? "font-georgian" : ""}`}>
-              <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""} style={georgianFontStyle}>
-                {isGeorgian ? "გადაუხდელი" : t("crm.notPaid")}
-              </SelectItem>
-              <SelectItem value="partly_paid" className={isGeorgian ? "font-georgian" : ""} style={georgianFontStyle}>
-                {isGeorgian ? "ნაწილობრივ გადახდილი" : t("crm.paidPartly")}
-              </SelectItem>
-              <SelectItem value="fully_paid" className={isGeorgian ? "font-georgian" : ""} style={georgianFontStyle}>
-                {isGeorgian ? "სრულად გადახდილი" : t("crm.paidFully")}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        {/* Payment Amount Field - conditionally visible with currency symbol */}
-        {showPaymentAmount && (
-          <div>
-            <Label htmlFor="paymentAmount" className={labelClass} style={georgianFontStyle}>
-              {isGeorgian ? (
-                <GeorgianAuthText fontWeight="medium">გადახდის ოდენობა</GeorgianAuthText>
-              ) : (
-                t("events.paymentAmount")
-              )}
-            </Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                {currencySymbol}
-              </span>
-              <Input
-                id="paymentAmount"
-                value={paymentAmount.replace(/^[^0-9.]*/, '')} // Remove any non-numeric prefix (like currency symbol) when displaying
-                onChange={(e) => {
-                  const value = e.target.value;
-                  // Allow only numbers and decimal point
-                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                    setPaymentAmount(value);
-                  }
-                }}
-                placeholder="0.00"
-                type="text"
-                inputMode="decimal"
-                className={cn(isGeorgian ? "font-georgian" : "", "pl-7")} // Added left padding to make room for currency symbol
-                style={georgianFontStyle}
-                aria-label={`${t("events.paymentAmount")} (${currencySymbol})`}
               />
+              <div className="flex space-x-2">
+                <FormField
+                  control={form.control}
+                  name="startHour"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel>{t('bookingRequest.startHour')}</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value?.toString()}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('bookingRequest.hour')} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Array.from({ length: 24 }, (_, i) => i).map((hour) => (
+                            <SelectItem key={hour} value={hour.toString()}>{hour < 10 ? `0${hour}` : hour}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="startMinute"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel>{t('bookingRequest.startMinute')}</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value?.toString()}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('bookingRequest.minute')} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {['00', '15', '30', '45'].map((minute) => (
+                            <SelectItem key={minute} value={minute}>{minute}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="flex space-x-2">
+                <FormField
+                  control={form.control}
+                  name="endHour"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel>{t('bookingRequest.endHour')}</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value?.toString()}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('bookingRequest.hour')} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Array.from({ length: 24 }, (_, i) => i).map((hour) => (
+                            <SelectItem key={hour} value={hour.toString()}>{hour < 10 ? `0${hour}` : hour}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="endMinute"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel>{t('bookingRequest.endMinute')}</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value?.toString()}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('bookingRequest.minute')} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {['00', '15', '30', '45'].map((minute) => (
+                            <SelectItem key={minute} value={minute}>{minute}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <Button type="button" onClick={() => setStep('details')}>{t('common.next')}</Button>
             </div>
-          </div>
-        )}
-        
-        {/* Notes Field */}
-        <div>
-          <Label htmlFor="eventNotes" className={labelClass} style={georgianFontStyle}>
-            {isGeorgian ? (
-              <GeorgianAuthText fontWeight="medium">შენიშვნები</GeorgianAuthText>
-            ) : (
-              t("events.eventNotes")
-            )}
-          </Label>
-          <Textarea
-            id="eventNotes"
-            value={eventNotes}
-            onChange={(e) => setEventNotes(e.target.value)}
-            placeholder={getEventNotesPlaceholder()}
-            className={cn("min-h-[100px] resize-none", isGeorgian ? "placeholder:font-georgian font-georgian" : "")}
-            style={georgianFontStyle}
-          />
-        </div>
-        
-        {/* File Upload Field */}
-        <div>
-          <Label htmlFor="file" className={labelClass} style={georgianFontStyle}>
-            {isGeorgian ? (
-              <GeorgianAuthText fontWeight="medium">დანართები</GeorgianAuthText>
-            ) : (
-              t("common.attachments")
-            )}
-          </Label>
-          <FileUploadField
-            onChange={handleFileChange}
-            fileError={fileError}
-            setFileError={setFileError}
-            selectedFile={selectedFile}
-            ref={fileInputRef}
-            acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-            hideLabel={true}
-          />
-        </div>
-        
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={isSubmitting}
-        >
-          {isGeorgian ? (
-            <GeorgianAuthText fontWeight="medium">
-              {isSubmitting ? "იგზავნება..." : "მოთხოვნის გაგზავნა"}
-            </GeorgianAuthText>
-          ) : (
-            <LanguageText>
-              {isSubmitting ? t('common.submitting') : t('events.submitRequest')}
-            </LanguageText>
           )}
-        </Button>
-      </form>
-    </div>
+          {step === 'details' && (
+            <div className="grid gap-4 py-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('bookingRequest.name')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={t('bookingRequest.namePlaceholder')} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('bookingRequest.email')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={t('bookingRequest.emailPlaceholder')} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('bookingRequest.phone')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={t('bookingRequest.phonePlaceholder')} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('bookingRequest.notes')}</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder={t('bookingRequest.notesPlaceholder')}
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="paymentStatus"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('bookingRequest.paymentStatus')}</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t('bookingRequest.selectPaymentStatus')} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="not_paid">{t('paymentStatus.not_paid')}</SelectItem>
+                        <SelectItem value="partly_paid">{t('paymentStatus.partly_paid')}</SelectItem>
+                        <SelectItem value="fully_paid">{t('paymentStatus.fully_paid')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex items-center space-x-2">
+                <FormField
+                  control={form.control}
+                  name="paymentAmount"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel>{t('bookingRequest.paymentAmount')}</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            placeholder="0.00"
+                            className="pl-8"
+                            {...field}
+                            disabled={!showPaymentAmount}
+                          />
+                          <span className="absolute left-2.5 top-2.5 text-gray-500">{currencySymbol}</span>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="hasAttachment"
+                  render={({ field }) => (
+                    <FormItem className="space-y-0 flex items-center">
+                      <FormLabel>{t('bookingRequest.addPaymentAmount')}</FormLabel>
+                      <FormControl>
+                        <Switch
+                          checked={showPaymentAmount}
+                          onCheckedChange={setShowPaymentAmount}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FileUploadField
+                businessId={businessId}
+                onFilesUploaded={handleFilesUploaded}
+                onRemoveFile={handleRemoveFile}
+                files={files}
+              />
+              <Button type="submit" disabled={submitting}>
+                {submitting ? t('common.submitting') : t('common.submit')}
+              </Button>
+            </div>
+          )}
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
 };
 

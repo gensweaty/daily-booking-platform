@@ -22,6 +22,20 @@ interface BookingNotificationRequest {
   paymentStatus?: string;
   paymentAmount?: number;
   businessAddress?: string; // Added for consistency
+  language?: string; // Added language parameter to determine currency symbol
+}
+
+// Helper function to get currency symbol based on language
+function getCurrencySymbol(language?: string): string {
+  switch (language) {
+    case "ka":
+      return "₾";
+    case "es":
+      return "€";
+    case "en":
+    default:
+      return "$";
+  }
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -180,8 +194,21 @@ const handler = async (req: Request): Promise<Response> => {
       
       EdgeRuntime.waitUntil((async () => {
         try {
-          const { requesterName, startDate, endDate, requesterPhone = "", notes = "", businessName = "Your Business", requesterEmail = "", businessAddress = "" } = requestData;
+          const { 
+            requesterName, 
+            startDate, 
+            endDate, 
+            requesterPhone = "", 
+            notes = "", 
+            businessName = "Your Business", 
+            requesterEmail = "", 
+            businessAddress = "",
+            language
+          } = requestData;
     
+          // Get the appropriate currency symbol based on language
+          const currencySymbol = getCurrencySymbol(language);
+
           // Format dates for display
           const formatDate = (isoString: string) => {
             try {
@@ -203,7 +230,7 @@ const handler = async (req: Request): Promise<Response> => {
           const formattedEndDate = formatDate(endDate);
     
           // Format payment status for display
-          const formatPaymentStatus = (status?: string, amount?: number): string => {
+          const formatPaymentStatus = (status?: string, amount?: number, currencySymbol = "$"): string => {
             if (!status) return "Not specified";
             
             switch (status) {
@@ -211,10 +238,10 @@ const handler = async (req: Request): Promise<Response> => {
                 return "Not Paid";
               case "partly_paid":
               case "partly":
-                return amount ? `Partly Paid ($${amount})` : "Partly Paid";
+                return amount ? `Partly Paid (${currencySymbol}${amount})` : "Partly Paid";
               case "fully_paid":
               case "fully":
-                return amount ? `Fully Paid ($${amount})` : "Fully Paid";
+                return amount ? `Fully Paid (${currencySymbol}${amount})` : "Fully Paid";
               default:
                 return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
             }
@@ -222,7 +249,8 @@ const handler = async (req: Request): Promise<Response> => {
     
           const formattedPaymentStatus = formatPaymentStatus(
             requestData.paymentStatus, 
-            requestData.paymentAmount
+            requestData.paymentAmount,
+            currencySymbol
           );
     
           // Create email content
@@ -274,26 +302,26 @@ const handler = async (req: Request): Promise<Response> => {
           
           // Create plain text version for better deliverability
           const plainText = `
-    New Booking Request
+New Booking Request
 
-    Hello,
+Hello,
 
-    You have received a new booking request from ${requesterName}.
+You have received a new booking request from ${requesterName}.
 
-    Start Date: ${formattedStartDate}
-    End Date: ${formattedEndDate}
-    ${requesterPhone ? `Phone: ${requesterPhone}` : ''}
-    ${requesterEmail ? `Email: ${requesterEmail}` : ''}
-    ${notes ? `Notes: ${notes}` : ''}
-    ${requestData.hasAttachment ? `Has attachment: Yes` : ''}
-    Payment status: ${formattedPaymentStatus}
+Start Date: ${formattedStartDate}
+End Date: ${formattedEndDate}
+${requesterPhone ? `Phone: ${requesterPhone}` : ''}
+${requesterEmail ? `Email: ${requesterEmail}` : ''}
+${notes ? `Notes: ${notes}` : ''}
+${requestData.hasAttachment ? `Has attachment: Yes` : ''}
+Payment status: ${formattedPaymentStatus}
 
-    Please log in to your dashboard to view and respond to this request:
-    https://smartbookly.com/dashboard
+Please log in to your dashboard to view and respond to this request:
+https://smartbookly.com/dashboard
 
-    This is an automated message from SmartBookly
+This is an automated message from SmartBookly
 
-    If you did not sign up for SmartBookly, please disregard this email.
+If you did not sign up for SmartBookly, please disregard this email.
           `;
     
           console.log("📧 Sending email to:", businessEmail);

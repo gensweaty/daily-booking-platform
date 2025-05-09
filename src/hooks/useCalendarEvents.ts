@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -77,7 +78,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage(); // Get language from LanguageContext
 
   // Helper to determine if times have changed between original and new dates
   const haveTimesChanged = (
@@ -417,6 +418,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.log(`- Business name: ${businessProfile?.business_name || 'None'}`);
         console.log(`- Event ID: ${eventId}`);
         console.log(`- Recipient: ${email}`);
+        console.log(`- Language: ${language}`);
         
         const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
         const { data: sessionData } = await supabase.auth.getSession();
@@ -445,7 +447,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             paymentAmount: paymentAmount || 0,
             businessAddress: businessProfile?.contact_address || '',
             eventId: eventId,
-            source: 'useCalendarEvents' // Updated source to ensure consistent tracking
+            source: 'useCalendarEvents', // Updated source to ensure consistent tracking
+            language: language // Pass the current language to determine currency symbol
           })
         });
         
