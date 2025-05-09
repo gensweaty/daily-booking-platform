@@ -384,7 +384,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     startDate: string,
     endDate: string,
     paymentStatus: string,
-    paymentAmount: number | null
+    paymentAmount: number | null,
+    language: string = 'en' // Added language parameter with default value
   ) => {
     // Optimization: Skip email sending during event creation for faster response
     // Email will be sent asynchronously after the event is created
@@ -417,6 +418,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.log(`- Business name: ${businessProfile?.business_name || 'None'}`);
         console.log(`- Event ID: ${eventId}`);
         console.log(`- Recipient: ${email}`);
+        console.log(`- Language: ${language}`);
         
         const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
         const { data: sessionData } = await supabase.auth.getSession();
@@ -445,7 +447,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             paymentAmount: paymentAmount || 0,
             businessAddress: businessProfile?.contact_address || '',
             eventId: eventId,
-            source: 'useCalendarEvents' // Updated source to ensure consistent tracking
+            source: 'useCalendarEvents', // Updated source to ensure consistent tracking
+            language: language // Added language parameter for proper currency symbol
           })
         });
         
@@ -530,7 +533,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       social_network_link: event.social_network_link,
       event_notes: event.event_notes,
       payment_status: event.payment_status,
-      payment_amount: event.payment_amount
+      payment_amount: event.payment_amount,
+      language: event.language || 'en' // Added language with default value
     };
     
     const { data, error } = await supabase
@@ -561,7 +565,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         event.start_date as string,
         event.end_date as string,
         event.payment_status || 'not_paid',
-        event.payment_amount || null
+        event.payment_amount || null,
+        event.language || 'en' // Pass the language
       );
     }
     
@@ -574,7 +579,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     
     const { data: existingEvent, error: fetchError } = await supabase
       .from('events')
-      .select('id, start_date, end_date, type, social_network_link')
+      .select('id, start_date, end_date, type, social_network_link, language')
       .eq('id', event.id)
       .single();
       
@@ -631,7 +636,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         payment_amount: event.payment_amount,
         user_id: user.id,
         booking_request_id: bookingRequestId,
-        type: event.type || 'event'
+        type: event.type || 'event',
+        language: event.language || existingEvent.language || 'en' // Added language with fallbacks
       };
       
       // Create a new event first
@@ -729,7 +735,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             event.start_date as string,
             event.end_date as string,
             event.payment_status || 'not_paid',
-            event.payment_amount || null
+            event.payment_amount || null,
+            event.language || existingEvent.language || 'en' // Use language with fallbacks
           );
         } catch (emailError) {
           console.error('Error sending booking approval email:', emailError);
@@ -782,7 +789,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           event.start_date as string,
           event.end_date as string,
           event.payment_status || 'not_paid',
-          event.payment_amount || null
+          event.payment_amount || null,
+          event.language || existingEvent.language || 'en' // Use language with fallbacks
         );
       } catch (emailError) {
         console.error('Error sending updated booking email:', emailError);

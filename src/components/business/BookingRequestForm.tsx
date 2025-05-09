@@ -237,6 +237,7 @@ export const BookingRequestForm = ({
         payment_status: paymentStatus,
         payment_amount: finalPaymentAmount,
         status: 'pending',
+        language: language // Include the current language
       };
 
       console.log('Submitting booking request:', bookingData);
@@ -327,7 +328,8 @@ export const BookingRequestForm = ({
             paymentStatus: paymentStatus,
             paymentAmount: finalPaymentAmount,
             businessName: businessNameToUse,
-            businessAddress: businessData?.businessAddress
+            businessAddress: businessData?.businessAddress,
+            language: language // Include the current language
           };
           
           // Log notification data
