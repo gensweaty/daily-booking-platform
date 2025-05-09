@@ -203,6 +203,18 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
   };
 
+  // Helper function to safely extract language from a URL string
+  const extractLanguageFromURL = (url?: string): string | null => {
+    if (!url) return null;
+    const urlParts = url.split('/');
+    const languagePart = urlParts.find(part => part.startsWith('lang='));
+    if (languagePart) {
+      const language = languagePart.split('=')[1];
+      return language;
+    }
+    return null;
+  };
+
   const getApprovedBookings = async () => {
     if (!businessId && !businessUserId && !user) return [];
 
@@ -907,4 +919,115 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         .update({ status: 'rejected', deleted_at: new Date().toISOString() })
         .eq('id', event.booking_request_id);
         
-      if (booking
+      if (bookingError) {
+        console.error("Error updating booking request status:", bookingError);
+      }
+    }
+    
+    // Perform soft-delete on the event
+    const { error } = await supabase
+      .from('events')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', eventId);
+    
+    if (error) {
+      console.error("Error soft-deleting event:", error);
+      throw error;
+    }
+  };
+  
+  // Set up the React Query hooks for fetching events data
+  const eventsQuery = useQuery({
+    queryKey: ['events', user?.id, businessId, businessUserId],
+    queryFn: async () => {
+      if (businessId || businessUserId) {
+        const businessEvents = await getBusinessEvents();
+        return businessEvents;
+      } else {
+        // Get user's own events
+        const events = await getEvents();
+        
+        // If this is a business user, also get approved bookings
+        if (user) {
+          try {
+            const approvedBookings = await getApprovedBookings();
+            return [...events, ...approvedBookings];
+          } catch (error) {
+            console.error("Error fetching approved bookings:", error);
+            return events;
+          }
+        }
+        
+        return events;
+      }
+    },
+    enabled: !!user || !!(businessId || businessUserId),
+  });
+
+  // Set up the mutations for event operations
+  const createEventMutation = useMutation({
+    mutationFn: createEvent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast({
+        title: t('calendar.eventCreated'),
+        description: t('calendar.eventCreatedDescription'),
+      });
+    },
+    onError: (error) => {
+      console.error("Error creating event:", error);
+      toast({
+        title: t('calendar.eventCreateError'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  });
+
+  const updateEventMutation = useMutation({
+    mutationFn: updateEvent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast({
+        title: t('calendar.eventUpdated'),
+        description: t('calendar.eventUpdatedDescription'),
+      });
+    },
+    onError: (error) => {
+      console.error("Error updating event:", error);
+      toast({
+        title: t('calendar.eventUpdateError'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  });
+
+  const deleteEventMutation = useMutation({
+    mutationFn: deleteEvent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast({
+        title: t('calendar.eventDeleted'),
+        description: t('calendar.eventDeletedDescription'),
+      });
+    },
+    onError: (error) => {
+      console.error("Error deleting event:", error);
+      toast({
+        title: t('calendar.eventDeleteError'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  });
+
+  return {
+    events: eventsQuery.data || [],
+    isLoading: eventsQuery.isLoading,
+    error: eventsQuery.error,
+    createEvent: createEventMutation.mutateAsync,
+    updateEvent: updateEventMutation.mutateAsync,
+    deleteEvent: deleteEventMutation.mutateAsync,
+  };
+};
