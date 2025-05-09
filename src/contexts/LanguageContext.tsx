@@ -35,6 +35,9 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     
     // Update the lang attribute on the HTML element
     document.documentElement.setAttribute('lang', language);
+    
+    // Add debug log
+    console.log(`Language context updated to: ${language}`);
   }, [language]);
 
   const t = (key: string, params?: Record<string, string | number>): string => {

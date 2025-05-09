@@ -21,6 +21,9 @@ export const PublicBusinessPage = () => {
   const { theme } = useTheme();
   const isGeorgian = language === 'ka';
   
+  // Log language for debugging
+  console.log(`PublicBusinessPage current language: ${language}`);
+  
   // Set the flag to prevent authentication redirects
   useEffect(() => {
     localStorage.setItem('accessing_public_business_page', 'true');
