@@ -104,9 +104,10 @@ export const testEmailSending = async (
   paymentStatus: string = 'not_paid',
   paymentAmount: number | null = null,
   businessAddress: string = '',
-  eventId?: string
+  eventId?: string,
+  language: string = 'en' // Add language parameter with default
 ) => {
-  console.log(`Test sending email to ${recipientEmail}`);
+  console.log(`Test sending email to ${recipientEmail} with language: ${language}`);
   
   try {
     const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -134,7 +135,8 @@ export const testEmailSending = async (
         paymentAmount,
         businessAddress,
         eventId,
-        source: 'useCalendarEvents' // Track source consistently
+        source: 'useCalendarEvents', // Track source consistently
+        language // Include language parameter
       })
     });
     

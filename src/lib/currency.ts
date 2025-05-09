@@ -9,7 +9,10 @@ import { Language } from '@/translations/types';
 export function getCurrencySymbol(language: Language | string | undefined): string {
   if (!language) return '$';
   
-  switch (language.toLowerCase()) {
+  // Ensure we're working with a lowercase string for case-insensitive comparison
+  const normalizedLang = language.toLowerCase();
+  
+  switch (normalizedLang) {
     case 'es':
       return '€';
     case 'ka':

@@ -39,13 +39,26 @@ setInterval(() => {
 
 // Helper function to get currency symbol based on language
 function getCurrencySymbolByLanguage(language?: string): string {
-  switch (language?.toLowerCase()) {
+  console.log(`Getting currency symbol for language: ${language}`);
+  
+  if (!language) {
+    console.log("No language provided, defaulting to $ (en)");
+    return '$';
+  }
+  
+  const normalizedLang = language.toLowerCase();
+  console.log(`Normalized language: ${normalizedLang}`);
+  
+  switch (normalizedLang) {
     case 'es':
+      console.log("Spanish language detected, using € symbol");
       return '€';
     case 'ka':
+      console.log("Georgian language detected, using ₾ symbol");
       return '₾';
     case 'en':
     default:
+      console.log(`Using $ symbol for language: ${language}`);
       return '$';
   }
 }
@@ -243,7 +256,9 @@ const handler = async (req: Request): Promise<Response> => {
           included_address: addressDisplay,
           business_name_used: displayBusinessName,
           source: source || 'unknown',
-          dedupeKey: dedupeKey
+          dedupeKey: dedupeKey,
+          language: language, // Log the language used for verification
+          currencySymbol: currencySymbol // Log the currency symbol used
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );

@@ -393,7 +393,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     // Start email sending as a background task
     setTimeout(async () => {
       try {
-        console.log(`Starting background email sending for event ${eventId} to ${email}`);
+        console.log(`Starting background email sending for event ${eventId} to ${email} with language: ${language}`);
         
         // Get business address and name before anything else
         const { data: businessProfile, error: profileError } = await supabase
@@ -450,7 +450,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             businessAddress: businessProfile?.contact_address || '',
             eventId: eventId,
             source: 'useCalendarEvents', // Updated source to ensure consistent tracking
-            language: language // Added language parameter for proper currency symbol
+            language: language // Explicitly send language parameter
           })
         });
         
@@ -481,7 +481,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           return false;
         }
         
-        console.log("Email notification sent successfully");
+        console.log("Email notification sent successfully with currency based on language:", language);
         return true;
       } catch (error) {
         console.error('Error sending booking confirmation email in background:', error);

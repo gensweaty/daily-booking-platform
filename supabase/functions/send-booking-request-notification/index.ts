@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -27,13 +26,25 @@ interface BookingNotificationRequest {
 
 // Helper function to get currency symbol based on language
 function getCurrencySymbolByLanguage(language?: string): string {
-  switch (language?.toLowerCase()) {
+  console.log(`Getting currency symbol for language: ${language || 'undefined'}`);
+  
+  if (!language) {
+    console.log("No language provided, defaulting to $ (en)");
+    return '$';
+  }
+  
+  const normalizedLang = language.toLowerCase();
+  
+  switch (normalizedLang) {
     case 'es':
+      console.log("Spanish language detected, using € symbol");
       return '€';
     case 'ka':
+      console.log("Georgian language detected, using ₾ symbol");
       return '₾';
     case 'en':
     default:
+      console.log(`Using $ symbol for language: ${language}`);
       return '$';
   }
 }
