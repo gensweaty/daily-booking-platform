@@ -647,7 +647,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           user_id: user.id,
           booking_request_id: bookingRequestId,
           type: event.type || 'event',
-          language: event.language || existingEvent.language || 'en' // Ensure language is passed with proper fallback
+          language: event.language || existingEvent.language || 'en' // Added language with fallbacks
         };
         
         // Create a new event first
@@ -752,7 +752,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               event.end_date as string,
               event.payment_status || 'not_paid',
               paymentAmount, // Use our properly formatted amount
-              event.language || existingEvent.language || 'en' // Make sure we pass language
+              event.language || existingEvent.language || 'en' // Use language with fallbacks
             );
           } catch (emailError) {
             console.error('Error sending booking approval email:', emailError);
