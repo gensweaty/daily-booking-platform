@@ -33,54 +33,27 @@ export const FileDisplay = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
-  // Enhanced file signature for more robust deduplication
+  // Create a robust file signature for deduplication
   const getFileSignature = (file: FileRecord): string => {
-    // Extract all relevant properties for comparison
     const filePath = file.file_path || '';
     const filename = file.filename || '';
     const fileId = file.id || '';
     const eventId = file.event_id || '';
     const customerId = file.customer_id || '';
     const source = file.source || '';
-    const contentType = file.content_type || '';
-    const size = file.size?.toString() || '';
     
-    // Create a unique signature that focuses on the actual file content identifiers
-    // The path segment is most important for identifying the actual file
-    const pathSegment = getPathSegment(filePath);
-    
-    // Debug logging
-    console.log(`File signature components for ${filename}:`, {
-      pathSegment,
-      filename,
-      contentType,
-      size,
-      source
-    });
-    
-    // Return a composite signature focusing on unique file identifiers
-    return `${pathSegment}_${filename}_${contentType}_${size}`;
+    // Create a unique signature from multiple properties
+    return `${filename}_${getPathSegment(filePath)}_${source}_${eventId}_${customerId}_${fileId}`;
   };
   
-  // Extract the meaningful part of the file path for better comparison
+  // Get the last segment of the file path for better comparison
   const getPathSegment = (filePath: string): string => {
     if (!filePath) return '';
-    
-    // For paths like "customer_id/uuid.ext" or "event_id/uuid.ext",
-    // we want to extract just the unique identifier part
     const segments = filePath.split('/');
-    const lastSegment = segments[segments.length - 1] || '';
-    
-    // If we have a UUID-like identifier, return that
-    if (lastSegment.includes('-') || lastSegment.length > 20) {
-      return lastSegment;
-    }
-    
-    // Otherwise return the entire normalized path
-    return filePath.replace(/^\/+/, '');
+    return segments[segments.length - 1] || '';
   };
 
-  // Remove duplicate files using our enhanced robust signature
+  // Remove duplicate files using our robust signature
   const uniqueFiles = files.reduce((acc: FileRecord[], current) => {
     // Skip undefined or files without paths
     if (!current || !current.file_path) return acc;
@@ -92,8 +65,6 @@ export const FileDisplay = ({
     
     if (!isDuplicate) {
       acc.push(current);
-    } else {
-      console.log(`Skipping duplicate file: ${current.filename}, path: ${current.file_path}`);
     }
     
     return acc;
@@ -121,7 +92,7 @@ export const FileDisplay = ({
 
   useEffect(() => {
     // Debug the files we're trying to display
-    console.log("FileDisplay - Files to process:", files.length, "Unique files after deduplication:", uniqueFiles.length);
+    console.log("FileDisplay - Files to process:", uniqueFiles);
     console.log("FileDisplay - Primary bucket:", bucketName);
     console.log("FileDisplay - Fallback buckets:", fallbackBuckets);
     

@@ -1,3 +1,4 @@
+
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
 import { CalendarGrid } from "./CalendarGrid";
@@ -90,7 +91,6 @@ export function CalendarView({
   const filteredEvents = events.filter(event => {
     // First check if deleted_at is undefined or null
     if (event.deleted_at === undefined || event.deleted_at === null) {
-      // Check for a valid event type
       return true; // Keep events that don't have deleted_at field or it's null
     }
     
@@ -100,27 +100,15 @@ export function CalendarView({
   
   // Add debug log for events in CalendarView
   useEffect(() => {
-    console.log(`[CalendarView] Rendering calendar with ${events.length} events, ${filteredEvents.length} after filtering deleted`);
-    
-    // Debug log for events to check event types for proper coloring
-    if (filteredEvents.length > 0) {
-      console.log("[CalendarView] Events with types:", filteredEvents.map(e => ({
-        id: e.id,
-        title: e.title,
-        type: e.type,
-        language: e.language,
-        payment_amount: e.payment_amount,
-        payment_status: e.payment_status
-      })));
+    if (isExternalCalendar) {
+      console.log(`[CalendarView] Rendering external calendar with ${events.length} events, ${filteredEvents.length} after filtering deleted`);
+      if (events.length > filteredEvents.length) {
+        console.log("[CalendarView] Filtered out deleted events:", events.filter(e => e.deleted_at));
+      }
+      if (filteredEvents.length > 0) {
+        console.log("[CalendarView] First event sample:", filteredEvents[0]);
+      }
     }
-    
-    if (events.length > filteredEvents.length) {
-      console.log("[CalendarView] Filtered out deleted events:", events.filter(e => e.deleted_at));
-    }
-    if (filteredEvents.length > 0) {
-      console.log("[CalendarView] First event sample:", filteredEvents[0]);
-    }
-    
     // Debug theme state
     console.log("[CalendarView] Current theme state:", { 
       theme, 

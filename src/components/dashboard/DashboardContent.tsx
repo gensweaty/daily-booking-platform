@@ -23,8 +23,6 @@ import { cn } from "@/lib/utils"
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
   setIsTaskDialogOpen: (open: boolean) => void
-  showAddTaskModal: boolean
-  setShowAddTaskModal: (open: boolean) => void
 }
 
 const tabVariants = {
@@ -52,21 +50,13 @@ const cardVariants = {
 
 export const DashboardContent = ({ 
   isTaskDialogOpen, 
-  setIsTaskDialogOpen, 
-  showAddTaskModal, 
-  setShowAddTaskModal 
+  setIsTaskDialogOpen 
 }: DashboardContentProps) => {
   const { t, language } = useLanguage()
   const { pendingRequests } = useBookingRequests()
   const { toast } = useToast()
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
-  
-  // Function to handle successful task operations
-  const handleTaskSuccess = () => {
-    // This function will be called when a task is successfully created
-    // You can add any additional logic here if needed
-  };
 
   useEffect(() => {
     if (pendingCount > 0) {
@@ -273,13 +263,7 @@ export const DashboardContent = ({
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ duration: 0.2 }}
                     >
-                      {showAddTaskModal && (
-                        <AddTaskForm 
-                          isOpen={showAddTaskModal}
-                          onClose={() => setShowAddTaskModal(false)}
-                          onSuccess={handleTaskSuccess}
-                        />
-                      )}
+                      <AddTaskForm onClose={() => setIsTaskDialogOpen(false)} />
                     </motion.div>
                   </DialogContent>
                 </Dialog>

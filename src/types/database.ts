@@ -4,7 +4,7 @@ export interface Task {
   title: string;
   description?: string;
   status: 'todo' | 'inprogress' | 'done';
-  position: number; // Changed from 'order' to 'position' to match database schema
+  order: number;
   created_at: string;
   user_id: string;
 }
@@ -64,7 +64,6 @@ export interface BookingRequest {
   event_notes?: string;
   payment_status?: string;
   payment_amount?: number | null;
-  language?: string;
   // File fields explicitly defined
   file_path?: string;
   filename?: string;

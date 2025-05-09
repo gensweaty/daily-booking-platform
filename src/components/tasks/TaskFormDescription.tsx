@@ -24,14 +24,13 @@ export const TaskFormDescription = ({ description, setDescription }: TaskFormDes
         <LanguageText>{t("tasks.descriptionLabel")}</LanguageText>
       </Label>
       <div 
-        className={cn("min-h-[150px]", isGeorgian ? "is-editor-empty:before:font-georgian" : "")}
+        className={cn(isGeorgian ? "is-editor-empty:before:font-georgian" : "")}
         style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
       >
         <RichTextEditor
           content={description}
           onChange={setDescription}
           placeholder={isGeorgian ? "აღწერა..." : "Description..."}
-          key={language} // Add a key that changes with language to force re-render
         />
       </div>
     </div>

@@ -29,7 +29,7 @@ export const TaskFormTitle = ({ title, setTitle }: TaskFormTitleProps) => {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         required
-        className={cn("bg-background", isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
+        className={cn("bg-background border-input", isGeorgian ? "placeholder:font-georgian" : "")}
         style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
       />
     </div>

@@ -27,7 +27,7 @@ const associateBookingFilesWithEvent = async (
     
     if (!bookingFiles || bookingFiles.length === 0) {
       console.log("No files found for booking request:", bookingRequestId);
-      return [];
+      return null;
     }
     
     console.log(`Found ${bookingFiles.length} files to copy`);
@@ -62,14 +62,14 @@ const associateBookingFilesWithEvent = async (
     
     if (copiedFiles.length === 0) {
       console.log("No files were successfully copied to the event");
-      return [];
+      return null;
     }
     
-    // Return all copied files
-    return copiedFiles;
+    // Return the first copied file (or adjust as needed)
+    return copiedFiles[0];
   } catch (error) {
     console.error("Error associating booking files with event:", error);
-    return [];
+    return null;
   }
 };
 
@@ -488,219 +488,86 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     return true;
   };
 
-  // Enhanced Helper function to create a customer record from event data with improved file synchronization
-  const createCustomerFromEvent = async (eventData: Partial<CalendarEventType>, userId: string, eventId?: string): Promise<string | null> => {
-    try {
-      if (!eventData.user_surname && !eventData.title) {
-        console.log("No customer name provided, skipping customer creation");
-        return null;
-      }
-
-      console.log("Creating customer record from event data:", {
-        name: eventData.user_surname || eventData.title,
-        payment: eventData.payment_status,
-        hasNotes: !!eventData.event_notes || !!eventData.description,
-        eventId: eventId // Log the eventId for debugging
-      });
+  const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
+    if (!user) throw new Error("User must be authenticated to create events");
+    
+    const startDateTime = new Date(event.start_date as string);
+    const endDateTime = new Date(event.end_date as string);
+    
+    // OPTIMIZATION: Only check availability if requested by adding a flag
+    // This makes normal event creation faster but still allows for checking when needed
+    if (event.checkAvailability) {
+      const { available, conflictDetails } = await checkTimeSlotAvailability(
+        startDateTime,
+        endDateTime
+      );
       
-      // Check if a customer with this information already exists to prevent duplicates
-      const { data: existingCustomers, error: checkError } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('title', eventData.user_surname || eventData.title || '')
-        .maybeSingle();
-        
-      if (checkError) {
-        console.error("Error checking for existing customer:", checkError);
-      } else if (existingCustomers?.id) {
-        console.log("Customer already exists with id:", existingCustomers.id);
-        
-        // If this is an event with files and payment status, update the existing customer
-        if (eventData.payment_status || eventData.payment_amount || eventData.event_notes) {
-          const { error: updateError } = await supabase
-            .from('customers')
-            .update({
-              payment_status: eventData.payment_status || 'not_paid',
-              payment_amount: eventData.payment_amount || null,
-              event_notes: eventData.event_notes || eventData.description || '',
-              social_network_link: eventData.social_network_link || eventData.requester_email || '',
-              user_number: eventData.user_number || eventData.requester_phone || ''
-            })
-            .eq('id', existingCustomers.id);
-            
-          if (updateError) {
-            console.error("Error updating existing customer:", updateError);
-          } else {
-            console.log("Updated existing customer with new event data");
-          }
-        }
-        
-        // If we have an event ID, sync files from it to the customer
-        if (eventId) {
-          await syncFilesFromEventToCustomer(eventId, existingCustomers.id, userId);
-        }
-        
-        return existingCustomers.id;
+      if (!available) {
+        throw new Error(`Time slot is no longer available: ${conflictDetails}`);
       }
-      
-      const customerData = {
-        title: eventData.user_surname || eventData.title || '',
-        user_surname: eventData.user_surname || eventData.title || '',
-        user_number: eventData.user_number || eventData.requester_phone || '',
-        social_network_link: eventData.social_network_link || eventData.requester_email || '',
-        event_notes: eventData.event_notes || eventData.description || '',
-        user_id: userId,
-        type: 'customer',
-        // Important: Add payment information to customer record
-        payment_status: eventData.payment_status || 'not_paid',
-        payment_amount: eventData.payment_amount || null,
-        // Optional: link to event dates
-        start_date: eventData.start_date,
-        end_date: eventData.end_date
-      };
-
-      const { data: newCustomer, error: customerError } = await supabase
-        .from('customers')
-        .insert(customerData)
-        .select()
-        .single();
-        
-      if (customerError) {
-        console.error("Error creating customer from event:", customerError);
-        return null;
-      }
-
-      console.log("Created new customer with ID:", newCustomer.id);
-      
-      // If we have an event ID, sync files from it to the customer
-      if (eventId) {
-        await syncFilesFromEventToCustomer(eventId, newCustomer.id, userId);
-      }
-      
-      return newCustomer.id;
-    } catch (error) {
-      console.error("Exception in createCustomerFromEvent:", error);
-      return null;
     }
-  };
-  
-  // Improved helper function to sync files from an event to a customer
-  const syncFilesFromEventToCustomer = async (eventId: string, customerId: string, userId: string): Promise<boolean> => {
-    try {
-      console.log(`Syncing files from event ${eventId} to customer ${customerId}`);
-      
-      // Get all files associated with the event
-      const { data: eventFiles, error: fetchError } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', eventId);
-        
-      if (fetchError) {
-        console.error("Error fetching event files:", fetchError);
-        return false;
-      }
-      
-      if (!eventFiles || eventFiles.length === 0) {
-        console.log("No files found for event:", eventId);
-        
-        // Try looking for booking files if this was a booking
-        const { data: bookingFiles, error: bookingFetchError } = await supabase
-          .from('booking_files')
-          .select('*')
-          .eq('booking_request_id', eventId);
-          
-        if (bookingFetchError) {
-          console.error("Error fetching booking files:", bookingFetchError);
-          return false;
-        }
-        
-        if (!bookingFiles || bookingFiles.length === 0) {
-          console.log("No booking files found either for ID:", eventId);
-          return true; // Success but no files to sync
-        }
-        
-        console.log(`Found ${bookingFiles.length} booking files to sync to customer`);
-        
-        // Sync the booking files to the customer
-        for (const file of bookingFiles) {
-          const { error: customerFileError } = await supabase
-            .from('customer_files_new')
-            .insert({
-              customer_id: customerId,
-              filename: file.filename,
-              file_path: file.file_path,
-              content_type: file.content_type,
-              size: file.size,
-              user_id: userId,
-              source: 'booking_sync'
-            });
-            
-          if (customerFileError) {
-            console.error("Error creating customer file link from booking:", customerFileError);
-          } else {
-            console.log(`Successfully linked booking file ${file.filename} to customer`);
-          }
-        }
-        
-        return true;
-      }
-      
-      console.log(`Found ${eventFiles.length} event files to sync to customer`);
-      
-      // For each file, create a customer file record if it doesn't exist
-      let successCount = 0;
-      for (const file of eventFiles) {
-        // Check if this file is already linked to the customer using the file signature
-        const { data: existingFile, error: checkError } = await supabase
-          .from('customer_files_new')
-          .select('id')
-          .eq('customer_id', customerId)
-          .eq('file_path', file.file_path)
-          .maybeSingle();
-          
-        if (checkError) {
-          console.error("Error checking for existing customer file:", checkError);
-          continue;
-        }
-        
-        // If file is already linked, skip it
-        if (existingFile?.id) {
-          console.log(`File ${file.filename} already linked to customer`);
-          successCount++;
-          continue;
-        }
-        
-        // Create customer file link
-        const { error: customerFileError } = await supabase
-          .from('customer_files_new')
-          .insert({
-            customer_id: customerId,
-            filename: file.filename,
-            file_path: file.file_path,
-            content_type: file.content_type,
-            size: file.size,
-            user_id: userId,
-            source: 'event_sync'
-          });
-          
-        if (customerFileError) {
-          console.error("Error creating customer file link:", customerFileError);
-        } else {
-          console.log(`Successfully linked file ${file.filename} to customer`);
-          successCount++;
-        }
-      }
-      
-      console.log(`Successfully synced ${successCount} of ${eventFiles.length} files to customer`);
-      return successCount > 0;
-    } catch (error) {
-      console.error("Error syncing files from event to customer:", error);
-      return false;
+    
+    // Make sure the type field is set, defaulting to 'event'
+    if (!event.type) {
+      event.type = 'event';
     }
+    
+    // Ensure title is set (title is required by the database)
+    if (!event.title) {
+      event.title = "Untitled Event"; // Default title if none provided
+    }
+    
+    // Create the event - Ensure required fields are included
+    const eventPayload = {
+      title: event.title,
+      start_date: event.start_date as string,
+      end_date: event.end_date as string,
+      user_id: user.id,
+      type: event.type,
+      // Add other optional fields
+      user_surname: event.user_surname,
+      user_number: event.user_number,
+      social_network_link: event.social_network_link,
+      event_notes: event.event_notes,
+      payment_status: event.payment_status,
+      payment_amount: event.payment_amount
+    };
+    
+    const { data, error } = await supabase
+      .from('events')
+      .insert(eventPayload)
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error creating event:', error);
+      throw error;
+    }
+    
+    // Send confirmation email in background only if we have a valid recipient email
+    // and this is a new event (not from a booking request conversion)
+    const recipientEmail = event.social_network_link;
+    if (
+      recipientEmail && 
+      isValidEmail(recipientEmail) && 
+      !event.id && // Check if this is a new event, not an existing one
+      data
+    ) {
+      // Don't await this call anymore - make it run in the background
+      sendBookingConfirmationEmail(
+        data.id,
+        event.title || event.user_surname || '',
+        recipientEmail,
+        event.start_date as string,
+        event.end_date as string,
+        event.payment_status || 'not_paid',
+        event.payment_amount || null
+      );
+    }
+    
+    return data;
   };
 
-  // Modified function to properly handle booking request approvals
   const updateEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     if (!user) throw new Error("User must be authenticated to update events");
     if (!event.id) throw new Error("Event ID is required for updates");
@@ -779,69 +646,80 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         throw createError;
       }
       
-      // First check for any files attached to the booking
-      const { data: bookingFiles, error: bookingFilesError } = await supabase
-        .from('booking_files')
-        .select('*')
-        .eq('booking_request_id', bookingRequestId);
-        
-      if (bookingFilesError) {
-        console.error("Error fetching booking files:", bookingFilesError);
-      }
-      
-      // Copy each booking file to event_files
-      if (bookingFiles && bookingFiles.length > 0) {
-        console.log(`Found ${bookingFiles.length} booking files to copy to the new event`);
-        
-        for (const file of bookingFiles) {
-          // Create event_files record
-          const { error: eventFileError } = await supabase
-            .from('event_files')
-            .insert({
-              event_id: newEvent.id,
-              filename: file.filename,
-              file_path: file.file_path,
-              content_type: file.content_type,
-              size: file.size,
-              user_id: user.id
-            });
-            
-          if (eventFileError) {
-            console.error("Error copying booking file to event:", eventFileError);
-          } else {
-            console.log(`Successfully copied file ${file.filename} to event`);
-          }
-        }
-      } else {
-        console.log("No booking files found to copy");
-      }
-      
-      // Create a customer record from the booking request data
-      // This is critical for CRM integration
+      // Associate booking files with the new event
+      let associatedFiles = null;
       try {
-        console.log("Creating customer record from booking request");
+        const associatedFile = await associateBookingFilesWithEvent(
+          bookingRequestId, 
+          newEvent.id, 
+          user.id
+        );
         
-        // Create customer with all available data
-        const customerId = await createCustomerFromEvent({
-          user_surname: event.user_surname || event.requester_name,
-          user_number: event.user_number || event.requester_phone,
-          social_network_link: event.social_network_link || event.requester_email,
-          event_notes: event.event_notes || event.description,
-          title: event.title,
-          start_date: event.start_date,
-          end_date: event.end_date,
-          payment_status: event.payment_status || 'not_paid',
-          payment_amount: event.payment_amount
-        }, user.id, bookingRequestId); // Note: using booking ID to sync booking files
-
-        if (customerId) {
-          console.log(`Created customer ${customerId} from booking request conversion`);
+        // Create an array with the file if it exists
+        associatedFiles = associatedFile ? [associatedFile] : [];
+        
+        console.log("Associated files with new event:", associatedFiles);
+      } catch (fileError) {
+        console.error("Error copying booking files:", fileError);
+        associatedFiles = [];
+      }
+      
+      // Create a customer record if we have customer data in the booking
+      try {
+        if (event.user_surname || event.requester_name) {
+          console.log("Creating customer record from booking request");
+          
+          const customerData = {
+            title: event.user_surname || event.requester_name || event.title || '',
+            user_surname: event.user_surname || event.requester_name || event.title || '',
+            user_number: event.user_number || event.requester_phone || '',
+            social_network_link: event.social_network_link || event.requester_email || '',
+            event_notes: event.event_notes || event.description || '',
+            user_id: user.id,
+            type: 'customer',
+            // Optional: link to event dates
+            start_date: event.start_date,
+            end_date: event.end_date
+          };
+          
+          const { data: newCustomer, error: customerError } = await supabase
+            .from('customers')
+            .insert(customerData)
+            .select()
+            .single();
+            
+          if (customerError) {
+            console.error("Error creating customer from booking:", customerError);
+          } else if (newCustomer && associatedFiles.length > 0) {
+            console.log("Created customer from booking, now linking files");
+            
+            // Create file links for the customer using the new file paths
+            for (const fileRecord of associatedFiles) {
+              // Create customer file link using the NEW file path
+              const { error: customerFileError } = await supabase
+                .from('customer_files_new')
+                .insert({
+                  customer_id: newCustomer.id,
+                  filename: fileRecord.filename,
+                  file_path: fileRecord.file_path, // Use the NEW path in event_attachments
+                  content_type: fileRecord.content_type,
+                  size: fileRecord.size,
+                  user_id: user.id
+                });
+                
+              if (customerFileError) {
+                console.error("Error creating customer file link:", customerFileError);
+              } else {
+                console.log("Successfully created file record for customer");
+              }
+            }
+          }
         }
       } catch (customerError) {
         console.error("Error handling customer creation:", customerError);
       }
       
-      // Send confirmation email to customer with business address
+      // Send confirmation email to customer with business address - this is the ONLY place we send emails
       if (event.requester_email && isValidEmail(event.requester_email)) {
         try {
           await sendBookingConfirmationEmail(
@@ -858,7 +736,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       }
       
-      // Update the original booking request
+      // Soft-delete or update the original booking request
       try {
         const { error: updateBookingError } = await supabase
           .from('booking_requests')
@@ -890,13 +768,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.error('Error updating event:', error);
       throw error;
     }
-
-    // After updating the event, update or create corresponding customer
-    try {
-      await createCustomerFromEvent(data, user.id, data.id);
-    } catch (customerError) {
-      console.error('Error updating customer after event update:', customerError);
-    }
     
     // Send email if email address has changed
     const emailChanged = event.social_network_link && 
@@ -916,163 +787,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       } catch (emailError) {
         console.error('Error sending updated booking email:', emailError);
       }
-    }
-    
-    return data;
-  };
-
-  // Enhanced create event function to ensure files sync to customer
-  const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
-    if (!user) throw new Error("User must be authenticated to create events");
-    
-    const startDateTime = new Date(event.start_date as string);
-    const endDateTime = new Date(event.end_date as string);
-    
-    // OPTIMIZATION: Only check availability if requested by adding a flag
-    if (event.checkAvailability) {
-      const { available, conflictDetails } = await checkTimeSlotAvailability(
-        startDateTime,
-        endDateTime
-      );
-      
-      if (!available) {
-        throw new Error(`Time slot is no longer available: ${conflictDetails}`);
-      }
-    }
-    
-    // Make sure the type field is set, defaulting to 'event'
-    if (!event.type) {
-      event.type = 'event';
-    }
-    
-    // Ensure title is set (title is required by the database)
-    if (!event.title) {
-      event.title = "Untitled Event"; // Default title if none provided
-    }
-    
-    // Create the event - Ensure required fields are included
-    const eventPayload = {
-      title: event.title,
-      start_date: event.start_date as string,
-      end_date: event.end_date as string,
-      user_id: user.id,
-      type: event.type,
-      // Add other optional fields
-      user_surname: event.user_surname,
-      user_number: event.user_number,
-      social_network_link: event.social_network_link,
-      event_notes: event.event_notes,
-      payment_status: event.payment_status,
-      payment_amount: event.payment_amount
-    };
-    
-    const { data, error } = await supabase
-      .from('events')
-      .insert(eventPayload)
-      .select()
-      .single();
-      
-    if (error) {
-      console.error('Error creating event:', error);
-      throw error;
-    }
-
-    // Always create a customer record when creating a new calendar event
-    // The only exception is when the event came from a customer that already exists (create_event flag)
-    const shouldCreateCustomer = !event.id; // Only for new events, not updates
-    
-    if (shouldCreateCustomer) {
-      try {
-        // Pass the new event ID to allow file synchronization
-        const customerId = await createCustomerFromEvent(event, user.id, data.id);
-        if (customerId) {
-          console.log(`Created customer ${customerId} from new event ${data.id}`);
-        }
-      } catch (customerError) {
-        console.error("Error creating customer from event:", customerError);
-        // Continue even if customer creation fails
-      }
-    }
-    
-    // Handle file upload if a file was included
-    if (event.file_path && event.filename) {
-      try {
-        console.log("Adding file to event:", event.filename);
-        
-        const { error: fileError } = await supabase
-          .from('event_files')
-          .insert({
-            event_id: data.id,
-            filename: event.filename,
-            file_path: event.file_path,
-            content_type: event.content_type || null,
-            size: event.size || null,
-            user_id: user.id
-          });
-          
-        if (fileError) {
-          console.error("Error adding file to event:", fileError);
-        } else {
-          // Immediately sync this file to the customer as well
-          try {
-            // Find customer by name
-            const { data: matchingCustomers, error: customerError } = await supabase
-              .from('customers')
-              .select('id')
-              .eq('user_id', user.id)
-              .eq('title', event.user_surname || event.title || '')
-              .maybeSingle();
-              
-            if (customerError) {
-              console.error("Error finding matching customer for file sync:", customerError);
-            } else if (matchingCustomers?.id) {
-              // Create file record for the customer
-              const { error: custFileError } = await supabase
-                .from('customer_files_new')
-                .insert({
-                  customer_id: matchingCustomers.id,
-                  filename: event.filename,
-                  file_path: event.file_path,
-                  content_type: event.content_type || null,
-                  size: event.size || null,
-                  user_id: user.id,
-                  source: 'direct_event_sync'
-                });
-                
-              if (custFileError) {
-                console.error("Error syncing file directly to customer:", custFileError);
-              } else {
-                console.log("Successfully synced event file directly to customer:", matchingCustomers.id);
-              }
-            }
-          } catch (syncError) {
-            console.error("Error in direct file sync to customer:", syncError);
-          }
-        }
-      } catch (fileError) {
-        console.error("Error handling event file:", fileError);
-      }
-    }
-    
-    // Send confirmation email in background only if we have a valid recipient email
-    // and this is a new event (not from a booking request conversion)
-    const recipientEmail = event.social_network_link;
-    if (
-      recipientEmail && 
-      isValidEmail(recipientEmail) && 
-      !event.id && // Check if this is a new event, not an existing one
-      data
-    ) {
-      // Don't await this call anymore - make it run in the background
-      sendBookingConfirmationEmail(
-        data.id,
-        event.title || event.user_surname || '',
-        recipientEmail,
-        event.start_date as string,
-        event.end_date as string,
-        event.payment_status || 'not_paid',
-        event.payment_amount || null
-      );
     }
     
     return data;

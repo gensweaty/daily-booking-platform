@@ -1,7 +1,6 @@
-import { Task, Note, Reminder } from "@/lib/types";
+import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
-import { CalendarEventType } from "@/lib/types/calendar";
 
 // Rate limiting storage in localStorage
 const RATE_LIMIT_KEY = 'booking_request_last_time';

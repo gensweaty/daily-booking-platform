@@ -33,7 +33,8 @@ export const TaskFormFields = ({
   editingTask,
 }: TaskFormFieldsProps) => {
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
   
   const { data: existingFiles = [], refetch } = useQuery({
     queryKey: ['taskFiles', editingTask?.id],
@@ -59,8 +60,6 @@ export const TaskFormFields = ({
   };
 
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
-
-  console.log("TaskFormFields rendering with title:", title, "description length:", description?.length || 0);
 
   return (
     <div className="space-y-4">
