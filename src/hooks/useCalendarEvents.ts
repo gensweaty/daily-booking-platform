@@ -282,7 +282,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         requester_email: booking.requester_email || '',
         requester_phone: booking.requester_phone || '',
         description: booking.description || '',
-        deleted_at: booking.deleted_at // Add deleted_at to the mapped object
+        deleted_at: booking.deleted_at, // Add deleted_at to the mapped object
+        language: booking.language || 'en' // Ensure we include the language from booking requests
       }));
       
       return bookingEvents;
@@ -592,6 +593,23 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     if (!event.id) throw new Error("Event ID is required for updates");
     
     try {
+      // Get the original booking request data if this is a booking request approval
+      let originalBookingLanguage: string | null = null;
+      
+      if (event.type && event.type !== 'booking_request') {
+        // This might be a booking request approval, check if we need to fetch original booking data
+        const { data: bookingRequest, error: bookingError } = await supabase
+          .from('booking_requests')
+          .select('language')
+          .eq('id', event.id)
+          .maybeSingle();
+          
+        if (!bookingError && bookingRequest) {
+          originalBookingLanguage = bookingRequest.language || null;
+          console.log("Found original booking language:", originalBookingLanguage);
+        }
+      }
+      
       const { data: existingEvent, error: fetchError } = await supabase
         .from('events')
         .select('id, start_date, end_date, type, social_network_link, language')
@@ -644,9 +662,28 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           if (isNaN(paymentAmount)) paymentAmount = null;
         }
         
+        // Get the original booking request to ensure we preserve its language
+        const { data: originalBooking, error: originalBookingError } = await supabase
+          .from('booking_requests')
+          .select('language')
+          .eq('id', bookingRequestId)
+          .single();
+          
         // Determine the language to use, with appropriate fallbacks
-        const eventLanguage = event.language || existingEvent.language || language || 'en';
-        console.log("Event language for approval:", eventLanguage);
+        // Priority: 1. Provided language in event update, 2. Original booking language, 3. Existing event language, 4. UI language, 5. Default 'en'
+        const eventLanguage = event.language || 
+                            (originalBooking && originalBooking.language) || 
+                            originalBookingLanguage ||
+                            existingEvent.language || 
+                            language || 
+                            'en';
+                            
+        console.log("Event language for approval determined to be:", eventLanguage, {
+          providedLanguage: event.language,
+          originalBookingLanguage: originalBooking?.language,
+          existingEventLanguage: existingEvent.language,
+          uiLanguage: language
+        });
         
         // Create a new event without direct file fields
         // We need to ensure we have all required fields for the events table
@@ -681,7 +718,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           payment_status: event.payment_status || 'not_paid',
           payment_amount: paymentAmount,
           booking_request_id: bookingRequestId,
-          language: eventLanguage, // Use the determined language
+          language: eventLanguage, // Use the determined language with proper fallbacks
         };
         
         console.log("Creating new event with payload:", {
@@ -792,7 +829,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               event.end_date as string,
               event.payment_status || 'not_paid',
               paymentAmount, // Use our properly formatted amount
-              eventLanguage // Use the determined language
+              eventLanguage // Use the determined language with proper fallbacks
             );
           } catch (emailError) {
             console.error('Error sending booking approval email:', emailError);
