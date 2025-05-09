@@ -74,8 +74,7 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
     rawIncomeType: typeof eventStats.totalIncome,
     afterParsing: validTotalIncome,
     formattedIncome,
-    currency: currencySymbol,
-    language
+    currency: currencySymbol
   });
 
   // Format the task details to show completed, in progress, and todo
