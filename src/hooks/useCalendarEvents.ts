@@ -419,6 +419,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.log(`- Event ID: ${eventId}`);
         console.log(`- Recipient: ${email}`);
         console.log(`- Language: ${language}`);
+        console.log(`- Payment status: ${paymentStatus}`);
+        console.log(`- Payment amount: ${paymentAmount}`);
         
         const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
         const { data: sessionData } = await supabase.auth.getSession();
@@ -444,7 +446,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             startDate: startDate,
             endDate: endDate,
             paymentStatus: paymentStatus || 'not_paid',
-            paymentAmount: paymentAmount || 0,
+            paymentAmount: paymentAmount !== null ? parseFloat(String(paymentAmount)) : null, // Ensure proper number formatting
             businessAddress: businessProfile?.contact_address || '',
             eventId: eventId,
             source: 'useCalendarEvents', // Updated source to ensure consistent tracking
@@ -532,7 +534,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       user_number: event.user_number,
       social_network_link: event.social_network_link,
       event_notes: event.event_notes,
-      payment_status: event.payment_status,
+      payment_status: event.payment_status || 'not_paid',
       payment_amount: event.payment_amount,
       language: event.language || 'en' // Added language with default value
     };
@@ -623,6 +625,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         // Always preserve original booking ID
         const bookingRequestId = event.id;
         
+        // Make sure payment amount is properly formatted as a number if present
+        let paymentAmount = null;
+        if (event.payment_amount !== undefined && event.payment_amount !== null) {
+          paymentAmount = parseFloat(String(event.payment_amount));
+          if (isNaN(paymentAmount)) paymentAmount = null;
+        }
+        
         // Create a new event without direct file fields
         const eventPayload = {
           // Use event payload data without file fields
@@ -634,7 +643,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           start_date: event.start_date,
           end_date: event.end_date,
           payment_status: event.payment_status || 'not_paid',
-          payment_amount: event.payment_amount,
+          payment_amount: paymentAmount,
           user_id: user.id,
           booking_request_id: bookingRequestId,
           type: event.type || 'event',
@@ -729,6 +738,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         // Send confirmation email to customer with business address - this is the ONLY place we send emails
         if (event.requester_email && isValidEmail(event.requester_email)) {
           try {
+            console.log("Sending approval email with payment info:", {
+              status: event.payment_status,
+              amount: paymentAmount,
+              language: event.language || existingEvent.language || 'en'
+            });
+            
             await sendBookingConfirmationEmail(
               newEvent.id,
               event.requester_name || event.title || '',
@@ -736,7 +751,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               event.start_date as string,
               event.end_date as string,
               event.payment_status || 'not_paid',
-              event.payment_amount || null,
+              paymentAmount, // Use our properly formatted amount
               event.language || existingEvent.language || 'en' // Use language with fallbacks
             );
           } catch (emailError) {
@@ -765,6 +780,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
       
       // Regular update for non-booking events or when not changing type
+      
+      // Process payment amount to ensure it's a valid number
+      if (event.payment_amount !== undefined) {
+        const numericAmount = parseFloat(String(event.payment_amount));
+        if (!isNaN(numericAmount)) {
+          event.payment_amount = numericAmount;
+        }
+      }
+      
       const { data, error } = await supabase
         .from('events')
         .update(event)
@@ -783,6 +807,19 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       if (emailChanged && isValidEmail(event.social_network_link as string)) {
         try {
+          // Make sure payment amount is properly formatted
+          let paymentAmount = null;
+          if (event.payment_amount !== undefined && event.payment_amount !== null) {
+            paymentAmount = parseFloat(String(event.payment_amount));
+            if (isNaN(paymentAmount)) paymentAmount = null;
+          }
+          
+          console.log("Sending updated booking email with payment info:", {
+            status: event.payment_status,
+            amount: paymentAmount,
+            language: event.language || existingEvent.language || 'en'
+          });
+          
           await sendBookingConfirmationEmail(
             data.id,
             event.title || event.user_surname || '',
@@ -790,7 +827,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             event.start_date as string,
             event.end_date as string,
             event.payment_status || 'not_paid',
-            event.payment_amount || null,
+            paymentAmount, // Use our properly formatted amount
             event.language || existingEvent.language || 'en' // Use language with fallbacks
           );
         } catch (emailError) {

@@ -6,8 +6,10 @@ import { Language } from '@/translations/types';
  * @param language The current application language
  * @returns The currency symbol for the given language
  */
-export function getCurrencySymbol(language: Language): string {
-  switch (language) {
+export function getCurrencySymbol(language: Language | string | undefined): string {
+  if (!language) return '$';
+  
+  switch (language.toLowerCase()) {
     case 'es':
       return '€';
     case 'ka':
@@ -24,11 +26,18 @@ export function getCurrencySymbol(language: Language): string {
  * @param language The current application language
  * @returns Formatted currency string with symbol
  */
-export function formatCurrency(amount: number | string, language: Language): string {
+export function formatCurrency(amount: number | string | null | undefined, language: Language | string): string {
   const symbol = getCurrencySymbol(language);
+  
+  // Handle null, undefined, empty strings
+  if (amount === null || amount === undefined || amount === '') {
+    return `${symbol}0.00`;
+  }
+  
+  // Convert to number
   const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   
-  // Handle NaN or undefined values
+  // Handle NaN values
   if (isNaN(numericAmount)) {
     return `${symbol}0.00`;
   }

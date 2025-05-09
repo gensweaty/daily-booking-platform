@@ -39,7 +39,7 @@ setInterval(() => {
 
 // Helper function to get currency symbol based on language
 function getCurrencySymbolByLanguage(language?: string): string {
-  switch (language) {
+  switch (language?.toLowerCase()) {
     case 'es':
       return '€';
     case 'ka':
@@ -84,6 +84,15 @@ const handler = async (req: Request): Promise<Response> => {
       source,
       language
     } = parsedBody;
+
+    console.log("Request body:", {
+      recipientEmail,
+      fullName,
+      businessName,
+      paymentStatus,
+      paymentAmount,
+      language
+    });
 
     // Build a standardized deduplication key that ignores the source
     // This ensures we don't send duplicate emails just because they come from different sources
@@ -149,15 +158,19 @@ const handler = async (req: Request): Promise<Response> => {
     try {
       // Get the currency symbol based on language
       const currencySymbol = getCurrencySymbolByLanguage(language);
+      console.log(`Using currency symbol: ${currencySymbol} for language: ${language}`);
       
       // Format payment information if available
       let paymentInfo = "";
       if (paymentStatus) {
         const formattedStatus = formatPaymentStatus(paymentStatus);
         
-        if (paymentStatus === 'partly_paid' || paymentStatus === 'partly') {
-          const amountDisplay = paymentAmount ? `${currencySymbol}${paymentAmount}` : "";
-          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus} ${amountDisplay}</p>`;
+        if ((paymentStatus === 'partly_paid' || paymentStatus === 'partly') && paymentAmount !== undefined && paymentAmount !== null) {
+          const amountDisplay = `${currencySymbol}${paymentAmount}`;
+          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus} (${amountDisplay})</p>`;
+        } else if (paymentStatus === 'fully_paid' || paymentStatus === 'fully') {
+          const amountDisplay = paymentAmount !== undefined && paymentAmount !== null ? ` (${currencySymbol}${paymentAmount})` : "";
+          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus}${amountDisplay}</p>`;
         } else {
           paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus}</p>`;
         }

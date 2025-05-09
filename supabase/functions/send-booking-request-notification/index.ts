@@ -27,7 +27,7 @@ interface BookingNotificationRequest {
 
 // Helper function to get currency symbol based on language
 function getCurrencySymbolByLanguage(language?: string): string {
-  switch (language) {
+  switch (language?.toLowerCase()) {
     case 'es':
       return '€';
     case 'ka':
@@ -195,6 +195,8 @@ const handler = async (req: Request): Promise<Response> => {
       EdgeRuntime.waitUntil((async () => {
         try {
           const { requesterName, startDate, endDate, requesterPhone = "", notes = "", businessName = "Your Business", requesterEmail = "", businessAddress = "", language = "en" } = requestData;
+          
+          console.log(`Using language: ${language} for currency symbol`);
     
           // Format dates for display
           const formatDate = (isoString: string) => {
@@ -218,9 +220,10 @@ const handler = async (req: Request): Promise<Response> => {
     
           // Get currency symbol based on language
           const currencySymbol = getCurrencySymbolByLanguage(language);
+          console.log(`Using currency symbol: ${currencySymbol} for language: ${language}`);
           
           // Format payment status for display
-          const formatPaymentStatus = (status?: string, amount?: number, currencySymbol = '$'): string => {
+          const formatPaymentStatus = (status?: string, amount?: number): string => {
             if (!status) return "Not specified";
             
             switch (status) {
@@ -228,10 +231,10 @@ const handler = async (req: Request): Promise<Response> => {
                 return "Not Paid";
               case "partly_paid":
               case "partly":
-                return amount ? `Partly Paid (${currencySymbol}${amount})` : "Partly Paid";
+                return amount !== undefined && amount !== null ? `Partly Paid (${currencySymbol}${amount})` : "Partly Paid";
               case "fully_paid":
               case "fully":
-                return amount ? `Fully Paid (${currencySymbol}${amount})` : "Fully Paid";
+                return amount !== undefined && amount !== null ? `Fully Paid (${currencySymbol}${amount})` : "Fully Paid";
               default:
                 return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
             }
@@ -239,8 +242,7 @@ const handler = async (req: Request): Promise<Response> => {
     
           const formattedPaymentStatus = formatPaymentStatus(
             requestData.paymentStatus, 
-            requestData.paymentAmount,
-            currencySymbol
+            requestData.paymentAmount
           );
     
           // Create email content
