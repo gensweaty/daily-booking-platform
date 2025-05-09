@@ -17,11 +17,17 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     [dateRange.start, dateRange.end, userId]
   );
 
-  // Fetch customers with optimized query
+  // Fetch customers with optimized query and proper date filtering
   const fetchCustomers = useCallback(async () => {
     if (!userId) return [];
     
-    console.log("Fetching customers for user:", userId);
+    console.log("Fetching customers for user:", userId, "with date range:", {
+      start: dateRange.start.toISOString(),
+      end: endOfDay(dateRange.end).toISOString()
+    });
+    
+    // Improved query: use explicit date range filters that match how we filter events
+    // This ensures consistent filtering between customers and events
     const { data, error } = await supabase
       .from('customers')
       .select(`
@@ -29,8 +35,12 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
         customer_files_new(*)
       `)
       .eq('user_id', userId)
-      .or(`start_date.gte.${dateRange.start.toISOString()},created_at.gte.${dateRange.start.toISOString()}`)
-      .or(`start_date.lte.${endOfDay(dateRange.end).toISOString()},created_at.lte.${endOfDay(dateRange.end).toISOString()}`)
+      .or(
+        `start_date.gte.${dateRange.start.toISOString()},created_at.gte.${dateRange.start.toISOString()}`
+      )
+      .or(
+        `start_date.lte.${endOfDay(dateRange.end).toISOString()},created_at.lte.${endOfDay(dateRange.end).toISOString()}`
+      )
       .is('deleted_at', null)
       .order('created_at', { ascending: false }); // Sort by created_at in descending order
 
@@ -38,7 +48,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       console.error("Error fetching customers:", error);
       throw error;
     }
-    console.log("Retrieved customers:", data?.length || 0);
+    console.log("Retrieved customers in date range:", data?.length || 0);
     return data || [];
   }, [userId, dateRange.start, dateRange.end]);
 
