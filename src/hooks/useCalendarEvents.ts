@@ -77,7 +77,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();  // Make sure we get the current language
 
   // Helper to determine if times have changed between original and new dates
   const haveTimesChanged = (
@@ -536,7 +536,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       event_notes: event.event_notes,
       payment_status: event.payment_status || 'not_paid',
       payment_amount: event.payment_amount,
-      language: event.language || 'en' // Added language with default value
+      language: event.language || language || 'en' // Use provided language, current language, or default to 'en'
     };
     
     const { data, error } = await supabase
@@ -568,7 +568,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         event.end_date as string,
         event.payment_status || 'not_paid',
         event.payment_amount || null,
-        event.language || 'en' // Pass the language
+        event.language || language || 'en' // Use event language, current language, or default to 'en'
       );
     }
     
@@ -632,6 +632,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           if (isNaN(paymentAmount)) paymentAmount = null;
         }
         
+        // Determine the language to use, with appropriate fallbacks
+        const eventLanguage = event.language || existingEvent.language || language || 'en';
+        
         // Create a new event without direct file fields
         const eventPayload = {
           // Use event payload data without file fields
@@ -647,7 +650,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           user_id: user.id,
           booking_request_id: bookingRequestId,
           type: event.type || 'event',
-          language: event.language || existingEvent.language || 'en' // Added language with fallbacks
+          language: eventLanguage // Use the determined language
         };
         
         // Create a new event first
@@ -741,7 +744,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             console.log("Sending approval email with payment info:", {
               status: event.payment_status,
               amount: paymentAmount,
-              language: event.language || existingEvent.language || 'en'
+              language: eventLanguage
             });
             
             await sendBookingConfirmationEmail(
@@ -752,7 +755,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               event.end_date as string,
               event.payment_status || 'not_paid',
               paymentAmount, // Use our properly formatted amount
-              event.language || existingEvent.language || 'en' // Use language with fallbacks
+              eventLanguage // Use the determined language
             );
           } catch (emailError) {
             console.error('Error sending booking approval email:', emailError);
@@ -789,6 +792,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       }
       
+      // Make sure we preserve or update the language
+      if (!event.language) {
+        event.language = existingEvent.language || language || 'en';
+      }
+      
       const { data, error } = await supabase
         .from('events')
         .update(event)
@@ -814,10 +822,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             if (isNaN(paymentAmount)) paymentAmount = null;
           }
           
+          // Use the event language, existing language, current app language, or default to 'en'
+          const emailLanguage = event.language || existingEvent.language || language || 'en';
+          
           console.log("Sending updated booking email with payment info:", {
             status: event.payment_status,
             amount: paymentAmount,
-            language: event.language || existingEvent.language || 'en'
+            language: emailLanguage
           });
           
           await sendBookingConfirmationEmail(
@@ -827,8 +838,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             event.start_date as string,
             event.end_date as string,
             event.payment_status || 'not_paid',
-            paymentAmount, // Use our properly formatted amount
-            event.language || existingEvent.language || 'en' // Use language with fallbacks
+            paymentAmount,
+            emailLanguage // Use determined language
           );
         } catch (emailError) {
           console.error('Error sending updated booking email:', emailError);

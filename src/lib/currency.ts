@@ -12,6 +12,9 @@ export function getCurrencySymbol(language: Language | string | undefined): stri
   // Ensure we're working with a lowercase string for case-insensitive comparison
   const normalizedLang = language.toLowerCase();
   
+  // Log for debugging
+  console.log(`Getting currency symbol for language: ${normalizedLang}`);
+  
   switch (normalizedLang) {
     case 'es':
       return '€';
