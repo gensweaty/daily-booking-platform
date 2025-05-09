@@ -19,7 +19,6 @@ interface BookingApprovalEmailRequest {
   businessAddress?: string;
   eventId?: string; // Used for deduplication
   source?: string; // Used to track source of request
-  language?: string; // Added language parameter to determine currency symbol
 }
 
 // For deduplication: Store a map of recently sent emails with expiring entries
@@ -36,19 +35,6 @@ setInterval(() => {
     }
   }
 }, 300000); // Run every 5 minutes
-
-// Helper function to get currency symbol based on language
-function getCurrencySymbol(language?: string): string {
-  switch (language) {
-    case "ka":
-      return "₾";
-    case "es":
-      return "€";
-    case "en":
-    default:
-      return "$";
-  }
-}
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -81,12 +67,8 @@ const handler = async (req: Request): Promise<Response> => {
       paymentAmount,
       businessAddress,
       eventId,
-      source,
-      language
+      source
     } = parsedBody;
-
-    // Get the appropriate currency symbol based on language
-    const currencySymbol = getCurrencySymbol(language);
 
     // Build a standardized deduplication key that ignores the source
     // This ensures we don't send duplicate emails just because they come from different sources
@@ -156,7 +138,7 @@ const handler = async (req: Request): Promise<Response> => {
         const formattedStatus = formatPaymentStatus(paymentStatus);
         
         if (paymentStatus === 'partly_paid' || paymentStatus === 'partly') {
-          const amountDisplay = paymentAmount ? `${currencySymbol}${paymentAmount}` : "";
+          const amountDisplay = paymentAmount ? `$${paymentAmount}` : "";
           paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus} ${amountDisplay}</p>`;
         } else {
           paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus}</p>`;
