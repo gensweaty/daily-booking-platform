@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -110,14 +111,15 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      const result = await createEvent?.(data);
+      if (!createEvent) return {} as CalendarEventType; // Return empty CalendarEventType if createEvent is undefined
+      const result = await createEvent(data);
       return result;
     },
     updateEvent: async (data) => {
-      if (!selectedEvent) throw new Error("No event selected");
+      if (!selectedEvent || !updateEvent) return {} as CalendarEventType; // Return empty CalendarEventType if dependencies are undefined
       console.log("Calendar passing to updateEvent:", { data, id: selectedEvent.id, type: selectedEvent.type });
       
-      const result = await updateEvent?.({
+      const result = await updateEvent({
         ...data,
         id: selectedEvent.id,
         type: selectedEvent.type  // Make sure to pass the type from the selected event
@@ -125,7 +127,8 @@ export const Calendar = ({
       return result;
     },
     deleteEvent: async (id) => {
-      await deleteEvent?.(id);
+      if (!deleteEvent) return;
+      await deleteEvent(id);
     }
   });
 
