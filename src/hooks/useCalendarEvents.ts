@@ -634,7 +634,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         
         // Determine the language to use, with appropriate fallbacks
         const eventLanguage = event.language || existingEvent.language || language || 'en';
-        console.log("Event language for approval:", eventLanguage);
         
         // Create a new event without direct file fields
         const eventPayload = {
@@ -653,8 +652,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           type: event.type || 'event',
           language: eventLanguage // Use the determined language
         };
-        
-        console.log("Creating new event with language:", eventLanguage);
         
         // Create a new event first
         const { data: newEvent, error: createError } = await supabase
@@ -741,7 +738,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           console.error("Error handling customer creation:", customerError);
         }
         
-        // Send confirmation email to customer with business address
+        // Send confirmation email to customer with business address - this is the ONLY place we send emails
         if (event.requester_email && isValidEmail(event.requester_email)) {
           try {
             console.log("Sending approval email with payment info:", {
