@@ -58,6 +58,15 @@ export const BookingRequestsList = ({
   };
   
   const handleApprove = async (id: string) => {
+    // Log the current language context
+    console.log(`Approving request ${id} with UI language: ${language}`);
+    
+    // Check if the request has its own language setting
+    const requestToApprove = requests.find(req => req.id === id);
+    if (requestToApprove) {
+      console.log(`Request ${id} language setting: ${requestToApprove.language || 'not set'}`);
+    }
+    
     // Set processing state to show loading indicator
     setProcessingId(id);
     try {
