@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -169,7 +168,7 @@ const handler = async (req: Request): Promise<Response> => {
     const formattedEndDate = formatDateTime(endDate);
     
     try {
-      // Get the currency symbol based on language
+      // Get the currency symbol based on language - log extensively for debugging
       const currencySymbol = getCurrencySymbolByLanguage(language);
       console.log(`Using currency symbol: ${currencySymbol} for language: ${language}`);
       

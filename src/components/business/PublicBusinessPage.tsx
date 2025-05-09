@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { supabase, forceBucketCreation } from "@/lib/supabase";
@@ -29,13 +28,16 @@ export const PublicBusinessPage = () => {
     localStorage.setItem('accessing_public_business_page', 'true');
     localStorage.setItem('last_business_path', location.pathname);
     
+    // Store the current language in local storage for booking requests
+    localStorage.setItem('booking_language', language);
+    
     return () => {
       // Only remove the flag if we're navigating away from business pages
       if (!location.pathname.startsWith('/business')) {
         localStorage.removeItem('accessing_public_business_page');
       }
     };
-  }, [location.pathname]);
+  }, [location.pathname, language]);
   
   const getBusinessSlug = () => {
     // Check for slug in URL path parameters

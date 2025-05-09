@@ -242,10 +242,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       const { data, error } = await supabase
         .from('booking_requests')
-        .select('*')
+        .select('*, business_profiles(slug)') // Include business profile to get the slug
         .eq('business_id', businessProfileId)
         .eq('status', 'approved')
-        .is('deleted_at', null); // Add check for soft-deleted bookings
+        .is('deleted_at', null); 
         
       if (error) {
         console.error("Error fetching approved bookings:", error);
@@ -254,29 +254,62 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       console.log("Fetched approved bookings:", data?.length || 0);
       
-      const bookingEvents = (data || []).map(booking => ({
-        id: booking.id,
-        title: booking.title || 'Booking',
-        start_date: booking.start_date,
-        end_date: booking.end_date,
-        type: 'booking_request',
-        created_at: booking.created_at || new Date().toISOString(),
-        user_id: booking.user_id || '',
-        user_surname: booking.requester_name || '',
-        user_number: booking.requester_phone || '',
-        social_network_link: booking.requester_email || '',
-        event_notes: booking.description || '',
-        requester_name: booking.requester_name || '',
-        requester_email: booking.requester_email || '',
-        requester_phone: booking.requester_phone || '',
-        description: booking.description || '',
-        deleted_at: booking.deleted_at // Add deleted_at to the mapped object
-      }));
+      const bookingEvents = (data || []).map(booking => {
+        // Extract the language from the booking itself (if it exists)
+        // This is crucial to make sure we use the correct language for currency display
+        const bookingLanguage = booking.language || extractLanguageFromURL(booking.source_url) || language || 'en';
+        
+        console.log(`Mapping booking request ${booking.id} with language: ${bookingLanguage}`);
+        
+        return {
+          id: booking.id,
+          title: booking.title || 'Booking',
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          type: 'booking_request',
+          created_at: booking.created_at || new Date().toISOString(),
+          user_id: booking.user_id || '',
+          user_surname: booking.requester_name || '',
+          user_number: booking.requester_phone || '',
+          social_network_link: booking.requester_email || '',
+          event_notes: booking.description || '',
+          requester_name: booking.requester_name || '',
+          requester_email: booking.requester_email || '',
+          requester_phone: booking.requester_phone || '',
+          description: booking.description || '',
+          deleted_at: booking.deleted_at,
+          language: bookingLanguage, // Preserve the booking language
+          source_url: booking.source_url, // Preserve the source URL
+          business_slug: booking.business_profiles?.slug // Preserve business slug
+        };
+      });
       
       return bookingEvents;
     } catch (error) {
       console.error("Error fetching approved bookings:", error);
       return [];
+    }
+  };
+
+  // Helper function to extract language from source URL
+  const extractLanguageFromURL = (url?: string): string | null => {
+    if (!url) return null;
+    
+    try {
+      const urlObj = new URL(url);
+      const lang = urlObj.searchParams.get('lang');
+      console.log(`Extracted language from URL ${url}: ${lang}`);
+      return lang;
+    } catch (e) {
+      // Try to extract lang parameter without creating a URL object
+      if (url && url.includes('lang=')) {
+        const match = url.match(/[?&]lang=([^&]*)/);
+        const extractedLang = match && match[1];
+        console.log(`Extracted language from URL string ${url}: ${extractedLang}`);
+        return extractedLang || null;
+      }
+      console.error(`Could not extract language from URL: ${url}`, e);
+      return null;
     }
   };
 
@@ -582,7 +615,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     try {
       const { data: existingEvent, error: fetchError } = await supabase
         .from('events')
-        .select('id, start_date, end_date, type, social_network_link, language')
+        .select('id, start_date, end_date, type, social_network_link, language, source_url')
         .eq('id', event.id)
         .single();
         
@@ -625,6 +658,18 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         // Always preserve original booking ID
         const bookingRequestId = event.id;
         
+        // Fetch the original booking request to get all details
+        const { data: originalBooking, error: bookingError } = await supabase
+          .from('booking_requests')
+          .select('*, business_profiles(slug)')
+          .eq('id', bookingRequestId)
+          .single();
+          
+        if (bookingError) {
+          console.error("Error fetching original booking:", bookingError);
+          // Continue with available data
+        }
+        
         // Make sure payment amount is properly formatted as a number if present
         let paymentAmount = null;
         if (event.payment_amount !== undefined && event.payment_amount !== null) {
@@ -632,9 +677,28 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           if (isNaN(paymentAmount)) paymentAmount = null;
         }
         
-        // Determine the language to use, with appropriate fallbacks
-        const eventLanguage = event.language || existingEvent.language || language || 'en';
-        console.log("Event language for approval:", eventLanguage);
+        // Determine the language to use, with careful priority:
+        // 1. Event language parameter if provided in this update
+        // 2. Original booking's language if available
+        // 3. Language extracted from source URL (where the booking was created)
+        // 4. Language from existing event record
+        // 5. Current app language
+        // 6. Default to 'en'
+        let eventLanguage = event.language;
+        
+        if (!eventLanguage && originalBooking?.language) {
+          eventLanguage = originalBooking.language;
+        } else if (!eventLanguage && originalBooking?.source_url) {
+          // Try to extract language from the source URL
+          eventLanguage = extractLanguageFromURL(originalBooking.source_url);
+        } else if (!eventLanguage && existingEvent.language) {
+          eventLanguage = existingEvent.language;
+        } else if (!eventLanguage) {
+          eventLanguage = language || 'en';
+        }
+        
+        console.log(`Event language for approval determined: ${eventLanguage}`);
+        console.log(`Sources considered: event=${event.language}, original booking=${originalBooking?.language}, source URL=${originalBooking?.source_url}, existing event=${existingEvent.language}, current app=${language}`);
         
         // Create a new event without direct file fields
         const eventPayload = {
@@ -651,10 +715,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           user_id: user.id,
           booking_request_id: bookingRequestId,
           type: event.type || 'event',
-          language: eventLanguage // Use the determined language
+          language: eventLanguage, // Use the determined language
+          source_url: originalBooking?.source_url || existingEvent.source_url // Preserve the source URL
         };
         
-        console.log("Creating new event with language:", eventLanguage);
+        console.log("Creating new event with payload:", {
+          language: eventLanguage,
+          payment_status: event.payment_status,
+          payment_amount: paymentAmount
+        });
         
         // Create a new event first
         const { data: newEvent, error: createError } = await supabase
@@ -744,10 +813,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         // Send confirmation email to customer with business address
         if (event.requester_email && isValidEmail(event.requester_email)) {
           try {
-            console.log("Sending approval email with payment info:", {
+            console.log("Sending approval email with detailed info:", {
               status: event.payment_status,
               amount: paymentAmount,
-              language: eventLanguage
+              language: eventLanguage,
+              email: event.requester_email,
+              name: event.requester_name || event.title || ''
             });
             
             await sendBookingConfirmationEmail(
