@@ -203,6 +203,28 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     }
   };
 
+  // Helper function to safely extract language from a URL string
+  const extractLanguageFromURL = (url?: string): string | null => {
+    if (!url) return null;
+    
+    try {
+      const urlObj = new URL(url);
+      const lang = urlObj.searchParams.get('lang');
+      console.log(`Extracted language from URL ${url}: ${lang}`);
+      return lang;
+    } catch (e) {
+      // Try to extract lang parameter without creating a URL object
+      if (url && url.includes('lang=')) {
+        const match = url.match(/[?&]lang=([^&]*)/);
+        const extractedLang = match && match[1];
+        console.log(`Extracted language from URL string ${url}: ${extractedLang}`);
+        return extractedLang || null;
+      }
+      console.error(`Could not extract language from URL: ${url}`, e);
+      return null;
+    }
+  };
+
   const getApprovedBookings = async () => {
     if (!businessId && !businessUserId && !user) return [];
 
@@ -232,13 +254,36 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           businessProfileId = userBusinessProfile.id;
         }
       }
-      
+
       if (!businessProfileId) {
         console.log("No business profile ID found for fetching bookings");
         return [];
       }
       
       console.log("Fetching approved bookings for business ID:", businessProfileId);
+      
+      interface BookingWithBusinessProfile {
+        id: string;
+        title: string;
+        start_date: string;
+        end_date: string;
+        status: string;
+        created_at: string;
+        user_id: string | null;
+        requester_name: string;
+        requester_phone: string | null;
+        requester_email: string;
+        description: string | null;
+        deleted_at: string | null;
+        language: string | null;
+        payment_status: string | null;
+        payment_amount: number | null;
+        // Add source_url property to the interface
+        source_url?: string;
+        business_profiles?: {
+          slug: string;
+        };
+      }
       
       const { data, error } = await supabase
         .from('booking_requests')
@@ -254,10 +299,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       
       console.log("Fetched approved bookings:", data?.length || 0);
       
-      const bookingEvents = (data || []).map(booking => {
+      // Type assertion to ensure proper typing
+      const bookings = data as BookingWithBusinessProfile[] | null;
+      
+      const bookingEvents = (bookings || []).map(booking => {
         // Extract the language from the booking itself (if it exists)
         // This is crucial to make sure we use the correct language for currency display
-        const bookingLanguage = booking.language || extractLanguageFromURL(booking.source_url) || language || 'en';
+        const bookingLanguage = booking.language || 
+                               (booking.source_url ? extractLanguageFromURL(booking.source_url) : null) || 
+                               language || 
+                               'en';
         
         console.log(`Mapping booking request ${booking.id} with language: ${bookingLanguage}`);
         
@@ -279,7 +330,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           description: booking.description || '',
           deleted_at: booking.deleted_at,
           language: bookingLanguage, // Preserve the booking language
-          source_url: booking.source_url, // Preserve the source URL
+          source_url: booking.source_url, // Preserve the source URL if it exists
           business_slug: booking.business_profiles?.slug // Preserve business slug
         };
       });
@@ -288,28 +339,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     } catch (error) {
       console.error("Error fetching approved bookings:", error);
       return [];
-    }
-  };
-
-  // Helper function to extract language from source URL
-  const extractLanguageFromURL = (url?: string): string | null => {
-    if (!url) return null;
-    
-    try {
-      const urlObj = new URL(url);
-      const lang = urlObj.searchParams.get('lang');
-      console.log(`Extracted language from URL ${url}: ${lang}`);
-      return lang;
-    } catch (e) {
-      // Try to extract lang parameter without creating a URL object
-      if (url && url.includes('lang=')) {
-        const match = url.match(/[?&]lang=([^&]*)/);
-        const extractedLang = match && match[1];
-        console.log(`Extracted language from URL string ${url}: ${extractedLang}`);
-        return extractedLang || null;
-      }
-      console.error(`Could not extract language from URL: ${url}`, e);
-      return null;
     }
   };
 
@@ -613,9 +642,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     if (!event.id) throw new Error("Event ID is required for updates");
     
     try {
+      // Fetch the existing event first to get its properties
       const { data: existingEvent, error: fetchError } = await supabase
         .from('events')
-        .select('id, start_date, end_date, type, social_network_link, language, source_url')
+        .select('id, start_date, end_date, type, social_network_link, language')
         .eq('id', event.id)
         .single();
         
@@ -624,6 +654,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         throw fetchError;
       }
       
+      // Proceed with the rest of the update logic
       const startDateTime = new Date(event.start_date as string);
       const endDateTime = new Date(event.end_date as string);
       
@@ -659,7 +690,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         const bookingRequestId = event.id;
         
         // Fetch the original booking request to get all details
-        const { data: originalBooking, error: bookingError } = await supabase
+        interface BookingWithBusinessProfile {
+          id: string;
+          language?: string | null;
+          source_url?: string;
+          business_profiles?: { slug: string };
+          [key: string]: any; // Allow other properties
+        }
+        
+        const { data: bookingData, error: bookingError } = await supabase
           .from('booking_requests')
           .select('*, business_profiles(slug)')
           .eq('id', bookingRequestId)
@@ -670,6 +709,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           // Continue with available data
         }
         
+        const originalBooking = bookingData as BookingWithBusinessProfile | null;
+        
         // Make sure payment amount is properly formatted as a number if present
         let paymentAmount = null;
         if (event.payment_amount !== undefined && event.payment_amount !== null) {
@@ -677,13 +718,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           if (isNaN(paymentAmount)) paymentAmount = null;
         }
         
-        // Determine the language to use, with careful priority:
-        // 1. Event language parameter if provided in this update
-        // 2. Original booking's language if available
-        // 3. Language extracted from source URL (where the booking was created)
-        // 4. Language from existing event record
-        // 5. Current app language
-        // 6. Default to 'en'
+        // Determine the language to use, with careful priority
         let eventLanguage = event.language;
         
         if (!eventLanguage && originalBooking?.language) {
@@ -698,7 +733,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
         
         console.log(`Event language for approval determined: ${eventLanguage}`);
-        console.log(`Sources considered: event=${event.language}, original booking=${originalBooking?.language}, source URL=${originalBooking?.source_url}, existing event=${existingEvent.language}, current app=${language}`);
         
         // Create a new event without direct file fields
         const eventPayload = {
@@ -716,8 +750,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           booking_request_id: bookingRequestId,
           type: event.type || 'event',
           language: eventLanguage, // Use the determined language
-          source_url: originalBooking?.source_url || existingEvent.source_url // Preserve the source URL
         };
+        
+        // Add source_url only if it exists in the original booking
+        if (originalBooking?.source_url) {
+          (eventPayload as any).source_url = originalBooking.source_url;
+        }
         
         console.log("Creating new event with payload:", {
           language: eventLanguage,
@@ -867,218 +905,3 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       }
       
       // Make sure we preserve or update the language
-      if (!event.language) {
-        event.language = existingEvent.language || language || 'en';
-      }
-      
-      const { data, error } = await supabase
-        .from('events')
-        .update(event)
-        .eq('id', event.id)
-        .select()
-        .single();
-        
-      if (error) {
-        console.error('Error updating event:', error);
-        throw error;
-      }
-      
-      // Send email if email address has changed
-      const emailChanged = event.social_network_link && 
-                          event.social_network_link !== existingEvent.social_network_link;
-      
-      if (emailChanged && isValidEmail(event.social_network_link as string)) {
-        try {
-          // Make sure payment amount is properly formatted
-          let paymentAmount = null;
-          if (event.payment_amount !== undefined && event.payment_amount !== null) {
-            paymentAmount = parseFloat(String(event.payment_amount));
-            if (isNaN(paymentAmount)) paymentAmount = null;
-          }
-          
-          // Use the event language, existing language, current app language, or default to 'en'
-          const emailLanguage = event.language || existingEvent.language || language || 'en';
-          
-          console.log("Sending updated booking email with payment info:", {
-            status: event.payment_status,
-            amount: paymentAmount,
-            language: emailLanguage
-          });
-          
-          await sendBookingConfirmationEmail(
-            data.id,
-            event.title || event.user_surname || '',
-            event.social_network_link as string,
-            event.start_date as string,
-            event.end_date as string,
-            event.payment_status || 'not_paid',
-            paymentAmount,
-            emailLanguage // Use determined language
-          );
-        } catch (emailError) {
-          console.error('Error sending updated booking email:', emailError);
-        }
-      }
-      
-      return data;
-    } catch (error) {
-      console.error('Error in updateEvent:', error);
-      throw error;
-    }
-  };
-
-  const deleteEvent = async (eventId: string): Promise<void> => {
-    if (!user) throw new Error("User must be authenticated to delete events");
-    
-    // First check if this is an event created from a booking request
-    const { data: event, error: fetchError } = await supabase
-      .from('events')
-      .select('booking_request_id, payment_status, payment_amount')
-      .eq('id', eventId)
-      .maybeSingle();
-      
-    if (fetchError) {
-      console.error("Error fetching event:", fetchError);
-    }
-    
-    // Log the payment information that will be removed
-    if (event?.payment_status === 'partly_paid' || event?.payment_status === 'fully_paid') {
-      console.log(`Deleting event will remove payment amount ${event.payment_amount} from statistics`);
-    }
-    
-    // If this was created from a booking request, also update the request status
-    if (event?.booking_request_id) {
-      console.log("Event was created from booking request, updating request status");
-      
-      // Update the booking request status to rejected
-      const { error: bookingError } = await supabase
-        .from('booking_requests')
-        .update({ status: 'rejected', deleted_at: new Date().toISOString() })
-        .eq('id', event.booking_request_id);
-        
-      if (bookingError) {
-        console.error("Error updating booking request:", bookingError);
-      }
-    }
-    
-    // Soft delete the event
-    const { error } = await supabase
-      .from('events')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', eventId);
-      
-    if (error) {
-      console.error('Error deleting event:', error);
-      throw error;
-    }
-    
-    // Invalidate all relevant queries to ensure data is refreshed
-    queryClient.invalidateQueries({ queryKey: ['events'] });
-    queryClient.invalidateQueries({ queryKey: ['eventStats'] });
-    queryClient.invalidateQueries({ queryKey: ['business-events'] });
-    queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-  };
-
-  const eventsQuery = useQuery({
-    queryKey: ['events', user?.id],
-    queryFn: getEvents,
-    enabled: !!user?.id,
-    refetchOnWindowFocus: true,
-    refetchInterval: 60000,
-  });
-
-  const businessEventsQuery = useQuery({
-    queryKey: ['business-events', businessId, businessUserId],
-    queryFn: getBusinessEvents,
-    enabled: !!(businessId || businessUserId),
-  });
-
-  const approvedBookingsQuery = useQuery({
-    queryKey: ['approved-bookings', businessId, businessUserId, user?.id],
-    queryFn: getApprovedBookings,
-    enabled: !!(businessId || businessUserId || user?.id),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: createEvent,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
-      
-      // Also invalidate statistics to reflect new event data
-      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
-      queryClient.invalidateQueries({ queryKey: ['taskStats'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive"
-      });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: updateEvent,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings', businessId, businessUserId] });
-      
-      // Also invalidate statistics to reflect updated event data
-      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
-      
-      toast({
-        title: t("common.success"),
-        description: t("events.eventUpdated"),
-      });
-      return data;
-    },
-    onError: (error: Error) => {
-      toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive"
-      });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteEvent,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings', businessId, businessUserId] });
-      
-      // Explicitly invalidate statistics to ensure deleted event's income is removed
-      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
-      
-      toast({
-        title: t("common.success"),
-        description: t("events.eventDeleted"),
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive"
-      });
-    },
-  });
-
-  return {
-    events: eventsQuery.data || [],
-    businessEvents: businessEventsQuery.data || [],
-    approvedBookings: approvedBookingsQuery.data || [],
-    isLoading: eventsQuery.isLoading || businessEventsQuery.isLoading || approvedBookingsQuery.isLoading,
-    error: eventsQuery.error || businessEventsQuery.error || approvedBookingsQuery.error,
-    createEvent: createMutation.mutateAsync,
-    updateEvent: updateMutation.mutateAsync,
-    deleteEvent: deleteMutation.mutateAsync,
-  };
-};
-
-// Export the associateBookingFilesWithEvent function for external use
-export { associateBookingFilesWithEvent };
