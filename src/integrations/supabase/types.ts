@@ -451,6 +451,7 @@ export type Database = {
           file_size: number | null
           filename: string | null
           id: string
+          language: string | null
           original_booking_id: string | null
           payment_amount: number | null
           payment_status: string | null
@@ -474,6 +475,7 @@ export type Database = {
           file_size?: number | null
           filename?: string | null
           id?: string
+          language?: string | null
           original_booking_id?: string | null
           payment_amount?: number | null
           payment_status?: string | null
@@ -497,6 +499,7 @@ export type Database = {
           file_size?: number | null
           filename?: string | null
           id?: string
+          language?: string | null
           original_booking_id?: string | null
           payment_amount?: number | null
           payment_status?: string | null
@@ -886,6 +889,7 @@ export type Database = {
           file_size: number | null
           filename: string | null
           id: string
+          language: string | null
           original_booking_id: string | null
           payment_amount: number | null
           payment_status: string | null

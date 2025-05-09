@@ -577,161 +577,216 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     if (!user) throw new Error("User must be authenticated to update events");
     if (!event.id) throw new Error("Event ID is required for updates");
     
-    const { data: existingEvent, error: fetchError } = await supabase
-      .from('events')
-      .select('id, start_date, end_date, type, social_network_link, language')
-      .eq('id', event.id)
-      .single();
-      
-    if (fetchError) {
-      console.error('Error fetching existing event:', fetchError);
-      throw fetchError;
-    }
-    
-    const startDateTime = new Date(event.start_date as string);
-    const endDateTime = new Date(event.end_date as string);
-    
-    // Only check availability if times have changed
-    const timesChanged = haveTimesChanged(
-      existingEvent.start_date,
-      existingEvent.end_date,
-      event.start_date as string,
-      event.end_date as string
-    );
-    
-    if (timesChanged) {
-      const { available, conflictDetails } = await checkTimeSlotAvailability(
-        startDateTime,
-        endDateTime,
-        event.id
-      );
-      
-      if (!available) {
-        throw new Error(`Time slot is no longer available: ${conflictDetails}`);
-      }
-    }
-    
-    // If an event's type is booking_request but update sets it to something else,
-    // this indicates approving a booking request
-    const wasBookingRequest = existingEvent.type === 'booking_request';
-    const isChangingType = event.type && event.type !== 'booking_request';
-    
-    if (wasBookingRequest && isChangingType) {
-      console.log("Converting booking request to regular event:", event.id);
-      
-      // Always preserve original booking ID
-      const bookingRequestId = event.id;
-      
-      // Create a new event without direct file fields
-      const eventPayload = {
-        // Use event payload data without file fields
-        title: event.title,
-        user_surname: event.user_surname,
-        user_number: event.user_number,
-        social_network_link: event.social_network_link,
-        event_notes: event.event_notes,
-        start_date: event.start_date,
-        end_date: event.end_date,
-        payment_status: event.payment_status || 'not_paid',
-        payment_amount: event.payment_amount,
-        user_id: user.id,
-        booking_request_id: bookingRequestId,
-        type: event.type || 'event',
-        language: event.language || existingEvent.language || 'en' // Added language with fallbacks
-      };
-      
-      // Create a new event first
-      const { data: newEvent, error: createError } = await supabase
+    try {
+      const { data: existingEvent, error: fetchError } = await supabase
         .from('events')
-        .insert(eventPayload)
-        .select()
+        .select('id, start_date, end_date, type, social_network_link, language')
+        .eq('id', event.id)
         .single();
         
-      if (createError) {
-        console.error("Error creating new event from booking:", createError);
-        throw createError;
+      if (fetchError) {
+        console.error('Error fetching existing event:', fetchError);
+        throw fetchError;
       }
       
-      // Associate booking files with the new event
-      let associatedFiles = null;
-      try {
-        const associatedFile = await associateBookingFilesWithEvent(
-          bookingRequestId, 
-          newEvent.id, 
-          user.id
+      const startDateTime = new Date(event.start_date as string);
+      const endDateTime = new Date(event.end_date as string);
+      
+      // Only check availability if times have changed
+      const timesChanged = haveTimesChanged(
+        existingEvent.start_date,
+        existingEvent.end_date,
+        event.start_date as string,
+        event.end_date as string
+      );
+      
+      if (timesChanged) {
+        const { available, conflictDetails } = await checkTimeSlotAvailability(
+          startDateTime,
+          endDateTime,
+          event.id
         );
         
-        // Create an array with the file if it exists
-        associatedFiles = associatedFile ? [associatedFile] : [];
-        
-        console.log("Associated files with new event:", associatedFiles);
-      } catch (fileError) {
-        console.error("Error copying booking files:", fileError);
-        associatedFiles = [];
+        if (!available) {
+          throw new Error(`Time slot is no longer available: ${conflictDetails}`);
+        }
       }
       
-      // Create a customer record if we have customer data in the booking
-      try {
-        if (event.user_surname || event.requester_name) {
-          console.log("Creating customer record from booking request");
+      // If an event's type is booking_request but update sets it to something else,
+      // this indicates approving a booking request
+      const wasBookingRequest = existingEvent.type === 'booking_request';
+      const isChangingType = event.type && event.type !== 'booking_request';
+      
+      if (wasBookingRequest && isChangingType) {
+        console.log("Converting booking request to regular event:", event.id);
+        
+        // Always preserve original booking ID
+        const bookingRequestId = event.id;
+        
+        // Create a new event without direct file fields
+        const eventPayload = {
+          // Use event payload data without file fields
+          title: event.title,
+          user_surname: event.user_surname,
+          user_number: event.user_number,
+          social_network_link: event.social_network_link,
+          event_notes: event.event_notes,
+          start_date: event.start_date,
+          end_date: event.end_date,
+          payment_status: event.payment_status || 'not_paid',
+          payment_amount: event.payment_amount,
+          user_id: user.id,
+          booking_request_id: bookingRequestId,
+          type: event.type || 'event',
+          language: event.language || existingEvent.language || 'en' // Added language with fallbacks
+        };
+        
+        // Create a new event first
+        const { data: newEvent, error: createError } = await supabase
+          .from('events')
+          .insert(eventPayload)
+          .select()
+          .single();
           
-          const customerData = {
-            title: event.user_surname || event.requester_name || event.title || '',
-            user_surname: event.user_surname || event.requester_name || event.title || '',
-            user_number: event.user_number || event.requester_phone || '',
-            social_network_link: event.social_network_link || event.requester_email || '',
-            event_notes: event.event_notes || event.description || '',
-            user_id: user.id,
-            type: 'customer',
-            // Optional: link to event dates
-            start_date: event.start_date,
-            end_date: event.end_date
-          };
+        if (createError) {
+          console.error("Error creating new event from booking:", createError);
+          throw createError;
+        }
+        
+        // Associate booking files with the new event
+        let associatedFiles = null;
+        try {
+          const associatedFile = await associateBookingFilesWithEvent(
+            bookingRequestId, 
+            newEvent.id, 
+            user.id
+          );
           
-          const { data: newCustomer, error: customerError } = await supabase
-            .from('customers')
-            .insert(customerData)
-            .select()
-            .single();
+          // Create an array with the file if it exists
+          associatedFiles = associatedFile ? [associatedFile] : [];
+          
+          console.log("Associated files with new event:", associatedFiles);
+        } catch (fileError) {
+          console.error("Error copying booking files:", fileError);
+          associatedFiles = [];
+        }
+        
+        // Create a customer record if we have customer data in the booking
+        try {
+          if (event.user_surname || event.requester_name) {
+            console.log("Creating customer record from booking request");
             
-          if (customerError) {
-            console.error("Error creating customer from booking:", customerError);
-          } else if (newCustomer && associatedFiles.length > 0) {
-            console.log("Created customer from booking, now linking files");
+            const customerData = {
+              title: event.user_surname || event.requester_name || event.title || '',
+              user_surname: event.user_surname || event.requester_name || event.title || '',
+              user_number: event.user_number || event.requester_phone || '',
+              social_network_link: event.social_network_link || event.requester_email || '',
+              event_notes: event.event_notes || event.description || '',
+              user_id: user.id,
+              type: 'customer',
+              // Optional: link to event dates
+              start_date: event.start_date,
+              end_date: event.end_date
+            };
             
-            // Create file links for the customer using the new file paths
-            for (const fileRecord of associatedFiles) {
-              // Create customer file link using the NEW file path
-              const { error: customerFileError } = await supabase
-                .from('customer_files_new')
-                .insert({
-                  customer_id: newCustomer.id,
-                  filename: fileRecord.filename,
-                  file_path: fileRecord.file_path, // Use the NEW path in event_attachments
-                  content_type: fileRecord.content_type,
-                  size: fileRecord.size,
-                  user_id: user.id
-                });
+            const { data: newCustomer, error: customerError } = await supabase
+              .from('customers')
+              .insert(customerData)
+              .select()
+              .single();
+              
+            if (customerError) {
+              console.error("Error creating customer from booking:", customerError);
+            } else if (newCustomer && associatedFiles.length > 0) {
+              console.log("Created customer from booking, now linking files");
+              
+              // Create file links for the customer using the new file paths
+              for (const fileRecord of associatedFiles) {
+                // Create customer file link using the NEW file path
+                const { error: customerFileError } = await supabase
+                  .from('customer_files_new')
+                  .insert({
+                    customer_id: newCustomer.id,
+                    filename: fileRecord.filename,
+                    file_path: fileRecord.file_path, // Use the NEW path in event_attachments
+                    content_type: fileRecord.content_type,
+                    size: fileRecord.size,
+                    user_id: user.id
+                  });
                 
-              if (customerFileError) {
-                console.error("Error creating customer file link:", customerFileError);
-              } else {
-                console.log("Successfully created file record for customer");
+                if (customerFileError) {
+                  console.error("Error creating customer file link:", customerFileError);
+                } else {
+                  console.log("Successfully created file record for customer");
+                }
               }
             }
           }
+        } catch (customerError) {
+          console.error("Error handling customer creation:", customerError);
         }
-      } catch (customerError) {
-        console.error("Error handling customer creation:", customerError);
+        
+        // Send confirmation email to customer with business address - this is the ONLY place we send emails
+        if (event.requester_email && isValidEmail(event.requester_email)) {
+          try {
+            await sendBookingConfirmationEmail(
+              newEvent.id,
+              event.requester_name || event.title || '',
+              event.requester_email,
+              event.start_date as string,
+              event.end_date as string,
+              event.payment_status || 'not_paid',
+              event.payment_amount || null,
+              event.language || existingEvent.language || 'en' // Use language with fallbacks
+            );
+          } catch (emailError) {
+            console.error('Error sending booking approval email:', emailError);
+          }
+        }
+        
+        // Soft-delete or update the original booking request
+        try {
+          const { error: updateBookingError } = await supabase
+            .from('booking_requests')
+            .update({ 
+              status: 'approved',
+              deleted_at: new Date().toISOString()  // Soft-delete the booking
+            })
+            .eq('id', bookingRequestId);
+            
+          if (updateBookingError) {
+            console.error("Error updating original booking:", updateBookingError);
+          }
+        } catch (bookingUpdateError) {
+          console.error("Error updating booking status:", bookingUpdateError);
+        }
+        
+        return newEvent;
       }
       
-      // Send confirmation email to customer with business address - this is the ONLY place we send emails
-      if (event.requester_email && isValidEmail(event.requester_email)) {
+      // Regular update for non-booking events or when not changing type
+      const { data, error } = await supabase
+        .from('events')
+        .update(event)
+        .eq('id', event.id)
+        .select()
+        .single();
+        
+      if (error) {
+        console.error('Error updating event:', error);
+        throw error;
+      }
+      
+      // Send email if email address has changed
+      const emailChanged = event.social_network_link && 
+                          event.social_network_link !== existingEvent.social_network_link;
+      
+      if (emailChanged && isValidEmail(event.social_network_link as string)) {
         try {
           await sendBookingConfirmationEmail(
-            newEvent.id,
-            event.requester_name || event.title || '',
-            event.requester_email,
+            data.id,
+            event.title || event.user_surname || '',
+            event.social_network_link as string,
             event.start_date as string,
             event.end_date as string,
             event.payment_status || 'not_paid',
@@ -739,65 +794,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             event.language || existingEvent.language || 'en' // Use language with fallbacks
           );
         } catch (emailError) {
-          console.error('Error sending booking approval email:', emailError);
+          console.error('Error sending updated booking email:', emailError);
         }
       }
       
-      // Soft-delete or update the original booking request
-      try {
-        const { error: updateBookingError } = await supabase
-          .from('booking_requests')
-          .update({ 
-            status: 'approved',
-            deleted_at: new Date().toISOString()  // Soft-delete the booking
-          })
-          .eq('id', bookingRequestId);
-          
-        if (updateBookingError) {
-          console.error("Error updating original booking:", updateBookingError);
-        }
-      } catch (bookingUpdateError) {
-        console.error("Error updating booking status:", bookingUpdateError);
-      }
-      
-      return newEvent;
-    }
-    
-    // Regular update for non-booking events or when not changing type
-    const { data, error } = await supabase
-      .from('events')
-      .update(event)
-      .eq('id', event.id)
-      .select()
-      .single();
-      
-    if (error) {
-      console.error('Error updating event:', error);
+      return data;
+    } catch (error) {
+      console.error('Error in updateEvent:', error);
       throw error;
     }
-    
-    // Send email if email address has changed
-    const emailChanged = event.social_network_link && 
-                        event.social_network_link !== existingEvent.social_network_link;
-    
-    if (emailChanged && isValidEmail(event.social_network_link as string)) {
-      try {
-        await sendBookingConfirmationEmail(
-          data.id,
-          event.title || event.user_surname || '',
-          event.social_network_link as string,
-          event.start_date as string,
-          event.end_date as string,
-          event.payment_status || 'not_paid',
-          event.payment_amount || null,
-          event.language || existingEvent.language || 'en' // Use language with fallbacks
-        );
-      } catch (emailError) {
-        console.error('Error sending updated booking email:', emailError);
-      }
-    }
-    
-    return data;
   };
 
   const deleteEvent = async (eventId: string): Promise<void> => {
