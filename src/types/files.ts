@@ -13,4 +13,6 @@ export interface FileRecord {
   // Add fields to make it more compatible with different file types
   note_id?: string | null;
   task_id?: string | null;
+  language?: string | null; // Add language field to store user's language preference
+  file?: File; // Add file field for upload functionality
 }

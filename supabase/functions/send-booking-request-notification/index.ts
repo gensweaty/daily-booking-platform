@@ -22,6 +22,20 @@ interface BookingNotificationRequest {
   paymentStatus?: string;
   paymentAmount?: number;
   businessAddress?: string; // Added for consistency
+  language?: string; // Added language field to determine currency symbol
+}
+
+// Function to get the appropriate currency symbol based on language
+function getCurrencySymbol(language: string = 'en'): string {
+  switch (language) {
+    case 'es':
+      return '€';
+    case 'ka':
+      return '₾';
+    case 'en':
+    default:
+      return '$';
+  }
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -180,7 +194,17 @@ const handler = async (req: Request): Promise<Response> => {
       
       EdgeRuntime.waitUntil((async () => {
         try {
-          const { requesterName, startDate, endDate, requesterPhone = "", notes = "", businessName = "Your Business", requesterEmail = "", businessAddress = "" } = requestData;
+          const { 
+            requesterName, 
+            startDate, 
+            endDate, 
+            requesterPhone = "", 
+            notes = "", 
+            businessName = "Your Business", 
+            requesterEmail = "", 
+            businessAddress = "",
+            language = 'en' // Default to English if language is not provided
+          } = requestData;
     
           // Format dates for display
           const formatDate = (isoString: string) => {
@@ -202,6 +226,9 @@ const handler = async (req: Request): Promise<Response> => {
           const formattedStartDate = formatDate(startDate);
           const formattedEndDate = formatDate(endDate);
     
+          // Get the currency symbol based on language
+          const currencySymbol = getCurrencySymbol(language);
+
           // Format payment status for display
           const formatPaymentStatus = (status?: string, amount?: number): string => {
             if (!status) return "Not specified";
@@ -211,10 +238,10 @@ const handler = async (req: Request): Promise<Response> => {
                 return "Not Paid";
               case "partly_paid":
               case "partly":
-                return amount ? `Partly Paid ($${amount})` : "Partly Paid";
+                return amount ? `Partly Paid (${currencySymbol}${amount})` : "Partly Paid";
               case "fully_paid":
               case "fully":
-                return amount ? `Fully Paid ($${amount})` : "Fully Paid";
+                return amount ? `Fully Paid (${currencySymbol}${amount})` : "Fully Paid";
               default:
                 return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
             }
