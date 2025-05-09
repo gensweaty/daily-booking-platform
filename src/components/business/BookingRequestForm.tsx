@@ -27,7 +27,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import FileUploadField from '../shared/FileUploadField';
+import { FileUploadField } from '../shared/FileUploadField';
 import { FileRecord } from '@/types/files';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
@@ -112,9 +112,23 @@ export const BookingRequestForm = ({ businessId, isOpen, onClose, onRequestSubmi
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
+  const handleFileSelect = async (file: File) => {
+    if (file) {
+      // Generate a unique ID for the file
+      const fileId = crypto.randomUUID();
+      // Create a FileRecord from the file
+      const newFileRecord: FileRecord = {
+        id: fileId,
+        filename: file.name,
+        file_path: '', // This will be populated after upload
+        content_type: file.type,
+        size: file.size,
+        created_at: new Date().toISOString(),
+        user_id: null,
+      };
+      
+      // Store file for later upload
+      setFiles(prevFiles => [...prevFiles, { ...newFileRecord, file }]);
     }
   };
 
@@ -135,10 +149,18 @@ export const BookingRequestForm = ({ businessId, isOpen, onClose, onRequestSubmi
       // First, upload any files to storage
       let fileIds: string[] = [];
       if (files.length > 0) {
-        const uploadPromises = files.map(async (file) => {
+        const uploadPromises = files.map(async (fileRecord) => {
+          // We need to make sure we have the actual File object
+          // @ts-ignore - we're adding the file property temporarily
+          const file = fileRecord.file;
+          if (!file) {
+            console.error('File object missing from record:', fileRecord);
+            return undefined;
+          }
+          
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from('booking-attachments')
-            .upload(`${businessId}/${file.filename}`, file.file, {
+            .upload(`${businessId}/${fileRecord.filename}`, file, {
               cacheControl: '3600',
               upsert: false
             });
@@ -209,6 +231,7 @@ export const BookingRequestForm = ({ businessId, isOpen, onClose, onRequestSubmi
           status: 'pending',
           payment_status: data.paymentStatus,
           payment_amount: data.paymentAmount,
+          language: language
         });
       
       if (error) {
@@ -507,11 +530,11 @@ export const BookingRequestForm = ({ businessId, isOpen, onClose, onRequestSubmi
                   )}
                 />
               </div>
-              <FileUploadField
-                businessId={businessId}
-                onFilesUploaded={handleFilesUploaded}
-                onRemoveFile={handleRemoveFile}
-                files={files}
+              <FileUploadField 
+                onFileSelect={handleFileSelect}
+                onFileChange={(file) => console.log('File changed:', file)}
+                fileError=""
+                setFileError={() => {}}
               />
               <Button type="submit" disabled={submitting}>
                 {submitting ? t('common.submitting') : t('common.submit')}

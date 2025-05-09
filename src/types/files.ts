@@ -13,4 +13,6 @@ export interface FileRecord {
   // Add fields to make it more compatible with different file types
   note_id?: string | null;
   task_id?: string | null;
+  // Add property for file upload functionality
+  file?: File;
 }

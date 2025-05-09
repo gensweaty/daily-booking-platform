@@ -33,6 +33,11 @@ interface FileUploadFieldProps {
   maxSizeMB?: number;
   selectedFile?: File | null;
   isUploading?: boolean; // Added to support the isUploading prop being passed from BusinessProfileForm
+  // Props for BookingRequestForm
+  businessId?: string;
+  onFilesUploaded?: (files: any[]) => void;
+  onRemoveFile?: (file: any) => void;
+  files?: any[];
 }
 
 export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps>(({
@@ -53,7 +58,11 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   noFileText,
   maxSizeMB,
   selectedFile,
-  isUploading
+  isUploading,
+  businessId,
+  onFilesUploaded,
+  onRemoveFile,
+  files
 }, ref) => {
   const { t, language } = useLanguage();
   const [localFileError, setLocalFileError] = useState("");
@@ -146,3 +155,5 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
 });
 
 FileUploadField.displayName = "FileUploadField";
+
+// Don't export a default here, only named export
