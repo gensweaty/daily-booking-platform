@@ -625,35 +625,81 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         // Always preserve original booking ID
         const bookingRequestId = event.id;
         
+        // IMPORTANT FIX: Fetch the original booking request to get its language
+        // This ensures we maintain the language from an external booking request
+        const { data: originalBooking, error: bookingFetchError } = await supabase
+          .from('booking_requests')
+          .select('language, payment_status, payment_amount')
+          .eq('id', bookingRequestId)
+          .maybeSingle();
+        
+        if (bookingFetchError) {
+          console.error("Error fetching original booking request:", bookingFetchError);
+        }
+        
+        // Use booking language if available, with proper fallbacks
+        const bookingLanguage = originalBooking?.language || 'en';
+        console.log("Original booking language:", bookingLanguage);
+        
         // Make sure payment amount is properly formatted as a number if present
         let paymentAmount = null;
         if (event.payment_amount !== undefined && event.payment_amount !== null) {
           paymentAmount = parseFloat(String(event.payment_amount));
           if (isNaN(paymentAmount)) paymentAmount = null;
+        } else if (originalBooking?.payment_amount !== undefined && originalBooking?.payment_amount !== null) {
+          // Use the payment amount from the original booking if not provided in the event
+          paymentAmount = parseFloat(String(originalBooking.payment_amount));
+          if (isNaN(paymentAmount)) paymentAmount = null;
         }
         
         // Determine the language to use, with appropriate fallbacks
-        const eventLanguage = event.language || existingEvent.language || language || 'en';
+        // Priority: 1. Original booking language, 2. Event language, 3. Existing event language, 4. Current app language, 5. Default 'en'
+        const eventLanguage = bookingLanguage || event.language || existingEvent.language || language || 'en';
+        console.log("Event language for approval (prioritizing original booking):", eventLanguage);
         
         // Create a new event without direct file fields
-        const eventPayload = {
-          // Use event payload data without file fields
-          title: event.title,
+        // We need to ensure we have all required fields for the events table
+        const eventPayload: {
+          title: string;
+          start_date: string;
+          end_date: string;
+          user_id: string;
+          type: string;
+          user_surname?: string;
+          user_number?: string;
+          social_network_link?: string;
+          event_notes?: string;
+          payment_status?: string;
+          payment_amount?: number | null;
+          booking_request_id?: string;
+          language?: string;
+          source_url?: string;
+        } = {
+          // Required fields
+          title: event.title || "Untitled Event", // Ensure title is never undefined
+          start_date: event.start_date as string,
+          end_date: event.end_date as string,
+          user_id: user.id,
+          type: event.type || 'event',
+          
+          // Optional fields
           user_surname: event.user_surname,
           user_number: event.user_number,
           social_network_link: event.social_network_link,
           event_notes: event.event_notes,
-          start_date: event.start_date,
-          end_date: event.end_date,
-          payment_status: event.payment_status || 'not_paid',
+          payment_status: event.payment_status || originalBooking?.payment_status || 'not_paid',
           payment_amount: paymentAmount,
-          user_id: user.id,
           booking_request_id: bookingRequestId,
-          type: event.type || 'event',
-          language: eventLanguage // Use the determined language
+          language: eventLanguage, // Use the determined language with priority to original booking
         };
         
-        // Create a new event first
+        console.log("Creating new event with payload:", {
+          language: eventLanguage,
+          payment_status: eventPayload.payment_status,
+          payment_amount: paymentAmount
+        });
+        
+        // Create the new event
         const { data: newEvent, error: createError } = await supabase
           .from('events')
           .insert(eventPayload)
@@ -741,8 +787,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         // Send confirmation email to customer with business address - this is the ONLY place we send emails
         if (event.requester_email && isValidEmail(event.requester_email)) {
           try {
-            console.log("Sending approval email with payment info:", {
-              status: event.payment_status,
+            console.log("Sending approval email with language and payment info:", {
+              status: eventPayload.payment_status,
               amount: paymentAmount,
               language: eventLanguage
             });
@@ -753,9 +799,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               event.requester_email,
               event.start_date as string,
               event.end_date as string,
-              event.payment_status || 'not_paid',
+              eventPayload.payment_status || 'not_paid',
               paymentAmount, // Use our properly formatted amount
-              eventLanguage // Use the determined language
+              eventLanguage // Use the original booking language as priority
             );
           } catch (emailError) {
             console.error('Error sending booking approval email:', emailError);

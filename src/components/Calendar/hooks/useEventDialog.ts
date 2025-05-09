@@ -38,6 +38,8 @@ export const useEventDialog = ({
         language: data.language || language || 'en'
       };
       
+      console.log("Creating event with language:", eventData.language);
+      
       if (!createEvent) throw new Error("Create event function not provided");
       
       console.log("Creating event with data:", eventData);
@@ -75,6 +77,8 @@ export const useEventDialog = ({
         // Preserve language or set it if not already present
         language: data.language || selectedEvent.language || language || 'en'
       };
+      
+      console.log("Updating event with language:", eventData.language);
       
       // Set checkAvailability flag in memory, but remove it before sending to the database
       // to prevent the "column not found" error

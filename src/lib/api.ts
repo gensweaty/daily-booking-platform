@@ -119,6 +119,8 @@ export const testEmailSending = async (
       return { error: "Authentication error" };
     }
     
+    console.log("Sending email with language:", language);
+    
     const response = await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
       method: 'POST',
       headers: {
@@ -135,7 +137,7 @@ export const testEmailSending = async (
         paymentAmount,
         businessAddress,
         eventId,
-        source: 'useCalendarEvents', // Track source consistently
+        source: 'test-email', // Track source consistently
         language // Include language parameter
       })
     });
