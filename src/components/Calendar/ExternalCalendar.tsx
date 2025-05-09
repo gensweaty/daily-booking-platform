@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Calendar } from "./Calendar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import { Loader2 } from "lucide-react";
 import { getPublicCalendarEvents } from "@/lib/api";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-export const ExternalCalendar = ({ businessId }: ExternalCalendarProps) => {
+export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [view, setView] = useState<CalendarViewType>("month");
   const [events, setEvents] = useState<CalendarEventType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -17,8 +18,8 @@ export const ExternalCalendar = ({ businessId }: ExternalCalendarProps) => {
   const [businessUserId, setBusinessUserId] = useState<string | null>(null);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const { t, language } = useLanguage();
-  
+  const { t } = useLanguage();
+
   // Diagnostic logging for businessId
   useEffect(() => {
     console.log("External Calendar mounted with business ID:", businessId);
@@ -279,7 +280,3 @@ export const ExternalCalendar = ({ businessId }: ExternalCalendarProps) => {
     </Card>
   );
 };
-
-interface ExternalCalendarProps {
-  businessId: string;
-}
