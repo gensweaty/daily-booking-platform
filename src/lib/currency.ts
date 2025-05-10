@@ -1,7 +1,12 @@
 
 // Helper for consistent currency display across the application
 export const getCurrencySymbol = (language?: string): string => {
-  switch (language) {
+  console.log(`getCurrencySymbol called with language: ${language || 'undefined'}`);
+  
+  // Normalize language to lowercase and handle undefined
+  const normalizedLang = language?.toLowerCase();
+  
+  switch (normalizedLang) {
     case 'ka':
       return '₾';
     case 'es':
@@ -45,4 +50,51 @@ export const parsePaymentAmount = (amount: any): number => {
     console.error(`Failed to convert payment amount: ${amount}`, e);
     return 0;
   }
+};
+
+// Helper for translating payment status
+export const getPaymentStatusLabel = (status: string | undefined, language?: string): string => {
+  if (!status) return '';
+  
+  // Normalize language to lowercase and handle undefined
+  const normalizedLang = language?.toLowerCase();
+  
+  switch (status) {
+    case 'not_paid':
+      if (normalizedLang === 'ka') return 'გადაუხდელი';
+      if (normalizedLang === 'es') return 'No Pagado';
+      return 'Not Paid';
+      
+    case 'partly_paid':
+    case 'partly':
+      if (normalizedLang === 'ka') return 'ნაწილობრივ გადახდილი';
+      if (normalizedLang === 'es') return 'Pagado Parcialmente';
+      return 'Partly Paid';
+      
+    case 'fully_paid':
+    case 'fully':
+      if (normalizedLang === 'ka') return 'სრულად გადახდილი';
+      if (normalizedLang === 'es') return 'Pagado Totalmente';
+      return 'Fully Paid';
+      
+    default:
+      // For any other status, just capitalize and format
+      return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+  }
+};
+
+// Format payment amount with appropriate currency symbol
+export const formatPaymentAmount = (
+  amount: number | null | undefined, 
+  language?: string, 
+  includeSymbol: boolean = true
+): string => {
+  if (amount === null || amount === undefined) return '';
+  
+  if (includeSymbol) {
+    const symbol = getCurrencySymbol(language);
+    return `${symbol}${amount}`;
+  }
+  
+  return `${amount}`;
 };

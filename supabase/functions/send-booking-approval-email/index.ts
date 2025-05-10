@@ -19,7 +19,7 @@ interface BookingApprovalEmailRequest {
   businessAddress?: string;
   eventId?: string; // Used for deduplication
   source?: string; // Used to track source of request
-  language?: string; // Added language parameter to support correct currency symbol
+  language?: string; // Used to determine email language
 }
 
 // For deduplication: Store a map of recently sent emails with expiring entries
@@ -60,6 +60,128 @@ function getCurrencySymbolByLanguage(language?: string): string {
     default:
       console.log(`Using $ symbol for language: ${language}`);
       return '$';
+  }
+}
+
+// Function to get email content based on language
+function getEmailContent(
+  language: string, 
+  fullName: string, 
+  businessName: string, 
+  formattedStartDate: string,
+  formattedEndDate: string,
+  paymentInfo: string,
+  addressInfo: string
+): string {
+  // Normalize language to lowercase and handle undefined
+  const normalizedLang = (language || 'en').toLowerCase();
+  
+  console.log(`Creating email content in language: ${normalizedLang}`);
+  
+  // Normalize business name
+  const displayBusinessName = businessName && businessName !== "null" && businessName !== "undefined" 
+    ? businessName 
+    : 'SmartBookly';
+  
+  switch (normalizedLang) {
+    case 'ka': // Georgian
+      return `
+        <!DOCTYPE html>
+        <html lang="ka">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>ჯავშანი დამტკიცებულია</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+          <h2 style="color: #333;">გამარჯობა ${fullName},</h2>
+          <p>თქვენი ჯავშანი დამტკიცდა <b>${displayBusinessName}</b>-ში.</p>
+          <p style="margin: 8px 0;"><strong>დაჯავშნის თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+          ${addressInfo}
+          ${paymentInfo}
+          <p>ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
+          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+          <p style="color: #777; font-size: 14px;"><i>ეს არის ავტომატური შეტყობინება.</i></p>
+        </body>
+        </html>
+      `;
+      
+    case 'es': // Spanish
+      return `
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Reserva Aprobada</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+          <h2 style="color: #333;">Hola ${fullName},</h2>
+          <p>Su reserva ha sido <b style="color: #4CAF50;">aprobada</b> en <b>${displayBusinessName}</b>.</p>
+          <p style="margin: 8px 0;"><strong>Fecha y hora de la reserva:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+          ${addressInfo}
+          ${paymentInfo}
+          <p>¡Esperamos verle pronto!</p>
+          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+          <p style="color: #777; font-size: 14px;"><i>Este es un mensaje automático.</i></p>
+        </body>
+        </html>
+      `;
+      
+    default: // English (default)
+      return `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Booking Approved</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+          <h2 style="color: #333;">Hello ${fullName},</h2>
+          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${displayBusinessName}</b>.</p>
+          <p style="margin: 8px 0;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+          ${addressInfo}
+          ${paymentInfo}
+          <p>We look forward to seeing you!</p>
+          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+          <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
+        </body>
+        </html>
+      `;
+  }
+}
+
+// Format payment status for different languages
+function formatPaymentStatus(status: string, language?: string): string {
+  // Normalize language to lowercase and handle undefined
+  const normalizedLang = (language || 'en').toLowerCase();
+  
+  switch (status) {
+    case "not_paid":
+      // Return translated payment status based on language
+      if (normalizedLang === 'ka') return "გადაუხდელი";
+      if (normalizedLang === 'es') return "No Pagado";
+      return "Not Paid";
+      
+    case "partly_paid":
+    case "partly":
+      // Return translated payment status based on language
+      if (normalizedLang === 'ka') return "ნაწილობრივ გადახდილი";
+      if (normalizedLang === 'es') return "Pagado Parcialmente";
+      return "Partly Paid";
+      
+    case "fully_paid":
+    case "fully":
+      // Return translated payment status based on language
+      if (normalizedLang === 'ka') return "სრულად გადახდილი";
+      if (normalizedLang === 'es') return "Pagado Totalmente";
+      return "Fully Paid";
+      
+    default:
+      // For any other status, just capitalize and format
+      const formatted = status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+      return formatted;
   }
 }
 
@@ -165,61 +287,56 @@ const handler = async (req: Request): Promise<Response> => {
     }
     
     // Format dates
-    const formattedStartDate = formatDateTime(startDate);
-    const formattedEndDate = formatDateTime(endDate);
+    const formattedStartDate = formatDateTime(startDate, language);
+    const formattedEndDate = formatDateTime(endDate, language);
     
     try {
       // Get the currency symbol based on language
       const currencySymbol = getCurrencySymbolByLanguage(language);
       console.log(`Using currency symbol: ${currencySymbol} for language: ${language}`);
       
-      // Format payment information if available
+      // Format payment information if available based on language
       let paymentInfo = "";
       if (paymentStatus) {
-        const formattedStatus = formatPaymentStatus(paymentStatus);
+        const formattedStatus = formatPaymentStatus(paymentStatus, language);
+        
+        // Payment information label translations
+        const paymentStatusLabel = language === 'ka' 
+          ? "გადახდის სტატუსი" 
+          : (language === 'es' ? "Estado del pago" : "Payment status");
         
         if ((paymentStatus === 'partly_paid' || paymentStatus === 'partly') && paymentAmount !== undefined && paymentAmount !== null) {
           const amountDisplay = `${currencySymbol}${paymentAmount}`;
-          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus} (${amountDisplay})</p>`;
+          paymentInfo = `<p><strong>${paymentStatusLabel}:</strong> ${formattedStatus} (${amountDisplay})</p>`;
         } else if (paymentStatus === 'fully_paid' || paymentStatus === 'fully') {
           const amountDisplay = paymentAmount !== undefined && paymentAmount !== null ? ` (${currencySymbol}${paymentAmount})` : "";
-          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus}${amountDisplay}</p>`;
+          paymentInfo = `<p><strong>${paymentStatusLabel}:</strong> ${formattedStatus}${amountDisplay}</p>`;
         } else {
-          paymentInfo = `<p><strong>Payment status:</strong> ${formattedStatus}</p>`;
+          paymentInfo = `<p><strong>${paymentStatusLabel}:</strong> ${formattedStatus}</p>`;
         }
       }
       
       // Prepare address section
       let addressInfo = "";
       let addressDisplay = businessAddress.trim();
-      addressInfo = `<p style="margin: 8px 0;"><strong>Address:</strong> ${addressDisplay}</p>`;
       
-      // Normalize business name
-      const displayBusinessName = businessName && businessName !== "null" && businessName !== "undefined" 
-        ? businessName 
-        : 'SmartBookly';
+      // Address label translations
+      const addressLabel = language === 'ka' 
+        ? "მისამართი" 
+        : (language === 'es' ? "Dirección" : "Address");
       
-      // Create HTML email content with simpler formatting
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Booking Approved</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-          <h2 style="color: #333;">Hello ${fullName},</h2>
-          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${displayBusinessName}</b>.</p>
-          <p style="margin: 8px 0;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-          ${addressInfo}
-          ${paymentInfo}
-          <p>We look forward to seeing you!</p>
-          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-          <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
-        </body>
-        </html>
-      `;
+      addressInfo = `<p style="margin: 8px 0;"><strong>${addressLabel}:</strong> ${addressDisplay}</p>`;
+      
+      // Create HTML email content based on language
+      const htmlContent = getEmailContent(
+        language || 'en', 
+        fullName, 
+        businessName, 
+        formattedStartDate,
+        formattedEndDate,
+        paymentInfo,
+        addressInfo
+      );
       
       // Use Resend API to send the email
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -229,10 +346,17 @@ const handler = async (req: Request): Promise<Response> => {
       
       const resend = new Resend(resendApiKey);
       
+      // Email subjects based on language
+      const emailSubject = language === 'ka' 
+        ? `ჯავშანი დამტკიცებულია ${businessName || 'SmartBookly'}-ში` 
+        : (language === 'es' 
+            ? `Reserva Aprobada en ${businessName || 'SmartBookly'}` 
+            : `Booking Approved at ${businessName || 'SmartBookly'}`);
+      
       const emailResult = await resend.emails.send({
-        from: `${displayBusinessName} <info@smartbookly.com>`,
+        from: `${businessName || 'SmartBookly'} <info@smartbookly.com>`,
         to: [recipientEmail],
-        subject: `Booking Approved at ${displayBusinessName}`,
+        subject: emailSubject,
         html: htmlContent,
       });
 
@@ -254,7 +378,7 @@ const handler = async (req: Request): Promise<Response> => {
           to: recipientEmail,
           id: emailResult.data?.id,
           included_address: addressDisplay,
-          business_name_used: displayBusinessName,
+          business_name_used: businessName || 'SmartBookly',
           source: source || 'unknown',
           dedupeKey: dedupeKey,
           language: language, // Log the language used for verification
@@ -288,34 +412,26 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-// Format payment status for display
-function formatPaymentStatus(status: string): string {
-  switch (status) {
-    case "not_paid":
-      return "Not Paid";
-    case "partly_paid":
-    case "partly":
-      return "Partly Paid";
-    case "fully_paid":
-    case "fully":
-      return "Fully Paid";
-    default:
-      return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
-  }
-}
-
 // Format dates with timezone awareness using Intl.DateTimeFormat
-function formatDateTime(isoString: string): string {
+function formatDateTime(isoString: string, language?: string): string {
   try {
+    // Determine locale based on language
+    let locale = 'en-US';
+    if (language === 'ka') {
+      locale = 'ka-GE';
+    } else if (language === 'es') {
+      locale = 'es-ES';
+    }
+    
     // Use Intl.DateTimeFormat with explicit timezone to ensure correct time display
-    const formatter = new Intl.DateTimeFormat('en-US', {
+    const formatter = new Intl.DateTimeFormat(locale, {
       timeZone: 'Asia/Tbilisi', // Set this to your local business timezone
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true,
+      hour12: language !== 'ka', // Georgian typically uses 24-hour format
     });
     
     const date = new Date(isoString);
