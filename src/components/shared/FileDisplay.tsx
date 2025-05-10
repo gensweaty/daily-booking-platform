@@ -30,11 +30,12 @@ export const FileDisplay = ({
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [fileURLs, setFileURLs] = useState<{[key: string]: string}>({});
   const [validatedBuckets, setValidatedBuckets] = useState<{[key: string]: string}>({});
+  const [signedUrls, setSignedUrls] = useState<{[key: string]: string}>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
-  // Create a robust file signature for deduplication that includes customer_id or event_id
+  // Create a robust file signature for deduplication that includes specific entity IDs
   const getFileSignature = (file: FileRecord): string => {
     const filePath = file.file_path || '';
     const filename = file.filename || '';
@@ -42,10 +43,9 @@ export const FileDisplay = ({
     const eventId = file.event_id || '';
     const customerId = file.customer_id || '';
     
-    // Include owner ID (event_id or customer_id) in the signature to prevent cross-customer file mixing
+    // Create a unique signature including owner ID to prevent incorrect file association
     const ownerId = eventId || customerId;
     
-    // Create a unique signature that prioritizes ownership
     return `${ownerId}_${filename}_${getPathSegment(filePath)}_${fileId}`;
   };
   
@@ -61,6 +61,7 @@ export const FileDisplay = ({
     // Skip undefined or files without paths
     if (!current || !current.file_path) return acc;
     
+    // Generate a unique signature for this file
     const signature = getFileSignature(current);
     const isDuplicate = acc.some(item => getFileSignature(item) === signature);
     
@@ -72,6 +73,28 @@ export const FileDisplay = ({
     
     return acc;
   }, []);
+
+  // Function to validate and generate signed URLs for file access
+  const generateSignedUrl = async (bucket: string, filePath: string): Promise<string | null> => {
+    try {
+      const normalizedPath = normalizeFilePath(filePath);
+      
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(normalizedPath, 300); // 5 minute signed URL for viewing/preview
+      
+      if (error || !data) {
+        console.log(`Could not generate signed URL for ${bucket}:${normalizedPath}`, error);
+        return null;
+      }
+      
+      console.log(`Generated signed URL for ${bucket}:${normalizedPath}`);
+      return data.signedUrl;
+    } catch (error) {
+      console.error(`Error generating signed URL for ${bucket}:${filePath}:`, error);
+      return null;
+    }
+  };
 
   // Add a function to validate file existence in a bucket
   const checkFileExistence = async (bucket: string, filePath: string): Promise<boolean> => {
@@ -104,6 +127,7 @@ export const FileDisplay = ({
     const determineBucketsAndUrls = async () => {
       const newURLs: {[key: string]: string} = {};
       const newBuckets: {[key: string]: string} = {};
+      const newSignedUrls: {[key: string]: string} = {};
       
       for (const file of uniqueFiles) {
         if (!file.file_path) continue;
@@ -120,6 +144,13 @@ export const FileDisplay = ({
           if (exists) {
             foundBucket = bucket;
             console.log(`File found in ${bucket}`);
+            
+            // Generate a signed URL for immediate use
+            const signedUrl = await generateSignedUrl(bucket, normalizedPath);
+            if (signedUrl) {
+              newSignedUrls[file.id] = signedUrl;
+            }
+            
             break;
           }
         }
@@ -138,6 +169,7 @@ export const FileDisplay = ({
       
       setValidatedBuckets(newBuckets);
       setFileURLs(newURLs);
+      setSignedUrls(newSignedUrls);
     };
     
     determineBucketsAndUrls();
@@ -229,14 +261,14 @@ export const FileDisplay = ({
     }
   };
 
-  const getDirectFileUrl = (filePath: string, fileId: string): string => {
-    if (!filePath) return '';
-    
-    if (fileURLs[fileId]) {
-      return fileURLs[fileId];
+  // Always use signed URLs for images and file displays
+  const getDisplayUrl = (filePath: string, fileId: string): string => {
+    // First try to use a pre-generated signed URL
+    if (signedUrls[fileId]) {
+      return signedUrls[fileId];
     }
     
-    // Use the validated bucket for this file
+    // Fall back to direct URL (will likely not work, but this is a fallback)
     const effectiveBucket = validatedBuckets[fileId] || bucketName;
     const normalizedPath = normalizeFilePath(filePath);
     return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
@@ -248,7 +280,7 @@ export const FileDisplay = ({
         throw new Error('File path is missing');
       }
       
-      // Generate a signed URL with longer expiry for better viewing experience
+      // Generate a fresh signed URL with longer expiry for viewing
       const effectiveBucket = validatedBuckets[fileId] || bucketName;
       const normalizedPath = normalizeFilePath(filePath);
       
@@ -362,14 +394,11 @@ export const FileDisplay = ({
         const fileNameDisplay = file.filename && file.filename.length > 20 
           ? file.filename.substring(0, 20) + '...' 
           : file.filename;
-        
-        // Get validated bucket for this file
-        const effectiveBucket = validatedBuckets[file.id] || bucketName;
-        const normalizedPath = normalizeFilePath(file.file_path);
-        const imageUrl = fileURLs[file.id] || 
-          `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
           
-        console.log(`Rendering file: ${file.filename}, URL: ${imageUrl}, bucket: ${effectiveBucket}`);
+        // Get display URL (preferably signed URL)
+        const imageUrl = getDisplayUrl(file.file_path, file.id);
+          
+        console.log(`Rendering file: ${file.filename}, URL: ${imageUrl}`);
           
         return (
           <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">

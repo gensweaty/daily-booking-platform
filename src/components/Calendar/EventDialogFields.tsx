@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +10,7 @@ import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { getCurrencySymbol } from "@/lib/currency";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface EventDialogFieldsProps {
@@ -109,16 +108,30 @@ export const EventDialogFields = ({
           console.log("Found customer ID relation:", customerId);
           
           // Find customer files directly related to this event's customer
-          const { data: customerFiles } = await supabase
+          const { data: customerFiles, error: customerFilesError } = await supabase
             .from('customer_files_new')
             .select('*')
             .eq('customer_id', customerId);
             
+          if (customerFilesError) {
+            console.error("Error fetching customer files:", customerFilesError);
+            return;
+          }
+            
           if (customerFiles && customerFiles.length > 0) {
             console.log("Found customer files:", customerFiles.length);
+            
+            // Add a unique identifier to prevent duplication with event files
+            const filesWithSource = customerFiles.map(file => ({
+              ...file,
+              source: 'customer',
+              // Ensure we preserve the customer_id for proper file associations
+              customer_id: customerId
+            }));
+            
             setRelatedFiles(prev => [
               ...prev,
-              ...customerFiles.map(file => ({ ...file, source: 'customer' }))
+              ...filesWithSource
             ]);
           }
         }
@@ -134,8 +147,32 @@ export const EventDialogFields = ({
     }
   }, [eventId]);
   
-  // Merge displayedFiles and relatedFiles to show all
-  const allFiles = [...displayedFiles, ...relatedFiles];
+  // Process files to remove duplicates by comparing path and name
+  const processedFiles = useMemo(() => {
+    if (!displayedFiles.length && !relatedFiles.length) return [];
+    
+    // Create a map of existing file paths to detect duplicates
+    const filePaths = new Map();
+    const allFiles = [...displayedFiles];
+    
+    // Add related files only if they aren't duplicates
+    for (const relatedFile of relatedFiles) {
+      // Create a unique signature for this file to detect duplicates
+      const fileSignature = `${relatedFile.filename}:${relatedFile.file_path}`;
+      
+      // Check if we already have this file in our collection
+      const isDuplicate = allFiles.some(file => {
+        const existingSignature = `${file.filename}:${file.file_path}`;
+        return existingSignature === fileSignature;
+      });
+      
+      if (!isDuplicate) {
+        allFiles.push(relatedFile);
+      }
+    }
+    
+    return allFiles;
+  }, [displayedFiles, relatedFiles]);
   
   const georgianStyle = isGeorgian ? {
     fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
@@ -364,13 +401,14 @@ export const EventDialogFields = ({
         />
       </div>
       
-      {allFiles.length > 0 && <div className="flex flex-col gap-2">
+      {processedFiles.length > 0 && <div className="flex flex-col gap-2">
           <FileDisplay 
-            files={allFiles} 
+            files={processedFiles} 
             bucketName="event_attachments" 
             allowDelete={true} 
             onFileDeleted={onFileDeleted} 
             parentType="event" 
+            parentId={eventId}
             fallbackBuckets={["customer_attachments", "booking_attachments"]} 
           />
         </div>}

@@ -143,9 +143,19 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     
     // Create a map of customer IDs to track which customers are included
     const customerIdMap = new Map();
+    const customerKeyMap = new Map();
     
     // Add all customers to the combined array and to the ID map
     for (const customer of customers) {
+      // Generate a unique key based on customer's data to detect duplicates
+      const customerKey = `${customer.title}:${customer.user_number || ''}:${customer.social_network_link || ''}:${customer.start_date || ''}`;
+      
+      // Skip if we've already added a customer with the exact same key
+      if (customerKeyMap.has(customerKey)) {
+        console.log(`Skipping duplicate customer: ${customer.title} - ID: ${customer.id}`);
+        continue;
+      }
+      
       combined.push({
         ...customer,
         create_event: customer.create_event !== undefined ? customer.create_event : false
@@ -153,6 +163,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       
       // Add customer ID to the map
       customerIdMap.set(customer.id, true);
+      customerKeyMap.set(customerKey, true);
     }
 
     // Only add events that aren't already represented by a customer (by ID or original ID)
@@ -163,12 +174,24 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
         continue;
       }
       
+      // For events, generate a key based on event data to detect duplicates
+      const eventKey = `${event.title}:${event.user_number || ''}:${event.social_network_link || ''}:${event.start_date || ''}`;
+      
+      // Skip if we've already added an event with the exact same key
+      if (customerKeyMap.has(eventKey)) {
+        console.log(`Skipping duplicate event: ${event.title} - ID: ${event.id}`);
+        continue;
+      }
+      
       combined.push({
         ...event,
         id: `event-${event.id}`,
         customer_files_new: event.event_files,
         create_event: false // Add default create_event property
       });
+      
+      // Add event key to the map to prevent duplicate events
+      customerKeyMap.set(eventKey, true);
     }
     
     // Sort the combined data by created_at in descending order (newest first)
