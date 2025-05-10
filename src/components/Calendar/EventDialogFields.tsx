@@ -103,8 +103,8 @@ export const EventDialogFields = ({
           return;
         }
         
-        // If we have a customer ID or customer title, look for related files
-        if (event.customer_id) {
+        // If we have a customer ID and it's a valid value, look for related files
+        if (event && event.customer_id) {
           console.log("Found customer ID relation:", event.customer_id);
           
           // Find customer files directly related to this event's customer
