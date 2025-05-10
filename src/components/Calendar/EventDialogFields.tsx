@@ -93,7 +93,7 @@ export const EventDialogFields = ({
         // Get the event details first to find original customer ID
         const { data: event, error: eventError } = await supabase
           .from('events')
-          .select('*')  // Select all columns to avoid TypeScript errors
+          .select('*')  
           .eq('id', eventId)
           .single();
           
@@ -104,7 +104,7 @@ export const EventDialogFields = ({
         
         // Type guard to check if the event has a customer_id property
         if (event && 'customer_id' in event && event.customer_id) {
-          const customerId = event.customer_id;
+          const customerId = event.customer_id as string; // Ensure proper type casting
           console.log("Found customer ID relation:", customerId);
           
           // Find customer files directly related to this event's customer
@@ -121,18 +121,14 @@ export const EventDialogFields = ({
           if (customerFiles && customerFiles.length > 0) {
             console.log("Found customer files:", customerFiles.length);
             
-            // Add a unique identifier to prevent duplication with event files
-            const filesWithSource = customerFiles.map(file => ({
+            // Create properly typed file records
+            const typedFiles: FileRecord[] = customerFiles.map(file => ({
               ...file,
               source: 'customer',
-              // Ensure we preserve the customer_id for proper file associations
               customer_id: customerId
             }));
             
-            setRelatedFiles(prev => [
-              ...prev,
-              ...filesWithSource
-            ]);
+            setRelatedFiles(typedFiles);
           }
         }
       } catch (err) {
@@ -205,9 +201,14 @@ export const EventDialogFields = ({
         <Label 
           htmlFor="userSurname" 
           className={cn(isGeorgian ? "font-georgian" : "")}
-          style={georgianStyle}
+          style={isGeorgian ? {
+            fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+            letterSpacing: '-0.2px',
+            WebkitFontSmoothing: 'antialiased',
+            MozOsxFontSmoothing: 'grayscale'
+          } : undefined}
         >
-          {renderGeorgianLabel("events.fullName")}
+          {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">სრული სახელი</GeorgianAuthText> : <LanguageText>{t("events.fullName")}</LanguageText>}
         </Label>
         <Input 
           id="userSurname" 
@@ -219,7 +220,12 @@ export const EventDialogFields = ({
           placeholder={isGeorgian ? "სრული სახელი" : t("events.fullName")} 
           required 
           className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
-          style={georgianStyle} 
+          style={isGeorgian ? {
+            fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+            letterSpacing: '-0.2px',
+            WebkitFontSmoothing: 'antialiased',
+            MozOsxFontSmoothing: 'grayscale'
+          } : undefined} 
         />
       </div>
       <div>

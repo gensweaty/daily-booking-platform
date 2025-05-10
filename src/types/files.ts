@@ -8,9 +8,9 @@ export interface FileRecord {
   created_at: string;
   user_id: string | null;
   event_id?: string | null;
-  customer_id?: string | null;
+  customer_id?: string | null; // Ensure proper type
   source?: string;
-  // Add fields to make it more compatible with different file types
+  // Additional fields for compatibility
   note_id?: string | null;
   task_id?: string | null;
 }

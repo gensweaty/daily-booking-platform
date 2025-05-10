@@ -26,7 +26,8 @@ export interface CalendarEventType {
   content_type?: string;
   size?: number;
   checkAvailability?: boolean;
-  language?: string; // Added language field to support correct currency symbols
+  language?: string;
+  customer_id?: string; // Ensure customer_id is properly typed
   files?: Array<{
     id: string;
     event_id: string;
@@ -35,5 +36,4 @@ export interface CalendarEventType {
     content_type?: string;
     size?: number;
   }>;
-  customer_id?: string; // Added customer_id field to support file relationships
 }

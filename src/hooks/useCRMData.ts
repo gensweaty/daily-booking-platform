@@ -1,4 +1,3 @@
-
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -79,7 +78,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     }
 
     // Fetch files for each event - with safety check for undefined event IDs
-    const eventsWithFiles = await Promise.all(events.map(async (event) => {
+    const eventsWithFiles = await Promise.all((events as EventWithCustomerId[]).map(async (event) => {
       if (!event.id) {
         console.error("Event without ID detected:", event);
         return { ...event, event_files: [] };
@@ -111,7 +110,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     isLoading: isLoadingCustomers,
     isFetching: isFetchingCustomers
   } = useQuery({
-    queryKey: customersQueryKey,
+    queryKey: ['customers', dateRange.start.toISOString(), dateRange.end.toISOString(), userId],
     queryFn: fetchCustomers,
     enabled: !!userId,
     staleTime: 60000, // Cache results for 1 minute
@@ -124,7 +123,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     isLoading: isLoadingEvents,
     isFetching: isFetchingEvents
   } = useQuery({
-    queryKey: eventsQueryKey,
+    queryKey: ['events', dateRange.start.toISOString(), dateRange.end.toISOString(), userId],
     queryFn: fetchEvents,
     enabled: !!userId,
     staleTime: 60000, // Cache results for 1 minute
