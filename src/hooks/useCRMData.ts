@@ -5,6 +5,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { endOfDay } from 'date-fns';
 import type { FileRecord } from '@/types/files';
 
+// This interface defines the shape of event objects in our application
+interface EventWithCustomerId {
+  id: string;
+  customer_id?: string;
+  [key: string]: any; // Allow other properties
+}
+
 export function useCRMData(userId: string | undefined, dateRange: { start: Date, end: Date }) {
   // Memoize query keys to prevent unnecessary re-renders
   const customersQueryKey = useMemo(() => 
@@ -64,30 +71,34 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       .gte('start_date', dateRange.start.toISOString())
       .lte('start_date', endOfDay(dateRange.end).toISOString())
       .is('deleted_at', null)
-      .order('created_at', { ascending: false }); // Sort by created_at in descending order
+      .order('created_at', { ascending: false });
 
     if (eventsError) {
       console.error("Error fetching events:", eventsError);
       throw eventsError;
     }
 
-    // Fetch files for each event - with safety check for undefined event IDs
-    const eventsWithFiles = await Promise.all(events.map(async (event) => {
+    // Fetch files for each event with improved typing
+    const eventsWithFiles = await Promise.all((events as EventWithCustomerId[]).map(async (event) => {
       if (!event.id) {
         console.error("Event without ID detected:", event);
         return { ...event, event_files: [] };
       }
       
-      const { data: files } = await supabase
-        .rpc('get_all_related_files', {
-          event_id_param: event.id,
-          customer_id_param: null,
-          entity_name_param: event.title || '' // Ensure title is never undefined
-        });
+      // Use direct query to event_files to ensure we only get files specifically linked to this event
+      const { data: eventFiles, error: eventFilesError } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', event.id);
+        
+      if (eventFilesError) {
+        console.error("Error fetching event files:", eventFilesError);
+        return { ...event, event_files: [] };
+      }
       
       return {
         ...event,
-        event_files: files || []
+        event_files: eventFiles || []
       };
     }));
 
@@ -100,7 +111,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     isLoading: isLoadingCustomers,
     isFetching: isFetchingCustomers
   } = useQuery({
-    queryKey: customersQueryKey,
+    queryKey: ['customers', dateRange.start.toISOString(), dateRange.end.toISOString(), userId],
     queryFn: fetchCustomers,
     enabled: !!userId,
     staleTime: 60000, // Cache results for 1 minute
@@ -113,7 +124,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     isLoading: isLoadingEvents,
     isFetching: isFetchingEvents
   } = useQuery({
-    queryKey: eventsQueryKey,
+    queryKey: ['events', dateRange.start.toISOString(), dateRange.end.toISOString(), userId],
     queryFn: fetchEvents,
     enabled: !!userId,
     staleTime: 60000, // Cache results for 1 minute
@@ -121,7 +132,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     refetchOnWindowFocus: false,
   });
 
-  // Pre-process combined data to avoid doing it on every render
+  // Pre-process combined data with improved deduplication
   const combinedData = useMemo(() => {
     // Return empty array quickly if still loading initial data
     if (isLoadingCustomers || isLoadingEvents) return [];
@@ -130,34 +141,76 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     
     const combined = [];
     
-    // Create a map of customer titles to track which events are associated with existing customers
-    const customerTitleMap = new Map();
+    // Map to track which customers are included by ID
+    const customerIdMap = new Map();
     
-    // Add all customers to the combined array and to the title map
+    // Map unique identifiers to detect duplicates more reliably
+    // Format: title:phoneNumber:emailOrSocial:startDate
+    const itemSignatureMap = new Map();
+    
+    // Generate a unique signature for deduplication
+    const generateItemSignature = (item: any) => {
+      const title = item.title || item.user_surname || '';
+      const phone = item.user_number || item.requester_phone || '';
+      const email = item.social_network_link || item.requester_email || '';
+      const startDate = item.start_date || '';
+      
+      return `${title}:${phone}:${email}:${startDate}`;
+    };
+    
+    // Add all customers to the combined array first
     for (const customer of customers) {
+      if (!customer) continue;
+      
+      const signature = generateItemSignature(customer);
+      
+      // Skip if we've already added this signature
+      if (itemSignatureMap.has(signature)) {
+        console.log(`Skipping duplicate customer: ${customer.title} - Signature: ${signature}`);
+        continue;
+      }
+      
+      // Add customer to results and track its signature and ID
       combined.push({
         ...customer,
         create_event: customer.create_event !== undefined ? customer.create_event : false
       });
       
-      // Add customer title to the map
-      customerTitleMap.set(customer.title, true);
+      customerIdMap.set(customer.id, true);
+      itemSignatureMap.set(signature, true);
     }
 
-    // Only add events that aren't already represented by a customer with the same title
-    for (const event of events) {
-      // Skip events that have the same title as a customer (these were created from customers)
-      if (!customerTitleMap.has(event.title)) {
-        combined.push({
-          ...event,
-          id: `event-${event.id}`,
-          customer_files_new: event.event_files,
-          create_event: false // Add default create_event property
-        });
+    // Process events - only add those that aren't represented by customers
+    for (const event of events as EventWithCustomerId[]) {
+      if (!event) continue;
+      
+      // Skip events that have a customer_id that matches one we've already included
+      if (event.customer_id && customerIdMap.has(event.customer_id)) {
+        console.log(`Skipping event ${event.id} because it's associated with customer ${event.customer_id}`);
+        continue;
       }
+      
+      const signature = generateItemSignature(event);
+      
+      // Skip if we've already added an item with the same signature
+      if (itemSignatureMap.has(signature)) {
+        console.log(`Skipping duplicate event: ${event.title} - Signature: ${signature}`);
+        continue;
+      }
+      
+      // Add the event to our results with proper formatting
+      combined.push({
+        ...event,
+        id: `event-${event.id}`,
+        customer_files_new: event.event_files, // Map event_files to customer_files_new for UI compatibility
+        create_event: false // Default value
+      });
+      
+      // Track this signature to avoid duplicates
+      itemSignatureMap.set(signature, true);
     }
     
-    // Sort the combined data by created_at in descending order (newest first)
+    // Sort by created_at in descending order
     combined.sort((a, b) => {
       const dateA = new Date(a.created_at || 0).getTime();
       const dateB = new Date(b.created_at || 0).getTime();

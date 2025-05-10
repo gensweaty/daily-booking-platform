@@ -467,23 +467,18 @@ export const CustomerDialog = ({
             // If we have a file, also associate it with the new event
             if (uploadedFileData && eventResult) {
               try {
-                // FIX: Copy the file from customer_attachments to event_attachments bucket
-                const normalizedPath = uploadedFileData.file_path;
-                const sourcePathParts = normalizedPath.split('/');
-                const fileName = sourcePathParts[sourcePathParts.length - 1];
-                const newFilePath = `${eventResult.id}/${fileName}`;
-                
-                console.log("Copying file from:", normalizedPath, "to event bucket path:", newFilePath);
-                
-                // Copy from customer_attachments to event_attachments bucket
+                // Download the file from customer_attachments
                 const { data: fileData, error: fetchError } = await supabase.storage
                   .from('customer_attachments')
-                  .download(normalizedPath);
+                  .download(uploadedFileData.file_path);
                   
                 if (fetchError) {
                   console.error("Error downloading file for copying:", fetchError);
                   throw fetchError;
                 }
+                
+                // Create a new path for the event file
+                const newFilePath = `${eventResult.id}/${uploadedFileData.filename}`;
                 
                 // Upload the file to the event_attachments bucket
                 const { error: uploadError } = await supabase.storage
@@ -495,11 +490,11 @@ export const CustomerDialog = ({
                   throw uploadError;
                 }
                 
-                // Create the event_files record
+                // Create the event_files record with proper information
                 const eventFileData = {
                   event_id: eventResult.id,
                   filename: uploadedFileData.filename,
-                  file_path: newFilePath, // Use new path in event_attachments bucket
+                  file_path: newFilePath,
                   content_type: uploadedFileData.content_type,
                   size: uploadedFileData.size,
                   user_id: user.id

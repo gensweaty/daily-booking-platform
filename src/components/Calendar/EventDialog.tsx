@@ -131,17 +131,18 @@ export const EventDialog = ({
     }
   }, [selectedDate, event, open]);
 
-  // Load files for this event - simplified to only use event_files table
+  // Load files for this event with improved customer file handling
   useEffect(() => {
     const loadFiles = async () => {
       if (!event?.id) {
         setDisplayedFiles([]);
         return;
       }
+      
       try {
         console.log("Loading files for event:", event.id);
         
-        // SIMPLIFIED: Only check event_files for the current event ID
+        // Step 1: Load direct event files
         const { data: eventFiles, error: eventFilesError } = await supabase
           .from('event_files')
           .select('*')
@@ -149,24 +150,52 @@ export const EventDialog = ({
             
         if (eventFilesError) {
           console.error("Error loading event files:", eventFilesError);
-          setDisplayedFiles([]);
-          return;
         }
         
+        let allFiles = [];
+        
+        // Add event files if they exist
         if (eventFiles && eventFiles.length > 0) {
           console.log("Loaded files from event_files:", eventFiles.length);
-          
-          // Add a parentType property for compatibility with existing code
           const filesWithSource = eventFiles.map(file => ({
             ...file,
             parentType: 'event'
           }));
-          
-          setDisplayedFiles(filesWithSource);
+          allFiles = [...filesWithSource];
         } else {
-          console.log("No files found for event:", event.id);
-          setDisplayedFiles([]);
+          console.log("No direct event files found for event:", event.id);
         }
+        
+        // Step 2: If this event has a customer_id, also load customer files
+        if (event.customer_id) {
+          console.log("Event has customer_id:", event.customer_id, "- loading customer files");
+          
+          const { data: customerFiles, error: customerFilesError } = await supabase
+            .from('customer_files_new')
+            .select('*')
+            .eq('customer_id', event.customer_id);
+            
+          if (customerFilesError) {
+            console.error("Error loading customer files:", customerFilesError);
+          } else if (customerFiles && customerFiles.length > 0) {
+            console.log("Loaded files from customer_files_new:", customerFiles.length);
+            
+            // Mark these files as customer files for proper handling
+            const customerFilesWithSource = customerFiles.map(file => ({
+              ...file,
+              parentType: 'customer',
+              // Ensure ID is properly set for deduplication
+              id: file.id
+            }));
+            
+            // Add customer files to the collection
+            allFiles = [...allFiles, ...customerFilesWithSource];
+          }
+        }
+        
+        console.log("Total files to display:", allFiles.length);
+        setDisplayedFiles(allFiles);
+        
       } catch (err) {
         console.error("Exception loading event files:", err);
         setDisplayedFiles([]);

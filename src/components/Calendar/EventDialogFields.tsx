@@ -10,6 +10,8 @@ import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { getCurrencySymbol } from "@/lib/currency";
+import { useState, useEffect, useMemo } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface EventDialogFieldsProps {
   title: string;
@@ -72,10 +74,19 @@ export const EventDialogFields = ({
     t,
     language
   } = useLanguage();
+  const [loading, setLoading] = useState(false);
   const isGeorgian = language === 'ka';
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
   const currencySymbol = getCurrencySymbol(language);
+  
+  // Process files to remove duplicates by comparing path and name
+  const processedFiles = useMemo(() => {
+    if (!displayedFiles.length) return [];
+    
+    // Return the displayed files directly since deduplication is now handled in FileDisplay component
+    return displayedFiles;
+  }, [displayedFiles]);
   
   const georgianStyle = isGeorgian ? {
     fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
@@ -103,23 +114,19 @@ export const EventDialogFields = ({
     return t("events.addEventNotes");
   };
   
-  // Helper function for Georgian placeholder text
-  const getGeorgianPlaceholder = (text: string) => {
-    if (isGeorgian) {
-      if (text === "events.fullName") return "სრული სახელი";
-      if (text === "events.phoneNumber") return "ტელეფონის ნომერი";
-    }
-    return t(text);
-  };
-  
   return <>
       <div>
         <Label 
           htmlFor="userSurname" 
           className={cn(isGeorgian ? "font-georgian" : "")}
-          style={georgianStyle}
+          style={isGeorgian ? {
+            fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+            letterSpacing: '-0.2px',
+            WebkitFontSmoothing: 'antialiased',
+            MozOsxFontSmoothing: 'grayscale'
+          } : undefined}
         >
-          {renderGeorgianLabel("events.fullName")}
+          {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">სრული სახელი</GeorgianAuthText> : <LanguageText>{t("events.fullName")}</LanguageText>}
         </Label>
         <Input 
           id="userSurname" 
@@ -131,7 +138,12 @@ export const EventDialogFields = ({
           placeholder={isGeorgian ? "სრული სახელი" : t("events.fullName")} 
           required 
           className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
-          style={georgianStyle} 
+          style={isGeorgian ? {
+            fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+            letterSpacing: '-0.2px',
+            WebkitFontSmoothing: 'antialiased',
+            MozOsxFontSmoothing: 'grayscale'
+          } : undefined} 
         />
       </div>
       <div>
@@ -313,13 +325,14 @@ export const EventDialogFields = ({
         />
       </div>
       
-      {displayedFiles.length > 0 && <div className="flex flex-col gap-2">
+      {processedFiles.length > 0 && <div className="flex flex-col gap-2">
           <FileDisplay 
-            files={displayedFiles} 
+            files={processedFiles} 
             bucketName="event_attachments" 
             allowDelete={true} 
             onFileDeleted={onFileDeleted} 
             parentType="event" 
+            parentId={eventId}
             fallbackBuckets={["customer_attachments", "booking_attachments"]} 
           />
         </div>}

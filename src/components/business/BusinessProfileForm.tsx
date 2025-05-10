@@ -14,6 +14,26 @@ import * as z from "zod";
 import { useEffect, useState } from "react";
 import { useBusinessProfile } from "@/hooks/useBusinessProfile";
 
+// Custom function to validate website input
+const websiteValidator = (value: string) => {
+  if (!value) return true; // Empty values are handled by .optional()
+  
+  // If the input already has a protocol, use the URL validator
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    try {
+      new URL(value);
+      return true;
+    } catch {
+      return false;
+    }
+  } 
+  
+  // For domain-only inputs like "smartbookly.com"
+  // Simple regex to check if it looks like a domain
+  // This allows formats like: example.com, sub.example.com
+  return /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/.test(value);
+};
+
 const formSchema = z.object({
   businessName: z.string().min(2, {
     message: "Business name must be at least 2 characters.",
@@ -25,7 +45,11 @@ const formSchema = z.object({
   coverPhoto: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email().optional(),
-  website: z.string().url().optional(),
+  website: z.string()
+    .refine(websiteValidator, {
+      message: "Please enter a valid website domain (e.g., example.com) or full URL",
+    })
+    .optional(),
   address: z.string().optional(),
 });
 
@@ -94,6 +118,12 @@ export const BusinessProfileForm = () => {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
+      // Format the website value to ensure it has a protocol if needed
+      let websiteValue = values.website;
+      if (websiteValue && !websiteValue.startsWith('http://') && !websiteValue.startsWith('https://')) {
+        websiteValue = `https://${websiteValue}`;
+      }
+      
       const profileData = {
         business_name: values.businessName,
         slug: values.slug,
@@ -101,7 +131,7 @@ export const BusinessProfileForm = () => {
         cover_photo_url: values.coverPhoto,
         contact_phone: values.phone,
         contact_email: values.email,
-        contact_website: values.website,
+        contact_website: websiteValue,
         contact_address: values.address,
       };
 
@@ -260,8 +290,11 @@ export const BusinessProfileForm = () => {
                 {renderFormLabel("business.website", "ვებ გვერდი")}
               </FormLabel>
               <FormControl>
-                <Input placeholder="https://yourbusiness.com" {...field} />
+                <Input placeholder="smartbookly.com" {...field} />
               </FormControl>
+              <FormDescription>
+                <LanguageText>Enter domain name or full URL with http(s)://</LanguageText>
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
