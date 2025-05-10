@@ -77,7 +77,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();  // Make sure we get the current language
 
   // Helper to determine if times have changed between original and new dates
   const haveTimesChanged = (
@@ -384,7 +384,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     startDate: string,
     endDate: string,
     paymentStatus: string,
-    paymentAmount: number | null
+    paymentAmount: number | null,
+    language: string = 'en' // Added language parameter with default value
   ) => {
     // Optimization: Skip email sending during event creation for faster response
     // Email will be sent asynchronously after the event is created
@@ -392,7 +393,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     // Start email sending as a background task
     setTimeout(async () => {
       try {
-        console.log(`Starting background email sending for event ${eventId} to ${email}`);
+        console.log(`Starting background email sending for event ${eventId} to ${email} with language: ${language}`);
         
         // Get business address and name before anything else
         const { data: businessProfile, error: profileError } = await supabase
@@ -417,6 +418,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.log(`- Business name: ${businessProfile?.business_name || 'None'}`);
         console.log(`- Event ID: ${eventId}`);
         console.log(`- Recipient: ${email}`);
+        console.log(`- Language: ${language}`);
+        console.log(`- Payment status: ${paymentStatus}`);
+        console.log(`- Payment amount: ${paymentAmount}`);
         
         const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
         const { data: sessionData } = await supabase.auth.getSession();
@@ -442,10 +446,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             startDate: startDate,
             endDate: endDate,
             paymentStatus: paymentStatus || 'not_paid',
-            paymentAmount: paymentAmount || 0,
+            paymentAmount: paymentAmount !== null ? parseFloat(String(paymentAmount)) : null, // Ensure proper number formatting
             businessAddress: businessProfile?.contact_address || '',
             eventId: eventId,
-            source: 'useCalendarEvents' // Updated source to ensure consistent tracking
+            source: 'useCalendarEvents', // Updated source to ensure consistent tracking
+            language: language // Explicitly send language parameter
           })
         });
         
@@ -476,7 +481,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           return false;
         }
         
-        console.log("Email notification sent successfully");
+        console.log("Email notification sent successfully with currency based on language:", language);
         return true;
       } catch (error) {
         console.error('Error sending booking confirmation email in background:', error);
@@ -529,8 +534,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       user_number: event.user_number,
       social_network_link: event.social_network_link,
       event_notes: event.event_notes,
-      payment_status: event.payment_status,
-      payment_amount: event.payment_amount
+      payment_status: event.payment_status || 'not_paid',
+      payment_amount: event.payment_amount,
+      language: event.language || language || 'en' // Use provided language, current language, or default to 'en'
     };
     
     const { data, error } = await supabase
@@ -561,7 +567,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         event.start_date as string,
         event.end_date as string,
         event.payment_status || 'not_paid',
-        event.payment_amount || null
+        event.payment_amount || null,
+        event.language || language || 'en' // Use event language, current language, or default to 'en'
       );
     }
     
@@ -572,224 +579,326 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     if (!user) throw new Error("User must be authenticated to update events");
     if (!event.id) throw new Error("Event ID is required for updates");
     
-    const { data: existingEvent, error: fetchError } = await supabase
-      .from('events')
-      .select('id, start_date, end_date, type, social_network_link')
-      .eq('id', event.id)
-      .single();
-      
-    if (fetchError) {
-      console.error('Error fetching existing event:', fetchError);
-      throw fetchError;
-    }
-    
-    const startDateTime = new Date(event.start_date as string);
-    const endDateTime = new Date(event.end_date as string);
-    
-    // Only check availability if times have changed
-    const timesChanged = haveTimesChanged(
-      existingEvent.start_date,
-      existingEvent.end_date,
-      event.start_date as string,
-      event.end_date as string
-    );
-    
-    if (timesChanged) {
-      const { available, conflictDetails } = await checkTimeSlotAvailability(
-        startDateTime,
-        endDateTime,
-        event.id
-      );
-      
-      if (!available) {
-        throw new Error(`Time slot is no longer available: ${conflictDetails}`);
-      }
-    }
-    
-    // If an event's type is booking_request but update sets it to something else,
-    // this indicates approving a booking request
-    const wasBookingRequest = existingEvent.type === 'booking_request';
-    const isChangingType = event.type && event.type !== 'booking_request';
-    
-    if (wasBookingRequest && isChangingType) {
-      console.log("Converting booking request to regular event:", event.id);
-      
-      // Always preserve original booking ID
-      const bookingRequestId = event.id;
-      
-      // Create a new event without direct file fields
-      const eventPayload = {
-        // Use event payload data without file fields
-        title: event.title,
-        user_surname: event.user_surname,
-        user_number: event.user_number,
-        social_network_link: event.social_network_link,
-        event_notes: event.event_notes,
-        start_date: event.start_date,
-        end_date: event.end_date,
-        payment_status: event.payment_status || 'not_paid',
-        payment_amount: event.payment_amount,
-        user_id: user.id,
-        booking_request_id: bookingRequestId,
-        type: event.type || 'event'
-      };
-      
-      // Create a new event first
-      const { data: newEvent, error: createError } = await supabase
+    try {
+      const { data: existingEvent, error: fetchError } = await supabase
         .from('events')
-        .insert(eventPayload)
-        .select()
+        .select('id, start_date, end_date, type, social_network_link, language')
+        .eq('id', event.id)
         .single();
         
-      if (createError) {
-        console.error("Error creating new event from booking:", createError);
-        throw createError;
+      if (fetchError) {
+        console.error('Error fetching existing event:', fetchError);
+        throw fetchError;
       }
       
-      // Associate booking files with the new event
-      let associatedFiles = null;
-      try {
-        const associatedFile = await associateBookingFilesWithEvent(
-          bookingRequestId, 
-          newEvent.id, 
-          user.id
+      const startDateTime = new Date(event.start_date as string);
+      const endDateTime = new Date(event.end_date as string);
+      
+      // Only check availability if times have changed
+      const timesChanged = haveTimesChanged(
+        existingEvent.start_date,
+        existingEvent.end_date,
+        event.start_date as string,
+        event.end_date as string
+      );
+      
+      if (timesChanged) {
+        const { available, conflictDetails } = await checkTimeSlotAvailability(
+          startDateTime,
+          endDateTime,
+          event.id
         );
         
-        // Create an array with the file if it exists
-        associatedFiles = associatedFile ? [associatedFile] : [];
-        
-        console.log("Associated files with new event:", associatedFiles);
-      } catch (fileError) {
-        console.error("Error copying booking files:", fileError);
-        associatedFiles = [];
+        if (!available) {
+          throw new Error(`Time slot is no longer available: ${conflictDetails}`);
+        }
       }
       
-      // Create a customer record if we have customer data in the booking
-      try {
-        if (event.user_surname || event.requester_name) {
-          console.log("Creating customer record from booking request");
+      // If an event's type is booking_request but update sets it to something else,
+      // this indicates approving a booking request
+      const wasBookingRequest = existingEvent.type === 'booking_request';
+      const isChangingType = event.type && event.type !== 'booking_request';
+      
+      if (wasBookingRequest && isChangingType) {
+        console.log("Converting booking request to regular event:", event.id);
+        
+        // Always preserve original booking ID
+        const bookingRequestId = event.id;
+        
+        // IMPORTANT: Fetch the original booking request to get its language
+        // This ensures we maintain the language from an external booking request
+        const { data: originalBooking, error: bookingFetchError } = await supabase
+          .from('booking_requests')
+          .select('language, payment_status, payment_amount')
+          .eq('id', bookingRequestId)
+          .maybeSingle();
+        
+        if (bookingFetchError) {
+          console.error("Error fetching original booking request:", bookingFetchError);
+        } else {
+          console.log("Original booking data:", originalBooking);
+        }
+        
+        // Use booking language if available, with proper fallbacks
+        const bookingLanguage = originalBooking?.language || '';
+        console.log("Original booking language:", bookingLanguage);
+        
+        // Make sure payment amount is properly formatted as a number if present
+        let paymentAmount = null;
+        if (event.payment_amount !== undefined && event.payment_amount !== null) {
+          paymentAmount = parseFloat(String(event.payment_amount));
+          if (isNaN(paymentAmount)) paymentAmount = null;
+        } else if (originalBooking?.payment_amount !== undefined && originalBooking?.payment_amount !== null) {
+          // Use the payment amount from the original booking if not provided in the event
+          paymentAmount = parseFloat(String(originalBooking.payment_amount));
+          if (isNaN(paymentAmount)) paymentAmount = null;
+        }
+        
+        // Determine the language to use, with appropriate fallbacks
+        // Priority: 1. Original booking language, 2. Event language, 3. Existing event language, 4. Current app language, 5. Default 'en'
+        const eventLanguage = bookingLanguage || event.language || existingEvent.language || language || 'en';
+        console.log("Event language for approval (prioritizing original booking):", eventLanguage);
+        
+        // Create a new event without direct file fields
+        // We need to ensure we have all required fields for the events table
+        const eventPayload: {
+          title: string;
+          start_date: string;
+          end_date: string;
+          user_id: string;
+          type: string;
+          user_surname?: string;
+          user_number?: string;
+          social_network_link?: string;
+          event_notes?: string;
+          payment_status?: string;
+          payment_amount?: number | null;
+          booking_request_id?: string;
+          language?: string;
+          source_url?: string;
+        } = {
+          // Required fields
+          title: event.title || "Untitled Event", // Ensure title is never undefined
+          start_date: event.start_date as string,
+          end_date: event.end_date as string,
+          user_id: user.id,
+          type: event.type || 'event',
           
-          const customerData = {
-            title: event.user_surname || event.requester_name || event.title || '',
-            user_surname: event.user_surname || event.requester_name || event.title || '',
-            user_number: event.user_number || event.requester_phone || '',
-            social_network_link: event.social_network_link || event.requester_email || '',
-            event_notes: event.event_notes || event.description || '',
-            user_id: user.id,
-            type: 'customer',
-            // Optional: link to event dates
-            start_date: event.start_date,
-            end_date: event.end_date
-          };
+          // Optional fields
+          user_surname: event.user_surname,
+          user_number: event.user_number,
+          social_network_link: event.social_network_link,
+          event_notes: event.event_notes,
+          payment_status: event.payment_status || originalBooking?.payment_status || 'not_paid',
+          payment_amount: paymentAmount,
+          booking_request_id: bookingRequestId,
+          language: eventLanguage, // Use the determined language with priority to original booking
+        };
+        
+        console.log("Creating new event with payload:", {
+          language: eventLanguage,
+          payment_status: eventPayload.payment_status,
+          payment_amount: paymentAmount
+        });
+        
+        // Create the new event
+        const { data: newEvent, error: createError } = await supabase
+          .from('events')
+          .insert(eventPayload)
+          .select()
+          .single();
           
-          const { data: newCustomer, error: customerError } = await supabase
-            .from('customers')
-            .insert(customerData)
-            .select()
-            .single();
+        if (createError) {
+          console.error("Error creating new event from booking:", createError);
+          throw createError;
+        }
+        
+        // Associate booking files with the new event
+        let associatedFiles = null;
+        try {
+          const associatedFile = await associateBookingFilesWithEvent(
+            bookingRequestId, 
+            newEvent.id, 
+            user.id
+          );
+          
+          // Create an array with the file if it exists
+          associatedFiles = associatedFile ? [associatedFile] : [];
+          
+          console.log("Associated files with new event:", associatedFiles);
+        } catch (fileError) {
+          console.error("Error copying booking files:", fileError);
+          associatedFiles = [];
+        }
+        
+        // Create a customer record if we have customer data in the booking
+        try {
+          if (event.user_surname || event.requester_name) {
+            console.log("Creating customer record from booking request");
             
-          if (customerError) {
-            console.error("Error creating customer from booking:", customerError);
-          } else if (newCustomer && associatedFiles.length > 0) {
-            console.log("Created customer from booking, now linking files");
+            const customerData = {
+              title: event.user_surname || event.requester_name || event.title || '',
+              user_surname: event.user_surname || event.requester_name || event.title || '',
+              user_number: event.user_number || event.requester_phone || '',
+              social_network_link: event.social_network_link || event.requester_email || '',
+              event_notes: event.event_notes || event.description || '',
+              user_id: user.id,
+              type: 'customer',
+              // Optional: link to event dates
+              start_date: event.start_date,
+              end_date: event.end_date
+            };
             
-            // Create file links for the customer using the new file paths
-            for (const fileRecord of associatedFiles) {
-              // Create customer file link using the NEW file path
-              const { error: customerFileError } = await supabase
-                .from('customer_files_new')
-                .insert({
-                  customer_id: newCustomer.id,
-                  filename: fileRecord.filename,
-                  file_path: fileRecord.file_path, // Use the NEW path in event_attachments
-                  content_type: fileRecord.content_type,
-                  size: fileRecord.size,
-                  user_id: user.id
-                });
+            const { data: newCustomer, error: customerError } = await supabase
+              .from('customers')
+              .insert(customerData)
+              .select()
+              .single();
+              
+            if (customerError) {
+              console.error("Error creating customer from booking:", customerError);
+            } else if (newCustomer && associatedFiles.length > 0) {
+              console.log("Created customer from booking, now linking files");
+              
+              // Create file links for the customer using the new file paths
+              for (const fileRecord of associatedFiles) {
+                // Create customer file link using the NEW file path
+                const { error: customerFileError } = await supabase
+                  .from('customer_files_new')
+                  .insert({
+                    customer_id: newCustomer.id,
+                    filename: fileRecord.filename,
+                    file_path: fileRecord.file_path, // Use the NEW path in event_attachments
+                    content_type: fileRecord.content_type,
+                    size: fileRecord.size,
+                    user_id: user.id
+                  });
                 
-              if (customerFileError) {
-                console.error("Error creating customer file link:", customerFileError);
-              } else {
-                console.log("Successfully created file record for customer");
+                if (customerFileError) {
+                  console.error("Error creating customer file link:", customerFileError);
+                } else {
+                  console.log("Successfully created file record for customer");
+                }
               }
             }
           }
+        } catch (customerError) {
+          console.error("Error handling customer creation:", customerError);
         }
-      } catch (customerError) {
-        console.error("Error handling customer creation:", customerError);
+        
+        // Send confirmation email to customer with business address - this is the ONLY place we send emails
+        if (event.requester_email && isValidEmail(event.requester_email)) {
+          try {
+            console.log("Sending approval email with language and payment info:", {
+              status: eventPayload.payment_status,
+              amount: paymentAmount,
+              language: eventLanguage
+            });
+            
+            await sendBookingConfirmationEmail(
+              newEvent.id,
+              event.requester_name || event.title || '',
+              event.requester_email,
+              event.start_date as string,
+              event.end_date as string,
+              eventPayload.payment_status || 'not_paid',
+              paymentAmount, // Use our properly formatted amount
+              eventLanguage // Use the original booking language as priority
+            );
+          } catch (emailError) {
+            console.error('Error sending booking approval email:', emailError);
+          }
+        }
+        
+        // Soft-delete or update the original booking request
+        try {
+          const { error: updateBookingError } = await supabase
+            .from('booking_requests')
+            .update({ 
+              status: 'approved',
+              deleted_at: new Date().toISOString()  // Soft-delete the booking
+            })
+            .eq('id', bookingRequestId);
+            
+          if (updateBookingError) {
+            console.error("Error updating original booking:", updateBookingError);
+          }
+        } catch (bookingUpdateError) {
+          console.error("Error updating booking status:", bookingUpdateError);
+        }
+        
+        return newEvent;
       }
       
-      // Send confirmation email to customer with business address - this is the ONLY place we send emails
-      if (event.requester_email && isValidEmail(event.requester_email)) {
+      // Regular update for non-booking events or when not changing type
+      
+      // Process payment amount to ensure it's a valid number
+      if (event.payment_amount !== undefined) {
+        const numericAmount = parseFloat(String(event.payment_amount));
+        if (!isNaN(numericAmount)) {
+          event.payment_amount = numericAmount;
+        }
+      }
+      
+      // Make sure we preserve or update the language
+      if (!event.language) {
+        event.language = existingEvent.language || language || 'en';
+      }
+      
+      const { data, error } = await supabase
+        .from('events')
+        .update(event)
+        .eq('id', event.id)
+        .select()
+        .single();
+        
+      if (error) {
+        console.error('Error updating event:', error);
+        throw error;
+      }
+      
+      // Send email if email address has changed
+      const emailChanged = event.social_network_link && 
+                          event.social_network_link !== existingEvent.social_network_link;
+      
+      if (emailChanged && isValidEmail(event.social_network_link as string)) {
         try {
+          // Make sure payment amount is properly formatted
+          let paymentAmount = null;
+          if (event.payment_amount !== undefined && event.payment_amount !== null) {
+            paymentAmount = parseFloat(String(event.payment_amount));
+            if (isNaN(paymentAmount)) paymentAmount = null;
+          }
+          
+          // Use the event language, existing language, current app language, or default to 'en'
+          const emailLanguage = event.language || existingEvent.language || language || 'en';
+          
+          console.log("Sending updated booking email with payment info:", {
+            status: event.payment_status,
+            amount: paymentAmount,
+            language: emailLanguage
+          });
+          
           await sendBookingConfirmationEmail(
-            newEvent.id,
-            event.requester_name || event.title || '',
-            event.requester_email,
+            data.id,
+            event.title || event.user_surname || '',
+            event.social_network_link as string,
             event.start_date as string,
             event.end_date as string,
             event.payment_status || 'not_paid',
-            event.payment_amount || null
+            paymentAmount,
+            emailLanguage // Use determined language
           );
         } catch (emailError) {
-          console.error('Error sending booking approval email:', emailError);
+          console.error('Error sending updated booking email:', emailError);
         }
       }
       
-      // Soft-delete or update the original booking request
-      try {
-        const { error: updateBookingError } = await supabase
-          .from('booking_requests')
-          .update({ 
-            status: 'approved',
-            deleted_at: new Date().toISOString()  // Soft-delete the booking
-          })
-          .eq('id', bookingRequestId);
-          
-        if (updateBookingError) {
-          console.error("Error updating original booking:", updateBookingError);
-        }
-      } catch (bookingUpdateError) {
-        console.error("Error updating booking status:", bookingUpdateError);
-      }
-      
-      return newEvent;
-    }
-    
-    // Regular update for non-booking events or when not changing type
-    const { data, error } = await supabase
-      .from('events')
-      .update(event)
-      .eq('id', event.id)
-      .select()
-      .single();
-      
-    if (error) {
-      console.error('Error updating event:', error);
+      return data;
+    } catch (error) {
+      console.error('Error in updateEvent:', error);
       throw error;
     }
-    
-    // Send email if email address has changed
-    const emailChanged = event.social_network_link && 
-                        event.social_network_link !== existingEvent.social_network_link;
-    
-    if (emailChanged && isValidEmail(event.social_network_link as string)) {
-      try {
-        await sendBookingConfirmationEmail(
-          data.id,
-          event.title || event.user_surname || '',
-          event.social_network_link as string,
-          event.start_date as string,
-          event.end_date as string,
-          event.payment_status || 'not_paid',
-          event.payment_amount || null
-        );
-      } catch (emailError) {
-        console.error('Error sending updated booking email:', emailError);
-      }
-    }
-    
-    return data;
   };
 
   const deleteEvent = async (eventId: string): Promise<void> => {
@@ -798,12 +907,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     // First check if this is an event created from a booking request
     const { data: event, error: fetchError } = await supabase
       .from('events')
-      .select('booking_request_id')
+      .select('booking_request_id, payment_status, payment_amount')
       .eq('id', eventId)
       .maybeSingle();
       
     if (fetchError) {
       console.error("Error fetching event:", fetchError);
+    }
+    
+    // Log the payment information that will be removed
+    if (event?.payment_status === 'partly_paid' || event?.payment_status === 'fully_paid') {
+      console.log(`Deleting event will remove payment amount ${event.payment_amount} from statistics`);
     }
     
     // If this was created from a booking request, also update the request status
@@ -831,6 +945,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       console.error('Error deleting event:', error);
       throw error;
     }
+    
+    // Invalidate all relevant queries to ensure data is refreshed
+    queryClient.invalidateQueries({ queryKey: ['events'] });
+    queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+    queryClient.invalidateQueries({ queryKey: ['business-events'] });
+    queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
   };
 
   const eventsQuery = useQuery({
@@ -858,6 +978,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
+      
+      // Also invalidate statistics to reflect new event data
+      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+      queryClient.invalidateQueries({ queryKey: ['taskStats'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
     },
     onError: (error: Error) => {
       toast({
@@ -874,6 +999,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
       queryClient.invalidateQueries({ queryKey: ['approved-bookings', businessId, businessUserId] });
+      
+      // Also invalidate statistics to reflect updated event data
+      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+      
       toast({
         title: t("common.success"),
         description: t("events.eventUpdated"),
@@ -895,6 +1024,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
       queryClient.invalidateQueries({ queryKey: ['approved-bookings', businessId, businessUserId] });
+      
+      // Explicitly invalidate statistics to ensure deleted event's income is removed
+      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+      
       toast({
         title: t("common.success"),
         description: t("events.eventDeleted"),

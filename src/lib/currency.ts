@@ -1,47 +1,23 @@
 
-import { Language } from '@/translations/types';
-
-/**
- * Returns the appropriate currency symbol based on the user's language
- * @param language The current application language
- * @returns The currency symbol for the given language
- */
-export function getCurrencySymbol(language: Language): string {
-  switch (language) {
-    case 'es':
-      return '€';
+// Helper for consistent currency display across the application
+export const getCurrencySymbol = (language?: string): string => {
+  console.log(`getCurrencySymbol called with language: ${language || 'undefined'}`);
+  
+  // Normalize language to lowercase and handle undefined
+  const normalizedLang = language?.toLowerCase();
+  
+  switch (normalizedLang) {
     case 'ka':
       return '₾';
-    case 'en':
+    case 'es':
+      return '€';
     default:
       return '$';
   }
-}
+};
 
-/**
- * Formats a monetary value with the appropriate currency symbol based on language
- * @param amount The monetary amount to format
- * @param language The current application language
- * @returns Formatted currency string with symbol
- */
-export function formatCurrency(amount: number | string, language: Language): string {
-  const symbol = getCurrencySymbol(language);
-  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-  
-  // Handle NaN or undefined values
-  if (isNaN(numericAmount)) {
-    return `${symbol}0.00`;
-  }
-  
-  return `${symbol}${numericAmount.toFixed(2)}`;
-}
-
-/**
- * Safely parses any payment amount to a number
- * @param amount The payment amount to parse (can be string, number, null, etc.)
- * @returns A valid number or 0 if invalid
- */
-export function parsePaymentAmount(amount: any): number {
+// Helper for consistent payment amount parsing
+export const parsePaymentAmount = (amount: any): number => {
   // If null or undefined, return 0
   if (amount === null || amount === undefined) return 0;
   
@@ -74,4 +50,51 @@ export function parsePaymentAmount(amount: any): number {
     console.error(`Failed to convert payment amount: ${amount}`, e);
     return 0;
   }
-}
+};
+
+// Helper for translating payment status
+export const getPaymentStatusLabel = (status: string | undefined, language?: string): string => {
+  if (!status) return '';
+  
+  // Normalize language to lowercase and handle undefined
+  const normalizedLang = language?.toLowerCase();
+  
+  switch (status) {
+    case 'not_paid':
+      if (normalizedLang === 'ka') return 'გადაუხდელი';
+      if (normalizedLang === 'es') return 'No Pagado';
+      return 'Not Paid';
+      
+    case 'partly_paid':
+    case 'partly':
+      if (normalizedLang === 'ka') return 'ნაწილობრივ გადახდილი';
+      if (normalizedLang === 'es') return 'Pagado Parcialmente';
+      return 'Partly Paid';
+      
+    case 'fully_paid':
+    case 'fully':
+      if (normalizedLang === 'ka') return 'სრულად გადახდილი';
+      if (normalizedLang === 'es') return 'Pagado Totalmente';
+      return 'Fully Paid';
+      
+    default:
+      // For any other status, just capitalize and format
+      return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+  }
+};
+
+// Format payment amount with appropriate currency symbol
+export const formatPaymentAmount = (
+  amount: number | null | undefined, 
+  language?: string, 
+  includeSymbol: boolean = true
+): string => {
+  if (amount === null || amount === undefined) return '';
+  
+  if (includeSymbol) {
+    const symbol = getCurrencySymbol(language);
+    return `${symbol}${amount}`;
+  }
+  
+  return `${amount}`;
+};

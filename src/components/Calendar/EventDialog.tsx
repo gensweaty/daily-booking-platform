@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -210,6 +209,7 @@ export const EventDialog = ({
     
     console.log("Submitting with payment status:", normalizedPaymentStatus);
     
+    // Ensure we preserve the original event language if available
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
       user_surname: userSurname, // Use userSurname for consistent naming
@@ -220,6 +220,7 @@ export const EventDialog = ({
       end_date: endDateTime.toISOString(),
       payment_status: normalizedPaymentStatus, // Use normalized payment status
       payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+      language: event?.language || language, // Preserve original language or use current UI language
     };
 
     if (event?.id) {

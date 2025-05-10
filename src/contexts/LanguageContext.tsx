@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { translations } from '@/translations';
 import { Language, LanguageContextType } from '@/translations/types';
+import { getCurrencySymbol } from '@/lib/currency'; // Import the centralized currency function
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
@@ -35,6 +36,9 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     
     // Update the lang attribute on the HTML element
     document.documentElement.setAttribute('lang', language);
+    
+    // Add logging for debugging purposes
+    console.log(`Language context updated to: ${language}`);
   }, [language]);
 
   const t = (key: string, params?: Record<string, string | number>): string => {
@@ -86,3 +90,6 @@ export const useLanguage = () => {
   }
   return context;
 };
+
+// Export getCurrencySymbol directly for convenience
+export { getCurrencySymbol };

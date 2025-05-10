@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext"; // Import language context
 
 interface UseEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
@@ -18,6 +19,7 @@ export const useEventDialog = ({
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
+  const { language } = useLanguage(); // Get current language
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
@@ -31,8 +33,12 @@ export const useEventDialog = ({
         // Ensure payment_status is properly set and normalized
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
         // Don't check availability by default for faster creation
-        checkAvailability: false
+        checkAvailability: false,
+        // Add language to event data - use provided language or current app language
+        language: data.language || language || 'en'
       };
+      
+      console.log("Creating event with language:", eventData.language);
       
       if (!createEvent) throw new Error("Create event function not provided");
       
@@ -68,7 +74,11 @@ export const useEventDialog = ({
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         // Ensure payment_status is properly normalized and preserved
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
+        // Preserve language or set it if not already present
+        language: data.language || selectedEvent.language || language || 'en'
       };
+      
+      console.log("Updating event with language:", eventData.language);
       
       // Set checkAvailability flag in memory, but remove it before sending to the database
       // to prevent the "column not found" error

@@ -1,4 +1,3 @@
-
 export interface Task {
   id: string;
   title: string;
@@ -64,6 +63,7 @@ export interface BookingRequest {
   event_notes?: string;
   payment_status?: string;
   payment_amount?: number | null;
+  language?: string; // Add language field to BookingRequest interface
   // File fields explicitly defined
   file_path?: string;
   filename?: string;

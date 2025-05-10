@@ -1,3 +1,4 @@
+
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { useState, useCallback, useMemo, useEffect } from "react";
@@ -12,10 +13,12 @@ import { Skeleton } from "./ui/skeleton";
 import { LanguageText } from "./shared/LanguageText";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { GeorgianAuthText } from "./shared/GeorgianAuthText";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const Statistics = () => {
   const { user } = useAuth();
   const { language } = useLanguage();
+  const queryClient = useQueryClient();
   const isGeorgian = language === 'ka';
   const currentDate = useMemo(() => new Date(), []);
   const [dateRange, setDateRange] = useState({ 
@@ -31,21 +34,27 @@ export const Statistics = () => {
   const { combinedData, isLoading: isLoadingCRM } = useCRMData(userId, dateRange);
   const { exportToExcel } = useExcelExport();
 
-  // Calculate customer statistics
+  // Calculate customer statistics - now respects date range from useCRMData
   const customerStats = useMemo(() => {
     if (!combinedData) return { total: 0, withBooking: 0, withoutBooking: 0 };
-
+    
     const total = combinedData.length;
     const withBooking = combinedData.filter(item => 
       item.create_event === true || 
       (item.start_date && item.end_date)
     ).length;
     const withoutBooking = total - withBooking;
-
-    console.log("Customer Stats:", { total, withBooking, withoutBooking });
+    
+    console.log("Customer Stats for date range:", { 
+      start: dateRange.start.toISOString().split('T')[0], 
+      end: dateRange.end.toISOString().split('T')[0],
+      totalCustomers: total, 
+      withBooking, 
+      withoutBooking 
+    });
     
     return { total, withBooking, withoutBooking };
-  }, [combinedData]);
+  }, [combinedData, dateRange]);
 
   // Add effect to validate eventStats and totalIncome specifically
   useEffect(() => {
@@ -60,6 +69,24 @@ export const Statistics = () => {
     }
   }, [eventStats]);
 
+  // Add effect for real-time updates of statistics when relevant data changes
+  useEffect(() => {
+    // Function to refresh data
+    const refreshData = () => {
+      console.log("Refreshing statistics data");
+      queryClient.invalidateQueries({ queryKey: ['taskStats'] });
+      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] }); // Also refresh customer data
+    };
+
+    // Set up periodic refresh every minute
+    const intervalId = setInterval(refreshData, 60000); // 1 minute
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [queryClient]);
+
   const handleExport = useCallback(() => {
     if (taskStats && eventStats) {
       // Pass customer stats to the export function
@@ -68,6 +95,7 @@ export const Statistics = () => {
   }, [taskStats, eventStats, customerStats, exportToExcel]);
 
   const handleDateChange = useCallback((start: Date, end: Date | null) => {
+    console.log("Date range changed to:", { start, end: end || start });
     setDateRange({ start, end: end || start });
   }, []);
 
@@ -101,7 +129,7 @@ export const Statistics = () => {
   const incomeData = useMemo(() => eventStats?.monthlyIncome || [], [eventStats?.monthlyIncome]);
 
   // Additional debugging to verify data
-  useMemo(() => {
+  useEffect(() => {
     if (eventStats) {
       console.log("Statistics component - Displaying stats:", { 
         total: eventStats.total,
@@ -112,10 +140,14 @@ export const Statistics = () => {
     }
   }, [eventStats]);
 
-  // Log customer stats
+  // Log customer stats and date range
   useEffect(() => {
-    console.log("Statistics - Customer Stats:", currentCustomerStats);
-  }, [currentCustomerStats]);
+    console.log("Statistics - Customer Stats for date range:", {
+      start: dateRange.start.toISOString().split('T')[0],
+      end: dateRange.end.toISOString().split('T')[0], 
+      stats: currentCustomerStats
+    });
+  }, [currentCustomerStats, dateRange.start, dateRange.end]);
 
   return (
     <div className="space-y-6">

@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -15,6 +14,7 @@ import { LanguageText } from '@/components/shared/LanguageText';
 import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
 import { Asterisk } from 'lucide-react';
 import { getGeorgianFontStyle } from '@/lib/font-utils';
+import { getCurrencySymbol } from '@/lib/currency';
 
 export interface BookingRequestFormProps {
   businessId: string;
@@ -57,6 +57,9 @@ export const BookingRequestForm = ({
   const [endDate, setEndDate] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('not_paid');
   const [paymentAmount, setPaymentAmount] = useState('');
+
+  // Get currency symbol based on language
+  const currencySymbol = getCurrencySymbol(language);
 
   // Move date initialization to useEffect
   useEffect(() => {
@@ -210,10 +213,12 @@ export const BookingRequestForm = ({
         return;
       }
 
-      // Process payment amount
+      // Process payment amount - Parse numeric value only without currency symbol
       let finalPaymentAmount = null;
       if (showPaymentAmount && paymentAmount) {
-        const amount = parseFloat(paymentAmount);
+        // Remove any currency symbols or non-numeric characters except decimal point
+        const cleanedAmount = paymentAmount.replace(/[^\d.]/g, '');
+        const amount = parseFloat(cleanedAmount);
         if (!isNaN(amount)) {
           finalPaymentAmount = amount;
         }
@@ -232,6 +237,7 @@ export const BookingRequestForm = ({
         payment_status: paymentStatus,
         payment_amount: finalPaymentAmount,
         status: 'pending',
+        language: language // Include the current language
       };
 
       console.log('Submitting booking request:', bookingData);
@@ -322,7 +328,8 @@ export const BookingRequestForm = ({
             paymentStatus: paymentStatus,
             paymentAmount: finalPaymentAmount,
             businessName: businessNameToUse,
-            businessAddress: businessData?.businessAddress
+            businessAddress: businessData?.businessAddress,
+            language: language // Include the current language
           };
           
           // Log notification data
@@ -597,7 +604,7 @@ export const BookingRequestForm = ({
           </Select>
         </div>
         
-        {/* Payment Amount Field - conditionally visible */}
+        {/* Payment Amount Field - conditionally visible with currency symbol */}
         {showPaymentAmount && (
           <div>
             <Label htmlFor="paymentAmount" className={labelClass} style={georgianFontStyle}>
@@ -607,21 +614,28 @@ export const BookingRequestForm = ({
                 t("events.paymentAmount")
               )}
             </Label>
-            <Input
-              id="paymentAmount"
-              value={paymentAmount}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                  setPaymentAmount(value);
-                }
-              }}
-              placeholder="0.00"
-              type="text"
-              inputMode="decimal"
-              className={isGeorgian ? "font-georgian" : ""}
-              style={georgianFontStyle}
-            />
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                {currencySymbol}
+              </span>
+              <Input
+                id="paymentAmount"
+                value={paymentAmount.replace(/^[^0-9.]*/, '')} // Remove any non-numeric prefix (like currency symbol) when displaying
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Allow only numbers and decimal point
+                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                    setPaymentAmount(value);
+                  }
+                }}
+                placeholder="0.00"
+                type="text"
+                inputMode="decimal"
+                className={cn(isGeorgian ? "font-georgian" : "", "pl-7")} // Added left padding to make room for currency symbol
+                style={georgianFontStyle}
+                aria-label={`${t("events.paymentAmount")} (${currencySymbol})`}
+              />
+            </div>
           </div>
         )}
         

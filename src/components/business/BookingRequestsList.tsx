@@ -19,6 +19,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { getStorageUrl } from "@/integrations/supabase/client";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import type { FileRecord } from "@/types/files";
+import { getCurrencySymbol } from "@/lib/currency";
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
@@ -41,6 +42,7 @@ export const BookingRequestsList = ({
   const [processingId, setProcessingId] = useState<string | null>(null);
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');
+  const currencySymbol = getCurrencySymbol(language);
 
   const handleDeleteClick = (id: string) => {
     setRequestToDelete(id);
@@ -56,6 +58,15 @@ export const BookingRequestsList = ({
   };
   
   const handleApprove = async (id: string) => {
+    // Log the current language context
+    console.log(`Approving request ${id} with UI language: ${language}`);
+    
+    // Check if the request has its own language setting
+    const requestToApprove = requests.find(req => req.id === id);
+    if (requestToApprove) {
+      console.log(`Request ${id} language setting: ${requestToApprove.language || 'not set'}`);
+    }
+    
     // Set processing state to show loading indicator
     setProcessingId(id);
     try {
@@ -146,7 +157,7 @@ export const BookingRequestsList = ({
       if (amount) {
         text = (
           <>
-            {text} <span className="ml-1">(${amount})</span>
+            {text} <span className="ml-1">({currencySymbol}{amount})</span>
           </>
         );
       }
@@ -165,7 +176,7 @@ export const BookingRequestsList = ({
       if (amount) {
         text = (
           <>
-            {text} <span className="ml-1">(${amount})</span>
+            {text} <span className="ml-1">({currencySymbol}{amount})</span>
           </>
         );
       }

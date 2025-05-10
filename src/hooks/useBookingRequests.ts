@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { BookingRequest, EventFile } from "@/types/database";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export const useBookingRequests = () => {
   const { user } = useAuth();
@@ -13,6 +14,7 @@ export const useBookingRequests = () => {
     business_name: string;
     contact_address: string | null;
   } | null>(null);
+  const { language } = useLanguage(); // Get current UI language
   
   // Cache business profile data when component mounts
   useEffect(() => {
@@ -151,7 +153,8 @@ export const useBookingRequests = () => {
     endDate, 
     paymentStatus, 
     paymentAmount, 
-    businessAddress 
+    businessAddress,
+    language // Add language parameter
   }: {
     email: string;
     fullName: string;
@@ -161,6 +164,7 @@ export const useBookingRequests = () => {
     paymentStatus?: string;
     paymentAmount?: number;
     businessAddress?: string;
+    language?: string; // Add language parameter type
   }) => {
     if (!email || !email.includes('@')) {
       console.error("Invalid email format or missing email:", email);
@@ -168,7 +172,7 @@ export const useBookingRequests = () => {
     }
 
     try {
-      console.log(`Sending approval email to ${email} for booking at ${businessName}`);
+      console.log(`Sending approval email to ${email} for booking at ${businessName} with language: ${language || 'not specified'}`);
       
       // Log all data being sent in the request
       const requestBody = {
@@ -179,8 +183,14 @@ export const useBookingRequests = () => {
         endDate: endDate,
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
-        businessAddress: businessAddress // Pass the address as is
+        businessAddress: businessAddress, // Pass the address as is
+        language: language // Pass language parameter to the edge function
       };
+      
+      console.log("Email request payload:", {
+        ...requestBody,
+        recipientEmail: email.trim().substring(0, 3) + '***' // Mask email for privacy in logs
+      });
       
       // Get access token for authenticated request
       const { data: sessionData } = await supabase.auth.getSession();
@@ -251,6 +261,14 @@ export const useBookingRequests = () => {
       if (fetchError) throw fetchError;
       if (!booking) throw new Error('Booking request not found');
       
+      // Log the booking details including language
+      console.log('Booking details for approval:', {
+        id: booking.id,
+        requester_name: booking.requester_name,
+        language: booking.language || 'not set',
+        payment_status: booking.payment_status
+      });
+      
       // Check for conflicts
       const { data: conflictingEvents } = await supabase
         .from('events')
@@ -295,7 +313,8 @@ export const useBookingRequests = () => {
         type: 'booking_request',
         booking_request_id: booking.id,
         payment_status: booking.payment_status || 'not_paid',
-        payment_amount: booking.payment_amount
+        payment_amount: booking.payment_amount,
+        language: booking.language || language // Preserve the booking's original language or use UI language
       };
       
       const customerData = {
@@ -514,8 +533,11 @@ export const useBookingRequests = () => {
           endDate: booking.end_date,
           paymentStatus: booking.payment_status,
           paymentAmount: booking.payment_amount,
-          businessAddress: contactAddress
+          businessAddress: contactAddress,
+          language: booking.language || language // Pass the booking's language or fallback to UI language
         };
+        
+        console.log('Sending approval email with language:', emailParams.language);
         
         // Send email but don't block the approval process completion
         sendApprovalEmail(emailParams).then(emailResult => {

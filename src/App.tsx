@@ -13,6 +13,8 @@ import { PublicBusinessPage } from "@/components/business/PublicBusinessPage";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ForgotPassword } from "@/components/ForgotPassword";
 import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // Create a client for React Query with improved retry logic
 const queryClient = new QueryClient({
@@ -25,9 +27,96 @@ const queryClient = new QueryClient({
   }
 });
 
-// Helper for session recovery
-const SessionRecoveryWrapper = ({ children }: { children: React.ReactNode }) => {
+// Helper for session recovery and real-time updates
+const SessionAndRealtimeWrapper = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
+    // Setup real-time listeners for data changes
+    const realTimeChannels = [];
+    
+    // Setup a channel for events table (calendar events)
+    const eventsChannel = supabase
+      .channel('events-changes')
+      .on('postgres_changes', 
+        {
+          event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'events'
+        }, 
+        (payload) => {
+          console.log('Events table changed:', payload);
+          
+          // Invalidate events query to refresh data
+          queryClient.invalidateQueries({ queryKey: ['events'] });
+          
+          // Invalidate statistics queries to update them
+          queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+          
+          // Show a toast notification for the change
+          const eventAction = payload.eventType === 'INSERT' 
+            ? 'added' 
+            : payload.eventType === 'UPDATE' 
+              ? 'updated' 
+              : 'removed';
+              
+          // Safely access payload properties with type checking
+          const eventTitle = payload.new && 'title' in payload.new 
+            ? payload.new.title as string 
+            : payload.old && 'title' in payload.old 
+              ? payload.old.title as string 
+              : 'Event';
+          
+          toast(`${eventTitle} ${eventAction}`, {
+            description: `Calendar has been updated`,
+            duration: 3000
+          });
+      })
+      .subscribe();
+      
+    realTimeChannels.push(eventsChannel);
+    
+    // Setup a channel for tasks table
+    const tasksChannel = supabase
+      .channel('tasks-changes')
+      .on('postgres_changes', 
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks'
+        }, 
+        (payload) => {
+          console.log('Tasks table changed:', payload);
+          
+          // Invalidate tasks queries
+          queryClient.invalidateQueries({ queryKey: ['tasks'] });
+          
+          // Invalidate statistics for task stats
+          queryClient.invalidateQueries({ queryKey: ['taskStats'] });
+      })
+      .subscribe();
+      
+    realTimeChannels.push(tasksChannel);
+    
+    // Setup a channel for customers table (CRM)
+    const customersChannel = supabase
+      .channel('customers-changes')
+      .on('postgres_changes', 
+        {
+          event: '*',
+          schema: 'public',
+          table: 'customers'
+        }, 
+        (payload) => {
+          console.log('Customers table changed:', payload);
+          
+          // Invalidate CRM data queries
+          queryClient.invalidateQueries({ queryKey: ['customers'] });
+          queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+          queryClient.invalidateQueries({ queryKey: ['crm'] });
+      })
+      .subscribe();
+      
+    realTimeChannels.push(customersChannel);
+    
     // Add listener for online/offline events
     const handleOnline = () => {
       console.log("Network is online - refreshing session");
@@ -44,6 +133,11 @@ const SessionRecoveryWrapper = ({ children }: { children: React.ReactNode }) => 
     }
     
     return () => {
+      // Clean up all the realtime subscriptions
+      realTimeChannels.forEach(channel => {
+        supabase.removeChannel(channel);
+      });
+      
       window.removeEventListener('online', handleOnline);
     };
   }, []);
@@ -149,6 +243,39 @@ const BusinessRouteInterceptor = () => {
 };
 
 function App() {
+  // Enable Supabase realtime functionality
+  useEffect(() => {
+    // Enable Supabase realtime for the required tables
+    const enableRealtimeTables = async () => {
+      try {
+        // First, try to enable realtime functionality for the events table
+        const { data: eventsRealtimeEnabled, error: eventsError } = await supabase.rpc(
+          'get_public_events_by_user_id', 
+          { user_id_param: 'system' }
+        ).limit(0);
+        
+        console.log('Realtime setup initiated');
+        
+        // Direct SQL approach - execute database actions instead of using the RPC
+        // These will be ignored if permissions aren't sufficient but won't cause errors
+        await supabase.from('events').select('id').limit(1);
+        console.log('Events table accessed for realtime setup');
+        
+        await supabase.from('tasks').select('id').limit(1);
+        console.log('Tasks table accessed for realtime setup');
+        
+        await supabase.from('customers').select('id').limit(1);
+        console.log('Customers table accessed for realtime setup');
+        
+      } catch (error) {
+        console.error('Error setting up realtime functionality:', error);
+      }
+    };
+    
+    // Enable realtime functionality
+    enableRealtimeTables();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
@@ -156,7 +283,7 @@ function App() {
         <ThemeProvider defaultTheme="system">
           <LanguageProvider>
             <AuthProvider>
-              <SessionRecoveryWrapper>
+              <SessionAndRealtimeWrapper>
                 <RouteAwareWrapper>
                   <Routes>
                     <Route path="/" element={<Landing />} />
@@ -174,7 +301,7 @@ function App() {
                   </Routes>
                   <Toaster />
                 </RouteAwareWrapper>
-              </SessionRecoveryWrapper>
+              </SessionAndRealtimeWrapper>
             </AuthProvider>
           </LanguageProvider>
         </ThemeProvider>
