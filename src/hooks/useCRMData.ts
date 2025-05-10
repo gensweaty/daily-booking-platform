@@ -1,3 +1,4 @@
+
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -70,14 +71,14 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       .gte('start_date', dateRange.start.toISOString())
       .lte('start_date', endOfDay(dateRange.end).toISOString())
       .is('deleted_at', null)
-      .order('created_at', { ascending: false }); // Sort by created_at in descending order
+      .order('created_at', { ascending: false });
 
     if (eventsError) {
       console.error("Error fetching events:", eventsError);
       throw eventsError;
     }
 
-    // Fetch files for each event - with safety check for undefined event IDs
+    // Fetch files for each event with improved typing
     const eventsWithFiles = await Promise.all((events as EventWithCustomerId[]).map(async (event) => {
       if (!event.id) {
         console.error("Event without ID detected:", event);
@@ -131,7 +132,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     refetchOnWindowFocus: false,
   });
 
-  // Pre-process combined data to avoid doing it on every render
+  // Pre-process combined data with improved deduplication
   const combinedData = useMemo(() => {
     // Return empty array quickly if still loading initial data
     if (isLoadingCustomers || isLoadingEvents) return [];
@@ -140,60 +141,76 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     
     const combined = [];
     
-    // Create a map of customer IDs to track which customers are included
+    // Map to track which customers are included by ID
     const customerIdMap = new Map();
-    const customerKeyMap = new Map();
     
-    // Add all customers to the combined array and to the ID map
-    for (const customer of customers) {
-      // Generate a unique key based on customer's data to detect duplicates
-      const customerKey = `${customer.title}:${customer.user_number || ''}:${customer.social_network_link || ''}:${customer.start_date || ''}`;
+    // Map unique identifiers to detect duplicates more reliably
+    // Format: title:phoneNumber:emailOrSocial:startDate
+    const itemSignatureMap = new Map();
+    
+    // Generate a unique signature for deduplication
+    const generateItemSignature = (item: any) => {
+      const title = item.title || item.user_surname || '';
+      const phone = item.user_number || item.requester_phone || '';
+      const email = item.social_network_link || item.requester_email || '';
+      const startDate = item.start_date || '';
       
-      // Skip if we've already added a customer with the exact same key
-      if (customerKeyMap.has(customerKey)) {
-        console.log(`Skipping duplicate customer: ${customer.title} - ID: ${customer.id}`);
+      return `${title}:${phone}:${email}:${startDate}`;
+    };
+    
+    // Add all customers to the combined array first
+    for (const customer of customers) {
+      if (!customer) continue;
+      
+      const signature = generateItemSignature(customer);
+      
+      // Skip if we've already added this signature
+      if (itemSignatureMap.has(signature)) {
+        console.log(`Skipping duplicate customer: ${customer.title} - Signature: ${signature}`);
         continue;
       }
       
+      // Add customer to results and track its signature and ID
       combined.push({
         ...customer,
         create_event: customer.create_event !== undefined ? customer.create_event : false
       });
       
-      // Add customer ID to the map
       customerIdMap.set(customer.id, true);
-      customerKeyMap.set(customerKey, true);
+      itemSignatureMap.set(signature, true);
     }
 
-    // Only add events that aren't already represented by a customer (by ID or original ID)
+    // Process events - only add those that aren't represented by customers
     for (const event of events as EventWithCustomerId[]) {
-      // Skip events that have an original customer ID that matches one of our customers
-      // Safely check if the event has a customer_id property before trying to access it
+      if (!event) continue;
+      
+      // Skip events that have a customer_id that matches one we've already included
       if (event.customer_id && customerIdMap.has(event.customer_id)) {
+        console.log(`Skipping event ${event.id} because it's associated with customer ${event.customer_id}`);
         continue;
       }
       
-      // For events, generate a key based on event data to detect duplicates
-      const eventKey = `${event.title}:${event.user_number || ''}:${event.social_network_link || ''}:${event.start_date || ''}`;
+      const signature = generateItemSignature(event);
       
-      // Skip if we've already added an event with the exact same key
-      if (customerKeyMap.has(eventKey)) {
-        console.log(`Skipping duplicate event: ${event.title} - ID: ${event.id}`);
+      // Skip if we've already added an item with the same signature
+      if (itemSignatureMap.has(signature)) {
+        console.log(`Skipping duplicate event: ${event.title} - Signature: ${signature}`);
         continue;
       }
       
+      // Add the event to our results with proper formatting
       combined.push({
         ...event,
         id: `event-${event.id}`,
-        customer_files_new: event.event_files,
-        create_event: false // Add default create_event property
+        customer_files_new: event.event_files, // Map event_files to customer_files_new for UI compatibility
+        create_event: false // Default value
       });
       
-      // Add event key to the map to prevent duplicate events
-      customerKeyMap.set(eventKey, true);
+      // Track this signature to avoid duplicates
+      itemSignatureMap.set(signature, true);
     }
     
-    // Sort the combined data by created_at in descending order (newest first)
+    // Sort by created_at in descending order
     combined.sort((a, b) => {
       const dateA = new Date(a.created_at || 0).getTime();
       const dateB = new Date(b.created_at || 0).getTime();

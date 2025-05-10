@@ -80,95 +80,13 @@ export const EventDialogFields = ({
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
   const currencySymbol = getCurrencySymbol(language);
   
-  // Add state for customer-related files that need to be displayed
-  const [relatedFiles, setRelatedFiles] = useState<FileRecord[]>([]);
-  
-  // Load files created when event was created from a customer
-  useEffect(() => {
-    const loadRelatedFiles = async () => {
-      if (!eventId) return;
-      
-      setLoading(true);
-      try {
-        // Get the event details first to find original customer ID
-        const { data: event, error: eventError } = await supabase
-          .from('events')
-          .select('*')  
-          .eq('id', eventId)
-          .single();
-          
-        if (eventError) {
-          console.error("Error loading event for file relation:", eventError);
-          return;
-        }
-        
-        // Type guard to check if the event has a customer_id property
-        if (event && 'customer_id' in event && event.customer_id) {
-          const customerId = event.customer_id as string; // Ensure proper type casting
-          console.log("Found customer ID relation:", customerId);
-          
-          // Find customer files directly related to this event's customer
-          const { data: customerFiles, error: customerFilesError } = await supabase
-            .from('customer_files_new')
-            .select('*')
-            .eq('customer_id', customerId);
-            
-          if (customerFilesError) {
-            console.error("Error fetching customer files:", customerFilesError);
-            return;
-          }
-            
-          if (customerFiles && customerFiles.length > 0) {
-            console.log("Found customer files:", customerFiles.length);
-            
-            // Create properly typed file records
-            const typedFiles: FileRecord[] = customerFiles.map(file => ({
-              ...file,
-              source: 'customer',
-              customer_id: customerId
-            }));
-            
-            setRelatedFiles(typedFiles);
-          }
-        }
-      } catch (err) {
-        console.error("Error loading related files:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    if (eventId) {
-      loadRelatedFiles();
-    }
-  }, [eventId]);
-  
   // Process files to remove duplicates by comparing path and name
   const processedFiles = useMemo(() => {
-    if (!displayedFiles.length && !relatedFiles.length) return [];
+    if (!displayedFiles.length) return [];
     
-    // Create a map of existing file paths to detect duplicates
-    const filePaths = new Map();
-    const allFiles = [...displayedFiles];
-    
-    // Add related files only if they aren't duplicates
-    for (const relatedFile of relatedFiles) {
-      // Create a unique signature for this file to detect duplicates
-      const fileSignature = `${relatedFile.filename}:${relatedFile.file_path}`;
-      
-      // Check if we already have this file in our collection
-      const isDuplicate = allFiles.some(file => {
-        const existingSignature = `${file.filename}:${file.file_path}`;
-        return existingSignature === fileSignature;
-      });
-      
-      if (!isDuplicate) {
-        allFiles.push(relatedFile);
-      }
-    }
-    
-    return allFiles;
-  }, [displayedFiles, relatedFiles]);
+    // Return the displayed files directly since deduplication is now handled in FileDisplay component
+    return displayedFiles;
+  }, [displayedFiles]);
   
   const georgianStyle = isGeorgian ? {
     fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
