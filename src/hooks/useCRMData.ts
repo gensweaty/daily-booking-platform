@@ -5,6 +5,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { endOfDay } from 'date-fns';
 import type { FileRecord } from '@/types/files';
 
+// This interface defines the shape of event objects in our application
+interface EventWithCustomerId {
+  id: string;
+  customer_id?: string;
+  [key: string]: any; // Allow other properties
+}
+
 export function useCRMData(userId: string | undefined, dateRange: { start: Date, end: Date }) {
   // Memoize query keys to prevent unnecessary re-renders
   const customersQueryKey = useMemo(() => 
@@ -149,7 +156,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     }
 
     // Only add events that aren't already represented by a customer (by ID or original ID)
-    for (const event of events) {
+    for (const event of events as EventWithCustomerId[]) {
       // Skip events that have an original customer ID that matches one of our customers
       // Safely check if the event has a customer_id property before trying to access it
       if (event.customer_id && customerIdMap.has(event.customer_id)) {

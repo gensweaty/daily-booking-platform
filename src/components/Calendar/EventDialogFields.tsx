@@ -94,7 +94,7 @@ export const EventDialogFields = ({
         // Get the event details first to find original customer ID
         const { data: event, error: eventError } = await supabase
           .from('events')
-          .select('customer_id, title')
+          .select('*')  // Select all columns to avoid TypeScript errors
           .eq('id', eventId)
           .single();
           
@@ -103,15 +103,16 @@ export const EventDialogFields = ({
           return;
         }
         
-        // If we have a customer ID and it's a valid value, look for related files
-        if (event && event.customer_id) {
-          console.log("Found customer ID relation:", event.customer_id);
+        // Type guard to check if the event has a customer_id property
+        if (event && 'customer_id' in event && event.customer_id) {
+          const customerId = event.customer_id;
+          console.log("Found customer ID relation:", customerId);
           
           // Find customer files directly related to this event's customer
           const { data: customerFiles } = await supabase
             .from('customer_files_new')
             .select('*')
-            .eq('customer_id', event.customer_id);
+            .eq('customer_id', customerId);
             
           if (customerFiles && customerFiles.length > 0) {
             console.log("Found customer files:", customerFiles.length);

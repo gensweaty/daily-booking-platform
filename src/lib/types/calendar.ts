@@ -35,4 +35,5 @@ export interface CalendarEventType {
     content_type?: string;
     size?: number;
   }>;
+  customer_id?: string; // Added customer_id field to support file relationships
 }
