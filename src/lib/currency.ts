@@ -1,23 +1,28 @@
 
-// Helper for consistent currency display across the application
-export const getCurrencySymbol = (language?: string): string => {
-  console.log(`getCurrencySymbol called with language: ${language || 'undefined'}`);
+/**
+ * Get currency symbol based on language
+ * @param language Current language code
+ * @returns Currency symbol
+ */
+export function getCurrencySymbol(language: string | undefined): string {
+  if (!language) return '$'; // Default to USD
   
-  // Normalize language to lowercase and handle undefined
-  const normalizedLang = language?.toLowerCase();
-  
-  switch (normalizedLang) {
-    case 'ka':
-      return '₾';
+  switch (language.toLowerCase()) {
     case 'es':
-      return '€';
+      return '€'; // Euro for Spanish
+    case 'ka':
+      return '₾'; // Georgian Lari
     default:
-      return '$';
+      return '$'; // Default to USD
   }
-};
+}
 
-// Helper for consistent payment amount parsing
-export const parsePaymentAmount = (amount: any): number => {
+/**
+ * Parse payment amount from various formats
+ * @param amount Payment amount value that could be in various formats
+ * @returns Parsed numeric value or 0 if invalid
+ */
+export function parsePaymentAmount(amount: any): number {
   // If null or undefined, return 0
   if (amount === null || amount === undefined) return 0;
   
@@ -50,51 +55,4 @@ export const parsePaymentAmount = (amount: any): number => {
     console.error(`Failed to convert payment amount: ${amount}`, e);
     return 0;
   }
-};
-
-// Helper for translating payment status
-export const getPaymentStatusLabel = (status: string | undefined, language?: string): string => {
-  if (!status) return '';
-  
-  // Normalize language to lowercase and handle undefined
-  const normalizedLang = language?.toLowerCase();
-  
-  switch (status) {
-    case 'not_paid':
-      if (normalizedLang === 'ka') return 'გადაუხდელი';
-      if (normalizedLang === 'es') return 'No Pagado';
-      return 'Not Paid';
-      
-    case 'partly_paid':
-    case 'partly':
-      if (normalizedLang === 'ka') return 'ნაწილობრივ გადახდილი';
-      if (normalizedLang === 'es') return 'Pagado Parcialmente';
-      return 'Partly Paid';
-      
-    case 'fully_paid':
-    case 'fully':
-      if (normalizedLang === 'ka') return 'სრულად გადახდილი';
-      if (normalizedLang === 'es') return 'Pagado Totalmente';
-      return 'Fully Paid';
-      
-    default:
-      // For any other status, just capitalize and format
-      return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
-  }
-};
-
-// Format payment amount with appropriate currency symbol
-export const formatPaymentAmount = (
-  amount: number | null | undefined, 
-  language?: string, 
-  includeSymbol: boolean = true
-): string => {
-  if (amount === null || amount === undefined) return '';
-  
-  if (includeSymbol) {
-    const symbol = getCurrencySymbol(language);
-    return `${symbol}${amount}`;
-  }
-  
-  return `${amount}`;
-};
+}

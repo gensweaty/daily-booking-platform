@@ -13,7 +13,7 @@ interface EventWithCustomerId {
 }
 
 export function useCRMData(userId: string | undefined, dateRange: { start: Date, end: Date }) {
-  // Memoize query keys to prevent unnecessary re-renders
+  // Memoize query keys for better cache management
   const customersQueryKey = useMemo(() => 
     ['customers', dateRange.start.toISOString(), dateRange.end.toISOString(), userId],
     [dateRange.start, dateRange.end, userId]
@@ -111,10 +111,10 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     isLoading: isLoadingCustomers,
     isFetching: isFetchingCustomers
   } = useQuery({
-    queryKey: ['customers', dateRange.start.toISOString(), dateRange.end.toISOString(), userId],
+    queryKey: customersQueryKey,
     queryFn: fetchCustomers,
     enabled: !!userId,
-    staleTime: 60000, // Cache results for 1 minute
+    staleTime: 30000, // Cache results for 30 seconds (reduced for real-time updates)
     gcTime: 300000, // Keep in cache for 5 minutes
     refetchOnWindowFocus: false,
   });
@@ -124,10 +124,10 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     isLoading: isLoadingEvents,
     isFetching: isFetchingEvents
   } = useQuery({
-    queryKey: ['events', dateRange.start.toISOString(), dateRange.end.toISOString(), userId],
+    queryKey: eventsQueryKey,
     queryFn: fetchEvents,
     enabled: !!userId,
-    staleTime: 60000, // Cache results for 1 minute
+    staleTime: 30000, // Cache results for 30 seconds (reduced for real-time updates)
     gcTime: 300000, // Keep in cache for 5 minutes
     refetchOnWindowFocus: false,
   });

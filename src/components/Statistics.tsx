@@ -29,7 +29,7 @@ export const Statistics = () => {
   // Memoize userId for stable reference in dependencies
   const userId = useMemo(() => user?.id, [user?.id]);
   
-  // Optimized hook usage with proper dependencies
+  // Optimized hook usage with proper dependencies and real-time responsiveness
   const { taskStats, eventStats, isLoading } = useStatistics(userId, dateRange);
   const { combinedData, isLoading: isLoadingCRM } = useCRMData(userId, dateRange);
   const { exportToExcel } = useExcelExport();
@@ -56,31 +56,32 @@ export const Statistics = () => {
     return { total, withBooking, withoutBooking };
   }, [combinedData, dateRange]);
 
-  // Add effect to validate eventStats and totalIncome specifically
+  // Add effect to validate eventStats specifically
   useEffect(() => {
     if (eventStats) {
-      console.log("Statistics component - Raw eventStats:", { 
-        eventStats,
+      console.log("Statistics component - eventStats:", { 
+        totalEvents: eventStats.total,
+        partlyPaid: eventStats.partlyPaid,
+        fullyPaid: eventStats.fullyPaid,
+        totalIncome: eventStats.totalIncome,
         totalIncomeType: typeof eventStats.totalIncome,
-        totalIncomeValue: eventStats.totalIncome,
-        isNumber: typeof eventStats.totalIncome === 'number',
         isValidNumber: typeof eventStats.totalIncome === 'number' && !isNaN(eventStats.totalIncome)
       });
     }
   }, [eventStats]);
 
-  // Add effect for real-time updates of statistics when relevant data changes
+  // Configure automatic refresh interval - reduced to 30 seconds for more responsive updates
   useEffect(() => {
-    // Function to refresh data
+    // Function to refresh data - now with a more focused approach
     const refreshData = () => {
-      console.log("Refreshing statistics data");
+      console.log("Refreshing statistics data on interval");
+      // Use selective invalidation to minimize unnecessary refetches
       queryClient.invalidateQueries({ queryKey: ['taskStats'] });
       queryClient.invalidateQueries({ queryKey: ['eventStats'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] }); // Also refresh customer data
     };
 
-    // Set up periodic refresh every minute
-    const intervalId = setInterval(refreshData, 60000); // 1 minute
+    // Set up periodic refresh every 30 seconds
+    const intervalId = setInterval(refreshData, 30000);
 
     return () => {
       clearInterval(intervalId);
@@ -99,7 +100,7 @@ export const Statistics = () => {
     setDateRange({ start, end: end || start });
   }, []);
 
-  // Default task stats
+  // Default stats 
   const defaultTaskStats = useMemo(() => ({ 
     total: 0, 
     completed: 0, 
@@ -128,27 +129,6 @@ export const Statistics = () => {
   const chartData = useMemo(() => eventStats?.dailyStats || [], [eventStats?.dailyStats]);
   const incomeData = useMemo(() => eventStats?.monthlyIncome || [], [eventStats?.monthlyIncome]);
 
-  // Additional debugging to verify data
-  useEffect(() => {
-    if (eventStats) {
-      console.log("Statistics component - Displaying stats:", { 
-        total: eventStats.total,
-        partlyPaid: eventStats.partlyPaid,
-        fullyPaid: eventStats.fullyPaid,
-        totalIncome: eventStats.totalIncome
-      });
-    }
-  }, [eventStats]);
-
-  // Log customer stats and date range
-  useEffect(() => {
-    console.log("Statistics - Customer Stats for date range:", {
-      start: dateRange.start.toISOString().split('T')[0],
-      end: dateRange.end.toISOString().split('T')[0], 
-      stats: currentCustomerStats
-    });
-  }, [currentCustomerStats, dateRange.start, dateRange.end]);
-
   return (
     <div className="space-y-6">
       <StatsHeader 
@@ -173,16 +153,10 @@ export const Statistics = () => {
         </div>
       ) : (
         <>
-          {/* Log right before passing to StatsCards */}
-          {console.log("Before rendering StatsCards - currentEventStats:", {
-            totalIncome: eventStats.totalIncome,
-            type: typeof eventStats.totalIncome
-          })}
-          
           <StatsCards 
-            taskStats={taskStats} 
-            eventStats={eventStats}
-            customerStats={customerStats}
+            taskStats={currentTaskStats} 
+            eventStats={currentEventStats}
+            customerStats={currentCustomerStats}
           />
 
           <div className="grid gap-4 md:grid-cols-2">
