@@ -78,16 +78,20 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
         return { ...event, event_files: [] };
       }
       
-      const { data: files } = await supabase
-        .rpc('get_all_related_files', {
-          event_id_param: event.id,
-          customer_id_param: null,
-          entity_name_param: event.title || '' // Ensure title is never undefined
-        });
+      // Use direct query to event_files to ensure we only get files specifically linked to this event
+      const { data: eventFiles, error: eventFilesError } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', event.id);
+        
+      if (eventFilesError) {
+        console.error("Error fetching event files:", eventFilesError);
+        return { ...event, event_files: [] };
+      }
       
       return {
         ...event,
-        event_files: files || []
+        event_files: eventFiles || []
       };
     }));
 
@@ -130,31 +134,33 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     
     const combined = [];
     
-    // Create a map of customer titles to track which events are associated with existing customers
-    const customerTitleMap = new Map();
+    // Create a map of customer IDs to track which customers are included
+    const customerIdMap = new Map();
     
-    // Add all customers to the combined array and to the title map
+    // Add all customers to the combined array and to the ID map
     for (const customer of customers) {
       combined.push({
         ...customer,
         create_event: customer.create_event !== undefined ? customer.create_event : false
       });
       
-      // Add customer title to the map
-      customerTitleMap.set(customer.title, true);
+      // Add customer ID to the map
+      customerIdMap.set(customer.id, true);
     }
 
-    // Only add events that aren't already represented by a customer with the same title
+    // Only add events that aren't already represented by a customer (by ID or original ID)
     for (const event of events) {
-      // Skip events that have the same title as a customer (these were created from customers)
-      if (!customerTitleMap.has(event.title)) {
-        combined.push({
-          ...event,
-          id: `event-${event.id}`,
-          customer_files_new: event.event_files,
-          create_event: false // Add default create_event property
-        });
+      // Skip events that have an original customer ID that matches one of our customers
+      if (event.customer_id && customerIdMap.has(event.customer_id)) {
+        continue;
       }
+      
+      combined.push({
+        ...event,
+        id: `event-${event.id}`,
+        customer_files_new: event.event_files,
+        create_event: false // Add default create_event property
+      });
     }
     
     // Sort the combined data by created_at in descending order (newest first)

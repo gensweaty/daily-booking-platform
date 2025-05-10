@@ -75,6 +75,7 @@ export const TaskFormFields = ({
             onFileDeleted={handleFileDeleted}
             parentId={editingTask.id}
             parentType="task"
+            fallbackBuckets={["customer_attachments"]}
           />
         </div>
       )}

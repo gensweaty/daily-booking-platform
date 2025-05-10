@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink, FileText, FileSpreadsheet, PresentationIcon } from "lucide-react";
@@ -33,17 +34,19 @@ export const FileDisplay = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
-  // Create a robust file signature for deduplication
+  // Create a robust file signature for deduplication that includes customer_id or event_id
   const getFileSignature = (file: FileRecord): string => {
     const filePath = file.file_path || '';
     const filename = file.filename || '';
     const fileId = file.id || '';
     const eventId = file.event_id || '';
     const customerId = file.customer_id || '';
-    const source = file.source || '';
     
-    // Create a unique signature from multiple properties
-    return `${filename}_${getPathSegment(filePath)}_${source}_${eventId}_${customerId}_${fileId}`;
+    // Include owner ID (event_id or customer_id) in the signature to prevent cross-customer file mixing
+    const ownerId = eventId || customerId;
+    
+    // Create a unique signature that prioritizes ownership
+    return `${ownerId}_${filename}_${getPathSegment(filePath)}_${fileId}`;
   };
   
   // Get the last segment of the file path for better comparison
@@ -74,6 +77,8 @@ export const FileDisplay = ({
   const checkFileExistence = async (bucket: string, filePath: string): Promise<boolean> => {
     try {
       const normalizedPath = normalizeFilePath(filePath);
+      
+      // First try to get a signed URL - this will only work if the file exists
       const { data, error } = await supabase.storage
         .from(bucket)
         .createSignedUrl(normalizedPath, 5); // Short 5 second signed URL just to check existence
@@ -104,7 +109,7 @@ export const FileDisplay = ({
         if (!file.file_path) continue;
         
         const normalizedPath = normalizeFilePath(file.file_path);
-        const allBuckets = [bucketName, ...fallbackBuckets];
+        const allBuckets = [bucketName, ...fallbackBuckets, 'customer_attachments', 'event_attachments'];
         let foundBucket = null;
         
         // First try the primary bucket
@@ -168,10 +173,19 @@ export const FileDisplay = ({
       console.log(`Attempting to download file: ${fileName}, path: ${filePath}, fileId: ${fileId}, bucket: ${effectiveBucket}`);
       
       const normalizedPath = normalizeFilePath(filePath);
-      const directUrl = fileURLs[fileId] || 
-        `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
       
-      console.log('Using direct URL for download:', directUrl);
+      // Generate a signed URL instead of using direct URL
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from(effectiveBucket)
+        .createSignedUrl(normalizedPath, 60); // 1 minute expiry
+      
+      if (signedUrlError || !signedUrlData?.signedUrl) {
+        console.error("Error generating signed URL:", signedUrlError);
+        throw new Error("Failed to generate download URL");
+      }
+      
+      const directUrl = signedUrlData.signedUrl;
+      console.log('Using signed URL for download:', directUrl);
       
       // Force download using fetch to get the blob
       const response = await fetch(directUrl);
@@ -234,8 +248,21 @@ export const FileDisplay = ({
         throw new Error('File path is missing');
       }
       
-      const directUrl = getDirectFileUrl(filePath, fileId);
-      console.log('Opening file with direct URL:', directUrl);
+      // Generate a signed URL with longer expiry for better viewing experience
+      const effectiveBucket = validatedBuckets[fileId] || bucketName;
+      const normalizedPath = normalizeFilePath(filePath);
+      
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from(effectiveBucket)
+        .createSignedUrl(normalizedPath, 3600); // 1 hour expiry for viewing
+      
+      if (signedUrlError || !signedUrlData?.signedUrl) {
+        console.error("Error generating signed URL for viewing:", signedUrlError);
+        throw new Error("Failed to generate file URL");
+      }
+      
+      const directUrl = signedUrlData.signedUrl;
+      console.log('Opening file with signed URL:', directUrl);
       
       // Open in a new tab
       window.open(directUrl, '_blank', 'noopener,noreferrer');
@@ -336,7 +363,7 @@ export const FileDisplay = ({
           ? file.filename.substring(0, 20) + '...' 
           : file.filename;
         
-        // Use the validated bucket for this file
+        // Get validated bucket for this file
         const effectiveBucket = validatedBuckets[file.id] || bucketName;
         const normalizedPath = normalizeFilePath(file.file_path);
         const imageUrl = fileURLs[file.id] || 
@@ -348,6 +375,7 @@ export const FileDisplay = ({
           <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">
             <div className="p-3 flex items-center justify-between">
               <div className="flex items-center space-x-2 overflow-hidden">
+                {/* Use a proper thumbnail with fallback for images */}
                 {isImage(file.filename) ? (
                   <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                     <img 

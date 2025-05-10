@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,6 +11,8 @@ import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { getCurrencySymbol } from "@/lib/currency";
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface EventDialogFieldsProps {
   title: string;
@@ -72,10 +75,66 @@ export const EventDialogFields = ({
     t,
     language
   } = useLanguage();
+  const [loading, setLoading] = useState(false);
   const isGeorgian = language === 'ka';
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
   const currencySymbol = getCurrencySymbol(language);
+  
+  // Add state for customer-related files that need to be displayed
+  const [relatedFiles, setRelatedFiles] = useState<FileRecord[]>([]);
+  
+  // Load files created when event was created from a customer
+  useEffect(() => {
+    const loadRelatedFiles = async () => {
+      if (!eventId) return;
+      
+      setLoading(true);
+      try {
+        // Get the event details first to find original customer ID
+        const { data: event, error: eventError } = await supabase
+          .from('events')
+          .select('customer_id, title')
+          .eq('id', eventId)
+          .single();
+          
+        if (eventError) {
+          console.error("Error loading event for file relation:", eventError);
+          return;
+        }
+        
+        // If we have a customer ID or customer title, look for related files
+        if (event.customer_id) {
+          console.log("Found customer ID relation:", event.customer_id);
+          
+          // Find customer files directly related to this event's customer
+          const { data: customerFiles } = await supabase
+            .from('customer_files_new')
+            .select('*')
+            .eq('customer_id', event.customer_id);
+            
+          if (customerFiles && customerFiles.length > 0) {
+            console.log("Found customer files:", customerFiles.length);
+            setRelatedFiles(prev => [
+              ...prev,
+              ...customerFiles.map(file => ({ ...file, source: 'customer' }))
+            ]);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading related files:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (eventId) {
+      loadRelatedFiles();
+    }
+  }, [eventId]);
+  
+  // Merge displayedFiles and relatedFiles to show all
+  const allFiles = [...displayedFiles, ...relatedFiles];
   
   const georgianStyle = isGeorgian ? {
     fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
@@ -101,15 +160,6 @@ export const EventDialogFields = ({
       return "დაამატეთ შენიშვნები თქვენი ჯავშნის შესახებ";
     }
     return t("events.addEventNotes");
-  };
-  
-  // Helper function for Georgian placeholder text
-  const getGeorgianPlaceholder = (text: string) => {
-    if (isGeorgian) {
-      if (text === "events.fullName") return "სრული სახელი";
-      if (text === "events.phoneNumber") return "ტელეფონის ნომერი";
-    }
-    return t(text);
   };
   
   return <>
@@ -313,9 +363,9 @@ export const EventDialogFields = ({
         />
       </div>
       
-      {displayedFiles.length > 0 && <div className="flex flex-col gap-2">
+      {allFiles.length > 0 && <div className="flex flex-col gap-2">
           <FileDisplay 
-            files={displayedFiles} 
+            files={allFiles} 
             bucketName="event_attachments" 
             allowDelete={true} 
             onFileDeleted={onFileDeleted} 
