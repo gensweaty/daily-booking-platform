@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export type TranslationType = {
@@ -351,7 +352,7 @@ export type TranslationType = {
     new: string;
     request: string;
     requests: string;
-		backToHome: string;
+    backToHome: string;
     supportedFormats: string;
     deleteConfirmMessage: string;
     noDescription: string;
@@ -360,6 +361,7 @@ export type TranslationType = {
     authRequired: string;
     save: string;
     saving: string;
+    share: string;
   };
   auth: {
     welcome: string;

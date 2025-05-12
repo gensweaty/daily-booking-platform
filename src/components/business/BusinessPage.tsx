@@ -14,7 +14,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import QRCode from "qrcode.react"; // Fixed import statement
+import { QRCodeCanvas } from "qrcode.react"; // Fixed import statement
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   Dialog,
@@ -106,7 +106,7 @@ export const BusinessPage = () => {
       toast({
         title: t("common.success"),
         description: t("business.linkCopied"),
-        variant: "default", // Changed from "success" to "default"
+        variant: "default", // Using valid variant: "default" or "destructive"
       });
     }).catch((err) => {
       console.error("Failed to copy:", err);
@@ -139,7 +139,7 @@ export const BusinessPage = () => {
                   className="cursor-pointer relative group"
                   onClick={() => setQrDialogOpen(true)}
                 >
-                  <QRCode 
+                  <QRCodeCanvas 
                     value={publicUrl}
                     size={120}
                     bgColor={"#ffffff"}
@@ -201,7 +201,7 @@ export const BusinessPage = () => {
           <div className="flex flex-col items-center p-4">
             {publicUrl && (
               <>
-                <QRCode 
+                <QRCodeCanvas 
                   value={publicUrl}
                   size={250}
                   bgColor={"#ffffff"}
