@@ -209,10 +209,10 @@ export const BusinessPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Main header with business title and tabs in a single row */}
-      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <h1 className="text-2xl font-bold mr-6">
+      {/* Main header with business title, tabs and public page button in a single row */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold mr-4">
             {isGeorgian ? (
               <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
             ) : (
@@ -220,7 +220,7 @@ export const BusinessPage = () => {
             )}
           </h1>
           
-          {/* Tabs now on the same line as the heading */}
+          {/* Tabs on the same line as the heading */}
           <Tabs value={activeTab} onValueChange={handleTabChange} className="inline-flex">
             <TabsList className="bg-background/80 border rounded-lg p-1 shadow-sm">
               <TabsTrigger 
@@ -261,11 +261,11 @@ export const BusinessPage = () => {
 
       {/* Tab contents */}
       <div className="mt-6">
-        <TabsContent value="profile" className="space-y-6 m-0 p-0">
+        <TabsContent value="profile" className="m-0 p-0">
           <BusinessProfileForm />
         </TabsContent>
 
-        <TabsContent value="bookings" className="space-y-6 m-0 p-0">
+        <TabsContent value="bookings" className="m-0 p-0">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold">
