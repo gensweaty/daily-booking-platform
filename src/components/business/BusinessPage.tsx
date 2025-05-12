@@ -210,6 +210,23 @@ export const BusinessPage = () => {
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6">
+        <h1 className="text-2xl font-bold">
+          {isGeorgian ? (
+            <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
+          ) : (
+            <LanguageText>{t("business.myBusiness")}</LanguageText>
+          )}
+        </h1>
+        
+        {/* Move the QR code section up here to align with the heading */}
+        {publicUrl && (
+          <div className={isMobile ? "w-full mt-4" : "min-w-[180px]"}>
+            {renderViewPublicPageButton()}
+          </div>
+        )}
+      </div>
+      
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6 bg-background/80 border rounded-lg p-1 shadow-sm">
           <TabsTrigger 
@@ -239,24 +256,6 @@ export const BusinessPage = () => {
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">
-              {isGeorgian ? (
-                <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
-              ) : (
-                <LanguageText>{t("business.myBusiness")}</LanguageText>
-              )}
-            </h1>
-            {!isMobile && publicUrl && renderViewPublicPageButton()}
-          </div>
-          
-          {/* View Public Page button and QR code for mobile - positioned below heading */}
-          {isMobile && publicUrl && (
-            <div className="w-full mb-6">
-              {renderViewPublicPageButton()}
-            </div>
-          )}
-
           <BusinessProfileForm />
         </TabsContent>
 
@@ -276,13 +275,6 @@ export const BusinessPage = () => {
                 </div>
               )}
             </div>
-            
-            {/* View Public Page button - moved up to be aligned with heading */}
-            {publicUrl && (
-              <div className={isMobile ? "w-full" : "min-w-[180px]"}>
-                {renderViewPublicPageButton()}
-              </div>
-            )}
           </div>
 
           <div className="space-y-8 mt-4">
