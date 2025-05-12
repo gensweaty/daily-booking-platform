@@ -94,7 +94,7 @@ export const DashboardContent = ({
           </motion.div>
           <span className="hidden sm:inline">
             {isGeorgian ? (
-              <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტიკა</GeorgianAuthText>
+              <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტ���კა</GeorgianAuthText>
             ) : (
               <LanguageText>{t("dashboard.statistics")}</LanguageText>
             )}

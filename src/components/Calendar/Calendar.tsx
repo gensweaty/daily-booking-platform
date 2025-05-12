@@ -251,7 +251,7 @@ export const Calendar = ({
     
     toast.event.bookingSubmitted();
   };
-
+  
   if (error && !directEvents) {
     console.error("Calendar error:", error);
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;

@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import {
   type ToastActionElement,
@@ -243,6 +242,18 @@ toast.event = {
   deleted: () => createToast({
     title: "Event Deleted",
     description: "Event deleted successfully",
+  }),
+  // Add missing bookingSubmitted method
+  bookingSubmitted: () => createToast({
+    title: "Booking Request Submitted",
+    description: "Your booking request has been submitted successfully",
+  }),
+  // Add missing newBookingRequest method
+  newBookingRequest: (count: number = 1) => createToast({
+    title: "New Booking Request",
+    description: count === 1 
+      ? "You have a new booking request"
+      : `You have ${count} new booking requests`,
   }),
 }
 

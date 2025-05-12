@@ -315,7 +315,7 @@ export const EventDialog = ({
       if (!isBookingEvent) {
         // Replace hardcoded toast messages with translation keys
         toast({
-          translateKeys: {
+          translateParams: {
             titleKey: "common.success",
             descriptionKey: event?.id ? "events.eventUpdated" : "events.eventCreated"
           }
@@ -368,7 +368,7 @@ export const EventDialog = ({
     } catch (error: any) {
       console.error('Error handling event submission:', error);
       toast({
-        translateKeys: {
+        translateParams: {
           titleKey: "common.error",
           descriptionKey: "common.errorOccurred"
         }
