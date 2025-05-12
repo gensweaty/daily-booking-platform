@@ -27,7 +27,6 @@ export const BusinessPage = () => {
   const pendingCount = pendingRequests?.length || 0;
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');
-  // Add state for QR code dialog
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
 
   const { data: businessProfile, isLoading } = useQuery({
@@ -210,16 +209,46 @@ export const BusinessPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Main header with business title and view public page button */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <div className="flex items-center">
-          <h1 className="text-2xl font-bold">
+      {/* Main header with business title and tabs in a single row */}
+      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <h1 className="text-2xl font-bold mr-6">
             {isGeorgian ? (
               <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
             ) : (
               <LanguageText>{t("business.myBusiness")}</LanguageText>
             )}
           </h1>
+          
+          {/* Tabs now on the same line as the heading */}
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="inline-flex">
+            <TabsList className="bg-background/80 border rounded-lg p-1 shadow-sm">
+              <TabsTrigger 
+                value="profile" 
+                className="data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
+              >
+                {isGeorgian ? (
+                  <GeorgianAuthText>ბიზნეს პროფილი</GeorgianAuthText>
+                ) : (
+                  <LanguageText>{t("business.businessProfile")}</LanguageText>
+                )}
+              </TabsTrigger>
+              <TabsTrigger 
+                value="bookings" 
+                className="relative data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
+              >
+                <LanguageText>{t("business.bookingRequests")}</LanguageText>
+                {pendingCount > 0 && (
+                  <Badge 
+                    variant="orange" 
+                    className="absolute -top-2 -right-2 flex items-center justify-center h-5 min-w-5 p-0 text-xs"
+                  >
+                    {pendingCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
         
         {/* View Public Page button and QR Code section */}
@@ -229,41 +258,14 @@ export const BusinessPage = () => {
           </div>
         )}
       </div>
-      
-      {/* Tabs positioned directly below header, aligned with content */}
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="mb-6 bg-background/80 border rounded-lg p-1 shadow-sm">
-          <TabsTrigger 
-            value="profile" 
-            className="data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
-          >
-            {isGeorgian ? (
-              <GeorgianAuthText>ბიზნეს პროფილი</GeorgianAuthText>
-            ) : (
-              <LanguageText>{t("business.businessProfile")}</LanguageText>
-            )}
-          </TabsTrigger>
-          <TabsTrigger 
-            value="bookings" 
-            className="relative data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
-          >
-            <LanguageText>{t("business.bookingRequests")}</LanguageText>
-            {pendingCount > 0 && (
-              <Badge 
-                variant="orange" 
-                className="absolute -top-2 -right-2 flex items-center justify-center h-5 min-w-5 p-0 text-xs"
-              >
-                {pendingCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
 
-        <TabsContent value="profile" className="space-y-6">
+      {/* Tab contents */}
+      <div className="mt-6">
+        <TabsContent value="profile" className="space-y-6 m-0 p-0">
           <BusinessProfileForm />
         </TabsContent>
 
-        <TabsContent value="bookings" className="space-y-6">
+        <TabsContent value="bookings" className="space-y-6 m-0 p-0">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold">
@@ -321,7 +323,7 @@ export const BusinessPage = () => {
             </div>
           </div>
         </TabsContent>
-      </Tabs>
+      </div>
     </div>
   );
 };
