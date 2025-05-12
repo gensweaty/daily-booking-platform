@@ -1,4 +1,3 @@
-
 import { BusinessProfileForm } from "./BusinessProfileForm";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -9,13 +8,15 @@ import { Button } from "@/components/ui/button";
 import { BookingRequestsList } from "./BookingRequestsList";
 import { useBookingRequests } from "@/hooks/useBookingRequests";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, ExternalLink, QrCode } from "lucide-react";
+import { MessageSquare, ExternalLink, QrCode, Share } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import QRCode from "qrcode.react"; // Fixed import statement
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
+import { toast } from "@/components/ui/use-toast";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
@@ -25,6 +26,8 @@ export const BusinessPage = () => {
   const pendingCount = pendingRequests?.length || 0;
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');
+  // Add state for QR code dialog
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
 
   const { data: businessProfile, isLoading } = useQuery({
     queryKey: ["businessProfile", user?.id],
@@ -65,6 +68,42 @@ export const BusinessPage = () => {
     }
   };
 
+  // Share handler for the QR code
+  const handleShare = async () => {
+    if (!publicUrl) return;
+    
+    // Use Web Share API if available
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: businessProfile?.business_name || "Business Profile",
+          text: isGeorgian ? "გთხოვთ იხილოთ ჩემი ჯავშნის გვერდი:" : "Please visit my booking page:",
+          url: publicUrl
+        });
+      } catch (err) {
+        console.error("Error sharing:", err);
+        // Fallback to clipboard if share fails
+        copyToClipboard();
+      }
+    } else {
+      // Fallback to clipboard if Web Share API not available
+      copyToClipboard();
+    }
+  };
+
+  // Helper function to copy to clipboard
+  const copyToClipboard = () => {
+    if (!publicUrl) return;
+    
+    navigator.clipboard.writeText(publicUrl).then(() => {
+      toast({
+        title: isGeorgian ? "ლინკი დაკოპირდა!" : "Link copied to clipboard!"
+      });
+    }).catch(err => {
+      console.error("Error copying to clipboard:", err);
+    });
+  };
+
   // Helper function for the View Public Page button
   const renderViewPublicPageButton = () => {
     if (!publicUrl) return null;
@@ -84,27 +123,75 @@ export const BusinessPage = () => {
           <div className="text-sm text-gray-500 mb-2">
             <LanguageText>{t("business.scanQrCode")}</LanguageText>
           </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="cursor-pointer">
-                  <QRCode 
-                    value={publicUrl}
-                    size={120}
-                    bgColor={"#ffffff"}
-                    fgColor={"#000000"}
-                    level={"L"}
-                    includeMargin={false}
-                    className="rounded-md"
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p><LanguageText>{t("business.qrCodeTooltip")}</LanguageText></p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          
+          {/* QR Code with click to open dialog */}
+          <div 
+            onClick={() => setQrDialogOpen(true)}
+            className="cursor-pointer transition-all hover:opacity-90"
+          >
+            <QRCode 
+              value={publicUrl}
+              size={120}
+              bgColor={"#ffffff"}
+              fgColor={"#000000"}
+              level={"L"}
+              includeMargin={false}
+              className="rounded-md"
+            />
+          </div>
+          
+          {/* Share button below QR code */}
+          <Button
+            onClick={handleShare}
+            variant="secondary" 
+            className="mt-2 w-full flex items-center justify-center gap-2"
+          >
+            <Share className="h-4 w-4" />
+            {isGeorgian ? (
+              <span>გაზიარება</span>
+            ) : (
+              <LanguageText>{t("common.share")}</LanguageText>
+            )}
+          </Button>
         </div>
+        
+        {/* Dialog for enlarged QR code */}
+        <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+          <DialogContent className="sm:max-w-md p-6">
+            <div className="flex flex-col items-center justify-center">
+              <h3 className="text-lg font-medium mb-4">
+                {isGeorgian ? (
+                  "დაასკანერეთ QR კოდი"
+                ) : (
+                  <LanguageText>{t("business.scanQrCode")}</LanguageText>
+                )}
+              </h3>
+              <div className="bg-white p-4 rounded-md">
+                <QRCode 
+                  value={publicUrl}
+                  size={240} // 2x the original size
+                  bgColor={"#ffffff"}
+                  fgColor={"#000000"}
+                  level={"L"}
+                  includeMargin={false}
+                  className="rounded-md"
+                />
+              </div>
+              <Button
+                onClick={handleShare}
+                variant="secondary" 
+                className="mt-4 flex items-center justify-center gap-2"
+              >
+                <Share className="h-4 w-4" />
+                {isGeorgian ? (
+                  <span>გაზიარება</span>
+                ) : (
+                  <LanguageText>{t("common.share")}</LanguageText>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   };
