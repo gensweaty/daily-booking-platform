@@ -357,7 +357,7 @@ export type TranslationType = {
     new: string;
     request: string;
     requests: string;
-		backToHome: string;
+    backToHome: string;
     supportedFormats: string;
     deleteConfirmMessage: string;
     noDescription: string;

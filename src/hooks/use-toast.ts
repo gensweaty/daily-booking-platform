@@ -20,6 +20,10 @@ export type ToastOptions = Partial<
   Pick<ToasterToast, "id" | "title" | "description" | "action" | "variant" | "duration">
 > & {
   translateParams?: Record<string, string | number>;
+  translateKeys?: {
+    titleKey?: string;
+    descriptionKey?: string;
+  };
 };
 
 // Create unique toast ID
@@ -107,7 +111,7 @@ function toastReducer(state: State, action: Action): State {
   }
 }
 
-// Toast hook
+// Toast hook implementation
 export function useToast() {
   const [state, dispatch] = React.useReducer(toastReducer, {
     toasts: [],
@@ -131,12 +135,27 @@ export function useToast() {
     // Base toast function
     const baseToastFn = (opts: ToastOptions) => {
       const id = opts.id || genId();
+      
+      // Handle translation keys if provided
+      let title = opts.title;
+      let description = opts.description;
+      
+      if (opts.translateKeys) {
+        if (opts.translateKeys.titleKey) {
+          title = t(opts.translateKeys.titleKey);
+        }
+        
+        if (opts.translateKeys.descriptionKey) {
+          description = t(opts.translateKeys.descriptionKey);
+        }
+      }
+      
       const update = state.toasts.find((t) => t.id === id);
 
       if (update) {
         dispatch({
           type: actionTypes.UPDATE_TOAST,
-          toast: { ...opts, id },
+          toast: { ...opts, id, title, description },
         });
       } else {
         dispatch({
@@ -144,6 +163,8 @@ export function useToast() {
           toast: {
             ...opts,
             id,
+            title,
+            description,
             open: true,
             onOpenChange: (open) => {
               if (!open) {

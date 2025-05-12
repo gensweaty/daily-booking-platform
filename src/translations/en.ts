@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 // Define English translations
@@ -205,7 +206,9 @@ const en: TranslationType = {
     shareQRCode: "Share QR Code",
     shareViaSocial: "Share via social media",
     viewLargerQRCode: "View larger QR code",
-    copiedToClipboard: "QR code link copied to clipboard"
+    copiedToClipboard: "QR code link copied to clipboard",
+    share: "Share",
+    shareSuccess: "Link copied to clipboard"
   },
   dashboard: {
     welcome: "Welcome back",
@@ -264,6 +267,9 @@ const en: TranslationType = {
     fullNameRequired: "Full Name Required",
     fullName: "Full Name",
     phoneNumber: "Phone Number",
+    phoneNumberRequired: "Phone Number Required",
+    validEmailRequired: "Valid Email Required",
+    validDatesRequired: "Valid Dates Required",
     paymentStatus: "Payment Status",
     selectPaymentStatus: "Select payment status",
     paymentAmount: "Payment Amount",
@@ -361,7 +367,8 @@ const en: TranslationType = {
     successMessage: "Operation completed successfully",
     authRequired: "Authentication required",
     save: "Save",
-    saving: "Saving..."
+    saving: "Saving...",
+    shareQRCode: "Share QR Code"
   },
   auth: {
     welcome: "Welcome to SmartBookly",
@@ -445,7 +452,7 @@ const en: TranslationType = {
     requestDeleted: "Booking request deleted",
     newRequest: "New Booking Request",
     pendingRequestsCount: "You have {{count}} new booking requests pending",
-    requestApproved: "Booking request approved and email sent",
+    requestApproved: "Booking request approved",
     requestSubmitted: "Booking request submitted",
     requestSubmittedDescription: "Your booking request has been submitted and is pending approval."
   },
