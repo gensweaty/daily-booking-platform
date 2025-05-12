@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const ka: TranslationType = {
@@ -54,7 +53,7 @@ export const ka: TranslationType = {
     endDateTime: "დასრულების თარიღი და დრო",
     eventNotes: "შენიშვნები",
     addEventNotes: "დაამატეთ შენიშვნები თქვენს ჯავშანზე",
-    editEvent: "ჯავშნის რედაქტირება", // Fixed the Georgian text
+    editEvent: "ჯავშნის რედაქტირე��ა", // Fixed the Georgian text
     addNewEvent: "ახალი ჯავშნის დამატება",
     updateEvent: "ჯავშნის განახლება",
     createEvent: "ჯავშნის შექმნა",
@@ -148,7 +147,7 @@ export const ka: TranslationType = {
     copyError: "შეცდომა ტექსტის კოპირებისას",
     deleteSuccess: "წარმატებით წაიშალა",
     deleteError: "შეცდომა წაშლისას",
-    missingUserInfo: "აკლია მომხმარებლის ინფორმაციი",
+    missingUserInfo: "აკლია მომხმარებლის ინფორმაცი���",
     noDataToExport: "არ არის მონაცემები ექსპორტისთვის",
     error: "შეცდომა"
   },
@@ -182,7 +181,7 @@ export const ka: TranslationType = {
     tasks: "დავალებები",
     reminders: "შეხსენებები",
     notes: "შენიშვნები",
-    business: "ბიზნესი",
+    business: "ბიზნესის მართვა",
     stats: "სტატისტიკა",
     statistics: "სტატისტიკა",
     crm: "მომხმარებლების მართვა",
@@ -214,7 +213,7 @@ export const ka: TranslationType = {
     eventStatistics: "ღონისძიებების სტატისტიკა",
     financialSummary: "ფინანსური შეჯამება",
     summaryStatistics: "შეჯამების სტატისტიკა",
-    eventsData: "ღონიძიებების მონაცემები",
+    eventsData: "ღონიძიებები�� მონაცემები",
     totalCustomers: "სულ მომხმარებლები",
     withBooking: "ჯავშნით",
     withoutBooking: "ჯავშნის გარეშე"
@@ -256,7 +255,7 @@ export const ka: TranslationType = {
     requestSubmittedDescription: "თქვენი ჯავშნის მოთხოვნა გაგზავნილია და ელოდება დამტკიცებას",
     yourEmailPlaceholder: "შეიყვანეთ თქვენი ელ-ფოსტა",
     bookAppointment: "დაჯავშნე შეხვედრა",
-    requestApproved: "ჯავშნის მოთხოვნა დამტკიცებულია",
+    requestApproved: "ჯავშნის მოთხოვ���ა დამტკიცებულია",
     newRequest: "ხალი ჯავშნის მოთხოვნა"
   },
   analytics: {
@@ -289,7 +288,7 @@ export const ka: TranslationType = {
     description: "ბიზნესის მართვის პლატფორმა სერვისის მიმწოდებლებისთვის",
     navigation: "ნავიგაცია",
     legal: "სამართლებრივი",
-    termsAndPrivacy: "პირობები და კონფიდენციალურობა",
+    termsAndPrivacy: "პირობები და კონფიდენცია",
     rights: "ყველა უფლება დაცულია"
   },
   business: {
@@ -302,7 +301,7 @@ export const ka: TranslationType = {
     eventsDesc: "ღონისძიებების დამგეგმავები, შემსრულებლები, ვენები და სხვა",
     healthDesc: "ექიმები, თერაპევტები, კეთილდღეობის მწვრთნელები",
     sportsDesc: "პირადი მწვრთნელები, სპორტის მწვრთნელები, ფიტნეს ცენტრები",
-    beautyDesc: "სალონები, სტილისტები, სპა ცენტრები",
+    beautyDesc: "სალონები, სტილისტე���ი, სპა ცენტრები",
     personalDesc: "ონსულტანტები, ფოტოგრაფები, სახლის მომსახურება",
     educationDesc: "მასწავლებლები, რეპეტიტორები, ტრენერები, ვორქშოპები",
     myBusiness: "ჩემი ბიზნესი",
@@ -326,8 +325,12 @@ export const ka: TranslationType = {
     notFound: "ბიზნესი ვერ მოიძებნა",
     notFoundDescription: "სამწუხაროდ, ვერ ვიპოვეთ ბიზნესი ამ URL-ით. გთხოვთ, შეამოწმოთ URL და სცადოთ ხელახლა.",
     viewPublicPage: "საჯარო გვერდის ნახვა",
-    scanQrCode: "დაასკანერეთ QR კოდი", // Added translation for scanning QR code
-    qrCodeTooltip: "გაუზიარე ეს QR კოდი შენს მომხმარებლებს", // Added tooltip translation
+    scanQrCode: "დაასკანერეთ QR კოდი",
+    qrCodeTooltip: "გაუზიარე ეს QR კოდი შენს მომხმარებლებს",
+    shareQRCode: "გაზიარება",
+    shareViaSocial: "გააზიარეთ QR კოდი",
+    viewLargerQRCode: "QR კოდი",
+    copiedToClipboard: "ბმული დაკოპირებულია",
     customer: "მომხმარებელი",
     title: "სათაური",
     dateTime: "თარიღი და დრო",
@@ -390,7 +393,7 @@ export const ka: TranslationType = {
     signingIn: "შესვლა...",
     signingUp: "რეგისტრაცია...",
     loading: "იტვირთება...",
-    enterEmail: "შეიყვანეთ თქვენი ელ-ფოსტა",
+    enterEmail: "შეიყვანეთ თქვენი ელ-ფ��სტა",
     redeemCode: "გამოსყიდვის კოდი",
     redeemCodeOptional: "გამოსყიდვის კოდი (არასავალდებულო)",
     enterRedeemCode: "შეიყვანეთ თქვენი გამოსყიდვის კოდი",
@@ -438,7 +441,7 @@ export const ka: TranslationType = {
   legal: {
     title: "წესები და კონფიდენციალურობის პოლიტიკა",
     lastUpdated: "ბოლოს განახლდა: {{date}}",
-    termsOfService: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში. ეს მომსახურების პირობები ('პირობები') არეგულირებს ჩვენი SaaS პლატფორმისა და სერვისების ('სერვისები') გამოყენებას. ჩვენი სერვისების წვდომით ან გამოყენებით თქვენ ეთანხმებით ამ პირობებს. თუ არ ეთანხმებით, გთხოვთ, არ გამოიყენოთ ჩვენი სერვისები.",
+    termsOfService: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში. ეს მომსახურების პირობები ('პირობები') არეგულირებს ჩვენი SaaS პლატფორ��ისა და სერვისების ('სერვისები') გამოყენებას. ჩვენი სერვისების წვდომით ან გამოყენებით თქვენ ეთანხმებით ამ პირობებს. თუ არ ეთანხმებით, გთხოვთ, არ გამოიყენოთ ჩვენი სერვისები.",
     welcomeText: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში. ეს მომსახურების პირობები ('პირობები') არეგულირებს ჩვენი SaaS პლატფორმისა და სერვისების ('სერვისები') გამოყენებას.",
     generalInfo: {
       title: "1. ზოგადი ინფორმაცია",

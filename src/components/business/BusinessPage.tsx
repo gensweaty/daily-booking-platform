@@ -9,13 +9,15 @@ import { Button } from "@/components/ui/button";
 import { BookingRequestsList } from "./BookingRequestsList";
 import { useBookingRequests } from "@/hooks/useBookingRequests";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, ExternalLink, QrCode } from "lucide-react";
+import { MessageSquare, ExternalLink, QrCode, Share } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import QRCode from "qrcode.react"; // Fixed import statement
+import QRCode from "qrcode.react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useShareUrl } from "@/hooks/useShareUrl";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
@@ -25,6 +27,8 @@ export const BusinessPage = () => {
   const pendingCount = pendingRequests?.length || 0;
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const { shareUrl, isSharing } = useShareUrl();
 
   const { data: businessProfile, isLoading } = useQuery({
     queryKey: ["businessProfile", user?.id],
@@ -65,6 +69,16 @@ export const BusinessPage = () => {
     }
   };
 
+  // Handle share button click
+  const handleShare = async () => {
+    if (publicUrl) {
+      await shareUrl(
+        publicUrl, 
+        businessProfile?.business_name || t('business.myBusiness')
+      );
+    }
+  };
+
   // Helper function for the View Public Page button
   const renderViewPublicPageButton = () => {
     if (!publicUrl) return null;
@@ -87,7 +101,10 @@ export const BusinessPage = () => {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="cursor-pointer">
+                <div 
+                  className="cursor-pointer relative" 
+                  onClick={() => setQrDialogOpen(true)}
+                >
                   <QRCode 
                     value={publicUrl}
                     size={120}
@@ -95,8 +112,11 @@ export const BusinessPage = () => {
                     fgColor={"#000000"}
                     level={"L"}
                     includeMargin={false}
-                    className="rounded-md"
+                    className="rounded-md hover:opacity-90 transition-opacity"
                   />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 hover:bg-opacity-10 rounded-md transition-all">
+                    <QrCode className="h-6 w-6 text-transparent hover:text-black/50" />
+                  </div>
                 </div>
               </TooltipTrigger>
               <TooltipContent>
@@ -104,6 +124,20 @@ export const BusinessPage = () => {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+          
+          <Button 
+            variant="info"
+            onClick={handleShare}
+            className="mt-2 flex items-center gap-2 w-full"
+            disabled={isSharing}
+          >
+            {isGeorgian ? (
+              <GeorgianAuthText>{t("business.shareQRCode")}</GeorgianAuthText>
+            ) : (
+              <LanguageText>{t("business.shareQRCode")}</LanguageText>
+            )}
+            <Share className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     );
@@ -245,6 +279,49 @@ export const BusinessPage = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* QR Code Dialog */}
+      <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+        <DialogContent className="sm:max-w-md flex flex-col items-center">
+          <DialogTitle className="text-center mb-4">
+            <LanguageText>{t("business.viewLargerQRCode")}</LanguageText>
+          </DialogTitle>
+          
+          {publicUrl && (
+            <>
+              <div className="p-4 bg-white rounded-lg border mb-4">
+                <QRCode 
+                  value={publicUrl}
+                  size={250}
+                  bgColor={"#ffffff"}
+                  fgColor={"#000000"}
+                  level={"L"}
+                  includeMargin={false}
+                  className="rounded-md"
+                />
+              </div>
+              
+              <Button 
+                variant="info"
+                onClick={handleShare}
+                className="flex items-center gap-2"
+                disabled={isSharing}
+              >
+                {isGeorgian ? (
+                  <GeorgianAuthText>{t("business.shareQRCode")}</GeorgianAuthText>
+                ) : (
+                  <LanguageText>{t("business.shareQRCode")}</LanguageText>
+                )}
+                <Share className="h-4 w-4" />
+              </Button>
+              
+              <div className="text-sm text-center mt-2 text-gray-500">
+                <p className="break-all">{publicUrl}</p>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -200,6 +200,10 @@ export type TranslationType = {
     contactInformation: string;
     scanQrCode: string;
     qrCodeTooltip: string;
+    shareQRCode: string;
+    shareViaSocial: string;
+    viewLargerQRCode: string;
+    copiedToClipboard: string;
   };
   dashboard: {
     welcome: string;
