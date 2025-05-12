@@ -125,7 +125,7 @@ export const es: TranslationType = {
       "Obtén un sitio web profesional de reservas para tu negocio sin ningún código.",
     feature1: "Diseño profesional",
     feature2: "Adaptable a móviles",
-    feature3: "Listado de servicios",
+    feature3: "Reservas con código QR",
     feature4: "Integración de reservas en línea",
     feature5: "Aprobación de citas por correo electrónico",
   },

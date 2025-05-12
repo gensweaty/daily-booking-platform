@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 // Define English translations
@@ -126,7 +127,7 @@ const en: TranslationType = {
       "Get a professional booking website for your business without any code.",
     feature1: "Professional design",
     feature2: "Mobile responsive",
-    feature3: "Service listings",
+    feature3: "Bookings with QR code",
     feature4: "Online booking integration",
     feature5: "Email appointment approval",
   },
