@@ -1,3 +1,4 @@
+
 import { BusinessProfileForm } from "./BusinessProfileForm";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -260,7 +261,8 @@ export const BusinessPage = () => {
         </TabsContent>
 
         <TabsContent value="bookings" className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
+          {/* Adjusted negative margin here for the header section to move it up */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 -mt-2">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold">
                 <LanguageText>{t("business.bookingRequests")}</LanguageText>
@@ -291,9 +293,10 @@ export const BusinessPage = () => {
             )}
           </div>
 
-          <div className="space-y-8">
+          {/* Reduced vertical spacing here by changing space-y-8 to space-y-4 and reducing mb-4 to mb-2 */}
+          <div className="space-y-4 -mt-1">
             <div>
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
                 {renderSectionHeading("business.pendingRequests")} 
                 <Badge variant="orange" className="ml-2">({pendingRequests.length})</Badge>
               </h2>
@@ -307,7 +310,7 @@ export const BusinessPage = () => {
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
                 {renderSectionHeading("business.approvedRequests")}
                 <Badge variant="green" className="ml-2">({approvedRequests.length})</Badge>
               </h2>
@@ -319,7 +322,7 @@ export const BusinessPage = () => {
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
                 {renderSectionHeading("business.rejectedRequests")}
                 <Badge variant="destructive" className="ml-2">({rejectedRequests.length})</Badge>
               </h2>
