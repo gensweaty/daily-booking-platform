@@ -1,14 +1,6 @@
-import { type } from 'os';
-
 export type Language = 'en' | 'es' | 'ka';
 
-export interface LanguageContextType {
-  language: Language;
-  setLanguage: (lang: Language) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
-}
-
-export interface TranslationType {
+export type TranslationType = {
   nav: {
     signin: string;
     startJourney: string;
@@ -206,6 +198,8 @@ export interface TranslationType {
     availableTimes: string;
     clickToRequest: string;
     contactInformation: string;
+    scanQrCode: string;
+    qrCodeTooltip: string;
   };
   dashboard: {
     welcome: string;
@@ -353,7 +347,7 @@ export interface TranslationType {
     new: string;
     request: string;
     requests: string;
-    backToHome: string;
+		backToHome: string;
     supportedFormats: string;
     deleteConfirmMessage: string;
     noDescription: string;
@@ -415,6 +409,26 @@ export interface TranslationType {
     checkEmailFolders: string;
     signOutSuccess: string;
   };
+  legal: {
+    title: string;
+    lastUpdated: string;
+    termsOfService: string;
+    welcomeText: string;
+    generalInfo: {
+      title: string;
+      companyName: string;
+      registered: string;
+      contact: string;
+    };
+    eligibility: {
+      title: string;
+      description: string;
+    };
+    accountSecurity: {
+      title: string;
+      requirements: string[];
+    };
+  };
   bookings: {
     approvedBooking: string;
     requestRejected: string;
@@ -440,24 +454,10 @@ export interface TranslationType {
   reminders: {
     reminderCreated: string;
   };
-  legal: {
-    title: string;
-    lastUpdated: string;
-    termsOfService: string;
-    welcomeText: string;
-    generalInfo: {
-      title: string;
-      companyName: string;
-      registered: string;
-      contact: string;
-    };
-    eligibility: {
-      title: string;
-      description: string;
-    };
-    accountSecurity: {
-      title: string;
-      requirements: string[];
-    };
-  };
-}
+};
+
+export type LanguageContextType = {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
+};

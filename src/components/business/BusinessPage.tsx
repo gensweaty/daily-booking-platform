@@ -9,11 +9,13 @@ import { Button } from "@/components/ui/button";
 import { BookingRequestsList } from "./BookingRequestsList";
 import { useBookingRequests } from "@/hooks/useBookingRequests";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, ExternalLink } from "lucide-react";
+import { MessageSquare, ExternalLink, QrCode } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { QRCode } from "qrcode.react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
@@ -68,14 +70,42 @@ export const BusinessPage = () => {
     if (!publicUrl) return null;
     
     return (
-      <Button 
-        variant="info"
-        onClick={() => window.open(publicUrl, '_blank')}
-        className="flex items-center gap-2"
-      >
-        <LanguageText>{t("business.viewPublicPage")}</LanguageText>
-        <ExternalLink className="h-4 w-4" />
-      </Button>
+      <div className="flex flex-col gap-4">
+        <Button 
+          variant="info"
+          onClick={() => window.open(publicUrl, '_blank')}
+          className="flex items-center gap-2 w-full"
+        >
+          <LanguageText>{t("business.viewPublicPage")}</LanguageText>
+          <ExternalLink className="h-4 w-4" />
+        </Button>
+        
+        <div className="flex flex-col items-center justify-center p-2 bg-white rounded-lg border">
+          <div className="text-sm text-gray-500 mb-2">
+            <LanguageText>{t("business.scanQrCode")}</LanguageText>
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="cursor-pointer">
+                  <QRCode 
+                    value={publicUrl}
+                    size={120}
+                    bgColor={"#ffffff"}
+                    fgColor={"#000000"}
+                    level={"L"}
+                    includeMargin={false}
+                    className="rounded-md"
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p><LanguageText>{t("business.qrCodeTooltip")}</LanguageText></p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </div>
     );
   };
 
@@ -129,8 +159,15 @@ export const BusinessPage = () => {
                 <LanguageText>{t("business.myBusiness")}</LanguageText>
               )}
             </h1>
-            {renderViewPublicPageButton()}
+            {!isMobile && publicUrl && renderViewPublicPageButton()}
           </div>
+          
+          {/* View Public Page button and QR code for mobile - positioned below heading */}
+          {isMobile && publicUrl && (
+            <div className="w-full mb-6">
+              {renderViewPublicPageButton()}
+            </div>
+          )}
 
           <BusinessProfileForm />
         </TabsContent>
@@ -154,11 +191,17 @@ export const BusinessPage = () => {
             
             {/* View Public Page button for mobile - positioned below heading */}
             {isMobile && publicUrl && (
-              <div className="w-full mt-3 mb-2">{renderViewPublicPageButton()}</div>
+              <div className="w-full mt-3 mb-2">
+                {renderViewPublicPageButton()}
+              </div>
             )}
             
             {/* View Public Page button for desktop - positioned to the right */}
-            {!isMobile && publicUrl && renderViewPublicPageButton()}
+            {!isMobile && publicUrl && (
+              <div className="min-w-[180px]">
+                {renderViewPublicPageButton()}
+              </div>
+            )}
           </div>
 
           <div className="space-y-8">
