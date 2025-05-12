@@ -22,6 +22,19 @@ const calendarViews = [{
   customPadding: "p-4" // Adding padding to third image
 }];
 
+// Added new website carousel views
+const websiteViews = [{
+  src: "/lovable-uploads/70d5dbd5-33c5-4a79-8e5d-f70268175828.png",
+  alt: "Business Website",
+  customStyle: "object-contain",
+  customPadding: "p-4"
+}, {
+  src: "/lovable-uploads/a9fa8d9c-3592-47b2-b89b-be6a4e04a6a1.png",
+  alt: "Business Page with QR Code",
+  customStyle: "object-contain",
+  customPadding: "p-4"
+}];
+
 import { FeatureCard } from "./FeatureCard";
 
 export const FeatureSection = () => {
@@ -32,7 +45,7 @@ export const FeatureSection = () => {
     icon: Globe,
     title: t('website.title'),
     description: t('website.description'),
-    image: "/lovable-uploads/70d5dbd5-33c5-4a79-8e5d-f70268175828.png",
+    carousel: websiteViews, // Changed from image to carousel
     benefits: [t('website.feature1'), t('website.feature2'), t('website.feature3'), t('website.feature4'), t('website.feature5')],
     translationPrefix: 'website' as const,
     id: "booking-website",
