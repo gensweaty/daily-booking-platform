@@ -1,3 +1,4 @@
+
 import { Calendar, ChartBar, ListTodo, Users, Globe } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ClientLogos } from "./ClientLogos";
@@ -21,17 +22,17 @@ const calendarViews = [{
   customPadding: "p-4" // Adding padding to third image
 }];
 
-// Updated website carousel views with better fitting settings
+// Added new website carousel views
 const websiteViews = [{
   src: "/lovable-uploads/70d5dbd5-33c5-4a79-8e5d-f70268175828.png",
   alt: "Business Website",
-  customStyle: "object-cover object-center",
-  customPadding: "p-2" // Reduced padding to fill more space
+  customStyle: "object-contain",
+  customPadding: "p-4"
 }, {
   src: "/lovable-uploads/a9fa8d9c-3592-47b2-b89b-be6a4e04a6a1.png",
   alt: "Business Page with QR Code",
-  customStyle: "object-cover object-center",
-  customPadding: "p-2" // Reduced padding to match first image
+  customStyle: "object-contain",
+  customPadding: "p-4"
 }];
 
 import { FeatureCard } from "./FeatureCard";
