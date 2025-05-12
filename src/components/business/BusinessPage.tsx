@@ -1,4 +1,3 @@
-
 import { BusinessProfileForm } from "./BusinessProfileForm";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -14,7 +13,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import QRCode from "qrcode.react";
+import QRCode from "qrcode.react"; // Fixed import statement
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
@@ -27,6 +26,7 @@ export const BusinessPage = () => {
   const pendingCount = pendingRequests?.length || 0;
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');
+  // Add state for QR code dialog
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
 
   const { data: businessProfile, isLoading } = useQuery({
@@ -209,64 +209,58 @@ export const BusinessPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Main header with business title, tabs and public page button in a single row */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold mr-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="mb-6 bg-background/80 border rounded-lg p-1 shadow-sm">
+          <TabsTrigger 
+            value="profile" 
+            className="data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
+          >
             {isGeorgian ? (
-              <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
+              <GeorgianAuthText>ბიზნეს პროფილი</GeorgianAuthText>
             ) : (
-              <LanguageText>{t("business.myBusiness")}</LanguageText>
+              <LanguageText>{t("business.businessProfile")}</LanguageText>
             )}
-          </h1>
-          
-          {/* Tabs on the same line as the heading */}
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="inline-flex">
-            <TabsList className="bg-background/80 border rounded-lg p-1 shadow-sm">
-              <TabsTrigger 
-                value="profile" 
-                className="data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
+          </TabsTrigger>
+          <TabsTrigger 
+            value="bookings" 
+            className="relative data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
+          >
+            <LanguageText>{t("business.bookingRequests")}</LanguageText>
+            {pendingCount > 0 && (
+              <Badge 
+                variant="orange" 
+                className="absolute -top-2 -right-2 flex items-center justify-center h-5 min-w-5 p-0 text-xs"
               >
-                {isGeorgian ? (
-                  <GeorgianAuthText>ბიზნეს პროფილი</GeorgianAuthText>
-                ) : (
-                  <LanguageText>{t("business.businessProfile")}</LanguageText>
-                )}
-              </TabsTrigger>
-              <TabsTrigger 
-                value="bookings" 
-                className="relative data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
-              >
-                <LanguageText>{t("business.bookingRequests")}</LanguageText>
-                {pendingCount > 0 && (
-                  <Badge 
-                    variant="orange" 
-                    className="absolute -top-2 -right-2 flex items-center justify-center h-5 min-w-5 p-0 text-xs"
-                  >
-                    {pendingCount}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-        
-        {/* View Public Page button and QR Code section */}
-        {publicUrl && (
-          <div className={isMobile ? "w-full" : "min-w-[180px]"}>
-            {renderViewPublicPageButton()}
-          </div>
-        )}
-      </div>
+                {pendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Tab contents */}
-      <div className="mt-6">
-        <TabsContent value="profile" className="m-0 p-0">
+        <TabsContent value="profile" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">
+              {isGeorgian ? (
+                <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
+              ) : (
+                <LanguageText>{t("business.myBusiness")}</LanguageText>
+              )}
+            </h1>
+            {!isMobile && publicUrl && renderViewPublicPageButton()}
+          </div>
+          
+          {/* View Public Page button and QR code for mobile - positioned below heading */}
+          {isMobile && publicUrl && (
+            <div className="w-full mb-6">
+              {renderViewPublicPageButton()}
+            </div>
+          )}
+
           <BusinessProfileForm />
         </TabsContent>
 
-        <TabsContent value="bookings" className="m-0 p-0">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+        <TabsContent value="bookings" className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold">
                 <LanguageText>{t("business.bookingRequests")}</LanguageText>
@@ -281,9 +275,23 @@ export const BusinessPage = () => {
                 </div>
               )}
             </div>
+            
+            {/* View Public Page button for mobile - positioned below heading */}
+            {isMobile && publicUrl && (
+              <div className="w-full mt-3 mb-2">
+                {renderViewPublicPageButton()}
+              </div>
+            )}
+            
+            {/* View Public Page button for desktop - positioned to the right */}
+            {!isMobile && publicUrl && (
+              <div className="min-w-[180px]">
+                {renderViewPublicPageButton()}
+              </div>
+            )}
           </div>
 
-          <div className="space-y-8 mt-4">
+          <div className="space-y-8">
             <div>
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 {renderSectionHeading("business.pendingRequests")} 
@@ -323,7 +331,7 @@ export const BusinessPage = () => {
             </div>
           </div>
         </TabsContent>
-      </div>
+      </Tabs>
     </div>
   );
 };
