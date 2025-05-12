@@ -1,3 +1,4 @@
+
 import { BusinessProfileForm } from "./BusinessProfileForm";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -13,7 +14,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import QRCode from "qrcode.react"; // Fixed import statement
+import QRCode from "qrcode.react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
@@ -260,7 +261,7 @@ export const BusinessPage = () => {
         </TabsContent>
 
         <TabsContent value="bookings" className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold">
                 <LanguageText>{t("business.bookingRequests")}</LanguageText>
@@ -276,22 +277,15 @@ export const BusinessPage = () => {
               )}
             </div>
             
-            {/* View Public Page button for mobile - positioned below heading */}
-            {isMobile && publicUrl && (
-              <div className="w-full mt-3 mb-2">
-                {renderViewPublicPageButton()}
-              </div>
-            )}
-            
-            {/* View Public Page button for desktop - positioned to the right */}
-            {!isMobile && publicUrl && (
-              <div className="min-w-[180px]">
+            {/* View Public Page button - moved up to be aligned with heading */}
+            {publicUrl && (
+              <div className={isMobile ? "w-full" : "min-w-[180px]"}>
                 {renderViewPublicPageButton()}
               </div>
             )}
           </div>
 
-          <div className="space-y-8">
+          <div className="space-y-8 mt-4">
             <div>
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 {renderSectionHeading("business.pendingRequests")} 
