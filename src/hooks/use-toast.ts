@@ -1,6 +1,6 @@
+
 import { Toast as ToastPrimitive, ToastActionElement, ToastProps } from "@/components/ui/toast";
 import * as React from "react";
-import { LanguageText } from "@/components/shared/LanguageText";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 // Define types
@@ -13,10 +13,11 @@ type ToasterToast = ToastProps & {
   description?: React.ReactNode;
   action?: ToastActionElement;
   translateParams?: Record<string, string | number>;
+  duration?: number;
 };
 
-type ToastOptions = Partial<
-  Pick<ToasterToast, "id" | "title" | "description" | "action" | "variant">
+export type ToastOptions = Partial<
+  Pick<ToasterToast, "id" | "title" | "description" | "action" | "variant" | "duration">
 > & {
   translateParams?: Record<string, string | number>;
 };
@@ -107,10 +108,11 @@ function toastReducer(state: State, action: Action): State {
 }
 
 // Toast hook
-const useToast = () => {
+export function useToast() {
   const [state, dispatch] = React.useReducer(toastReducer, {
     toasts: [],
   });
+  const { t } = useLanguage();
 
   React.useEffect(() => {
     state.toasts.forEach((t) => {
@@ -125,8 +127,9 @@ const useToast = () => {
     });
   }, [state.toasts]);
 
-  const toast = React.useCallback(
-    function toast(opts: ToastOptions) {
+  const toast = React.useMemo(() => {
+    // Base toast function
+    const baseToastFn = (opts: ToastOptions) => {
       const id = opts.id || genId();
       const update = state.toasts.find((t) => t.id === id);
 
@@ -155,145 +158,125 @@ const useToast = () => {
       }
 
       return id;
-    },
-    [state.toasts]
-  );
-
-  const dismiss = React.useCallback(
-    (toastId?: string) => {
-      dispatch({
-        type: actionTypes.DISMISS_TOAST,
-        toastId,
+    };
+    
+    // Create extended toast with category-specific methods
+    const extendedToast = (props: ToastOptions) => baseToastFn(props);
+    
+    // Add category-specific toast shortcuts
+    extendedToast.error = ({ title, ...props }: ToastOptions) => 
+      baseToastFn({ 
+        title: title || "Error", 
+        variant: "destructive", 
+        ...props 
       });
-    },
-    []
-  );
+    
+    // Add toast methods for specific events
+    extendedToast.event = {
+      updated: () => baseToastFn({ 
+        description: t("events.eventUpdated"), 
+        variant: "default"
+      }),
+      created: () => baseToastFn({ 
+        description: t("events.eventCreated"), 
+        variant: "default" 
+      }),
+      deleted: () => baseToastFn({ 
+        description: t("events.eventDeleted"), 
+        variant: "default" 
+      }),
+      bookingSubmitted: () => baseToastFn({
+        description: t("bookings.requestSubmitted"),
+        variant: "default"
+      }),
+      shareSuccess: () => baseToastFn({
+        description: t("business.copiedToClipboard"),
+        duration: 2000,
+        variant: "default"
+      }),
+      newBookingRequest: () => baseToastFn({
+        description: t("bookings.newRequest"),
+        variant: "default"
+      })
+    };
+    
+    extendedToast.task = {
+      updated: () => baseToastFn({ 
+        description: t("tasks.taskUpdated"), 
+        variant: "default" 
+      }),
+      created: () => baseToastFn({ 
+        description: t("tasks.taskAdded"), 
+        variant: "default" 
+      }),
+      deleted: () => baseToastFn({ 
+        description: t("tasks.taskDeleted"), 
+        variant: "default" 
+      }),
+    };
+    
+    extendedToast.note = {
+      updated: () => baseToastFn({ 
+        description: t("notes.noteUpdated"), 
+        variant: "default" 
+      }),
+      created: () => baseToastFn({ 
+        description: t("notes.noteAdded"), 
+        variant: "default" 
+      }),
+      deleted: () => baseToastFn({ 
+        description: t("notes.noteDeleted"), 
+        variant: "default" 
+      }),
+      added: () => baseToastFn({ 
+        description: t("notes.noteAdded"), 
+        variant: "default" 
+      }),
+    };
+    
+    extendedToast.reminder = {
+      created: () => baseToastFn({ 
+        description: t("reminders.reminderCreated"), 
+        variant: "default" 
+      }),
+    };
+    
+    extendedToast.booking = {
+      approved: () => baseToastFn({
+        description: t("bookings.requestApproved"),
+        variant: "default"
+      }),
+      rejected: () => baseToastFn({
+        description: t("bookings.requestRejected"),
+        variant: "default"
+      }),
+      deleted: () => baseToastFn({
+        description: t("bookings.requestDeleted"),
+        variant: "default"
+      }),
+      newRequest: () => baseToastFn({
+        description: t("bookings.newRequest"),
+        variant: "default"
+      })
+    };
 
+    return extendedToast;
+  }, [state.toasts, t]);
+  
   return {
     toast,
-    dismiss,
+    dismiss: React.useCallback(
+      (toastId?: string) => {
+        dispatch({
+          type: actionTypes.DISMISS_TOAST,
+          toastId,
+        });
+      },
+      []
+    ),
     toasts: state.toasts,
   };
-};
+}
 
-// Create extension with specific types and functionality
-const createExtendedToast = (baseToast: ReturnType<typeof useToast>["toast"]) => {
-  // Base toast function stays the same
-  const toast = (props: ToastOptions) => baseToast(props);
-  
-  // Add category-specific toast shortcuts
-  toast.error = ({ title, ...props }: ToastOptions) => 
-    baseToast({ 
-      title: title || "Error", 
-      variant: "destructive", 
-      ...props 
-    });
-  
-  // Add toast methods for specific events
-  toast.event = {
-    updated: () => baseToast({ 
-      description: "Event updated successfully", 
-      variant: "success"
-    }),
-    created: () => baseToast({ 
-      description: "Event created successfully", 
-      variant: "success" 
-    }),
-    deleted: () => baseToast({ 
-      description: "Event deleted successfully", 
-      variant: "default" 
-    }),
-    bookingSubmitted: () => baseToast({
-      description: "Booking request submitted successfully",
-      variant: "success"
-    })
-  };
-  
-  toast.task = {
-    updated: () => baseToast({ 
-      description: "Task updated successfully", 
-      variant: "success" 
-    }),
-    created: () => baseToast({ 
-      description: "Task created successfully", 
-      variant: "success" 
-    }),
-    deleted: () => baseToast({ 
-      description: "Task deleted successfully", 
-      variant: "default" 
-    }),
-  };
-  
-  toast.note = {
-    updated: () => baseToast({ 
-      description: "Note updated successfully", 
-      variant: "success" 
-    }),
-    created: () => baseToast({ 
-      description: "Note created successfully", 
-      variant: "success" 
-    }),
-    deleted: () => baseToast({ 
-      description: "Note deleted successfully", 
-      variant: "default" 
-    }),
-  };
-  
-  toast.reminder = {
-    created: () => baseToast({ 
-      description: "Reminder created successfully", 
-      variant: "success" 
-    }),
-  };
-  
-  return toast;
-};
-
-// Main implementation
-const useToastWithTranslation = () => {
-  const baseHook = useToast();
-  const { t } = useLanguage();
-  
-  // Create toast methods with translation support
-  const wrappedToast = (props: ToastOptions) => {
-    // Handle translation for title and description if they're keys
-    let { title, description, translateParams } = props;
-    
-    // Try to translate the title if it looks like a translation key
-    if (title && typeof title === 'string' && title.includes('.')) {
-      try {
-        const translatedTitle = t(title, translateParams);
-        if (translatedTitle !== title) {
-          title = translatedTitle;
-        }
-      } catch (e) {
-        // If translation fails, keep the original title
-      }
-    }
-    
-    // Try to translate the description if it looks like a translation key
-    if (description && typeof description === 'string' && description.includes('.')) {
-      try {
-        const translatedDescription = t(description, translateParams);
-        if (translatedDescription !== description) {
-          description = translatedDescription;
-        }
-      } catch (e) {
-        // If translation fails, keep the original description
-      }
-    }
-    
-    return baseHook.toast({ ...props, title, description });
-  };
-  
-  const toast = createExtendedToast(wrappedToast);
-  
-  return { 
-    toast, 
-    dismiss: baseHook.dismiss, 
-    toasts: baseHook.toasts 
-  };
-};
-
-// Export both the hook and the toast function
-export { useToastWithTranslation as useToast, createExtendedToast as toast };
+// Export the named hook
+export { useToast as useToastWithTranslation };

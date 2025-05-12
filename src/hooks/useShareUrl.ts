@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export const useShareUrl = () => {
@@ -20,10 +20,7 @@ export const useShareUrl = () => {
       } else {
         // Fallback to clipboard
         await navigator.clipboard.writeText(url);
-        toast({
-          description: t('business.copiedToClipboard'),
-          duration: 2000,
-        });
+        toast.event.shareSuccess();
       }
     } catch (error) {
       console.error('Error sharing:', error);

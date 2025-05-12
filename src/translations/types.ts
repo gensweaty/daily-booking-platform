@@ -205,6 +205,8 @@ export type TranslationType = {
     shareViaSocial: string;
     viewLargerQRCode: string;
     copiedToClipboard: string;
+    share: string;
+    shareSuccess: string;
   };
   dashboard: {
     welcome: string;
@@ -263,6 +265,9 @@ export type TranslationType = {
     fullNameRequired: string;
     fullName: string;
     phoneNumber: string;
+    phoneNumberRequired: string;
+    validEmailRequired: string;
+    validDatesRequired: string;
     paymentStatus: string;
     selectPaymentStatus: string;
     paymentAmount: string;
@@ -361,6 +366,7 @@ export type TranslationType = {
     authRequired: string;
     save: string;
     saving: string;
+    shareQRCode: string;
   };
   auth: {
     welcome: string;
