@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import {
   type ToastActionElement,
@@ -139,7 +140,11 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
-function toast({ ...props }: Toast) {
+interface ToastOptions extends Toast {
+  translateParams?: Record<string, string | number>
+}
+
+function createToast(props: ToastOptions) {
   const id = genId()
 
   const update = (props: ToasterToast) =>
@@ -147,6 +152,7 @@ function toast({ ...props }: Toast) {
       type: "UPDATE_TOAST",
       toast: { ...props, id },
     })
+  
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
   dispatch({
@@ -166,6 +172,78 @@ function toast({ ...props }: Toast) {
     dismiss,
     update,
   }
+}
+
+function toast(props: ToastOptions) {
+  return createToast(props)
+}
+
+// Add custom toast types
+toast.error = (props: Omit<ToastOptions, "variant"> | { description: string }) => {
+  if ('description' in props && Object.keys(props).length === 1) {
+    return createToast({ ...props, variant: "destructive" })
+  }
+  return createToast({ ...props as ToastOptions, variant: "destructive" })
+}
+
+toast.success = (props: Omit<ToastOptions, "variant"> | { description: string }) => {
+  if ('description' in props && Object.keys(props).length === 1) {
+    return createToast({ ...props, variant: "default" })
+  }
+  return createToast({ ...props as ToastOptions, variant: "default" })
+}
+
+// Custom domain-specific toasts
+toast.note = {
+  added: () => createToast({
+    title: "Note Added",
+    description: "Your note has been saved successfully",
+  }),
+  updated: () => createToast({
+    title: "Note Updated",
+    description: "Your note has been updated successfully",
+  }),
+  deleted: () => createToast({
+    title: "Note Deleted",
+    description: "Your note has been deleted successfully",
+  }),
+}
+
+toast.task = {
+  created: () => createToast({
+    title: "Task Added",
+    description: "Task added successfully",
+  }),
+  updated: () => createToast({
+    title: "Task Updated",
+    description: "Task updated successfully",
+  }),
+  deleted: () => createToast({
+    title: "Task Deleted",
+    description: "Task deleted successfully",
+  }),
+}
+
+toast.reminder = {
+  created: () => createToast({
+    title: "Reminder Created",
+    description: "Reminder created successfully",
+  }),
+}
+
+toast.event = {
+  created: () => createToast({
+    title: "Event Created",
+    description: "Event created successfully",
+  }),
+  updated: () => createToast({
+    title: "Event Updated",
+    description: "Event updated successfully",
+  }),
+  deleted: () => createToast({
+    title: "Event Deleted",
+    description: "Event deleted successfully",
+  }),
 }
 
 function useToast() {
@@ -188,4 +266,4 @@ function useToast() {
   }
 }
 
-export { useToast, toast }
+export { useToast, toast, type ToastOptions }

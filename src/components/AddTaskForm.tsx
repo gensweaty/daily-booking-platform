@@ -38,7 +38,8 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      toast.error({
+      toast({
+        variant: "destructive",
         description: language === 'es' 
           ? "Debes iniciar sesión para crear tareas"
           : "You must be logged in to create tasks"
@@ -98,7 +99,8 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       onClose();
     } catch (error: any) {
       console.error('Task operation error:', error);
-      toast.error({
+      toast({
+        variant: "destructive",
         description: language === 'es'
           ? `Error al ${editingTask ? 'actualizar' : 'crear'} la tarea. Por favor intenta de nuevo.`
           : error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Please try again.`

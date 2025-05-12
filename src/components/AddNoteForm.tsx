@@ -90,7 +90,10 @@ export const AddNoteForm = () => {
       toast.note.added();
     },
     onError: (error: any) => {
-      toast.error({ description: error.message });
+      toast({
+        variant: "destructive",
+        description: error.message
+      });
     },
   });
 
@@ -98,12 +101,18 @@ export const AddNoteForm = () => {
     e.preventDefault();
 
     if (!title.trim()) {
-      toast.error({ description: t("notes.titleRequired") });
+      toast({
+        variant: "destructive",
+        description: t("notes.titleRequired")
+      });
       return;
     }
 
     if (!user) {
-      toast.error({ description: t("common.authRequired") });
+      toast({
+        variant: "destructive",
+        description: t("common.authRequired")
+      });
       return;
     }
 
