@@ -179,6 +179,8 @@ const en: TranslationType = {
     notFound: "Business not found",
     notFoundDescription: "Sorry, we couldn't find a business with this URL. Please check the URL and try again.",
     viewPublicPage: "View Public Page",
+    scanQrCode: "Scan QR code",
+    qrCodeTooltip: "Scan this QR code to visit the business page",
     customer: "Customer",
     title: "Title",
     dateTime: "Date & Time",
