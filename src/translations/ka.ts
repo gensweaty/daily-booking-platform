@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const ka: TranslationType = {
@@ -325,6 +326,8 @@ export const ka: TranslationType = {
     notFound: "ბიზნესი ვერ მოიძებნა",
     notFoundDescription: "სამწუხაროდ, ვერ ვიპოვეთ ბიზნესი ამ URL-ით. გთხოვთ, შეამოწმოთ URL და სცადოთ ხელახლა.",
     viewPublicPage: "საჯარო გვერდის ნახვა",
+    scanQrCode: "დაასკანერეთ QR კოდი", // Added translation for scanning QR code
+    qrCodeTooltip: "გაუზიარე ეს QR კოდი შენს მომხმარებლებს", // Added tooltip translation
     customer: "მომხმარებელი",
     title: "სათაური",
     dateTime: "თარიღი და დრო",
