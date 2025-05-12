@@ -210,23 +210,27 @@ export const BusinessPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6">
-        <h1 className="text-2xl font-bold">
-          {isGeorgian ? (
-            <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
-          ) : (
-            <LanguageText>{t("business.myBusiness")}</LanguageText>
-          )}
-        </h1>
+      {/* Main header with business title and view public page button */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div className="flex items-center">
+          <h1 className="text-2xl font-bold">
+            {isGeorgian ? (
+              <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
+            ) : (
+              <LanguageText>{t("business.myBusiness")}</LanguageText>
+            )}
+          </h1>
+        </div>
         
-        {/* Move the QR code section up here to align with the heading */}
+        {/* View Public Page button and QR Code section */}
         {publicUrl && (
-          <div className={isMobile ? "w-full mt-4" : "min-w-[180px]"}>
+          <div className={isMobile ? "w-full" : "min-w-[180px]"}>
             {renderViewPublicPageButton()}
           </div>
         )}
       </div>
       
+      {/* Tabs positioned directly below header, aligned with content */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6 bg-background/80 border rounded-lg p-1 shadow-sm">
           <TabsTrigger 
