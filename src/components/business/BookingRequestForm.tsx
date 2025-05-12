@@ -167,7 +167,7 @@ export const BookingRequestForm = ({
       // Validate required fields
       if (!fullName) {
         toast({
-          translateParams: {
+          translateKeys: {
             titleKey: "common.error",
             descriptionKey: "events.fullNameRequired"
           }
@@ -178,7 +178,7 @@ export const BookingRequestForm = ({
 
       if (!userNumber) {
         toast({
-          translateParams: {
+          translateKeys: {
             titleKey: "common.error",
             descriptionKey: "events.phoneNumberRequired"
           }
@@ -189,7 +189,7 @@ export const BookingRequestForm = ({
 
       if (!socialNetworkLink || !socialNetworkLink.includes('@')) {
         toast({
-          translateParams: {
+          translateKeys: {
             titleKey: "common.error",
             descriptionKey: "events.validEmailRequired"
           }
@@ -204,7 +204,7 @@ export const BookingRequestForm = ({
       // Additional validation for dates
       if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
         toast({
-          translateParams: {
+          translateKeys: {
             titleKey: "common.error",
             descriptionKey: "events.validDatesRequired"
           }
@@ -406,7 +406,7 @@ export const BookingRequestForm = ({
       console.error('Error submitting form:', error);
       setIsSubmitting(false);
       toast({
-        translateParams: {
+        translateKeys: {
           titleKey: "common.error",
           descriptionKey: "common.errorOccurred"
         }

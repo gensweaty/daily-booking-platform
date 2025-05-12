@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es' | 'ka';
 
 export type TranslationType = {
@@ -178,12 +177,6 @@ export type TranslationType = {
     notFound: string;
     notFoundDescription: string;
     viewPublicPage: string;
-    scanQrCode: string;
-    qrCodeTooltip: string;
-    qrCodeTitle: string;
-    qrCodeDescription: string;
-    shareBusinessText: string;
-    linkCopied: string;
     customer: string;
     title: string;
     dateTime: string;
@@ -205,6 +198,8 @@ export type TranslationType = {
     availableTimes: string;
     clickToRequest: string;
     contactInformation: string;
+    scanQrCode: string;
+    qrCodeTooltip: string;
   };
   dashboard: {
     welcome: string;
@@ -352,7 +347,7 @@ export type TranslationType = {
     new: string;
     request: string;
     requests: string;
-    backToHome: string;
+		backToHome: string;
     supportedFormats: string;
     deleteConfirmMessage: string;
     noDescription: string;
@@ -361,7 +356,6 @@ export type TranslationType = {
     authRequired: string;
     save: string;
     saving: string;
-    share: string;
   };
   auth: {
     welcome: string;
@@ -467,92 +461,3 @@ export type LanguageContextType = {
   setLanguage: (language: Language) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
-
-export interface BusinessTranslation {
-  events: string;
-  health: string;
-  sports: string;
-  beauty: string;
-  personal: string;
-  education: string;
-  eventsDesc: string;
-  healthDesc: string;
-  sportsDesc: string;
-  beautyDesc: string;
-  personalDesc: string;
-  educationDesc: string;
-  myBusiness: string;
-  businessProfile: string;
-  bookingRequests: string;
-  pendingRequests: string;
-  approvedRequests: string;
-  rejectedRequests: string;
-  noPendingRequests: string;
-  noApprovedRequests: string;
-  noRejectedRequests: string;
-  pendingRequestsDescription: string;
-  approvedRequestsDescription: string;
-  rejectedRequestsDescription: string;
-  editBusinessProfile: string;
-  chooseFile: string;
-  noFileChosen: string;
-  supportedFormats: string;
-  uploadImageCover: string;
-  publicPageUrl: string;
-  notFound: string;
-  notFoundDescription: string;
-  viewPublicPage: string;
-  scanQrCode: string;
-  qrCodeTooltip: string;
-  qrCodeTitle: string;
-  qrCodeDescription: string;
-  shareBusinessText: string;
-  linkCopied: string;
-  customer: string;
-  title: string;
-  dateTime: string;
-  actions: string;
-  approve: string;
-  reject: string;
-  delete: string;
-  deleteBookingRequest: string;
-  deleteConfirmation: string;
-  businessName: string;
-  urlSlug: string;
-  description: string;
-  coverPhoto: string;
-  phone: string;
-  email: string;
-  website: string;
-  address: string;
-  updateProfile: string;
-  availableTimes: string;
-  clickToRequest: string;
-  contactInformation: string;
-}
-
-export interface CommonTranslation {
-  loading: string;
-  error: string;
-  success: string;
-  edit: string;
-  delete: string;
-  save: string;
-  cancel: string;
-  update: string;
-  add: string;
-  view: string;
-  search: string;
-  new: string;
-  request: string;
-  requests: string;
-  name: string;
-  email: string;
-  phone: string;
-  message: string;
-  actions: string;
-  description: string;
-  details: string;
-  submit: string;
-  share: string;
-}

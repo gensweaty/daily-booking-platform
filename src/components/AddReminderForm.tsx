@@ -19,8 +19,7 @@ export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.id) {
-      toast({
-        variant: "destructive",
+      toast.error({
         description: "You need to be logged in to create reminders"
       });
       return;
@@ -38,8 +37,7 @@ export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
       onClose();
     } catch (error) {
       console.error('Reminder creation error:', error);
-      toast({
-        variant: "destructive",
+      toast.error({
         description: "Failed to create reminder. Please try again."
       });
     }

@@ -561,7 +561,7 @@ export const useBookingRequests = () => {
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       toast({
-        translateParams: {
+        translateKeys: {
           titleKey: "common.success",
           descriptionKey: "bookings.requestApproved"
         }
@@ -571,7 +571,7 @@ export const useBookingRequests = () => {
       console.error('Error in approval mutation:', error);
       toast({
         variant: "destructive",
-        translateParams: {
+        translateKeys: {
           titleKey: "common.error",
           descriptionKey: "common.errorOccurred"
         },
@@ -592,7 +592,7 @@ export const useBookingRequests = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
       toast({
-        translateParams: {
+        translateKeys: {
           titleKey: "common.success",
           descriptionKey: "bookings.requestRejected"
         }
@@ -601,7 +601,7 @@ export const useBookingRequests = () => {
     onError: (error: any) => {
       toast({
         variant: "destructive",
-        translateParams: {
+        translateKeys: {
           titleKey: "common.error",
           descriptionKey: "common.errorOccurred"
         },
@@ -622,7 +622,7 @@ export const useBookingRequests = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
       toast({
-        translateParams: {
+        translateKeys: {
           titleKey: "common.success",
           descriptionKey: "bookings.requestDeleted"
         }
@@ -631,7 +631,7 @@ export const useBookingRequests = () => {
     onError: (error: any) => {
       toast({
         variant: "destructive",
-        translateParams: {
+        translateKeys: {
           titleKey: "common.error",
           descriptionKey: "common.errorOccurred"
         },

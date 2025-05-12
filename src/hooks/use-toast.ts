@@ -1,18 +1,20 @@
 import * as React from "react"
-import {
-  type ToastActionElement,
-  ToastProps,
-} from "@/components/ui/toast"
+import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
+import { useLanguage } from "@/contexts/LanguageContext"
 
-const TOAST_LIMIT = 5
-const TOAST_REMOVE_DELAY = 1000000
+const TOAST_LIMIT = 1
+const TOAST_REMOVE_DELAY = 5000
 
 type ToasterToast = ToastProps & {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
-  translateParams?: Record<string, string | number>
   action?: ToastActionElement
+  translateKeys?: {
+    titleKey?: string
+    descriptionKey?: string
+  }
+  translateParams?: Record<string, string | number>
 }
 
 const actionTypes = {
@@ -25,7 +27,7 @@ const actionTypes = {
 let count = 0
 
 function genId() {
-  count = (count + 1) % Number.MAX_VALUE
+  count = (count + 1) % Number.MAX_SAFE_INTEGER
   return count.toString()
 }
 
@@ -90,8 +92,6 @@ export const reducer = (state: State, action: Action): State => {
     case "DISMISS_TOAST": {
       const { toastId } = action
 
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
       if (toastId) {
         addToRemoveQueue(toastId)
       } else {
@@ -139,32 +139,72 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
-interface ToastOptions extends Toast {
-  translateParams?: Record<string, string | number>
+function getTranslationFunction() {
+  // Default fallback function returns the key itself, with parameter handling
+  let translationFunction = (key: string, params?: Record<string, string | number>): string => {
+    if (!params) return key;
+    
+    // Simple parameter replacement for fallback
+    return Object.entries(params).reduce((str, [param, value]) => {
+      return str.replace(new RegExp(`{{${param}}}`, 'g'), String(value));
+    }, key);
+  };
+  
+  try {
+    // Get the translation function from the language context
+    const { t } = useLanguage();
+    translationFunction = t;
+  } catch (error) {
+    console.warn("Language context not available, using fallback for translations");
+  }
+  
+  return translationFunction;
 }
 
-function createToast(props: ToastOptions) {
+function toast({ ...props }: Toast) {
+  // Get the translation function
+  const t = getTranslationFunction();
+  
   const id = genId()
+
+  // Apply translations if translation keys are provided
+  let translatedProps = { ...props };
+  if (props.translateKeys) {
+    if (props.translateKeys.titleKey && typeof props.translateKeys.titleKey === 'string') {
+      translatedProps.title = t(props.translateKeys.titleKey);
+    }
+    if (props.translateKeys.descriptionKey && typeof props.translateKeys.descriptionKey === 'string') {
+      if (props.translateParams) {
+        // Handle parameters for description
+        translatedProps.description = t(props.translateKeys.descriptionKey, props.translateParams);
+      } else {
+        translatedProps.description = t(props.translateKeys.descriptionKey);
+      }
+    }
+  }
 
   const update = (props: ToasterToast) =>
     dispatch({
       type: "UPDATE_TOAST",
       toast: { ...props, id },
     })
-  
+    
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
   dispatch({
     type: "ADD_TOAST",
     toast: {
-      ...props,
+      ...translatedProps,
       id,
       open: true,
+      translateParams: props.translateParams, // Pass translateParams to the toast
       onOpenChange: (open) => {
         if (!open) dismiss()
       },
     },
   })
+
+  setTimeout(dismiss, TOAST_REMOVE_DELAY)
 
   return {
     id: id,
@@ -173,93 +213,251 @@ function createToast(props: ToastOptions) {
   }
 }
 
-function toast(props: ToastOptions) {
-  return createToast(props)
-}
+toast.success = (props: { title?: string; description?: string } & Omit<Toast, "title" | "description">) => {
+  return toast({
+    ...props,
+    variant: "default",
+    translateKeys: {
+      titleKey: props.title ? undefined : "common.success",
+      descriptionKey: props.description ? undefined : "common.successMessage"
+    }
+  });
+};
 
-// Add custom toast types
-toast.error = (props: Omit<ToastOptions, "variant"> | { description: string }) => {
-  if ('description' in props && Object.keys(props).length === 1) {
-    return createToast({ ...props, variant: "destructive" })
-  }
-  return createToast({ ...props as ToastOptions, variant: "destructive" })
-}
-
-toast.success = (props: Omit<ToastOptions, "variant"> | { description: string }) => {
-  if ('description' in props && Object.keys(props).length === 1) {
-    return createToast({ ...props, variant: "default" })
-  }
-  return createToast({ ...props as ToastOptions, variant: "default" })
-}
-
-// Custom domain-specific toasts
-toast.note = {
-  added: () => createToast({
-    title: "Note Added",
-    description: "Your note has been saved successfully",
-  }),
-  updated: () => createToast({
-    title: "Note Updated",
-    description: "Your note has been updated successfully",
-  }),
-  deleted: () => createToast({
-    title: "Note Deleted",
-    description: "Your note has been deleted successfully",
-  }),
-}
-
-toast.task = {
-  created: () => createToast({
-    title: "Task Added",
-    description: "Task added successfully",
-  }),
-  updated: () => createToast({
-    title: "Task Updated",
-    description: "Task updated successfully",
-  }),
-  deleted: () => createToast({
-    title: "Task Deleted",
-    description: "Task deleted successfully",
-  }),
-}
-
-toast.reminder = {
-  created: () => createToast({
-    title: "Reminder Created",
-    description: "Reminder created successfully",
-  }),
-}
+toast.error = (props: { title?: string; description?: string } & Omit<Toast, "title" | "description">) => {
+  return toast({
+    ...props,
+    variant: "destructive",
+    translateKeys: {
+      titleKey: props.title ? undefined : "common.error",
+      descriptionKey: props.description ? undefined : "common.errorOccurred"
+    }
+  });
+};
 
 toast.event = {
-  created: () => createToast({
-    title: "Event Created",
-    description: "Event created successfully",
-  }),
-  updated: () => createToast({
-    title: "Event Updated",
-    description: "Event updated successfully",
-  }),
-  deleted: () => createToast({
-    title: "Event Deleted",
-    description: "Event deleted successfully",
-  }),
-  // Add missing bookingSubmitted method
-  bookingSubmitted: () => createToast({
-    title: "Booking Request Submitted",
-    description: "Your booking request has been submitted successfully",
-  }),
-  // Add missing newBookingRequest method
-  newBookingRequest: (count: number = 1) => createToast({
-    title: "New Booking Request",
-    description: count === 1 
-      ? "You have a new booking request"
-      : `You have ${count} new booking requests`,
-  }),
-}
+  created: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "events.eventCreated"
+      }
+    });
+  },
+  updated: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "events.eventUpdated"
+      }
+    });
+  },
+  deleted: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "events.eventDeleted"
+      }
+    });
+  },
+  bookingApproved: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "bookings.requestApproved"
+      }
+    });
+  },
+  bookingRejected: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success", 
+        descriptionKey: "bookings.requestRejected"
+      }
+    });
+  },
+  bookingDeleted: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "bookings.requestDeleted"
+      }
+    });
+  },
+  newBookingRequest: (count: number = 1) => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "bookings.newRequest",
+        descriptionKey: "bookings.pendingRequestsCount"
+      },
+      translateParams: {
+        count: count
+      }
+    });
+  },
+  bookingSubmitted: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "bookings.requestSubmitted",
+        descriptionKey: "bookings.requestSubmittedDescription"
+      }
+    });
+  }
+};
+
+toast.task = {
+  created: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "tasks.taskAdded" 
+      }
+    });
+  },
+  updated: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "tasks.taskUpdated"
+      }
+    });
+  },
+  deleted: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "tasks.taskDeleted"
+      }
+    });
+  }
+};
+
+toast.customer = {
+  created: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "crm.customerCreated"
+      }
+    });
+  },
+  updated: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "crm.customerUpdated"
+      }
+    });
+  },
+  deleted: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "crm.customerDeleted"
+      }
+    });
+  }
+};
+
+toast.note = {
+  added: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "notes.noteAdded",
+        descriptionKey: "notes.noteAddedDescription"
+      }
+    });
+  },
+  updated: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "notes.noteUpdated"
+      }
+    });
+  },
+  deleted: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "notes.noteDeleted"
+      }
+    });
+  }
+};
+
+toast.reminder = {
+  created: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "reminders.reminderCreated"
+      }
+    });
+  }
+};
+
+toast.exportSuccess = () => {
+  return toast({
+    variant: "default",
+    translateKeys: {
+      titleKey: "dashboard.exportSuccessful",
+      descriptionKey: "dashboard.exportSuccessMessage"
+    }
+  });
+};
+
+toast.copySuccess = () => {
+  return toast({
+    variant: "default",
+    translateKeys: {
+      titleKey: "common.success",
+      descriptionKey: "common.copiedToClipboard"
+    }
+  });
+};
+
+toast.deleteSuccess = () => {
+  return toast({
+    variant: "default",
+    translateKeys: {
+      titleKey: "common.success",
+      descriptionKey: "common.deleteSuccess"
+    }
+  });
+};
+
+toast.saveSuccess = () => {
+  return toast({
+    variant: "default",
+    translateKeys: {
+      titleKey: "common.success",
+      descriptionKey: "common.successMessage"
+    }
+  });
+};
 
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
-
+  
   React.useEffect(() => {
     listeners.push(setState)
     return () => {
@@ -277,4 +475,4 @@ function useToast() {
   }
 }
 
-export { useToast, toast, type ToastOptions }
+export { useToast, toast }

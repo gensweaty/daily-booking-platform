@@ -94,7 +94,7 @@ export const DashboardContent = ({
           </motion.div>
           <span className="hidden sm:inline">
             {isGeorgian ? (
-              <LanguageText withFont={true}>{t("dashboard.statistics")}</LanguageText>
+              <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტიკა</GeorgianAuthText>
             ) : (
               <LanguageText>{t("dashboard.statistics")}</LanguageText>
             )}
@@ -112,7 +112,7 @@ export const DashboardContent = ({
           </motion.div>
           <span className="hidden sm:inline">
             {isGeorgian ? (
-              <LanguageText withFont={true}>{t("dashboard.tasks")}</LanguageText>
+              <GeorgianAuthText>დავალებები</GeorgianAuthText>
             ) : (
               <LanguageText>{t("dashboard.tasks")}</LanguageText>
             )}
@@ -130,7 +130,7 @@ export const DashboardContent = ({
           </motion.div>
           <span className="hidden sm:inline">
             {isGeorgian ? (
-              <LanguageText withFont={true}>{t("dashboard.crm")}</LanguageText>
+              <GeorgianAuthText>მომხმარებლების მართვა</GeorgianAuthText>
             ) : (
               <LanguageText>{t("dashboard.crm")}</LanguageText>
             )}
@@ -148,7 +148,7 @@ export const DashboardContent = ({
           </motion.div>
           <span className="hidden sm:inline">
             {isGeorgian ? (
-              <LanguageText withFont={true}>{t("business.myBusiness")}</LanguageText>
+              <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
             ) : (
               <LanguageText>{t("business.myBusiness")}</LanguageText>
             )}
@@ -207,7 +207,7 @@ export const DashboardContent = ({
               <CardHeader>
                 <CardTitle>
                   {isGeorgian ? (
-                    <LanguageText withFont={true}>{t("dashboard.statistics")}</LanguageText>
+                    <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტიკა</GeorgianAuthText>
                   ) : (
                     <LanguageText>{t("dashboard.statistics")}</LanguageText>
                   )}
@@ -237,7 +237,7 @@ export const DashboardContent = ({
               <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
                 <CardTitle>
                   {isGeorgian ? (
-                    <LanguageText withFont={true}>{t("dashboard.tasks")}</LanguageText>
+                    <GeorgianAuthText>დავალებები</GeorgianAuthText>
                   ) : (
                     <LanguageText>{t("dashboard.tasks")}</LanguageText>
                   )}

@@ -251,7 +251,7 @@ export const CustomerDialog = ({
 
     if (!user?.id) {
       toast({
-        translateParams: {
+        translateKeys: {
           titleKey: "common.error",
           descriptionKey: "common.missingUserInfo"
         }
@@ -527,7 +527,7 @@ export const CustomerDialog = ({
 
       // Update to use translation keys
       toast({
-        translateParams: {
+        translateKeys: {
           titleKey: "common.success",
           descriptionKey: customerId ? "crm.customerUpdated" : "crm.customerCreated"
         }
@@ -536,7 +536,7 @@ export const CustomerDialog = ({
     } catch (error: any) {
       console.error("Error updating data:", error);
       toast({
-        translateParams: {
+        translateKeys: {
           titleKey: "common.error",
           descriptionKey: "common.errorOccurred"
         }

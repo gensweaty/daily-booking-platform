@@ -9,21 +9,13 @@ import { Button } from "@/components/ui/button";
 import { BookingRequestsList } from "./BookingRequestsList";
 import { useBookingRequests } from "@/hooks/useBookingRequests";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, ExternalLink, QrCode, Share } from "lucide-react";
+import { MessageSquare, ExternalLink, QrCode } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { QRCodeCanvas } from "qrcode.react"; // Fixed import statement
+import QRCode from "qrcode.react"; // Fixed import statement
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { 
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
@@ -33,8 +25,6 @@ export const BusinessPage = () => {
   const pendingCount = pendingRequests?.length || 0;
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');
-  const [qrDialogOpen, setQrDialogOpen] = useState(false);
-  const { toast } = useToast();
 
   const { data: businessProfile, isLoading } = useQuery({
     queryKey: ["businessProfile", user?.id],
@@ -75,44 +65,6 @@ export const BusinessPage = () => {
     }
   };
 
-  // Function to handle sharing the QR code URL
-  const handleShare = async () => {
-    if (!publicUrl) return;
-    
-    // Use the Web Share API if available
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: businessProfile?.name || t("business.businessProfile"),
-          text: t("business.shareBusinessText"),
-          url: publicUrl,
-        });
-      } catch (error) {
-        console.error("Error sharing:", error);
-        // Fallback to copying to clipboard if share is cancelled or fails
-        copyToClipboard();
-      }
-    } else {
-      // Fallback for browsers that don't support the Web Share API
-      copyToClipboard();
-    }
-  };
-
-  // Fallback function to copy link to clipboard
-  const copyToClipboard = () => {
-    if (!publicUrl) return;
-    
-    navigator.clipboard.writeText(publicUrl).then(() => {
-      toast({
-        title: t("common.success"),
-        description: t("business.linkCopied"),
-        variant: "default", // Using valid variant: "default" or "destructive"
-      });
-    }).catch((err) => {
-      console.error("Failed to copy:", err);
-    });
-  };
-
   // Helper function for the View Public Page button
   const renderViewPublicPageButton = () => {
     if (!publicUrl) return null;
@@ -135,11 +87,8 @@ export const BusinessPage = () => {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div 
-                  className="cursor-pointer relative group"
-                  onClick={() => setQrDialogOpen(true)}
-                >
-                  <QRCodeCanvas 
+                <div className="cursor-pointer">
+                  <QRCode 
                     value={publicUrl}
                     size={120}
                     bgColor={"#ffffff"}
@@ -148,9 +97,6 @@ export const BusinessPage = () => {
                     includeMargin={false}
                     className="rounded-md"
                   />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors rounded-md flex items-center justify-center">
-                    <QrCode className="h-8 w-8 text-primary/0 group-hover:text-primary/70 transition-all" />
-                  </div>
                 </div>
               </TooltipTrigger>
               <TooltipContent>
@@ -158,17 +104,6 @@ export const BusinessPage = () => {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          
-          {/* Share button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleShare}
-            className="mt-3 w-full flex gap-2 items-center justify-center"
-          >
-            <Share className="h-4 w-4" />
-            <LanguageText>{t("common.share")}</LanguageText>
-          </Button>
         </div>
       </div>
     );
@@ -187,47 +122,6 @@ export const BusinessPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* QR Code Dialog for enlarged view */}
-      <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              <LanguageText>{t("business.qrCodeTitle")}</LanguageText>
-            </DialogTitle>
-            <DialogDescription>
-              <LanguageText>{t("business.qrCodeDescription")}</LanguageText>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col items-center p-4">
-            {publicUrl && (
-              <>
-                <QRCodeCanvas 
-                  value={publicUrl}
-                  size={250}
-                  bgColor={"#ffffff"}
-                  fgColor={"#000000"}
-                  level={"L"}
-                  includeMargin={true}
-                  className="rounded-md mb-4"
-                />
-                <div className="text-sm text-center mb-4 max-w-md overflow-hidden text-ellipsis">
-                  <a href={publicUrl} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">
-                    {publicUrl}
-                  </a>
-                </div>
-                <Button
-                  onClick={handleShare}
-                  className="w-full flex gap-2 items-center justify-center"
-                >
-                  <Share className="h-4 w-4" />
-                  <LanguageText>{t("common.share")}</LanguageText>
-                </Button>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6 bg-background/80 border rounded-lg p-1 shadow-sm">
           <TabsTrigger 
