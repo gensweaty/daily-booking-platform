@@ -177,9 +177,13 @@ export const es: TranslationType = {
     publicPageUrl: "Esto será utilizado para la URL de tu página pública:",
     notFound: "Negocio no encontrado",
     notFoundDescription: "Lo sentimos, no pudimos encontrar un negocio con esta URL. Por favor, verifique la URL e intente nuevamente.",
-    viewPublicPage: "Ver Página Pública",
+    viewPublicPage: "Ver página pública",
     scanQrCode: "Escanear código QR",
-    qrCodeTooltip: "Escanee este código QR para visitar la página del negocio",
+    qrCodeTooltip: "Comparte este código QR con tus clientes",
+    qrCodeTitle: "Código QR del negocio",
+    qrCodeDescription: "Escanea este código para acceder a la página de reserva del negocio",
+    shareBusinessText: "Reserva una cita con mi negocio",
+    linkCopied: "Enlace copiado al portapapeles",
     customer: "Cliente",
     title: "Título",
     dateTime: "Fecha y Hora",
@@ -356,7 +360,8 @@ export const es: TranslationType = {
     successMessage: "Operación completada con éxito",
     authRequired: "Autenticación requerida",
     save: "Guardar",
-    saving: "Guardando..."
+    saving: "Guardando...",
+    share: "Compartir"
   },
   auth: {
     welcome: "Bienvenido a SmartBookly",
