@@ -104,9 +104,9 @@ export const BusinessPage = () => {
     
     navigator.clipboard.writeText(publicUrl).then(() => {
       toast({
-        title: <LanguageText>{t("common.success")}</LanguageText>,
-        description: <LanguageText>{t("business.linkCopied")}</LanguageText>,
-        variant: "success",
+        title: t("common.success"),
+        description: t("business.linkCopied"),
+        variant: "default", // Changed from "success" to "default"
       });
     }).catch((err) => {
       console.error("Failed to copy:", err);
