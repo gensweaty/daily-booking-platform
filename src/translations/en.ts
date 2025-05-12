@@ -201,7 +201,11 @@ const en: TranslationType = {
     updateProfile: "Update Profile",
     availableTimes: "Available Times",
     clickToRequest: "Click on any time to request a booking",
-    contactInformation: "Contact Information"
+    contactInformation: "Contact Information",
+    shareQRCode: "Share QR Code",
+    shareViaSocial: "Share via social media",
+    viewLargerQRCode: "View larger QR code",
+    copiedToClipboard: "QR code link copied to clipboard"
   },
   dashboard: {
     welcome: "Welcome back",
@@ -209,7 +213,7 @@ const en: TranslationType = {
     goodMorning: "Good Morning",
     goodAfternoon: "Good Afternoon",
     goodEvening: "Good Evening",
-    goodNight: "Good Night", // Added missing translation
+    goodNight: "Good Night",
     overview: "Overview",
     calendar: "Calendar",
     bookingCalendar: "Booking Calendar",

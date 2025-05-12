@@ -200,7 +200,11 @@ export const es: TranslationType = {
     updateProfile: "Actualizar Perfil",
     availableTimes: "Horarios Disponibles",
     clickToRequest: "Haga clic en cualquier horario para solicitar una reserva",
-    contactInformation: "Información de Contacto"
+    contactInformation: "Información de Contacto",
+    shareQRCode: "Compartir código QR",
+    shareViaSocial: "Compartir en redes sociales",
+    viewLargerQRCode: "Ver código QR más grande",
+    copiedToClipboard: "Enlace del código QR copiado al portapapeles"
   },
   dashboard: {
     welcome: "Bienvenido de nuevo",

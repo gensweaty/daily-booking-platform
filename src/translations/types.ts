@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export type TranslationType = {

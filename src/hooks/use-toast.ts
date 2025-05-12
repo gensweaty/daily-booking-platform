@@ -1,18 +1,183 @@
-import { Toast, ToastActionElement, ToastProps } from "@/components/ui/toast";
-import {
-  useToast as useToastOriginal,
-  toast as toastOriginal
-} from "@/components/ui/use-toast";
+import { Toast as ToastPrimitive, ToastActionElement, ToastProps } from "@/components/ui/toast";
+import * as React from "react";
+import { LanguageText } from "@/components/shared/LanguageText";
 import { useLanguage } from "@/contexts/LanguageContext";
 
+// Define types
+const TOAST_LIMIT = 10;
+const TOAST_REMOVE_DELAY = 1000000;
+
+type ToasterToast = ToastProps & {
+  id: string;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  action?: ToastActionElement;
+  translateParams?: Record<string, string | number>;
+};
+
 type ToastOptions = Partial<
-  Pick<Toast, "id" | "title" | "description" | "action" | "variant">
+  Pick<ToasterToast, "id" | "title" | "description" | "action" | "variant">
 > & {
   translateParams?: Record<string, string | number>;
 };
 
-// Create extension with specific types and functionality for the project
-const createExtendedToast = (baseToast: typeof toastOriginal) => {
+// Create unique toast ID
+const actionTypes = {
+  ADD_TOAST: "ADD_TOAST",
+  UPDATE_TOAST: "UPDATE_TOAST",
+  DISMISS_TOAST: "DISMISS_TOAST",
+  REMOVE_TOAST: "REMOVE_TOAST",
+} as const;
+
+let count = 0;
+
+function genId() {
+  count = (count + 1) % Number.MAX_VALUE;
+  return count.toString();
+}
+
+// Toast reducer
+type ActionType = typeof actionTypes;
+
+type Action =
+  | {
+      type: ActionType["ADD_TOAST"];
+      toast: ToasterToast;
+    }
+  | {
+      type: ActionType["UPDATE_TOAST"];
+      toast: Partial<ToasterToast>;
+    }
+  | {
+      type: ActionType["DISMISS_TOAST"];
+      toastId?: string;
+    }
+  | {
+      type: ActionType["REMOVE_TOAST"];
+      toastId?: string;
+    };
+
+interface State {
+  toasts: ToasterToast[];
+}
+
+function toastReducer(state: State, action: Action): State {
+  switch (action.type) {
+    case actionTypes.ADD_TOAST:
+      return {
+        ...state,
+        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
+      };
+
+    case actionTypes.UPDATE_TOAST:
+      return {
+        ...state,
+        toasts: state.toasts.map((t) =>
+          t.id === action.toast.id ? { ...t, ...action.toast } : t
+        ),
+      };
+
+    case actionTypes.DISMISS_TOAST:
+      return {
+        ...state,
+        toasts: state.toasts.map((t) =>
+          t.id === action.toastId || action.toastId === undefined
+            ? {
+                ...t,
+                open: false,
+              }
+            : t
+        ),
+      };
+
+    case actionTypes.REMOVE_TOAST:
+      if (action.toastId === undefined) {
+        return {
+          ...state,
+          toasts: [],
+        };
+      }
+      return {
+        ...state,
+        toasts: state.toasts.filter((t) => t.id !== action.toastId),
+      };
+    default:
+      return state;
+  }
+}
+
+// Toast hook
+const useToast = () => {
+  const [state, dispatch] = React.useReducer(toastReducer, {
+    toasts: [],
+  });
+
+  React.useEffect(() => {
+    state.toasts.forEach((t) => {
+      if (t.open === false && t.id) {
+        setTimeout(() => {
+          dispatch({
+            type: actionTypes.REMOVE_TOAST,
+            toastId: t.id,
+          });
+        }, TOAST_REMOVE_DELAY);
+      }
+    });
+  }, [state.toasts]);
+
+  const toast = React.useCallback(
+    function toast(opts: ToastOptions) {
+      const id = opts.id || genId();
+      const update = state.toasts.find((t) => t.id === id);
+
+      if (update) {
+        dispatch({
+          type: actionTypes.UPDATE_TOAST,
+          toast: { ...opts, id },
+        });
+      } else {
+        dispatch({
+          type: actionTypes.ADD_TOAST,
+          toast: {
+            ...opts,
+            id,
+            open: true,
+            onOpenChange: (open) => {
+              if (!open) {
+                dispatch({
+                  type: actionTypes.DISMISS_TOAST,
+                  toastId: id,
+                });
+              }
+            },
+          },
+        });
+      }
+
+      return id;
+    },
+    [state.toasts]
+  );
+
+  const dismiss = React.useCallback(
+    (toastId?: string) => {
+      dispatch({
+        type: actionTypes.DISMISS_TOAST,
+        toastId,
+      });
+    },
+    []
+  );
+
+  return {
+    toast,
+    dismiss,
+    toasts: state.toasts,
+  };
+};
+
+// Create extension with specific types and functionality
+const createExtendedToast = (baseToast: ReturnType<typeof useToast>["toast"]) => {
   // Base toast function stays the same
   const toast = (props: ToastOptions) => baseToast(props);
   
@@ -84,13 +249,13 @@ const createExtendedToast = (baseToast: typeof toastOriginal) => {
   return toast;
 };
 
-// Create custom hook with language translation support
-const useToast = () => {
-  const { toast: baseToast, ...rest } = useToastOriginal();
+// Main implementation
+const useToastWithTranslation = () => {
+  const baseHook = useToast();
   const { t } = useLanguage();
   
   // Create toast methods with translation support
-  const toast = createExtendedToast((props) => {
+  const wrappedToast = (props: ToastOptions) => {
     // Handle translation for title and description if they're keys
     let { title, description, translateParams } = props;
     
@@ -118,11 +283,17 @@ const useToast = () => {
       }
     }
     
-    return baseToast({ ...props, title, description });
-  });
+    return baseHook.toast({ ...props, title, description });
+  };
   
-  return { toast, ...rest };
+  const toast = createExtendedToast(wrappedToast);
+  
+  return { 
+    toast, 
+    dismiss: baseHook.dismiss, 
+    toasts: baseHook.toasts 
+  };
 };
 
 // Export both the hook and the toast function
-export { useToast, createExtendedToast as toast };
+export { useToastWithTranslation as useToast, createExtendedToast as toast };
