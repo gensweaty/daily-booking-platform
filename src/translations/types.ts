@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es' | 'ka';
 
 export type TranslationType = {
@@ -201,12 +200,6 @@ export type TranslationType = {
     contactInformation: string;
     scanQrCode: string;
     qrCodeTooltip: string;
-    shareQRCode: string;
-    shareViaSocial: string;
-    viewLargerQRCode: string;
-    copiedToClipboard: string;
-    share: string;
-    shareSuccess: string;
   };
   dashboard: {
     welcome: string;
@@ -265,9 +258,6 @@ export type TranslationType = {
     fullNameRequired: string;
     fullName: string;
     phoneNumber: string;
-    phoneNumberRequired: string;
-    validEmailRequired: string;
-    validDatesRequired: string;
     paymentStatus: string;
     selectPaymentStatus: string;
     paymentAmount: string;
@@ -357,7 +347,7 @@ export type TranslationType = {
     new: string;
     request: string;
     requests: string;
-    backToHome: string;
+		backToHome: string;
     supportedFormats: string;
     deleteConfirmMessage: string;
     noDescription: string;
@@ -366,7 +356,6 @@ export type TranslationType = {
     authRequired: string;
     save: string;
     saving: string;
-    shareQRCode: string;
   };
   auth: {
     welcome: string;

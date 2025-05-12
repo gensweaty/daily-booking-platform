@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 export const es: TranslationType = {
@@ -201,13 +200,7 @@ export const es: TranslationType = {
     updateProfile: "Actualizar Perfil",
     availableTimes: "Horarios Disponibles",
     clickToRequest: "Haga clic en cualquier horario para solicitar una reserva",
-    contactInformation: "Información de Contacto",
-    shareQRCode: "Compartir código QR",
-    shareViaSocial: "Compartir en redes sociales",
-    viewLargerQRCode: "Ver código QR más grande",
-    copiedToClipboard: "Enlace del código QR copiado al portapapeles",
-    share: "Compartir",
-    shareSuccess: "Enlace copiado al portapapeles"
+    contactInformation: "Información de Contacto"
   },
   dashboard: {
     welcome: "Bienvenido de nuevo",
@@ -266,9 +259,6 @@ export const es: TranslationType = {
     fullNameRequired: "Nombre Completo",
     fullName: "Nombre Completo",
     phoneNumber: "Número de Teléfono",
-    phoneNumberRequired: "Número de Teléfono Requerido",
-    validEmailRequired: "Correo Electrónico Válido Requerido",
-    validDatesRequired: "Fechas Válidas Requeridas",
     paymentStatus: "Estado de Pago",
     selectPaymentStatus: "Selecciona estado de pago",
     paymentAmount: "Monto de Pago",
@@ -337,9 +327,6 @@ export const es: TranslationType = {
     error: "Error",
     warning: "Advertencia",
     submitting: "Enviando...",
-    create: "Crear",
-    update: "Actualizar",
-    delete: "Eliminar",
     loading: "Cargando...",
     rateLimitReached: "Límite de Frecuencia Alcanzado",
     waitBeforeBooking: "Por favor espere {{time}} antes de enviar otra solicitud de reserva",
@@ -358,6 +345,10 @@ export const es: TranslationType = {
     request: "solicitud",
     requests: "solicitudes",
     backToHome: "Volver a la página de inicio",
+    create: "Crear",
+    update: "Actualizar",
+    delete: "Eliminar",
+    and: "y",
     supportedFormats: "Formatos admitidos: .jpg, .jpeg, .png, .pdf, .docx, .xls",
     deleteConfirmMessage: "Esta acción no se puede deshacer. ¿Está seguro de que desea eliminar este elemento?",
     noDescription: "No se proporcionó descripción",
@@ -365,9 +356,7 @@ export const es: TranslationType = {
     successMessage: "Operación completada con éxito",
     authRequired: "Autenticación requerida",
     save: "Guardar",
-    saving: "Guardando...",
-    shareQRCode: "Compartir código QR",
-    and: "y"
+    saving: "Guardando..."
   },
   auth: {
     welcome: "Bienvenido a SmartBookly",
@@ -379,7 +368,7 @@ export const es: TranslationType = {
     usernameLabel: "Nombre de usuario",
     forgotPassword: "¿Olvidaste tu contraseña?",
     noAccount: "¿No tienes una cuenta?",
-    haveAccount: "¿Ya tienes una cuenta?",
+    haveAccount: "��Ya tienes una cuenta?",
     signInCta: "Iniciar sesión",
     signUpCta: "Registrarse",
     agreeToTerms: "Estoy de acuerdo con los términos y condiciones",

@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 // Define English translations
@@ -202,13 +201,7 @@ const en: TranslationType = {
     updateProfile: "Update Profile",
     availableTimes: "Available Times",
     clickToRequest: "Click on any time to request a booking",
-    contactInformation: "Contact Information",
-    shareQRCode: "Share QR Code",
-    shareViaSocial: "Share via social media",
-    viewLargerQRCode: "View larger QR code",
-    copiedToClipboard: "QR code link copied to clipboard",
-    share: "Share",
-    shareSuccess: "Link copied to clipboard"
+    contactInformation: "Contact Information"
   },
   dashboard: {
     welcome: "Welcome back",
@@ -216,7 +209,7 @@ const en: TranslationType = {
     goodMorning: "Good Morning",
     goodAfternoon: "Good Afternoon",
     goodEvening: "Good Evening",
-    goodNight: "Good Night",
+    goodNight: "Good Night", // Added missing translation
     overview: "Overview",
     calendar: "Calendar",
     bookingCalendar: "Booking Calendar",
@@ -267,9 +260,6 @@ const en: TranslationType = {
     fullNameRequired: "Full Name Required",
     fullName: "Full Name",
     phoneNumber: "Phone Number",
-    phoneNumberRequired: "Phone Number Required",
-    validEmailRequired: "Valid Email Required",
-    validDatesRequired: "Valid Dates Required",
     paymentStatus: "Payment Status",
     selectPaymentStatus: "Select payment status",
     paymentAmount: "Payment Amount",
@@ -367,8 +357,7 @@ const en: TranslationType = {
     successMessage: "Operation completed successfully",
     authRequired: "Authentication required",
     save: "Save",
-    saving: "Saving...",
-    shareQRCode: "Share QR Code"
+    saving: "Saving..."
   },
   auth: {
     welcome: "Welcome to SmartBookly",
@@ -452,7 +441,7 @@ const en: TranslationType = {
     requestDeleted: "Booking request deleted",
     newRequest: "New Booking Request",
     pendingRequestsCount: "You have {{count}} new booking requests pending",
-    requestApproved: "Booking request approved",
+    requestApproved: "Booking request approved and email sent",
     requestSubmitted: "Booking request submitted",
     requestSubmittedDescription: "Your booking request has been submitted and is pending approval."
   },
