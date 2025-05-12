@@ -113,4 +113,4 @@ export const ImageCarousel = ({
       </Carousel>
     </div>
   );
-};
+}

@@ -22,17 +22,17 @@ const calendarViews = [{
   customPadding: "p-4" // Adding padding to third image
 }];
 
-// Added new website carousel views
+// Modified to have custom padding for the new image
 const websiteViews = [{
   src: "/lovable-uploads/70d5dbd5-33c5-4a79-8e5d-f70268175828.png",
   alt: "Business Website",
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
-  src: "/lovable-uploads/a9fa8d9c-3592-47b2-b89b-be6a4e04a6a1.png",
+  src: "/lovable-uploads/e81ddf47-e8fa-4e8f-95ef-4d9ddd944ac2.png",
   alt: "Business Page with QR Code",
-  customStyle: "object-contain",
-  customPadding: "p-4"
+  customStyle: "object-contain h-full", // Added h-full to make this specific image fill the height
+  customPadding: "p-1" // Reduced padding specifically for this image to maximize height usage
 }];
 
 import { FeatureCard } from "./FeatureCard";
