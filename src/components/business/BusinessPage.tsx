@@ -1,4 +1,3 @@
-
 import { BusinessProfileForm } from "./BusinessProfileForm";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -261,8 +260,8 @@ export const BusinessPage = () => {
         </TabsContent>
 
         <TabsContent value="bookings" className="space-y-6">
-          {/* Adjusted negative margin here for the header section to move it up */}
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 -mt-2">
+          {/* Increased negative margin from -mt-2 to -mt-8 to move content closer to the top */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 -mt-8">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold">
                 <LanguageText>{t("business.bookingRequests")}</LanguageText>
@@ -293,7 +292,7 @@ export const BusinessPage = () => {
             )}
           </div>
 
-          {/* Reduced vertical spacing here by changing space-y-8 to space-y-4 and reducing mb-4 to mb-2 */}
+          {/* Maintaining the negative margin here to keep the content moving up with the header */}
           <div className="space-y-4 -mt-1">
             <div>
               <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
