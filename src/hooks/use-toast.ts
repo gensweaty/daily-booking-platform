@@ -1,7 +1,6 @@
 
 // Import directly from the shadcn/ui toast component source
 import { type ToastActionElement, ToastProps } from '@/components/ui/toast';
-import { useToast as useToastPrimitive } from '@radix-ui/react-toast';
 import * as React from 'react';
 
 type ToasterToast = ToastProps & {
@@ -156,7 +155,8 @@ const reducer = (state: ToastStore, action: Action): ToastStore => {
         pausedAt: null,
         toasts: state.toasts.map((t) => ({
           ...t,
-          pauseDuration: t.pauseDuration + diff,
+          // Custom handling to avoid the pauseDuration error
+          ...(typeof t === 'object' ? { pauseDuration: (t.pauseDuration || 0) + diff } : {})
         })),
       };
   }
@@ -239,6 +239,28 @@ toast.success = ({ title = "Success", ...props }: Toast) => {
     title,
     ...props,
   });
+};
+
+// Add namespace for event-related toasts
+toast.event = {
+  created: () => {
+    return toast({
+      title: "Event Created",
+      description: "Your event has been successfully created",
+    });
+  },
+  updated: () => {
+    return toast({
+      title: "Event Updated",
+      description: "Your event has been successfully updated",
+    });
+  },
+  bookingSubmitted: () => {
+    return toast({
+      title: "Booking Request Submitted",
+      description: "Your booking request has been submitted successfully",
+    });
+  }
 };
 
 toast.task = {

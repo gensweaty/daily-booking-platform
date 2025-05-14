@@ -167,10 +167,8 @@ export const BookingRequestForm = ({
       // Validate required fields
       if (!fullName) {
         toast({
-          translateKeys: {
-            titleKey: "common.error",
-            descriptionKey: "events.fullNameRequired"
-          }
+          title: "Error",
+          description: "Please select a date"
         });
         setIsSubmitting(false);
         return;
@@ -178,10 +176,8 @@ export const BookingRequestForm = ({
 
       if (!userNumber) {
         toast({
-          translateKeys: {
-            titleKey: "common.error",
-            descriptionKey: "events.phoneNumberRequired"
-          }
+          title: "Error",
+          description: "Please enter your name"
         });
         setIsSubmitting(false);
         return;
@@ -189,10 +185,8 @@ export const BookingRequestForm = ({
 
       if (!socialNetworkLink || !socialNetworkLink.includes('@')) {
         toast({
-          translateKeys: {
-            titleKey: "common.error",
-            descriptionKey: "events.validEmailRequired"
-          }
+          title: "Error",
+          description: "Please enter your phone number"
         });
         setIsSubmitting(false);
         return;
@@ -204,10 +198,8 @@ export const BookingRequestForm = ({
       // Additional validation for dates
       if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
         toast({
-          translateKeys: {
-            titleKey: "common.error",
-            descriptionKey: "events.validDatesRequired"
-          }
+          title: "Error",
+          description: "Please enter a description for your booking"
         });
         setIsSubmitting(false);
         return;
@@ -391,7 +383,7 @@ export const BookingRequestForm = ({
         fileInputRef.current.value = '';
       }
 
-      // Use the dedicated toast helper for booking submissions
+      // Fix: Using the newly added event.bookingSubmitted method
       toast.event.bookingSubmitted();
 
       if (onSuccess) {
@@ -406,10 +398,8 @@ export const BookingRequestForm = ({
       console.error('Error submitting form:', error);
       setIsSubmitting(false);
       toast({
-        translateKeys: {
-          titleKey: "common.error",
-          descriptionKey: "common.errorOccurred"
-        }
+        title: "Error",
+        description: "Failed to submit booking request"
       });
     }
   };
