@@ -8,7 +8,7 @@ import { Button } from "./ui/button";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
-import { useToast } from "./ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { ReminderNotificationManager } from "./reminder/ReminderNotificationManager";
 
 export const ReminderList = () => {
@@ -74,7 +74,7 @@ export const ReminderList = () => {
     <>
       <ReminderNotificationManager reminders={reminders} />
       <div className="space-y-4">
-        {(reminders || []).map((reminder: Reminder) => (
+        {reminders.map((reminder: Reminder) => (
           <div
             key={reminder.id}
             className="p-4 bg-white rounded-lg shadow border border-gray-200"
