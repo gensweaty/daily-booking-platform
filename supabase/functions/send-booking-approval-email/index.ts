@@ -171,7 +171,7 @@ function formatPaymentStatus(status: string, language?: string): string {
     case "partly_paid":
     case "partly":
       // Return translated payment status based on language
-      if (normalizedLang === 'ka') return "ნაწილობრ��ვ გადახდილი";
+      if (normalizedLang === 'ka') return "ნაწილობრივ გადახდილი";
       if (normalizedLang === 'es') return "Pagado Parcialmente";
       return "Partly Paid";
       
