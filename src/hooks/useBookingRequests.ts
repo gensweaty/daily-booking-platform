@@ -14,6 +14,7 @@ export const useBookingRequests = () => {
     business_name: string;
     contact_address: string | null;
   } | null>(null);
+  const [newBooking, setNewBooking] = useState<boolean>(false);
   const { language } = useLanguage(); // Get current UI language
   
   // Cache business profile data when component mounts
@@ -134,7 +135,23 @@ export const useBookingRequests = () => {
       });
     },
     enabled: !!businessId,
+    onSuccess: (data) => {
+      // Check if there are any new pending requests since the last fetch
+      const pendingCount = data?.filter(req => req.status === 'pending').length || 0;
+      if (pendingCount > 0) {
+        setNewBooking(true);
+      } else {
+        setNewBooking(false);
+      }
+    }
   });
+  
+  // Clear the new booking flag when component unmounts or when the booking requests tab is viewed
+  useEffect(() => {
+    return () => {
+      setNewBooking(false);
+    };
+  }, []);
   
   // Extract the booking requests from the data
   const bookingRequests = bookingRequestsData || [];
@@ -645,6 +662,7 @@ export const useBookingRequests = () => {
     pendingRequests,
     approvedRequests,
     rejectedRequests,
+    newBooking,
     isLoading,
     error,
     approveRequest: approveMutation.mutateAsync,
