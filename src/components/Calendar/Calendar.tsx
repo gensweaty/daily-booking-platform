@@ -249,7 +249,7 @@ export const Calendar = ({
     setIsBookingFormOpen(false);
     queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
     
-    toast.booking.submitted();
+    toast.event.bookingSubmitted();
   };
 
   if (error && !directEvents) {

@@ -572,7 +572,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         event.payment_status || 'not_paid',
         event.payment_amount || null,
         event.language || language || 'en', // Use event language, current language, or default to 'en'
-        event.event_notes // Pass the event notes or description
+        event.event_notes // Pass the event notes
       );
     }
     
@@ -893,7 +893,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             event.payment_status || 'not_paid',
             paymentAmount,
             emailLanguage, // Use determined language
-            event.event_notes || event.description // Pass the event notes or description
+            event.event_notes // Pass the event notes
           );
         } catch (emailError) {
           console.error('Error sending updated booking email:', emailError);

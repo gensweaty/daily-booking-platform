@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext"; // Import language context
 
 interface UseEventDialogProps {
@@ -51,7 +51,7 @@ export const useEventDialog = ({
       return createdEvent;
     } catch (error: any) {
       console.error("Failed to create event:", error);
-      toast.error({
+      toast({
         title: "Error",
         description: error.message || "Failed to create event",
         variant: "destructive",
@@ -98,7 +98,7 @@ export const useEventDialog = ({
       return updatedEvent;
     } catch (error: any) {
       console.error("Failed to update event:", error);
-      toast.error({
+      toast({
         title: "Error",
         description: error.message || "Failed to update event",
         variant: "destructive",
@@ -117,7 +117,7 @@ export const useEventDialog = ({
       console.log("Event deleted successfully:", selectedEvent.id);
     } catch (error: any) {
       console.error("Failed to delete event:", error);
-      toast.error({
+      toast({
         title: "Error",
         description: error.message || "Failed to delete event",
         variant: "destructive",

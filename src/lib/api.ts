@@ -105,8 +105,7 @@ export const testEmailSending = async (
   paymentAmount: number | null = null,
   businessAddress: string = '',
   eventId?: string,
-  language: string = 'en', // Add language parameter with default
-  eventNotes?: string // Add event notes parameter
+  language: string = 'en' // Add language parameter with default
 ) => {
   console.log(`Test sending email to ${recipientEmail} with language: ${language}`);
   
@@ -139,8 +138,7 @@ export const testEmailSending = async (
         businessAddress,
         eventId,
         source: 'test-email', // Track source consistently
-        language, // Include language parameter
-        eventNotes // Include event notes parameter
+        language // Include language parameter
       })
     });
     
