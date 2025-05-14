@@ -64,7 +64,7 @@ const en: TranslationType = {
     paidPartly: "Partly Paid",
     paidFully: "Fully Paid",
     newCustomer: "New Customer",
-    fullNameRequired: "Full Name Required",
+    fullNameRequired: "Full Name",
     fullNamePlaceholder: "Enter customer's full name",
     phoneNumber: "Phone Number",
     phoneNumberPlaceholder: "Enter phone number",
