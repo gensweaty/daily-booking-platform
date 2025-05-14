@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -172,7 +171,7 @@ function formatPaymentStatus(status: string, language?: string): string {
     case "partly_paid":
     case "partly":
       // Return translated payment status based on language
-      if (normalizedLang === 'ka') return "ნაწილობრივ გადახდილი";
+      if (normalizedLang === 'ka') return "ნაწილობრ��ვ გადახდილი";
       if (normalizedLang === 'es') return "Pagado Parcialmente";
       return "Partly Paid";
       
@@ -325,16 +324,18 @@ const handler = async (req: Request): Promise<Response> => {
       
       // Prepare address section
       let addressInfo = "";
-      let addressDisplay = businessAddress.trim();
+      let addressDisplay = businessAddress?.trim() || "";
       
       // Address label translations
       const addressLabel = language === 'ka' 
         ? "მისამართი" 
         : (language === 'es' ? "Dirección" : "Address");
       
-      addressInfo = `<p style="margin: 8px 0;"><strong>${addressLabel}:</strong> ${addressDisplay}</p>`;
+      if (addressDisplay) {
+        addressInfo = `<p style="margin: 8px 0;"><strong>${addressLabel}:</strong> ${addressDisplay}</p>`;
+      }
       
-      // Prepare event notes section (new addition)
+      // Prepare event notes section
       let eventNotesInfo = "";
       if (eventNotes && typeof eventNotes === 'string' && eventNotes.trim() !== "") {
         // Event notes label translations
