@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -217,10 +216,6 @@ export const CustomerDialog = ({
       console.log("Business data for email:", businessData);
       
       if (businessData) {
-        // Extract event notes for the email
-        const eventNotes = eventData.event_notes || null;
-        console.log("Event notes for email:", eventNotes ? 'present' : 'not present');
-        
         // Send email notification to the customer's email address
         // Use the same email format/template as the calendar event emails
         const emailResult = await testEmailSending(
@@ -232,10 +227,7 @@ export const CustomerDialog = ({
           eventData.payment_status || 'not_paid',
           eventData.payment_amount || null,
           businessData.contact_address || '',
-          eventData.id,
-          undefined, // Source
-          language, // Current UI language
-          eventNotes // Include event notes in the email
+          eventData.id
         );
         
         console.log("Event creation email result:", emailResult);
