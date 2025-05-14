@@ -249,7 +249,6 @@ export const Calendar = ({
     setIsBookingFormOpen(false);
     queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
     
-    // Fix: Using the newly added event.bookingSubmitted method
     toast.event.bookingSubmitted();
   };
 

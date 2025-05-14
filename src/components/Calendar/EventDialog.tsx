@@ -313,10 +313,12 @@ export const EventDialog = ({
       }
 
       if (!isBookingEvent) {
-        // Replace hardcoded toast messages with title and description directly
+        // Replace hardcoded toast messages with translation keys
         toast({
-          title: event?.id ? "Event Updated" : "Event Created",
-          description: event?.id ? "Your event has been successfully updated" : "Your event has been successfully created"
+          translateKeys: {
+            titleKey: "common.success",
+            descriptionKey: event?.id ? "events.eventUpdated" : "events.eventCreated"
+          }
         });
       } else {
         if (event?.id) {
@@ -366,8 +368,10 @@ export const EventDialog = ({
     } catch (error: any) {
       console.error('Error handling event submission:', error);
       toast({
-        title: "Error",
-        description: "An error occurred while processing your request"
+        translateKeys: {
+          titleKey: "common.error",
+          descriptionKey: "common.errorOccurred"
+        }
       });
     }
   };
