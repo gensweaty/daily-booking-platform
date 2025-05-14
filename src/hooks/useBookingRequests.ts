@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -154,7 +155,8 @@ export const useBookingRequests = () => {
     paymentStatus, 
     paymentAmount, 
     businessAddress,
-    language // Add language parameter
+    language, // Language parameter
+    eventNotes // Add event notes parameter
   }: {
     email: string;
     fullName: string;
@@ -164,7 +166,8 @@ export const useBookingRequests = () => {
     paymentStatus?: string;
     paymentAmount?: number;
     businessAddress?: string;
-    language?: string; // Add language parameter type
+    language?: string;
+    eventNotes?: string; // Add to interface
   }) => {
     if (!email || !email.includes('@')) {
       console.error("Invalid email format or missing email:", email);
@@ -184,7 +187,8 @@ export const useBookingRequests = () => {
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
         businessAddress: businessAddress, // Pass the address as is
-        language: language // Pass language parameter to the edge function
+        language: language, // Pass language parameter to the edge function
+        eventNotes: eventNotes // Pass event notes to the edge function
       };
       
       console.log("Email request payload:", {
@@ -266,7 +270,8 @@ export const useBookingRequests = () => {
         id: booking.id,
         requester_name: booking.requester_name,
         language: booking.language || 'not set',
-        payment_status: booking.payment_status
+        payment_status: booking.payment_status,
+        description: booking.description ? 'Has description' : 'No description'
       });
       
       // Check for conflicts
@@ -534,10 +539,12 @@ export const useBookingRequests = () => {
           paymentStatus: booking.payment_status,
           paymentAmount: booking.payment_amount,
           businessAddress: contactAddress,
-          language: booking.language || language // Pass the booking's language or fallback to UI language
+          language: booking.language || language, // Pass the booking's language or fallback to UI language
+          eventNotes: booking.description || booking.event_notes // Pass event notes to email
         };
         
         console.log('Sending approval email with language:', emailParams.language);
+        console.log('Including event notes in email:', emailParams.eventNotes ? 'Yes' : 'No');
         
         // Send email but don't block the approval process completion
         sendApprovalEmail(emailParams).then(emailResult => {

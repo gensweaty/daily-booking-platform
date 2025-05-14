@@ -233,7 +233,7 @@ const handler = async (req: Request): Promise<Response> => {
       paymentStatus,
       paymentAmount,
       language,
-      eventNotes
+      eventNotes: eventNotes ? "Present" : "Not provided"
     });
 
     // Build a standardized deduplication key that ignores the source

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -227,7 +228,9 @@ export const CustomerDialog = ({
           eventData.payment_status || 'not_paid',
           eventData.payment_amount || null,
           businessData.contact_address || '',
-          eventData.id
+          eventData.id,
+          language, // Pass the language
+          eventData.event_notes // Pass event notes
         );
         
         console.log("Event creation email result:", emailResult);
@@ -460,7 +463,8 @@ export const CustomerDialog = ({
                 start_date: eventStartDate.toISOString(),
                 end_date: eventEndDate.toISOString(),
                 payment_status: payment_status,
-                payment_amount: payment_amount ? parseFloat(payment_amount) : null
+                payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+                event_notes: event_notes // Include event notes for email
               });
             }
             

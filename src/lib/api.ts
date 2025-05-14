@@ -1,3 +1,4 @@
+
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
@@ -105,7 +106,8 @@ export const testEmailSending = async (
   paymentAmount: number | null = null,
   businessAddress: string = '',
   eventId?: string,
-  language: string = 'en' // Add language parameter with default
+  language: string = 'en', // Language parameter with default
+  eventNotes?: string // Add event notes parameter
 ) => {
   console.log(`Test sending email to ${recipientEmail} with language: ${language}`);
   
@@ -138,7 +140,8 @@ export const testEmailSending = async (
         businessAddress,
         eventId,
         source: 'test-email', // Track source consistently
-        language // Include language parameter
+        language, // Include language parameter
+        eventNotes // Include event notes parameter
       })
     });
     
