@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -11,13 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  createCustomer,
-  deleteCustomer as deleteCustomerAPI,
-  updateCustomer as updateCustomerAPI,
-} from "@/lib/api/customers";
-import { Customer } from "@/lib/types";
-import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Trash2, AlertCircle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
@@ -31,8 +26,107 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { supabase } from "@/integrations/supabase/client";
-import { CustomerFiles } from "./CustomerFiles";
+
+// Create a Customer interface directly in this file
+interface Customer {
+  id?: string;
+  name: string;
+  surname?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  postal_code?: string;
+  notes?: string;
+  created_at?: string;
+  user_id?: string;
+}
+
+// Create a basic CustomerFiles component
+const CustomerFiles = ({ 
+  selectedFile, 
+  setSelectedFile, 
+  fileError, 
+  setFileError, 
+  customerId, 
+  onFileDeleted, 
+  displayedFiles 
+}: { 
+  selectedFile: File | null; 
+  setSelectedFile: (file: File | null) => void; 
+  fileError: string; 
+  setFileError: (error: string) => void; 
+  customerId?: string; 
+  onFileDeleted: (id: string) => void; 
+  displayedFiles: any[]; 
+}) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setFileError("File size must be less than 5MB");
+        return;
+      }
+      setSelectedFile(file);
+      setFileError("");
+    }
+  };
+
+  const handleFileDelete = async (fileId: string) => {
+    try {
+      const { error } = await supabase
+        .from('customer_files_new')
+        .delete()
+        .eq('id', fileId);
+
+      if (error) {
+        console.error("Error deleting file:", error);
+      } else {
+        onFileDeleted(fileId);
+      }
+    } catch (err) {
+      console.error("Error in file deletion:", err);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>Attachments</Label>
+        <Input 
+          type="file" 
+          onChange={handleFileChange} 
+          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+        />
+        {fileError && <p className="text-sm text-red-500">{fileError}</p>}
+        {selectedFile && (
+          <div className="text-sm mt-1">Selected: {selectedFile.name}</div>
+        )}
+      </div>
+
+      {displayedFiles && displayedFiles.length > 0 && (
+        <div className="border rounded-md p-3 space-y-2">
+          <h4 className="font-medium text-sm">Attached Files</h4>
+          <div className="space-y-1">
+            {displayedFiles.map((file) => (
+              <div key={file.id} className="flex justify-between items-center text-sm">
+                <span>{file.filename}</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => handleFileDelete(file.id)}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface CustomerDialogProps {
   open: boolean;
@@ -59,7 +153,6 @@ export function CustomerDialog({
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -126,14 +219,46 @@ export function CustomerDialog({
     }
   }, [customer, open]);
 
-  const { mutate: updateCustomer } = useMutation(updateCustomerAPI, {
+  // Create API functions directly instead of importing
+  const updateCustomer = async (data: Customer) => {
+    const { error } = await supabase
+      .from('customers')
+      .update(data)
+      .eq('id', data.id);
+    
+    if (error) throw error;
+    return data;
+  };
+
+  const createCustomer = async (data: Customer) => {
+    const { data: newCustomer, error } = await supabase
+      .from('customers')
+      .insert(data)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return newCustomer;
+  };
+
+  const deleteCustomer = async (id: string) => {
+    const { error } = await supabase
+      .from('customers')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return true;
+  };
+
+  const { mutate: updateCustomerMutation } = useMutation({
+    mutationFn: updateCustomer,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       onOpenChange(false);
-      // Fix incorrect toast properties
       toast({
         title: "Success",
-        description: customer ? "Customer updated successfully" : "Customer created successfully"
+        description: "Customer updated successfully"
       });
     },
     onError: (error: any) => {
@@ -145,14 +270,14 @@ export function CustomerDialog({
     },
   });
 
-  const { mutate: createNewCustomer } = useMutation(createCustomer, {
+  const { mutate: createNewCustomer } = useMutation({
+    mutationFn: createCustomer,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       onOpenChange(false);
-      // Fix incorrect toast properties
       toast({
         title: "Success",
-        description: customer ? "Customer updated successfully" : "Customer created successfully"
+        description: "Customer created successfully"
       });
     },
     onError: (error: any) => {
@@ -164,11 +289,11 @@ export function CustomerDialog({
     },
   });
 
-  const { mutate: deleteCustomer } = useMutation(deleteCustomerAPI, {
+  const { mutate: deleteCustomerMutation } = useMutation({
+    mutationFn: deleteCustomer,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       onOpenChange(false);
-      // Fix incorrect toast properties
       toast({
         title: "Success",
         description: "Customer deleted successfully"
@@ -176,7 +301,6 @@ export function CustomerDialog({
     },
     onError: (error: any) => {
       console.error("Error deleting customer:", error);
-      // Fix incorrect toast properties
       toast({
         title: "Error",
         description: "Failed to delete customer"
@@ -199,13 +323,13 @@ export function CustomerDialog({
       notes,
     };
 
-    if (customer) {
-      updateCustomer({ id: customer.id, ...customerData });
+    if (customer?.id) {
+      updateCustomerMutation({ ...customerData, id: customer.id });
     } else {
       createNewCustomer(customerData);
     }
     
-    if (selectedFile && user) {
+    if (selectedFile) {
       try {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `customers/${customer?.id || 'new'}/${crypto.randomUUID()}.${fileExt}`;
@@ -227,7 +351,7 @@ export function CustomerDialog({
           file_path: filePath,
           content_type: selectedFile.type,
           size: selectedFile.size,
-          user_id: user.id,
+          user_id: customer?.user_id,
           customer_id: customer?.id
         };
 
@@ -252,8 +376,8 @@ export function CustomerDialog({
   };
 
   const handleConfirmDelete = () => {
-    if (customer) {
-      deleteCustomer(customer.id);
+    if (customer?.id) {
+      deleteCustomerMutation(customer.id);
       setIsDeleteConfirmOpen(false);
     }
   };

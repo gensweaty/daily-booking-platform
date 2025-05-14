@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Calendar } from "@/components/Calendar/Calendar";
 import { BookingRequests } from "@/components/business/BookingRequests";
@@ -30,7 +31,6 @@ export const DashboardContent = () => {
   }
 
   const handleBookingRequestApproved = () => {
-    // Fix: Using the newly added event.bookingSubmitted method
     toast.event.bookingSubmitted();
   };
 

@@ -155,8 +155,8 @@ const reducer = (state: ToastStore, action: Action): ToastStore => {
         pausedAt: null,
         toasts: state.toasts.map((t) => ({
           ...t,
-          // Custom handling to avoid the pauseDuration error
-          ...(typeof t === 'object' ? { pauseDuration: (t.pauseDuration || 0) + diff } : {})
+          // Fixed the pauseDuration issue
+          ...(t.duration !== undefined ? { duration: t.duration + diff } : {})
         })),
       };
   }

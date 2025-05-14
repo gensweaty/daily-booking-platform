@@ -1,9 +1,31 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { BookingRequestType } from "@/lib/types/booking";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+
+// Define BookingRequestType directly inside this file instead of importing
+export interface BookingRequestType {
+  id: string;
+  business_id: string;
+  user_id?: string;
+  title: string;
+  description?: string;
+  requester_name: string;
+  requester_email: string;
+  requester_phone?: string;
+  start_date: string;
+  end_date: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string;
+  payment_amount?: number;
+  payment_status?: string;
+  language?: string;
+  business_user_id?: string;
+}
 
 interface UseBookingRequestsProps {
   businessId?: string;
@@ -22,7 +44,7 @@ export const useBookingRequests = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const { user } = useAuth();
-	const { toast } = useToast();
+  const { toast } = useToast();
   const { t } = useLanguage();
 
   const fetchBookingRequests = useCallback(async () => {
@@ -76,6 +98,11 @@ export const useBookingRequests = ({
   useEffect(() => {
     fetchBookingRequests();
   }, [fetchBookingRequests]);
+
+  // Create filtered arrays for pending, approved, and rejected requests
+  const pendingRequests = bookingRequests.filter(request => request.status === 'pending');
+  const approvedRequests = bookingRequests.filter(request => request.status === 'approved');
+  const rejectedRequests = bookingRequests.filter(request => request.status === 'rejected');
 
   const createBookingRequest = async (newBookingRequest: Omit<BookingRequestType, 'id'>) => {
     setLoading(true);
@@ -279,5 +306,12 @@ export const useBookingRequests = ({
     deleteBookingRequest,
     approveBookingRequest,
     rejectBookingRequest,
+    // Add the following properties for BusinessPage.tsx
+    pendingRequests,
+    approvedRequests,
+    rejectedRequests,
+    // Aliases for consistent naming in BusinessPage.tsx
+    approveRequest: approveBookingRequest,
+    rejectRequest: rejectBookingRequest
   };
 };
