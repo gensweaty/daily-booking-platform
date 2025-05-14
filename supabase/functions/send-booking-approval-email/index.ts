@@ -20,6 +20,7 @@ interface BookingApprovalEmailRequest {
   eventId?: string; // Used for deduplication
   source?: string; // Used to track source of request
   language?: string; // Used to determine email language
+  eventNotes?: string; // Added event notes field
 }
 
 // For deduplication: Store a map of recently sent emails with expiring entries
@@ -71,7 +72,8 @@ function getEmailContent(
   formattedStartDate: string,
   formattedEndDate: string,
   paymentInfo: string,
-  addressInfo: string
+  addressInfo: string,
+  eventNotesInfo: string
 ): string {
   // Normalize language to lowercase and handle undefined
   const normalizedLang = (language || 'en').toLowerCase();
@@ -99,6 +101,7 @@ function getEmailContent(
           <p style="margin: 8px 0;"><strong>დაჯავშნის თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
           ${addressInfo}
           ${paymentInfo}
+          ${eventNotesInfo}
           <p>ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
           <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
           <p style="color: #777; font-size: 14px;"><i>ეს არის ავტომატური შეტყობინება.</i></p>
@@ -121,6 +124,7 @@ function getEmailContent(
           <p style="margin: 8px 0;"><strong>Fecha y hora de la reserva:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
           ${addressInfo}
           ${paymentInfo}
+          ${eventNotesInfo}
           <p>¡Esperamos verle pronto!</p>
           <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
           <p style="color: #777; font-size: 14px;"><i>Este es un mensaje automático.</i></p>
@@ -143,6 +147,7 @@ function getEmailContent(
           <p style="margin: 8px 0;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
           ${addressInfo}
           ${paymentInfo}
+          ${eventNotesInfo}
           <p>We look forward to seeing you!</p>
           <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
           <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
@@ -217,7 +222,8 @@ const handler = async (req: Request): Promise<Response> => {
       businessAddress,
       eventId,
       source,
-      language
+      language,
+      eventNotes
     } = parsedBody;
 
     console.log("Request body:", {
@@ -226,7 +232,8 @@ const handler = async (req: Request): Promise<Response> => {
       businessName,
       paymentStatus,
       paymentAmount,
-      language
+      language,
+      eventNotes
     });
 
     // Build a standardized deduplication key that ignores the source
@@ -327,6 +334,17 @@ const handler = async (req: Request): Promise<Response> => {
       
       addressInfo = `<p style="margin: 8px 0;"><strong>${addressLabel}:</strong> ${addressDisplay}</p>`;
       
+      // Prepare event notes section (new addition)
+      let eventNotesInfo = "";
+      if (eventNotes && typeof eventNotes === 'string' && eventNotes.trim() !== "") {
+        // Event notes label translations
+        const notesLabel = language === 'ka'
+          ? "შენიშვნა ღონისძიებაზე"
+          : (language === 'es' ? "Notas del evento" : "Event notes");
+        
+        eventNotesInfo = `<p style="margin: 8px 0;"><strong>${notesLabel}:</strong> ${eventNotes.trim()}</p>`;
+      }
+      
       // Create HTML email content based on language
       const htmlContent = getEmailContent(
         language || 'en', 
@@ -335,7 +353,8 @@ const handler = async (req: Request): Promise<Response> => {
         formattedStartDate,
         formattedEndDate,
         paymentInfo,
-        addressInfo
+        addressInfo,
+        eventNotesInfo
       );
       
       // Use Resend API to send the email
@@ -382,7 +401,8 @@ const handler = async (req: Request): Promise<Response> => {
           source: source || 'unknown',
           dedupeKey: dedupeKey,
           language: language, // Log the language used for verification
-          currencySymbol: currencySymbol // Log the currency symbol used
+          currencySymbol: currencySymbol, // Log the currency symbol used
+          hasEventNotes: !!eventNotesInfo // Log whether event notes were included
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
