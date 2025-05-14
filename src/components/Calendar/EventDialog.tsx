@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { format } from 'date-fns';
 import { da, enUS, es, ka } from 'date-fns/locale';
 import { Button } from "@/components/ui/button";
@@ -74,7 +73,7 @@ export function EventDialog({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get currency symbol based on language
   const currencySymbol = getCurrencySymbol(language);
