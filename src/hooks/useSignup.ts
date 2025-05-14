@@ -29,7 +29,6 @@ export const useSignup = () => {
           title: "Password Error",
           description: passwordError,
           variant: "destructive",
-          duration: 5000,
         });
         setIsLoading(false);
         return null;
@@ -43,7 +42,6 @@ export const useSignup = () => {
             title: "Username Error",
             description: usernameError,
             variant: "destructive",
-            duration: 5000,
           });
           setIsLoading(false);
           return null;
@@ -54,7 +52,6 @@ export const useSignup = () => {
           title: "Error",
           description: "Error validating username",
           variant: "destructive",
-          duration: 5000,
         });
         setIsLoading(false);
         return null;
@@ -78,7 +75,6 @@ export const useSignup = () => {
             title: "Error",
             description: "Error checking redeem code",
             variant: "destructive",
-            duration: 5000,
           });
           setIsLoading(false);
           return null;
@@ -93,7 +89,6 @@ export const useSignup = () => {
             title: "Invalid Redeem Code",
             description: validationResult.error_message,
             variant: "destructive",
-            duration: 5000,
           });
           setIsLoading(false);
           return null;
@@ -121,7 +116,6 @@ export const useSignup = () => {
             title: "Signup Failed",
             description: adminError.message || "Failed to create user account",
             variant: "destructive",
-            duration: 5000,
           });
           setIsLoading(false);
           return null;
@@ -136,7 +130,6 @@ export const useSignup = () => {
               title: "Email Already Registered",
               description: "This email address is already registered. Please try signing in or use a different email.",
               variant: "destructive",
-              duration: 5000,
             });
             setIsLoading(false);
             return null;
@@ -146,7 +139,6 @@ export const useSignup = () => {
             title: "Signup Failed",
             description: adminData?.message || "Failed to create user account",
             variant: "destructive",
-            duration: 5000,
           });
           setIsLoading(false);
           return null;
@@ -157,7 +149,6 @@ export const useSignup = () => {
         toast({
           title: "Account Created",
           description: "Your account has been created. Please check your email (including spam folder) to verify your account.",
-          duration: 8000,
         });
         
         clearForm();
@@ -171,7 +162,6 @@ export const useSignup = () => {
           title: "Signup Error",
           description: adminError.message || "An unexpected error occurred during signup",
           variant: "destructive",
-          duration: 5000,
         });
         return null;
       }
@@ -181,7 +171,6 @@ export const useSignup = () => {
         title: "Error",
         description: error.message || "An error occurred during sign up",
         variant: "destructive",
-        duration: 5000,
       });
       return null;
     } finally {

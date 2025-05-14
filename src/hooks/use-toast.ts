@@ -6,6 +6,7 @@ interface ToastProps {
   description?: React.ReactNode;
   action?: React.ReactElement;
   variant?: "default" | "destructive";
+  duration?: number;
   translateKeys?: {
     titleKey?: string;
     descriptionKey?: string;

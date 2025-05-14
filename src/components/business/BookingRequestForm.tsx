@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -34,16 +35,27 @@ import { CalendarIcon } from "lucide-react";
 
 interface BookingRequestFormProps {
   businessId: string | undefined;
+  selectedDate?: Date;
+  startTime?: string;
+  endTime?: string;
   onSuccess?: () => void;
+  isExternalBooking?: boolean;
 }
 
-export const BookingRequestForm = ({ businessId, onSuccess }: BookingRequestFormProps) => {
+export const BookingRequestForm = ({ 
+  businessId, 
+  selectedDate, 
+  startTime: initialStartTime, 
+  endTime: initialEndTime, 
+  onSuccess,
+  isExternalBooking
+}: BookingRequestFormProps) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [bookingDate, setBookingDate] = useState<Date | undefined>(new Date());
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
+  const [bookingDate, setBookingDate] = useState<Date | undefined>(selectedDate || new Date());
+  const [startTime, setStartTime] = useState(initialStartTime || "");
+  const [endTime, setEndTime] = useState(initialEndTime || "");
   const [description, setDescription] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
