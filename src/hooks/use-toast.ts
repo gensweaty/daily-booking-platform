@@ -9,7 +9,6 @@ type ToasterToast = ToastProps & {
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
-  translateParams?: Record<string, string | number>
 }
 
 const actionTypes = {
@@ -149,12 +148,102 @@ function toast({ ...props }: Toast) {
   }
 }
 
+// Helper for a standardized success toast
+toast.success = (options: { title?: string; description: string }) => {
+  return toast({
+    title: options.title || "Success",
+    description: options.description,
+    variant: "default",
+  })
+}
+
+// Helper for a standardized error toast
+toast.error = (options: { title?: string; description: string }) => {
+  return toast({
+    title: options.title || "Error",
+    description: options.description,
+    variant: "destructive",
+  })
+}
+
+// Define the task-related toast notifications
+toast.task = {
+  created: () => {
+    return toast({
+      title: "Task Created",
+      description: "Your task has been created successfully.",
+    })
+  },
+  updated: () => {
+    return toast({
+      title: "Task Updated",
+      description: "Your task has been updated successfully.",
+    })
+  },
+  deleted: () => {
+    return toast({
+      title: "Task Deleted",
+      description: "Your task has been deleted.",
+    })
+  }
+}
+
+// Define the note-related toast notifications
+toast.note = {
+  added: () => {
+    return toast({
+      title: "Note Added",
+      description: "Your note has been added successfully.",
+    })
+  },
+  updated: () => {
+    return toast({
+      title: "Note Updated",
+      description: "Your note has been updated successfully.",
+    })
+  },
+  deleted: () => {
+    return toast({
+      title: "Note Deleted",
+      description: "Your note has been deleted.",
+    })
+  }
+}
+
+// Define the reminder-related toast notifications
+toast.reminder = {
+  created: () => {
+    return toast({
+      title: "Reminder Created",
+      description: "Your reminder has been created successfully.",
+    })
+  },
+  updated: () => {
+    return toast({
+      title: "Reminder Updated",
+      description: "Your reminder has been updated successfully.",
+    })
+  },
+  deleted: () => {
+    return toast({
+      title: "Reminder Deleted",
+      description: "Your reminder has been deleted.",
+    })
+  }
+}
+
 // Define the event sub-object for specialized toast notifications
 toast.event = {
   bookingSubmitted: (title?: string) => {
     return toast({
       title: title || "Booking Submitted",
       description: "Thank you! Your booking request has been received.",
+    })
+  },
+  newBookingRequest: () => {
+    return toast({
+      title: "New Booking Request",
+      description: "You have received a new booking request.",
     })
   }
 }

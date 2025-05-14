@@ -561,21 +561,15 @@ export const useBookingRequests = () => {
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       toast({
-        translateKeys: {
-          titleKey: "common.success",
-          descriptionKey: "bookings.requestApproved"
-        }
+        title: t("common.success"),
+        description: t("bookings.requestApproved")
       });
     },
     onError: (error: Error) => {
       console.error('Error in approval mutation:', error);
-      toast({
-        variant: "destructive",
-        translateKeys: {
-          titleKey: "common.error",
-          descriptionKey: "common.errorOccurred"
-        },
-        description: error.message || "Failed to approve booking request"
+      toast.error({
+        title: t("common.error"),
+        description: t("common.errorOccurred")
       });
     }
   });
@@ -592,20 +586,15 @@ export const useBookingRequests = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
       toast({
-        translateKeys: {
-          titleKey: "common.success",
-          descriptionKey: "bookings.requestRejected"
-        }
+        title: t("common.success"),
+        description: t("bookings.requestRejected")
       });
     },
     onError: (error: any) => {
-      toast({
+      toast.error({
         variant: "destructive",
-        translateKeys: {
-          titleKey: "common.error",
-          descriptionKey: "common.errorOccurred"
-        },
-        description: error.message || "Failed to reject booking request"
+        title: t("common.error"),
+        description: t("common.errorOccurred")
       });
     }
   });
@@ -622,20 +611,15 @@ export const useBookingRequests = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
       toast({
-        translateKeys: {
-          titleKey: "common.success",
-          descriptionKey: "bookings.requestDeleted"
-        }
+        title: t("common.success"),
+        description: t("bookings.requestDeleted")
       });
     },
     onError: (error: any) => {
-      toast({
+      toast.error({
         variant: "destructive",
-        translateKeys: {
-          titleKey: "common.error",
-          descriptionKey: "common.errorOccurred"
-        },
-        description: error.message || "Failed to delete booking request"
+        title: t("common.error"),
+        description: t("common.errorOccurred")
       });
     }
   });

@@ -166,33 +166,27 @@ export const BookingRequestForm = ({
     try {
       // Validate required fields
       if (!fullName) {
-        toast({
-          translateKeys: {
-            titleKey: "common.error",
-            descriptionKey: "events.fullNameRequired"
-          }
+        toast.error({
+          title: t("common.error"),
+          description: t("events.fullNameRequired")
         });
         setIsSubmitting(false);
         return;
       }
 
       if (!userNumber) {
-        toast({
-          translateKeys: {
-            titleKey: "common.error",
-            descriptionKey: "events.phoneNumberRequired"
-          }
+        toast.error({
+          title: t("common.error"),
+          description: t("events.phoneNumberRequired")
         });
         setIsSubmitting(false);
         return;
       }
 
       if (!socialNetworkLink || !socialNetworkLink.includes('@')) {
-        toast({
-          translateKeys: {
-            titleKey: "common.error",
-            descriptionKey: "events.validEmailRequired"
-          }
+        toast.error({
+          title: t("common.error"),
+          description: t("events.validEmailRequired")
         });
         setIsSubmitting(false);
         return;
@@ -203,11 +197,9 @@ export const BookingRequestForm = ({
 
       // Additional validation for dates
       if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-        toast({
-          translateKeys: {
-            titleKey: "common.error",
-            descriptionKey: "events.validDatesRequired"
-          }
+        toast.error({
+          title: t("common.error"),
+          description: t("events.validDatesRequired")
         });
         setIsSubmitting(false);
         return;
@@ -405,11 +397,9 @@ export const BookingRequestForm = ({
     } catch (error) {
       console.error('Error submitting form:', error);
       setIsSubmitting(false);
-      toast({
-        translateKeys: {
-          titleKey: "common.error",
-          descriptionKey: "common.errorOccurred"
-        }
+      toast.error({
+        title: t("common.error"),
+        description: t("common.errorOccurred")
       });
     }
   };
