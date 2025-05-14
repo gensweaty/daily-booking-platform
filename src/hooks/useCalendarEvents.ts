@@ -633,7 +633,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         // This ensures we maintain the language from an external booking request
         const { data: originalBooking, error: bookingFetchError } = await supabase
           .from('booking_requests')
-          .select('language, payment_status, payment_amount')
+          .select('language, payment_status, payment_amount, description')
           .eq('id', bookingRequestId)
           .maybeSingle();
         
@@ -662,6 +662,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         // Priority: 1. Original booking language, 2. Event language, 3. Existing event language, 4. Current app language, 5. Default 'en'
         const eventLanguage = bookingLanguage || event.language || existingEvent.language || language || 'en';
         console.log("Event language for approval (prioritizing original booking):", eventLanguage);
+        
+        // Ensure we capture the event notes from the booking request's description if available
+        const eventNotes = event.event_notes || event.description || originalBooking?.description || '';
+        console.log("Event notes for approval email:", eventNotes);
         
         // Create a new event without direct file fields
         // We need to ensure we have all required fields for the events table
@@ -692,7 +696,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           user_surname: event.user_surname,
           user_number: event.user_number,
           social_network_link: event.social_network_link,
-          event_notes: event.event_notes,
+          event_notes: eventNotes, // Use the captured event notes
           payment_status: event.payment_status || originalBooking?.payment_status || 'not_paid',
           payment_amount: paymentAmount,
           booking_request_id: bookingRequestId,
@@ -702,7 +706,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.log("Creating new event with payload:", {
           language: eventLanguage,
           payment_status: eventPayload.payment_status,
-          payment_amount: paymentAmount
+          payment_amount: paymentAmount,
+          event_notes: eventNotes // Log event notes to verify they're being included
         });
         
         // Create the new event
@@ -793,10 +798,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         // Send approval email to customer with business address - this is the ONLY place we send emails
         if (event.requester_email && isValidEmail(event.requester_email)) {
           try {
-            console.log("Sending approval email with language and payment info:", {
+            console.log("Sending approval email with language, payment info, and notes:", {
               status: eventPayload.payment_status,
               amount: paymentAmount,
-              language: eventLanguage
+              language: eventLanguage,
+              notes: eventNotes // Log event notes again before sending email
             });
             
             await sendBookingConfirmationEmail(
@@ -808,7 +814,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               eventPayload.payment_status || 'not_paid',
               paymentAmount, // Use our properly formatted amount
               eventLanguage, // Use the original booking language as priority
-              event.event_notes || event.description // Pass event notes or description as notes
+              eventNotes // Pass the event notes
             );
           } catch (emailError) {
             console.error('Error sending booking approval email:', emailError);
