@@ -1,47 +1,28 @@
 import { useEffect, useState } from "react";
 
-type ToastEvent = {
-  created: () => {
-    id: string;
-    dismiss: () => void;
-    update: (props: ToasterToast) => void;
-  };
-  updated: () => {
-    id: string;
-    dismiss: () => void;
-    update: (props: ToasterToast) => void;
-  };
-  deleted: () => {
-    id: string;
-    dismiss: () => void;
-    update: (props: ToasterToast) => void;
-  };
-  newBookingRequest: () => {
-    id: string;
-    dismiss: () => void;
-    update: (props: ToasterToast) => void;
-  };
-};
-
-const TOAST_LIMIT = 5;
-const TOAST_REMOVE_DELAY = 1000000;
-
-type ToasterToast = Omit<Toast, "id"> & {
-  id: string;
+// Define the toast types without circular references
+interface ToastProps {
   title?: React.ReactNode;
   description?: React.ReactNode;
-  action?: ToasterToastActionElement;
-  open: boolean;
+  action?: React.ReactElement;
+  variant?: "default" | "destructive";
   translateKeys?: {
     titleKey?: string;
     descriptionKey?: string;
   };
   translateParams?: Record<string, string | number>;
-};
+}
 
-export type Toast = Omit<ToasterToast, "id" | "open">;
+export interface ToasterToast extends ToastProps {
+  id: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
 
-export type ToasterToastActionElement = React.ReactElement<any>;
+export type Toast = Omit<ToasterToast, "id" | "open" | "onOpenChange">;
+
+const TOAST_LIMIT = 5;
+const TOAST_REMOVE_DELAY = 1000000;
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
@@ -131,9 +112,8 @@ function dispatch(action: any) {
   });
 }
 
-type Toast = Omit<ToasterToast, "id" | "open">;
-
-function toast({ ...props }: Toast) {
+// Helper function to create a toast
+function createToast(props: Toast) {
   const id = genId();
 
   const update = (props: ToasterToast) =>
@@ -165,10 +145,23 @@ function toast({ ...props }: Toast) {
   };
 }
 
+// Main toast function
+function toast(props: Toast) {
+  return createToast(props);
+}
+
+// Add error toast method
+toast.error = (props: Toast) => {
+  return createToast({
+    variant: "destructive",
+    ...props,
+  });
+};
+
 // Event toast objects for common UI interactions
 toast.event = {
   created: () => {
-    return toast({
+    return createToast({
       translateKeys: {
         titleKey: "common.success",
         descriptionKey: "common.itemCreated"
@@ -176,7 +169,7 @@ toast.event = {
     });
   },
   updated: () => {
-    return toast({
+    return createToast({
       translateKeys: {
         titleKey: "common.success",
         descriptionKey: "common.itemUpdated"
@@ -184,7 +177,7 @@ toast.event = {
     });
   },
   deleted: () => {
-    return toast({
+    return createToast({
       translateKeys: {
         titleKey: "common.success",
         descriptionKey: "common.itemDeleted"
@@ -192,10 +185,82 @@ toast.event = {
     });
   },
   newBookingRequest: () => {
-    return toast({
+    return createToast({
       translateKeys: {
         titleKey: "bookings.newRequest",
         descriptionKey: "bookings.newRequestDescription"
+      }
+    });
+  }
+};
+
+// Task related toast notifications
+toast.task = {
+  created: () => {
+    return createToast({
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "tasks.taskCreated"
+      }
+    });
+  },
+  updated: () => {
+    return createToast({
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "tasks.taskUpdated"
+      }
+    });
+  }
+};
+
+// Note related toast notifications
+toast.note = {
+  created: () => {
+    return createToast({
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "notes.noteCreated"
+      }
+    });
+  },
+  updated: () => {
+    return createToast({
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "notes.noteUpdated"
+      }
+    });
+  }
+};
+
+// Reminder related toast notifications
+toast.reminder = {
+  created: () => {
+    return createToast({
+      translateKeys: {
+        titleKey: "common.success", 
+        descriptionKey: "reminders.reminderCreated"
+      }
+    });
+  },
+  updated: () => {
+    return createToast({
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "reminders.reminderUpdated"
+      }
+    });
+  }
+};
+
+// Booking related toast notifications
+toast.booking = {
+  submitted: () => {
+    return createToast({
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "bookings.bookingSubmitted"
       }
     });
   }

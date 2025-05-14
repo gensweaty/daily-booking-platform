@@ -134,16 +134,7 @@ export const useBookingRequests = () => {
         return request;
       });
     },
-    enabled: !!businessId,
-    onSuccess: (data) => {
-      // Check if there are any new pending requests since the last fetch
-      const pendingCount = data?.filter(req => req.status === 'pending').length || 0;
-      if (pendingCount > 0) {
-        setNewBooking(true);
-      } else {
-        setNewBooking(false);
-      }
-    }
+    enabled: !!businessId
   });
   
   // Clear the new booking flag when component unmounts or when the booking requests tab is viewed
