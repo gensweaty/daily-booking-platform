@@ -309,7 +309,6 @@ export const Calendar = ({
             onOpenChange={setIsNewEventDialogOpen}
             selectedDate={dialogSelectedDate}
             onSubmit={handleCreateEvent}
-            businessId={businessId || "default"}
           />
 
           {selectedEvent && (
@@ -321,7 +320,6 @@ export const Calendar = ({
               event={selectedEvent}
               onSubmit={handleUpdateEvent}
               onDelete={handleDeleteEvent}
-              businessId={businessId || "default"}
             />
           )}
         </>

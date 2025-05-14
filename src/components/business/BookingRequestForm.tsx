@@ -166,27 +166,33 @@ export const BookingRequestForm = ({
     try {
       // Validate required fields
       if (!fullName) {
-        toast.error({
-          title: t("common.error"),
-          description: t("events.fullNameRequired")
+        toast({
+          translateKeys: {
+            titleKey: "common.error",
+            descriptionKey: "events.fullNameRequired"
+          }
         });
         setIsSubmitting(false);
         return;
       }
 
       if (!userNumber) {
-        toast.error({
-          title: t("common.error"),
-          description: t("events.phoneNumberRequired")
+        toast({
+          translateKeys: {
+            titleKey: "common.error",
+            descriptionKey: "events.phoneNumberRequired"
+          }
         });
         setIsSubmitting(false);
         return;
       }
 
       if (!socialNetworkLink || !socialNetworkLink.includes('@')) {
-        toast.error({
-          title: t("common.error"),
-          description: t("events.validEmailRequired")
+        toast({
+          translateKeys: {
+            titleKey: "common.error",
+            descriptionKey: "events.validEmailRequired"
+          }
         });
         setIsSubmitting(false);
         return;
@@ -197,9 +203,11 @@ export const BookingRequestForm = ({
 
       // Additional validation for dates
       if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-        toast.error({
-          title: t("common.error"),
-          description: t("events.validDatesRequired")
+        toast({
+          translateKeys: {
+            titleKey: "common.error",
+            descriptionKey: "events.validDatesRequired"
+          }
         });
         setIsSubmitting(false);
         return;
@@ -397,9 +405,11 @@ export const BookingRequestForm = ({
     } catch (error) {
       console.error('Error submitting form:', error);
       setIsSubmitting(false);
-      toast.error({
-        title: t("common.error"),
-        description: t("common.errorOccurred")
+      toast({
+        translateKeys: {
+          titleKey: "common.error",
+          descriptionKey: "common.errorOccurred"
+        }
       });
     }
   };

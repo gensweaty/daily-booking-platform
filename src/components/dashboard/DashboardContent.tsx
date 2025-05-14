@@ -61,7 +61,7 @@ export const DashboardContent = ({
   useEffect(() => {
     if (pendingCount > 0) {
       // Use the toast helper for booking requests with count parameter
-      toast.event.newBookingRequest();
+      toast.event.newBookingRequest(pendingCount);
     }
   }, [pendingCount, toast])
 

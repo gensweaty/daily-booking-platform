@@ -6,15 +6,15 @@ import { toast } from "@/components/ui/use-toast";
 import { BookingRequest, EventFile } from "@/types/database";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-export function useBookingRequests(businessId?: string) {
+export const useBookingRequests = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [businessIdState, setBusinessIdState] = useState<string | null>(businessId);
+  const [businessId, setBusinessId] = useState<string | null>(null);
   const [businessProfile, setBusinessProfile] = useState<{
     business_name: string;
     contact_address: string | null;
   } | null>(null);
-  const { language, t } = useLanguage(); // Get current UI language and translation function
+  const { language } = useLanguage(); // Get current UI language
   
   // Cache business profile data when component mounts
   useEffect(() => {
@@ -33,7 +33,7 @@ export function useBookingRequests(businessId?: string) {
       }
       
       if (data) {
-        setBusinessIdState(data.id);
+        setBusinessId(data.id);
         setBusinessProfile({
           business_name: data.business_name || 'Our Business',
           contact_address: data.contact_address || null
@@ -45,17 +45,17 @@ export function useBookingRequests(businessId?: string) {
   }, [user]);
   
   const { data: bookingRequestsData = [], isLoading, error } = useQuery({
-    queryKey: ['booking_requests', businessIdState],
+    queryKey: ['booking_requests', businessId],
     queryFn: async () => {
-      if (!businessIdState) return [];
+      if (!businessId) return [];
       
-      console.log('Fetching booking requests with files for business_id:', businessIdState);
+      console.log('Fetching booking requests with files for business_id:', businessId);
       
       // Fetch booking requests
       const { data: requests, error: requestsError } = await supabase
         .from('booking_requests')
         .select('*')
-        .eq('business_id', businessIdState)
+        .eq('business_id', businessId)
         .order('created_at', { ascending: false });
       
       if (requestsError) {
@@ -133,7 +133,7 @@ export function useBookingRequests(businessId?: string) {
         return request;
       });
     },
-    enabled: !!businessIdState,
+    enabled: !!businessId,
   });
   
   // Extract the booking requests from the data
@@ -553,7 +553,7 @@ export function useBookingRequests(businessId?: string) {
       return booking;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['booking_requests', businessIdState] });
+      queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['business-events'] });
       queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
@@ -561,15 +561,21 @@ export function useBookingRequests(businessId?: string) {
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       toast({
-        title: t("common.success"),
-        description: t("bookings.requestApproved")
+        translateKeys: {
+          titleKey: "common.success",
+          descriptionKey: "bookings.requestApproved"
+        }
       });
     },
     onError: (error: Error) => {
       console.error('Error in approval mutation:', error);
       toast({
-        title: t("common.error"),
-        description: t("common.errorOccurred")
+        variant: "destructive",
+        translateKeys: {
+          titleKey: "common.error",
+          descriptionKey: "common.errorOccurred"
+        },
+        description: error.message || "Failed to approve booking request"
       });
     }
   });
@@ -584,16 +590,22 @@ export function useBookingRequests(businessId?: string) {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['booking_requests', businessIdState] });
+      queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
       toast({
-        title: t("common.success"),
-        description: t("bookings.requestRejected")
+        translateKeys: {
+          titleKey: "common.success",
+          descriptionKey: "bookings.requestRejected"
+        }
       });
     },
     onError: (error: any) => {
       toast({
-        title: t("common.error"),
-        description: t("common.errorOccurred")
+        variant: "destructive",
+        translateKeys: {
+          titleKey: "common.error",
+          descriptionKey: "common.errorOccurred"
+        },
+        description: error.message || "Failed to reject booking request"
       });
     }
   });
@@ -608,68 +620,25 @@ export function useBookingRequests(businessId?: string) {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['booking_requests', businessIdState] });
+      queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
       toast({
-        title: t("common.success"),
-        description: t("bookings.requestDeleted")
+        translateKeys: {
+          titleKey: "common.success",
+          descriptionKey: "bookings.requestDeleted"
+        }
       });
     },
     onError: (error: any) => {
       toast({
-        title: t("common.error"),
-        description: t("common.errorOccurred")
+        variant: "destructive",
+        translateKeys: {
+          titleKey: "common.error",
+          descriptionKey: "common.errorOccurred"
+        },
+        description: error.message || "Failed to delete booking request"
       });
     }
   });
-  
-  const handleApproveBooking = async (bookingId: string) => {
-    try {
-      const booking = await approveMutation.mutateAsync(bookingId);
-      toast({
-        title: t("bookingRequests.approved"),
-        description: t("bookingRequests.approvedDescription")
-      });
-      return booking;
-    } catch (error) {
-      console.error("Error approving booking:", error);
-      toast({
-        title: t("common.error"),
-        description: t("bookingRequests.approvalError"),
-        variant: "destructive"
-      });
-      return null;
-    }
-  };
-  
-  const handleRejectBooking = async (bookingId: string) => {
-    try {
-      await rejectMutation.mutateAsync(bookingId);
-      toast({
-        title: t("common.success"),
-        description: t("bookings.requestRejected")
-      });
-    } catch (error) {
-      toast({
-        title: t("common.error"),
-        description: t("common.errorOccurred")
-      });
-    }
-  };
-  
-  const handleDeleteBooking = async (bookingId: string) => {
-    try {
-      await deleteMutation.mutateAsync(bookingId);
-      toast({
-        title: t("common.success"),
-        description: t("bookings.requestDeleted")
-      });
-    } catch (error) {
-      toast({
-        title: t("common.error"),
-        description: t("common.errorOccurred")
-      });
-    }
-  };
   
   return {
     bookingRequests,
@@ -678,8 +647,8 @@ export function useBookingRequests(businessId?: string) {
     rejectedRequests,
     isLoading,
     error,
-    approveRequest: handleApproveBooking,
-    rejectRequest: handleRejectBooking,
-    deleteBookingRequest: handleDeleteBooking,
+    approveRequest: approveMutation.mutateAsync,
+    rejectRequest: rejectMutation.mutateAsync,
+    deleteBookingRequest: deleteMutation.mutateAsync,
   };
-}
+};

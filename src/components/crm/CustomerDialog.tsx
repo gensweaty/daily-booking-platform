@@ -217,7 +217,7 @@ export const CustomerDialog = ({
       
       if (businessData) {
         // Send email notification to the customer's email address
-        // Make sure to include the event_notes in the email
+        // Use the same email format/template as the calendar event emails
         const emailResult = await testEmailSending(
           customerEmail, // Customer's email
           eventData.title || eventData.user_surname || '', // Customer name
@@ -227,10 +227,7 @@ export const CustomerDialog = ({
           eventData.payment_status || 'not_paid',
           eventData.payment_amount || null,
           businessData.contact_address || '',
-          eventData.id,
-          undefined, // source
-          undefined, // language
-          eventData.event_notes || '' // Include event notes in the email
+          eventData.id
         );
         
         console.log("Event creation email result:", emailResult);
@@ -254,9 +251,10 @@ export const CustomerDialog = ({
 
     if (!user?.id) {
       toast({
-        title: t("common.error"),
-        description: t("common.missingUserInfo"),
-        variant: "destructive"
+        translateKeys: {
+          titleKey: "common.error",
+          descriptionKey: "common.missingUserInfo"
+        }
       });
       return;
     }
@@ -317,7 +315,7 @@ export const CustomerDialog = ({
             user_surname: title, // Fix: use title as user_surname instead of user_number
             user_number: user_number,
             social_network_link: social_network_link,
-            event_notes: event_notes, // Make sure event_notes is included
+            event_notes: event_notes,
             payment_status: payment_status,
             payment_amount: payment_amount ? parseFloat(payment_amount) : null,
             user_id: user.id,
@@ -426,7 +424,7 @@ export const CustomerDialog = ({
             user_surname: title, // Use title as user_surname instead of user_number
             user_number: user_number,
             social_network_link: social_network_link, // This contains the email address
-            event_notes: event_notes, // Important: Include the event notes
+            event_notes: event_notes,
             payment_status: payment_status,
             payment_amount: payment_amount ? parseFloat(payment_amount) : null,
             user_id: user.id,
@@ -453,7 +451,6 @@ export const CustomerDialog = ({
             console.log("Event created successfully:", eventResult);
             
             // Send email notification to customer's email when creating a new event
-            // This is the key part we need to fix - make sure to include event_notes
             if (social_network_link && isValidEmail(social_network_link)) {
               await sendEventCreationEmail({
                 id: eventResult.id,
@@ -463,8 +460,7 @@ export const CustomerDialog = ({
                 start_date: eventStartDate.toISOString(),
                 end_date: eventEndDate.toISOString(),
                 payment_status: payment_status,
-                payment_amount: payment_amount ? parseFloat(payment_amount) : null,
-                event_notes: event_notes // Make sure to include event notes here
+                payment_amount: payment_amount ? parseFloat(payment_amount) : null
               });
             }
             
@@ -529,17 +525,21 @@ export const CustomerDialog = ({
       await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
 
+      // Update to use translation keys
       toast({
-        title: t("common.success"),
-        description: customerId ? t("crm.customerUpdated") : t("crm.customerCreated"),
+        translateKeys: {
+          titleKey: "common.success",
+          descriptionKey: customerId ? "crm.customerUpdated" : "crm.customerCreated"
+        }
       });
       onOpenChange(false);
     } catch (error: any) {
       console.error("Error updating data:", error);
       toast({
-        title: t("common.error"),
-        description: t("common.errorOccurred"),
-        variant: "destructive"
+        translateKeys: {
+          titleKey: "common.error",
+          descriptionKey: "common.errorOccurred"
+        }
       });
     } finally {
       setIsLoading(false);
