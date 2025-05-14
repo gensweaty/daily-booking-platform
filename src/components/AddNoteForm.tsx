@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -87,10 +86,12 @@ export const AddNoteForm = () => {
       setSelectedFile(null);
       setIsExpanded(false);
       queryClient.invalidateQueries({ queryKey: ["notes"] });
-      toast.note.added();
+      toast.note.created();
     },
     onError: (error: any) => {
-      toast.error({ description: error.message });
+      toast.error({ 
+        description: error.message 
+      });
     },
   });
 
@@ -98,12 +99,16 @@ export const AddNoteForm = () => {
     e.preventDefault();
 
     if (!title.trim()) {
-      toast.error({ description: t("notes.titleRequired") });
+      toast.error({ 
+        description: t("notes.titleRequired") 
+      });
       return;
     }
 
     if (!user) {
-      toast.error({ description: t("common.authRequired") });
+      toast.error({ 
+        description: t("common.authRequired") 
+      });
       return;
     }
 

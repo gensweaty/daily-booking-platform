@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { type ToastActionElement, ToastProps } from "@/components/ui/toast";
 
@@ -14,7 +15,10 @@ export type ToasterToast = ToastProps & {
     title?: string;
     description?: string;
   };
+  translateParams?: Record<string, string | number>;
 };
+
+export type Toast = Omit<ToasterToast, "id" | "open">;
 
 export type ToasterToastActionElement = React.ReactElement<typeof ToastActionElement>;
 
@@ -140,9 +144,7 @@ function dispatch(action: Action) {
   });
 }
 
-interface Toast extends Omit<ToasterToast, "id"> {}
-
-function toast({ ...props }: Toast) {
+function toast(props: Toast) {
   const id = genId();
 
   const update = (props: ToasterToast) =>
