@@ -169,7 +169,7 @@ export const EventDialogFields = ({
           className={cn(isGeorgian ? "font-georgian" : "")}
           style={georgianStyle}
         >
-          {renderGeorgianLabel("events.socialLinkEmail")}
+          {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">ელფოსტა</GeorgianAuthText> : renderGeorgianLabel("events.socialLinkEmail")}
         </Label>
         <Input 
           id="socialNetworkLink" 
@@ -180,6 +180,7 @@ export const EventDialogFields = ({
           style={isGeorgian ? { ...georgianStyle } : undefined}
         />
       </div>
+      
       <div>
         <Label 
           htmlFor="dateTime" 
