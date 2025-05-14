@@ -1,3 +1,4 @@
+
 import { Toast, ToastActionElement, ToastProps } from "@/components/ui/toast"
 
 type ToastOptions = {
@@ -6,6 +7,10 @@ type ToastOptions = {
   action?: ToastActionElement;
   variant?: "default" | "destructive";
   translateParams?: Record<string, string | number>;
+  translateKeys?: {
+    titleKey?: string;
+    descriptionKey?: string;
+  };
 };
 
 const TOAST_LIMIT = 20;
@@ -15,6 +20,7 @@ type ToasterToast = ToastOptions & {
   id: string;
   duration?: number;
   onOpenChange?: (open: boolean) => void;
+  open?: boolean; // Add the open property
 }
 
 const actionTypes = {
@@ -205,8 +211,18 @@ toast.event = {
   deleted: () => toast({
     title: "Event deleted",
     description: "Your event has been deleted successfully"
+  }),
+  bookingSubmitted: () => toast({
+    title: "Booking Request Submitted",
+    description: "Your booking request has been submitted successfully"
   })
 };
+
+// Add new booking request notification
+toast.event.newBookingRequest = () => toast({
+  title: "New Booking Request",
+  description: "You have received a new booking request"
+});
 
 function useToast() {
   const subscribe = (listener: (state: State) => void) => {
