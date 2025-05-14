@@ -101,13 +101,15 @@ export const testEmailSending = async (
   businessName: string = '',
   startDate: string = new Date().toISOString(),
   endDate: string = new Date().toISOString(),
-  paymentStatus: string = 'not_paid',
-  paymentAmount: number | null = null,
-  businessAddress: string = '',
+  paymentStatus?: string, 
+  paymentAmount?: number | null,
+  businessAddress?: string,
   eventId?: string,
-  language: string = 'en' // Add language parameter with default
-) => {
-  console.log(`Test sending email to ${recipientEmail} with language: ${language}`);
+  source?: string,
+  language?: string,
+  eventNotes?: string // Add event notes parameter
+): Promise<any> => {
+  console.log(`Sending email to ${recipientEmail} with notes: ${eventNotes || 'none'}`);
   
   try {
     const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -121,25 +123,28 @@ export const testEmailSending = async (
     
     console.log("Sending email with language:", language);
     
+    const body = {
+      recipientEmail,
+      fullName,
+      businessName,
+      startDate,
+      endDate,
+      paymentStatus,
+      paymentAmount,
+      businessAddress,
+      eventId,
+      source: source || 'manual',
+      language: language || 'en',
+      eventNotes // Include event notes in the request body
+    };
+    
     const response = await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`
       },
-      body: JSON.stringify({
-        recipientEmail,
-        fullName,
-        businessName,
-        startDate,
-        endDate,
-        paymentStatus,
-        paymentAmount,
-        businessAddress,
-        eventId,
-        source: 'test-email', // Track source consistently
-        language // Include language parameter
-      })
+      body: JSON.stringify(body)
     });
     
     if (!response.ok) {
