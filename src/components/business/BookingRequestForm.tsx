@@ -494,7 +494,7 @@ export const BookingRequestForm = ({
           <Label htmlFor="socialNetworkLink" className={labelClass} style={georgianFontStyle}>
             {isGeorgian ? (
               <>
-                <GeorgianAuthText fontWeight="medium">ელფოსტა</GeorgianAuthText>
+                <GeorgianAuthText fontWeight="medium">ელფოსტა / სოციალური ქსელის ბმული</GeorgianAuthText>
                 <RequiredFieldIndicator />
               </>
             ) : (
