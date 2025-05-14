@@ -13,14 +13,16 @@ export type ToasterToast = ToastProps & {
   open: boolean;
   translateKeys?: {
     title?: string;
+    titleKey?: string;
     description?: string;
+    descriptionKey?: string;
   };
   translateParams?: Record<string, string | number>;
 };
 
 export type Toast = Omit<ToasterToast, "id" | "open">;
 
-export type ToasterToastActionElement = React.ReactElement<typeof ToastActionElement>;
+export type ToasterToastActionElement = React.ReactElement<any>;
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",

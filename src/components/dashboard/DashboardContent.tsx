@@ -53,17 +53,16 @@ export const DashboardContent = ({
   setIsTaskDialogOpen 
 }: DashboardContentProps) => {
   const { t, language } = useLanguage()
-  const { pendingRequests } = useBookingRequests()
+  const { pendingRequests, newBooking } = useBookingRequests()
   const { toast } = useToast()
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
 
   useEffect(() => {
-    if (pendingCount > 0) {
-      // Use the toast helper for booking requests with count parameter
-      toast.event.newBookingRequest(pendingCount);
+    if (newBooking) {
+      toast.event.newBookingRequest();
     }
-  }, [pendingCount, toast])
+  }, [newBooking, toast])
 
   return (
     <Tabs defaultValue="calendar" className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
@@ -94,7 +93,7 @@ export const DashboardContent = ({
           </motion.div>
           <span className="hidden sm:inline">
             {isGeorgian ? (
-              <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტიკა</GeorgianAuthText>
+              <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტი���ა</GeorgianAuthText>
             ) : (
               <LanguageText>{t("dashboard.statistics")}</LanguageText>
             )}
