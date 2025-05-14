@@ -154,7 +154,8 @@ export const useBookingRequests = () => {
     paymentStatus, 
     paymentAmount, 
     businessAddress,
-    language // Add language parameter
+    language,
+    eventNotes
   }: {
     email: string;
     fullName: string;
@@ -164,7 +165,8 @@ export const useBookingRequests = () => {
     paymentStatus?: string;
     paymentAmount?: number;
     businessAddress?: string;
-    language?: string; // Add language parameter type
+    language?: string;
+    eventNotes?: string
   }) => {
     if (!email || !email.includes('@')) {
       console.error("Invalid email format or missing email:", email);
@@ -184,12 +186,14 @@ export const useBookingRequests = () => {
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
         businessAddress: businessAddress, // Pass the address as is
-        language: language // Pass language parameter to the edge function
+        language: language, // Pass language parameter to the edge function
+        eventNotes: eventNotes // Pass event notes to the edge function
       };
       
       console.log("Email request payload:", {
         ...requestBody,
-        recipientEmail: email.trim().substring(0, 3) + '***' // Mask email for privacy in logs
+        recipientEmail: email.trim().substring(0, 3) + '***', // Mask email for privacy in logs
+        eventNotes: eventNotes ? 'present' : 'not present' // Log whether event notes are present
       });
       
       // Get access token for authenticated request
@@ -261,12 +265,13 @@ export const useBookingRequests = () => {
       if (fetchError) throw fetchError;
       if (!booking) throw new Error('Booking request not found');
       
-      // Log the booking details including language
+      // Log the booking details including language and event notes
       console.log('Booking details for approval:', {
         id: booking.id,
         requester_name: booking.requester_name,
         language: booking.language || 'not set',
-        payment_status: booking.payment_status
+        payment_status: booking.payment_status,
+        event_notes: booking.description || booking.event_notes || 'not set' // Log event notes
       });
       
       // Check for conflicts
@@ -524,6 +529,10 @@ export const useBookingRequests = () => {
         const businessName = businessProfile?.business_name || "Our Business";
         const contactAddress = businessProfile?.contact_address || null;
         
+        // Get event notes from the booking - ensure we capture this from all possible sources
+        const eventNotes = booking.description || booking.event_notes || null;
+        console.log('Sending approval email with event notes:', eventNotes ? 'present' : 'not present');
+        
         // Prepare email parameters
         const emailParams = {
           email: booking.requester_email,
@@ -534,7 +543,8 @@ export const useBookingRequests = () => {
           paymentStatus: booking.payment_status,
           paymentAmount: booking.payment_amount,
           businessAddress: contactAddress,
-          language: booking.language || language // Pass the booking's language or fallback to UI language
+          language: booking.language || language, // Pass the booking's language or fallback to UI language
+          eventNotes: eventNotes // Add event notes to email parameters
         };
         
         console.log('Sending approval email with language:', emailParams.language);
