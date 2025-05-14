@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { format } from 'date-fns';
 import { da, enUS, es, ka } from 'date-fns/locale';
@@ -40,6 +41,9 @@ interface EventDialogProps {
   onEventCreated?: () => void;
   onEventUpdated?: () => void;
   eventData?: any;
+  onSubmit?: (data: any) => Promise<any>;
+  event?: any;
+  onDelete?: () => Promise<any>;
 }
 
 export function EventDialog({
@@ -49,7 +53,10 @@ export function EventDialog({
   businessId,
   onEventCreated,
   onEventUpdated,
-  eventData
+  eventData,
+  onSubmit,
+  event,
+  onDelete
 }: EventDialogProps) {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
@@ -75,18 +82,21 @@ export function EventDialog({
   const { toast } = useToast();
 
   useEffect(() => {
-    if (eventData) {
-      setTitle(eventData.title || '');
-      setDescription(eventData.description || '');
-      setLocation(eventData.location || '');
-      setStartDate(eventData.start_date ? format(new Date(eventData.start_date), "yyyy-MM-dd'T'HH:mm") : '');
-      setEndDate(eventData.end_date ? format(new Date(eventData.end_date), "yyyy-MM-dd'T'HH:mm") : '');
-      setUserSurname(eventData.user_surname || '');
-      setUserNumber(eventData.user_number || '');
-      setSocialNetworkLink(eventData.social_network_link || '');
-      setEventNotes(eventData.event_notes || '');
-      setPaymentStatus(eventData.payment_status || 'not_paid');
-      setPaymentAmount(eventData.payment_amount ? String(eventData.payment_amount) : '');
+    // Use event or eventData depending on which one is passed
+    const dataToUse = event || eventData;
+    
+    if (dataToUse) {
+      setTitle(dataToUse.title || '');
+      setDescription(dataToUse.description || '');
+      setLocation(dataToUse.location || '');
+      setStartDate(dataToUse.start_date ? format(new Date(dataToUse.start_date), "yyyy-MM-dd'T'HH:mm") : '');
+      setEndDate(dataToUse.end_date ? format(new Date(dataToUse.end_date), "yyyy-MM-dd'T'HH:mm") : '');
+      setUserSurname(dataToUse.user_surname || '');
+      setUserNumber(dataToUse.user_number || '');
+      setSocialNetworkLink(dataToUse.social_network_link || '');
+      setEventNotes(dataToUse.event_notes || '');
+      setPaymentStatus(dataToUse.payment_status || 'not_paid');
+      setPaymentAmount(dataToUse.payment_amount ? String(dataToUse.payment_amount) : '');
     } else if (selectedDate) {
       const startOfDay = new Date(selectedDate);
       startOfDay.setHours(9, 0, 0, 0); // Set to 9:00 AM
@@ -96,7 +106,7 @@ export function EventDialog({
       setStartDate(format(startOfDay, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(endOfDay, "yyyy-MM-dd'T'HH:mm"));
     }
-  }, [eventData, selectedDate]);
+  }, [event, eventData, selectedDate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,12 +190,15 @@ export function EventDialog({
         language: language
       };
 
-      if (eventData) {
+      // Use the onSubmit prop if provided (from Calendar component)
+      if (onSubmit) {
+        await onSubmit(eventDataToSubmit);
+      } else if (event || eventData) {
         // Update existing event
         const { error } = await supabase
           .from('events')
           .update(eventDataToSubmit)
-          .eq('id', eventData.id);
+          .eq('id', (event || eventData).id);
 
         if (error) {
           console.error('Error updating event:', error);
@@ -193,6 +206,11 @@ export function EventDialog({
         }
         if (onEventUpdated) {
           onEventUpdated();
+        }
+        
+        // Delete event if onDelete is provided
+        if (onDelete && event) {
+          await onDelete();
         }
       } else {
         // Create new event

@@ -14,7 +14,7 @@ export const useBookingRequests = () => {
     business_name: string;
     contact_address: string | null;
   } | null>(null);
-  const { language } = useLanguage(); // Get current UI language
+  const { language, t } = useLanguage(); // Get current UI language and translation function
   
   // Cache business profile data when component mounts
   useEffect(() => {
@@ -567,7 +567,7 @@ export const useBookingRequests = () => {
     },
     onError: (error: Error) => {
       console.error('Error in approval mutation:', error);
-      toast.error({
+      toast({
         title: t("common.error"),
         description: t("common.errorOccurred")
       });
@@ -591,8 +591,7 @@ export const useBookingRequests = () => {
       });
     },
     onError: (error: any) => {
-      toast.error({
-        variant: "destructive",
+      toast({
         title: t("common.error"),
         description: t("common.errorOccurred")
       });
@@ -616,8 +615,7 @@ export const useBookingRequests = () => {
       });
     },
     onError: (error: any) => {
-      toast.error({
-        variant: "destructive",
+      toast({
         title: t("common.error"),
         description: t("common.errorOccurred")
       });
