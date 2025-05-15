@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 // Define English translations
@@ -68,7 +67,7 @@ const en: TranslationType = {
     fullNamePlaceholder: "Enter customer's full name",
     phoneNumber: "Phone Number",
     phoneNumberPlaceholder: "Enter phone number",
-    socialLinkEmail: "Email / Social Link",
+    socialLinkEmail: "Email",
     socialLinkEmailPlaceholder: "Enter email or social media link",
     createEventForCustomer: "Create event for this customer",
     customerFromEvent: "This customer was created from an event",
@@ -279,7 +278,7 @@ const en: TranslationType = {
     timeSlotUnavailable: "Time Slot Unavailable",
     timeSlotConflict: "Schedule Conflict",
     timeSlotNotAvailable: "This time slot is not available",
-    socialLinkEmail: "Email / Social Link",
+    socialLinkEmail: "Email",
     dateAndTime: "Date & Time",
     date: "Date",
     time: "Time",
