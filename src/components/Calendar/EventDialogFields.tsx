@@ -180,7 +180,6 @@ export const EventDialogFields = ({
           style={isGeorgian ? { ...georgianStyle } : undefined}
         />
       </div>
-      
       <div>
         <Label 
           htmlFor="dateTime" 
