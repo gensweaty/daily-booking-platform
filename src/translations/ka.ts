@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const ka: TranslationType = {
@@ -53,7 +54,7 @@ export const ka: TranslationType = {
     endDateTime: "დასრულების თარიღი და დრო",
     eventNotes: "შენიშვნები",
     addEventNotes: "დაამატეთ შენიშვნები თქვენს ჯავშანზე",
-    editEvent: "ჯავშნის რედაქტირება", // Fixed the Georgian text
+    editEvent: "ჯავშნის რედაქტირება", 
     addNewEvent: "ახალი ჯავშნის დამატება",
     updateEvent: "ჯავშნის განახლება",
     createEvent: "ჯავშნის შექმნა",
@@ -61,7 +62,7 @@ export const ka: TranslationType = {
     timeSlotUnavailable: "დროის ინტერვალი მიუწვდომელია",
     timeSlotConflict: "განრიგის კონფლიქტი",
     timeSlotNotAvailable: "ეს დროის ინტერვალი არ არის ხელმისაწვდომი",
-    socialLinkEmail: "ელ.ფოსტა",
+    socialLinkEmail: "ელფოსტა",
     dateAndTime: "თარიღი და დრო",
     date: "თარიღი",
     time: "დრო",
