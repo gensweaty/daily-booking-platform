@@ -61,7 +61,7 @@ export const ka: TranslationType = {
     timeSlotUnavailable: "დროის ინტერვალი მიუწვდომელია",
     timeSlotConflict: "განრიგის კონფლიქტი",
     timeSlotNotAvailable: "ეს დროის ინტერვალი არ არის ხელმისაწვდომი",
-    socialLinkEmail: "ელ.ფოსტა",
+    socialLinkEmail: "ელფოსტა",
     dateAndTime: "თარიღი და დრო",
     date: "თარიღი",
     time: "დრო",

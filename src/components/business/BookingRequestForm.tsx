@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -489,12 +490,12 @@ export const BookingRequestForm = ({
           />
         </div>
 
-        {/* Email Field */}
+        {/* Email Field - THIS IS THE FIXED PART */}
         <div>
           <Label htmlFor="socialNetworkLink" className={labelClass} style={georgianFontStyle}>
             {isGeorgian ? (
               <>
-                <GeorgianAuthText fontWeight="medium">ელფოსტა / სოციალური ქსელის ბმული</GeorgianAuthText>
+                <GeorgianAuthText fontWeight="medium">{t("events.socialLinkEmail")}</GeorgianAuthText>
                 <RequiredFieldIndicator />
               </>
             ) : (
