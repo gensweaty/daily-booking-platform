@@ -101,58 +101,63 @@ export const testEmailSending = async (
   businessName: string = '',
   startDate: string = new Date().toISOString(),
   endDate: string = new Date().toISOString(),
-  paymentStatus: string = 'not_paid',
-  paymentAmount: number | null = null,
-  businessAddress: string = '',
+  paymentStatus?: string | null,
+  paymentAmount?: number | null,
+  businessAddress?: string,
   eventId?: string,
-  language: string = 'en' // Add language parameter with default
+  language?: string,
+  eventNotes?: string // Add event notes parameter
 ) => {
-  console.log(`Test sending email to ${recipientEmail} with language: ${language}`);
-  
   try {
-    const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
-    const { data: sessionData } = await supabase.auth.getSession();
-    const accessToken = sessionData.session?.access_token;
+    console.log(`Testing email sending to ${recipientEmail}`);
     
-    if (!accessToken) {
-      console.error("No access token available for authenticated request");
-      return { error: "Authentication error" };
+    // Get the API URL from environment variables with fallback
+    const apiUrl = import.meta.env.VITE_SUPABASE_URL || '';
+    
+    if (!apiUrl) {
+      console.error('Missing SUPABASE_URL in environment variables');
+      return { error: 'Missing SUPABASE_URL configuration' };
     }
     
-    console.log("Sending email with language:", language);
+    // Construct the URL for the Supabase Edge Function
+    const url = `${apiUrl}/functions/v1/send-booking-approval-email`;
+    console.log(`Calling function at: ${url}`);
     
-    const response = await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
+    // Create the request payload
+    const payload = {
+      recipientEmail,
+      fullName,
+      businessName,
+      startDate,
+      endDate,
+      paymentStatus,
+      paymentAmount,
+      businessAddress,
+      eventId,
+      source: 'direct-api-call',
+      language: language || 'en',
+      eventNotes // Include event notes in the payload
+    };
+    
+    console.log('Sending payload:', payload);
+    
+    // Make the API call
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        recipientEmail,
-        fullName,
-        businessName,
-        startDate,
-        endDate,
-        paymentStatus,
-        paymentAmount,
-        businessAddress,
-        eventId,
-        source: 'test-email', // Track source consistently
-        language // Include language parameter
-      })
+      body: JSON.stringify(payload)
     });
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Email API error:", errorText);
-      return { error: "Failed to send email" };
-    }
+    // Parse the response
+    const data = await response.json();
+    console.log('Response data:', data);
     
-    const result = await response.json();
-    return result;
+    return data;
   } catch (error) {
-    console.error("Error sending email:", error);
-    return { error: "Failed to send email" };
+    console.error('Error in testEmailSending:', error);
+    return { error: 'Failed to send email' };
   }
 };
 

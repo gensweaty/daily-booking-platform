@@ -385,7 +385,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     endDate: string,
     paymentStatus: string,
     paymentAmount: number | null,
-    language: string = 'en' // Added language parameter with default value
+    language: string = 'en', // Added language parameter with default value
+    eventNotes?: string // Added event notes parameter
   ) => {
     // Optimization: Skip email sending during event creation for faster response
     // Email will be sent asynchronously after the event is created
@@ -421,6 +422,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         console.log(`- Language: ${language}`);
         console.log(`- Payment status: ${paymentStatus}`);
         console.log(`- Payment amount: ${paymentAmount}`);
+        console.log(`- Event notes: ${eventNotes || 'None'}`);
         
         const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
         const { data: sessionData } = await supabase.auth.getSession();
@@ -450,7 +452,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             businessAddress: businessProfile?.contact_address || '',
             eventId: eventId,
             source: 'useCalendarEvents', // Updated source to ensure consistent tracking
-            language: language // Explicitly send language parameter
+            language: language, // Explicitly send language parameter
+            eventNotes: eventNotes // Include event notes in the request
           })
         });
         
@@ -568,7 +571,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         event.end_date as string,
         event.payment_status || 'not_paid',
         event.payment_amount || null,
-        event.language || language || 'en' // Use event language, current language, or default to 'en'
+        event.language || language || 'en', // Use event language, current language, or default to 'en'
+        event.event_notes // Pass the event notes
       );
     }
     
@@ -786,7 +790,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           console.error("Error handling customer creation:", customerError);
         }
         
-        // Send confirmation email to customer with business address - this is the ONLY place we send emails
+        // Send approval email to customer with business address - this is the ONLY place we send emails
         if (event.requester_email && isValidEmail(event.requester_email)) {
           try {
             console.log("Sending approval email with language and payment info:", {
@@ -803,7 +807,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
               event.end_date as string,
               eventPayload.payment_status || 'not_paid',
               paymentAmount, // Use our properly formatted amount
-              eventLanguage // Use the original booking language as priority
+              eventLanguage, // Use the original booking language as priority
+              event.event_notes || event.description // Pass event notes or description as notes
             );
           } catch (emailError) {
             console.error('Error sending booking approval email:', emailError);
@@ -887,7 +892,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
             event.end_date as string,
             event.payment_status || 'not_paid',
             paymentAmount,
-            emailLanguage // Use determined language
+            emailLanguage, // Use determined language
+            event.event_notes // Pass the event notes
           );
         } catch (emailError) {
           console.error('Error sending updated booking email:', emailError);

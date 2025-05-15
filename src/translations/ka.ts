@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const ka: TranslationType = {
@@ -62,7 +61,7 @@ export const ka: TranslationType = {
     timeSlotUnavailable: "დროის ინტერვალი მიუწვდომელია",
     timeSlotConflict: "განრიგის კონფლიქტი",
     timeSlotNotAvailable: "ეს დროის ინტერვალი არ არის ხელმისაწვდომი",
-    socialLinkEmail: "ელ.ფოსტა / სოციალური ბმული",
+    socialLinkEmail: "ელფოსტა",
     dateAndTime: "თარიღი და დრო",
     date: "თარიღი",
     time: "დრო",
@@ -122,7 +121,7 @@ export const ka: TranslationType = {
     fullNamePlaceholder: "შეიყვანეთ მომხმარებლის სრული სახელი",
     phoneNumber: "ტელეფონის ნომერი",
     phoneNumberPlaceholder: "შეიყვანეთ ტელეფონის ნომერი",
-    socialLinkEmail: "ელ.ფოსტა / სოციალური ბმული",
+    socialLinkEmail: "ელ.ფოსტა",
     socialLinkEmailPlaceholder: "შეიყვანეთ ელფოსტა ან სოციალური მედიის ბმული",
     createEventForCustomer: "შექმენით ღონისძიება ამ მომხმარებლისთვის",
     customerFromEvent: "ეს მომხმარებელი შეიქმნა ღონისძიებიდან",

@@ -227,7 +227,9 @@ export const CustomerDialog = ({
           eventData.payment_status || 'not_paid',
           eventData.payment_amount || null,
           businessData.contact_address || '',
-          eventData.id
+          eventData.id,
+          null, // language parameter
+          eventData.event_notes || '' // Pass event notes to the email function
         );
         
         console.log("Event creation email result:", emailResult);
@@ -251,10 +253,9 @@ export const CustomerDialog = ({
 
     if (!user?.id) {
       toast({
-        translateKeys: {
-          titleKey: "common.error",
-          descriptionKey: "common.missingUserInfo"
-        }
+        title: t("common.error"),
+        description: t("common.missingUserInfo"),
+        variant: "destructive"
       });
       return;
     }
@@ -315,7 +316,7 @@ export const CustomerDialog = ({
             user_surname: title, // Fix: use title as user_surname instead of user_number
             user_number: user_number,
             social_network_link: social_network_link,
-            event_notes: event_notes,
+            event_notes: event_notes, // Ensure event_notes is included
             payment_status: payment_status,
             payment_amount: payment_amount ? parseFloat(payment_amount) : null,
             user_id: user.id,
@@ -339,10 +340,16 @@ export const CustomerDialog = ({
               toast({
                 title: t("common.warning"),
                 description: t("crm.eventUpdateFailed"),
-                variant: "destructive",
+                variant: "destructive"
               });
             } else {
               createdEventId = updatedEvent.id;
+              
+              // Make sure to send email notification with updated event data including notes
+              await sendEventCreationEmail({
+                ...updatedEvent,
+                event_notes: event_notes // Explicitly ensure notes are included
+              });
             }
           } else {
             // Create new event
@@ -357,13 +364,16 @@ export const CustomerDialog = ({
               toast({
                 title: t("common.warning"),
                 description: t("crm.eventCreationFailed"),
-                variant: "destructive",
+                variant: "destructive"
               });
             } else {
               createdEventId = newEvent.id;
               
               // Send email notification for the newly created event
-              await sendEventCreationEmail(newEvent);
+              await sendEventCreationEmail({
+                ...newEvent,
+                event_notes: event_notes // Explicitly ensure notes are included 
+              });
             }
           }
         }
@@ -424,7 +434,7 @@ export const CustomerDialog = ({
             user_surname: title, // Use title as user_surname instead of user_number
             user_number: user_number,
             social_network_link: social_network_link, // This contains the email address
-            event_notes: event_notes,
+            event_notes: event_notes, // Ensure event_notes is included
             payment_status: payment_status,
             payment_amount: payment_amount ? parseFloat(payment_amount) : null,
             user_id: user.id,
@@ -445,7 +455,7 @@ export const CustomerDialog = ({
             toast({
               title: t("common.warning"),
               description: t("crm.eventCreationFailed"),
-              variant: "destructive",
+              variant: "destructive"
             });
           } else {
             console.log("Event created successfully:", eventResult);
@@ -460,7 +470,8 @@ export const CustomerDialog = ({
                 start_date: eventStartDate.toISOString(),
                 end_date: eventEndDate.toISOString(),
                 payment_status: payment_status,
-                payment_amount: payment_amount ? parseFloat(payment_amount) : null
+                payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+                event_notes: event_notes // Explicitly include event notes
               });
             }
             
@@ -525,21 +536,17 @@ export const CustomerDialog = ({
       await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
 
-      // Update to use translation keys
       toast({
-        translateKeys: {
-          titleKey: "common.success",
-          descriptionKey: customerId ? "crm.customerUpdated" : "crm.customerCreated"
-        }
+        title: t("common.success"),
+        description: customerId ? t("crm.customerUpdated") : t("crm.customerCreated")
       });
       onOpenChange(false);
     } catch (error: any) {
       console.error("Error updating data:", error);
       toast({
-        translateKeys: {
-          titleKey: "common.error",
-          descriptionKey: "common.errorOccurred"
-        }
+        title: t("common.error"),
+        description: t("common.errorOccurred"),
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);
@@ -640,7 +647,6 @@ export const CustomerDialog = ({
               setEventStartDate={setEventStartDate}
               eventEndDate={eventEndDate}
               setEventEndDate={setEventEndDate}
-              // Fix here: use fileBucketName instead of removed prop
               fileBucketName={customerId?.startsWith('event-') ? "event_attachments" : "customer_attachments"}
               fallbackBuckets={["event_attachments", "customer_attachments", "booking_attachments"]}
             />
