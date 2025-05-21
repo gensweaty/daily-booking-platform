@@ -1,4 +1,3 @@
-
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
@@ -166,6 +165,9 @@ const RouteAwareWrapper = ({ children }: { children: React.ReactNode }) => {
   // More reliable business page detection
   const isExternalPage = location.pathname.startsWith('/business/') || location.pathname === '/business';
   
+  // Check if there's a Stripe session ID in the URL
+  const sessionId = new URLSearchParams(location.search).get('session_id');
+  
   // If accessing from business path, set the flag early
   useEffect(() => {
     if (isExternalPage) {
@@ -173,7 +175,12 @@ const RouteAwareWrapper = ({ children }: { children: React.ReactNode }) => {
       localStorage.setItem('accessing_public_business_page', 'true');
       localStorage.setItem('last_business_path', location.pathname);
     }
-  }, [location.pathname, isExternalPage]);
+    
+    // Handle Stripe session verification if needed
+    if (sessionId) {
+      console.log("[RouteAwareWrapper] Stripe session detected:", sessionId);
+    }
+  }, [location.pathname, isExternalPage, sessionId]);
   
   useEffect(() => {
     if (isExternalPage) {

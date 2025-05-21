@@ -1,57 +1,65 @@
-import { useEffect } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
-import { supabase } from '@/lib/supabase'
-import { useToast } from '@/components/ui/use-toast'
+
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 export const useSubscriptionRedirect = () => {
-  const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
-  const { user } = useAuth()
-  const { toast } = useToast()
+  const [showTrialExpired, setShowTrialExpired] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
-    const handleSubscriptionRedirect = async () => {
-      const subscriptionType = searchParams.get('subscription')
-      
-      if (!subscriptionType || !user) return
+    const checkSubscriptionStatus = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
 
       try {
-        console.log('Processing subscription redirect:', subscriptionType)
-        
-        const response = await supabase.functions.invoke('handle-subscription-redirect', {
-          body: { subscription: subscriptionType },
-          headers: { 'x-user-id': user.id }
-        })
+        setIsLoading(true);
 
-        if (response.error) {
-          console.error('Subscription activation error:', response.error)
-          toast({
-            title: 'Error',
-            description: 'Failed to activate subscription. Please try again.',
-            variant: 'destructive'
-          })
-          return
+        // Check if user has an active subscription
+        const { data: subscription, error } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .single();
+
+        if (error) {
+          console.error('Error fetching subscription status:', error);
+          setShowTrialExpired(false);
+          return;
         }
 
-        console.log('Subscription activated successfully')
-        toast({
-          title: 'Success',
-          description: 'Your subscription has been activated!'
-        })
-
-        // Remove subscription parameter from URL
-        navigate('/dashboard')
+        if (!subscription) {
+          // No subscription found
+          setShowTrialExpired(true);
+        } else if (subscription.status === 'trial') {
+          // Check if trial has expired
+          const trialEndDate = new Date(subscription.trial_end_date);
+          const now = new Date();
+          
+          setShowTrialExpired(now > trialEndDate);
+        } else if (subscription.status === 'active') {
+          // User has an active subscription
+          setShowTrialExpired(false);
+        } else {
+          // Subscription has expired
+          setShowTrialExpired(true);
+        }
       } catch (error) {
-        console.error('Error handling subscription redirect:', error)
-        toast({
-          title: 'Error',
-          description: 'An error occurred. Please try again.',
-          variant: 'destructive'
-        })
+        console.error('Subscription check error:', error);
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
 
-    handleSubscriptionRedirect()
-  }, [searchParams, user, navigate, toast])
-}
+    checkSubscriptionStatus();
+  }, [user]);
+
+  return {
+    showTrialExpired,
+    isLoading
+  };
+};

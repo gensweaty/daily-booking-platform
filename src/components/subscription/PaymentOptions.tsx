@@ -1,7 +1,8 @@
+
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 
-type PaymentMethod = 'paypal' | 'card';
+type PaymentMethod = 'paypal' | 'card' | 'stripe';
 
 interface PaymentOptionsProps {
   selectedMethod: PaymentMethod;
@@ -30,11 +31,11 @@ export const PaymentOptions = ({
           </Label>
         </div>
         <div className="flex items-center space-x-2 border rounded-lg p-4">
-          <RadioGroupItem value="card" id="card" />
-          <Label htmlFor="card" className="flex-1">
+          <RadioGroupItem value="stripe" id="stripe" />
+          <Label htmlFor="stripe" className="flex-1">
             <div className="flex justify-between items-center">
-              <span>Credit/Debit Card</span>
-              <span className="text-sm text-muted-foreground">Pay with card</span>
+              <span>Stripe</span>
+              <span className="text-sm text-muted-foreground">Pay with card via Stripe</span>
             </div>
           </Label>
         </div>

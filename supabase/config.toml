@@ -1,41 +1,42 @@
 
 project_id = "mrueqpffzauvdxmuwhfa"
 
-[functions.send-booking-request-notification]
-verify_jwt = false
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
 
-[functions.send-booking-approval-email]
-verify_jwt = false
+[db]
+port = 54322
 
-[functions.send-contact-email]
-verify_jwt = false
+[studio]
+port = 54323
 
-[functions.handle-paypal-webhook]
-verify_jwt = false
+[inbucket]
+port = 54324
 
-[functions.handle-subscription-redirect]
-verify_jwt = false
+[auth]
+enabled = true
+port = 54325
 
-[functions.process-renewals]
-verify_jwt = false
+[storage]
+enabled = true
+port = 54326
 
-[functions.verify-paypal-payment]
-verify_jwt = false
+[realtime]
+enabled = true
+port = 54327
 
-[functions.confirm-signup]
-verify_jwt = false
+[functions]
+enabled = true
+port = 54328
 
-[functions.test-resend-email]
-verify_jwt = false
+[functions.create-stripe-checkout]
+verify_jwt = true
 
-[functions.create-user-admin]
-verify_jwt = false
+[functions.verify-stripe-subscription]
+verify_jwt = true
 
-[functions.password-reset]
-verify_jwt = false
+[functions.stripe-customer-portal]
+verify_jwt = true
 
-[global.env]
-PAYPAL_CLIENT_ID = "env(PAYPAL_CLIENT_ID)"
-PAYPAL_SECRET_KEY = "env(PAYPAL_SECRET_KEY)"
-PAYPAL_WEBHOOK_ID = "env(PAYPAL_WEBHOOK_ID)"
-RESEND_API_KEY = "env(RESEND_API_KEY)"
