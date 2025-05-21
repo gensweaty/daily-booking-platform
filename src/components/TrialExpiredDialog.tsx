@@ -9,10 +9,12 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { StripeSubscribeButton } from "./StripeSubscribeButton";
+import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
 import { verifyStripeSubscription, refreshSubscriptionStatus } from "@/utils/stripeUtils";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface TrialExpiredDialogProps {
   onVerificationSuccess?: () => void;
@@ -22,6 +24,8 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
   const [open, setOpen] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationAttempts, setVerificationAttempts] = useState(0);
+  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paypal'>('stripe');
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -138,6 +142,21 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
       title: "Success",
       description: `Payment processed successfully. Your subscription will be active shortly.`,
     });
+    
+    // Start verification process
+    setIsVerifying(true);
+    setVerificationAttempts(prev => prev + 1);
+    
+    // Set a timeout to check subscription status
+    setTimeout(() => {
+      refreshSubscriptionStatus()
+        .then(isActive => {
+          if (isActive) {
+            handleVerificationSuccess();
+          }
+        })
+        .catch(err => console.error("Error checking subscription status:", err));
+    }, 2000);
   };
 
   return (
@@ -188,17 +207,74 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
               <p className="text-center text-sm sm:text-base text-muted-foreground">
                 Your trial has expired. Please subscribe to continue using our services.
               </p>
+              
               <div className="my-8">
-                <div className="px-4 py-6 border rounded-lg bg-card">
-                  <h3 className="text-lg font-semibold text-center mb-2">Premium Plan</h3>
-                  <p className="text-center text-muted-foreground mb-4">
-                    Full access to all features and premium support
-                  </p>
-                  <div className="text-center text-2xl font-bold mb-6">
-                    $9.99<span className="text-base font-normal text-muted-foreground">/month</span>
-                  </div>
-                  <StripeSubscribeButton onSuccess={handleSubscriptionSuccess} />
-                </div>
+                <Tabs defaultValue="monthly" onValueChange={(v) => setSelectedPlan(v as 'monthly' | 'yearly')}>
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                    <TabsTrigger value="yearly">Yearly (Save 17%)</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="monthly" className="mt-0">
+                    <div className="px-4 py-6 border rounded-lg bg-card">
+                      <h3 className="text-lg font-semibold text-center mb-2">Monthly Plan</h3>
+                      <p className="text-center text-muted-foreground mb-4">
+                        Full access to all features and premium support
+                      </p>
+                      <div className="text-center text-2xl font-bold mb-6">
+                        $9.99<span className="text-base font-normal text-muted-foreground">/month</span>
+                      </div>
+                      
+                      <Tabs defaultValue="stripe" onValueChange={(v) => setPaymentMethod(v as 'stripe' | 'paypal')}>
+                        <TabsList className="grid w-full grid-cols-2 mb-4">
+                          <TabsTrigger value="stripe">Credit Card</TabsTrigger>
+                          <TabsTrigger value="paypal">PayPal</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="stripe" className="mt-0">
+                          <StripeSubscribeButton onSuccess={handleSubscriptionSuccess} />
+                        </TabsContent>
+                        
+                        <TabsContent value="paypal" className="mt-0">
+                          <PayPalSubscribeButton 
+                            planType="monthly" 
+                            onSuccess={handleSubscriptionSuccess} 
+                          />
+                        </TabsContent>
+                      </Tabs>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="yearly" className="mt-0">
+                    <div className="px-4 py-6 border rounded-lg bg-card">
+                      <h3 className="text-lg font-semibold text-center mb-2">Annual Plan</h3>
+                      <p className="text-center text-muted-foreground mb-4">
+                        Full access to all features and premium support
+                      </p>
+                      <div className="text-center text-2xl font-bold mb-6">
+                        $99.99<span className="text-base font-normal text-muted-foreground">/year</span>
+                      </div>
+                      
+                      <Tabs defaultValue="stripe" onValueChange={(v) => setPaymentMethod(v as 'stripe' | 'paypal')}>
+                        <TabsList className="grid w-full grid-cols-2 mb-4">
+                          <TabsTrigger value="stripe">Credit Card</TabsTrigger>
+                          <TabsTrigger value="paypal">PayPal</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="stripe" className="mt-0">
+                          <StripeSubscribeButton onSuccess={handleSubscriptionSuccess} />
+                        </TabsContent>
+                        
+                        <TabsContent value="paypal" className="mt-0">
+                          <PayPalSubscribeButton 
+                            planType="yearly" 
+                            onSuccess={handleSubscriptionSuccess} 
+                          />
+                        </TabsContent>
+                      </Tabs>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             </>
           )}

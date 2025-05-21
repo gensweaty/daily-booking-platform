@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/supabase';
+
+import { useEffect, useState } from 'react';
+import { useToast } from "@/hooks/use-toast";
+import { loadPayPalScript } from "@/utils/paypal";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 interface PayPalButtonProps {
   planType: 'monthly' | 'yearly';
@@ -10,120 +12,169 @@ interface PayPalButtonProps {
 }
 
 export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonProps) => {
-  const buttonRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const loadPayPalScript = async () => {
+    const loadScript = async () => {
       try {
-        console.log('Starting PayPal script load...');
+        setIsLoading(true);
+        setError(null);
         
-        // Clean up any existing PayPal buttons
-        if (buttonRef.current) {
-          buttonRef.current.innerHTML = '';
+        // Get client ID from environment variable
+        const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
+        
+        if (!clientId) {
+          throw new Error("PayPal client ID is not configured");
         }
-
-        // @ts-ignore
+        
+        await loadPayPalScript(clientId);
+        
         if (!window.paypal) {
-          const script = document.createElement('script');
-          script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&vault=true&intent=subscription`;
-          script.async = true;
-          
-          await new Promise((resolve, reject) => {
-            script.onload = resolve;
-            script.onerror = reject;
-            document.body.appendChild(script);
-          });
+          throw new Error("PayPal SDK failed to load");
         }
-
-        console.log('PayPal script loaded successfully');
-
-        // @ts-ignore
-        window.paypal.Buttons({
-          style: {
-            shape: 'rect',
-            color: 'gold',
-            layout: 'vertical',
-            label: 'subscribe'
-          },
-          createSubscription: (data: any, actions: any) => {
-            return actions.subscription.create({
-              'plan_id': planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L'
-            });
-          },
-          onApprove: async (data: any) => {
-            console.log('Subscription approved:', data);
-            
-            try {
-              const { error: verificationError } = await supabase.functions.invoke(
-                'verify-paypal-payment',
-                {
-                  body: { 
-                    userId: user?.id,
-                    subscription: data.subscriptionID
-                  }
-                }
-              );
-
-              if (verificationError) {
-                throw verificationError;
-              }
-
-              toast({
-                title: "Success",
-                description: "Your subscription has been activated!",
-              });
-
-              if (onSuccess) {
-                onSuccess(data.subscriptionID);
-              }
-
-              // Reload the page to update subscription state
-              window.location.reload();
-
-            } catch (error) {
-              console.error('Subscription verification error:', error);
-              toast({
-                title: "Error",
-                description: "Failed to verify subscription. Please contact support.",
-                variant: "destructive",
-              });
+        
+        const renderButton = async () => {
+          try {
+            const container = document.getElementById(containerId);
+            if (!container) {
+              throw new Error(`Container ${containerId} not found`);
             }
-          },
-          onError: (err: any) => {
-            console.error('PayPal error:', err);
-            toast({
-              title: "Error",
-              description: "There was a problem with the payment. Please try again.",
-              variant: "destructive",
-            });
+            
+            // Clear existing content
+            container.innerHTML = '';
+            
+            // Determine button ID based on plan type
+            const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';
+            
+            await window.paypal.Buttons({
+              fundingSource: window.paypal.FUNDING.PAYPAL,
+              style: {
+                color: 'gold',
+                shape: 'rect',
+                label: 'subscribe',
+                height: 40
+              },
+              createOrder: function(data, actions) {
+                return actions.order.create({
+                  purchase_units: [{
+                    amount: {
+                      value: planType === 'monthly' ? '9.99' : '99.99',
+                      breakdown: {
+                        item_total: { value: planType === 'monthly' ? '9.99' : '99.99', currency_code: 'USD' }
+                      }
+                    },
+                    description: `SmartBookly ${planType === 'monthly' ? 'Monthly' : 'Yearly'} Subscription`,
+                    items: [{
+                      name: `${planType === 'monthly' ? 'Monthly' : 'Yearly'} Subscription`,
+                      quantity: '1',
+                      unit_amount: { value: planType === 'monthly' ? '9.99' : '99.99', currency_code: 'USD' },
+                      category: 'DIGITAL_GOODS'
+                    }]
+                  }]
+                });
+              },
+              onApprove: async function(data, actions) {
+                try {
+                  toast({
+                    title: "Processing Payment",
+                    description: "Please wait while we verify your payment...",
+                  });
+                  
+                  const orderID = data.orderID;
+                  console.log("Payment approved, order ID:", orderID);
+                  
+                  // Verify the payment with our backend
+                  const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-paypal-payment', {
+                    body: { orderID },
+                  });
+                  
+                  if (verifyError || !verifyData?.success) {
+                    console.error("Payment verification failed:", verifyError || verifyData);
+                    throw new Error(verifyError?.message || "Failed to verify payment");
+                  }
+                  
+                  console.log("Payment verified:", verifyData);
+                  
+                  toast({
+                    title: "Payment Successful",
+                    description: `Your ${planType} subscription is now active!`,
+                  });
+                  
+                  // Call the success callback
+                  if (onSuccess) {
+                    onSuccess(orderID);
+                  }
+                  
+                  return true;
+                } catch (error: any) {
+                  console.error("Error processing PayPal payment:", error);
+                  toast({
+                    title: "Payment Error",
+                    description: error.message || "Failed to process payment",
+                    variant: "destructive",
+                  });
+                  return false;
+                }
+              },
+              onError: function(err) {
+                console.error("PayPal error:", err);
+                setError("PayPal encountered an error. Please try again.");
+                toast({
+                  title: "PayPal Error",
+                  description: "There was an issue with PayPal. Please try again.",
+                  variant: "destructive",
+                });
+              }
+            }).render(`#${containerId}`);
+            
+          } catch (renderError: any) {
+            console.error("Error rendering PayPal button:", renderError);
+            setError(renderError.message || "Failed to render PayPal button");
+          } finally {
+            setIsLoading(false);
           }
-        }).render(`#${containerId}`);
-
-        console.log('PayPal button rendered successfully');
-
-      } catch (error) {
-        console.error('PayPal initialization error:', error);
+        };
+        
+        renderButton();
+        
+      } catch (loadError: any) {
+        console.error("PayPal script loading error:", loadError);
+        setError(loadError.message || "Failed to load PayPal");
+        setIsLoading(false);
+        
         toast({
-          title: "Error",
-          description: "Failed to load payment system. Please try again.",
+          title: "PayPal Error",
+          description: "Failed to load PayPal. Please try again later.",
           variant: "destructive",
         });
       }
     };
+    
+    loadScript();
+    
+  }, [containerId, planType, toast, onSuccess]);
 
-    if (user) {
-      loadPayPalScript();
-    }
-
-    return () => {
-      // Clean up PayPal button container
-      if (buttonRef.current) {
-        buttonRef.current.innerHTML = '';
-      }
-    };
-  }, [user, planType, onSuccess, containerId]);
-
-  return <div id={containerId} ref={buttonRef} />;
+  return (
+    <div className="w-full">
+      <div 
+        id={containerId} 
+        className="paypal-button-container min-h-[40px] flex items-center justify-center"
+      >
+        {isLoading && (
+          <div className="animate-pulse flex items-center justify-center h-10 bg-gray-200 rounded w-full">
+            <span className="text-sm text-gray-500">Loading PayPal...</span>
+          </div>
+        )}
+        
+        {error && !isLoading && (
+          <div className="text-sm text-red-500 text-center p-2 border border-red-300 rounded bg-red-50">
+            {error}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
