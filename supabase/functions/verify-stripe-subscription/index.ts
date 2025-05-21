@@ -8,6 +8,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const logStep = (step: string, details?: any) => {
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  console.log(`[VERIFY-STRIPE] ${step}${detailsStr}`);
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -16,47 +21,100 @@ serve(async (req) => {
 
   try {
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+    const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET') || 'whsec_Otf1IP0z86ivQ4y1nXOsENWQCZEQOtUz';
     
     if (!stripeKey) {
       console.error('STRIPE_SECRET_KEY is not set in the environment');
       throw new Error('Stripe key is not configured');
     }
     
-    console.log('Verifying Stripe subscription with available key:', stripeKey ? 'Yes' : 'No');
+    logStep('Function triggered with available keys', { 
+      stripeKeyAvailable: !!stripeKey, 
+      webhookSecretAvailable: !!stripeWebhookSecret 
+    });
     
-    // Parse request body for session ID
-    const { sessionId } = await req.json();
+    // Determine if this is a webhook call or direct verification call
+    const signature = req.headers.get('stripe-signature');
+    const isWebhook = !!signature;
     
+    logStep('Request type', { isWebhook, method: req.method });
+
+    // Initialize Stripe
+    const stripe = new Stripe(stripeKey, {
+      apiVersion: '2023-10-16',
+    });
+
+    let sessionId;
+    let event;
+    
+    // Handle different request types
+    if (isWebhook) {
+      // This is a webhook call from Stripe
+      logStep('Processing Stripe webhook event');
+      
+      const body = await req.text();
+      
+      try {
+        event = stripe.webhooks.constructEvent(body, signature, stripeWebhookSecret);
+        logStep('Webhook event constructed successfully', { type: event.type });
+        
+        // Extract sessionId based on event type
+        if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
+          sessionId = event.data.object.id;
+          logStep('Extracted session ID from webhook event', { sessionId });
+        } else {
+          logStep('Unsupported event type', { type: event.type });
+          return new Response(
+            JSON.stringify({ success: false, message: `Unsupported event type: ${event.type}` }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } catch (err) {
+        logStep('Error verifying webhook signature', { error: err.message });
+        return new Response(
+          JSON.stringify({ success: false, error: `Webhook signature verification failed: ${err.message}` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      // This is a direct API call, parse request body for session ID
+      try {
+        const requestData = await req.json();
+        sessionId = requestData.sessionId;
+        logStep('Received direct verification request', { sessionId });
+      } catch (err) {
+        logStep('Error parsing request JSON', { error: err.message });
+      }
+    }
+    
+    // Check if we have a valid sessionId
     if (!sessionId) {
-      console.error('No session ID provided');
+      logStep('No session ID provided');
       return new Response(
         JSON.stringify({ error: 'Session ID is required', success: false }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    console.log(`Verifying session ID: ${sessionId}`);
-    
-    // Initialize Stripe
-    const stripe = new Stripe(stripeKey, {
-      apiVersion: '2023-10-16',
-    });
+    logStep(`Processing session ID: ${sessionId}`);
     
     // Retrieve the session to check its status
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
       expand: ['customer', 'subscription', 'line_items.data.price.product']
     });
     
-    console.log(`Session retrieved. Status: ${session.status}, Payment status: ${session.payment_status}`);
-    console.log('Session metadata:', session.metadata || 'No metadata');
-    console.log('Customer details:', session.customer_details || 'No customer details');
+    logStep(`Session retrieved`, { 
+      status: session.status, 
+      payment_status: session.payment_status,
+      metadata: session.metadata || 'No metadata'
+    });
     
     // Check for user ID in metadata
     let userId = session.metadata?.userId;
-    console.log(`User ID from metadata: ${userId || 'NOT FOUND'}`);
+    logStep(`User ID from metadata: ${userId || 'NOT FOUND'}`);
     
     if (session.payment_status !== 'paid') {
-      console.error(`Payment not completed. Status: ${session.payment_status}`);
+      logStep(`Payment not completed. Status: ${session.payment_status}`);
       return new Response(
         JSON.stringify({ success: false, message: 'Payment not completed' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -67,20 +125,20 @@ serve(async (req) => {
     const customerId = session.customer as string;
     
     if (!customerId) {
-      console.error('No customer ID found in session');
+      logStep('No customer ID found in session');
       return new Response(
         JSON.stringify({ success: false, message: 'No customer associated with session' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    console.log(`Customer ID from session: ${customerId}`);
+    logStep(`Customer ID from session: ${customerId}`);
     
     // Get customer information to extract user email
     const customer = await stripe.customers.retrieve(customerId);
     
     if (!customer || customer.deleted) {
-      console.error('Customer not found or deleted');
+      logStep('Customer not found or deleted');
       return new Response(
         JSON.stringify({ success: false, message: 'Customer not found' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -88,10 +146,10 @@ serve(async (req) => {
     }
     
     const customerEmail = customer.email;
-    console.log(`Customer email: ${customerEmail || 'No email found'}`);
+    logStep(`Customer email: ${customerEmail || 'No email found'}`);
     
     if (!customerEmail) {
-      console.error('No email associated with customer');
+      logStep('No email associated with customer');
       return new Response(
         JSON.stringify({ success: false, message: 'No email associated with customer' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -107,7 +165,7 @@ serve(async (req) => {
     
     // If userId from metadata is not available, try to find the user by their email
     if (!userId) {
-      console.log('No userId in metadata, searching by email:', customerEmail);
+      logStep('No userId in metadata, searching by email:', customerEmail);
       
       // First check in auth.users
       try {
@@ -118,17 +176,17 @@ serve(async (req) => {
         });
         
         if (authError) {
-          console.error('Error looking up user by email:', authError);
+          logStep('Error looking up user by email:', authError);
         } else if (authData && authData.users.length > 0) {
           userId = authData.users[0].id;
-          console.log(`Found user by email in auth.users: ${userId}`);
+          logStep(`Found user by email in auth.users: ${userId}`);
         }
       } catch (authError) {
-        console.error('Error querying auth.users:', authError);
+        logStep('Error querying auth.users:', authError);
       }
       
       if (!userId) {
-        console.error('Could not find user ID for email:', customerEmail);
+        logStep('Could not find user ID for email:', customerEmail);
         // Still continue to create a subscription record by email that can be associated later
       }
     }
@@ -156,14 +214,14 @@ serve(async (req) => {
         }
       }
       
-      console.log(`Found subscription: ${subscriptionId}, status: ${subscription.status}, type: ${planType}, ends: ${subscriptionEndDate}`);
+      logStep(`Found subscription: ${subscriptionId}, status: ${subscription.status}, type: ${planType}, ends: ${subscriptionEndDate}`);
     } else {
       // If no subscription found but payment is successful, we'll set an arbitrary subscription end date
       const thirtyDaysFromNow = new Date();
       thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
       subscriptionEndDate = thirtyDaysFromNow.toISOString();
       isActive = true; // Consider it active
-      console.log(`No subscription found, but payment successful. Setting artificial end date: ${subscriptionEndDate}`);
+      logStep(`No subscription found, but payment successful. Setting artificial end date: ${subscriptionEndDate}`);
     }
     
     // Update or create subscription record in database
@@ -180,7 +238,7 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     };
     
-    console.log('Updating subscription with data:', subscriptionData);
+    logStep('Updating subscription with data:', subscriptionData);
 
     let upsertedSub = null;
     
@@ -197,14 +255,14 @@ serve(async (req) => {
           .maybeSingle();
           
         if (error) {
-          console.error('Error upserting subscription by user_id:', error);
+          logStep('Error upserting subscription by user_id:', error);
           // Continue to try by email if this fails
         } else {
-          console.log('Successfully upserted subscription by user_id. Result:', data);
+          logStep('Successfully upserted subscription by user_id. Result:', data);
           upsertedSub = data;
         }
       } catch (dbError) {
-        console.error('Database operation error upserting by user_id:', dbError);
+        logStep('Database operation error upserting by user_id:', dbError);
         // Continue to try by email
       }
     }
@@ -222,7 +280,7 @@ serve(async (req) => {
           .maybeSingle();
           
         if (error) {
-          console.error('Error upserting subscription by email:', error);
+          logStep('Error upserting subscription by email:', error);
           
           // Last resort: Try insert only as final attempt
           const { data: insertData, error: insertError } = await supabaseAdmin
@@ -232,18 +290,18 @@ serve(async (req) => {
             .maybeSingle();
             
           if (insertError) {
-            console.error('Error inserting subscription as last resort:', insertError);
+            logStep('Error inserting subscription as last resort:', insertError);
             throw insertError;
           } else {
-            console.log('Successfully inserted subscription as last resort. Result:', insertData);
+            logStep('Successfully inserted subscription as last resort. Result:', insertData);
             upsertedSub = insertData;
           }
         } else {
-          console.log('Successfully upserted subscription by email. Result:', data);
+          logStep('Successfully upserted subscription by email. Result:', data);
           upsertedSub = data;
         }
       } catch (dbError) {
-        console.error('Database operation error during email upsert/insert:', dbError);
+        logStep('Database operation error during email upsert/insert:', dbError);
         throw dbError;
       }
     }
@@ -258,6 +316,19 @@ serve(async (req) => {
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+    
+    // For webhook calls, we'll update the session metadata with userId if not present
+    if (isWebhook && !session.metadata?.userId && userId) {
+      try {
+        await stripe.checkout.sessions.update(sessionId, {
+          metadata: { ...session.metadata, userId },
+        });
+        logStep('Updated session metadata with userId', { sessionId, userId });
+      } catch (updateErr) {
+        logStep('Error updating session metadata', { error: updateErr.message });
+        // Non-critical error, continue
+      }
     }
     
     return new Response(

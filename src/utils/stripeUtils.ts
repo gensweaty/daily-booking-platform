@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 
 export const verifyStripeSubscription = async (sessionId: string) => {
