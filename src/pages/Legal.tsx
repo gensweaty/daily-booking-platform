@@ -6,13 +6,15 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
-
 const Legal = () => {
-  const { theme } = useTheme();
-  const { t, language } = useLanguage();
-  
-  return (
-    <div className="min-h-screen bg-background">
+  const {
+    theme
+  } = useTheme();
+  const {
+    t,
+    language
+  } = useLanguage();
+  return <div className="min-h-screen bg-background">
       <header className="container mx-auto px-4 py-8">
         <nav className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-4">
@@ -20,11 +22,7 @@ const Legal = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <Link to="/" className="flex items-center gap-2">
-              <img 
-                src={theme === 'dark' ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"} 
-                alt="SmartBookly Logo" 
-                className="h-8 md:h-10 w-auto" 
-              />
+              <img src={theme === 'dark' ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"} alt="SmartBookly Logo" className="h-8 md:h-10 w-auto" />
             </Link>
           </div>
           <div className="flex items-center gap-4">
@@ -38,8 +36,7 @@ const Legal = () => {
         <div className="max-w-4xl mx-auto">
           <div className="bg-card rounded-lg shadow-sm p-8 mb-8">
             <LanguageText>
-              {language === 'ka' && (
-                <>
+              {language === 'ka' && <>
                   <h1 className="text-3xl font-bold mb-4">პირობები და კონფიდენციალურობის პოლიტიკა</h1>
                   <p className="text-muted-foreground mb-8">ბოლო განახლება: 03.03.2025</p>
                   
@@ -127,11 +124,9 @@ const Legal = () => {
                       </div>
                     </div>
                   </section>
-                </>
-              )}
+                </>}
 
-              {language === 'es' && (
-                <>
+              {language === 'es' && <>
                   <h1 className="text-3xl font-bold mb-4">Términos y Política de Privacidad</h1>
                   <p className="text-muted-foreground mb-8">Última actualización: 03/03/2025</p>
                   
@@ -219,11 +214,9 @@ const Legal = () => {
                       </div>
                     </div>
                   </section>
-                </>
-              )}
+                </>}
 
-              {language === 'en' && (
-                <>
+              {language === 'en' && <>
                   <h1 className="text-3xl font-bold mb-4">Terms and Privacy Policy</h1>
                   <p className="text-muted-foreground mb-8">Last Updated: 03.03.2025</p>
                   
@@ -234,7 +227,7 @@ const Legal = () => {
                     <div className="space-y-6">
                       <div className="p-4 rounded-md bg-muted">
                         <h3 className="text-xl font-semibold mb-2">1. General Information</h3>
-                        <p className="mb-1">Company Name: Smartbookly</p>
+                        <p className="mb-1">Company Name: AI SOFTWARE FACTORY LTD</p>
                         <p className="mb-1">Registered in: <a href="https://mail-attachment.googleusercontent.com/attachment/u/0/?ui=2&ik=17d6eafb76&attid=0.1&permmsgid=msg-f:1832650061889039630&th=196ee185807e6d0e&view=att&zw&disp=inline&saddbat=ANGjdJ9iWDE_hvwLuwhQrQengMcD8b0cK5VsUvpoF9gpXpYfpvB7Q13335VRQJIr8rugqrr_6A3fcXb2t5YI0Dlo2m1-98jD8_tbpc5A7N2AOmDBJpP0R_vNZWPUKX3RlMsZ_uL3JfXLpamROYvD96ItlvcWYdNTSuq3jd5721nPb-ZawUdEY_9tNyWXtlElPHgpJRHt7VAwwgAuDoO4b9sbFtJEg2tqPyg7C_eBGKjaSlx0ankfKULH60qBOkF0IKqkawfvxnreOKFhwj3Pbvpu6lta1mpVcIfiUlwdM2G1VwSKW6dT7G_wDx1t_YBEcQaZnxaCHb7T0dsG22zolPBQHUnillnlHfrxY37y5NBekSF9UIjXKKlef-a80rwG-Yyyw0Efo65UHFHntonCxXiB098KC8zpxCWGy-vJZB87E_fdPsQnwRWbF1y-S0hfY1RK1JzOpkJSZHANl3aWzkCYZLKeseQUk304XVBfDe1PUED4QJBtd2UgPFMAZRnmP9PU1poc6SDV3pIe3Td9zLpDzjmxkkpWTTDKYlZDYyCptTtUs814rJwqkjWfr2GwAscMAH0LNHHerbZDHAjEkLCCvY61EhEwHBxd1cZuKNZ5jiqzWebdI1WMLFa380wKOb7XskcFp15GO9KcEyAtPrURJyV5CtwvERZ7aBah3HUBh4U5lsgdTGRzJymXC3hK3VjLJvZBeVSDI-IGVEDV4mQlXvBGEA1nAYRXneHfpRGo-Zua_Ea3iId7j6euDKvRXLRXEbeIiW2x9p-XGLyf4CAlZI2dQ8-Ahx06eItTt9MR9QonXm_-AceSMoyqHb5hJyyKo6ClHJhdwmpN-mRGXC07E5nWYeaX6kTc2dGoYqbJFAxTztGaIJsF2FgkJZXJTi4tM8lmRCQA0v6ups55KeLChXl7EPXJ8vOlBV3l8Q-yhB4jcKPrSOM5-2aC6pPTJsflZQrAo2WIOxFMrd5CacBCesS0Qf5uC3fScus37_YkSPIt0m83aEeMaSGTmzRlk8bUPtkltbcKHmne_Kv0" target="_blank" rel="noopener noreferrer">UK Companies House</a></p>
                         <p>Contact Email: info@smartbookly.com</p>
                       </div>
@@ -311,23 +304,18 @@ const Legal = () => {
                       </div>
                     </div>
                   </section>
-                </>
-              )}
+                </>}
             </LanguageText>
             
             <section className="mt-10 pt-6 border-t border-border">
               <h3 className="text-xl font-semibold mb-2">
                 <LanguageText>
-                  {language === 'ka' ? 'დაგვიკავშირდით' : 
-                   language === 'es' ? 'Contáctenos' : 
-                   'Contact Us'}
+                  {language === 'ka' ? 'დაგვიკავშირდით' : language === 'es' ? 'Contáctenos' : 'Contact Us'}
                 </LanguageText>
               </h3>
               <p>
                 <LanguageText>
-                  {language === 'ka' ? 'თუ თქვენ გაქვთ რაიმე შეკითხვები ჩვენს პირობებთან ან კონფიდენციალურობის პოლიტიკასთან დაკავშირებით, გთხოვთ დაგვიკავშირდეთ ' :
-                   language === 'es' ? 'Si tiene alguna pregunta sobre nuestros Términos o Política de Privacidad, contáctenos en ' :
-                   'If you have any questions about our Terms or Privacy Policy, please contact us at '}
+                  {language === 'ka' ? 'თუ თქვენ გაქვთ რაიმე შეკითხვები ჩვენს პირობებთან ან კონფიდენციალურობის პოლიტიკასთან დაკავშირებით, გთხოვთ დაგვიკავშირდეთ ' : language === 'es' ? 'Si tiene alguna pregunta sobre nuestros Términos o Política de Privacidad, contáctenos en ' : 'If you have any questions about our Terms or Privacy Policy, please contact us at '}
                 </LanguageText>
                 <a href="mailto:info@smartbookly.com" className="text-primary hover:underline">info@smartbookly.com</a>
               </p>
@@ -335,8 +323,6 @@ const Legal = () => {
           </div>
         </div>
       </main>
-    </div>
-  );
+    </div>;
 };
-
 export default Legal;
