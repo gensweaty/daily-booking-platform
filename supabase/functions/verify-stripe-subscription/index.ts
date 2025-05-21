@@ -44,13 +44,15 @@ serve(async (req) => {
     
     // Retrieve the session to check its status
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ['customer', 'subscription']
+      expand: ['customer', 'subscription', 'line_items.data.price.product']
     });
     
     console.log(`Session retrieved. Status: ${session.status}, Payment status: ${session.payment_status}`);
+    console.log('Session metadata:', session.metadata || 'No metadata');
+    console.log('Customer details:', session.customer_details || 'No customer details');
     
     // Check for user ID in metadata
-    const userId = session.metadata?.userId;
+    let userId = session.metadata?.userId;
     console.log(`User ID from metadata: ${userId || 'NOT FOUND'}`);
     
     if (session.payment_status !== 'paid') {
@@ -86,7 +88,7 @@ serve(async (req) => {
     }
     
     const customerEmail = customer.email;
-    console.log(`Customer email: ${customerEmail}`);
+    console.log(`Customer email: ${customerEmail || 'No email found'}`);
     
     if (!customerEmail) {
       console.error('No email associated with customer');
@@ -104,29 +106,30 @@ serve(async (req) => {
     );
     
     // If userId from metadata is not available, try to find the user by their email
-    let finalUserId = userId;
-    
-    if (!finalUserId) {
+    if (!userId) {
       console.log('No userId in metadata, searching by email:', customerEmail);
       
       // First check in auth.users
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({
-        filter: {
-          email: customerEmail as string,
-        },
-      });
-      
-      if (authError) {
-        console.error('Error looking up user by email:', authError);
-      } else if (authData && authData.users.length > 0) {
-        finalUserId = authData.users[0].id;
-        console.log(`Found user by email in auth.users: ${finalUserId}`);
+      try {
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({
+          filter: {
+            email: customerEmail as string,
+          },
+        });
+        
+        if (authError) {
+          console.error('Error looking up user by email:', authError);
+        } else if (authData && authData.users.length > 0) {
+          userId = authData.users[0].id;
+          console.log(`Found user by email in auth.users: ${userId}`);
+        }
+      } catch (authError) {
+        console.error('Error querying auth.users:', authError);
       }
       
-      if (!finalUserId) {
+      if (!userId) {
         console.error('Could not find user ID for email:', customerEmail);
-        // Even though we couldn't find the user, let's continue with the subscription info update
-        // This will at least create the subscription record that can be associated with the user later
+        // Still continue to create a subscription record by email that can be associated later
       }
     }
     
@@ -165,12 +168,12 @@ serve(async (req) => {
     
     // Update or create subscription record in database
     const subscriptionData = {
-      user_id: finalUserId,
+      user_id: userId,
       email: customerEmail,
       stripe_customer_id: customerId,
       stripe_subscription_id: subscriptionId,
       status: 'active', // Always set to active when payment is successful
-      trial_end_date: null,
+      trial_end_date: null, // End any trial
       plan_type: planType,
       subscription_end_date: subscriptionEndDate,
       current_period_end: subscriptionEndDate,
@@ -178,11 +181,13 @@ serve(async (req) => {
     };
     
     console.log('Updating subscription with data:', subscriptionData);
+
+    let upsertedSub = null;
     
-    try {
-      if (finalUserId) {
-        // If we have a user ID, upsert based on user_id
-        const { data: upsertedSub, error: upsertError } = await supabaseAdmin
+    // First attempt: Try upserting by user_id if available
+    if (userId) {
+      try {
+        const { data, error } = await supabaseAdmin
           .from('subscriptions')
           .upsert(subscriptionData, { 
             onConflict: 'user_id',
@@ -191,15 +196,23 @@ serve(async (req) => {
           .select('*')
           .maybeSingle();
           
-        if (upsertError) {
-          console.error('Error upserting subscription by user_id:', upsertError);
-          throw upsertError;
+        if (error) {
+          console.error('Error upserting subscription by user_id:', error);
+          // Continue to try by email if this fails
+        } else {
+          console.log('Successfully upserted subscription by user_id. Result:', data);
+          upsertedSub = data;
         }
-        
-        console.log('Successfully upserted subscription by user_id. Result:', upsertedSub);
-      } else if (customerEmail) {
-        // If we don't have user ID but have email, upsert by email
-        const { data: upsertedSub, error: upsertError } = await supabaseAdmin
+      } catch (dbError) {
+        console.error('Database operation error upserting by user_id:', dbError);
+        // Continue to try by email
+      }
+    }
+    
+    // Second attempt: Try by email if user_id attempt failed or wasn't available
+    if (!upsertedSub && customerEmail) {
+      try {
+        const { data, error } = await supabaseAdmin
           .from('subscriptions')
           .upsert(subscriptionData, { 
             onConflict: 'email',
@@ -208,20 +221,40 @@ serve(async (req) => {
           .select('*')
           .maybeSingle();
           
-        if (upsertError) {
-          console.error('Error upserting subscription by email:', upsertError);
-          throw upsertError;
+        if (error) {
+          console.error('Error upserting subscription by email:', error);
+          
+          // Last resort: Try insert only as final attempt
+          const { data: insertData, error: insertError } = await supabaseAdmin
+            .from('subscriptions')
+            .insert([subscriptionData])
+            .select('*')
+            .maybeSingle();
+            
+          if (insertError) {
+            console.error('Error inserting subscription as last resort:', insertError);
+            throw insertError;
+          } else {
+            console.log('Successfully inserted subscription as last resort. Result:', insertData);
+            upsertedSub = insertData;
+          }
+        } else {
+          console.log('Successfully upserted subscription by email. Result:', data);
+          upsertedSub = data;
         }
-        
-        console.log('Successfully upserted subscription by email. Result:', upsertedSub);
+      } catch (dbError) {
+        console.error('Database operation error during email upsert/insert:', dbError);
+        throw dbError;
       }
-    } catch (dbError) {
-      console.error('Database operation error:', dbError);
+    }
+    
+    // If we still don't have a successful DB operation, report failure
+    if (!upsertedSub) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Database error when updating subscription',
-          message: dbError.message 
+          error: 'Failed to update subscription in database',
+          message: 'Database operation failed despite multiple attempts' 
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -232,7 +265,7 @@ serve(async (req) => {
         success: true, 
         message: 'Payment verified and subscription activated',
         subscription_id: subscriptionId,
-        user_id: finalUserId,
+        user_id: userId,
         email: customerEmail,
         plan_type: planType,
         subscription_end: subscriptionEndDate
