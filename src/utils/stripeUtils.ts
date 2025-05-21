@@ -1,8 +1,13 @@
+
 import { supabase } from "@/lib/supabase";
 
 export const verifyStripeSubscription = async (sessionId: string) => {
   try {
     console.log(`stripeUtils: Verifying session ID ${sessionId}`);
+    
+    // Ensure we have proper authentication
+    const { data: authData } = await supabase.auth.getSession();
+    const token = authData?.session?.access_token;
     
     // Add retry logic with backoff
     const maxRetries = 5;
@@ -11,25 +16,25 @@ export const verifyStripeSubscription = async (sessionId: string) => {
     
     while (retryCount < maxRetries) {
       try {
-        const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
-          body: { sessionId },
-        });
-
-        if (error) {
-          console.error(`stripeUtils: Error invoking verify-stripe-subscription (attempt ${retryCount + 1}):`, error);
-          lastError = error;
-          retryCount++;
-          
-          if (retryCount < maxRetries) {
-            // Exponential backoff - wait longer between each retry
-            const waitTime = Math.pow(2, retryCount) * 1000;
-            console.log(`stripeUtils: Retrying in ${waitTime}ms...`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-            continue;
+        // Call verify-stripe-subscription edge function with proper auth header
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-stripe-subscription`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token ? `Bearer ${token}` : '',
+            },
+            body: JSON.stringify({ sessionId }),
           }
-          throw error;
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP error: ${response.status}, ${errorText}`);
         }
 
+        const data = await response.json();
         console.log('stripeUtils: Verification result:', data);
         
         // If successful, manually update subscription status in the local database
