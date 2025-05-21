@@ -137,7 +137,7 @@ const Legal = () => {
                     <div className="space-y-6">
                       <div className="p-4 rounded-md bg-muted">
                         <h3 className="text-xl font-semibold mb-2">1. Información General</h3>
-                        <p className="mb-1">Nombre de la empresa: Smartbookly</p>
+                        <p className="mb-1">Nombre de la empresa: AI SOFTWARE FACTORY LTD</p>
                         <p className="mb-1">Registrada en: <a href="https://mrueqpffzauvdxmuwhfa.supabase.co/storage/v1/object/sign/event_attachments/db1c8d7c-a9d4-4cbb-9124-071123d66930/9cae890f-15d2-4f4e-aa01-b32477019b6d.pdf?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2UxYWUwMTczLTA1ZDctNDQ3Zi05NzE5LWU2ZDg1MDE1MzNlNiJ9.eyJ1cmwiOiJldmVudF9hdHRhY2htZW50cy9kYjFjOGQ3Yy1hOWQ0LTRjYmItOTEyNC0wNzExMjNkNjY5MzAvOWNhZTg5MGYtMTVkMi00ZjRlLWFhMDEtYjMyNDc3MDE5YjZkLnBkZiIsImlhdCI6MTc0Nzg1MzExMiwiZXhwIjoxNzQ3ODU2NzEyfQ.2rewdJEA6E0TPRE131HOG8ynA5QqXpPKL6IeZpj3LiI" target="_blank" rel="noopener noreferrer">UK Companies House</a></p>
                         <p>Correo electrónico de contacto: info@smartbookly.com</p>
                       </div>
