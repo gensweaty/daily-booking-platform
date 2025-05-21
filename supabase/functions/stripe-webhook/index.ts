@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -177,72 +176,33 @@ async function handleCheckoutSessionCompleted(
     return;
   }
   
-  const customerId = session.customer;
-  if (!customerId) {
-    throw new Error('No customer ID found in session');
-  }
-  
-  // Get customer info
-  const customer = await stripe.customers.retrieve(customerId);
-  const customerEmail = customer.email;
-  if (!customerEmail) {
-    throw new Error('No email associated with customer');
-  }
-  
-  // Get subscription info
-  let subscriptionId = session.subscription;
-  let subscriptionData;
-  
-  // If we have a subscription ID, get full details
-  if (subscriptionId) {
-    subscriptionData = await stripe.subscriptions.retrieve(subscriptionId);
-    logStep('Retrieved subscription', { 
-      subscription_id: subscriptionId, 
-      status: subscriptionData.status 
+  // Call our verify-stripe-subscription function to handle the subscription activation
+  try {
+    logStep('Forwarding to verify-stripe-subscription function', { session_id: session.id });
+    
+    // Call the function directly instead of via fetch
+    const verifyUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/verify-stripe-subscription`;
+    const response = await fetch(verifyUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        'stripe-signature': session.id  // This flags it as coming from this function
+      },
+      body: JSON.stringify({ sessionId: session.id })
     });
-  }
-  
-  // Look for a user with this email
-  const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
-  if (userError) {
-    throw new Error(`Error listing users: ${userError.message}`);
-  }
-  
-  const user = userData.users.find(u => u.email === customerEmail);
-  if (!user) {
-    logStep('No matching user found for email', { email: customerEmail });
-    throw new Error(`No user found with email: ${customerEmail}`);
-  }
-  
-  // Prepare subscription record
-  const subscriptionRecord = {
-    user_id: user.id,
-    email: customerEmail,
-    stripe_customer_id: customerId,
-    status: 'active',
-    plan_type: 'monthly', // Default to monthly plan
-    updated_at: new Date().toISOString()
-  };
-  
-  // Add subscription specific fields if available
-  if (subscriptionData) {
-    subscriptionRecord.stripe_subscription_id = subscriptionId;
     
-    // Calculate and add period end date
-    const periodEnd = new Date(subscriptionData.current_period_end * 1000);
-    subscriptionRecord.current_period_end = periodEnd.toISOString();
-  }
-  
-  // Update or create subscription record
-  const { error: upsertError } = await supabase
-    .from('subscriptions')
-    .upsert(subscriptionRecord, { onConflict: 'user_id' });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Verification failed: ${response.status} ${errorText}`);
+    }
     
-  if (upsertError) {
-    throw new Error(`Error updating subscription: ${upsertError.message}`);
+    const result = await response.json();
+    logStep('Verification completed', { result });
+  } catch (error) {
+    logStep('Error forwarding to verification function', { error: error.message });
+    throw error;
   }
-  
-  logStep('Subscription record updated', { user_id: user.id, email: customerEmail });
 }
 
 // Handle subscription created or updated events

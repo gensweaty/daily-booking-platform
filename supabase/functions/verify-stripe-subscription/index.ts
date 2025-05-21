@@ -55,7 +55,8 @@ serve(async (req) => {
       const body = await req.text();
       
       try {
-        event = stripe.webhooks.constructEvent(body, signature, stripeWebhookSecret);
+        // CRITICAL FIX: Use constructEventAsync instead of constructEvent
+        event = await stripe.webhooks.constructEventAsync(body, signature, stripeWebhookSecret);
         logStep('Webhook event constructed successfully', { type: event.type });
         
         // Extract sessionId based on event type
