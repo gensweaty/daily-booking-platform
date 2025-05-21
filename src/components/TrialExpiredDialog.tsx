@@ -9,9 +9,10 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { StripeSubscribeButton } from "./StripeSubscribeButton";
-import { verifyStripeSubscription } from "@/utils/stripeUtils";
+import { verifyStripeSubscription, refreshSubscriptionStatus } from "@/utils/stripeUtils";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { Loader2 } from "lucide-react";
 
 interface TrialExpiredDialogProps {
   onVerificationSuccess?: () => void;
@@ -20,6 +21,7 @@ interface TrialExpiredDialogProps {
 export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialogProps) => {
   const [open, setOpen] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationAttempts, setVerificationAttempts] = useState(0);
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -28,85 +30,114 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
     if (sessionId) {
-      // Verify the subscription
-      const verifySubscription = async () => {
-        setIsVerifying(true);
+      verifySession(sessionId);
+    }
+  }, [searchParams]);
+  
+  // Periodically check subscription status if verification is in progress
+  useEffect(() => {
+    if (isVerifying && verificationAttempts > 0) {
+      const checkInterval = setInterval(async () => {
+        console.log("TrialExpiredDialog: Performing background subscription check");
         try {
-          console.log("TrialExpiredDialog: Verifying Stripe session:", sessionId);
-          const result = await verifyStripeSubscription(sessionId);
-          
-          if (result?.success) {
-            console.log("TrialExpiredDialog: Verification successful, updating subscription status");
-            
-            // Get the current user
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            if (user) {
-              // Force update the subscription record with active status
-              const { error: updateError } = await supabase
-                .from('subscriptions')
-                .upsert({
-                  user_id: user.id,
-                  email: user.email,
-                  status: 'active',
-                  plan_type: 'monthly',
-                  stripe_subscription_id: result.subscription_id || 'sub_unknown',
-                  updated_at: new Date().toISOString(),
-                });
-                
-              if (updateError) {
-                console.error("Error updating subscription record:", updateError);
-              } else {
-                console.log("Subscription record updated to active status");
-              }
-            }
-            
-            toast({
-              title: "Success",
-              description: "Your subscription has been activated!",
-            });
-            
-            // Close the dialog on successful verification
-            setOpen(false);
-            
-            // Notify parent component about successful verification
-            if (onVerificationSuccess) {
-              onVerificationSuccess();
-            }
-            
-            // Replace URL to remove the session_id parameter
-            navigate("/dashboard", { replace: true });
-          } else {
-            console.error("Subscription verification failed:", result);
-            toast({
-              title: "Error",
-              description: "Failed to verify subscription. Please contact support.",
-              variant: "destructive",
-            });
+          const isActive = await refreshSubscriptionStatus();
+          if (isActive) {
+            console.log("TrialExpiredDialog: Background check found active subscription");
+            clearInterval(checkInterval);
+            handleVerificationSuccess();
           }
         } catch (error) {
-          console.error("Error verifying subscription:", error);
-          toast({
-            title: "Error",
-            description: "Failed to verify subscription. Please try again.",
-            variant: "destructive",
-          });
-        } finally {
-          setIsVerifying(false);
+          console.error("Background subscription check error:", error);
         }
-      };
+      }, 3000); // Check every 3 seconds
       
-      verifySubscription();
+      return () => clearInterval(checkInterval);
     }
-  }, [searchParams, toast, navigate, onVerificationSuccess]);
+  }, [isVerifying, verificationAttempts]);
+
+  const verifySession = async (sessionId: string) => {
+    setIsVerifying(true);
+    setVerificationAttempts(prev => prev + 1);
+    
+    try {
+      console.log("TrialExpiredDialog: Verifying Stripe session:", sessionId);
+      const result = await verifyStripeSubscription(sessionId);
+      
+      if (result?.success) {
+        console.log("TrialExpiredDialog: Verification successful");
+        handleVerificationSuccess();
+      } else {
+        console.error("Subscription verification failed:", result);
+        toast({
+          title: "Verification in Progress",
+          description: "Your payment is being processed. This may take a moment.",
+        });
+        
+        // Even if the primary verification fails, start background checks
+        // that will close the dialog if subscription becomes active
+      }
+    } catch (error) {
+      console.error("Error verifying subscription:", error);
+      toast({
+        title: "Verification in Progress",
+        description: "We're confirming your payment. Please wait a moment.",
+      });
+    }
+  };
+
+  const handleVerificationSuccess = async () => {
+    try {
+      // Force refresh the auth session
+      await supabase.auth.refreshSession();
+      
+      // Get the current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // Force update the subscription record with active status
+        const { error: updateError } = await supabase
+          .from('subscriptions')
+          .upsert({
+            user_id: user.id,
+            email: user.email,
+            status: 'active',
+            plan_type: 'monthly',
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'user_id' });
+          
+        if (updateError) {
+          console.error("Error updating subscription record:", updateError);
+        } else {
+          console.log("Subscription record updated to active status");
+        }
+      }
+      
+      toast({
+        title: "Success",
+        description: "Your subscription has been activated!",
+      });
+      
+      // Close the dialog
+      setOpen(false);
+      setIsVerifying(false);
+      
+      // Notify parent component
+      if (onVerificationSuccess) {
+        onVerificationSuccess();
+      }
+      
+      // Replace URL to remove the session_id parameter
+      navigate("/dashboard", { replace: true });
+    } catch (error) {
+      console.error("Error in verification success handler:", error);
+    }
+  };
 
   const handleSubscriptionSuccess = (subscriptionId: string) => {
     toast({
       title: "Success",
-      description: `Successfully subscribed with ID: ${subscriptionId}`,
+      description: `Payment processed successfully. Your subscription will be active shortly.`,
     });
-    setOpen(false);
-    navigate("/dashboard");
   };
 
   return (
@@ -116,8 +147,10 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
         // Prevent closing the dialog by user interaction
         // Only allow it to be closed programmatically after successful payment
         if (open && newOpen === false) {
-          // Don't allow closing
-          return;
+          // Don't allow closing unless verification is complete
+          if (!isVerifying) {
+            return;
+          }
         }
         setOpen(newOpen);
       }}
@@ -142,9 +175,12 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
         <div className="mt-4 space-y-6 px-2 sm:px-4">
           {isVerifying ? (
             <div className="flex flex-col items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
               <p className="mt-4 text-center text-sm sm:text-base text-muted-foreground">
                 Verifying your subscription...
+              </p>
+              <p className="mt-2 text-center text-xs text-muted-foreground">
+                This may take a moment. Please don't close this window.
               </p>
             </div>
           ) : (

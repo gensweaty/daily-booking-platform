@@ -1,52 +1,113 @@
 
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
 
 export const verifyStripeSubscription = async (sessionId: string) => {
   try {
     console.log(`stripeUtils: Verifying session ID ${sessionId}`);
     
-    const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
-      body: { sessionId },
-    });
-
-    if (error) {
-      console.error('stripeUtils: Error invoking verify-stripe-subscription:', error);
-      throw error;
-    }
-
-    console.log('stripeUtils: Verification result:', data);
+    // Add retry logic with backoff
+    const maxRetries = 3;
+    let retryCount = 0;
+    let lastError = null;
     
-    // If successful, manually update subscription status in the local database
-    // This is a backup in case the edge function did not succeed
-    if (data?.success) {
+    while (retryCount < maxRetries) {
       try {
-        const { data: userData } = await supabase.auth.getUser();
-        if (userData?.user?.id) {
-          console.log('stripeUtils: Performing local subscription record update');
+        const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
+          body: { sessionId },
+        });
+
+        if (error) {
+          console.error(`stripeUtils: Error invoking verify-stripe-subscription (attempt ${retryCount + 1}):`, error);
+          lastError = error;
+          retryCount++;
           
-          const { error: updateError } = await supabase
-            .from('subscriptions')
-            .upsert({
-              user_id: userData.user.id,
-              email: userData.user.email,
-              status: 'active',
-              plan_type: 'monthly',
-              stripe_subscription_id: data.subscription_id || 'sub_auto_local',
-              updated_at: new Date().toISOString(),
-            }, { onConflict: 'user_id' });
-            
-          if (updateError) {
-            console.error('stripeUtils: Error updating local subscription:', updateError);
-          } else {
-            console.log('stripeUtils: Local subscription record updated successfully');
+          if (retryCount < maxRetries) {
+            // Exponential backoff - wait longer between each retry
+            const waitTime = Math.pow(2, retryCount) * 1000;
+            console.log(`stripeUtils: Retrying in ${waitTime}ms...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue;
+          }
+          throw error;
+        }
+
+        console.log('stripeUtils: Verification result:', data);
+        
+        // If successful, manually update subscription status in the local database
+        if (data?.success) {
+          try {
+            const { data: userData } = await supabase.auth.getUser();
+            if (userData?.user?.id) {
+              console.log('stripeUtils: Performing local subscription record update');
+              
+              const subscriptionRecord = {
+                user_id: userData.user.id,
+                email: userData.user.email,
+                status: 'active',
+                plan_type: 'monthly',
+                stripe_subscription_id: data.subscription_id || 'sub_auto_local',
+                updated_at: new Date().toISOString(),
+              };
+              
+              // Try to get any existing subscription first
+              const { data: existingSub } = await supabase
+                .from('subscriptions')
+                .select('*')
+                .eq('user_id', userData.user.id)
+                .maybeSingle();
+                
+              if (existingSub?.id) {
+                // If subscription exists, update it
+                const { error: updateError } = await supabase
+                  .from('subscriptions')
+                  .update(subscriptionRecord)
+                  .eq('id', existingSub.id);
+                  
+                if (updateError) {
+                  console.error('stripeUtils: Error updating subscription:', updateError);
+                } else {
+                  console.log('stripeUtils: Subscription record updated successfully');
+                }
+              } else {
+                // If no subscription exists, insert a new one
+                const { error: insertError } = await supabase
+                  .from('subscriptions')
+                  .insert([subscriptionRecord]);
+                  
+                if (insertError) {
+                  console.error('stripeUtils: Error inserting subscription:', insertError);
+                } else {
+                  console.log('stripeUtils: Subscription record inserted successfully');
+                }
+              }
+              
+              // Force refresh auth session to ensure user gets latest claims
+              await supabase.auth.refreshSession();
+              console.log('stripeUtils: Auth session refreshed');
+            }
+          } catch (localError) {
+            console.error('stripeUtils: Error in local subscription update:', localError);
           }
         }
-      } catch (localError) {
-        console.error('stripeUtils: Error in local subscription update:', localError);
+
+        return data;
+      } catch (retryError) {
+        console.error(`stripeUtils: Error in attempt ${retryCount + 1}:`, retryError);
+        lastError = retryError;
+        retryCount++;
+        
+        if (retryCount < maxRetries) {
+          // Exponential backoff
+          const waitTime = Math.pow(2, retryCount) * 1000;
+          console.log(`stripeUtils: Retrying in ${waitTime}ms...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
       }
     }
-
-    return data;
+    
+    // If we got here, all retries failed
+    throw lastError || new Error('All verification attempts failed');
   } catch (error) {
     console.error('Error verifying Stripe subscription:', error);
     throw error;
@@ -76,6 +137,55 @@ export const openStripeCustomerPortal = async () => {
     return false;
   } catch (error) {
     console.error('Error opening Stripe customer portal:', error);
+    return false;
+  }
+};
+
+// New function to check subscription status directly
+export const checkSubscriptionStatus = async (): Promise<boolean> => {
+  try {
+    console.log('stripeUtils: Checking subscription status');
+    
+    // Get the current user
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData?.user) {
+      console.error('stripeUtils: Error getting current user:', userError);
+      return false;
+    }
+    
+    // Look for active subscription
+    const { data: subscription, error: subError } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userData.user.id)
+      .eq('status', 'active')
+      .maybeSingle();
+      
+    if (subError) {
+      console.error('stripeUtils: Error checking subscription status:', subError);
+      return false;
+    }
+    
+    console.log('stripeUtils: Subscription status check result:', subscription);
+    return !!subscription;
+  } catch (error) {
+    console.error('stripeUtils: Error checking subscription status:', error);
+    return false;
+  }
+};
+
+// New helper function to refresh subscription status
+export const refreshSubscriptionStatus = async () => {
+  try {
+    console.log('stripeUtils: Refreshing subscription status');
+    
+    // Force refresh auth session
+    await supabase.auth.refreshSession();
+    
+    // Check subscription status
+    return await checkSubscriptionStatus();
+  } catch (error) {
+    console.error('stripeUtils: Error refreshing subscription status:', error);
     return false;
   }
 };
