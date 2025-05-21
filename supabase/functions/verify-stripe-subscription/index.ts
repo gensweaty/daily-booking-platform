@@ -17,7 +17,7 @@ serve(async (req) => {
   try {
     // Get the Stripe key - make sure to log the status for debugging
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
-    console.log('Stripe key available for verification:', !!stripeKey);
+    console.log('Stripe key available for verification:', stripeKey ? 'Yes' : 'No');
     
     if (!stripeKey) {
       console.error('STRIPE_SECRET_KEY is not set in the environment');
@@ -103,38 +103,87 @@ serve(async (req) => {
         .single();
         
       if (!planData) {
-        console.error('Plan not found in database');
-        return new Response(
-          JSON.stringify({ error: 'Plan not found' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.error('Plan not found in database, attempting to create it');
+        
+        // Create the plan if it doesn't exist
+        const { data: newPlan, error: planCreateError } = await supabaseAdmin
+          .from('subscription_plans')
+          .insert({
+            type: 'monthly',
+            name: 'Premium Plan',
+            price: 9.99,
+            currency: 'USD',
+            features: ['Full access', 'Premium support']
+          })
+          .select()
+          .single();
+          
+        if (planCreateError) {
+          console.error('Failed to create plan:', planCreateError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to create subscription plan' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
       
-      // Update subscription in database
-      console.log(`Updating subscription in database for user: ${user_id}`);
-      const { error: updateError } = await supabaseAdmin
+      // Check if subscription already exists for this user
+      const { data: existingSubscription } = await supabaseAdmin
         .from('subscriptions')
-        .update({
-          status: 'active',
-          current_period_start: new Date().toISOString(),
-          current_period_end: currentPeriodEnd,
-          plan_type: 'monthly',
-          last_payment_id: subscriptionId,
-          stripe_customer_id: session.customer as string,
-          stripe_subscription_id: subscriptionId,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user_id);
-      
-      if (updateError) {
-        console.error('Error updating subscription:', updateError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to update subscription' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        .select('*')
+        .eq('user_id', user_id)
+        .maybeSingle();
+
+      if (existingSubscription) {
+        console.log('Updating existing subscription record');
+        // Update existing subscription
+        const { error: updateError } = await supabaseAdmin
+          .from('subscriptions')
+          .update({
+            status: 'active',
+            current_period_start: new Date().toISOString(),
+            current_period_end: currentPeriodEnd,
+            plan_type: 'monthly',
+            last_payment_id: subscriptionId,
+            stripe_customer_id: session.customer as string,
+            stripe_subscription_id: subscriptionId,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user_id);
+        
+        if (updateError) {
+          console.error('Error updating subscription:', updateError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to update subscription' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } else {
+        console.log('Creating new subscription record');
+        // Create new subscription record
+        const { error: insertError } = await supabaseAdmin
+          .from('subscriptions')
+          .insert({
+            user_id,
+            status: 'active',
+            current_period_start: new Date().toISOString(),
+            current_period_end: currentPeriodEnd,
+            plan_type: 'monthly',
+            last_payment_id: subscriptionId,
+            stripe_customer_id: session.customer as string,
+            stripe_subscription_id: subscriptionId
+          });
+          
+        if (insertError) {
+          console.error('Error creating subscription:', insertError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to create subscription' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
       
-      console.log('Subscription successfully updated');
+      console.log('Subscription successfully updated/created');
       return new Response(
         JSON.stringify({ success: true, subscription: { status: 'active', plan_type: 'monthly', subscription_end: currentPeriodEnd } }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

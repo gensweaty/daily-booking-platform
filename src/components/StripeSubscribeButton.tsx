@@ -38,14 +38,14 @@ export const StripeSubscribeButton = ({ onSuccess }: StripeSubscribeButtonProps)
         throw error;
       }
 
-      if (data?.url) {
-        // Redirect to Stripe checkout
-        console.log("Redirecting to Stripe checkout URL:", data.url);
-        window.location.href = data.url;
-      } else {
+      if (!data?.url) {
         console.error("No checkout URL returned:", data);
         throw new Error('No checkout URL returned');
       }
+      
+      console.log("Redirecting to Stripe checkout URL:", data.url);
+      window.location.href = data.url;
+      
     } catch (error: any) {
       console.error('Error creating Stripe checkout session:', error);
       toast({

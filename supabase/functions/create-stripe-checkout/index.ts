@@ -17,12 +17,13 @@ serve(async (req) => {
   try {
     // Get the Stripe key - make sure to log the status for debugging
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
-    console.log('Stripe key available:', !!stripeKey);
     
     if (!stripeKey) {
       console.error('STRIPE_SECRET_KEY is not set in the environment');
       throw new Error('Stripe key is not configured');
     }
+    
+    console.log('Stripe key available:', stripeKey ? 'Yes' : 'No');
     
     // Parse request body
     const { productId } = await req.json();
@@ -133,7 +134,7 @@ serve(async (req) => {
       },
     });
     
-    console.log('Checkout session created successfully');
+    console.log('Checkout session created successfully:', session.id);
     
     return new Response(
       JSON.stringify({ url: session.url }),
