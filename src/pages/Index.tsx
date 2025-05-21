@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
@@ -37,35 +38,33 @@ const Index = () => {
   const [username, setUsername] = useState("")
   const [processingCode, setProcessingCode] = useState(false)
   const [processingStripe, setProcessingStripe] = useState(false)
-  const [showTrialExpiredDialog, setShowTrialExpiredDialog] = useState(false)
+  const [manuallyHideDialog, setManuallyHideDialog] = useState(false)
   const { user } = useAuth()
   const { toast } = useToast()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   
   const { showTrialExpired, setForceRefresh, checkSubscriptionStatus } = useSubscriptionRedirect()
+
+  // Track if payment verification is in progress to avoid showing dialog during verification
+  const [paymentVerificationInProgress, setPaymentVerificationInProgress] = useState(false);
 
   // Function to handle successful subscription verification
   const handleVerificationSuccess = useCallback(() => {
     console.log("Verification success handler called");
     // Force an immediate check of the subscription status
     checkSubscriptionStatus();
-    // Hide the dialog
-    setShowTrialExpiredDialog(false);
+    // Hide the dialog manually
+    setManuallyHideDialog(true);
   }, [checkSubscriptionStatus]);
 
-  // Set initial state of the dialog based on trial status from hook
-  useEffect(() => {
-    if (!processingStripe) {
-      setShowTrialExpiredDialog(showTrialExpired);
-    }
-  }, [showTrialExpired, processingStripe]);
-
-  // Handle Stripe session verification
+  // Handle stripe session ID directly
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
     
     if (sessionId && !processingStripe && user) {
+      console.log("Found session_id in URL, starting verification process");
+      setPaymentVerificationInProgress(true);
       setProcessingStripe(true);
       
       const verifySession = async () => {
@@ -74,22 +73,29 @@ const Index = () => {
           const result = await verifyStripeSubscription(sessionId);
           
           if (result?.success) {
+            console.log("Verification successful!", result);
             toast({
               title: "Success",
               description: "Your subscription has been activated!",
             });
             
-            // Close the trial expired dialog if it's open
-            setShowTrialExpiredDialog(false);
-            
-            // Trigger a refresh of subscription status
-            setForceRefresh(prev => !prev);
-            
-            // Force immediate check
+            // Force immediate subscription status check
             await checkSubscriptionStatus();
             
-            // Remove the session_id parameter from the URL to prevent repeated verification
-            navigate('/dashboard', { replace: true });
+            // Manually hide the dialog
+            setManuallyHideDialog(true);
+            
+            // Remove session_id from URL to prevent repeated verification
+            setSearchParams(prev => {
+              const newParams = new URLSearchParams(prev.toString());
+              newParams.delete('session_id');
+              return newParams;
+            }, { replace: true });
+            
+            // Force refresh subscription status one more time after a small delay
+            setTimeout(() => {
+              setForceRefresh(prev => !prev);
+            }, 1000);
           } else {
             console.error("Subscription verification failed:", result);
             toast({
@@ -107,13 +113,15 @@ const Index = () => {
           });
         } finally {
           setProcessingStripe(false);
+          setPaymentVerificationInProgress(false);
         }
       };
       
       verifySession();
     }
-  }, [searchParams, user, processingStripe, toast, navigate, setForceRefresh, checkSubscriptionStatus]);
+  }, [searchParams, user, processingStripe, toast, navigate, setForceRefresh, checkSubscriptionStatus, setSearchParams]);
 
+  // Handle email confirmation codes
   useEffect(() => {
     // Check for both code and token parameters (Supabase uses both in different contexts)
     const code = searchParams.get('code');
@@ -188,6 +196,7 @@ const Index = () => {
     }
   }, [searchParams, navigate, toast, processingCode]);
 
+  // Fetch user profile
   useEffect(() => {
     const getProfile = async () => {
       if (user) {
@@ -215,6 +224,7 @@ const Index = () => {
     getProfile()
   }, [user])
 
+  // Display loading state when processing
   if (processingCode || processingStripe) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -229,6 +239,9 @@ const Index = () => {
     );
   }
 
+  // Determine if trial expired dialog should be shown
+  const shouldShowTrialExpiredDialog = user && showTrialExpired && !manuallyHideDialog && !paymentVerificationInProgress;
+
   return (
     <>
       {user ? (
@@ -238,7 +251,7 @@ const Index = () => {
           initial="hidden"
           animate="visible"
         >
-          {showTrialExpiredDialog && (
+          {shouldShowTrialExpiredDialog && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}

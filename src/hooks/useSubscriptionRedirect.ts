@@ -25,35 +25,49 @@ export const useSubscriptionRedirect = () => {
         .from('subscriptions')
         .select('*')
         .eq('user_id', user.id)
+        .eq('status', 'active')  // Only look for active subscriptions
         .order('created_at', { ascending: false })
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching subscription status:', error);
-        setShowTrialExpired(false);
         return;
       }
 
-      if (!subscription) {
-        // No subscription found
-        console.log('No subscription found, showing trial expired dialog');
-        setShowTrialExpired(true);
-      } else if (subscription.status === 'trial') {
-        // Check if trial has expired
-        const trialEndDate = new Date(subscription.trial_end_date);
-        const now = new Date();
-        
-        const hasExpired = now > trialEndDate;
-        console.log(`Trial status: ${hasExpired ? 'expired' : 'active'}, end date: ${trialEndDate}`);
-        setShowTrialExpired(hasExpired);
-      } else if (subscription.status === 'active') {
+      console.log('Subscription check result:', subscription);
+
+      if (subscription && subscription.status === 'active') {
         // User has an active subscription
-        console.log('User has active subscription');
+        console.log('User has active subscription, hiding dialog');
         setShowTrialExpired(false);
       } else {
-        // Subscription has expired
-        console.log('Subscription expired or inactive');
-        setShowTrialExpired(true);
+        // Check if there's a trial subscription
+        const { data: trialSub, error: trialError } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'trial')
+          .order('created_at', { ascending: false })
+          .maybeSingle();
+          
+        if (trialError) {
+          console.error('Error fetching trial subscription:', trialError);
+          return;
+        }
+        
+        if (trialSub) {
+          // Check if trial has expired
+          const trialEndDate = new Date(trialSub.trial_end_date);
+          const now = new Date();
+          
+          const hasExpired = now > trialEndDate;
+          console.log(`Trial status: ${hasExpired ? 'expired' : 'active'}, end date: ${trialEndDate}`);
+          setShowTrialExpired(hasExpired);
+        } else {
+          // No subscription at all, consider as trial expired
+          console.log('No active subscription found, showing dialog');
+          setShowTrialExpired(true);
+        }
       }
     } catch (error) {
       console.error('Subscription check error:', error);
@@ -63,10 +77,16 @@ export const useSubscriptionRedirect = () => {
   }, [user]);
 
   useEffect(() => {
-    checkSubscriptionStatus();
+    const checkWithDebug = async () => {
+      console.log('Running subscription check, user:', user?.id);
+      await checkSubscriptionStatus();
+      console.log('Completed subscription check, showing dialog:', showTrialExpired);
+    };
     
-    // Set up polling to check subscription status periodically
-    const intervalId = setInterval(checkSubscriptionStatus, 30000); // Check every 30 seconds
+    checkWithDebug();
+    
+    // Set up polling to check subscription status more frequently
+    const intervalId = setInterval(checkWithDebug, 5000); // Check every 5 seconds
     
     return () => clearInterval(intervalId);
   }, [user, forceRefresh, checkSubscriptionStatus]);

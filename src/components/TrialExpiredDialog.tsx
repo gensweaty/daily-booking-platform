@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { StripeSubscribeButton } from "./StripeSubscribeButton";
 import { verifyStripeSubscription } from "@/utils/stripeUtils";
 import { useSearchParams } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 
 interface TrialExpiredDialogProps {
   onVerificationSuccess?: () => void;
@@ -35,6 +36,31 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
           const result = await verifyStripeSubscription(sessionId);
           
           if (result?.success) {
+            console.log("TrialExpiredDialog: Verification successful, updating subscription status");
+            
+            // Get the current user
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (user) {
+              // Force update the subscription record with active status
+              const { error: updateError } = await supabase
+                .from('subscriptions')
+                .upsert({
+                  user_id: user.id,
+                  email: user.email,
+                  status: 'active',
+                  plan_type: 'monthly',
+                  stripe_subscription_id: result.subscription_id || 'sub_unknown',
+                  updated_at: new Date().toISOString(),
+                });
+                
+              if (updateError) {
+                console.error("Error updating subscription record:", updateError);
+              } else {
+                console.log("Subscription record updated to active status");
+              }
+            }
+            
             toast({
               title: "Success",
               description: "Your subscription has been activated!",
