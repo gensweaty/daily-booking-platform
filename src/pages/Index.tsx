@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { AuthUI } from "@/components/AuthUI"
 import { DashboardHeader } from "@/components/DashboardHeader"
@@ -37,12 +37,17 @@ const Index = () => {
   const [username, setUsername] = useState("")
   const [processingCode, setProcessingCode] = useState(false)
   const [processingStripe, setProcessingStripe] = useState(false)
+  const [showTrialExpiredDialog, setShowTrialExpiredDialog] = useState(false)
   const { user } = useAuth()
   const { toast } = useToast()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   
   const { showTrialExpired } = useSubscriptionRedirect()
+
+  useEffect(() => {
+    setShowTrialExpiredDialog(showTrialExpired)
+  }, [showTrialExpired])
 
   // Handle Stripe session verification
   useEffect(() => {
@@ -53,6 +58,7 @@ const Index = () => {
       
       const verifySession = async () => {
         try {
+          console.log("Verifying Stripe session from Index page:", sessionId);
           const result = await verifyStripeSubscription(sessionId);
           
           if (result?.success) {
@@ -61,9 +67,13 @@ const Index = () => {
               description: "Your subscription has been activated!",
             });
             
+            // Close the trial expired dialog if it's open
+            setShowTrialExpiredDialog(false);
+            
             // Remove the session_id parameter from the URL to prevent repeated verification
             navigate('/dashboard', { replace: true });
           } else {
+            console.error("Subscription verification failed:", result);
             toast({
               title: "Error",
               description: "Failed to verify subscription. Please contact support.",
@@ -210,7 +220,7 @@ const Index = () => {
           initial="hidden"
           animate="visible"
         >
-          {showTrialExpired && (
+          {showTrialExpiredDialog && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}

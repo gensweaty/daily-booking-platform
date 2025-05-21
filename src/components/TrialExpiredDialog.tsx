@@ -13,6 +13,7 @@ import { verifyStripeSubscription } from "@/utils/stripeUtils";
 import { useSearchParams } from "react-router-dom";
 
 export const TrialExpiredDialog = () => {
+  const [open, setOpen] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -34,6 +35,9 @@ export const TrialExpiredDialog = () => {
               title: "Success",
               description: "Your subscription has been activated!",
             });
+            // Close the dialog on successful verification
+            setOpen(false);
+            // Replace URL to remove the session_id parameter
             navigate("/dashboard", { replace: true });
           } else {
             console.error("Subscription verification failed:", result);
@@ -64,11 +68,12 @@ export const TrialExpiredDialog = () => {
       title: "Success",
       description: `Successfully subscribed with ID: ${subscriptionId}`,
     });
+    setOpen(false);
     navigate("/dashboard");
   };
 
   return (
-    <Dialog open={true} onOpenChange={() => {}}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent 
         className="w-[90vw] max-w-[475px] p-4 sm:p-6" 
         hideCloseButton={true}
