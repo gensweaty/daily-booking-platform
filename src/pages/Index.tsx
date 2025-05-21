@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
@@ -11,7 +10,7 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
-import { verifyStripeSubscription } from "@/utils/stripeUtils"
+import { verifyStripeSubscription, refreshSubscriptionStatus } from "@/utils/stripeUtils"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -56,7 +55,19 @@ const Index = () => {
     checkSubscriptionStatus();
     // Hide the dialog manually
     setManuallyHideDialog(true);
-  }, [checkSubscriptionStatus]);
+    
+    // Remove session_id from URL to prevent repeated verification
+    setSearchParams(prev => {
+      const newParams = new URLSearchParams(prev.toString());
+      newParams.delete('session_id');
+      return newParams;
+    }, { replace: true });
+    
+    toast({
+      title: "Success",
+      description: "Your subscription has been activated!",
+    });
+  }, [checkSubscriptionStatus, setSearchParams, toast]);
 
   // Handle stripe session ID directly
   useEffect(() => {
@@ -74,16 +85,17 @@ const Index = () => {
           
           if (result?.success) {
             console.log("Verification successful!", result);
+            
+            // Force immediate subscription status check
+            await refreshSubscriptionStatus();
+            
+            // Manually hide the dialog
+            setManuallyHideDialog(true);
+            
             toast({
               title: "Success",
               description: "Your subscription has been activated!",
             });
-            
-            // Force immediate subscription status check
-            await checkSubscriptionStatus();
-            
-            // Manually hide the dialog
-            setManuallyHideDialog(true);
             
             // Remove session_id from URL to prevent repeated verification
             setSearchParams(prev => {
@@ -98,28 +110,68 @@ const Index = () => {
             }, 1000);
           } else {
             console.error("Subscription verification failed:", result);
+            
+            // Even if verification fails, try refreshing the subscription status anyway
+            // as the session might be valid but the response handling might have issues
+            await refreshSubscriptionStatus();
+            
             toast({
-              title: "Error",
-              description: "Failed to verify subscription. Please contact support.",
-              variant: "destructive",
+              title: "Verification in Progress",
+              description: "We're confirming your payment. This may take a moment.",
             });
+            
+            // Set up additional verification attempts
+            let attempts = 0;
+            const maxAttempts = 5;
+            const interval = setInterval(async () => {
+              attempts++;
+              console.log(`Additional verification attempt ${attempts} of ${maxAttempts}`);
+              
+              const isActive = await refreshSubscriptionStatus();
+              if (isActive) {
+                clearInterval(interval);
+                handleVerificationSuccess();
+                return;
+              }
+              
+              if (attempts >= maxAttempts) {
+                clearInterval(interval);
+                toast({
+                  title: "Verification Issue",
+                  description: "Please contact support if your subscription doesn't activate soon.",
+                  variant: "destructive",
+                });
+              }
+            }, 3000);
           }
         } catch (error) {
           console.error('Error verifying Stripe session:', error);
           toast({
-            title: "Error",
-            description: "Failed to verify subscription. Please try again.",
-            variant: "destructive",
+            title: "Processing Payment",
+            description: "We're processing your payment. This may take a moment.",
           });
+          
+          // Start background verification attempts
+          setTimeout(async () => {
+            const isActive = await refreshSubscriptionStatus();
+            if (isActive) {
+              handleVerificationSuccess();
+            }
+          }, 3000);
         } finally {
           setProcessingStripe(false);
-          setPaymentVerificationInProgress(false);
+          
+          // Keep paymentVerificationInProgress true for a while to ensure dialog stays hidden
+          // during potential background verification attempts
+          setTimeout(() => {
+            setPaymentVerificationInProgress(false);
+          }, 10000);
         }
       };
       
       verifySession();
     }
-  }, [searchParams, user, processingStripe, toast, navigate, setForceRefresh, checkSubscriptionStatus, setSearchParams]);
+  }, [searchParams, user, processingStripe, toast, navigate, setForceRefresh, checkSubscriptionStatus, setSearchParams, handleVerificationSuccess]);
 
   // Handle email confirmation codes
   useEffect(() => {

@@ -1,13 +1,11 @@
-
 import { supabase } from "@/lib/supabase";
-import { useToast } from "@/hooks/use-toast";
 
 export const verifyStripeSubscription = async (sessionId: string) => {
   try {
     console.log(`stripeUtils: Verifying session ID ${sessionId}`);
     
     // Add retry logic with backoff
-    const maxRetries = 3;
+    const maxRetries = 5;
     let retryCount = 0;
     let lastError = null;
     
@@ -175,7 +173,7 @@ export const checkSubscriptionStatus = async (): Promise<boolean> => {
 };
 
 // New helper function to refresh subscription status
-export const refreshSubscriptionStatus = async () => {
+export const refreshSubscriptionStatus = async (): Promise<boolean> => {
   try {
     console.log('stripeUtils: Refreshing subscription status');
     

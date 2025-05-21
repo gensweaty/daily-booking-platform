@@ -97,48 +97,27 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
     
-    // Get user by email
-    const { data: userData, error: userError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, email')
-      .eq('id', customerEmail)
-      .maybeSingle();
+    // Try to find the user by their email
+    let userId = null;
     
-    // Try to get the user from auth.users if not found in profiles
-    let userId = userData?.id;
+    // First check in auth.users
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({
+      filter: {
+        email: customerEmail as string,
+      },
+    });
     
-    if (!userId) {
-      console.log('User not found in profiles, checking auth users...');
-      const { data: authUserData, error: authUserError } = await supabaseAdmin.auth.admin.listUsers();
-      
-      if (authUserError) {
-        console.error('Error listing users:', authUserError);
-      } else {
-        const matchingUser = authUserData.users.find(u => u.email === customerEmail);
-        if (matchingUser) {
-          userId = matchingUser.id;
-          console.log(`Found user in auth.users: ${userId}`);
-        }
-      }
-    }
-    
-    if (!userId) {
-      console.log('Trying to find user by email in profiles...');
-      const { data: emailProfileData } = await supabaseAdmin
-        .from('profiles')
-        .select('id')
-        .eq('email', customerEmail)
-        .maybeSingle();
-        
-      if (emailProfileData?.id) {
-        userId = emailProfileData.id;
-        console.log(`Found user by email in profiles: ${userId}`);
-      }
+    if (authError) {
+      console.error('Error looking up user by email:', authError);
+    } else if (authData && authData.users.length > 0) {
+      userId = authData.users[0].id;
+      console.log(`Found user by email in auth.users: ${userId}`);
     }
     
     if (!userId) {
       console.error('Could not find user ID for email:', customerEmail);
-      // Even if we can't find the user, let's still try to update by email
+      // Even though we couldn't find the user, let's continue with the subscription info update
+      // This will at least create the subscription record that can be associated with the user later
     }
     
     // Get subscription information from Stripe
@@ -167,26 +146,13 @@ serve(async (req) => {
       console.log(`No subscription found, but payment successful. Setting artificial end date: ${subscriptionEndDate}`);
     }
     
-    // Check if a subscription already exists
-    const { data: existingSubscription, error: subFetchError } = await supabaseAdmin
-      .from('subscriptions')
-      .select('*')
-      .eq('email', customerEmail)
-      .maybeSingle();
-    
-    if (subFetchError) {
-      console.error('Error fetching existing subscription:', subFetchError);
-    }
-    
-    console.log('Existing subscription:', existingSubscription);
-    
     // Update or create subscription record in database
     const subscriptionData = {
       user_id: userId,
       email: customerEmail,
       stripe_customer_id: customerId,
       stripe_subscription_id: subscriptionId,
-      status: isActive ? 'active' : 'expired',
+      status: 'active', // Always set to active when payment is successful
       trial_end_date: null,
       plan_type: 'monthly', // Assuming monthly plan by default
       subscription_end_date: subscriptionEndDate?.toISOString(),
@@ -196,23 +162,61 @@ serve(async (req) => {
     
     console.log('Updating subscription with data:', subscriptionData);
     
-    const { data: subData, error: subError } = await supabaseAdmin
-      .from('subscriptions')
-      .upsert(subscriptionData, { onConflict: existingSubscription?.id ? 'id' : 'email' });
-    
-    if (subError) {
-      console.error('Error updating subscription in database:', subError);
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'Payment verified but could not update subscription data',
-          subscription_id: subscriptionId
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    try {
+      if (userId) {
+        // If we have a user ID, try to find existing subscription
+        const { data: existingSub, error: existingSubError } = await supabaseAdmin
+          .from('subscriptions')
+          .select('id')
+          .eq('user_id', userId)
+          .maybeSingle();
+          
+        if (existingSubError) {
+          console.error('Error checking existing subscription:', existingSubError);
+        }
+        
+        if (existingSub?.id) {
+          // Update existing subscription
+          const { error: updateError } = await supabaseAdmin
+            .from('subscriptions')
+            .update(subscriptionData)
+            .eq('id', existingSub.id);
+            
+          if (updateError) {
+            console.error('Error updating subscription:', updateError);
+          } else {
+            console.log('Successfully updated subscription for user:', userId);
+          }
+        } else {
+          // Insert new subscription
+          const { error: insertError } = await supabaseAdmin
+            .from('subscriptions')
+            .insert([subscriptionData]);
+            
+          if (insertError) {
+            console.error('Error inserting subscription:', insertError);
+          } else {
+            console.log('Successfully created subscription for user:', userId);
+          }
+        }
+      } else if (customerEmail) {
+        // If we don't have user ID but have email, upsert by email
+        const { error: upsertError } = await supabaseAdmin
+          .from('subscriptions')
+          .upsert([subscriptionData], { 
+            onConflict: 'email',
+            ignoreDuplicates: false 
+          });
+          
+        if (upsertError) {
+          console.error('Error upserting subscription by email:', upsertError);
+        } else {
+          console.log('Successfully upserted subscription by email:', customerEmail);
+        }
+      }
+    } catch (dbError) {
+      console.error('Database operation error:', dbError);
     }
-    
-    console.log('Subscription record updated successfully in database');
     
     return new Response(
       JSON.stringify({ 

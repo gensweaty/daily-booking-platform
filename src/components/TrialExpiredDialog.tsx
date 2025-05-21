@@ -9,7 +9,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { StripeSubscribeButton } from "./StripeSubscribeButton";
-import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
 import { verifyStripeSubscription, refreshSubscriptionStatus } from "@/utils/stripeUtils";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -25,7 +24,6 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationAttempts, setVerificationAttempts] = useState(0);
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
-  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paypal'>('stripe');
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -55,7 +53,17 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
         }
       }, 3000); // Check every 3 seconds
       
-      return () => clearInterval(checkInterval);
+      // Safety timeout - stop checking after 60 seconds
+      const safetyTimeout = setTimeout(() => {
+        clearInterval(checkInterval);
+        console.log("TrialExpiredDialog: Background check timed out after 60 seconds");
+        setIsVerifying(false);
+      }, 60000);
+      
+      return () => {
+        clearInterval(checkInterval);
+        clearTimeout(safetyTimeout);
+      };
     }
   }, [isVerifying, verificationAttempts]);
 
@@ -77,8 +85,8 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
           description: "Your payment is being processed. This may take a moment.",
         });
         
-        // Even if the primary verification fails, start background checks
-        // that will close the dialog if subscription becomes active
+        // Start background checks for active subscription
+        startBackgroundVerification();
       }
     } catch (error) {
       console.error("Error verifying subscription:", error);
@@ -86,7 +94,35 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
         title: "Verification in Progress",
         description: "We're confirming your payment. Please wait a moment.",
       });
+      
+      startBackgroundVerification();
     }
+  };
+
+  const startBackgroundVerification = () => {
+    let attempts = 0;
+    const maxAttempts = 10;
+    const interval = setInterval(async () => {
+      attempts++;
+      console.log(`Additional verification attempt ${attempts} of ${maxAttempts}`);
+      
+      const isActive = await refreshSubscriptionStatus();
+      if (isActive) {
+        clearInterval(interval);
+        handleVerificationSuccess();
+        return;
+      }
+      
+      if (attempts >= maxAttempts) {
+        clearInterval(interval);
+        setIsVerifying(false);
+        toast({
+          title: "Verification Issue",
+          description: "Please contact support if your subscription doesn't activate soon.",
+          variant: "destructive",
+        });
+      }
+    }, 3000);
   };
 
   const handleVerificationSuccess = async () => {
@@ -105,7 +141,7 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
             user_id: user.id,
             email: user.email,
             status: 'active',
-            plan_type: 'monthly',
+            plan_type: selectedPlan,
             updated_at: new Date().toISOString(),
           }, { onConflict: 'user_id' });
           
@@ -153,6 +189,9 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
         .then(isActive => {
           if (isActive) {
             handleVerificationSuccess();
+          } else {
+            // Start background verification since immediately after payment the subscription may not be active yet
+            startBackgroundVerification();
           }
         })
         .catch(err => console.error("Error checking subscription status:", err));
@@ -225,23 +264,10 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
                         $9.99<span className="text-base font-normal text-muted-foreground">/month</span>
                       </div>
                       
-                      <Tabs defaultValue="stripe" onValueChange={(v) => setPaymentMethod(v as 'stripe' | 'paypal')}>
-                        <TabsList className="grid w-full grid-cols-2 mb-4">
-                          <TabsTrigger value="stripe">Credit Card</TabsTrigger>
-                          <TabsTrigger value="paypal">PayPal</TabsTrigger>
-                        </TabsList>
-                        
-                        <TabsContent value="stripe" className="mt-0">
-                          <StripeSubscribeButton onSuccess={handleSubscriptionSuccess} />
-                        </TabsContent>
-                        
-                        <TabsContent value="paypal" className="mt-0">
-                          <PayPalSubscribeButton 
-                            planType="monthly" 
-                            onSuccess={handleSubscriptionSuccess} 
-                          />
-                        </TabsContent>
-                      </Tabs>
+                      <StripeSubscribeButton 
+                        onSuccess={handleSubscriptionSuccess}
+                        planType="monthly"
+                      />
                     </div>
                   </TabsContent>
                   
@@ -255,23 +281,10 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
                         $99.99<span className="text-base font-normal text-muted-foreground">/year</span>
                       </div>
                       
-                      <Tabs defaultValue="stripe" onValueChange={(v) => setPaymentMethod(v as 'stripe' | 'paypal')}>
-                        <TabsList className="grid w-full grid-cols-2 mb-4">
-                          <TabsTrigger value="stripe">Credit Card</TabsTrigger>
-                          <TabsTrigger value="paypal">PayPal</TabsTrigger>
-                        </TabsList>
-                        
-                        <TabsContent value="stripe" className="mt-0">
-                          <StripeSubscribeButton onSuccess={handleSubscriptionSuccess} />
-                        </TabsContent>
-                        
-                        <TabsContent value="paypal" className="mt-0">
-                          <PayPalSubscribeButton 
-                            planType="yearly" 
-                            onSuccess={handleSubscriptionSuccess} 
-                          />
-                        </TabsContent>
-                      </Tabs>
+                      <StripeSubscribeButton 
+                        onSuccess={handleSubscriptionSuccess}
+                        planType="yearly"
+                      />
                     </div>
                   </TabsContent>
                 </Tabs>

@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { checkSubscriptionStatus, refreshSubscriptionStatus } from '@/utils/stripeUtils';
+import { verifyStripeSubscription, refreshSubscriptionStatus } from '@/utils/stripeUtils';
 import { useSearchParams } from 'react-router-dom';
 
 export const useSubscriptionRedirect = () => {
@@ -15,7 +15,7 @@ export const useSubscriptionRedirect = () => {
   // Check if we have a Stripe session ID in the URL
   const hasStripeSession = !!searchParams.get('session_id');
   
-  const checkSubscriptionWithBackoff = useCallback(async (retries = 3, delay = 1000) => {
+  const checkSubscriptionWithBackoff = useCallback(async (retries = 5, delay = 1000) => {
     if (!user) {
       return false;
     }
@@ -46,8 +46,21 @@ export const useSubscriptionRedirect = () => {
         
         // No active subscription, check for stripe session in URL
         if (hasStripeSession) {
-          console.log('No active subscription, but Stripe session present');
-          return true; // Let TrialExpiredDialog handle verification
+          console.log('No active subscription, but Stripe session present, will verify directly');
+          const sessionId = searchParams.get('session_id');
+          if (sessionId) {
+            try {
+              const result = await verifyStripeSubscription(sessionId);
+              if (result?.success) {
+                console.log('Session verified successfully through direct check');
+                // Force refresh the subscription data
+                await refreshSubscriptionStatus();
+                return true;
+              }
+            } catch (verifyError) {
+              console.error('Error during direct session verification:', verifyError);
+            }
+          }
         }
         
         // Check for trial subscription
@@ -86,7 +99,7 @@ export const useSubscriptionRedirect = () => {
     // All retries failed
     console.error('All subscription check attempts failed');
     return false;
-  }, [user, hasStripeSession]);
+  }, [user, hasStripeSession, searchParams]);
 
   const checkSubscriptionStatus = useCallback(async () => {
     if (!user) {
@@ -119,11 +132,12 @@ export const useSubscriptionRedirect = () => {
     
     checkWithDebug();
     
-    // Set up polling to check subscription status
-    const intervalId = setInterval(checkWithDebug, 10000); // Check every 10 seconds
+    // Set up polling to check subscription status with increased frequency when stripe session is present
+    const interval = hasStripeSession ? 3000 : 10000; // Check every 3 seconds if session ID present, otherwise every 10 seconds
+    const intervalId = setInterval(checkWithDebug, interval);
     
     return () => clearInterval(intervalId);
-  }, [user, forceRefresh, checkSubscriptionStatus]);
+  }, [user, forceRefresh, checkSubscriptionStatus, hasStripeSession, showTrialExpired]);
 
   return {
     showTrialExpired,
