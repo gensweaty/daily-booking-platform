@@ -6,18 +6,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { SubscriptionPlanSelect } from "./subscription/SubscriptionPlanSelect";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
 import { StripeSubscribeButton } from "./StripeSubscribeButton";
-import { PaymentOptions } from "./subscription/PaymentOptions";
 import { verifyStripeSubscription } from "@/utils/stripeUtils";
 import { useSearchParams } from "react-router-dom";
 
 export const TrialExpiredDialog = () => {
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
-  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'card' | 'stripe'>('paypal');
   const [isVerifying, setIsVerifying] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -92,28 +87,20 @@ export const TrialExpiredDialog = () => {
           ) : (
             <>
               <p className="text-center text-sm sm:text-base text-muted-foreground">
-                Your subscription has expired. Please select a plan to continue using our services.
+                Your trial has expired. Please subscribe to continue using our services.
               </p>
-              <SubscriptionPlanSelect
-                selectedPlan={selectedPlan}
-                setSelectedPlan={setSelectedPlan}
-                isLoading={false}
-              />
-              <PaymentOptions
-                selectedMethod={paymentMethod}
-                onMethodChange={setPaymentMethod}
-              />
-              {paymentMethod === 'paypal' ? (
-                <PayPalSubscribeButton 
-                  planType={selectedPlan}
-                  onSuccess={handleSubscriptionSuccess}
-                />
-              ) : (
-                <StripeSubscribeButton 
-                  planType={selectedPlan}
-                  onSuccess={handleSubscriptionSuccess}
-                />
-              )}
+              <div className="my-8">
+                <div className="px-4 py-6 border rounded-lg bg-card">
+                  <h3 className="text-lg font-semibold text-center mb-2">Premium Plan</h3>
+                  <p className="text-center text-muted-foreground mb-4">
+                    Full access to all features and premium support
+                  </p>
+                  <div className="text-center text-2xl font-bold mb-6">
+                    $9.99<span className="text-base font-normal text-muted-foreground">/month</span>
+                  </div>
+                  <StripeSubscribeButton onSuccess={handleSubscriptionSuccess} />
+                </div>
+              </div>
             </>
           )}
         </div>

@@ -52,9 +52,9 @@ serve(async (req) => {
       );
     }
     
-    const { user_id, plan_type } = session.metadata || {};
+    const { user_id } = session.metadata || {};
     
-    if (!user_id || !plan_type) {
+    if (!user_id) {
       return new Response(
         JSON.stringify({ error: 'Invalid session metadata' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -75,11 +75,11 @@ serve(async (req) => {
       
       const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
       
-      // Get subscription plan ID
+      // Get subscription plan ID for the default plan
       const { data: planData } = await supabaseAdmin
         .from('subscription_plans')
         .select('id')
-        .eq('type', plan_type)
+        .eq('type', 'monthly')
         .single();
         
       if (!planData) {
@@ -96,7 +96,7 @@ serve(async (req) => {
           status: 'active',
           current_period_start: new Date().toISOString(),
           current_period_end: currentPeriodEnd,
-          plan_type: plan_type,
+          plan_type: 'monthly',
           last_payment_id: subscriptionId,
           stripe_customer_id: session.customer as string,
           stripe_subscription_id: subscriptionId,
@@ -113,7 +113,7 @@ serve(async (req) => {
       }
       
       return new Response(
-        JSON.stringify({ success: true, subscription: { status: 'active', plan_type, subscription_end: currentPeriodEnd } }),
+        JSON.stringify({ success: true, subscription: { status: 'active', plan_type: 'monthly', subscription_end: currentPeriodEnd } }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

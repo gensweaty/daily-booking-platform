@@ -6,11 +6,10 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface StripeSubscribeButtonProps {
-  planType: 'monthly' | 'yearly';
   onSuccess?: (subscriptionId: string) => void;
 }
 
-export const StripeSubscribeButton = ({ planType, onSuccess }: StripeSubscribeButtonProps) => {
+export const StripeSubscribeButton = ({ onSuccess }: StripeSubscribeButtonProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -29,7 +28,7 @@ export const StripeSubscribeButton = ({ planType, onSuccess }: StripeSubscribeBu
       setIsLoading(true);
       
       const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
-        body: { planType },
+        body: { productId: 'prod_SM0gHgA0G0cQN3' },
       });
 
       if (error) {

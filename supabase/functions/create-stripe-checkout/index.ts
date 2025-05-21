@@ -16,11 +16,11 @@ serve(async (req) => {
 
   try {
     // Parse request body
-    const { planType } = await req.json();
+    const { productId } = await req.json();
     
-    if (!planType || !['monthly', 'yearly'].includes(planType)) {
+    if (!productId) {
       return new Response(
-        JSON.stringify({ error: 'Invalid plan type. Must be "monthly" or "yearly"' }),
+        JSON.stringify({ error: 'Product ID is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -78,10 +78,21 @@ serve(async (req) => {
       console.log(`Created new Stripe customer: ${customerId}`);
     }
     
-    // Get price ID based on plan type
-    const priceId = planType === 'monthly' 
-      ? 'price_1PJQqE2MNASmq1vOyhOLluTJ'  // Monthly plan price ID
-      : 'price_1PJQrP2MNASmq1vOS8f0HsLT'; // Yearly plan price ID
+    // Get prices associated with the product
+    const { data: prices } = await stripe.prices.list({
+      product: productId,
+      active: true,
+      limit: 1,
+    });
+    
+    if (!prices || prices.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'No active prices found for this product' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const priceId = prices[0].id;
     
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
@@ -98,7 +109,6 @@ serve(async (req) => {
       cancel_url: `${req.headers.get('origin')}/dashboard`,
       metadata: {
         user_id: user.id,
-        plan_type: planType,
       },
     });
     
