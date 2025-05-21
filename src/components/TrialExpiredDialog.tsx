@@ -73,10 +73,29 @@ export const TrialExpiredDialog = () => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog 
+      open={open} 
+      onOpenChange={(newOpen) => {
+        // Prevent closing the dialog by user interaction
+        // Only allow it to be closed programmatically after successful payment
+        if (open && newOpen === false) {
+          // Don't allow closing
+          return;
+        }
+        setOpen(newOpen);
+      }}
+    >
       <DialogContent 
         className="w-[90vw] max-w-[475px] p-4 sm:p-6" 
         hideCloseButton={true}
+        onPointerDownOutside={(e) => {
+          // Prevent closing when clicking outside
+          e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          // Prevent closing when pressing Escape
+          e.preventDefault();
+        }}
       >
         <DialogHeader>
           <DialogTitle className="text-center text-xl sm:text-2xl font-bold">

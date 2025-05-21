@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
@@ -19,6 +19,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { openStripeCustomerPortal } from "@/utils/stripeUtils";
 
 interface DashboardHeaderProps {
   username: string;
@@ -29,6 +30,8 @@ interface Subscription {
   status: string;
   current_period_end: string | null;
   trial_end_date: string | null;
+  stripe_subscription_id: string | null;
+  email: string | null;
 }
 
 export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
@@ -45,7 +48,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         try {
           const { data, error } = await supabase
             .from('subscriptions')
-            .select('plan_type, status, current_period_end, trial_end_date')
+            .select('plan_type, status, current_period_end, trial_end_date, stripe_subscription_id, email')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
             .limit(1)
@@ -65,6 +68,11 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     };
 
     fetchSubscription();
+    
+    // Set up a refresh interval to check for subscription updates
+    const intervalId = setInterval(fetchSubscription, 30000); // Check every 30 seconds
+    
+    return () => clearInterval(intervalId);
   }, [user]);
 
   const handleSignOut = async () => {
@@ -75,6 +83,26 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       toast({
         title: "Error during sign out",
         description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleManageSubscription = async () => {
+    try {
+      const success = await openStripeCustomerPortal();
+      if (!success) {
+        toast({
+          title: "Error",
+          description: "Could not open subscription management. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error opening customer portal:', error);
+      toast({
+        title: "Error",
+        description: "Failed to open subscription management. Please try again.",
         variant: "destructive",
       });
     }
@@ -103,7 +131,9 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   };
 
   const formatPlanType = (planType: string) => {
-    return planType === 'monthly' ? 'Monthly Plan' : 'Yearly Plan';
+    if (planType === 'monthly') return 'Monthly Premium Plan';
+    if (planType === 'yearly') return 'Yearly Premium Plan';
+    return 'Basic Plan';
   };
 
   const formatTimeLeft = (endDate: string | null, isTrialPeriod: boolean = false) => {
@@ -117,7 +147,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       return `${daysLeft} days left in trial`;
     }
     
-    return `${daysLeft} days left in ${subscription?.plan_type === 'monthly' ? 'monthly' : 'yearly'} plan`;
+    return `${daysLeft} days left until next payment`;
   };
 
   return (
@@ -168,9 +198,17 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   <p className="text-sm font-medium">Subscription</p>
                   {subscription && (
                     <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">
-                        {formatPlanType(subscription.plan_type)}
-                      </p>
+                      <div className="flex items-center">
+                        <p className="text-sm text-muted-foreground">
+                          {formatPlanType(subscription.plan_type)}
+                        </p>
+                        {subscription.status === 'active' && (
+                          <span className="ml-2 px-2 py-1 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 rounded-full">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      
                       {subscription.status === 'trial' ? (
                         <p className="text-xs text-muted-foreground">
                           {formatTimeLeft(subscription.trial_end_date, true)}
@@ -179,6 +217,17 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                         <p className="text-xs text-muted-foreground">
                           {formatTimeLeft(subscription.current_period_end)}
                         </p>
+                      )}
+                      
+                      {subscription.status === 'active' && subscription.stripe_subscription_id && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="mt-2 text-xs"
+                          onClick={handleManageSubscription}
+                        >
+                          Manage Subscription
+                        </Button>
                       )}
                     </div>
                   )}

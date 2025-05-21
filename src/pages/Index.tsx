@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
@@ -43,11 +44,14 @@ const Index = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   
-  const { showTrialExpired } = useSubscriptionRedirect()
+  const { showTrialExpired, setForceRefresh } = useSubscriptionRedirect()
 
+  // Set initial state of the dialog based on trial status from hook
   useEffect(() => {
-    setShowTrialExpiredDialog(showTrialExpired)
-  }, [showTrialExpired])
+    if (!processingStripe) {
+      setShowTrialExpiredDialog(showTrialExpired)
+    }
+  }, [showTrialExpired, processingStripe])
 
   // Handle Stripe session verification
   useEffect(() => {
@@ -69,6 +73,9 @@ const Index = () => {
             
             // Close the trial expired dialog if it's open
             setShowTrialExpiredDialog(false);
+            
+            // Trigger a refresh of subscription status
+            setForceRefresh(prev => !prev);
             
             // Remove the session_id parameter from the URL to prevent repeated verification
             navigate('/dashboard', { replace: true });
@@ -94,7 +101,7 @@ const Index = () => {
       
       verifySession();
     }
-  }, [searchParams, user, processingStripe, toast, navigate]);
+  }, [searchParams, user, processingStripe, toast, navigate, setForceRefresh]);
 
   useEffect(() => {
     // Check for both code and token parameters (Supabase uses both in different contexts)

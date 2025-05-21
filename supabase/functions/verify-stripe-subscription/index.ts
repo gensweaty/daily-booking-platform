@@ -139,7 +139,9 @@ serve(async (req) => {
         stripe_subscription_id: subscriptionId,
         status: 'active',
         trial_end_date: null,
+        plan_type: 'monthly', // Assuming monthly plan by default
         subscription_end_date: subscriptionEndDate?.toISOString(),
+        current_period_end: subscriptionEndDate?.toISOString(),
         updated_at: new Date().toISOString(),
       })
       .select();
