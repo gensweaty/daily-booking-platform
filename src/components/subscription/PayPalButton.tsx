@@ -32,7 +32,8 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
         
         await loadPayPalScript(clientId);
         
-        if (!window.paypal) {
+        // Safely check if PayPal SDK is loaded
+        if (typeof window === 'undefined' || !window.paypal) {
           throw new Error("PayPal SDK failed to load");
         }
         
@@ -45,6 +46,11 @@ export const PayPalButton = ({ planType, onSuccess, containerId }: PayPalButtonP
             
             // Clear existing content
             container.innerHTML = '';
+            
+            // Safely check if PayPal SDK is available
+            if (typeof window === 'undefined' || !window.paypal) {
+              throw new Error("PayPal SDK not available");
+            }
             
             // Determine button ID based on plan type
             const buttonId = planType === 'monthly' ? 'SZHF9WLR5RQWU' : 'YDK5G6VR2EA8L';

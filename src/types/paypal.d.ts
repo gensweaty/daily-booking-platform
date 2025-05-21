@@ -56,25 +56,8 @@ interface PayPalButtonsComponent {
   render: (selector: string) => Promise<void>;
 }
 
-interface PayPalHostedButtonsOptions {
-  /**
-   * The ID of the PayPal hosted button to render
-   */
-  hostedButtonId: string;
-
-  /**
-   * Callback when the payment is approved
-   */
-  onApprove?: (data: any) => void | Promise<any>;
-}
-
-interface PayPalHostedButtons {
-  render: (selector: string) => Promise<void>;
-}
-
 interface PayPalNamespace {
   Buttons: (options: PayPalButtonsComponentOptions) => PayPalButtonsComponent;
-  HostedButtons?: (options: PayPalHostedButtonsOptions) => PayPalHostedButtons;
   FUNDING: {
     PAYPAL: string;
     VENMO: string;
@@ -86,6 +69,8 @@ interface PayPalNamespace {
 
 declare global {
   interface Window {
-    paypal?: PayPalNamespace;
+    paypal: PayPalNamespace;
   }
 }
+
+export {};
