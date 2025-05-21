@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,7 +7,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeft, Mail, Phone, MapPin, Clock } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -125,21 +124,7 @@ const Contact = () => {
                     <div>
                       <h4 className="font-medium">{t('contact.address')}</h4>
                       <p className="text-sm text-muted-foreground">
-                        {t('contact.addressLine1')}<br />
-                        {t('contact.addressLine2')}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-4">
-                  <div className="flex items-start space-x-3">
-                    <Clock className="w-5 h-5 text-primary mt-1" />
-                    <div>
-                      <h4 className="font-medium">{t('contact.businessHours')}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {t('contact.workingHours')}<br />
-                        {t('contact.weekendHours')}
+                        {t('contact.addressLine1')}
                       </p>
                     </div>
                   </div>

@@ -6,13 +6,15 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
-
 const Legal = () => {
-  const { theme } = useTheme();
-  const { t, language } = useLanguage();
-  
-  return (
-    <div className="min-h-screen bg-background">
+  const {
+    theme
+  } = useTheme();
+  const {
+    t,
+    language
+  } = useLanguage();
+  return <div className="min-h-screen bg-background">
       <header className="container mx-auto px-4 py-8">
         <nav className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-4">
@@ -20,11 +22,7 @@ const Legal = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <Link to="/" className="flex items-center gap-2">
-              <img 
-                src={theme === 'dark' ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"} 
-                alt="SmartBookly Logo" 
-                className="h-8 md:h-10 w-auto" 
-              />
+              <img src={theme === 'dark' ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"} alt="SmartBookly Logo" className="h-8 md:h-10 w-auto" />
             </Link>
           </div>
           <div className="flex items-center gap-4">
@@ -38,8 +36,7 @@ const Legal = () => {
         <div className="max-w-4xl mx-auto">
           <div className="bg-card rounded-lg shadow-sm p-8 mb-8">
             <LanguageText>
-              {language === 'ka' && (
-                <>
+              {language === 'ka' && <>
                   <h1 className="text-3xl font-bold mb-4">პირობები და კონფიდენციალურობის პოლიტიკა</h1>
                   <p className="text-muted-foreground mb-8">ბოლო განახლება: 03.03.2025</p>
                   
@@ -50,8 +47,8 @@ const Legal = () => {
                   <div className="space-y-6">
                     <div className="p-4 rounded-md bg-muted">
                       <h3 className="text-xl font-semibold mb-2">1. ზოგადი ინფორმაცია</h3>
-                      <p className="mb-1">კომპანიის სახელი: Smartbookly</p>
-                      <p className="mb-1">რეგისტრირებულია: საქართველოში</p>
+                      <p className="mb-1">კომპანიის სახელი: AI SOFTWARE FACTORY LTD</p>
+                      <p className="mb-1">რეგისტრირებულია: <a href="https://mrueqpffzauvdxmuwhfa.supabase.co/storage/v1/object/sign/event_attachments/db1c8d7c-a9d4-4cbb-9124-071123d66930/9cae890f-15d2-4f4e-aa01-b32477019b6d.pdf?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2UxYWUwMTczLTA1ZDctNDQ3Zi05NzE5LWU2ZDg1MDE1MzNlNiJ9.eyJ1cmwiOiJldmVudF9hdHRhY2htZW50cy9kYjFjOGQ3Yy1hOWQ0LTRjYmItOTEyNC0wNzExMjNkNjY5MzAvOWNhZTg5MGYtMTVkMi00ZjRlLWFhMDEtYjMyNDc3MDE5YjZkLnBkZiIsImlhdCI6MTc0Nzg1MzExMiwiZXhwIjoxNzQ3ODU2NzEyfQ.2rewdJEA6E0TPRE131HOG8ynA5QqXpPKL6IeZpj3LiI" target="_blank" rel="noopener noreferrer">UK Companies House</a></p>
                       <p>საკონტაქტო ელ. ფოსტა: info@smartbookly.com</p>
                     </div>
                     
@@ -127,11 +124,9 @@ const Legal = () => {
                       </div>
                     </div>
                   </section>
-                </>
-              )}
+                </>}
 
-              {language === 'es' && (
-                <>
+              {language === 'es' && <>
                   <h1 className="text-3xl font-bold mb-4">Términos y Política de Privacidad</h1>
                   <p className="text-muted-foreground mb-8">Última actualización: 03/03/2025</p>
                   
@@ -142,8 +137,8 @@ const Legal = () => {
                     <div className="space-y-6">
                       <div className="p-4 rounded-md bg-muted">
                         <h3 className="text-xl font-semibold mb-2">1. Información General</h3>
-                        <p className="mb-1">Nombre de la empresa: Smartbookly</p>
-                        <p className="mb-1">Registrada en: Georgia</p>
+                        <p className="mb-1">Nombre de la empresa: AI SOFTWARE FACTORY LTD</p>
+                        <p className="mb-1">Registrada en: <a href="https://mrueqpffzauvdxmuwhfa.supabase.co/storage/v1/object/sign/event_attachments/db1c8d7c-a9d4-4cbb-9124-071123d66930/9cae890f-15d2-4f4e-aa01-b32477019b6d.pdf?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2UxYWUwMTczLTA1ZDctNDQ3Zi05NzE5LWU2ZDg1MDE1MzNlNiJ9.eyJ1cmwiOiJldmVudF9hdHRhY2htZW50cy9kYjFjOGQ3Yy1hOWQ0LTRjYmItOTEyNC0wNzExMjNkNjY5MzAvOWNhZTg5MGYtMTVkMi00ZjRlLWFhMDEtYjMyNDc3MDE5YjZkLnBkZiIsImlhdCI6MTc0Nzg1MzExMiwiZXhwIjoxNzQ3ODU2NzEyfQ.2rewdJEA6E0TPRE131HOG8ynA5QqXpPKL6IeZpj3LiI" target="_blank" rel="noopener noreferrer">UK Companies House</a></p>
                         <p>Correo electrónico de contacto: info@smartbookly.com</p>
                       </div>
                       
@@ -219,11 +214,9 @@ const Legal = () => {
                       </div>
                     </div>
                   </section>
-                </>
-              )}
+                </>}
 
-              {language === 'en' && (
-                <>
+              {language === 'en' && <>
                   <h1 className="text-3xl font-bold mb-4">Terms and Privacy Policy</h1>
                   <p className="text-muted-foreground mb-8">Last Updated: 03.03.2025</p>
                   
@@ -234,8 +227,8 @@ const Legal = () => {
                     <div className="space-y-6">
                       <div className="p-4 rounded-md bg-muted">
                         <h3 className="text-xl font-semibold mb-2">1. General Information</h3>
-                        <p className="mb-1">Company Name: Smartbookly</p>
-                        <p className="mb-1">Registered in: Georgia</p>
+                        <p className="mb-1">Company Name: AI SOFTWARE FACTORY LTD</p>
+                        <p className="mb-1">Registered in: <a href="https://mrueqpffzauvdxmuwhfa.supabase.co/storage/v1/object/sign/event_attachments/db1c8d7c-a9d4-4cbb-9124-071123d66930/9cae890f-15d2-4f4e-aa01-b32477019b6d.pdf?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2UxYWUwMTczLTA1ZDctNDQ3Zi05NzE5LWU2ZDg1MDE1MzNlNiJ9.eyJ1cmwiOiJldmVudF9hdHRhY2htZW50cy9kYjFjOGQ3Yy1hOWQ0LTRjYmItOTEyNC0wNzExMjNkNjY5MzAvOWNhZTg5MGYtMTVkMi00ZjRlLWFhMDEtYjMyNDc3MDE5YjZkLnBkZiIsImlhdCI6MTc0Nzg1MzExMiwiZXhwIjoxNzQ3ODU2NzEyfQ.2rewdJEA6E0TPRE131HOG8ynA5QqXpPKL6IeZpj3LiI" target="_blank" rel="noopener noreferrer">UK Companies House</a></p>
                         <p>Contact Email: info@smartbookly.com</p>
                       </div>
                       
@@ -311,23 +304,18 @@ const Legal = () => {
                       </div>
                     </div>
                   </section>
-                </>
-              )}
+                </>}
             </LanguageText>
             
             <section className="mt-10 pt-6 border-t border-border">
               <h3 className="text-xl font-semibold mb-2">
                 <LanguageText>
-                  {language === 'ka' ? 'დაგვიკავშირდით' : 
-                   language === 'es' ? 'Contáctenos' : 
-                   'Contact Us'}
+                  {language === 'ka' ? 'დაგვიკავშირდით' : language === 'es' ? 'Contáctenos' : 'Contact Us'}
                 </LanguageText>
               </h3>
               <p>
                 <LanguageText>
-                  {language === 'ka' ? 'თუ თქვენ გაქვთ რაიმე შეკითხვები ჩვენს პირობებთან ან კონფიდენციალურობის პოლიტიკასთან დაკავშირებით, გთხოვთ დაგვიკავშირდეთ ' :
-                   language === 'es' ? 'Si tiene alguna pregunta sobre nuestros Términos o Política de Privacidad, contáctenos en ' :
-                   'If you have any questions about our Terms or Privacy Policy, please contact us at '}
+                  {language === 'ka' ? 'თუ თქვენ გაქვთ რაიმე შეკითხვები ჩვენს პირობებთან ან კონფიდენციალურობის პოლიტიკასთან დაკავშირებით, გთხოვთ დაგვიკავშირდეთ ' : language === 'es' ? 'Si tiene alguna pregunta sobre nuestros Términos o Política de Privacidad, contáctenos en ' : 'If you have any questions about our Terms or Privacy Policy, please contact us at '}
                 </LanguageText>
                 <a href="mailto:info@smartbookly.com" className="text-primary hover:underline">info@smartbookly.com</a>
               </p>
@@ -335,8 +323,6 @@ const Legal = () => {
           </div>
         </div>
       </main>
-    </div>
-  );
+    </div>;
 };
-
 export default Legal;

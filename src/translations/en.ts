@@ -295,7 +295,7 @@ const en: TranslationType = {
     contactInfo: "Contact Information",
     phone: "Phone",
     address: "Address",
-    addressLine1: "123 Business Street",
+    addressLine1: "Tbilisi, Davit Aghmashenebeli Avenue 174",
     addressLine2: "City, Country",
     businessHours: "Business Hours",
     workingHours: "Monday-Friday: 9am-5pm",

@@ -129,7 +129,10 @@ export const FooterSection = () => {
         </div>
         
         <div className="border-t mt-8 pt-8 text-center text-muted-foreground">
-          <p><LanguageText>{t('footer.rights')}</LanguageText></p>
+          <p>
+            <LanguageText>{t('footer.rights')}</LanguageText>
+            <span className="block mt-1">AI SOFTWARE FACTORY LTD</span>
+          </p>
         </div>
       </div>
     </footer>
