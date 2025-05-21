@@ -12,7 +12,11 @@ import { StripeSubscribeButton } from "./StripeSubscribeButton";
 import { verifyStripeSubscription } from "@/utils/stripeUtils";
 import { useSearchParams } from "react-router-dom";
 
-export const TrialExpiredDialog = () => {
+interface TrialExpiredDialogProps {
+  onVerificationSuccess?: () => void;
+}
+
+export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialogProps) => {
   const [open, setOpen] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
   const { toast } = useToast();
@@ -27,7 +31,7 @@ export const TrialExpiredDialog = () => {
       const verifySubscription = async () => {
         setIsVerifying(true);
         try {
-          console.log("Verifying Stripe session:", sessionId);
+          console.log("TrialExpiredDialog: Verifying Stripe session:", sessionId);
           const result = await verifyStripeSubscription(sessionId);
           
           if (result?.success) {
@@ -35,8 +39,15 @@ export const TrialExpiredDialog = () => {
               title: "Success",
               description: "Your subscription has been activated!",
             });
+            
             // Close the dialog on successful verification
             setOpen(false);
+            
+            // Notify parent component about successful verification
+            if (onVerificationSuccess) {
+              onVerificationSuccess();
+            }
+            
             // Replace URL to remove the session_id parameter
             navigate("/dashboard", { replace: true });
           } else {
@@ -61,7 +72,7 @@ export const TrialExpiredDialog = () => {
       
       verifySubscription();
     }
-  }, [searchParams, toast, navigate]);
+  }, [searchParams, toast, navigate, onVerificationSuccess]);
 
   const handleSubscriptionSuccess = (subscriptionId: string) => {
     toast({

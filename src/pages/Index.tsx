@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
@@ -44,18 +43,27 @@ const Index = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   
-  const { showTrialExpired, setForceRefresh } = useSubscriptionRedirect()
+  const { showTrialExpired, setForceRefresh, checkSubscriptionStatus } = useSubscriptionRedirect()
+
+  // Function to handle successful subscription verification
+  const handleVerificationSuccess = useCallback(() => {
+    console.log("Verification success handler called");
+    // Force an immediate check of the subscription status
+    checkSubscriptionStatus();
+    // Hide the dialog
+    setShowTrialExpiredDialog(false);
+  }, [checkSubscriptionStatus]);
 
   // Set initial state of the dialog based on trial status from hook
   useEffect(() => {
     if (!processingStripe) {
-      setShowTrialExpiredDialog(showTrialExpired)
+      setShowTrialExpiredDialog(showTrialExpired);
     }
-  }, [showTrialExpired, processingStripe])
+  }, [showTrialExpired, processingStripe]);
 
   // Handle Stripe session verification
   useEffect(() => {
-    const sessionId = searchParams.get('session_id')
+    const sessionId = searchParams.get('session_id');
     
     if (sessionId && !processingStripe && user) {
       setProcessingStripe(true);
@@ -76,6 +84,9 @@ const Index = () => {
             
             // Trigger a refresh of subscription status
             setForceRefresh(prev => !prev);
+            
+            // Force immediate check
+            await checkSubscriptionStatus();
             
             // Remove the session_id parameter from the URL to prevent repeated verification
             navigate('/dashboard', { replace: true });
@@ -101,7 +112,7 @@ const Index = () => {
       
       verifySession();
     }
-  }, [searchParams, user, processingStripe, toast, navigate, setForceRefresh]);
+  }, [searchParams, user, processingStripe, toast, navigate, setForceRefresh, checkSubscriptionStatus]);
 
   useEffect(() => {
     // Check for both code and token parameters (Supabase uses both in different contexts)
@@ -233,7 +244,7 @@ const Index = () => {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
             >
-              <TrialExpiredDialog />
+              <TrialExpiredDialog onVerificationSuccess={handleVerificationSuccess} />
             </motion.div>
           )}
           <motion.div variants={childVariants}>
