@@ -125,8 +125,7 @@ const Contact = () => {
                     <div>
                       <h4 className="font-medium">{t('contact.address')}</h4>
                       <p className="text-sm text-muted-foreground">
-                        {t('contact.addressLine1')}<br />
-                        {t('contact.addressLine2')}
+                        {t('contact.addressLine1')}
                       </p>
                     </div>
                   </div>
