@@ -26,7 +26,7 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Check for Stripe session ID in URL after redirect
   useEffect(() => {
@@ -75,11 +75,21 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
       console.log("TrialExpiredDialog: Verifying Stripe session:", sessionId);
       const result = await verifyStripeSubscription(sessionId);
       
+      console.log("TrialExpiredDialog: Verification result:", result);
+      
       if (result?.success) {
-        console.log("TrialExpiredDialog: Verification successful");
+        console.log("TrialExpiredDialog: Verification successful with data:", result);
+        // Clean up URL
+        setSearchParams(prev => {
+          const newParams = new URLSearchParams(prev.toString());
+          newParams.delete('session_id');
+          return newParams;
+        }, { replace: true });
+        
         handleVerificationSuccess();
+        return;
       } else {
-        console.error("Subscription verification failed:", result);
+        console.warn("Subscription verification returned non-success:", result);
         toast({
           title: "Verification in Progress",
           description: "Your payment is being processed. This may take a moment.",
@@ -134,21 +144,38 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
-        // Force update the subscription record with active status
-        const { error: updateError } = await supabase
-          .from('subscriptions')
-          .upsert({
-            user_id: user.id,
-            email: user.email,
-            status: 'active',
-            plan_type: selectedPlan,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'user_id' });
-          
-        if (updateError) {
-          console.error("Error updating subscription record:", updateError);
-        } else {
-          console.log("Subscription record updated to active status");
+        // Check if subscription is active
+        const isActive = await refreshSubscriptionStatus();
+        
+        if (!isActive) {
+          console.log("TrialExpiredDialog: Trying one more direct check before success");
+          // Try one last direct check
+          const { data: subscriptionCheck } = await supabase
+            .from('subscriptions')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('status', 'active')
+            .maybeSingle();
+            
+          if (!subscriptionCheck) {
+            console.log("TrialExpiredDialog: No subscription found, trying to force update");
+            // Force an update as last resort
+            const { error: updateError } = await supabase
+              .from('subscriptions')
+              .upsert({
+                user_id: user.id,
+                email: user.email,
+                status: 'active',
+                plan_type: selectedPlan,
+                updated_at: new Date().toISOString(),
+              });
+              
+            if (updateError) {
+              console.error("Error updating subscription record:", updateError);
+            } else {
+              console.log("Last resort subscription record update succeeded");
+            }
+          }
         }
       }
       
@@ -166,7 +193,7 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
         onVerificationSuccess();
       }
       
-      // Replace URL to remove the session_id parameter
+      // Replace URL to remove the session_id parameter and navigate to dashboard
       navigate("/dashboard", { replace: true });
     } catch (error) {
       console.error("Error in verification success handler:", error);
@@ -202,27 +229,26 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
     <Dialog 
       open={open} 
       onOpenChange={(newOpen) => {
-        // Prevent closing the dialog by user interaction
-        // Only allow it to be closed programmatically after successful payment
-        if (open && newOpen === false) {
-          // Don't allow closing unless verification is complete
-          if (!isVerifying) {
-            return;
-          }
+        // Only allow programmatic closing of dialog after verification success
+        if (!isVerifying) {
+          setOpen(newOpen);
         }
-        setOpen(newOpen);
       }}
     >
       <DialogContent 
         className="w-[90vw] max-w-[475px] p-4 sm:p-6" 
-        hideCloseButton={true}
+        hideCloseButton={isVerifying}
         onPointerDownOutside={(e) => {
-          // Prevent closing when clicking outside
-          e.preventDefault();
+          // Prevent closing when clicking outside during verification
+          if (isVerifying) {
+            e.preventDefault();
+          }
         }}
         onEscapeKeyDown={(e) => {
-          // Prevent closing when pressing Escape
-          e.preventDefault();
+          // Prevent closing when pressing Escape during verification
+          if (isVerifying) {
+            e.preventDefault();
+          }
         }}
       >
         <DialogHeader>

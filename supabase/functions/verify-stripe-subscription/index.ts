@@ -43,9 +43,15 @@ serve(async (req) => {
     });
     
     // Retrieve the session to check its status
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['customer', 'subscription']
+    });
     
     console.log(`Session retrieved. Status: ${session.status}, Payment status: ${session.payment_status}`);
+    
+    // Check for user ID in metadata
+    const userId = session.metadata?.userId;
+    console.log(`User ID from metadata: ${userId || 'NOT FOUND'}`);
     
     if (session.payment_status !== 'paid') {
       console.error(`Payment not completed. Status: ${session.payment_status}`);
@@ -97,132 +103,139 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
     
-    // Try to find the user by their email
-    let userId = null;
+    // If userId from metadata is not available, try to find the user by their email
+    let finalUserId = userId;
     
-    // First check in auth.users
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({
-      filter: {
-        email: customerEmail as string,
-      },
-    });
-    
-    if (authError) {
-      console.error('Error looking up user by email:', authError);
-    } else if (authData && authData.users.length > 0) {
-      userId = authData.users[0].id;
-      console.log(`Found user by email in auth.users: ${userId}`);
-    }
-    
-    if (!userId) {
-      console.error('Could not find user ID for email:', customerEmail);
-      // Even though we couldn't find the user, let's continue with the subscription info update
-      // This will at least create the subscription record that can be associated with the user later
+    if (!finalUserId) {
+      console.log('No userId in metadata, searching by email:', customerEmail);
+      
+      // First check in auth.users
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({
+        filter: {
+          email: customerEmail as string,
+        },
+      });
+      
+      if (authError) {
+        console.error('Error looking up user by email:', authError);
+      } else if (authData && authData.users.length > 0) {
+        finalUserId = authData.users[0].id;
+        console.log(`Found user by email in auth.users: ${finalUserId}`);
+      }
+      
+      if (!finalUserId) {
+        console.error('Could not find user ID for email:', customerEmail);
+        // Even though we couldn't find the user, let's continue with the subscription info update
+        // This will at least create the subscription record that can be associated with the user later
+      }
     }
     
     // Get subscription information from Stripe
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      limit: 1,
-    });
-    
     let subscriptionId = null;
     let subscriptionEndDate = null;
+    let planType = 'monthly'; // Default to monthly
     let isActive = false;
     
-    if (subscriptions.data.length > 0) {
-      const subscription = subscriptions.data[0];
+    if (session.subscription) {
+      const subscription = typeof session.subscription === 'string' 
+        ? await stripe.subscriptions.retrieve(session.subscription)
+        : session.subscription;
+      
       subscriptionId = subscription.id;
-      subscriptionEndDate = new Date(subscription.current_period_end * 1000);
+      subscriptionEndDate = new Date(subscription.current_period_end * 1000).toISOString();
       isActive = subscription.status === 'active';
-      console.log(`Found subscription: ${subscriptionId}, status: ${subscription.status}, ends: ${subscriptionEndDate}`);
+      
+      // Try to determine plan type from subscription
+      const items = subscription.items?.data;
+      if (items && items.length > 0 && items[0].price) {
+        if (items[0].price.recurring?.interval === 'year') {
+          planType = 'yearly';
+        }
+      }
+      
+      console.log(`Found subscription: ${subscriptionId}, status: ${subscription.status}, type: ${planType}, ends: ${subscriptionEndDate}`);
     } else {
-      // If no subscription found but payment is successful, we might have a one-time payment
-      // For one-time payments, we'll set an arbitrary subscription end date (e.g., 30 days)
+      // If no subscription found but payment is successful, we'll set an arbitrary subscription end date
       const thirtyDaysFromNow = new Date();
       thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-      subscriptionEndDate = thirtyDaysFromNow;
+      subscriptionEndDate = thirtyDaysFromNow.toISOString();
       isActive = true; // Consider it active
       console.log(`No subscription found, but payment successful. Setting artificial end date: ${subscriptionEndDate}`);
     }
     
     // Update or create subscription record in database
     const subscriptionData = {
-      user_id: userId,
+      user_id: finalUserId,
       email: customerEmail,
       stripe_customer_id: customerId,
       stripe_subscription_id: subscriptionId,
       status: 'active', // Always set to active when payment is successful
       trial_end_date: null,
-      plan_type: 'monthly', // Assuming monthly plan by default
-      subscription_end_date: subscriptionEndDate?.toISOString(),
-      current_period_end: subscriptionEndDate?.toISOString(),
+      plan_type: planType,
+      subscription_end_date: subscriptionEndDate,
+      current_period_end: subscriptionEndDate,
       updated_at: new Date().toISOString(),
     };
     
     console.log('Updating subscription with data:', subscriptionData);
     
     try {
-      if (userId) {
-        // If we have a user ID, try to find existing subscription
-        const { data: existingSub, error: existingSubError } = await supabaseAdmin
+      if (finalUserId) {
+        // If we have a user ID, upsert based on user_id
+        const { data: upsertedSub, error: upsertError } = await supabaseAdmin
           .from('subscriptions')
-          .select('id')
-          .eq('user_id', userId)
+          .upsert(subscriptionData, { 
+            onConflict: 'user_id',
+            ignoreDuplicates: false 
+          })
+          .select('*')
           .maybeSingle();
           
-        if (existingSubError) {
-          console.error('Error checking existing subscription:', existingSubError);
+        if (upsertError) {
+          console.error('Error upserting subscription by user_id:', upsertError);
+          throw upsertError;
         }
         
-        if (existingSub?.id) {
-          // Update existing subscription
-          const { error: updateError } = await supabaseAdmin
-            .from('subscriptions')
-            .update(subscriptionData)
-            .eq('id', existingSub.id);
-            
-          if (updateError) {
-            console.error('Error updating subscription:', updateError);
-          } else {
-            console.log('Successfully updated subscription for user:', userId);
-          }
-        } else {
-          // Insert new subscription
-          const { error: insertError } = await supabaseAdmin
-            .from('subscriptions')
-            .insert([subscriptionData]);
-            
-          if (insertError) {
-            console.error('Error inserting subscription:', insertError);
-          } else {
-            console.log('Successfully created subscription for user:', userId);
-          }
-        }
+        console.log('Successfully upserted subscription by user_id. Result:', upsertedSub);
       } else if (customerEmail) {
         // If we don't have user ID but have email, upsert by email
-        const { error: upsertError } = await supabaseAdmin
+        const { data: upsertedSub, error: upsertError } = await supabaseAdmin
           .from('subscriptions')
-          .upsert([subscriptionData], { 
+          .upsert(subscriptionData, { 
             onConflict: 'email',
             ignoreDuplicates: false 
-          });
+          })
+          .select('*')
+          .maybeSingle();
           
         if (upsertError) {
           console.error('Error upserting subscription by email:', upsertError);
-        } else {
-          console.log('Successfully upserted subscription by email:', customerEmail);
+          throw upsertError;
         }
+        
+        console.log('Successfully upserted subscription by email. Result:', upsertedSub);
       }
     } catch (dbError) {
       console.error('Database operation error:', dbError);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Database error when updating subscription',
+          message: dbError.message 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: 'Payment verified and subscription activated',
-        subscription_id: subscriptionId 
+        subscription_id: subscriptionId,
+        user_id: finalUserId,
+        email: customerEmail,
+        plan_type: planType,
+        subscription_end: subscriptionEndDate
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

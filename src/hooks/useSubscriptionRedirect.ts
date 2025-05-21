@@ -24,7 +24,7 @@ export const useSubscriptionRedirect = () => {
       try {
         console.log(`Subscription check attempt ${attempt + 1} of ${retries}`);
         
-        // Check if user has an active subscription
+        // Try to get subscription by user ID first
         const { data: subscription, error } = await supabase
           .from('subscriptions')
           .select('*')
@@ -40,8 +40,38 @@ export const useSubscriptionRedirect = () => {
         }
         
         if (subscription) {
-          console.log('Active subscription found', subscription);
+          console.log('Active subscription found by user_id:', subscription);
           return true;
+        }
+        
+        // If not found by user ID and user has email, try by email
+        if (user.email) {
+          const { data: emailSub, error: emailError } = await supabase
+            .from('subscriptions')
+            .select('*')
+            .eq('email', user.email)
+            .eq('status', 'active')
+            .maybeSingle();
+            
+          if (emailError) {
+            console.error('Error fetching subscription by email:', emailError);
+          } else if (emailSub) {
+            console.log('Active subscription found by email:', emailSub);
+            
+            // If found by email but user_id is different, update the record
+            if (emailSub.user_id !== user.id) {
+              const { error: updateError } = await supabase
+                .from('subscriptions')
+                .update({ user_id: user.id })
+                .eq('id', emailSub.id);
+                
+              if (updateError) {
+                console.error('Error updating subscription user_id:', updateError);
+              }
+            }
+            
+            return true;
+          }
         }
         
         // No active subscription, check for stripe session in URL

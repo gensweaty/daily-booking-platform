@@ -51,3 +51,7 @@ verify_jwt = false
 # Make the PayPal webhook public
 [functions.paypal-webhook]
 verify_jwt = false
+
+# Make verify-stripe-subscription public to ensure it works even without JWT
+[functions.verify-stripe-subscription]
+verify_jwt = false

@@ -12,6 +12,7 @@ import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
 import { verifyStripeSubscription, refreshSubscriptionStatus } from "@/utils/stripeUtils"
 
+// Animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -43,7 +44,11 @@ const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   
-  const { showTrialExpired, setForceRefresh, checkSubscriptionStatus } = useSubscriptionRedirect()
+  const { 
+    showTrialExpired, 
+    setForceRefresh, 
+    checkSubscriptionStatus 
+  } = useSubscriptionRedirect()
 
   // Track if payment verification is in progress to avoid showing dialog during verification
   const [paymentVerificationInProgress, setPaymentVerificationInProgress] = useState(false);
@@ -171,7 +176,8 @@ const Index = () => {
       
       verifySession();
     }
-  }, [searchParams, user, processingStripe, toast, navigate, setForceRefresh, checkSubscriptionStatus, setSearchParams, handleVerificationSuccess]);
+  }, [searchParams, user, processingStripe, toast, navigate, setForceRefresh, 
+      checkSubscriptionStatus, setSearchParams, handleVerificationSuccess]);
 
   // Handle email confirmation codes
   useEffect(() => {
@@ -274,7 +280,7 @@ const Index = () => {
     }
 
     getProfile()
-  }, [user])
+  }, [user]);
 
   // Display loading state when processing
   if (processingCode || processingStripe) {
@@ -292,7 +298,10 @@ const Index = () => {
   }
 
   // Determine if trial expired dialog should be shown
-  const shouldShowTrialExpiredDialog = user && showTrialExpired && !manuallyHideDialog && !paymentVerificationInProgress;
+  const shouldShowTrialExpiredDialog = user && 
+                                      showTrialExpired && 
+                                      !manuallyHideDialog && 
+                                      !paymentVerificationInProgress;
 
   return (
     <>
@@ -302,12 +311,14 @@ const Index = () => {
           variants={containerVariants}
           initial="hidden"
           animate="visible"
+          key="dashboard-container"
         >
           {shouldShowTrialExpiredDialog && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
+              key="trial-expired-dialog"
             >
               <TrialExpiredDialog onVerificationSuccess={handleVerificationSuccess} />
             </motion.div>
