@@ -26,6 +26,7 @@ export const TrialExpiredDialog = () => {
       const verifySubscription = async () => {
         setIsVerifying(true);
         try {
+          console.log("Verifying Stripe session:", sessionId);
           const result = await verifyStripeSubscription(sessionId);
           
           if (result?.success) {
@@ -35,6 +36,7 @@ export const TrialExpiredDialog = () => {
             });
             navigate("/dashboard", { replace: true });
           } else {
+            console.error("Subscription verification failed:", result);
             toast({
               title: "Error",
               description: "Failed to verify subscription. Please contact support.",

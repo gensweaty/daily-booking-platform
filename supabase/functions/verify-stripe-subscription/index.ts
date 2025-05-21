@@ -15,6 +15,15 @@ serve(async (req) => {
   }
   
   try {
+    // Get the Stripe key - make sure to log the status for debugging
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+    console.log('Stripe key available for verification:', !!stripeKey);
+    
+    if (!stripeKey) {
+      console.error('STRIPE_SECRET_KEY is not set in the environment');
+      throw new Error('Stripe key is not configured');
+    }
+    
     const { sessionId } = await req.json();
     
     if (!sessionId) {
@@ -23,6 +32,8 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log(`Verifying session ID: ${sessionId}`);
     
     // Initialize Supabase client with service role key for admin access
     const supabaseAdmin = createClient(
@@ -36,25 +47,31 @@ serve(async (req) => {
     );
     
     // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+    const stripe = new Stripe(stripeKey, {
       apiVersion: '2023-10-16',
     });
     
     // Retrieve checkout session
+    console.log('Retrieving checkout session from Stripe...');
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
       expand: ['subscription'],
     });
     
     if (!session) {
+      console.error('Session not found');
       return new Response(
         JSON.stringify({ error: 'Session not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
+    console.log('Session status:', session.status);
+    console.log('Payment status:', session.payment_status);
+    
     const { user_id } = session.metadata || {};
     
     if (!user_id) {
+      console.error('Invalid session metadata: missing user_id');
       return new Response(
         JSON.stringify({ error: 'Invalid session metadata' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -64,9 +81,11 @@ serve(async (req) => {
     // Session was successful, update subscription in database
     if (session.status === 'complete' && session.payment_status === 'paid') {
       const subscriptionId = session.subscription as string;
+      console.log(`Fetching subscription details for: ${subscriptionId}`);
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
       
       if (!subscription) {
+        console.error('Subscription not found');
         return new Response(
           JSON.stringify({ error: 'Subscription not found' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -74,6 +93,7 @@ serve(async (req) => {
       }
       
       const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+      console.log(`Subscription period ends: ${currentPeriodEnd}`);
       
       // Get subscription plan ID for the default plan
       const { data: planData } = await supabaseAdmin
@@ -83,6 +103,7 @@ serve(async (req) => {
         .single();
         
       if (!planData) {
+        console.error('Plan not found in database');
         return new Response(
           JSON.stringify({ error: 'Plan not found' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -90,6 +111,7 @@ serve(async (req) => {
       }
       
       // Update subscription in database
+      console.log(`Updating subscription in database for user: ${user_id}`);
       const { error: updateError } = await supabaseAdmin
         .from('subscriptions')
         .update({
@@ -112,6 +134,7 @@ serve(async (req) => {
         );
       }
       
+      console.log('Subscription successfully updated');
       return new Response(
         JSON.stringify({ success: true, subscription: { status: 'active', plan_type: 'monthly', subscription_end: currentPeriodEnd } }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

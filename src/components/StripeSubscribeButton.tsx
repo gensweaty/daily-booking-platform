@@ -27,18 +27,23 @@ export const StripeSubscribeButton = ({ onSuccess }: StripeSubscribeButtonProps)
     try {
       setIsLoading(true);
       
+      console.log("Initiating Stripe checkout with product ID: prod_SM0gHgA0G0cQN3");
+      
       const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
         body: { productId: 'prod_SM0gHgA0G0cQN3' },
       });
 
       if (error) {
+        console.error("Stripe checkout error:", error);
         throw error;
       }
 
       if (data?.url) {
         // Redirect to Stripe checkout
+        console.log("Redirecting to Stripe checkout URL:", data.url);
         window.location.href = data.url;
       } else {
+        console.error("No checkout URL returned:", data);
         throw new Error('No checkout URL returned');
       }
     } catch (error: any) {

@@ -15,6 +15,15 @@ serve(async (req) => {
   }
 
   try {
+    // Get the Stripe key - make sure to log the status for debugging
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+    console.log('Stripe key available:', !!stripeKey);
+    
+    if (!stripeKey) {
+      console.error('STRIPE_SECRET_KEY is not set in the environment');
+      throw new Error('Stripe key is not configured');
+    }
+    
     // Parse request body
     const { productId } = await req.json();
     
@@ -24,6 +33,8 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log(`Using product ID: ${productId}`);
     
     // Initialize Supabase client
     const supabaseClient = createClient(
@@ -44,6 +55,7 @@ serve(async (req) => {
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     
     if (userError || !userData.user) {
+      console.error('User authentication error:', userError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -51,34 +63,41 @@ serve(async (req) => {
     }
     
     const user = userData.user;
+    console.log(`Creating checkout for user: ${user.id}`);
     
-    // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+    // Initialize Stripe with the secret key
+    const stripe = new Stripe(stripeKey, {
       apiVersion: '2023-10-16',
     });
     
     // Check if customer exists
     let customerId;
-    const { data: customers } = await stripe.customers.search({
-      query: `email:'${user.email}'`,
-    });
-    
-    if (customers && customers.length > 0) {
-      customerId = customers[0].id;
-      console.log(`Found existing Stripe customer: ${customerId}`);
-    } else {
-      // Create a new customer
-      const newCustomer = await stripe.customers.create({
-        email: user.email,
-        metadata: {
-          user_id: user.id,
-        },
+    try {
+      const { data: customers } = await stripe.customers.search({
+        query: `email:'${user.email}'`,
       });
-      customerId = newCustomer.id;
-      console.log(`Created new Stripe customer: ${customerId}`);
+      
+      if (customers && customers.length > 0) {
+        customerId = customers[0].id;
+        console.log(`Found existing Stripe customer: ${customerId}`);
+      } else {
+        // Create a new customer
+        const newCustomer = await stripe.customers.create({
+          email: user.email,
+          metadata: {
+            user_id: user.id,
+          },
+        });
+        customerId = newCustomer.id;
+        console.log(`Created new Stripe customer: ${customerId}`);
+      }
+    } catch (error) {
+      console.error('Error with Stripe customer:', error);
+      throw error;
     }
     
     // Get prices associated with the product
+    console.log(`Fetching prices for product: ${productId}`);
     const { data: prices } = await stripe.prices.list({
       product: productId,
       active: true,
@@ -86,6 +105,7 @@ serve(async (req) => {
     });
     
     if (!prices || prices.length === 0) {
+      console.error('No active prices found for product');
       return new Response(
         JSON.stringify({ error: 'No active prices found for this product' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -93,6 +113,7 @@ serve(async (req) => {
     }
     
     const priceId = prices[0].id;
+    console.log(`Using price ID: ${priceId}`);
     
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
@@ -111,6 +132,8 @@ serve(async (req) => {
         user_id: user.id,
       },
     });
+    
+    console.log('Checkout session created successfully');
     
     return new Response(
       JSON.stringify({ url: session.url }),
