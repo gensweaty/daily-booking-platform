@@ -4,7 +4,7 @@ import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY") || "", {
-  apiVersion: "2023-10-16", // Using a valid Stripe API version
+  apiVersion: "2025-04-30", // Updated to match your Stripe account version
   httpClient: Stripe.createFetchHttpClient(),
 });
 
@@ -30,12 +30,90 @@ serve(async (req) => {
   }
   
   try {
-    const body = await req.json();
-    logStep("Request body", body);
+    logStep("Request received", { url: req.url, method: req.method });
     
-    // For GET requests (client-side verification)
+    // Handle webhook events directly from Stripe (no auth needed)
+    if (req.url.includes('webhook') || req.headers.get('stripe-signature')) {
+      logStep("Processing webhook from Stripe");
+      const body = await req.text();
+      const signature = req.headers.get('stripe-signature');
+      
+      if (!signature) {
+        logStep("No stripe signature found");
+        return new Response(JSON.stringify({ error: "No stripe signature found" }), { 
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400 
+        });
+      }
+      
+      // Try to construct the event from the payload
+      try {
+        // Verify webhook payload
+        const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+        if (!webhookSecret) {
+          logStep("Webhook secret not configured");
+          return new Response(JSON.stringify({ error: "Webhook secret not configured" }), { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500 
+          });
+        }
+        
+        const event = await stripe.webhooks.constructEventAsync(
+          body,
+          signature,
+          webhookSecret,
+          undefined,
+          Stripe.createSubtleCryptoProvider()
+        );
+        
+        logStep(`Received webhook event: ${event.type}`, { id: event.id });
+        
+        // Process the event based on its type
+        if (event.type === 'checkout.session.completed') {
+          await handleCheckoutSessionCompleted(event.data.object);
+          return new Response(JSON.stringify({ success: true }), { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200 
+          });
+        }
+        
+        // For other event types
+        return new Response(JSON.stringify({ received: true, type: event.type }), { 
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200 
+        });
+      } catch (err) {
+        logStep("Error constructing webhook event", { error: err instanceof Error ? err.message : String(err) });
+        return new Response(JSON.stringify({ error: "Invalid webhook payload" }), { 
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400 
+        });
+      }
+    }
+    
+    // For GET requests (client-side verification with session_id)
     if (req.method === "GET") {
-      // Get session_id from request body
+      let body;
+      try {
+        body = await req.json();
+        logStep("GET Request body", body);
+      } catch (e) {
+        // If it's not JSON, try to parse URL parameters
+        const url = new URL(req.url);
+        const sessionId = url.searchParams.get('session_id');
+        if (sessionId) {
+          body = { session_id: sessionId };
+          logStep("Extracted session_id from URL", { session_id: sessionId });
+        } else {
+          logStep("Failed to parse request body or parameters");
+          return new Response(
+            JSON.stringify({ success: false, error: "Invalid request format" }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+          );
+        }
+      }
+      
+      // Get session_id from request body or URL parameters
       const sessionId = body.session_id;
       
       if (!sessionId) {
@@ -58,65 +136,8 @@ serve(async (req) => {
         );
       }
       
-      const userId = session.metadata?.user_id;
-      const planType = session.metadata?.plan_type || 'monthly';
-      
-      if (!userId) {
-        logStep("No user ID in session metadata", { sessionId });
-        return new Response(
-          JSON.stringify({ success: false, error: "User ID not found" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-        );
-      }
-      
-      logStep("Session payment completed", { userId, planType });
-      
-      // Get subscription from Stripe
-      const subscriptionId = session.subscription as string;
-      let subscription;
-      
-      if (subscriptionId) {
-        subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        logStep("Subscription retrieved", { subscriptionId, status: subscription.status });
-      } else {
-        logStep("No subscription ID in session", { sessionId });
-      }
-      
-      // Calculate subscription period
-      const now = new Date();
-      let currentPeriodEnd;
-      
-      if (subscription) {
-        currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-      } else {
-        // If no subscription (one-time payment), calculate based on plan type
-        currentPeriodEnd = planType === 'monthly' 
-          ? new Date(now.setDate(now.getDate() + 30))  // 30 days
-          : new Date(now.setDate(now.getDate() + 365));  // 365 days
-      }
-      
-      // Update subscription in database
-      const { data: userData, error: userError } = await supabase
-        .from('subscriptions')
-        .update({
-          status: 'active',
-          current_period_end: currentPeriodEnd.toISOString(),
-          stripe_subscription_id: subscriptionId || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId)
-        .select('*')
-        .single();
-      
-      if (userError) {
-        logStep("Error updating subscription in DB", { error: userError });
-        return new Response(
-          JSON.stringify({ success: false, error: "Failed to update subscription status" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-        );
-      }
-      
-      logStep("Subscription updated successfully", { userId, status: 'active', expiresAt: currentPeriodEnd });
+      // Process the completed session
+      await handleCheckoutSessionCompleted(session);
       
       return new Response(
         JSON.stringify({ success: true }),
@@ -126,6 +147,17 @@ serve(async (req) => {
     
     // For POST requests (checking subscription status)
     if (req.method === "POST") {
+      let body;
+      try {
+        body = await req.json();
+      } catch (e) {
+        logStep("Failed to parse POST request body");
+        return new Response(
+          JSON.stringify({ success: false, error: "Invalid JSON body" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
+      
       const { user_id } = body;
       
       if (!user_id) {
@@ -268,3 +300,56 @@ serve(async (req) => {
     );
   }
 });
+
+// Helper function to process checkout session completion
+async function handleCheckoutSessionCompleted(session: any) {
+  logStep("Processing completed checkout session", { sessionId: session.id });
+
+  // Extract customer details
+  const customerId = session.customer;
+  const customerEmail = session.customer_details?.email;
+  const subscriptionId = session.subscription;
+  
+  // Get user ID from metadata or lookup by email
+  let userId = session.metadata?.user_id;
+  
+  if (!userId && customerEmail) {
+    // Find user by email if not in metadata
+    const { data: users } = await supabase.auth.admin.listUsers();
+    const matchingUser = users.users.find(u => u.email === customerEmail);
+    if (matchingUser) {
+      userId = matchingUser.id;
+      logStep("Found user by email", { userId });
+    }
+  }
+  
+  if (!userId) {
+    logStep("No user ID found for checkout session");
+    return;
+  }
+  
+  // Get subscription details from Stripe
+  const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const planType = stripeSubscription.items.data[0].plan.interval === 'month' ? 'monthly' : 'yearly';
+  const currentPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
+  
+  // Update subscription in database
+  const { error } = await supabase
+    .from('subscriptions')
+    .upsert({
+      user_id: userId,
+      email: customerEmail,
+      status: 'active',
+      stripe_customer_id: customerId,
+      stripe_subscription_id: subscriptionId,
+      plan_type: planType,
+      current_period_end: currentPeriodEnd.toISOString(),
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+  
+  if (error) {
+    logStep("Error updating subscription", { error });
+  } else {
+    logStep("Successfully updated subscription", { userId, status: 'active' });
+  }
+}

@@ -48,7 +48,7 @@ export const TrialExpiredDialog = () => {
     }
     
     // Set up a periodic check for subscription status
-    const intervalId = setInterval(checkUserSubscription, 30000); // Check every 30 seconds
+    const intervalId = setInterval(checkUserSubscription, 5000); // Check every 5 seconds (reduced from 30s)
     
     return () => clearInterval(intervalId);
   }, [user]);
@@ -61,8 +61,13 @@ export const TrialExpiredDialog = () => {
       const data = await checkSubscriptionStatus();
       console.log('Subscription status result:', data);
       
-      setSubscriptionStatus(data.status);
-      setOpen(data.status === 'trial_expired');
+      if (data.status === 'active') {
+        console.log('Subscription is active, closing dialog');
+        setOpen(false);
+      } else {
+        setSubscriptionStatus(data.status);
+        setOpen(data.status === 'trial_expired');
+      }
     } catch (error) {
       console.error('Error checking subscription status:', error);
     }

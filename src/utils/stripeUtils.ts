@@ -108,9 +108,22 @@ export const checkSubscriptionStatus = async () => {
       };
     }
     
+    // If subscription exists and is active, return status without verification
+    if (existingSubscription.status === 'active') {
+      console.log('Active subscription found, returning status without verification');
+      return {
+        success: true,
+        status: existingSubscription.status,
+        currentPeriodEnd: existingSubscription.current_period_end,
+        planType: existingSubscription.plan_type,
+        isTrialExpired: false,
+        isSubscriptionExpired: false
+      };
+    }
+    
     console.log('Existing subscription found, verifying with Stripe');
     
-    // If subscription exists, verify its status
+    // If subscription exists but is not active, verify its status
     const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
       method: 'POST',
       body: { user_id: userData.user.id }
@@ -118,7 +131,13 @@ export const checkSubscriptionStatus = async () => {
     
     if (error) {
       console.error('Error checking subscription status:', error);
-      throw error;
+      // Fall back to using the database status if verification fails
+      return {
+        success: true,
+        status: existingSubscription.status,
+        currentPeriodEnd: existingSubscription.current_period_end,
+        planType: existingSubscription.plan_type
+      };
     }
     
     console.log('Subscription status checked:', data);
@@ -133,13 +152,40 @@ export const verifySession = async (sessionId: string) => {
   try {
     console.log('Verifying session:', sessionId);
     
+    // We'll try both methods to maximize chances of success
+    try {
+      // First try the direct URL approach with the session_id as a parameter
+      const url = new URL(`${supabase.functions.url('verify-stripe-subscription')}`);
+      url.searchParams.append('session_id', sessionId);
+      
+      console.log('Verifying with URL:', url.toString());
+      
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabase.auth.session()?.access_token || ''}`
+        }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Session verification via URL result:', result);
+        return result;
+      }
+    } catch (urlError) {
+      console.error('Error verifying session via URL:', urlError);
+      // Fall through to try the standard invoke method
+    }
+    
+    // Try the standard invoke method
     const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
       method: 'GET',
       body: { session_id: sessionId }
     });
     
     if (error) {
-      console.error('Error verifying session:', error);
+      console.error('Error verifying session with invoke:', error);
       throw error;
     }
     
