@@ -695,39 +695,6 @@ export type Database = {
         }
         Relationships: []
       }
-      stripe_webhook_events: {
-        Row: {
-          created_at: string | null
-          data: Json | null
-          id: string
-          object_id: string | null
-          object_type: string | null
-          processed: boolean | null
-          processing_error: string | null
-          type: string
-        }
-        Insert: {
-          created_at?: string | null
-          data?: Json | null
-          id: string
-          object_id?: string | null
-          object_type?: string | null
-          processed?: boolean | null
-          processing_error?: string | null
-          type: string
-        }
-        Update: {
-          created_at?: string | null
-          data?: Json | null
-          id?: string
-          object_id?: string | null
-          object_type?: string | null
-          processed?: boolean | null
-          processing_error?: string | null
-          type?: string
-        }
-        Relationships: []
-      }
       subscription_plans: {
         Row: {
           created_at: string | null
@@ -760,15 +727,11 @@ export type Database = {
           created_at: string | null
           current_period_end: string | null
           current_period_start: string | null
-          email: string | null
           id: string
           last_payment_id: string | null
           plan_id: string
           plan_type: string
           status: string
-          stripe_customer_id: string | null
-          stripe_subscription_id: string | null
-          subscription_end_date: string | null
           trial_end_date: string | null
           updated_at: string | null
           user_id: string
@@ -777,15 +740,11 @@ export type Database = {
           created_at?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
-          email?: string | null
           id?: string
           last_payment_id?: string | null
           plan_id: string
           plan_type: string
           status: string
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
-          subscription_end_date?: string | null
           trial_end_date?: string | null
           updated_at?: string | null
           user_id: string
@@ -794,15 +753,11 @@ export type Database = {
           created_at?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
-          email?: string | null
           id?: string
           last_payment_id?: string | null
           plan_id?: string
           plan_type?: string
           status?: string
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
-          subscription_end_date?: string | null
           trial_end_date?: string | null
           updated_at?: string | null
           user_id?: string
@@ -855,10 +810,6 @@ export type Database = {
           code_id: string
           error_message: string
         }[]
-      }
-      check_subscription_status: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
       }
       check_trial_status: {
         Args: Record<PropertyKey, never>

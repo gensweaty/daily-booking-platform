@@ -4,14 +4,12 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
 
 interface StripeSubscribeButtonProps {
   onSuccess?: (subscriptionId: string) => void;
-  planType?: 'monthly' | 'yearly';
 }
 
-export const StripeSubscribeButton = ({ onSuccess, planType = 'monthly' }: StripeSubscribeButtonProps) => {
+export const StripeSubscribeButton = ({ onSuccess }: StripeSubscribeButtonProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -29,16 +27,10 @@ export const StripeSubscribeButton = ({ onSuccess, planType = 'monthly' }: Strip
     try {
       setIsLoading(true);
       
-      // Determine which product ID to use based on plan type
-      const productId = planType === 'yearly' ? 'prod_yearly' : 'prod_SM0gHgA0G0cQN3';
-      
-      console.log(`Initiating Stripe checkout with product ID: ${productId}`);
+      console.log("Initiating Stripe checkout with product ID: prod_SM0gHgA0G0cQN3");
       
       const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
-        body: { 
-          productId: productId,
-          planType: planType
-        },
+        body: { productId: 'prod_SM0gHgA0G0cQN3' },
       });
 
       if (error) {
@@ -72,14 +64,7 @@ export const StripeSubscribeButton = ({ onSuccess, planType = 'monthly' }: Strip
       disabled={isLoading}
       className="w-full bg-[#6772e5] hover:bg-[#5469d4] text-white"
     >
-      {isLoading ? (
-        <span className="flex items-center">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Processing...
-        </span>
-      ) : (
-        "Subscribe with Stripe"
-      )}
+      {isLoading ? "Loading..." : "Subscribe with Stripe"}
     </Button>
   );
 };

@@ -1,8 +1,7 @@
-
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { AuthUI } from "@/components/AuthUI"
 import { DashboardHeader } from "@/components/DashboardHeader"
@@ -11,9 +10,8 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
-import { verifyStripeSubscription, refreshSubscriptionStatus } from "@/utils/stripeUtils"
+import { verifyStripeSubscription } from "@/utils/stripeUtils"
 
-// Animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -39,185 +37,55 @@ const Index = () => {
   const [username, setUsername] = useState("")
   const [processingCode, setProcessingCode] = useState(false)
   const [processingStripe, setProcessingStripe] = useState(false)
-  const [manuallyHideDialog, setManuallyHideDialog] = useState(false)
   const { user } = useAuth()
   const { toast } = useToast()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   
-  const { 
-    showTrialExpired, 
-    setForceRefresh, 
-    checkSubscriptionStatus 
-  } = useSubscriptionRedirect()
+  const { showTrialExpired } = useSubscriptionRedirect()
 
-  // Track if payment verification is in progress to avoid showing dialog during verification
-  const [paymentVerificationInProgress, setPaymentVerificationInProgress] = useState(false);
-
-  // Function to handle successful subscription verification
-  const handleVerificationSuccess = useCallback(() => {
-    console.log("Verification success handler called");
-    // Force an immediate check of the subscription status
-    checkSubscriptionStatus();
-    // Hide the dialog manually
-    setManuallyHideDialog(true);
-    
-    // Remove session_id from URL to prevent repeated verification
-    setSearchParams(prev => {
-      const newParams = new URLSearchParams(prev.toString());
-      newParams.delete('session_id');
-      return newParams;
-    }, { replace: true });
-    
-    toast({
-      title: "Success",
-      description: "Your subscription has been activated!",
-    });
-
-    // Trigger a refresh of the UI state
-    setTimeout(() => {
-      setForceRefresh(prev => !prev);
-    }, 1000);
-  }, [checkSubscriptionStatus, setSearchParams, toast, setForceRefresh]);
-
-  // Handle stripe session ID directly
+  // Handle Stripe session verification
   useEffect(() => {
-    const sessionId = searchParams.get('session_id');
+    const sessionId = searchParams.get('session_id')
     
     if (sessionId && !processingStripe && user) {
-      console.log("Found session_id in URL, starting verification process");
-      setPaymentVerificationInProgress(true);
       setProcessingStripe(true);
       
       const verifySession = async () => {
         try {
-          console.log("Verifying Stripe session from Index page:", sessionId);
           const result = await verifyStripeSubscription(sessionId);
           
           if (result?.success) {
-            console.log("Verification successful!", result);
-            
-            // Force immediate subscription status check
-            await refreshSubscriptionStatus();
-            
-            // Manually hide the dialog
-            setManuallyHideDialog(true);
-            
             toast({
               title: "Success",
               description: "Your subscription has been activated!",
             });
             
-            // Remove session_id from URL to prevent repeated verification
-            setSearchParams(prev => {
-              const newParams = new URLSearchParams(prev.toString());
-              newParams.delete('session_id');
-              return newParams;
-            }, { replace: true });
-            
-            // Force refresh subscription status one more time after a small delay
-            setTimeout(() => {
-              setForceRefresh(prev => !prev);
-            }, 1000);
+            // Remove the session_id parameter from the URL to prevent repeated verification
+            navigate('/dashboard', { replace: true });
           } else {
-            console.error("Subscription verification failed:", result);
-            
-            // Even if verification fails, try refreshing the subscription status anyway
-            // as the session might be valid but the response handling might have issues
-            await refreshSubscriptionStatus();
-            
             toast({
-              title: "Verification in Progress",
-              description: "We're confirming your payment. This may take a moment.",
+              title: "Error",
+              description: "Failed to verify subscription. Please contact support.",
+              variant: "destructive",
             });
-            
-            // Set up additional verification attempts using exponential backoff
-            const maxAttempts = 5;
-            let attempt = 0;
-            
-            const checkWithBackoff = async () => {
-              if (attempt >= maxAttempts) {
-                toast({
-                  title: "Verification Issue",
-                  description: "Please contact support if your subscription doesn't activate soon.",
-                  variant: "destructive",
-                });
-                return;
-              }
-              
-              attempt++;
-              console.log(`Additional verification attempt ${attempt} of ${maxAttempts}`);
-              
-              try {
-                const isActive = await refreshSubscriptionStatus();
-                if (isActive) {
-                  handleVerificationSuccess();
-                  return;
-                }
-                
-                // Exponential backoff
-                const delay = Math.min(2000 * Math.pow(1.5, attempt), 15000); // Cap at 15 seconds
-                setTimeout(checkWithBackoff, delay);
-              } catch (error) {
-                console.error("Error in verification attempt:", error);
-                // Continue with backoff even after errors
-                const delay = Math.min(2000 * Math.pow(1.5, attempt), 15000);
-                setTimeout(checkWithBackoff, delay);
-              }
-            };
-            
-            // Start the backoff verification process
-            checkWithBackoff();
           }
         } catch (error) {
           console.error('Error verifying Stripe session:', error);
           toast({
-            title: "Processing Payment",
-            description: "We're processing your payment. This may take a moment.",
+            title: "Error",
+            description: "Failed to verify subscription. Please try again.",
+            variant: "destructive",
           });
-          
-          // Start background verification attempts
-          setTimeout(async () => {
-            const isActive = await refreshSubscriptionStatus();
-            if (isActive) {
-              handleVerificationSuccess();
-            } else {
-              // If not active yet, start exponential backoff checks
-              let attempts = 0;
-              const maxAttempts = 5;
-              
-              const checkAgain = async () => {
-                if (attempts >= maxAttempts) return;
-                
-                attempts++;
-                const isNowActive = await refreshSubscriptionStatus();
-                if (isNowActive) {
-                  handleVerificationSuccess();
-                } else if (attempts < maxAttempts) {
-                  setTimeout(checkAgain, 3000 * Math.pow(1.5, attempts));
-                }
-              };
-              
-              checkAgain();
-            }
-          }, 3000);
         } finally {
           setProcessingStripe(false);
-          
-          // Keep paymentVerificationInProgress true for a while to ensure dialog stays hidden
-          // during potential background verification attempts
-          setTimeout(() => {
-            setPaymentVerificationInProgress(false);
-          }, 10000);
         }
       };
       
       verifySession();
     }
-  }, [searchParams, user, processingStripe, toast, navigate, setForceRefresh, 
-      checkSubscriptionStatus, setSearchParams, handleVerificationSuccess]);
+  }, [searchParams, user, processingStripe, toast, navigate]);
 
-  // Handle email confirmation codes
   useEffect(() => {
     // Check for both code and token parameters (Supabase uses both in different contexts)
     const code = searchParams.get('code');
@@ -292,7 +160,6 @@ const Index = () => {
     }
   }, [searchParams, navigate, toast, processingCode]);
 
-  // Fetch user profile
   useEffect(() => {
     const getProfile = async () => {
       if (user) {
@@ -318,9 +185,8 @@ const Index = () => {
     }
 
     getProfile()
-  }, [user]);
+  }, [user])
 
-  // Display loading state when processing
   if (processingCode || processingStripe) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -335,12 +201,6 @@ const Index = () => {
     );
   }
 
-  // Determine if trial expired dialog should be shown
-  const shouldShowTrialExpiredDialog = user && 
-                                      showTrialExpired && 
-                                      !manuallyHideDialog && 
-                                      !paymentVerificationInProgress;
-
   return (
     <>
       {user ? (
@@ -349,16 +209,14 @@ const Index = () => {
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          key="dashboard-container"
         >
-          {shouldShowTrialExpiredDialog && (
+          {showTrialExpired && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              key="trial-expired-dialog"
             >
-              <TrialExpiredDialog onVerificationSuccess={handleVerificationSuccess} />
+              <TrialExpiredDialog />
             </motion.div>
           )}
           <motion.div variants={childVariants}>

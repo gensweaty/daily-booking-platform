@@ -1,12 +1,7 @@
 
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0"
-
-const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[VERIFY-STRIPE] ${step}${detailsStr}`);
-};
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,227 +13,192 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
-
+  
   try {
-    // Check if this is a direct verification request with a session ID
-    const { sessionId } = await req.json().catch(() => ({}));
-    logStep('Received direct verification request', { sessionId });
-
+    // Get the Stripe key - make sure to log the status for debugging
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+    console.log('Stripe key available for verification:', stripeKey ? 'Yes' : 'No');
+    
+    if (!stripeKey) {
+      console.error('STRIPE_SECRET_KEY is not set in the environment');
+      throw new Error('Stripe key is not configured');
+    }
+    
+    const { sessionId } = await req.json();
+    
     if (!sessionId) {
-      logStep('No session ID provided');
       return new Response(
-        JSON.stringify({ success: false, error: 'Session ID is required' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        JSON.stringify({ error: 'Session ID is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Get Stripe API key from environment
-    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
-    if (!stripeKey) {
-      throw new Error('STRIPE_SECRET_KEY is not set');
-    }
-
-    // Initialize Stripe
-    const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
-
-    // Initialize Supabase admin client with service role key
+    
+    console.log(`Verifying session ID: ${sessionId}`);
+    
+    // Initialize Supabase client with service role key for admin access
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      { auth: { persistSession: false } }
+      {
+        auth: {
+          persistSession: false,
+        }
+      }
     );
-
-    // Get the checkout session from Stripe
-    logStep('Retrieving checkout session from Stripe', { sessionId });
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-
-    if (!session) {
-      logStep('Session not found');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Session not found' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-      );
-    }
-
-    logStep('Session retrieved successfully', { 
-      status: session.status, 
-      payment_status: session.payment_status,
-      customer_email: session.customer_details?.email,
-      metadata: session.metadata
+    
+    // Initialize Stripe
+    const stripe = new Stripe(stripeKey, {
+      apiVersion: '2023-10-16',
     });
-
-    // Check if payment is completed
-    if (session.payment_status !== 'paid') {
-      logStep('Payment not completed', { payment_status: session.payment_status });
+    
+    // Retrieve checkout session
+    console.log('Retrieving checkout session from Stripe...');
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['subscription'],
+    });
+    
+    if (!session) {
+      console.error('Session not found');
       return new Response(
-        JSON.stringify({ success: false, error: 'Payment not completed' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        JSON.stringify({ error: 'Session not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Get user ID from session metadata
-    const userId = session.metadata?.user_id;
-    const customerEmail = session.customer_details?.email;
-
-    if (!customerEmail) {
-      logStep('No email found in session');
+    
+    console.log('Session status:', session.status);
+    console.log('Payment status:', session.payment_status);
+    
+    const { user_id } = session.metadata || {};
+    
+    if (!user_id) {
+      console.error('Invalid session metadata: missing user_id');
       return new Response(
-        JSON.stringify({ success: false, error: 'No email associated with session' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        JSON.stringify({ error: 'Invalid session metadata' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    let foundUserId = userId;
-
-    // If no userId in metadata, try to find the user by their email
-    if (!foundUserId && customerEmail) {
-      logStep('No userId in metadata, searching by email', { email: customerEmail });
+    
+    // Session was successful, update subscription in database
+    if (session.status === 'complete' && session.payment_status === 'paid') {
+      const subscriptionId = session.subscription as string;
+      console.log(`Fetching subscription details for: ${subscriptionId}`);
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
       
-      try {
-        // First check auth users by email
-        const { data: users, error: authError } = await supabaseAdmin.auth.admin.listUsers();
-        
-        if (authError) {
-          logStep('Error looking up users:', { error: authError.message });
-        } else {
-          const matchingUser = users.users.find((u: any) => u.email === customerEmail);
-          if (matchingUser) {
-            foundUserId = matchingUser.id;
-            logStep('Found user by email:', { userId: foundUserId });
-          }
-        }
-      } catch (authError: any) {
-        logStep('Error querying auth users:', { error: authError.message });
+      if (!subscription) {
+        console.error('Subscription not found');
+        return new Response(
+          JSON.stringify({ error: 'Subscription not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-    }
-
-    // Get subscription details
-    const subscriptionId = session.subscription;
-    let planType = 'monthly'; // Default to monthly
-    let periodEnd = null;
-
-    // If we have subscription details, get more info
-    if (subscriptionId) {
-      try {
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      
+      const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+      console.log(`Subscription period ends: ${currentPeriodEnd}`);
+      
+      // Get subscription plan ID for the default plan
+      const { data: planData } = await supabaseAdmin
+        .from('subscription_plans')
+        .select('id')
+        .eq('type', 'monthly')
+        .single();
         
-        // Calculate end date
-        periodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+      if (!planData) {
+        console.error('Plan not found in database, attempting to create it');
         
-        // Try to determine plan type
-        if (subscription.items?.data?.length > 0) {
-          const item = subscription.items.data[0];
-          if (item.plan?.interval === 'year') {
-            planType = 'yearly';
-          }
-        }
-        
-        logStep('Extracted subscription details', { 
-          subscriptionId, 
-          planType,
-          periodEnd
-        });
-      } catch (err) {
-        logStep('Error retrieving subscription details', { error: err.message });
-        // Continue despite subscription lookup error
-      }
-    } else {
-      // If no subscription found but payment is successful, set default end date
-      const thirtyDaysFromNow = new Date();
-      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-      periodEnd = thirtyDaysFromNow.toISOString();
-      logStep('No subscription found, using default end date', { periodEnd });
-    }
-
-    // Create or update subscription in database
-    const subscriptionData = {
-      user_id: foundUserId,
-      email: customerEmail,
-      stripe_customer_id: session.customer,
-      stripe_subscription_id: subscriptionId,
-      status: 'active',
-      plan_type: planType,
-      current_period_end: periodEnd,
-      updated_at: new Date().toISOString()
-    };
-
-    logStep('Updating subscription with data:', subscriptionData);
-
-    // Try updating by user_id first if available
-    if (foundUserId) {
-      try {
-        const { data, error } = await supabaseAdmin
-          .from('subscriptions')
-          .upsert(subscriptionData, { 
-            onConflict: 'user_id',
-            ignoreDuplicates: false 
+        // Create the plan if it doesn't exist
+        const { data: newPlan, error: planCreateError } = await supabaseAdmin
+          .from('subscription_plans')
+          .insert({
+            type: 'monthly',
+            name: 'Premium Plan',
+            price: 9.99,
+            currency: 'USD',
+            features: ['Full access', 'Premium support']
           })
           .select()
           .single();
           
-        if (error) {
-          logStep('Error upserting subscription by user_id:', { error: error.message });
-        } else {
-          logStep('Successfully updated subscription by user_id:', data);
-          
+        if (planCreateError) {
+          console.error('Failed to create plan:', planCreateError);
           return new Response(
-            JSON.stringify({ 
-              success: true, 
-              message: 'Subscription verified and updated successfully',
-              data: {
-                userId: foundUserId,
-                email: customerEmail,
-                planType
-              }
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({ error: 'Failed to create subscription plan' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-      } catch (dbError: any) {
-        logStep('Database operation error:', { error: dbError.message });
       }
-    }
-
-    // If user_id update failed or wasn't available, try by email
-    try {
-      const { data, error } = await supabaseAdmin
+      
+      // Check if subscription already exists for this user
+      const { data: existingSubscription } = await supabaseAdmin
         .from('subscriptions')
-        .upsert(subscriptionData, { 
-          onConflict: 'email',
-          ignoreDuplicates: false 
-        })
-        .select()
-        .single();
-        
-      if (error) {
-        logStep('Error upserting subscription by email:', { error: error.message });
-        throw error;
-      } else {
-        logStep('Successfully updated subscription by email:', data);
-        
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            message: 'Subscription verified and updated successfully by email',
-            data: {
-              userId: foundUserId,
-              email: customerEmail,
-              planType
-            }
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    } catch (dbError: any) {
-      logStep('Database operation error during email upsert:', { error: dbError.message });
-      throw dbError;
-    }
+        .select('*')
+        .eq('user_id', user_id)
+        .maybeSingle();
 
-  } catch (error) {
-    logStep('ERROR in verify-stripe-subscription:', { message: error.message });
+      if (existingSubscription) {
+        console.log('Updating existing subscription record');
+        // Update existing subscription
+        const { error: updateError } = await supabaseAdmin
+          .from('subscriptions')
+          .update({
+            status: 'active',
+            current_period_start: new Date().toISOString(),
+            current_period_end: currentPeriodEnd,
+            plan_type: 'monthly',
+            last_payment_id: subscriptionId,
+            stripe_customer_id: session.customer as string,
+            stripe_subscription_id: subscriptionId,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user_id);
+        
+        if (updateError) {
+          console.error('Error updating subscription:', updateError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to update subscription' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } else {
+        console.log('Creating new subscription record');
+        // Create new subscription record
+        const { error: insertError } = await supabaseAdmin
+          .from('subscriptions')
+          .insert({
+            user_id,
+            status: 'active',
+            current_period_start: new Date().toISOString(),
+            current_period_end: currentPeriodEnd,
+            plan_type: 'monthly',
+            last_payment_id: subscriptionId,
+            stripe_customer_id: session.customer as string,
+            stripe_subscription_id: subscriptionId
+          });
+          
+        if (insertError) {
+          console.error('Error creating subscription:', insertError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to create subscription' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+      
+      console.log('Subscription successfully updated/created');
+      return new Response(
+        JSON.stringify({ success: true, subscription: { status: 'active', plan_type: 'monthly', subscription_end: currentPeriodEnd } }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      JSON.stringify({ success: false, status: session.status, payment_status: session.payment_status }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('Error verifying subscription:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
