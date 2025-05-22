@@ -5,11 +5,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { SubscriptionPlanSelect } from "./SubscriptionPlanSelect";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { createCheckoutSession } from "@/utils/stripeUtils";
+import { X } from "lucide-react";
 
 export const ManageSubscriptionDialog = ({ 
   open, 
@@ -67,10 +69,14 @@ export const ManageSubscriptionDialog = ({
       <DialogContent 
         className="w-[90vw] max-w-[475px] p-4 sm:p-6"
       >
-        <DialogHeader>
+        <DialogHeader className="relative">
           <DialogTitle className="text-center text-xl sm:text-2xl font-bold">
             Manage Your Subscription
           </DialogTitle>
+          <DialogClose className="absolute right-0 top-0 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </DialogClose>
         </DialogHeader>
         <div className="mt-4 space-y-6 px-2 sm:px-4">
           <p className="text-center text-sm sm:text-base text-muted-foreground">

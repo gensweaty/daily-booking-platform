@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { addDays } from "date-fns";
 
@@ -241,43 +240,77 @@ export const checkSubscriptionStatus = async () => {
 
 export const verifySession = async (sessionId: string) => {
   try {
-    console.log('Verifying session:', sessionId);
+    console.log('Verifying Stripe session:', sessionId);
     
-    try {
-      const response = await supabase.functions.invoke('verify-stripe-subscription', {
-        body: { session_id: sessionId }
-      });
-      
-      const data = response.data || {};
-      const error = response.error;
-      
-      console.log('Session verification response:', { data, error });
-      
-      if (error) {
-        console.error('Error verifying session with invoke:', error);
-        return { success: false, error: error.message || 'Verification failed' };
-      }
-      
-      // Handle successful verification and ensure subscription status is updated
-      if (data && (data.success || data.status === 'active')) {
-        // Force a refresh of subscription data in database
-        const { data: userData } = await supabase.auth.getUser();
-        if (userData?.user?.id) {
-          console.log('Updating subscription status after successful payment');
-          await checkSubscriptionStatus();
-        }
-      }
-      
-      return data;
-    } catch (error) {
-      console.error('Error in session verification:', error);
-      return { success: false, error: 'Verification failed with exception' };
+    // Get current user
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !userData?.user) {
+      console.error('Authentication error:', userError);
+      throw new Error("User not authenticated");
     }
+    
+    // Verify the session with Stripe through our edge function
+    const response = await supabase.functions.invoke('verify-stripe-subscription', {
+      body: { 
+        session_id: sessionId,
+        user_id: userData.user.id
+      }
+    });
+    
+    // Type check and safely access response properties
+    const data = response?.data || {};
+    const error = response?.error;
+    
+    console.log('Session verification response:', { data, error });
+    
+    if (error) {
+      console.error('Error verifying session with invoke:', error);
+      return { success: false, error: error.message || 'Verification failed' };
+    }
+    
+    // If session verification succeeded
+    if (data && (data.success || data.status === 'active')) {
+      // Force a refresh of subscription data in database
+      console.log('Session verified successfully, refreshing subscription status');
+      await refreshSubscriptionStatus(userData.user.id);
+      return { 
+        success: true,
+        status: data.status || 'active',
+        currentPeriodEnd: data.currentPeriodEnd || null
+      };
+    }
+    
+    return { success: false, message: 'Session verification failed' };
   } catch (error) {
     console.error('Error in verifySession:', error);
     return { success: false, error: 'Verification process failed' };
   }
 };
+
+// Add a new function to directly refresh subscription status
+async function refreshSubscriptionStatus(userId: string) {
+  try {
+    console.log('Manually refreshing subscription status for user:', userId);
+    
+    // Use Supabase edge function to get the latest subscription data
+    const response = await supabase.functions.invoke('verify-stripe-subscription', {
+      body: { user_id: userId }
+    });
+    
+    const data = response?.data;
+    console.log('Refresh subscription result:', data);
+    
+    if (data && data.success) {
+      return data;
+    }
+    
+    return { success: false, message: 'Failed to refresh subscription' };
+  } catch (error) {
+    console.error('Error refreshing subscription status:', error);
+    return { success: false, error: 'Refresh failed' };
+  }
+}
 
 export const openStripeCustomerPortal = async () => {
   try {

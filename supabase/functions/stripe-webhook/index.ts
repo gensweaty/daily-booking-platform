@@ -105,7 +105,7 @@ async function handleCheckoutSessionCompleted(session) {
     .upsert({
       user_id: userId,
       email: customerEmail,
-      status: stripeSubscription.status,
+      status: 'active',
       stripe_customer_id: customerId,
       stripe_subscription_id: subscriptionId,
       plan_type: planType,
