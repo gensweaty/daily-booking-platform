@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 
 /**
@@ -160,5 +159,28 @@ export const createCustomerPortalSession = async () => {
   } catch (error: any) {
     console.error('Error in createCustomerPortalSession:', error);
     throw new Error(error.message || 'Failed to create customer portal session');
+  }
+};
+
+/**
+ * Opens the Stripe customer portal in a new tab
+ * Returns true if the portal was successfully opened
+ */
+export const openStripeCustomerPortal = async (): Promise<boolean> => {
+  try {
+    console.log('Opening Stripe customer portal');
+    
+    const { url } = await createCustomerPortalSession();
+    
+    if (!url) {
+      console.error('No portal URL returned');
+      return false;
+    }
+    
+    window.open(url, '_blank');
+    return true;
+  } catch (error: any) {
+    console.error('Error opening customer portal:', error);
+    return false;
   }
 };
