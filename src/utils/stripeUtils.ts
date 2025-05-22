@@ -1,163 +1,127 @@
 
 import { supabase } from "@/lib/supabase";
 
-export const verifyStripeSubscription = async (sessionId: string) => {
+/**
+ * Creates a Stripe checkout session for subscription
+ */
+export const createStripeCheckout = async (planType: 'monthly' | 'yearly') => {
   try {
-    console.log(`stripeUtils: Verifying session ID ${sessionId}`);
+    console.log(`Creating ${planType} subscription checkout`);
     
-    // Ensure we have proper authentication
-    const { data: authData } = await supabase.auth.getSession();
-    const token = authData?.session?.access_token;
-    
-    if (!token) {
-      console.warn('stripeUtils: No auth token available. This might cause issues if JWT verification is required.');
+    // Get the current user to include in metadata
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user?.id) {
+      throw new Error('User not authenticated');
     }
     
-    // Add retry logic with backoff
-    const maxRetries = 5;
-    let retryCount = 0;
-    let lastError = null;
-    
-    while (retryCount < maxRetries) {
-      try {
-        // Call verify-stripe-subscription edge function with proper auth header
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-stripe-subscription`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': token ? `Bearer ${token}` : '',
-            },
-            body: JSON.stringify({ sessionId }),
-          }
-        );
-
-        console.log(`stripeUtils: Verification attempt ${retryCount + 1} status:`, response.status);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`stripeUtils: HTTP error ${response.status}:`, errorText);
-          throw new Error(`HTTP error: ${response.status}, ${errorText}`);
-        }
-
-        const data = await response.json();
-        console.log('stripeUtils: Verification result:', data);
-        
-        // If successful, force refresh auth session
-        if (data?.success) {
-          // Force refresh auth session to ensure user gets latest claims
-          await supabase.auth.refreshSession();
-          console.log('stripeUtils: Auth session refreshed after successful verification');
-        }
-
-        return data;
-      } catch (retryError) {
-        console.error(`stripeUtils: Error in attempt ${retryCount + 1}:`, retryError);
-        lastError = retryError;
-        retryCount++;
-        
-        if (retryCount < maxRetries) {
-          // Exponential backoff
-          const waitTime = Math.pow(2, retryCount) * 1000;
-          console.log(`stripeUtils: Retrying in ${waitTime}ms...`);
-          await new Promise(resolve => setTimeout(resolve, waitTime));
-        }
-      }
-    }
-    
-    // If we got here, all retries failed
-    throw lastError || new Error('All verification attempts failed');
-  } catch (error) {
-    console.error('Error verifying Stripe subscription:', error);
-    throw error;
-  }
-};
-
-export const openStripeCustomerPortal = async () => {
-  try {
-    console.log('stripeUtils: Opening Stripe customer portal');
-    
-    const { data, error } = await supabase.functions.invoke('stripe-customer-portal', {
-      body: {},
+    const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
+      body: { 
+        planType,
+        metadata: { user_id: userData.user.id }
+      },
     });
 
     if (error) {
-      console.error('stripeUtils: Error invoking stripe-customer-portal:', error);
-      throw error;
+      console.error('Error creating checkout session:', error);
+      throw new Error(error.message || 'Failed to create checkout session');
     }
 
-    console.log('stripeUtils: Customer portal result:', data);
-    
-    if (data?.url) {
-      window.location.href = data.url;
-      return true;
+    if (!data?.url) {
+      throw new Error('No checkout URL returned');
     }
-    
-    return false;
-  } catch (error) {
-    console.error('Error opening Stripe customer portal:', error);
-    return false;
+
+    console.log('Checkout session created successfully:', data);
+    return data;
+  } catch (error: any) {
+    console.error('Error in createStripeCheckout:', error);
+    throw new Error(error.message || 'Failed to create subscription checkout');
   }
 };
 
-// Improved function to check subscription status directly
-export const checkSubscriptionStatus = async (): Promise<boolean> => {
+/**
+ * Verifies a Stripe subscription by checkout session ID
+ */
+export const verifyStripeSubscription = async (sessionId: string) => {
   try {
-    console.log('stripeUtils: Checking subscription status');
+    console.log('Verifying subscription for session:', sessionId);
     
-    // Get the current user
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData?.user) {
-      console.error('stripeUtils: Error getting current user:', userError);
+    const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
+      body: { sessionId }
+    });
+
+    if (error) {
+      console.error('Error verifying subscription:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('Subscription verification result:', data);
+    return data;
+  } catch (error: any) {
+    console.error('Error in verifyStripeSubscription:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Failed to verify subscription'
+    };
+  }
+};
+
+/**
+ * Checks and refreshes the subscription status for the current user
+ * Returns true if the user has an active subscription
+ */
+export const refreshSubscriptionStatus = async (): Promise<boolean> => {
+  try {
+    console.log('Refreshing subscription status');
+    const { data: userData } = await supabase.auth.getUser();
+    
+    if (!userData?.user?.id) {
+      console.log('No authenticated user found');
       return false;
     }
     
-    // Look for active subscription with multiple checks
-    const userId = userData.user.id;
-    const email = userData.user.email;
-    
-    console.log(`stripeUtils: Checking subscription for user ${userId} (${email})`);
-    
-    // First try by user_id
-    const { data: subscriptionByUserId, error: subError } = await supabase
+    // Check for an active subscription in the database
+    const { data: subscription, error } = await supabase
       .from('subscriptions')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', userData.user.id)
       .eq('status', 'active')
       .maybeSingle();
       
-    if (subError) {
-      console.error('stripeUtils: Error checking subscription by user_id:', subError);
-    } else if (subscriptionByUserId) {
-      console.log('stripeUtils: Found active subscription by user_id:', subscriptionByUserId);
+    if (error) {
+      console.error('Error checking subscription status:', error);
+      return false;
+    }
+    
+    // If found by user ID, return true
+    if (subscription) {
+      console.log('Active subscription found:', subscription);
       return true;
     }
     
-    // If no match by user_id and we have an email, try by email
-    if (email && !subscriptionByUserId) {
-      const { data: subscriptionByEmail, error: emailSubError } = await supabase
+    // If not found by user ID, try by email
+    if (userData.user.email) {
+      const { data: emailSub, error: emailError } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('email', email)
+        .eq('email', userData.user.email)
         .eq('status', 'active')
         .maybeSingle();
         
-      if (emailSubError) {
-        console.error('stripeUtils: Error checking subscription by email:', emailSubError);
-      } else if (subscriptionByEmail) {
-        console.log('stripeUtils: Found active subscription by email:', subscriptionByEmail);
+      if (emailError) {
+        console.error('Error checking subscription by email:', emailError);
+      } else if (emailSub) {
+        console.log('Active subscription found by email:', emailSub);
         
-        // If found by email but user_id doesn't match, update the record
-        if (subscriptionByEmail.user_id !== userId) {
-          console.log('stripeUtils: Updating subscription user_id to match current user');
+        // If found by email but user_id doesn't match, update it
+        if (emailSub.user_id !== userData.user.id) {
+          console.log('Updating subscription user ID');
           const { error: updateError } = await supabase
             .from('subscriptions')
-            .update({ user_id: userId })
-            .eq('id', subscriptionByEmail.id);
+            .update({ user_id: userData.user.id })
+            .eq('id', emailSub.id);
             
           if (updateError) {
-            console.error('stripeUtils: Error updating subscription user_id:', updateError);
+            console.error('Error updating subscription user ID:', updateError);
           }
         }
         
@@ -165,43 +129,36 @@ export const checkSubscriptionStatus = async (): Promise<boolean> => {
       }
     }
     
-    console.log('stripeUtils: No active subscription found for user');
+    console.log('No active subscription found');
     return false;
-  } catch (error) {
-    console.error('stripeUtils: Error checking subscription status:', error);
+  } catch (error: any) {
+    console.error('Error in refreshSubscriptionStatus:', error);
     return false;
   }
 };
 
-// Enhanced helper function to refresh subscription status
-export const refreshSubscriptionStatus = async (): Promise<boolean> => {
+/**
+ * Creates a Stripe customer portal session for managing subscriptions
+ */
+export const createCustomerPortalSession = async () => {
   try {
-    console.log('stripeUtils: Refreshing subscription status');
+    console.log('Creating customer portal session');
     
-    // Force refresh auth session
-    const { error: refreshError } = await supabase.auth.refreshSession();
-    if (refreshError) {
-      console.error('stripeUtils: Error refreshing auth session:', refreshError);
+    const { data, error } = await supabase.functions.invoke('stripe-customer-portal', {});
+
+    if (error) {
+      console.error('Error creating customer portal session:', error);
+      throw new Error(error.message || 'Failed to create customer portal session');
     }
-    
-    // Check subscription status with multiple attempts
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const isActive = await checkSubscriptionStatus();
-      if (isActive) {
-        console.log(`stripeUtils: Active subscription found on attempt ${attempt + 1}`);
-        return true;
-      }
-      
-      if (attempt < 2) {
-        console.log(`stripeUtils: No active subscription found on attempt ${attempt + 1}, waiting before retry...`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
+
+    if (!data?.url) {
+      throw new Error('No portal URL returned');
     }
-    
-    console.log('stripeUtils: No active subscription found after multiple attempts');
-    return false;
-  } catch (error) {
-    console.error('stripeUtils: Error refreshing subscription status:', error);
-    return false;
+
+    console.log('Customer portal session created successfully');
+    return data;
+  } catch (error: any) {
+    console.error('Error in createCustomerPortalSession:', error);
+    throw new Error(error.message || 'Failed to create customer portal session');
   }
 };

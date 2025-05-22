@@ -99,6 +99,8 @@ export const useSubscriptionRedirect = () => {
               }, { replace: true });
               
               return true;
+            } else {
+              console.log('Session verification failed, will retry:', result?.error || 'Unknown error');
             }
           } catch (verifyError) {
             console.error('Error during direct session verification:', verifyError);
@@ -130,7 +132,8 @@ export const useSubscriptionRedirect = () => {
           return !hasExpired;
         }
         
-        return false; // No subscription found
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, attempt)));
       } catch (error) {
         console.error('Subscription check error:', error);
         // Wait before retrying

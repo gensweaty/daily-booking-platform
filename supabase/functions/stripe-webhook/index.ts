@@ -47,16 +47,22 @@ serve(async (req) => {
       throw new Error('STRIPE_WEBHOOK_SECRET is not set');
     }
     
-    // Get the raw request body as text without modifying it
-    const rawBody = await req.text();
-    logStep('Received webhook payload', { signature_length: signature.length, body_length: rawBody.length });
+    // Get the raw request body using arrayBuffer to preserve exact bytes
+    const rawBody = await req.arrayBuffer();
+    const rawBodyText = new TextDecoder().decode(new Uint8Array(rawBody));
+    
+    logStep('Received webhook payload', { 
+      signature_length: signature.length, 
+      body_length: rawBodyText.length,
+      body_sample: rawBodyText.substring(0, 100) + '...' // Log sample for debugging
+    });
     
     // Construct the event
     let event;
     try {
-      // Always use constructEventAsync for webhook signature verification
+      // Use constructEventAsync with the preserved raw body
       event = await stripe.webhooks.constructEventAsync(
-        rawBody, 
+        rawBodyText, 
         signature, 
         webhookSecret,
         undefined,
@@ -64,7 +70,10 @@ serve(async (req) => {
       );
       logStep('Event constructed successfully', { type: event.type });
     } catch (err) {
-      logStep('Error verifying webhook signature', { error: err.message });
+      logStep('Error verifying webhook signature', { 
+        error: err.message,
+        rawBodySample: rawBodyText.substring(0, 50) + '...'
+      });
       return new Response(JSON.stringify({ error: `Webhook signature verification failed: ${err.message}` }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
