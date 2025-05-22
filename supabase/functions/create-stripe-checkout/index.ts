@@ -93,7 +93,8 @@ serve(async (req) => {
     // Create checkout session
     const baseUrl = return_url || req.headers.get("origin") || "https://smartbookly.com";
     
-    // Validate that the price exists before trying to create a checkout session
+    let finalPriceId = price_id;
+    // First, verify if the price exists
     try {
       logStep("Verifying price exists", { priceId: price_id });
       await stripe.prices.retrieve(price_id);
@@ -104,28 +105,44 @@ serve(async (req) => {
         priceId: price_id 
       });
       
-      // Attempt to list available prices for the product
+      // List available prices for the product
       try {
+        logStep("Searching for available prices", { productId: product_id });
         const availablePrices = await stripe.prices.list({ 
-          product: product_id,
           active: true,
-          limit: 5
-        });
-        
-        logStep("Available prices for product", { 
-          productId: product_id, 
-          prices: availablePrices.data.map(p => ({ id: p.id, amount: p.unit_amount, currency: p.currency }))
+          limit: 10
         });
         
         if (availablePrices.data.length > 0) {
-          // Use the first available price instead
-          const fallbackPrice = availablePrices.data[0].id;
-          logStep("Using fallback price", { fallbackPriceId: fallbackPrice });
+          logStep("Available active prices", { 
+            count: availablePrices.data.length,
+            prices: availablePrices.data.map(p => ({ 
+              id: p.id, 
+              productId: p.product,
+              amount: p.unit_amount, 
+              currency: p.currency,
+              recurring: p.recurring
+            }))
+          });
           
-          // Update the price_id to use the available price
-          price_id = fallbackPrice;
+          // Try to find a price for the specified product
+          const matchingPrice = availablePrices.data.find(p => 
+            typeof p.product === 'string' && p.product === product_id
+          );
+          
+          if (matchingPrice) {
+            finalPriceId = matchingPrice.id;
+            logStep("Found matching price for product", { 
+              productId: product_id,
+              priceId: finalPriceId 
+            });
+          } else {
+            // Use any valid price if we can't find one for this product
+            finalPriceId = availablePrices.data[0].id;
+            logStep("Using first available price", { fallbackPriceId: finalPriceId });
+          }
         } else {
-          throw new Error(`No valid prices found for product ${product_id}`);
+          throw new Error("No active prices found in your Stripe account");
         }
       } catch (listError) {
         logStep("Failed to get alternative prices", { error: listError instanceof Error ? listError.message : String(listError) });
@@ -136,7 +153,7 @@ serve(async (req) => {
     // Create session with the specified product/price
     logStep("Creating checkout session", { 
       customerId,
-      priceId: price_id,
+      priceId: finalPriceId,
       baseUrl
     });
     
@@ -144,7 +161,7 @@ serve(async (req) => {
       customer: customerId,
       line_items: [
         {
-          price: price_id,
+          price: finalPriceId,
           quantity: 1,
         },
       ],

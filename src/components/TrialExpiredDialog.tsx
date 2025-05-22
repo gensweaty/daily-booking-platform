@@ -91,11 +91,17 @@ export const TrialExpiredDialog = () => {
       }
     } catch (error) {
       console.error('Error creating checkout session:', error);
+      // Show detailed error to help debugging
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create checkout session",
+        title: "Subscription Error",
+        description: `Could not start subscription process: ${errorMessage.substring(0, 100)}`,
         variant: "destructive",
       });
+      
+      // For testing purposes, log the entire error object
+      console.log('Complete error object:', error);
     } finally {
       setLoading(false);
     }

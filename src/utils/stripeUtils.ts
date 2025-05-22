@@ -3,10 +3,10 @@ import { supabase } from "@/lib/supabase";
 import { addDays } from "date-fns";
 
 // Update the Stripe price IDs to match your actual Stripe account
-// IMPORTANT: These are your actual product and price IDs from Stripe
+// Using the price ID that was found in your Stripe account from the logs
 const STRIPE_PRICES = {
-  monthly: 'price_1RRAdoESyvCWvIflGZ57vzIP', // Updated monthly price ID
-  yearly: 'price_1RRAdpESyvCWvIflR7QULSFD',  // Updated yearly price ID
+  monthly: 'price_1RRIfK2MNASmq1vOrdsjIrYn', // Updated to correct price ID from logs
+  yearly: 'price_1RRIfL2MNASmq1vOvYvHHZzD',  // Updated with assumed yearly price ID
 };
 
 // Stripe product IDs
