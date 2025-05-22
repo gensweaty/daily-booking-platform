@@ -178,34 +178,142 @@ async function handleCheckoutSessionCompleted(
     return;
   }
   
-  // Call our verify-stripe-subscription function to handle the subscription activation
-  try {
-    logStep('Forwarding to verify-stripe-subscription function', { session_id: session.id });
+  // Extract user identification
+  const userId = session.metadata?.user_id;
+  const customerEmail = session.customer_details?.email;
+  
+  if (!customerEmail) {
+    logStep('No email found in session');
+    throw new Error('No email associated with customer in session');
+  }
+  
+  logStep('Found customer email', { email: customerEmail, userId: userId || 'unknown' });
+  
+  // Extract subscription information
+  const customerId = session.customer;
+  const subscriptionId = session.subscription;
+  let planType = 'monthly'; // Default
+  let periodEnd = null;
+  
+  // If we have subscription details, get more info
+  if (subscriptionId) {
+    const subscriptionData = typeof subscriptionId === 'string' 
+      ? await stripe.subscriptions.retrieve(subscriptionId)
+      : subscriptionId;
     
-    // Important: Get the raw JSON of the session to preserve formatting
-    const sessionJson = JSON.stringify(session);
+    // Calculate end date
+    periodEnd = new Date(subscriptionData.current_period_end * 1000).toISOString();
     
-    // Forward the webhook payload directly to verify-stripe-subscription
-    const verifyUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/verify-stripe-subscription`;
-    const response = await fetch(verifyUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-      },
-      body: JSON.stringify({ sessionId: session.id })
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Verification failed: ${response.status} ${errorText}`);
+    // Try to determine plan type
+    if (subscriptionData.items?.data?.length > 0) {
+      const item = subscriptionData.items.data[0];
+      if (item.price?.recurring?.interval === 'year') {
+        planType = 'yearly';
+      }
     }
     
-    const result = await response.json();
-    logStep('Verification completed', { result });
-  } catch (error) {
-    logStep('Error forwarding to verification function', { error: error.message });
-    throw error;
+    logStep('Extracted subscription details', { 
+      subscriptionId: subscriptionData.id, 
+      planType,
+      periodEnd
+    });
+  }
+  
+  // Determine user ID from email if not provided in metadata
+  if (!userId) {
+    logStep('No userId in metadata, searching by email');
+    try {
+      // First check auth users by email
+      const { data: users, error: authError } = await supabase.auth.admin.listUsers();
+      
+      if (authError) {
+        logStep('Error looking up users:', authError);
+      } else {
+        const matchingUser = users.users.find(u => u.email === customerEmail);
+        if (matchingUser) {
+          userId = matchingUser.id;
+          logStep(`Found user by email: ${userId}`);
+        }
+      }
+    } catch (authError) {
+      logStep('Error querying auth users:', authError);
+    }
+    
+    if (!userId) {
+      logStep('Could not find user ID for email:', customerEmail);
+    }
+  }
+  
+  // Create or update subscription record
+  const subscriptionData = {
+    user_id: userId,
+    email: customerEmail,
+    stripe_customer_id: customerId,
+    stripe_subscription_id: subscriptionId,
+    status: 'active',
+    plan_type: planType,
+    current_period_end: periodEnd || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  
+  logStep('Updating subscription with data:', subscriptionData);
+
+  if (userId) {
+    try {
+      // Try updating by user_id first
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .upsert(subscriptionData, { 
+          onConflict: 'user_id',
+          ignoreDuplicates: false 
+        })
+        .select()
+        .single();
+        
+      if (error) {
+        logStep('Error upserting subscription by user_id:', error);
+      } else {
+        logStep('Successfully updated subscription by user_id:', data);
+        return;
+      }
+    } catch (dbError) {
+      logStep('Database operation error:', dbError);
+    }
+  }
+  
+  // If user_id update failed or wasn't available, try by email
+  try {
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .upsert(subscriptionData, { 
+        onConflict: 'email',
+        ignoreDuplicates: false 
+      })
+      .select()
+      .single();
+      
+    if (error) {
+      logStep('Error upserting subscription by email:', error);
+      
+      // Last resort: Try simple insert
+      const { data: insertData, error: insertError } = await supabase
+        .from('subscriptions')
+        .insert(subscriptionData)
+        .select()
+        .single();
+        
+      if (insertError) {
+        logStep('Error inserting subscription:', insertError);
+        throw insertError;
+      } else {
+        logStep('Successfully inserted new subscription:', insertData);
+      }
+    } else {
+      logStep('Successfully updated subscription by email:', data);
+    }
+  } catch (dbError) {
+    logStep('Database operation error during email upsert:', dbError);
+    throw dbError;
   }
 }
 

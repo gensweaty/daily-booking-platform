@@ -21,90 +21,30 @@ serve(async (req) => {
 
   try {
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
-    const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET') || 'whsec_Otf1IP0z86ivQ4y1nXOsENWQCZEQOtUz';
     
     if (!stripeKey) {
       console.error('STRIPE_SECRET_KEY is not set in the environment');
       throw new Error('Stripe key is not configured');
     }
     
-    logStep('Function triggered with available keys', { 
-      stripeKeyAvailable: !!stripeKey, 
-      webhookSecretAvailable: !!stripeWebhookSecret 
-    });
-    
-    // Determine if this is a webhook call or direct verification call
-    const signature = req.headers.get('stripe-signature');
-    const isWebhook = !!signature;
-    
-    logStep('Request type', { isWebhook, method: req.method });
-
     // Initialize Stripe
     const stripe = new Stripe(stripeKey, {
       apiVersion: '2023-10-16',
     });
 
     let sessionId;
-    let event;
-    let sessionData;
     
-    // Handle different request types
-    if (isWebhook) {
-      // This is a webhook call from Stripe
-      logStep('Processing Stripe webhook event');
-      
-      const rawBody = await req.text();
-      logStep('Received webhook body length', { length: rawBody.length });
-      
-      try {
-        // Always use constructEventAsync for webhook signature verification
-        event = await stripe.webhooks.constructEventAsync(
-          rawBody, 
-          signature, 
-          stripeWebhookSecret
-        );
-        
-        logStep('Webhook event constructed successfully', { 
-          type: event.type,
-          id: event.id
-        });
-        
-        // Extract sessionId based on event type
-        if (event.type === 'checkout.session.completed') {
-          sessionData = event.data.object;
-          sessionId = sessionData.id;
-          logStep('Extracted session from webhook', { 
-            sessionId, 
-            payment_status: sessionData.payment_status,
-            metadata: sessionData.metadata
-          });
-        } else {
-          logStep('Unsupported event type', { type: event.type });
-          return new Response(
-            JSON.stringify({ success: false, message: `Unsupported event type: ${event.type}` }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      } catch (err) {
-        logStep('Error verifying webhook signature', { error: err.message });
-        return new Response(
-          JSON.stringify({ success: false, error: `Webhook signature verification failed: ${err.message}` }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    } else {
-      // This is a direct API call, parse request body for session ID
-      try {
-        const requestData = await req.json();
-        sessionId = requestData.sessionId;
-        logStep('Received direct verification request', { sessionId });
-      } catch (err) {
-        logStep('Error parsing request JSON', { error: err.message });
-        return new Response(
-          JSON.stringify({ error: 'Invalid JSON in request body', success: false }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    // Parse request body for session ID
+    try {
+      const requestData = await req.json();
+      sessionId = requestData.sessionId;
+      logStep('Received direct verification request', { sessionId });
+    } catch (err) {
+      logStep('Error parsing request JSON', { error: err.message });
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body', success: false }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
     // Check if we have a valid sessionId
@@ -118,12 +58,10 @@ serve(async (req) => {
     
     logStep(`Processing session ID: ${sessionId}`);
     
-    // Retrieve the session if we don't already have it from the webhook
-    if (!sessionData) {
-      sessionData = await stripe.checkout.sessions.retrieve(sessionId, {
-        expand: ['customer', 'subscription', 'line_items.data.price.product']
-      });
-    }
+    // Retrieve the session
+    const sessionData = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['customer', 'subscription', 'line_items.data.price.product']
+    });
     
     logStep(`Session retrieved`, { 
       status: sessionData.status, 

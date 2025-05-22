@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -157,7 +157,7 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
             .eq('status', 'active')
             .maybeSingle();
             
-          if (!subscriptionCheck) {
+          if (!subscriptionCheck && user.email) {
             console.log("TrialExpiredDialog: No subscription found, trying by email");
             
             // Try by email as last resort
@@ -180,7 +180,7 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
               if (updateError) {
                 console.error("Error updating subscription user_id:", updateError);
               }
-            } else {
+            } else if (user.email) {
               console.log("TrialExpiredDialog: No active subscription found, forcing update");
               
               // Force an update as last resort
