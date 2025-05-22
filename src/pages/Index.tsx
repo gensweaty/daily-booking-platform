@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
@@ -72,7 +73,12 @@ const Index = () => {
       title: "Success",
       description: "Your subscription has been activated!",
     });
-  }, [checkSubscriptionStatus, setSearchParams, toast]);
+
+    // Trigger a refresh of the UI state
+    setTimeout(() => {
+      setForceRefresh(prev => !prev);
+    }, 1000);
+  }, [checkSubscriptionStatus, setSearchParams, toast, setForceRefresh]);
 
   // Handle stripe session ID directly
   useEffect(() => {
@@ -125,29 +131,43 @@ const Index = () => {
               description: "We're confirming your payment. This may take a moment.",
             });
             
-            // Set up additional verification attempts
-            let attempts = 0;
+            // Set up additional verification attempts using exponential backoff
             const maxAttempts = 5;
-            const interval = setInterval(async () => {
-              attempts++;
-              console.log(`Additional verification attempt ${attempts} of ${maxAttempts}`);
-              
-              const isActive = await refreshSubscriptionStatus();
-              if (isActive) {
-                clearInterval(interval);
-                handleVerificationSuccess();
-                return;
-              }
-              
-              if (attempts >= maxAttempts) {
-                clearInterval(interval);
+            let attempt = 0;
+            
+            const checkWithBackoff = async () => {
+              if (attempt >= maxAttempts) {
                 toast({
                   title: "Verification Issue",
                   description: "Please contact support if your subscription doesn't activate soon.",
                   variant: "destructive",
                 });
+                return;
               }
-            }, 3000);
+              
+              attempt++;
+              console.log(`Additional verification attempt ${attempt} of ${maxAttempts}`);
+              
+              try {
+                const isActive = await refreshSubscriptionStatus();
+                if (isActive) {
+                  handleVerificationSuccess();
+                  return;
+                }
+                
+                // Exponential backoff
+                const delay = Math.min(2000 * Math.pow(1.5, attempt), 15000); // Cap at 15 seconds
+                setTimeout(checkWithBackoff, delay);
+              } catch (error) {
+                console.error("Error in verification attempt:", error);
+                // Continue with backoff even after errors
+                const delay = Math.min(2000 * Math.pow(1.5, attempt), 15000);
+                setTimeout(checkWithBackoff, delay);
+              }
+            };
+            
+            // Start the backoff verification process
+            checkWithBackoff();
           }
         } catch (error) {
           console.error('Error verifying Stripe session:', error);
@@ -161,6 +181,24 @@ const Index = () => {
             const isActive = await refreshSubscriptionStatus();
             if (isActive) {
               handleVerificationSuccess();
+            } else {
+              // If not active yet, start exponential backoff checks
+              let attempts = 0;
+              const maxAttempts = 5;
+              
+              const checkAgain = async () => {
+                if (attempts >= maxAttempts) return;
+                
+                attempts++;
+                const isNowActive = await refreshSubscriptionStatus();
+                if (isNowActive) {
+                  handleVerificationSuccess();
+                } else if (attempts < maxAttempts) {
+                  setTimeout(checkAgain, 3000 * Math.pow(1.5, attempts));
+                }
+              };
+              
+              checkAgain();
             }
           }, 3000);
         } finally {

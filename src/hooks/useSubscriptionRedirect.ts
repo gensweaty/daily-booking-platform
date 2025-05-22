@@ -4,16 +4,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { verifyStripeSubscription, refreshSubscriptionStatus } from '@/utils/stripeUtils';
 import { useSearchParams } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 export const useSubscriptionRedirect = () => {
   const [showTrialExpired, setShowTrialExpired] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [forceRefresh, setForceRefresh] = useState(false);
   const { user } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { toast } = useToast();
 
   // Check if we have a Stripe session ID in the URL
-  const hasStripeSession = !!searchParams.get('session_id');
+  const sessionId = searchParams.get('session_id');
+  const hasStripeSession = !!sessionId;
   
   const checkSubscriptionWithBackoff = useCallback(async (retries = 5, delay = 1000) => {
     if (!user) {
@@ -75,21 +78,30 @@ export const useSubscriptionRedirect = () => {
         }
         
         // No active subscription, check for stripe session in URL
-        if (hasStripeSession) {
+        if (hasStripeSession && sessionId) {
           console.log('No active subscription, but Stripe session present, will verify directly');
-          const sessionId = searchParams.get('session_id');
-          if (sessionId) {
-            try {
-              const result = await verifyStripeSubscription(sessionId);
-              if (result?.success) {
-                console.log('Session verified successfully through direct check');
-                // Force refresh the subscription data
-                await refreshSubscriptionStatus();
-                return true;
-              }
-            } catch (verifyError) {
-              console.error('Error during direct session verification:', verifyError);
+          try {
+            const result = await verifyStripeSubscription(sessionId);
+            if (result?.success) {
+              console.log('Session verified successfully through direct check');
+              toast({
+                title: "Success",
+                description: "Your subscription has been activated!",
+              });
+              // Force refresh the subscription data
+              await refreshSubscriptionStatus();
+              
+              // Remove session_id from URL
+              setSearchParams(prev => {
+                const newParams = new URLSearchParams(prev.toString());
+                newParams.delete('session_id');
+                return newParams;
+              }, { replace: true });
+              
+              return true;
             }
+          } catch (verifyError) {
+            console.error('Error during direct session verification:', verifyError);
           }
         }
         
@@ -129,7 +141,7 @@ export const useSubscriptionRedirect = () => {
     // All retries failed
     console.error('All subscription check attempts failed');
     return false;
-  }, [user, hasStripeSession, searchParams]);
+  }, [user, hasStripeSession, sessionId, setSearchParams, toast]);
 
   const checkSubscriptionStatus = useCallback(async () => {
     if (!user) {
@@ -155,7 +167,7 @@ export const useSubscriptionRedirect = () => {
 
   useEffect(() => {
     const checkWithDebug = async () => {
-      console.log('Running subscription check, user:', user?.id);
+      console.log('Running subscription check, user:', user?.id, 'session ID:', sessionId);
       await checkSubscriptionStatus();
       console.log('Completed subscription check, showing dialog:', showTrialExpired);
     };
@@ -167,7 +179,7 @@ export const useSubscriptionRedirect = () => {
     const intervalId = setInterval(checkWithDebug, interval);
     
     return () => clearInterval(intervalId);
-  }, [user, forceRefresh, checkSubscriptionStatus, hasStripeSession, showTrialExpired]);
+  }, [user, forceRefresh, checkSubscriptionStatus, hasStripeSession, showTrialExpired, sessionId]);
 
   return {
     showTrialExpired,

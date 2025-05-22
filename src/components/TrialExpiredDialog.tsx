@@ -110,29 +110,44 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
   };
 
   const startBackgroundVerification = () => {
-    let attempts = 0;
+    // Use exponential backoff for retries
     const maxAttempts = 10;
-    const interval = setInterval(async () => {
-      attempts++;
-      console.log(`Additional verification attempt ${attempts} of ${maxAttempts}`);
-      
-      const isActive = await refreshSubscriptionStatus();
-      if (isActive) {
-        clearInterval(interval);
-        handleVerificationSuccess();
-        return;
-      }
-      
-      if (attempts >= maxAttempts) {
-        clearInterval(interval);
+    let attempt = 0;
+    
+    const checkWithBackoff = async () => {
+      if (attempt >= maxAttempts) {
         setIsVerifying(false);
         toast({
           title: "Verification Issue",
           description: "Please contact support if your subscription doesn't activate soon.",
           variant: "destructive",
         });
+        return;
       }
-    }, 3000);
+      
+      attempt++;
+      console.log(`Background verification attempt ${attempt} of ${maxAttempts}`);
+      
+      try {
+        const isActive = await refreshSubscriptionStatus();
+        if (isActive) {
+          handleVerificationSuccess();
+          return;
+        }
+        
+        // Exponential backoff
+        const delay = Math.min(2000 * Math.pow(1.5, attempt), 15000); // Cap at 15 seconds
+        console.log(`Will retry in ${delay}ms`);
+        setTimeout(checkWithBackoff, delay);
+      } catch (error) {
+        console.error("Error in background verification:", error);
+        // Continue with backoff even after errors
+        const delay = Math.min(2000 * Math.pow(1.5, attempt), 15000);
+        setTimeout(checkWithBackoff, delay);
+      }
+    };
+    
+    checkWithBackoff();
   };
 
   const handleVerificationSuccess = async () => {
@@ -179,25 +194,6 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
                 
               if (updateError) {
                 console.error("Error updating subscription user_id:", updateError);
-              }
-            } else if (user.email) {
-              console.log("TrialExpiredDialog: No active subscription found, forcing update");
-              
-              // Force an update as last resort
-              const { error: updateError } = await supabase
-                .from('subscriptions')
-                .upsert({
-                  user_id: user.id,
-                  email: user.email,
-                  status: 'active',
-                  plan_type: selectedPlan,
-                  updated_at: new Date().toISOString(),
-                });
-                
-              if (updateError) {
-                console.error("Error updating subscription record:", updateError);
-              } else {
-                console.log("Last resort subscription record update succeeded");
               }
             }
           }

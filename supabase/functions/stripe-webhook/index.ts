@@ -47,7 +47,7 @@ serve(async (req) => {
       throw new Error('STRIPE_WEBHOOK_SECRET is not set');
     }
     
-    // Get the raw request body as text
+    // Get the raw request body as text without modifying it
     const rawBody = await req.text();
     logStep('Received webhook payload', { signature_length: signature.length, body_length: rawBody.length });
     
@@ -55,7 +55,13 @@ serve(async (req) => {
     let event;
     try {
       // Always use constructEventAsync for webhook signature verification
-      event = await stripe.webhooks.constructEventAsync(rawBody, signature, webhookSecret);
+      event = await stripe.webhooks.constructEventAsync(
+        rawBody, 
+        signature, 
+        webhookSecret,
+        undefined,
+        Stripe.createSubtleCryptoProvider()
+      );
       logStep('Event constructed successfully', { type: event.type });
     } catch (err) {
       logStep('Error verifying webhook signature', { error: err.message });
@@ -106,6 +112,7 @@ serve(async (req) => {
       switch (event.type) {
         case 'checkout.session.completed': {
           const session = event.data.object;
+          logStep('Processing checkout session', { sessionId: session.id });
           await handleCheckoutSessionCompleted(session, supabaseAdmin, stripe);
           break;
         }
@@ -178,7 +185,7 @@ async function handleCheckoutSessionCompleted(
     return;
   }
   
-  // Extract user identification
+  // Extract user identification from metadata and customer details
   const userId = session.metadata?.user_id;
   const customerEmail = session.customer_details?.email;
   
@@ -187,12 +194,12 @@ async function handleCheckoutSessionCompleted(
     throw new Error('No email associated with customer in session');
   }
   
-  logStep('Found customer email', { email: customerEmail, userId: userId || 'unknown' });
+  logStep('Found customer details', { email: customerEmail, userId: userId || 'unknown' });
   
-  // Extract subscription information
+  // Extract subscription information from the session
   const customerId = session.customer;
   const subscriptionId = session.subscription;
-  let planType = 'monthly'; // Default
+  let planType = 'monthly'; // Default to monthly
   let periodEnd = null;
   
   // If we have subscription details, get more info
@@ -217,50 +224,55 @@ async function handleCheckoutSessionCompleted(
       planType,
       periodEnd
     });
+  } else {
+    // If no subscription found but payment is successful, set default end date
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    periodEnd = thirtyDaysFromNow.toISOString();
+    logStep('No subscription found, using default end date', { periodEnd });
   }
   
-  // Determine user ID from email if not provided in metadata
-  if (!userId) {
-    logStep('No userId in metadata, searching by email');
+  let foundUserId = userId;
+  
+  // If no userId from metadata, try to find the user by their email
+  if (!foundUserId && customerEmail) {
+    logStep('No userId in metadata, searching by email', { email: customerEmail });
+    
     try {
       // First check auth users by email
       const { data: users, error: authError } = await supabase.auth.admin.listUsers();
       
       if (authError) {
-        logStep('Error looking up users:', authError);
+        logStep('Error looking up users:', { error: authError.message });
       } else {
-        const matchingUser = users.users.find(u => u.email === customerEmail);
+        const matchingUser = users.users.find((u: any) => u.email === customerEmail);
         if (matchingUser) {
-          userId = matchingUser.id;
-          logStep(`Found user by email: ${userId}`);
+          foundUserId = matchingUser.id;
+          logStep('Found user by email:', { userId: foundUserId });
         }
       }
-    } catch (authError) {
-      logStep('Error querying auth users:', authError);
-    }
-    
-    if (!userId) {
-      logStep('Could not find user ID for email:', customerEmail);
+    } catch (authError: any) {
+      logStep('Error querying auth users:', { error: authError.message });
     }
   }
   
-  // Create or update subscription record
+  // Create or update subscription record in database
   const subscriptionData = {
-    user_id: userId,
+    user_id: foundUserId,
     email: customerEmail,
     stripe_customer_id: customerId,
     stripe_subscription_id: subscriptionId,
     status: 'active',
     plan_type: planType,
-    current_period_end: periodEnd || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    current_period_end: periodEnd,
     updated_at: new Date().toISOString()
   };
   
   logStep('Updating subscription with data:', subscriptionData);
 
-  if (userId) {
+  // First try updating by user_id if available
+  if (foundUserId) {
     try {
-      // Try updating by user_id first
       const { data, error } = await supabase
         .from('subscriptions')
         .upsert(subscriptionData, { 
@@ -271,13 +283,13 @@ async function handleCheckoutSessionCompleted(
         .single();
         
       if (error) {
-        logStep('Error upserting subscription by user_id:', error);
+        logStep('Error upserting subscription by user_id:', { error: error.message });
       } else {
         logStep('Successfully updated subscription by user_id:', data);
         return;
       }
-    } catch (dbError) {
-      logStep('Database operation error:', dbError);
+    } catch (dbError: any) {
+      logStep('Database operation error:', { error: dbError.message });
     }
   }
   
@@ -293,7 +305,7 @@ async function handleCheckoutSessionCompleted(
       .single();
       
     if (error) {
-      logStep('Error upserting subscription by email:', error);
+      logStep('Error upserting subscription by email:', { error: error.message });
       
       // Last resort: Try simple insert
       const { data: insertData, error: insertError } = await supabase
@@ -303,7 +315,7 @@ async function handleCheckoutSessionCompleted(
         .single();
         
       if (insertError) {
-        logStep('Error inserting subscription:', insertError);
+        logStep('Error inserting subscription:', { error: insertError.message });
         throw insertError;
       } else {
         logStep('Successfully inserted new subscription:', insertData);
@@ -311,8 +323,8 @@ async function handleCheckoutSessionCompleted(
     } else {
       logStep('Successfully updated subscription by email:', data);
     }
-  } catch (dbError) {
-    logStep('Database operation error during email upsert:', dbError);
+  } catch (dbError: any) {
+    logStep('Database operation error during email upsert:', { error: dbError.message });
     throw dbError;
   }
 }
@@ -338,14 +350,20 @@ async function handleSubscriptionChange(
   }
   
   // Find user by email
-  const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
-  if (userError) {
-    throw new Error(`Error listing users: ${userError.message}`);
-  }
+  let userId = null;
   
-  const user = userData.users.find(u => u.email === email);
-  if (!user) {
-    throw new Error(`No user found with email: ${email}`);
+  try {
+    const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
+    if (userError) {
+      throw new Error(`Error listing users: ${userError.message}`);
+    }
+    
+    const user = userData.users.find((u: any) => u.email === email);
+    if (user) {
+      userId = user.id;
+    }
+  } catch (error: any) {
+    logStep('Error finding user by email:', { error: error.message });
   }
   
   // Calculate next period end
@@ -357,29 +375,61 @@ async function handleSubscriptionChange(
     status = subscription.status;
   }
   
-  // Update subscription record
-  const { error: upsertError } = await supabase
-    .from('subscriptions')
-    .upsert({
-      user_id: user.id,
-      email: email,
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscription.id,
-      status: status,
-      plan_type: 'monthly', // Assuming monthly plan for simplicity
-      current_period_end: periodEnd.toISOString(),
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id' });
-    
-  if (upsertError) {
-    throw new Error(`Error updating subscription: ${upsertError.message}`);
+  // Determine plan type
+  let planType = 'monthly';
+  if (subscription.items?.data?.length > 0) {
+    const item = subscription.items.data[0];
+    if (item.plan?.interval === 'year') {
+      planType = 'yearly';
+    }
   }
   
-  logStep('Subscription updated successfully', { 
-    user_id: user.id, 
+  // Update subscription record
+  const subscriptionData = {
+    user_id: userId,
     email: email,
-    status: status
-  });
+    stripe_customer_id: customerId,
+    stripe_subscription_id: subscription.id,
+    status: status,
+    plan_type: planType,
+    current_period_end: periodEnd.toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  
+  try {
+    // Try by user_id first if available
+    if (userId) {
+      const { error: upsertError } = await supabase
+        .from('subscriptions')
+        .upsert(subscriptionData, { onConflict: 'user_id' });
+        
+      if (!upsertError) {
+        logStep('Subscription updated successfully by user_id', { 
+          user_id: userId, 
+          email: email,
+          status: status
+        });
+        return;
+      }
+    }
+    
+    // If no user_id or error, try by email
+    const { error: emailUpsertError } = await supabase
+      .from('subscriptions')
+      .upsert(subscriptionData, { onConflict: 'email' });
+      
+    if (emailUpsertError) {
+      throw emailUpsertError;
+    }
+    
+    logStep('Subscription updated successfully by email', { 
+      email: email,
+      status: status
+    });
+  } catch (error: any) {
+    logStep('Error updating subscription', { error: error.message });
+    throw new Error(`Error updating subscription: ${error.message}`);
+  }
 }
 
 // Handle subscription cancelled/deleted events
