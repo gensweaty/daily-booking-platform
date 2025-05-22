@@ -119,19 +119,19 @@ export const TrialExpiredDialog = () => {
     try {
       console.log('Verifying session:', sessionId);
       const response = await verifySession(sessionId);
-      const data = response.data || response;
       
-      console.log('Session verification response:', data);
+      // Fix: Directly access properties from response, not from response.data
+      console.log('Session verification response:', response);
       
-      if (data && (data.success || data.status === 'active')) {
+      if (response && (response.success || response.status === 'active')) {
         handleVerificationSuccess();
         // Force an immediate subscription check
         await checkUserSubscription();
       } else {
-        console.error('Session verification failed:', data);
+        console.error('Session verification failed:', response);
         toast({
           title: "Verification Issue",
-          description: (data && data.error) || "There was a problem verifying your payment",
+          description: (response && response.error) || "There was a problem verifying your payment",
           variant: "destructive",
         });
       }

@@ -40,7 +40,7 @@ export const useSubscriptionRedirect = () => {
           toast({
             title: 'Warning',
             description: 'Your payment was processed but subscription status may take a moment to update.',
-            variant: 'warning'
+            variant: 'destructive'  // Changed from 'warning' to 'destructive'
           })
         }
       }
