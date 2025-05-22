@@ -76,9 +76,12 @@ export const checkSubscriptionStatus = async () => {
 
 export const verifySession = async (sessionId: string) => {
   try {
+    // Fix: Use proper approach to pass session_id to edge function
+    // Instead of using 'query' parameter which doesn't exist in FunctionInvokeOptions,
+    // append the session_id as a URL parameter using 'headers' property
     const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
       method: 'GET',
-      query: { session_id: sessionId }
+      body: { session_id: sessionId } // Pass as part of the body instead of query
     });
     
     if (error) {

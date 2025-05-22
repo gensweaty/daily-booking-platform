@@ -32,8 +32,9 @@ serve(async (req) => {
   try {
     // For GET requests (client-side verification)
     if (req.method === "GET") {
-      const url = new URL(req.url);
-      const sessionId = url.searchParams.get("session_id");
+      const body = await req.json();
+      // Updated to get session_id from request body instead of URL
+      const sessionId = body.session_id;
       
       if (!sessionId) {
         logStep("No session ID provided");
