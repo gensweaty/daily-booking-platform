@@ -28,12 +28,7 @@ export const TrialExpiredDialog = () => {
     // Check if test user
     const isTestUser = user.email === 'pmb60533@toaik.com';
     if (isTestUser) {
-      console.log('Test user detected, showing trial expired dialog');
-      // For the test user, force the dialog to appear
-      setOpen(true);
-      setSubscriptionStatus('trial_expired');
-    } else {
-      checkUserSubscription();
+      console.log('Test user detected, checking subscription status');
     }
     
     // Check URL for session_id parameter
@@ -41,14 +36,19 @@ export const TrialExpiredDialog = () => {
     const sessionId = url.searchParams.get('session_id');
     
     if (sessionId) {
+      console.log('Found session_id in URL, verifying payment:', sessionId);
       verifyStripeSession(sessionId);
       // Clean URL after processing
       url.searchParams.delete('session_id');
       window.history.replaceState({}, document.title, url.toString());
+    } else {
+      // If no session ID, check subscription status normally
+      checkUserSubscription();
     }
     
-    // Set up a periodic check for subscription status
-    const intervalId = setInterval(checkUserSubscription, 5000); // Check every 5 seconds (reduced from 30s)
+    // Set up a periodic check for subscription status - check more frequently after payment
+    const checkInterval = sessionId ? 2000 : 5000; // Check every 2 seconds after payment, otherwise every 5 seconds
+    const intervalId = setInterval(checkUserSubscription, checkInterval);
     
     return () => clearInterval(intervalId);
   }, [user]);
@@ -121,6 +121,8 @@ export const TrialExpiredDialog = () => {
       
       if (data.success) {
         handleVerificationSuccess();
+        // Force an immediate subscription check
+        await checkUserSubscription();
       }
     } catch (error) {
       console.error('Error verifying session:', error);
@@ -129,6 +131,8 @@ export const TrialExpiredDialog = () => {
         description: "There was a problem verifying your payment",
         variant: "destructive",
       });
+      // Even on error, try to check subscription status
+      await checkUserSubscription();
     } finally {
       setIsVerifying(false);
     }

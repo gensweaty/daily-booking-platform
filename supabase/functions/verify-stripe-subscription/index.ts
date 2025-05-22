@@ -4,7 +4,7 @@ import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY") || "", {
-  apiVersion: "2025-04-30", // Updated to match your Stripe account version
+  apiVersion: "2023-10-16", // Updated to match supported Stripe API version
   httpClient: Stripe.createFetchHttpClient(),
 });
 
@@ -178,32 +178,6 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ success: false, error: "User not found" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-        );
-      }
-      
-      // Check for test user
-      if (userData.user && userData.user.email === testEmail) {
-        logStep("Test user detected, forcing trial expired status");
-        
-        // Update subscription to expired for test user
-        await supabase
-          .from('subscriptions')
-          .update({ 
-            status: 'trial_expired',
-            trial_end_date: new Date(Date.now() - 86400000).toISOString() // Yesterday
-          })
-          .eq('user_id', user_id);
-        
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            status: 'trial_expired',
-            daysRemaining: 0,
-            trialEnd: new Date(Date.now() - 86400000).toISOString(),
-            isTrialExpired: true,
-            isSubscriptionExpired: false
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
         );
       }
       
