@@ -19,6 +19,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { checkSubscriptionStatus } from "@/utils/stripeUtils";
+import { differenceInDays } from "date-fns";
 
 interface DashboardHeaderProps {
   username: string;
@@ -43,6 +45,11 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     const fetchSubscription = async () => {
       if (user) {
         try {
+          // First check the subscription status from Stripe
+          const stripeStatus = await checkSubscriptionStatus();
+          console.log('Stripe subscription status:', stripeStatus);
+          
+          // Then get the detailed subscription data from the database
           const { data, error } = await supabase
             .from('subscriptions')
             .select('plan_type, status, current_period_end, trial_end_date')
@@ -111,7 +118,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     
     const end = new Date(endDate);
     const now = new Date();
-    const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const daysLeft = Math.max(0, differenceInDays(end, now));
     
     if (isTrialPeriod) {
       return `${daysLeft} days left in trial`;
@@ -166,10 +173,10 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Subscription</p>
-                  {subscription && (
+                  {subscription ? (
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">
-                        {formatPlanType(subscription.plan_type)}
+                        {subscription.status === 'trial' ? 'Trial Plan' : formatPlanType(subscription.plan_type)}
                       </p>
                       {subscription.status === 'trial' ? (
                         <p className="text-xs text-muted-foreground">
@@ -181,6 +188,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                         </p>
                       )}
                     </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Loading subscription details...</p>
                   )}
                 </div>
                 <div className="pt-4">

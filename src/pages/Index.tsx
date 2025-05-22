@@ -11,6 +11,7 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
+import { checkSubscriptionStatus } from "@/utils/stripeUtils"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -121,6 +122,7 @@ const Index = () => {
     const getProfile = async () => {
       if (user) {
         try {
+          // Fetch user profile
           const { data, error } = await supabase
             .from('profiles')
             .select('username')
@@ -135,6 +137,10 @@ const Index = () => {
           if (data) {
             setUsername(data.username)
           }
+
+          // Check subscription status for new users
+          await checkSubscriptionStatus();
+          
         } catch (error: any) {
           console.error('Profile fetch error:', error)
         }

@@ -1,5 +1,6 @@
 
 import { supabase } from "@/lib/supabase";
+import { addDays } from "date-fns";
 
 // Stripe product/price IDs
 const STRIPE_PRICES = {
@@ -57,6 +58,26 @@ export const checkSubscriptionStatus = async () => {
       return { status: 'not_authenticated' };
     }
     
+    // First, check if user has a subscription
+    const { data: existingSubscription } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userData.user.id)
+      .maybeSingle();
+
+    // If no subscription exists, create a trial subscription
+    if (!existingSubscription) {
+      await createTrialSubscription(userData.user.id);
+      
+      // Return trial status
+      return {
+        status: 'trial',
+        trialEnd: addDays(new Date(), 14).toISOString(),
+        isTrialExpired: false
+      };
+    }
+    
+    // If subscription exists, verify its status
     const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
       method: 'POST',
       body: { user_id: userData.user.id }
@@ -128,5 +149,48 @@ export const openStripeCustomerPortal = async () => {
   } catch (error) {
     console.error('Error in openStripeCustomerPortal:', error);
     return false;
+  }
+};
+
+// Helper function to create a trial subscription for new users
+export const createTrialSubscription = async (userId: string) => {
+  try {
+    const trialEndDate = addDays(new Date(), 14); // 14-day trial
+    const currentPeriodStart = new Date();
+    
+    // Fetch the monthly plan to use as the trial plan
+    const { data: plans, error: planError } = await supabase
+      .from('subscription_plans')
+      .select('*')
+      .eq('type', 'monthly')
+      .maybeSingle();
+    
+    if (planError || !plans) {
+      console.error('Error fetching subscription plan:', planError);
+      throw new Error('Failed to fetch subscription plan');
+    }
+    
+    // Create a trial subscription
+    const { error } = await supabase.from('subscriptions').insert({
+      user_id: userId,
+      plan_id: plans.id,
+      plan_type: 'monthly',
+      status: 'trial',
+      trial_end_date: trialEndDate.toISOString(),
+      current_period_start: currentPeriodStart.toISOString(),
+      current_period_end: trialEndDate.toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    
+    if (error) {
+      console.error('Error creating trial subscription:', error);
+      throw new Error(`Failed to create trial subscription: ${error.message}`);
+    }
+    
+    return { success: true, trialEndDate };
+  } catch (error) {
+    console.error('Error creating trial subscription:', error);
+    throw error;
   }
 };

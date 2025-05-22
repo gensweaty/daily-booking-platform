@@ -101,7 +101,7 @@ serve(async (req) => {
       // Check subscription status
       const { data, error } = await supabase
         .from('subscriptions')
-        .select('status, trial_end, current_period_end')
+        .select('status, trial_end_date, current_period_end')
         .eq('user_id', user_id)
         .single();
       
@@ -113,11 +113,11 @@ serve(async (req) => {
       }
       
       const now = new Date();
-      const trialEnd = data.trial_end ? new Date(data.trial_end) : null;
+      const trialEnd = data.trial_end_date ? new Date(data.trial_end_date) : null;
       const isTrialExpired = trialEnd && now > trialEnd;
       
       // If trial expired but status is still trialing, update status
-      if (isTrialExpired && data.status === 'trialing') {
+      if (isTrialExpired && data.status === 'trial') {
         await supabase
           .from('subscriptions')
           .update({ status: 'trial_expired' })
@@ -130,7 +130,7 @@ serve(async (req) => {
         JSON.stringify({ 
           success: true, 
           status: data.status,
-          trialEnd: data.trial_end,
+          trialEnd: data.trial_end_date,
           isTrialExpired
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }

@@ -37,13 +37,21 @@ export const TrialExpiredDialog = () => {
       url.searchParams.delete('session_id');
       window.history.replaceState({}, document.title, url.toString());
     }
+    
+    // Set up a periodic check for subscription status
+    const intervalId = setInterval(checkUserSubscription, 30000); // Check every 30 seconds
+    
+    return () => clearInterval(intervalId);
   }, [user]);
 
   const checkUserSubscription = async () => {
     if (!user) return;
     
     try {
+      console.log('Checking subscription status...');
       const data = await checkSubscriptionStatus();
+      console.log('Subscription status result:', data);
+      
       setSubscriptionStatus(data.status);
       setOpen(data.status === 'trial_expired');
     } catch (error) {
