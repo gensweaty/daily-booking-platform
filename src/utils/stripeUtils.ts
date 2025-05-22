@@ -152,45 +152,27 @@ export const verifySession = async (sessionId: string) => {
   try {
     console.log('Verifying session:', sessionId);
     
-    // We'll try both methods to maximize chances of success
+    // Fixed: Don't try to construct URL with supabase.functions.url
+    // Instead, use the invoke method with appropriate parameters
     try {
-      // First try the direct URL approach with the session_id as a parameter
-      const url = new URL(`${supabase.functions.url('verify-stripe-subscription')}`);
-      url.searchParams.append('session_id', sessionId);
+      console.log('Verifying session with invoke method');
       
-      console.log('Verifying with URL:', url.toString());
-      
-      const response = await fetch(url.toString(), {
+      const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.auth.session()?.access_token || ''}`
-        }
+        body: { session_id: sessionId }
       });
       
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Session verification via URL result:', result);
-        return result;
+      if (error) {
+        console.error('Error verifying session with invoke:', error);
+        throw error;
       }
-    } catch (urlError) {
-      console.error('Error verifying session via URL:', urlError);
-      // Fall through to try the standard invoke method
-    }
-    
-    // Try the standard invoke method
-    const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
-      method: 'GET',
-      body: { session_id: sessionId }
-    });
-    
-    if (error) {
-      console.error('Error verifying session with invoke:', error);
+      
+      console.log('Session verification result:', data);
+      return data;
+    } catch (error) {
+      console.error('Error in session verification:', error);
       throw error;
     }
-    
-    console.log('Session verification result:', data);
-    return data;
   } catch (error) {
     console.error('Error in verifySession:', error);
     throw error;
