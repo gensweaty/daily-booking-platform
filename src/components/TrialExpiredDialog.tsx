@@ -55,13 +55,19 @@ export const TrialExpiredDialog = () => {
       const data = await checkSubscriptionStatus();
       console.log('Subscription status result:', data);
       
-      if (data.status === 'active') {
+      const status = data.status;
+      setSubscriptionStatus(status);
+      
+      // Show dialog if trial expired and no active subscription
+      if (status === 'active') {
         console.log('Subscription is active, closing dialog');
         setOpen(false);
-        setSubscriptionStatus('active');
+      } else if (status === 'trial_expired') {
+        console.log('Trial expired, showing dialog');
+        setOpen(true);
       } else {
-        setSubscriptionStatus(data.status);
-        setOpen(data.status === 'trial_expired');
+        console.log('Status is not active or trial_expired:', status);
+        setOpen(false);
       }
     } catch (error) {
       console.error('Error checking subscription status:', error);
@@ -112,9 +118,12 @@ export const TrialExpiredDialog = () => {
     
     try {
       console.log('Verifying session:', sessionId);
-      const data = await verifySession(sessionId);
+      const response = await verifySession(sessionId);
+      const data = response.data || response;
       
-      if (data.success) {
+      console.log('Session verification response:', data);
+      
+      if (data && (data.success || data.status === 'active')) {
         handleVerificationSuccess();
         // Force an immediate subscription check
         await checkUserSubscription();
@@ -122,7 +131,7 @@ export const TrialExpiredDialog = () => {
         console.error('Session verification failed:', data);
         toast({
           title: "Verification Issue",
-          description: data.error || "There was a problem verifying your payment",
+          description: (data && data.error) || "There was a problem verifying your payment",
           variant: "destructive",
         });
       }

@@ -31,6 +31,8 @@ interface Subscription {
   status: string;
   current_period_end: string | null;
   trial_end_date: string | null;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
 }
 
 export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
@@ -53,13 +55,16 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           const stripeStatus = await checkSubscriptionStatus();
           console.log('Stripe subscription status:', stripeStatus);
           
-          if (stripeStatus.status === 'active') {
+          // If using Stripe check returned active subscription
+          if (stripeStatus && stripeStatus.status === 'active') {
             console.log('Active subscription found via Stripe check');
             setSubscription({
               plan_type: stripeStatus.planType || 'monthly',
               status: stripeStatus.status,
               current_period_end: stripeStatus.currentPeriodEnd || null,
-              trial_end_date: null
+              trial_end_date: null,
+              stripe_customer_id: stripeStatus.stripe_customer_id || null,
+              stripe_subscription_id: stripeStatus.stripe_subscription_id || null
             });
             setIsLoading(false);
             return;
@@ -68,7 +73,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           // Then get the detailed subscription data from the database
           const { data, error } = await supabase
             .from('subscriptions')
-            .select('plan_type, status, current_period_end, trial_end_date')
+            .select('plan_type, status, current_period_end, trial_end_date, stripe_customer_id, stripe_subscription_id')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
             .limit(1)
@@ -81,7 +86,44 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           }
 
           console.log('Fetched subscription from database:', data);
-          setSubscription(data);
+          
+          // If data exists and status is active, use it
+          if (data && data.status === 'active') {
+            setSubscription(data);
+          } else if (data) {
+            // For other statuses, check if we need to re-verify with Stripe
+            if (data.stripe_subscription_id) {
+              // Re-verify with Stripe if we have a subscription ID
+              try {
+                const refreshedStatus = await supabase.functions.invoke('verify-stripe-subscription', {
+                  body: { 
+                    user_id: user.id, 
+                    subscription_id: data.stripe_subscription_id
+                  }
+                });
+                
+                console.log('Re-verified subscription with Stripe:', refreshedStatus);
+                
+                if (refreshedStatus.data && refreshedStatus.data.status === 'active') {
+                  // Update with fresh data from Stripe
+                  setSubscription({
+                    ...data,
+                    status: 'active',
+                    current_period_end: refreshedStatus.data.currentPeriodEnd || data.current_period_end
+                  });
+                } else {
+                  setSubscription(data);
+                }
+              } catch (verifyError) {
+                console.error('Error re-verifying with Stripe:', verifyError);
+                setSubscription(data);
+              }
+            } else {
+              setSubscription(data);
+            }
+          } else {
+            setSubscription(null);
+          }
         } catch (error) {
           console.error('Subscription fetch error:', error);
         } finally {
@@ -236,21 +278,22 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                           {formatTimeLeft(subscription.current_period_end)}
                         </p>
                       )}
+                      {subscription.stripe_customer_id && subscription.status === 'active' && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="mt-2 w-full"
+                          onClick={handleManageSubscription}
+                        >
+                          Manage Subscription
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">No subscription information available</p>
                   )}
                 </div>
                 <div className="pt-4 space-y-2">
-                  {subscription && subscription.status === 'active' && (
-                    <Button 
-                      variant="secondary" 
-                      className="w-full"
-                      onClick={handleManageSubscription}
-                    >
-                      Manage Subscription
-                    </Button>
-                  )}
                   <Button 
                     variant="info" 
                     className="w-full"

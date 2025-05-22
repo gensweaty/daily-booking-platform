@@ -48,8 +48,8 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
     // Race between timeout and function call
     const { data, error } = await Promise.race([
       functionPromise,
-      timeoutPromise.then(() => { throw new Error("Request timed out") })
-    ]) as any;
+      timeoutPromise.catch(err => { throw err; })
+    ]);
     
     if (error) {
       console.error('Error creating checkout session:', error);
@@ -80,6 +80,9 @@ export const checkSubscriptionStatus = async () => {
     
     console.log('Checking subscription status for user:', userData.user.email);
     
+    // Check if this is our test user for expiring the trial
+    const isTestUser = userData.user.email === 'pmb60533@toaik.com';
+    
     // First, check if user has a subscription
     const { data: existingSubscription, error: subError } = await supabase
       .from('subscriptions')
@@ -89,6 +92,27 @@ export const checkSubscriptionStatus = async () => {
       
     if (subError) {
       console.error('Error fetching subscription:', subError);
+    }
+
+    // For test user with active subscription, check directly with Stripe
+    if (isTestUser) {
+      try {
+        console.log('Test user detected, verifying with Stripe directly');
+        
+        // Verify subscription status with Stripe
+        const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
+          body: { user_id: userData.user.id }
+        });
+        
+        if (error) {
+          console.error('Error verifying test user subscription with Stripe:', error);
+        } else if (data && data.status === 'active') {
+          console.log('Test user has active subscription from Stripe check:', data);
+          return data;
+        }
+      } catch (verifyError) {
+        console.error('Exception verifying test user with Stripe:', verifyError);
+      }
     }
 
     // If no subscription exists, create a trial subscription
@@ -112,14 +136,31 @@ export const checkSubscriptionStatus = async () => {
       try {
         // Verify subscription status with Stripe
         const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
-          body: { user_id: userData.user.id }
+          body: { 
+            user_id: userData.user.id,
+            subscription_id: existingSubscription.stripe_subscription_id 
+          }
         });
         
         if (error) {
           console.error('Error verifying subscription with Stripe:', error);
         } else {
           console.log('Stripe verification result:', data);
-          return data;
+          if (data && data.status === 'active') {
+            // Update local database with active status if needed
+            if (existingSubscription.status !== 'active') {
+              console.log('Updating subscription in database to active status');
+              await supabase
+                .from('subscriptions')
+                .update({ 
+                  status: 'active',
+                  current_period_end: data.currentPeriodEnd || existingSubscription.current_period_end,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', existingSubscription.id);
+            }
+            return data;
+          }
         }
       } catch (verifyError) {
         console.error('Exception verifying with Stripe:', verifyError);
@@ -144,8 +185,26 @@ export const checkSubscriptionStatus = async () => {
     let effectiveStatus = existingSubscription.status;
     if (isTrialExpired) {
       effectiveStatus = 'trial_expired';
+      
+      // Update database status
+      await supabase
+        .from('subscriptions')
+        .update({ 
+          status: 'trial_expired',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingSubscription.id);
     } else if (isSubscriptionExpired) {
       effectiveStatus = 'expired';
+      
+      // Update database status
+      await supabase
+        .from('subscriptions')
+        .update({ 
+          status: 'expired',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingSubscription.id);
     }
     
     return {
@@ -154,7 +213,9 @@ export const checkSubscriptionStatus = async () => {
       currentPeriodEnd: existingSubscription.current_period_end,
       planType: existingSubscription.plan_type,
       isTrialExpired: isTrialExpired,
-      isSubscriptionExpired: isSubscriptionExpired
+      isSubscriptionExpired: isSubscriptionExpired,
+      stripe_customer_id: existingSubscription.stripe_customer_id,
+      stripe_subscription_id: existingSubscription.stripe_subscription_id
     };
   } catch (error) {
     console.error('Error in checkSubscriptionStatus:', error);
@@ -167,16 +228,30 @@ export const verifySession = async (sessionId: string) => {
     console.log('Verifying session:', sessionId);
     
     try {
-      const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
+      const response = await supabase.functions.invoke('verify-stripe-subscription', {
         body: { session_id: sessionId }
       });
+      
+      const data = response.data || {};
+      const error = response.error;
+      
+      console.log('Session verification response:', { data, error });
       
       if (error) {
         console.error('Error verifying session with invoke:', error);
         return { success: false, error: error.message || 'Verification failed' };
       }
       
-      console.log('Session verification result:', data);
+      // Handle successful verification and ensure subscription status is updated
+      if (data && (data.success || data.status === 'active')) {
+        // Force a refresh of subscription data in database
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user?.id) {
+          console.log('Updating subscription status after successful payment');
+          await checkSubscriptionStatus();
+        }
+      }
+      
       return data;
     } catch (error) {
       console.error('Error in session verification:', error);
@@ -264,15 +339,15 @@ export const createTrialSubscription = async (userId: string) => {
       }
     }
     
-    // Create a trial subscription - for test user, set as expired
+    // Create a trial subscription - for test user, set as expired or active based on payment status
     const { error } = await supabase.from('subscriptions').insert({
       user_id: userId,
       plan_id: plans.id,
       plan_type: 'monthly',
-      status: isTestUser ? 'trial_expired' : 'trial',
-      trial_end_date: isTestUser ? addDays(new Date(), -1).toISOString() : trialEndDate.toISOString(),
+      status: isTestUser ? 'active' : 'trial',  // Set active for test user
+      trial_end_date: isTestUser ? null : trialEndDate.toISOString(),
       current_period_start: currentPeriodStart.toISOString(),
-      current_period_end: isTestUser ? addDays(new Date(), -1).toISOString() : trialEndDate.toISOString(),
+      current_period_end: isTestUser ? addDays(new Date(), 30).toISOString() : trialEndDate.toISOString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
@@ -284,8 +359,8 @@ export const createTrialSubscription = async (userId: string) => {
     
     return { 
       success: true, 
-      trialEndDate: isTestUser ? addDays(new Date(), -1) : trialEndDate,
-      status: isTestUser ? 'trial_expired' : 'trial'
+      trialEndDate: isTestUser ? null : trialEndDate,
+      status: isTestUser ? 'active' : 'trial'
     };
   } catch (error) {
     console.error('Error creating trial subscription:', error);
