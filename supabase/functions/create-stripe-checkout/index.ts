@@ -77,8 +77,13 @@ serve(async (req) => {
       // Save customer ID to database
       await supabase
         .from('subscriptions')
-        .update({ stripe_customer_id: customerId })
-        .eq('user_id', user_id);
+        .upsert({ 
+          user_id: user_id,
+          stripe_customer_id: customerId,
+          email: user.email,
+          status: 'trial_expired',
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
         
       logStep("Customer created", { customerId });
     } else {
@@ -89,6 +94,12 @@ serve(async (req) => {
     const baseUrl = return_url || req.headers.get("origin") || "https://smartbookly.com";
     
     // Create session with the specified product/price
+    logStep("Creating checkout session", { 
+      customerId,
+      priceId: price_id,
+      baseUrl
+    });
+    
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       line_items: [
@@ -114,8 +125,14 @@ serve(async (req) => {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("Error", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    const errorDetails = {
+      message: errorMessage,
+      name: error instanceof Error ? error.name : "Unknown",
+      type: error instanceof Stripe.errors.StripeError ? error.type : "Unknown"
+    };
+    
+    logStep("Error", errorDetails);
+    return new Response(JSON.stringify({ error: errorMessage, details: errorDetails }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 400,
     });

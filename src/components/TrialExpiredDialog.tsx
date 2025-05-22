@@ -74,14 +74,17 @@ export const TrialExpiredDialog = () => {
     setLoading(true);
     
     try {
+      console.log(`Initiating checkout for ${selectedPlan} plan`);
       const data = await createCheckoutSession(selectedPlan);
       
       if (data?.url) {
+        console.log('Redirecting to Stripe checkout:', data.url);
         window.location.href = data.url;
       } else {
+        console.error('No checkout URL returned');
         toast({
           title: "Error",
-          description: "Failed to create checkout session",
+          description: "Failed to create checkout session - no URL returned",
           variant: "destructive",
         });
       }
@@ -89,7 +92,7 @@ export const TrialExpiredDialog = () => {
       console.error('Error creating checkout session:', error);
       toast({
         title: "Error",
-        description: "Failed to create checkout session",
+        description: error instanceof Error ? error.message : "Failed to create checkout session",
         variant: "destructive",
       });
     } finally {
@@ -101,6 +104,7 @@ export const TrialExpiredDialog = () => {
     setIsVerifying(true);
     
     try {
+      console.log('Verifying session:', sessionId);
       const data = await verifySession(sessionId);
       
       if (data.success) {

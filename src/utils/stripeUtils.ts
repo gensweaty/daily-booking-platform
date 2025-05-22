@@ -28,7 +28,13 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
     
     console.log(`Creating checkout session for ${planType} plan:`, { priceId, productId });
     
-    const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
+    // Start a timeout to detect function invocation issues
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Request timed out after 15 seconds")), 15000);
+    });
+    
+    // Function invocation with the proper parameters
+    const functionPromise = supabase.functions.invoke('create-stripe-checkout', {
       body: { 
         user_id: userData.user.id,
         price_id: priceId,
@@ -37,6 +43,12 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
         return_url: window.location.origin + window.location.pathname
       }
     });
+    
+    // Race between timeout and function call
+    const { data, error } = await Promise.race([
+      functionPromise,
+      timeoutPromise.then(() => { throw new Error("Request timed out") })
+    ]) as any;
     
     if (error) {
       console.error('Error creating checkout session:', error);

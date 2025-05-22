@@ -1,55 +1,27 @@
 
+# A string used to distinguish different Supabase projects on the same host. Defaults to the project ID.
 project_id = "mrueqpffzauvdxmuwhfa"
 
-[functions.send-booking-request-notification]
-verify_jwt = false
+# The port to expose the Supabase services on. Defaults to 54321.
+# port = 54321
 
-[functions.send-booking-approval-email]
-verify_jwt = false
+[api]
+# Port to use for the API URL.
+# port = 54321
+# Extra schemas to expose in your API. Defaults to ["public", "storage", "graphql_public"].
+# exposed_schemas = ["public", "storage", "graphql_public"]
 
-[functions.send-contact-email]
-verify_jwt = false
+[db]
+# Port to use for the local database URL.
+# port = 54322
 
-[functions.handle-paypal-webhook]
-verify_jwt = false
+# The database major version to use. This has to be the same as your remote database's.
+# major_version = 15
 
-[functions.handle-subscription-redirect]
-verify_jwt = false
-
-[functions.process-renewals]
-verify_jwt = false
-
-[functions.verify-paypal-payment]
-verify_jwt = false
-
-[functions.confirm-signup]
-verify_jwt = false
-
-[functions.test-resend-email]
-verify_jwt = false
-
-[functions.create-user-admin]
-verify_jwt = false
-
-[functions.password-reset]
-verify_jwt = false
-
+[functions]
 [functions.stripe-webhook]
 verify_jwt = false
 
-[functions.create-stripe-checkout]
-verify_jwt = true
-
-[functions.verify-stripe-subscription]
-verify_jwt = true
-
-[functions.create-customer-portal-session]
-verify_jwt = true
-
-[global.env]
-PAYPAL_CLIENT_ID = "env(PAYPAL_CLIENT_ID)"
-PAYPAL_SECRET_KEY = "env(PAYPAL_SECRET_KEY)"
-PAYPAL_WEBHOOK_ID = "env(PAYPAL_WEBHOOK_ID)"
-RESEND_API_KEY = "env(RESEND_API_KEY)"
-STRIPE_API_KEY = "env(STRIPE_API_KEY)"
-STRIPE_WEBHOOK_SECRET = "env(STRIPE_WEBHOOK_SECRET)"
+[storage]
+# The maximum file size allowed (e.g. "5MB", "500KB").
+# file_size_limit = "50MiB"
