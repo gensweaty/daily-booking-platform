@@ -16,16 +16,11 @@ const STRIPE_PRODUCTS = {
 
 export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
   try {
-    const user = supabase.auth.getUser();
+    const { data: userData, error: userError } = await supabase.auth.getUser();
     
-    if (!user) {
+    if (userError || !userData?.user) {
+      console.error('Authentication error:', userError);
       throw new Error("User not authenticated");
-    }
-    
-    const { data: userData } = await user;
-    
-    if (!userData?.user) {
-      throw new Error("User not found");
     }
     
     const priceId = STRIPE_PRICES[planType];
@@ -48,6 +43,11 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
       throw error;
     }
     
+    if (!data || !data.url) {
+      console.error('No URL returned from checkout session creation');
+      throw new Error('Failed to create checkout session - no URL returned');
+    }
+    
     console.log('Checkout session created:', data);
     return data;
   } catch (error) {
@@ -58,15 +58,10 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
 
 export const checkSubscriptionStatus = async () => {
   try {
-    const user = supabase.auth.getUser();
+    const { data: userData, error: userError } = await supabase.auth.getUser();
     
-    if (!user) {
-      return { success: false, status: 'not_authenticated' };
-    }
-    
-    const { data: userData } = await user;
-    
-    if (!userData?.user) {
+    if (userError || !userData?.user) {
+      console.log('User not authenticated');
       return { success: false, status: 'not_authenticated' };
     }
     
@@ -76,11 +71,15 @@ export const checkSubscriptionStatus = async () => {
     }
     
     // First, check if user has a subscription
-    const { data: existingSubscription } = await supabase
+    const { data: existingSubscription, error: subError } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('user_id', userData.user.id)
       .maybeSingle();
+      
+    if (subError) {
+      console.error('Error fetching subscription:', subError);
+    }
 
     // If no subscription exists, create a trial subscription
     if (!existingSubscription) {
@@ -95,6 +94,8 @@ export const checkSubscriptionStatus = async () => {
         isTrialExpired: false
       };
     }
+    
+    console.log('Existing subscription found, verifying with Stripe');
     
     // If subscription exists, verify its status
     const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
@@ -139,16 +140,11 @@ export const verifySession = async (sessionId: string) => {
 
 export const openStripeCustomerPortal = async () => {
   try {
-    const user = supabase.auth.getUser();
+    const { data: userData, error: userError } = await supabase.auth.getUser();
     
-    if (!user) {
+    if (userError || !userData?.user) {
+      console.error('Authentication error:', userError);
       throw new Error("User not authenticated");
-    }
-    
-    const { data: userData } = await user;
-    
-    if (!userData?.user) {
-      throw new Error("User not found");
     }
     
     const { data, error } = await supabase.functions.invoke('create-customer-portal-session', {
@@ -164,8 +160,12 @@ export const openStripeCustomerPortal = async () => {
     }
     
     // Open Stripe portal in a new tab
-    window.open(data.url, '_blank');
-    return true;
+    if (data && data.url) {
+      window.open(data.url, '_blank');
+      return true;
+    } else {
+      throw new Error('No portal URL returned');
+    }
   } catch (error) {
     console.error('Error in openStripeCustomerPortal:', error);
     return false;

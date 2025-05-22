@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
@@ -135,32 +136,6 @@ const Index = () => {
           
           if (data) {
             setUsername(data.username)
-          }
-
-          // Check for test user and force trial expiration
-          if (user.email === 'pmb60533@toaik.com') {
-            console.log('Test user detected, ensuring trial is expired');
-            
-            // Get current subscription
-            const { data: subData } = await supabase
-              .from('subscriptions')
-              .select('*')
-              .eq('user_id', user.id)
-              .maybeSingle();
-              
-            if (subData) {
-              // Update the subscription to expired if it exists
-              await supabase
-                .from('subscriptions')
-                .update({ 
-                  status: 'trial_expired',
-                  trial_end_date: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-                  current_period_end: new Date(Date.now() - 86400000).toISOString() // Yesterday
-                })
-                .eq('user_id', user.id);
-                
-              console.log('Test user subscription updated to trial_expired');
-            }
           }
 
           // Check subscription status for all users

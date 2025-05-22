@@ -4,7 +4,7 @@ import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY") || "", {
-  apiVersion: "2023-10-16",
+  apiVersion: "2023-10-16", // Using a valid Stripe API version
   httpClient: Stripe.createFetchHttpClient(),
 });
 
