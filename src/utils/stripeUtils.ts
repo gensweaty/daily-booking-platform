@@ -4,8 +4,14 @@ import { addDays } from "date-fns";
 
 // Stripe product/price IDs
 const STRIPE_PRICES = {
-  monthly: 'price_1RRAdo2MNASmq1vOt2R6uX7Z', // Replace with your actual monthly price ID
-  yearly: 'price_1RRAdp2MNASmq1vOu8SlCeH6',  // Replace with your actual yearly price ID
+  monthly: 'price_1RRAdo2MNASmq1vOt2R6uX7Z', // Your monthly price ID
+  yearly: 'price_1RRAdp2MNASmq1vOu8SlCeH6',  // Your yearly price ID
+};
+
+// Stripe product IDs
+const STRIPE_PRODUCTS = {
+  monthly: 'prod_SM0gHgA0G0cQN3', // Your monthly product ID
+  yearly: 'prod_SM0gLwKne0dVuy',  // Your yearly product ID
 };
 
 export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
@@ -23,11 +29,16 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
     }
     
     const priceId = STRIPE_PRICES[planType];
+    const productId = STRIPE_PRODUCTS[planType];
+    
+    console.log(`Creating checkout session for ${planType} plan:`, { priceId, productId });
     
     const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
       body: { 
         user_id: userData.user.id,
         price_id: priceId,
+        product_id: productId,
+        plan_type: planType,
         return_url: window.location.origin + window.location.pathname
       }
     });
@@ -37,6 +48,7 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
       throw error;
     }
     
+    console.log('Checkout session created:', data);
     return data;
   } catch (error) {
     console.error('Error in createCheckoutSession:', error);
@@ -67,6 +79,7 @@ export const checkSubscriptionStatus = async () => {
 
     // If no subscription exists, create a trial subscription
     if (!existingSubscription) {
+      console.log('No subscription found, creating trial subscription');
       await createTrialSubscription(userData.user.id);
       
       // Return trial status
@@ -88,6 +101,7 @@ export const checkSubscriptionStatus = async () => {
       throw error;
     }
     
+    console.log('Subscription status checked:', data);
     return data;
   } catch (error) {
     console.error('Error in checkSubscriptionStatus:', error);
@@ -97,12 +111,11 @@ export const checkSubscriptionStatus = async () => {
 
 export const verifySession = async (sessionId: string) => {
   try {
-    // Fix: Use proper approach to pass session_id to edge function
-    // Instead of using 'query' parameter which doesn't exist in FunctionInvokeOptions,
-    // append the session_id as a URL parameter using 'headers' property
+    console.log('Verifying session:', sessionId);
+    
     const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
       method: 'GET',
-      body: { session_id: sessionId } // Pass as part of the body instead of query
+      body: { session_id: sessionId }
     });
     
     if (error) {
@@ -110,6 +123,7 @@ export const verifySession = async (sessionId: string) => {
       throw error;
     }
     
+    console.log('Session verification result:', data);
     return data;
   } catch (error) {
     console.error('Error in verifySession:', error);
@@ -155,6 +169,7 @@ export const openStripeCustomerPortal = async () => {
 // Helper function to create a trial subscription for new users
 export const createTrialSubscription = async (userId: string) => {
   try {
+    console.log('Creating trial subscription for user:', userId);
     const trialEndDate = addDays(new Date(), 14); // 14-day trial
     const currentPeriodStart = new Date();
     

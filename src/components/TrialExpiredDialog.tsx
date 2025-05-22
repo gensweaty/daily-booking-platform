@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { checkSubscriptionStatus, createCheckoutSession, verifySession } from "@/utils/stripeUtils";
+import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
@@ -18,6 +19,7 @@ export const TrialExpiredDialog = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [open, setOpen] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paypal'>('stripe');
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -61,6 +63,11 @@ export const TrialExpiredDialog = () => {
 
   const handleSubscribe = async () => {
     if (!user) return;
+    
+    if (paymentMethod === 'paypal') {
+      // PayPal handling is done via the PayPal button component
+      return;
+    }
     
     setLoading(true);
     
@@ -118,6 +125,11 @@ export const TrialExpiredDialog = () => {
     });
   };
 
+  const handlePayPalSuccess = (subscriptionId: string) => {
+    console.log('PayPal subscription successful:', subscriptionId);
+    handleVerificationSuccess();
+  };
+
   // Prevent closing when trial expired
   const handleOpenChange = (newOpen: boolean) => {
     if (subscriptionStatus === 'trial_expired' && !newOpen) {
@@ -142,19 +154,49 @@ export const TrialExpiredDialog = () => {
             Your 14-day free trial has ended. Please select a plan to continue using our services.
           </p>
           
+          <div className="flex justify-center space-x-4 mb-6">
+            <button
+              onClick={() => setPaymentMethod('stripe')}
+              className={`px-4 py-2 rounded-md ${
+                paymentMethod === 'stripe' 
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              Pay with Stripe
+            </button>
+            <button
+              onClick={() => setPaymentMethod('paypal')}
+              className={`px-4 py-2 rounded-md ${
+                paymentMethod === 'paypal'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              Pay with PayPal
+            </button>
+          </div>
+          
           <SubscriptionPlanSelect
             selectedPlan={selectedPlan}
             setSelectedPlan={setSelectedPlan}
             isLoading={loading}
           />
           
-          <button
-            onClick={handleSubscribe}
-            disabled={loading}
-            className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-          >
-            {loading ? "Processing..." : "Subscribe Now"}
-          </button>
+          {paymentMethod === 'stripe' ? (
+            <button
+              onClick={handleSubscribe}
+              disabled={loading}
+              className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            >
+              {loading ? "Processing..." : "Subscribe Now"}
+            </button>
+          ) : (
+            <PayPalSubscribeButton
+              planType={selectedPlan}
+              onSuccess={handlePayPalSuccess}
+            />
+          )}
         </div>
       </DialogContent>
     </Dialog>

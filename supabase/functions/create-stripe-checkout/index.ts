@@ -19,6 +19,11 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Helper function for logging
+function logStep(step: string, data?: any) {
+  console.log(`[CREATE-CHECKOUT] ${step}`, data ? JSON.stringify(data) : "");
+}
+
 serve(async (req) => {
   // Handle CORS preflight request
   if (req.method === "OPTIONS") {
@@ -26,7 +31,9 @@ serve(async (req) => {
   }
   
   try {
-    const { user_id, price_id, return_url } = await req.json();
+    const { user_id, price_id, product_id, plan_type, return_url } = await req.json();
+    
+    logStep("Request received", { user_id, price_id, product_id, plan_type });
     
     if (!user_id) {
       throw new Error("User ID is required");
@@ -40,10 +47,12 @@ serve(async (req) => {
     const { data: userData, error: userError } = await supabase.auth.admin.getUserById(user_id);
     
     if (userError || !userData.user) {
+      logStep("User not found", { error: userError });
       throw new Error("User not found");
     }
     
     const user = userData.user;
+    logStep("User found", { email: user.email });
     
     // Get or create Stripe customer
     const { data: subscriptionData } = await supabase
@@ -56,6 +65,7 @@ serve(async (req) => {
     
     // Create new customer if one doesn't exist
     if (!customerId) {
+      logStep("Creating new Stripe customer");
       const customer = await stripe.customers.create({
         email: user.email,
         metadata: {
@@ -69,10 +79,16 @@ serve(async (req) => {
         .from('subscriptions')
         .update({ stripe_customer_id: customerId })
         .eq('user_id', user_id);
+        
+      logStep("Customer created", { customerId });
+    } else {
+      logStep("Using existing customer", { customerId });
     }
     
     // Create checkout session
-    const baseUrl = return_url || "https://daily-booking-platform.lovable.app";
+    const baseUrl = return_url || window.location.origin;
+    
+    // Create session with the specified product/price
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       line_items: [
@@ -82,18 +98,22 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
-      success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/dashboard`,
+      success_url: `${baseUrl}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}`,
       metadata: {
         user_id: user_id,
+        plan_type: plan_type,
       },
     });
+    
+    logStep("Checkout session created", { sessionId: session.id, url: session.url });
     
     return new Response(JSON.stringify({ sessionId: session.id, url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
+    logStep("Error", { message: error.message });
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 400,

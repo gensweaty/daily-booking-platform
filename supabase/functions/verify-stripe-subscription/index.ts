@@ -30,10 +30,12 @@ serve(async (req) => {
   }
   
   try {
+    const body = await req.json();
+    logStep("Request body", body);
+    
     // For GET requests (client-side verification)
     if (req.method === "GET") {
-      const body = await req.json();
-      // Updated to get session_id from request body instead of URL
+      // Get session_id from request body
       const sessionId = body.session_id;
       
       if (!sessionId) {
@@ -46,6 +48,7 @@ serve(async (req) => {
       
       // Retrieve session from Stripe
       const session = await stripe.checkout.sessions.retrieve(sessionId);
+      logStep("Session retrieved", { sessionId, status: session.status });
       
       if (!session || session.status !== "complete") {
         logStep("Session incomplete", { sessionId });
@@ -56,6 +59,7 @@ serve(async (req) => {
       }
       
       const userId = session.metadata?.user_id;
+      const planType = session.metadata?.plan_type || 'monthly';
       
       if (!userId) {
         logStep("No user ID in session metadata", { sessionId });
@@ -65,22 +69,55 @@ serve(async (req) => {
         );
       }
       
-      // Check if subscription is already recorded
-      const { data, error } = await supabase
+      logStep("Session payment completed", { userId, planType });
+      
+      // Get subscription from Stripe
+      const subscriptionId = session.subscription as string;
+      let subscription;
+      
+      if (subscriptionId) {
+        subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        logStep("Subscription retrieved", { subscriptionId, status: subscription.status });
+      } else {
+        logStep("No subscription ID in session", { sessionId });
+      }
+      
+      // Calculate subscription period
+      const now = new Date();
+      let currentPeriodEnd;
+      
+      if (subscription) {
+        currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+      } else {
+        // If no subscription (one-time payment), calculate based on plan type
+        currentPeriodEnd = planType === 'monthly' 
+          ? new Date(now.setDate(now.getDate() + 30))  // 30 days
+          : new Date(now.setDate(now.getDate() + 365));  // 365 days
+      }
+      
+      // Update subscription in database
+      const { data: userData, error: userError } = await supabase
         .from('subscriptions')
-        .select('status, stripe_subscription_id')
+        .update({
+          status: 'active',
+          current_period_end: currentPeriodEnd.toISOString(),
+          stripe_subscription_id: subscriptionId || null,
+          updated_at: new Date().toISOString()
+        })
         .eq('user_id', userId)
+        .select('*')
         .single();
       
-      if (error || !data || !data.stripe_subscription_id) {
-        logStep("Subscription not found in database", { userId });
+      if (userError) {
+        logStep("Error updating subscription in DB", { error: userError });
         return new Response(
-          JSON.stringify({ success: false, error: "Subscription not found" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+          JSON.stringify({ success: false, error: "Failed to update subscription status" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
         );
       }
       
-      logStep("Verification successful", { userId });
+      logStep("Subscription updated successfully", { userId, status: 'active', expiresAt: currentPeriodEnd });
+      
       return new Response(
         JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
@@ -89,7 +126,7 @@ serve(async (req) => {
     
     // For POST requests (checking subscription status)
     if (req.method === "POST") {
-      const { user_id } = await req.json();
+      const { user_id } = body;
       
       if (!user_id) {
         return new Response(
@@ -101,11 +138,12 @@ serve(async (req) => {
       // Check subscription status
       const { data, error } = await supabase
         .from('subscriptions')
-        .select('status, trial_end_date, current_period_end')
+        .select('status, trial_end_date, current_period_end, plan_type')
         .eq('user_id', user_id)
         .single();
       
       if (error) {
+        logStep("Error fetching subscription", { error });
         return new Response(
           JSON.stringify({ success: false, error: "Subscription not found" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
@@ -114,24 +152,64 @@ serve(async (req) => {
       
       const now = new Date();
       const trialEnd = data.trial_end_date ? new Date(data.trial_end_date) : null;
+      const currentPeriodEnd = data.current_period_end ? new Date(data.current_period_end) : null;
+      
+      // Check if trial has expired
       const isTrialExpired = trialEnd && now > trialEnd;
       
-      // If trial expired but status is still trialing, update status
-      if (isTrialExpired && data.status === 'trial') {
+      // Check if subscription has expired
+      const isSubscriptionExpired = currentPeriodEnd && now > currentPeriodEnd && data.status !== 'trial';
+      
+      // Update status if needed
+      let status = data.status;
+      
+      if (isTrialExpired && status === 'trial') {
         await supabase
           .from('subscriptions')
           .update({ status: 'trial_expired' })
           .eq('user_id', user_id);
         
-        data.status = 'trial_expired';
+        status = 'trial_expired';
+        logStep("Trial expired", { userId: user_id });
       }
+      
+      if (isSubscriptionExpired && status === 'active') {
+        await supabase
+          .from('subscriptions')
+          .update({ status: 'expired' })
+          .eq('user_id', user_id);
+        
+        status = 'expired';
+        logStep("Subscription expired", { userId: user_id });
+      }
+      
+      // If subscription is active but not expired yet, check when it ends
+      let daysRemaining = 0;
+      if (status === 'trial' && trialEnd) {
+        daysRemaining = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+      } else if (status === 'active' && currentPeriodEnd) {
+        daysRemaining = Math.max(0, Math.ceil((currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+      }
+      
+      logStep("Subscription status checked", { 
+        userId: user_id, 
+        status, 
+        daysRemaining,
+        trialEnd: data.trial_end_date,
+        currentPeriodEnd: data.current_period_end,
+        planType: data.plan_type
+      });
       
       return new Response(
         JSON.stringify({ 
           success: true, 
-          status: data.status,
+          status,
+          daysRemaining,
           trialEnd: data.trial_end_date,
-          isTrialExpired
+          currentPeriodEnd: data.current_period_end,
+          planType: data.plan_type,
+          isTrialExpired,
+          isSubscriptionExpired
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
