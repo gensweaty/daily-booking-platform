@@ -35,7 +35,6 @@ const childVariants = {
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false)
   const [username, setUsername] = useState("")
-  const [showTrialExpired, setShowTrialExpired] = useState(false)
   const [processingCode, setProcessingCode] = useState(false)
   const { user } = useAuth()
   const { toast } = useToast()
@@ -166,15 +165,7 @@ const Index = () => {
           initial="hidden"
           animate="visible"
         >
-          {showTrialExpired && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-            >
-              <TrialExpiredDialog />
-            </motion.div>
-          )}
+          <TrialExpiredDialog />
           <motion.div variants={childVariants}>
             <DashboardHeader username={username} />
           </motion.div>

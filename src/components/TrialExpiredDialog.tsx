@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,45 +9,144 @@ import {
 import { SubscriptionPlanSelect } from "./subscription/SubscriptionPlanSelect";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { PayPalSubscribeButton } from "./PayPalSubscribeButton";
+import { useAuth } from "@/contexts/AuthContext";
+import { checkSubscriptionStatus, createCheckoutSession, verifySession } from "@/utils/stripeUtils";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
+  const [loading, setLoading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const handleSubscriptionSuccess = (subscriptionId: string) => {
+  useEffect(() => {
+    if (!user) return;
+    
+    checkUserSubscription();
+    
+    // Check URL for session_id parameter
+    const url = new URL(window.location.href);
+    const sessionId = url.searchParams.get('session_id');
+    
+    if (sessionId) {
+      verifyStripeSession(sessionId);
+      // Clean URL after processing
+      url.searchParams.delete('session_id');
+      window.history.replaceState({}, document.title, url.toString());
+    }
+  }, [user]);
+
+  const checkUserSubscription = async () => {
+    if (!user) return;
+    
+    try {
+      const data = await checkSubscriptionStatus();
+      setSubscriptionStatus(data.status);
+      setOpen(data.status === 'trial_expired');
+    } catch (error) {
+      console.error('Error checking subscription status:', error);
+    }
+  };
+
+  const handleSubscribe = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    
+    try {
+      const data = await createCheckoutSession(selectedPlan);
+      
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to create checkout session",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create checkout session",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyStripeSession = async (sessionId: string) => {
+    setIsVerifying(true);
+    
+    try {
+      const data = await verifySession(sessionId);
+      
+      if (data.success) {
+        handleVerificationSuccess();
+      }
+    } catch (error) {
+      console.error('Error verifying session:', error);
+      toast({
+        title: "Verification Issue",
+        description: "There was a problem verifying your payment",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleVerificationSuccess = () => {
+    setOpen(false);
+    setSubscriptionStatus('active');
     toast({
-      title: "Success",
-      description: `Successfully subscribed with ID: ${subscriptionId}`,
+      title: "Subscription Activated",
+      description: "Thank you for subscribing to our service!",
     });
-    navigate("/dashboard");
+  };
+
+  // Prevent closing when trial expired
+  const handleOpenChange = (newOpen: boolean) => {
+    if (subscriptionStatus === 'trial_expired' && !newOpen) {
+      return; // Prevent closing
+    }
+    setOpen(newOpen);
   };
 
   return (
-    <Dialog open={true} onOpenChange={() => {}}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
         className="w-[90vw] max-w-[475px] p-4 sm:p-6" 
-        hideCloseButton={true}
+        hideCloseButton={subscriptionStatus === 'trial_expired'}
       >
         <DialogHeader>
           <DialogTitle className="text-center text-xl sm:text-2xl font-bold">
-            Subscription Required
+            Your Trial Has Expired
           </DialogTitle>
         </DialogHeader>
         <div className="mt-4 space-y-6 px-2 sm:px-4">
           <p className="text-center text-sm sm:text-base text-muted-foreground">
-            Your subscription has expired. Please select a plan to continue using our services.
+            Your 14-day free trial has ended. Please select a plan to continue using our services.
           </p>
+          
           <SubscriptionPlanSelect
             selectedPlan={selectedPlan}
             setSelectedPlan={setSelectedPlan}
-            isLoading={false}
+            isLoading={loading}
           />
-          <PayPalSubscribeButton 
-            planType={selectedPlan}
-            onSuccess={handleSubscriptionSuccess}
-          />
+          
+          <button
+            onClick={handleSubscribe}
+            disabled={loading}
+            className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+          >
+            {loading ? "Processing..." : "Subscribe Now"}
+          </button>
         </div>
       </DialogContent>
     </Dialog>

@@ -34,8 +34,23 @@ verify_jwt = false
 [functions.password-reset]
 verify_jwt = false
 
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.create-stripe-checkout]
+verify_jwt = true
+
+[functions.verify-stripe-subscription]
+verify_jwt = true
+
+[functions.create-customer-portal-session]
+verify_jwt = true
+
 [global.env]
 PAYPAL_CLIENT_ID = "env(PAYPAL_CLIENT_ID)"
 PAYPAL_SECRET_KEY = "env(PAYPAL_SECRET_KEY)"
 PAYPAL_WEBHOOK_ID = "env(PAYPAL_WEBHOOK_ID)"
 RESEND_API_KEY = "env(RESEND_API_KEY)"
+STRIPE_API_KEY = "env(STRIPE_API_KEY)"
+STRIPE_WEBHOOK_SECRET = "env(STRIPE_WEBHOOK_SECRET)"
+STRIPE_PRODUCT_ID = "env(STRIPE_PRODUCT_ID)"
