@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
@@ -10,7 +11,6 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
-import { verifyStripeSubscription } from "@/utils/stripeUtils"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -35,56 +35,14 @@ const childVariants = {
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false)
   const [username, setUsername] = useState("")
+  const [showTrialExpired, setShowTrialExpired] = useState(false)
   const [processingCode, setProcessingCode] = useState(false)
-  const [processingStripe, setProcessingStripe] = useState(false)
   const { user } = useAuth()
   const { toast } = useToast()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   
-  const { showTrialExpired } = useSubscriptionRedirect()
-
-  // Handle Stripe session verification
-  useEffect(() => {
-    const sessionId = searchParams.get('session_id')
-    
-    if (sessionId && !processingStripe && user) {
-      setProcessingStripe(true);
-      
-      const verifySession = async () => {
-        try {
-          const result = await verifyStripeSubscription(sessionId);
-          
-          if (result?.success) {
-            toast({
-              title: "Success",
-              description: "Your subscription has been activated!",
-            });
-            
-            // Remove the session_id parameter from the URL to prevent repeated verification
-            navigate('/dashboard', { replace: true });
-          } else {
-            toast({
-              title: "Error",
-              description: "Failed to verify subscription. Please contact support.",
-              variant: "destructive",
-            });
-          }
-        } catch (error) {
-          console.error('Error verifying Stripe session:', error);
-          toast({
-            title: "Error",
-            description: "Failed to verify subscription. Please try again.",
-            variant: "destructive",
-          });
-        } finally {
-          setProcessingStripe(false);
-        }
-      };
-      
-      verifySession();
-    }
-  }, [searchParams, user, processingStripe, toast, navigate]);
+  useSubscriptionRedirect()
 
   useEffect(() => {
     // Check for both code and token parameters (Supabase uses both in different contexts)
@@ -187,14 +145,12 @@ const Index = () => {
     getProfile()
   }, [user])
 
-  if (processingCode || processingStripe) {
+  if (processingCode) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold">
-            {processingCode ? "Confirming your email..." : "Processing your subscription..."}
-          </h2>
+          <h2 className="text-xl font-semibold">Confirming your email...</h2>
           <p className="text-muted-foreground">Please wait while we complete this process.</p>
         </div>
       </div>
