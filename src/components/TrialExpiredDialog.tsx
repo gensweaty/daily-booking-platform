@@ -158,22 +158,47 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
             .maybeSingle();
             
           if (!subscriptionCheck) {
-            console.log("TrialExpiredDialog: No subscription found, trying to force update");
-            // Force an update as last resort
-            const { error: updateError } = await supabase
+            console.log("TrialExpiredDialog: No subscription found, trying by email");
+            
+            // Try by email as last resort
+            const { data: emailSubscription } = await supabase
               .from('subscriptions')
-              .upsert({
-                user_id: user.id,
-                email: user.email,
-                status: 'active',
-                plan_type: selectedPlan,
-                updated_at: new Date().toISOString(),
-              });
+              .select('*')
+              .eq('email', user.email)
+              .eq('status', 'active')
+              .maybeSingle();
               
-            if (updateError) {
-              console.error("Error updating subscription record:", updateError);
+            if (emailSubscription) {
+              console.log("TrialExpiredDialog: Found subscription by email, updating user_id");
+              
+              // Update the subscription with the current user_id
+              const { error: updateError } = await supabase
+                .from('subscriptions')
+                .update({ user_id: user.id })
+                .eq('id', emailSubscription.id);
+                
+              if (updateError) {
+                console.error("Error updating subscription user_id:", updateError);
+              }
             } else {
-              console.log("Last resort subscription record update succeeded");
+              console.log("TrialExpiredDialog: No active subscription found, forcing update");
+              
+              // Force an update as last resort
+              const { error: updateError } = await supabase
+                .from('subscriptions')
+                .upsert({
+                  user_id: user.id,
+                  email: user.email,
+                  status: 'active',
+                  plan_type: selectedPlan,
+                  updated_at: new Date().toISOString(),
+                });
+                
+              if (updateError) {
+                console.error("Error updating subscription record:", updateError);
+              } else {
+                console.log("Last resort subscription record update succeeded");
+              }
             }
           }
         }
@@ -229,10 +254,11 @@ export const TrialExpiredDialog = ({ onVerificationSuccess }: TrialExpiredDialog
     <Dialog 
       open={open} 
       onOpenChange={(newOpen) => {
-        // Only allow programmatic closing of dialog after verification success
-        if (!isVerifying) {
-          setOpen(newOpen);
+        // Only allow closing if not verifying
+        if (isVerifying) {
+          return;
         }
+        setOpen(newOpen);
       }}
     >
       <DialogContent 

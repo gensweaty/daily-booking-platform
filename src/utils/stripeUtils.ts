@@ -33,16 +33,16 @@ export const verifyStripeSubscription = async (sessionId: string) => {
           }
         );
 
+        console.log(`stripeUtils: Verification attempt ${retryCount + 1} status:`, response.status);
+
         if (!response.ok) {
           const errorText = await response.text();
+          console.error(`stripeUtils: HTTP error ${response.status}:`, errorText);
           throw new Error(`HTTP error: ${response.status}, ${errorText}`);
         }
 
         const data = await response.json();
         console.log('stripeUtils: Verification result:', data);
-        
-        // The edge function now handles all DB operations
-        // Just return the result to the caller
         
         // If successful, force refresh auth session
         if (data?.success) {

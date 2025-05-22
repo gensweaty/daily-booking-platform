@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -46,14 +47,15 @@ serve(async (req) => {
       throw new Error('STRIPE_WEBHOOK_SECRET is not set');
     }
     
-    // Get the raw request body
-    const body = await req.text();
-    logStep('Received webhook payload', { signature_length: signature.length, body_length: body.length });
+    // Get the raw request body as text
+    const rawBody = await req.text();
+    logStep('Received webhook payload', { signature_length: signature.length, body_length: rawBody.length });
     
     // Construct the event
     let event;
     try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+      // Always use constructEventAsync for webhook signature verification
+      event = await stripe.webhooks.constructEventAsync(rawBody, signature, webhookSecret);
       logStep('Event constructed successfully', { type: event.type });
     } catch (err) {
       logStep('Error verifying webhook signature', { error: err.message });
@@ -180,14 +182,16 @@ async function handleCheckoutSessionCompleted(
   try {
     logStep('Forwarding to verify-stripe-subscription function', { session_id: session.id });
     
-    // Call the function directly instead of via fetch
+    // Important: Get the raw JSON of the session to preserve formatting
+    const sessionJson = JSON.stringify(session);
+    
+    // Forward the webhook payload directly to verify-stripe-subscription
     const verifyUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/verify-stripe-subscription`;
     const response = await fetch(verifyUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        'stripe-signature': session.id  // This flags it as coming from this function
       },
       body: JSON.stringify({ sessionId: session.id })
     });

@@ -46,23 +46,38 @@ serve(async (req) => {
 
     let sessionId;
     let event;
+    let sessionData;
     
     // Handle different request types
     if (isWebhook) {
       // This is a webhook call from Stripe
       logStep('Processing Stripe webhook event');
       
-      const body = await req.text();
+      const rawBody = await req.text();
+      logStep('Received webhook body length', { length: rawBody.length });
       
       try {
-        // CRITICAL FIX: Use constructEventAsync instead of constructEvent
-        event = await stripe.webhooks.constructEventAsync(body, signature, stripeWebhookSecret);
-        logStep('Webhook event constructed successfully', { type: event.type });
+        // Always use constructEventAsync for webhook signature verification
+        event = await stripe.webhooks.constructEventAsync(
+          rawBody, 
+          signature, 
+          stripeWebhookSecret
+        );
+        
+        logStep('Webhook event constructed successfully', { 
+          type: event.type,
+          id: event.id
+        });
         
         // Extract sessionId based on event type
-        if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
-          sessionId = event.data.object.id;
-          logStep('Extracted session ID from webhook event', { sessionId });
+        if (event.type === 'checkout.session.completed') {
+          sessionData = event.data.object;
+          sessionId = sessionData.id;
+          logStep('Extracted session from webhook', { 
+            sessionId, 
+            payment_status: sessionData.payment_status,
+            metadata: sessionData.metadata
+          });
         } else {
           logStep('Unsupported event type', { type: event.type });
           return new Response(
@@ -85,6 +100,10 @@ serve(async (req) => {
         logStep('Received direct verification request', { sessionId });
       } catch (err) {
         logStep('Error parsing request JSON', { error: err.message });
+        return new Response(
+          JSON.stringify({ error: 'Invalid JSON in request body', success: false }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
     }
     
@@ -99,31 +118,45 @@ serve(async (req) => {
     
     logStep(`Processing session ID: ${sessionId}`);
     
-    // Retrieve the session to check its status
-    const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ['customer', 'subscription', 'line_items.data.price.product']
-    });
+    // Retrieve the session if we don't already have it from the webhook
+    if (!sessionData) {
+      sessionData = await stripe.checkout.sessions.retrieve(sessionId, {
+        expand: ['customer', 'subscription', 'line_items.data.price.product']
+      });
+    }
     
     logStep(`Session retrieved`, { 
-      status: session.status, 
-      payment_status: session.payment_status,
-      metadata: session.metadata || 'No metadata'
+      status: sessionData.status, 
+      payment_status: sessionData.payment_status,
+      metadata: sessionData.metadata || 'No metadata'
     });
     
     // Check for user ID in metadata
-    let userId = session.metadata?.userId;
+    let userId = sessionData.metadata?.user_id;
     logStep(`User ID from metadata: ${userId || 'NOT FOUND'}`);
     
-    if (session.payment_status !== 'paid') {
-      logStep(`Payment not completed. Status: ${session.payment_status}`);
+    if (sessionData.payment_status !== 'paid') {
+      logStep(`Payment not completed. Status: ${sessionData.payment_status}`);
       return new Response(
         JSON.stringify({ success: false, message: 'Payment not completed' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
+    // Get customer email from the session
+    const customerEmail = sessionData.customer_details?.email;
+    logStep(`Customer email from session: ${customerEmail || 'No email found'}`);
+    
+    if (!customerEmail) {
+      logStep('No email associated with customer in session');
+      return new Response(
+        JSON.stringify({ success: false, message: 'No email associated with customer' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     // Get customer ID from the session
-    const customerId = session.customer as string;
+    const customerId = sessionData.customer;
     
     if (!customerId) {
       logStep('No customer ID found in session');
@@ -134,28 +167,6 @@ serve(async (req) => {
     }
     
     logStep(`Customer ID from session: ${customerId}`);
-    
-    // Get customer information to extract user email
-    const customer = await stripe.customers.retrieve(customerId);
-    
-    if (!customer || customer.deleted) {
-      logStep('Customer not found or deleted');
-      return new Response(
-        JSON.stringify({ success: false, message: 'Customer not found' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    const customerEmail = customer.email;
-    logStep(`Customer email: ${customerEmail || 'No email found'}`);
-    
-    if (!customerEmail) {
-      logStep('No email associated with customer');
-      return new Response(
-        JSON.stringify({ success: false, message: 'No email associated with customer' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
     
     // Initialize Supabase client with service role to update subscription info
     const supabaseAdmin = createClient(
@@ -168,61 +179,63 @@ serve(async (req) => {
     if (!userId) {
       logStep('No userId in metadata, searching by email:', customerEmail);
       
-      // First check in auth.users
       try {
-        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({
-          filter: {
-            email: customerEmail as string,
-          },
-        });
+        // First check auth users by email
+        const { data: users, error: authError } = await supabaseAdmin.auth.admin.listUsers();
         
         if (authError) {
-          logStep('Error looking up user by email:', authError);
-        } else if (authData && authData.users.length > 0) {
-          userId = authData.users[0].id;
-          logStep(`Found user by email in auth.users: ${userId}`);
+          logStep('Error looking up users:', authError);
+        } else {
+          const matchingUser = users.users.find(u => u.email === customerEmail);
+          if (matchingUser) {
+            userId = matchingUser.id;
+            logStep(`Found user by email: ${userId}`);
+          }
         }
       } catch (authError) {
-        logStep('Error querying auth.users:', authError);
+        logStep('Error querying auth users:', authError);
       }
       
       if (!userId) {
         logStep('Could not find user ID for email:', customerEmail);
-        // Still continue to create a subscription record by email that can be associated later
       }
     }
     
-    // Get subscription information from Stripe
+    // Get subscription information from the session
     let subscriptionId = null;
     let subscriptionEndDate = null;
     let planType = 'monthly'; // Default to monthly
-    let isActive = false;
     
-    if (session.subscription) {
-      const subscription = typeof session.subscription === 'string' 
-        ? await stripe.subscriptions.retrieve(session.subscription)
-        : session.subscription;
+    if (sessionData.subscription) {
+      const subscriptionData = typeof sessionData.subscription === 'string' 
+        ? await stripe.subscriptions.retrieve(sessionData.subscription)
+        : sessionData.subscription;
       
-      subscriptionId = subscription.id;
-      subscriptionEndDate = new Date(subscription.current_period_end * 1000).toISOString();
-      isActive = subscription.status === 'active';
+      subscriptionId = subscriptionData.id;
       
-      // Try to determine plan type from subscription
-      const items = subscription.items?.data;
-      if (items && items.length > 0 && items[0].price) {
-        if (items[0].price.recurring?.interval === 'year') {
+      // Calculate end date
+      const periodEnd = new Date(subscriptionData.current_period_end * 1000);
+      subscriptionEndDate = periodEnd.toISOString();
+      
+      // Try to determine plan type
+      if (subscriptionData.items?.data?.length > 0) {
+        const item = subscriptionData.items.data[0];
+        if (item.price?.recurring?.interval === 'year') {
           planType = 'yearly';
         }
       }
       
-      logStep(`Found subscription: ${subscriptionId}, status: ${subscription.status}, type: ${planType}, ends: ${subscriptionEndDate}`);
+      logStep(`Found subscription details`, { 
+        subscriptionId, 
+        planType,
+        endDate: subscriptionEndDate
+      });
     } else {
-      // If no subscription found but payment is successful, we'll set an arbitrary subscription end date
+      // If no subscription found but payment is successful, set default end date
       const thirtyDaysFromNow = new Date();
       thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
       subscriptionEndDate = thirtyDaysFromNow.toISOString();
-      isActive = true; // Consider it active
-      logStep(`No subscription found, but payment successful. Setting artificial end date: ${subscriptionEndDate}`);
+      logStep(`No subscription found, using default end date: ${subscriptionEndDate}`);
     }
     
     // Update or create subscription record in database
@@ -231,19 +244,17 @@ serve(async (req) => {
       email: customerEmail,
       stripe_customer_id: customerId,
       stripe_subscription_id: subscriptionId,
-      status: 'active', // Always set to active when payment is successful
-      trial_end_date: null, // End any trial
+      status: 'active',
       plan_type: planType,
-      subscription_end_date: subscriptionEndDate,
       current_period_end: subscriptionEndDate,
-      updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
     
     logStep('Updating subscription with data:', subscriptionData);
 
-    let upsertedSub = null;
+    // First, try to update by user_id if available
+    let upsertResult = null;
     
-    // First attempt: Try upserting by user_id if available
     if (userId) {
       try {
         const { data, error } = await supabaseAdmin
@@ -252,24 +263,22 @@ serve(async (req) => {
             onConflict: 'user_id',
             ignoreDuplicates: false 
           })
-          .select('*')
-          .maybeSingle();
+          .select()
+          .single();
           
         if (error) {
           logStep('Error upserting subscription by user_id:', error);
-          // Continue to try by email if this fails
         } else {
-          logStep('Successfully upserted subscription by user_id. Result:', data);
-          upsertedSub = data;
+          logStep('Successfully updated subscription by user_id:', data);
+          upsertResult = data;
         }
       } catch (dbError) {
-        logStep('Database operation error upserting by user_id:', dbError);
-        // Continue to try by email
+        logStep('Database operation error:', dbError);
       }
     }
     
-    // Second attempt: Try by email if user_id attempt failed or wasn't available
-    if (!upsertedSub && customerEmail) {
+    // If user_id update failed or wasn't available, try by email
+    if (!upsertResult) {
       try {
         const { data, error } = await supabaseAdmin
           .from('subscriptions')
@@ -277,58 +286,33 @@ serve(async (req) => {
             onConflict: 'email',
             ignoreDuplicates: false 
           })
-          .select('*')
-          .maybeSingle();
+          .select()
+          .single();
           
         if (error) {
           logStep('Error upserting subscription by email:', error);
           
-          // Last resort: Try insert only as final attempt
+          // Last resort: Try simple insert
           const { data: insertData, error: insertError } = await supabaseAdmin
             .from('subscriptions')
-            .insert([subscriptionData])
-            .select('*')
-            .maybeSingle();
+            .insert(subscriptionData)
+            .select()
+            .single();
             
           if (insertError) {
-            logStep('Error inserting subscription as last resort:', insertError);
+            logStep('Error inserting subscription:', insertError);
             throw insertError;
           } else {
-            logStep('Successfully inserted subscription as last resort. Result:', insertData);
-            upsertedSub = insertData;
+            logStep('Successfully inserted new subscription:', insertData);
+            upsertResult = insertData;
           }
         } else {
-          logStep('Successfully upserted subscription by email. Result:', data);
-          upsertedSub = data;
+          logStep('Successfully updated subscription by email:', data);
+          upsertResult = data;
         }
       } catch (dbError) {
-        logStep('Database operation error during email upsert/insert:', dbError);
+        logStep('Database operation error during email upsert:', dbError);
         throw dbError;
-      }
-    }
-    
-    // If we still don't have a successful DB operation, report failure
-    if (!upsertedSub) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Failed to update subscription in database',
-          message: 'Database operation failed despite multiple attempts' 
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // For webhook calls, we'll update the session metadata with userId if not present
-    if (isWebhook && !session.metadata?.userId && userId) {
-      try {
-        await stripe.checkout.sessions.update(sessionId, {
-          metadata: { ...session.metadata, userId },
-        });
-        logStep('Updated session metadata with userId', { sessionId, userId });
-      } catch (updateErr) {
-        logStep('Error updating session metadata', { error: updateErr.message });
-        // Non-critical error, continue
       }
     }
     
@@ -339,16 +323,15 @@ serve(async (req) => {
         subscription_id: subscriptionId,
         user_id: userId,
         email: customerEmail,
-        plan_type: planType,
-        subscription_end: subscriptionEndDate
+        plan_type: planType
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-    
   } catch (error) {
-    console.error('Error verifying subscription:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Error verifying subscription:', errorMessage);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
