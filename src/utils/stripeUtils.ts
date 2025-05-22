@@ -17,6 +17,7 @@ const STRIPE_PRODUCTS = {
 
 export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
   try {
+    // Fix the TypeScript error by explicitly typing the return value
     const { data: userData, error: userError } = await supabase.auth.getUser();
     
     if (userError || !userData?.user) {
@@ -46,10 +47,13 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
     });
     
     // Race between timeout and function call
-    const { data, error } = await Promise.race([
+    const response = await Promise.race([
       functionPromise,
       timeoutPromise.catch(err => { throw err; })
     ]);
+    
+    // Properly handle the response object
+    const { data, error } = response;
     
     if (error) {
       console.error('Error creating checkout session:', error);
