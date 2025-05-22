@@ -4,7 +4,7 @@ import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY") || "", {
-  apiVersion: "2025-04-30",
+  apiVersion: "2023-10-16",
   httpClient: Stripe.createFetchHttpClient(),
 });
 
@@ -260,9 +260,10 @@ serve(async (req) => {
       { headers: corsHeaders, status: 405 }
     );
   } catch (error) {
-    logStep(`Error: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep(`Error: ${errorMessage}`);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: errorMessage }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
     );
   }

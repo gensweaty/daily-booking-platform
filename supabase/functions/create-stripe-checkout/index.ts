@@ -4,7 +4,7 @@ import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY") || "", {
-  apiVersion: "2025-04-30",
+  apiVersion: "2023-10-16",
   httpClient: Stripe.createFetchHttpClient(),
 });
 
@@ -86,7 +86,7 @@ serve(async (req) => {
     }
     
     // Create checkout session
-    const baseUrl = return_url || window.location.origin;
+    const baseUrl = return_url || req.headers.get("origin") || "https://smartbookly.com";
     
     // Create session with the specified product/price
     const session = await stripe.checkout.sessions.create({
@@ -113,8 +113,9 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
-    logStep("Error", { message: error.message });
-    return new Response(JSON.stringify({ error: error.message }), {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep("Error", { message: errorMessage });
+    return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 400,
     });

@@ -4,7 +4,7 @@ import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY") || "", {
-  apiVersion: "2025-04-30",
+  apiVersion: "2023-10-16",
   httpClient: Stripe.createFetchHttpClient(),
 });
 
@@ -59,9 +59,10 @@ serve(async (req) => {
     
     return new Response(JSON.stringify({ success: true }), { status: 200 });
   } catch (err) {
-    logStep(`Error processing webhook: ${err.message}`);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    logStep(`Error processing webhook: ${errorMessage}`);
     return new Response(
-      JSON.stringify({ error: `Webhook Error: ${err.message}` }),
+      JSON.stringify({ error: `Webhook Error: ${errorMessage}` }),
       { status: 400 }
     );
   }
