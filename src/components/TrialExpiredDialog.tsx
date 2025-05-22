@@ -79,6 +79,7 @@ export const TrialExpiredDialog = () => {
       
       if (data?.url) {
         console.log('Redirecting to Stripe checkout:', data.url);
+        // Use full page redirect instead of opening in a new tab
         window.location.href = data.url;
       } else {
         console.error('No checkout URL returned');

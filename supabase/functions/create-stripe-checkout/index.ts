@@ -93,6 +93,46 @@ serve(async (req) => {
     // Create checkout session
     const baseUrl = return_url || req.headers.get("origin") || "https://smartbookly.com";
     
+    // Validate that the price exists before trying to create a checkout session
+    try {
+      logStep("Verifying price exists", { priceId: price_id });
+      await stripe.prices.retrieve(price_id);
+      logStep("Price verified successfully");
+    } catch (priceError) {
+      logStep("Price verification failed", { 
+        error: priceError instanceof Error ? priceError.message : String(priceError),
+        priceId: price_id 
+      });
+      
+      // Attempt to list available prices for the product
+      try {
+        const availablePrices = await stripe.prices.list({ 
+          product: product_id,
+          active: true,
+          limit: 5
+        });
+        
+        logStep("Available prices for product", { 
+          productId: product_id, 
+          prices: availablePrices.data.map(p => ({ id: p.id, amount: p.unit_amount, currency: p.currency }))
+        });
+        
+        if (availablePrices.data.length > 0) {
+          // Use the first available price instead
+          const fallbackPrice = availablePrices.data[0].id;
+          logStep("Using fallback price", { fallbackPriceId: fallbackPrice });
+          
+          // Update the price_id to use the available price
+          price_id = fallbackPrice;
+        } else {
+          throw new Error(`No valid prices found for product ${product_id}`);
+        }
+      } catch (listError) {
+        logStep("Failed to get alternative prices", { error: listError instanceof Error ? listError.message : String(listError) });
+        throw new Error(`Price ${price_id} does not exist and no alternatives found`);
+      }
+    }
+    
     // Create session with the specified product/price
     logStep("Creating checkout session", { 
       customerId,

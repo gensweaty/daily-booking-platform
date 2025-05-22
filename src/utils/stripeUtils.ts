@@ -2,16 +2,17 @@
 import { supabase } from "@/lib/supabase";
 import { addDays } from "date-fns";
 
-// Stripe product/price IDs
+// Update the Stripe price IDs to match your actual Stripe account
+// IMPORTANT: These are your actual product and price IDs from Stripe
 const STRIPE_PRICES = {
-  monthly: 'price_1RRAdo2MNASmq1vOt2R6uX7Z', // Your monthly price ID
-  yearly: 'price_1RRAdp2MNASmq1vOu8SlCeH6',  // Your yearly price ID
+  monthly: 'price_1RRAdoESyvCWvIflGZ57vzIP', // Updated monthly price ID
+  yearly: 'price_1RRAdpESyvCWvIflR7QULSFD',  // Updated yearly price ID
 };
 
 // Stripe product IDs
 const STRIPE_PRODUCTS = {
-  monthly: 'prod_SM0gHgA0G0cQN3', // Your monthly product ID
-  yearly: 'prod_SM0gLwKne0dVuy',  // Your yearly product ID
+  monthly: 'prod_SM0gHgA0G0cQN3', // Your monthly product ID (unchanged)
+  yearly: 'prod_SM0gLwKne0dVuy',  // Your yearly product ID (unchanged)
 };
 
 export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
