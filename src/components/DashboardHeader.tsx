@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -21,6 +20,7 @@ import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { checkSubscriptionStatus, openStripeCustomerPortal } from "@/utils/stripeUtils";
 import { differenceInDays } from "date-fns";
+import { ManageSubscriptionDialog } from "./subscription/ManageSubscriptionDialog";
 
 interface DashboardHeaderProps {
   username: string;
@@ -43,6 +43,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { theme } = useTheme();
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
+  const [isManageSubscriptionOpen, setIsManageSubscriptionOpen] = useState(false);
 
   useEffect(() => {
     const fetchSubscription = async () => {
@@ -179,19 +180,13 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     try {
       const result = await openStripeCustomerPortal();
       if (!result) {
-        toast({
-          title: "Error",
-          description: "Failed to open subscription management. Please try again.",
-          variant: "destructive",
-        });
+        // If opening Stripe portal fails, open our dialog instead
+        setIsManageSubscriptionOpen(true);
       }
     } catch (error) {
       console.error('Error opening customer portal:', error);
-      toast({
-        title: "Error",
-        description: "Could not open subscription management portal.",
-        variant: "destructive",
-      });
+      // Fall back to our dialog
+      setIsManageSubscriptionOpen(true);
     }
   };
 
@@ -278,19 +273,27 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                           {formatTimeLeft(subscription.current_period_end)}
                         </p>
                       )}
-                      {subscription.stripe_customer_id && subscription.status === 'active' && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="mt-2 w-full"
-                          onClick={handleManageSubscription}
-                        >
-                          Manage Subscription
-                        </Button>
-                      )}
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="mt-2 w-full"
+                        onClick={handleManageSubscription}
+                      >
+                        Manage Subscription
+                      </Button>
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No subscription information available</p>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">No subscription information available</p>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="mt-2 w-full"
+                        onClick={() => setIsManageSubscriptionOpen(true)}
+                      >
+                        Get Subscription
+                      </Button>
+                    </div>
                   )}
                 </div>
                 <div className="pt-4 space-y-2">
@@ -336,6 +339,12 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           )}
         </p>
       </div>
+
+      {/* Manage Subscription Dialog */}
+      <ManageSubscriptionDialog 
+        open={isManageSubscriptionOpen} 
+        onOpenChange={setIsManageSubscriptionOpen} 
+      />
     </header>
   );
 };
