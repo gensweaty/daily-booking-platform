@@ -25,12 +25,6 @@ export const TrialExpiredDialog = () => {
   useEffect(() => {
     if (!user) return;
     
-    // Check if test user
-    const isTestUser = user.email === 'pmb60533@toaik.com';
-    if (isTestUser) {
-      console.log('Test user detected, checking subscription status');
-    }
-    
     // Check URL for session_id parameter
     const url = new URL(window.location.href);
     const sessionId = url.searchParams.get('session_id');
@@ -64,6 +58,7 @@ export const TrialExpiredDialog = () => {
       if (data.status === 'active') {
         console.log('Subscription is active, closing dialog');
         setOpen(false);
+        setSubscriptionStatus('active');
       } else {
         setSubscriptionStatus(data.status);
         setOpen(data.status === 'trial_expired');
@@ -123,6 +118,13 @@ export const TrialExpiredDialog = () => {
         handleVerificationSuccess();
         // Force an immediate subscription check
         await checkUserSubscription();
+      } else {
+        console.error('Session verification failed:', data);
+        toast({
+          title: "Verification Issue",
+          description: data.error || "There was a problem verifying your payment",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error verifying session:', error);

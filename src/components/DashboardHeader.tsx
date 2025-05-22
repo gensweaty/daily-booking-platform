@@ -19,7 +19,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { LanguageText } from "@/components/shared/LanguageText";
-import { checkSubscriptionStatus } from "@/utils/stripeUtils";
+import { checkSubscriptionStatus, openStripeCustomerPortal } from "@/utils/stripeUtils";
 import { differenceInDays } from "date-fns";
 
 interface DashboardHeaderProps {
@@ -37,6 +37,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { theme } = useTheme();
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
@@ -45,9 +46,24 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     const fetchSubscription = async () => {
       if (user) {
         try {
+          setIsLoading(true);
+          console.log('Checking subscription status for user:', user.email);
+          
           // First check the subscription status from Stripe
           const stripeStatus = await checkSubscriptionStatus();
           console.log('Stripe subscription status:', stripeStatus);
+          
+          if (stripeStatus.status === 'active') {
+            console.log('Active subscription found via Stripe check');
+            setSubscription({
+              plan_type: stripeStatus.planType || 'monthly',
+              status: stripeStatus.status,
+              current_period_end: stripeStatus.currentPeriodEnd || null,
+              trial_end_date: null
+            });
+            setIsLoading(false);
+            return;
+          }
           
           // Then get the detailed subscription data from the database
           const { data, error } = await supabase
@@ -60,18 +76,26 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
 
           if (error) {
             console.error('Error fetching subscription:', error);
+            setIsLoading(false);
             return;
           }
 
-          console.log('Fetched subscription:', data);
+          console.log('Fetched subscription from database:', data);
           setSubscription(data);
         } catch (error) {
           console.error('Subscription fetch error:', error);
+        } finally {
+          setIsLoading(false);
         }
       }
     };
 
     fetchSubscription();
+    
+    // Set up a periodic check for subscription status
+    const intervalId = setInterval(fetchSubscription, 10000); // Check every 10 seconds
+    
+    return () => clearInterval(intervalId);
   }, [user]);
 
   const handleSignOut = async () => {
@@ -104,6 +128,26 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       toast({
         title: "Error",
         description: "Failed to send password reset email. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleManageSubscription = async () => {
+    try {
+      const result = await openStripeCustomerPortal();
+      if (!result) {
+        toast({
+          title: "Error",
+          description: "Failed to open subscription management. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error opening customer portal:', error);
+      toast({
+        title: "Error",
+        description: "Could not open subscription management portal.",
         variant: "destructive",
       });
     }
@@ -173,10 +217,15 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Subscription</p>
-                  {subscription ? (
+                  {isLoading ? (
+                    <p className="text-sm text-muted-foreground">Loading subscription details...</p>
+                  ) : subscription ? (
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">
-                        {subscription.status === 'trial' ? 'Trial Plan' : formatPlanType(subscription.plan_type)}
+                        {subscription.status === 'trial' ? 'Trial Plan' : 
+                         subscription.status === 'active' ? formatPlanType(subscription.plan_type) :
+                         subscription.status === 'trial_expired' ? 'Trial Expired' : 
+                         'No active subscription'}
                       </p>
                       {subscription.status === 'trial' ? (
                         <p className="text-xs text-muted-foreground">
@@ -189,10 +238,19 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">Loading subscription details...</p>
+                    <p className="text-sm text-muted-foreground">No subscription information available</p>
                   )}
                 </div>
-                <div className="pt-4">
+                <div className="pt-4 space-y-2">
+                  {subscription && subscription.status === 'active' && (
+                    <Button 
+                      variant="secondary" 
+                      className="w-full"
+                      onClick={handleManageSubscription}
+                    >
+                      Manage Subscription
+                    </Button>
+                  )}
                   <Button 
                     variant="info" 
                     className="w-full"
