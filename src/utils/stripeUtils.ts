@@ -15,9 +15,20 @@ const STRIPE_PRODUCTS = {
   yearly: 'prod_SM0gLwKne0dVuy',  // Your yearly product ID (unchanged)
 };
 
+interface StripeCheckoutResponse {
+  data?: {
+    url?: string;
+    [key: string]: any;
+  };
+  error?: {
+    message?: string;
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
+
 export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
   try {
-    // Fix the TypeScript error by explicitly typing the return value
     const { data: userData, error: userError } = await supabase.auth.getUser();
     
     if (userError || !userData?.user) {
@@ -50,10 +61,11 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
     const response = await Promise.race([
       functionPromise,
       timeoutPromise.catch(err => { throw err; })
-    ]);
+    ]) as StripeCheckoutResponse;
     
-    // Properly handle the response object
-    const { data, error } = response;
+    // Safely access data and error properties with type checking
+    const data = response?.data;
+    const error = response?.error;
     
     if (error) {
       console.error('Error creating checkout session:', error);
