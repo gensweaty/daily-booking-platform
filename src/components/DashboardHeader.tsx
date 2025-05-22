@@ -44,6 +44,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
   const [isManageSubscriptionOpen, setIsManageSubscriptionOpen] = useState(false);
+  const [isRefreshingSubscription, setIsRefreshingSubscription] = useState(false);
 
   useEffect(() => {
     const fetchSubscription = async () => {
@@ -140,6 +141,32 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     
     return () => clearInterval(intervalId);
   }, [user]);
+
+  // Add manual refresh function
+  const handleRefreshSubscription = async () => {
+    if (!user || isRefreshingSubscription) return;
+    
+    setIsRefreshingSubscription(true);
+    try {
+      const result = await checkSubscriptionStatus();
+      
+      toast({
+        title: "Subscription Status",
+        description: `Status refreshed: ${result.status}`,
+      });
+      
+      console.log('Manual subscription refresh result:', result);
+    } catch (error) {
+      console.error('Error refreshing subscription:', error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh subscription status",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshingSubscription(false);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -253,7 +280,27 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   <p className="text-sm text-muted-foreground">{username}</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Subscription</p>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm font-medium">Subscription</p>
+                    {!isLoading && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-7 px-2 text-xs"
+                        onClick={handleRefreshSubscription}
+                        disabled={isRefreshingSubscription}
+                      >
+                        {isRefreshingSubscription ? (
+                          <span className="flex items-center gap-1">
+                            <div className="h-3 w-3 rounded-full border-2 border-t-transparent border-primary animate-spin"></div>
+                            Refreshing...
+                          </span>
+                        ) : (
+                          'Refresh'
+                        )}
+                      </Button>
+                    )}
+                  </div>
                   {isLoading ? (
                     <p className="text-sm text-muted-foreground">Loading subscription details...</p>
                   ) : subscription ? (

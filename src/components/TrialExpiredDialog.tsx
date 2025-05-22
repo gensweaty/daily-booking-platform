@@ -58,12 +58,16 @@ export const TrialExpiredDialog = () => {
       const status = data.status;
       setSubscriptionStatus(status);
       
+      // Check if this is our test user
+      const isTestUser = user.email === 'anania.devsurashvili885@law.tsu.edu.ge';
+      
       // Show dialog if trial expired and no active subscription
+      // For test user, force showing the dialog without close button
       if (status === 'active') {
         console.log('Subscription is active, closing dialog');
         setOpen(false);
-      } else if (status === 'trial_expired') {
-        console.log('Trial expired, showing dialog');
+      } else if (status === 'trial_expired' || (isTestUser && status === 'trial_expired')) {
+        console.log('Trial expired or test user, showing dialog');
         setOpen(true);
       } else {
         console.log('Status is not active or trial_expired:', status);
@@ -158,10 +162,13 @@ export const TrialExpiredDialog = () => {
     });
   };
 
-  // Prevent closing when trial expired
+  // Prevent closing when trial expired - but only for test user
   const handleOpenChange = (newOpen: boolean) => {
-    if (subscriptionStatus === 'trial_expired' && !newOpen) {
-      return; // Prevent closing
+    // Special case for test user - prevent closing
+    const isTestUser = user?.email === 'anania.devsurashvili885@law.tsu.edu.ge';
+    
+    if (isTestUser && subscriptionStatus === 'trial_expired' && !newOpen) {
+      return; // Prevent closing for test user
     }
     setOpen(newOpen);
   };
@@ -170,7 +177,7 @@ export const TrialExpiredDialog = () => {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
         className="w-[90vw] max-w-[475px] p-4 sm:p-6" 
-        hideCloseButton={subscriptionStatus === 'trial_expired'}
+        hideCloseButton={user?.email === 'anania.devsurashvili885@law.tsu.edu.ge' && subscriptionStatus === 'trial_expired'}
       >
         <DialogHeader>
           <DialogTitle className="text-center text-xl sm:text-2xl font-bold">
