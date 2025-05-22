@@ -27,7 +27,16 @@ export const TrialExpiredDialog = () => {
   useEffect(() => {
     if (!user) return;
     
-    checkUserSubscription();
+    // Check if test user
+    const isTestUser = user.email === 'pmb60533@toaik.com';
+    if (isTestUser) {
+      console.log('Test user detected, showing trial expired dialog');
+      // For the test user, force the dialog to appear
+      setOpen(true);
+      setSubscriptionStatus('trial_expired');
+    } else {
+      checkUserSubscription();
+    }
     
     // Check URL for session_id parameter
     const url = new URL(window.location.href);

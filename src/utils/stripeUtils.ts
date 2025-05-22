@@ -61,13 +61,18 @@ export const checkSubscriptionStatus = async () => {
     const user = supabase.auth.getUser();
     
     if (!user) {
-      return { status: 'not_authenticated' };
+      return { success: false, status: 'not_authenticated' };
     }
     
     const { data: userData } = await user;
     
     if (!userData?.user) {
-      return { status: 'not_authenticated' };
+      return { success: false, status: 'not_authenticated' };
+    }
+    
+    // Check if this is our test user
+    if (userData.user.email === 'pmb60533@toaik.com') {
+      console.log('Test user detected, checking for forced trial expiration');
     }
     
     // First, check if user has a subscription
@@ -84,6 +89,7 @@ export const checkSubscriptionStatus = async () => {
       
       // Return trial status
       return {
+        success: true,
         status: 'trial',
         trialEnd: addDays(new Date(), 14).toISOString(),
         isTrialExpired: false
@@ -185,15 +191,19 @@ export const createTrialSubscription = async (userId: string) => {
       throw new Error('Failed to fetch subscription plan');
     }
     
-    // Create a trial subscription
+    // Check if this is our test user for expiring the trial
+    const { data: userInfo } = await supabase.auth.getUser();
+    const isTestUser = userInfo?.user?.email === 'pmb60533@toaik.com';
+    
+    // Create a trial subscription - for test user, set as expired
     const { error } = await supabase.from('subscriptions').insert({
       user_id: userId,
       plan_id: plans.id,
       plan_type: 'monthly',
-      status: 'trial',
-      trial_end_date: trialEndDate.toISOString(),
+      status: isTestUser ? 'trial_expired' : 'trial',
+      trial_end_date: isTestUser ? addDays(new Date(), -1).toISOString() : trialEndDate.toISOString(),
       current_period_start: currentPeriodStart.toISOString(),
-      current_period_end: trialEndDate.toISOString(),
+      current_period_end: isTestUser ? addDays(new Date(), -1).toISOString() : trialEndDate.toISOString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
@@ -203,7 +213,11 @@ export const createTrialSubscription = async (userId: string) => {
       throw new Error(`Failed to create trial subscription: ${error.message}`);
     }
     
-    return { success: true, trialEndDate };
+    return { 
+      success: true, 
+      trialEndDate: isTestUser ? addDays(new Date(), -1) : trialEndDate,
+      status: isTestUser ? 'trial_expired' : 'trial'
+    };
   } catch (error) {
     console.error('Error creating trial subscription:', error);
     throw error;

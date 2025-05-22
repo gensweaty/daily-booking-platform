@@ -135,6 +135,46 @@ serve(async (req) => {
         );
       }
       
+      // Special case for test user
+      const testEmail = "pmb60533@toaik.com";
+      
+      // Get user email for potential test user check
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(user_id);
+      
+      if (userError) {
+        logStep("Error fetching user", { error: userError });
+        return new Response(
+          JSON.stringify({ success: false, error: "User not found" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
+      
+      // Check for test user
+      if (userData.user && userData.user.email === testEmail) {
+        logStep("Test user detected, forcing trial expired status");
+        
+        // Update subscription to expired for test user
+        await supabase
+          .from('subscriptions')
+          .update({ 
+            status: 'trial_expired',
+            trial_end_date: new Date(Date.now() - 86400000).toISOString() // Yesterday
+          })
+          .eq('user_id', user_id);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            status: 'trial_expired',
+            daysRemaining: 0,
+            trialEnd: new Date(Date.now() - 86400000).toISOString(),
+            isTrialExpired: true,
+            isSubscriptionExpired: false
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        );
+      }
+      
       // Check subscription status
       const { data, error } = await supabase
         .from('subscriptions')
