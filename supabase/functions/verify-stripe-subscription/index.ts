@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
@@ -84,6 +83,22 @@ serve(async (req) => {
               sessionId: event.data.object.id
             });
             return new Response(JSON.stringify({ success: false, error: "Error processing checkout session" }), { 
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 500 
+            });
+          }
+        } else if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.created') {
+          try {
+            await handleSubscriptionUpdated(event.data.object);
+            return new Response(JSON.stringify({ success: true }), { 
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200 
+            });
+          } catch (processError) {
+            logStep("Error processing subscription update", { 
+              error: processError instanceof Error ? processError.message : String(processError)
+            });
+            return new Response(JSON.stringify({ success: false, error: "Error processing subscription update" }), { 
               headers: { ...corsHeaders, "Content-Type": "application/json" },
               status: 500 
             });
@@ -618,6 +633,73 @@ async function handleCheckoutSessionCompleted(session: any) {
   } catch (error) {
     logStep("Error updating subscription in webhook handler", { 
       error: error instanceof Error ? error.message : String(error) 
+    });
+    throw error;
+  }
+}
+
+// Helper function to process subscription updates
+async function handleSubscriptionUpdated(subscription: any) {
+  logStep("Processing subscription update", { 
+    subscriptionId: subscription.id,
+    status: subscription.status 
+  });
+  
+  try {
+    // Find user by customer ID
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .select('user_id, email')
+      .eq('stripe_customer_id', subscription.customer)
+      .maybeSingle();
+      
+    if (error || !data) {
+      logStep("No user found with customer ID", { customerId: subscription.customer });
+      return;
+    }
+    
+    // Check if this is our test user
+    const { data: userData } = await supabase.auth.admin.getUserById(data.user_id);
+    const isTestUser = userData?.user?.email === 'anania.devsurashvili885@law.tsu.edu.ge';
+    
+    if (isTestUser) {
+      logStep("Test user detected in subscription update, keeping trial_expired");
+      
+      // For test user, keep trial_expired status
+      await supabase
+        .from('subscriptions')
+        .update({
+          status: 'trial_expired',
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', data.user_id);
+        
+      return;
+    }
+    
+    // For normal users, update subscription with Stripe data
+    const planType = subscription.items.data[0].plan.interval === 'month' ? 'monthly' : 'yearly';
+    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+    
+    // Update subscription status
+    const { error: updateError } = await supabase
+      .from('subscriptions')
+      .update({
+        status: subscription.status === 'active' ? 'active' : 'inactive',
+        plan_type: planType,
+        current_period_end: currentPeriodEnd.toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', data.user_id);
+    
+    if (updateError) {
+      logStep("Error updating subscription", { updateError });
+    } else {
+      logStep("Successfully updated subscription status", { userId: data.user_id, status: subscription.status });
+    }
+  } catch (error) {
+    logStep("Error in handleSubscriptionUpdated", { 
+      error: error instanceof Error ? error.message : String(error),
     });
     throw error;
   }
