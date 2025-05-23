@@ -1,12 +1,15 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
+
+import { serve } from "https://deno.land/std@0.170.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@14.2.0?target=denonext";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
+// Initialize Stripe with correct API version and crypto provider
 const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY") || "", {
-  apiVersion: "2023-10-16",
+  apiVersion: "2023-10-16", // Keep consistent with your Stripe account settings
   httpClient: Stripe.createFetchHttpClient(),
 });
 
+// Get the Supabase client with the service role key to bypass RLS
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -14,7 +17,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 // CORS headers for browser access
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
   "Access-Control-Allow-Methods": "POST, OPTIONS, GET",
 };
 
@@ -50,7 +53,7 @@ serve(async (req) => {
       
       // Try to construct the event from the payload
       try {
-        // Verify webhook payload using the synchronous method (no crypto provider needed)
+        // Get webhook secret from environment
         const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
         if (!webhookSecret) {
           logStep("Webhook secret not configured");
@@ -60,7 +63,7 @@ serve(async (req) => {
           });
         }
         
-        // Use synchronous webhook construction (not async)
+        // Use synchronous event construction which is compatible with Deno edge runtime
         const event = stripe.webhooks.constructEvent(
           body,
           signature,
@@ -233,18 +236,18 @@ async function handleSessionVerification(body: any, corsHeaders: any) {
     
     // Check if this is our test user
     const isTestUser = session.customer_details?.email === 'anania.devsurashvili885@law.tsu.edu.ge';
-    const effectiveStatus = isTestUser ? 'trial_expired' : 'active';
     
+    // For the test user, we'll update the subscription in the database but return active status
     if (isTestUser) {
-      logStep("Test user detected, keeping trial_expired status");
+      logStep("Test user detected, setting active status");
       
-      // Update user's subscription in database - but keep trial_expired status for test user
+      // Update user's subscription in database for test user
       const { error } = await supabase
         .from('subscriptions')
         .upsert({
           user_id: userId,
           email: session.customer_details?.email,
-          status: 'trial_expired',
+          status: 'active',  // Important: Set to active for the test user
           stripe_customer_id: session.customer,
           stripe_subscription_id: subscriptionId,
           plan_type: planType,
@@ -260,11 +263,11 @@ async function handleSessionVerification(body: any, corsHeaders: any) {
         );
       }
       
-      logStep("Successfully updated test user subscription to trial_expired");
+      logStep("Successfully updated test user subscription to active status");
       return new Response(
         JSON.stringify({ 
           success: true, 
-          status: 'trial_expired',
+          status: 'active',
           planType,
           currentPeriodEnd
         }),
@@ -298,7 +301,7 @@ async function handleSessionVerification(body: any, corsHeaders: any) {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        status: effectiveStatus,
+        status: 'active',
         planType,
         currentPeriodEnd
       }),
@@ -345,7 +348,7 @@ async function handleSubscriptionCheck(body: any, corsHeaders: any) {
     );
   }
   
-  // Check if this is our test user - special handling for test user
+  // Check if this is our test user - special handling for the test user with active subscription
   const isTestUser = userData.user.email === 'anania.devsurashvili885@law.tsu.edu.ge';
   if (isTestUser) {
     logStep("Detected test user, using special handling");
@@ -374,24 +377,24 @@ async function handleSubscriptionCheck(body: any, corsHeaders: any) {
       });
       
       if (stripeSubscription.status === 'active') {
-        // For test user, we want to ignore actual Stripe status
+        // For test user who has paid, show active status (changed from previous behavior)
         if (isTestUser) {
-          logStep("Keeping trial_expired status for test user");
+          logStep("Returning active status for test user");
           
-          // Ensure test user keeps trial_expired status
+          // Ensure test user has active status
           await supabase
             .from('subscriptions')
             .update({
-              status: 'trial_expired',
+              status: 'active',
               updated_at: new Date().toISOString()
             })
             .eq('user_id', user_id);
             
           return new Response(JSON.stringify({
             success: true,
-            status: 'trial_expired',
+            status: 'active',
             planType: subscriptionData.plan_type,
-            currentPeriodEnd: null
+            currentPeriodEnd: subscriptionData.current_period_end
           }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 200
@@ -444,24 +447,24 @@ async function handleSubscriptionCheck(body: any, corsHeaders: any) {
       });
       
       if (subscriptions.data.length > 0) {
-        // For test user, ignore this info and keep trial_expired
+        // For test user, return active status if they have active subscription
         if (isTestUser) {
-          logStep("Test user detected, keeping trial_expired status");
+          logStep("Test user has active subscription from Stripe");
           
-          // Ensure test user has trial_expired status
+          // Ensure test user has active status
           await supabase
             .from('subscriptions')
             .update({
-              status: 'trial_expired',
+              status: 'active',
               updated_at: new Date().toISOString()
             })
             .eq('user_id', user_id);
             
           return new Response(JSON.stringify({
             success: true,
-            status: 'trial_expired',
+            status: 'active',
             planType: subscriptionData.plan_type,
-            currentPeriodEnd: null
+            currentPeriodEnd: subscriptionData.current_period_end
           }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 200
@@ -507,31 +510,6 @@ async function handleSubscriptionCheck(body: any, corsHeaders: any) {
     }
   }
   
-  // Special handling for test user - always return trial_expired regardless of what's in the database
-  if (isTestUser) {
-    // Always set and return trial_expired for this user
-    await supabase
-      .from('subscriptions')
-      .upsert({
-        user_id: user_id,
-        email: userData.user.email,
-        status: 'trial_expired',
-        plan_type: 'monthly',
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' });
-      
-    logStep("Forcing trial_expired status for test user");
-    
-    return new Response(JSON.stringify({
-      success: true,
-      status: 'trial_expired',
-      planType: 'monthly'
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200
-    });
-  }
-  
   // If no active subscription found in Stripe, return database status
   return new Response(JSON.stringify({
     success: true,
@@ -575,35 +553,12 @@ async function handleCheckoutSessionCompleted(session: any) {
   // Check if this is our test user
   const isTestUser = customerEmail === 'anania.devsurashvili885@law.tsu.edu.ge';
   
-  if (isTestUser) {
-    logStep("Test user detected in webhook, keeping trial_expired status");
-    
-    try {
-      // For test user, keep trial_expired status regardless of payment
-      await supabase
-        .from('subscriptions')
-        .upsert({
-          user_id: userId,
-          email: customerEmail,
-          status: 'trial_expired',
-          stripe_customer_id: customerId,
-          stripe_subscription_id: subscriptionId,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
-      
-      logStep("Successfully updated test user subscription to trial_expired");
-    } catch (error) {
-      logStep("Error updating test user subscription", { error });
-      throw error;
-    }
-    return;
-  }
-  
+  // Process the subscription for the test user normally
   try {
     // Get subscription details from Stripe
-    const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
-    const planType = stripeSubscription.items.data[0].plan.interval === 'month' ? 'monthly' : 'yearly';
-    const currentPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const planType = subscription.items.data[0].plan.interval === 'month' ? 'monthly' : 'yearly';
+    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
     
     // Get the subscription plan from our database
     const { data: plans } = await supabase
@@ -658,26 +613,11 @@ async function handleSubscriptionUpdated(subscription: any) {
       return;
     }
     
-    // Check if this is our test user
+    // Get user details
     const { data: userData } = await supabase.auth.admin.getUserById(data.user_id);
     const isTestUser = userData?.user?.email === 'anania.devsurashvili885@law.tsu.edu.ge';
     
-    if (isTestUser) {
-      logStep("Test user detected in subscription update, keeping trial_expired");
-      
-      // For test user, keep trial_expired status
-      await supabase
-        .from('subscriptions')
-        .update({
-          status: 'trial_expired',
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', data.user_id);
-        
-      return;
-    }
-    
-    // For normal users, update subscription with Stripe data
+    // For normal users and test user, update subscription with Stripe data
     const planType = subscription.items.data[0].plan.interval === 'month' ? 'monthly' : 'yearly';
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
     
