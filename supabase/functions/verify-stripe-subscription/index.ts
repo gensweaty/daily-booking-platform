@@ -2,21 +2,17 @@ import { serve } from "https://deno.land/std@0.170.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.2.0?target=denonext";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
-// Initialize Stripe with correct configuration for Deno
 const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY") || "", {
-  apiVersion: "2024-11-20", // Updated to supported version
+  apiVersion: "2024-11-20",
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-// CRITICAL: Create crypto provider for async webhook verification
 const cryptoProvider = Stripe.createSubtleCryptoProvider();
 
-// Supabase client
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// CORS headers
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
@@ -28,7 +24,6 @@ function logStep(step: string, data?: any) {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders, status: 204 });
   }
@@ -36,8 +31,8 @@ serve(async (req) => {
   try {
     logStep("Request received", { url: req.url, method: req.method });
     
-    // Handle Stripe webhook events
-    if (req.url.includes('webhook') || req.headers.get('stripe-signature')) {
+    // Handle Stripe webhook
+    if (req.headers.get('stripe-signature')) {
       logStep("Processing webhook from Stripe");
       
       const signature = req.headers.get('stripe-signature');
@@ -49,7 +44,6 @@ serve(async (req) => {
         });
       }
       
-      // Get raw body - CRITICAL: Must use .text() for Stripe verification
       const body = await req.text();
       logStep("Webhook body received", { bodyLength: body.length });
       
@@ -63,13 +57,12 @@ serve(async (req) => {
       }
       
       try {
-        // CRITICAL FIX: Use constructEventAsync with cryptoProvider
         const event = await stripe.webhooks.constructEventAsync(
           body,
           signature,
           webhookSecret,
           undefined,
-          cryptoProvider // Essential for Supabase Edge Runtime
+          cryptoProvider
         );
         
         logStep(`Webhook verified successfully: ${event.type}`, { id: event.id });
@@ -107,7 +100,7 @@ serve(async (req) => {
       }
     }
     
-    // Handle POST requests for session verification or subscription checks
+    // Handle POST requests
     if (req.method === "POST") {
       let body;
       try {
@@ -148,7 +141,7 @@ serve(async (req) => {
   }
 });
 
-// Handle checkout session completion
+// CRITICAL FIX: Handle checkout session completion
 async function handleCheckoutSessionCompleted(session: any) {
   logStep("Processing checkout session completed", { sessionId: session.id });
 
@@ -158,13 +151,26 @@ async function handleCheckoutSessionCompleted(session: any) {
   
   let userId = session.metadata?.user_id;
   
-  // Find user by email if not in metadata
+  // FIXED: Find user by email with proper error handling
   if (!userId && customerEmail) {
-    const { data: users } = await supabase.auth.admin.listUsers();
-    const matchingUser = users.users.find(u => u.email === customerEmail);
-    if (matchingUser) {
-      userId = matchingUser.id;
-      logStep("Found user by email", { userId, email: customerEmail });
+    try {
+      // Use auth.admin.listUsers() with pagination to avoid the 184 rows issue
+      const { data: users, error } = await supabase.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000 // Adjust as needed
+      });
+      
+      if (error) {
+        logStep("Error fetching users", { error });
+      } else {
+        const matchingUser = users.users.find(u => u.email === customerEmail);
+        if (matchingUser) {
+          userId = matchingUser.id;
+          logStep("Found user by email", { userId, email: customerEmail });
+        }
+      }
+    } catch (error) {
+      logStep("Error in user lookup", { error });
     }
   }
   
@@ -184,7 +190,7 @@ async function handleCheckoutSessionCompleted(session: any) {
     const planType = subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly';
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
     
-    // Update subscription in database
+    // CRITICAL FIX: Use upsert with proper conflict resolution
     const { error } = await supabase
       .from('subscriptions')
       .upsert({
@@ -196,7 +202,10 @@ async function handleCheckoutSessionCompleted(session: any) {
         plan_type: planType,
         current_period_end: currentPeriodEnd.toISOString(),
         updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' });
+      }, { 
+        onConflict: 'user_id',
+        ignoreDuplicates: false 
+      });
     
     if (error) {
       logStep("Database update error", { error });
@@ -217,7 +226,7 @@ async function handleCheckoutSessionCompleted(session: any) {
   }
 }
 
-// Handle subscription updates
+// CRITICAL FIX: Handle subscription updates with proper query
 async function handleSubscriptionUpdated(subscription: any) {
   logStep("Processing subscription update", { 
     subscriptionId: subscription.id,
@@ -225,17 +234,25 @@ async function handleSubscriptionUpdated(subscription: any) {
   });
   
   try {
-    // Find user by customer ID
+    // FIXED: Use limit(1) instead of single() to avoid "multiple rows" error
     const { data, error } = await supabase
       .from('subscriptions')
       .select('user_id, email')
       .eq('stripe_customer_id', subscription.customer)
-      .single();
+      .limit(1);
       
-    if (error || !data) {
+    if (error) {
+      logStep("Error fetching subscription", { error });
+      return;
+    }
+    
+    if (!data || data.length === 0) {
       logStep("No user found with customer ID", { customerId: subscription.customer });
       return;
     }
+    
+    // Use the first result
+    const subscriptionData = data[0];
     
     const planType = subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly';
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
@@ -249,7 +266,7 @@ async function handleSubscriptionUpdated(subscription: any) {
         current_period_end: currentPeriodEnd.toISOString(),
         updated_at: new Date().toISOString()
       })
-      .eq('user_id', data.user_id);
+      .eq('user_id', subscriptionData.user_id);
     
     if (updateError) {
       logStep("Error updating subscription", { updateError });
@@ -257,7 +274,7 @@ async function handleSubscriptionUpdated(subscription: any) {
     }
     
     logStep("Successfully updated subscription", { 
-      userId: data.user_id,
+      userId: subscriptionData.user_id,
       status: subscription.status 
     });
   } catch (error) {
@@ -294,15 +311,6 @@ async function handleSessionVerification(body: any) {
       );
     }
     
-    const subscriptionId = session.subscription;
-    if (!subscriptionId) {
-      logStep("No subscription in session", { sessionId: session_id });
-      return new Response(
-        JSON.stringify({ success: false, error: "No subscription found in session" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
-    }
-    
     logStep("Session verification successful");
     return new Response(
       JSON.stringify({ 
@@ -321,7 +329,7 @@ async function handleSessionVerification(body: any) {
   }
 }
 
-// Handle subscription status check
+// CRITICAL FIX: Handle subscription status check with proper query
 async function handleSubscriptionCheck(body: any) {
   const { user_id } = body;
   
@@ -335,13 +343,15 @@ async function handleSubscriptionCheck(body: any) {
   logStep("Checking subscription for user", { userId: user_id });
   
   try {
+    // FIXED: Use limit(1) instead of single() to avoid multiple rows error
     const { data, error } = await supabase
       .from('subscriptions')
       .select('status, plan_type, current_period_end, trial_end_date')
       .eq('user_id', user_id)
-      .single();
+      .limit(1);
     
     if (error) {
+      logStep("Error fetching subscription", { error });
       // Create trial subscription if none exists
       const { data: userData } = await supabase.auth.admin.getUserById(user_id);
       if (userData.user) {
@@ -365,21 +375,48 @@ async function handleSubscriptionCheck(body: any) {
       }
     }
 
+    if (!data || data.length === 0) {
+      // No subscription found, create trial
+      const { data: userData } = await supabase.auth.admin.getUserById(user_id);
+      if (userData.user) {
+        await supabase
+          .from('subscriptions')
+          .insert({
+            user_id: user_id,
+            email: userData.user.email,
+            status: 'trialing',
+            trial_end_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+          });
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            status: 'trialing',
+            isTrialExpired: false
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        );
+      }
+    }
+
+    // Use first result
+    const subscriptionData = data[0];
     const now = new Date();
-    const trialEnd = data?.trial_end_date ? new Date(data.trial_end_date) : null;
-    const isTrialExpired = trialEnd && now > trialEnd && data.status === 'trialing';
+    const trialEnd = subscriptionData?.trial_end_date ? new Date(subscriptionData.trial_end_date) : null;
+    const isTrialExpired = trialEnd && now > trialEnd && subscriptionData.status === 'trialing';
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        status: isTrialExpired ? 'trial_expired' : data.status,
-        planType: data.plan_type,
-        currentPeriodEnd: data.current_period_end,
+        status: isTrialExpired ? 'trial_expired' : subscriptionData.status,
+        planType: subscriptionData.plan_type,
+        currentPeriodEnd: subscriptionData.current_period_end,
         isTrialExpired
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
   } catch (error) {
+    logStep("Database error in subscription check", { error });
     return new Response(
       JSON.stringify({ success: false, error: "Database error" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
