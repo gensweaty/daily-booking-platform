@@ -1,9 +1,10 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY") || "", {
-  apiVersion: "2023-10-16", // Updated to match supported Stripe API version
+  apiVersion: "2023-10-16",
   httpClient: Stripe.createFetchHttpClient(),
 });
 
@@ -37,6 +38,9 @@ serve(async (req) => {
       const body = await req.text();
       const signature = req.headers.get('stripe-signature');
       
+      logStep("Stripe signature:", signature);
+      logStep("Webhook raw body length:", body.length);
+      
       if (!signature) {
         logStep("No stripe signature found");
         return new Response(JSON.stringify({ error: "No stripe signature found" }), { 
@@ -47,7 +51,7 @@ serve(async (req) => {
       
       // Try to construct the event from the payload
       try {
-        // Verify webhook payload
+        // Verify webhook payload using the synchronous method (no crypto provider needed)
         const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
         if (!webhookSecret) {
           logStep("Webhook secret not configured");
@@ -57,12 +61,11 @@ serve(async (req) => {
           });
         }
         
-        const event = await stripe.webhooks.constructEventAsync(
+        // Use synchronous webhook construction (not async)
+        const event = stripe.webhooks.constructEvent(
           body,
           signature,
-          webhookSecret,
-          undefined,
-          Stripe.createSubtleCryptoProvider()
+          webhookSecret
         );
         
         logStep(`Received webhook event: ${event.type}`, { id: event.id });
