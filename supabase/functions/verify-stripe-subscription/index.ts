@@ -69,11 +69,22 @@ serve(async (req) => {
         
         // Process the event based on its type
         if (event.type === 'checkout.session.completed') {
-          await handleCheckoutSessionCompleted(event.data.object);
-          return new Response(JSON.stringify({ success: true }), { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200 
-          });
+          try {
+            await handleCheckoutSessionCompleted(event.data.object);
+            return new Response(JSON.stringify({ success: true }), { 
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200 
+            });
+          } catch (processError) {
+            logStep("Error processing checkout session", { 
+              error: processError instanceof Error ? processError.message : String(processError),
+              sessionId: event.data.object.id
+            });
+            return new Response(JSON.stringify({ success: false, error: "Error processing checkout session" }), { 
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 500 
+            });
+          }
         }
         
         // For other event types
@@ -202,33 +213,74 @@ async function handleSessionVerification(body: any, corsHeaders: any) {
       );
     }
     
-    // Update user's subscription in database
-    const { error } = await supabase
-      .from('subscriptions')
-      .upsert({
-        user_id: userId,
-        email: session.customer_details?.email,
-        status: 'active',
-        stripe_customer_id: session.customer,
-        stripe_subscription_id: subscriptionId,
-        plan_type: planType,
-        current_period_end: currentPeriodEnd,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' });
+    // Check if this is our test user
+    const isTestUser = session.customer_details?.email === 'anania.devsurashvili885@law.tsu.edu.ge';
+    const effectiveStatus = isTestUser ? 'trial_expired' : 'active';
+    
+    if (isTestUser) {
+      logStep("Test user detected, keeping trial_expired status");
       
-    if (error) {
-      logStep("Error updating subscription", { error });
+      // Update user's subscription in database - but keep trial_expired status for test user
+      const { error } = await supabase
+        .from('subscriptions')
+        .upsert({
+          user_id: userId,
+          email: session.customer_details?.email,
+          status: 'trial_expired',
+          stripe_customer_id: session.customer,
+          stripe_subscription_id: subscriptionId,
+          plan_type: planType,
+          current_period_end: currentPeriodEnd,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+        
+      if (error) {
+        logStep("Error updating subscription for test user", { error });
+        return new Response(
+          JSON.stringify({ success: false, error: "Failed to update subscription in database" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+        );
+      }
+      
+      logStep("Successfully updated test user subscription to trial_expired");
       return new Response(
-        JSON.stringify({ success: false, error: "Failed to update subscription in database" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+        JSON.stringify({ 
+          success: true, 
+          status: 'trial_expired',
+          planType,
+          currentPeriodEnd
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
+    } else {
+      // Normal user - update user's subscription in database
+      const { error } = await supabase
+        .from('subscriptions')
+        .upsert({
+          user_id: userId,
+          email: session.customer_details?.email,
+          status: 'active',
+          stripe_customer_id: session.customer,
+          stripe_subscription_id: subscriptionId,
+          plan_type: planType,
+          current_period_end: currentPeriodEnd,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+        
+      if (error) {
+        logStep("Error updating subscription", { error });
+        return new Response(
+          JSON.stringify({ success: false, error: "Failed to update subscription in database" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+        );
+      }
     }
     
     logStep("Successfully updated subscription");
     return new Response(
       JSON.stringify({ 
         success: true, 
-        status: 'active',
+        status: effectiveStatus,
         planType,
         currentPeriodEnd
       }),
@@ -290,6 +342,7 @@ async function handleSubscriptionCheck(body: any, corsHeaders: any) {
   
   if (subError) {
     logStep("Error fetching subscription", { error: subError });
+    // Continue anyway to try Stripe check
   }
   
   // If we have a Stripe subscription ID, verify with Stripe
@@ -507,58 +560,62 @@ async function handleCheckoutSessionCompleted(session: any) {
   if (isTestUser) {
     logStep("Test user detected in webhook, keeping trial_expired status");
     
-    // For test user, keep trial_expired status regardless of payment
-    const { error } = await supabase
-      .from('subscriptions')
-      .upsert({
-        user_id: userId,
-        email: customerEmail,
-        status: 'trial_expired',
-        stripe_customer_id: customerId,
-        stripe_subscription_id: subscriptionId,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' });
-    
-    if (error) {
-      logStep("Error updating test user subscription", { error });
-    } else {
+    try {
+      // For test user, keep trial_expired status regardless of payment
+      await supabase
+        .from('subscriptions')
+        .upsert({
+          user_id: userId,
+          email: customerEmail,
+          status: 'trial_expired',
+          stripe_customer_id: customerId,
+          stripe_subscription_id: subscriptionId,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+      
       logStep("Successfully updated test user subscription to trial_expired");
+    } catch (error) {
+      logStep("Error updating test user subscription", { error });
+      throw error;
     }
     return;
   }
   
-  // Get subscription details from Stripe
-  const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
-  const planType = stripeSubscription.items.data[0].plan.interval === 'month' ? 'monthly' : 'yearly';
-  const currentPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
-  
-  // Get the subscription plan from our database
-  const { data: plans } = await supabase
-    .from('subscription_plans')
-    .select('id')
-    .eq('type', planType)
-    .maybeSingle();
+  try {
+    // Get subscription details from Stripe
+    const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const planType = stripeSubscription.items.data[0].plan.interval === 'month' ? 'monthly' : 'yearly';
+    const currentPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
     
-  const planId = plans?.id;
-  
-  // Update subscription in database
-  const { error } = await supabase
-    .from('subscriptions')
-    .upsert({
-      user_id: userId,
-      email: customerEmail,
-      status: 'active',
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscriptionId,
-      plan_type: planType,
-      plan_id: planId,
-      current_period_end: currentPeriodEnd.toISOString(),
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id' });
-  
-  if (error) {
-    logStep("Error updating subscription", { error });
-  } else {
+    // Get the subscription plan from our database
+    const { data: plans } = await supabase
+      .from('subscription_plans')
+      .select('id')
+      .eq('type', planType)
+      .maybeSingle();
+      
+    const planId = plans?.id;
+    
+    // Update subscription in database
+    await supabase
+      .from('subscriptions')
+      .upsert({
+        user_id: userId,
+        email: customerEmail,
+        status: 'active',
+        stripe_customer_id: customerId,
+        stripe_subscription_id: subscriptionId,
+        plan_type: planType,
+        plan_id: planId,
+        current_period_end: currentPeriodEnd.toISOString(),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+    
     logStep("Successfully updated subscription", { userId, status: 'active' });
+  } catch (error) {
+    logStep("Error updating subscription in webhook handler", { 
+      error: error instanceof Error ? error.message : String(error) 
+    });
+    throw error;
   }
 }

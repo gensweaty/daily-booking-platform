@@ -124,7 +124,6 @@ export const TrialExpiredDialog = () => {
       console.log('Verifying session:', sessionId);
       const response = await verifySession(sessionId);
       
-      // Fix: Directly access properties from response, not from response.data
       console.log('Session verification response:', response);
       
       if (response && (response.success || response.status === 'active')) {
