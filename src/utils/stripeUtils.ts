@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { addDays } from "date-fns";
 
@@ -220,12 +219,18 @@ export const manualSyncSubscription = async () => {
       }
     });
     
+    console.log('Raw response from verify-stripe-subscription:', response);
+    
     const data = response?.data;
     const error = response?.error;
     
     if (error) {
       console.error('Error in manual sync:', error);
       throw new Error(error.message || 'Manual sync failed');
+    }
+    
+    if (!data) {
+      throw new Error('No data returned from sync operation');
     }
     
     console.log('Manual sync result:', data);

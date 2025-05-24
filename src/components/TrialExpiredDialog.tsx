@@ -12,7 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { checkSubscriptionStatus, createCheckoutSession, verifySession, manualSyncSubscription } from "@/utils/stripeUtils";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, AlertCircle } from "lucide-react";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
@@ -21,6 +21,7 @@ export const TrialExpiredDialog = () => {
   const [open, setOpen] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -76,6 +77,7 @@ export const TrialExpiredDialog = () => {
     if (!user) return;
     
     setLoading(true);
+    setSyncError(null);
     
     try {
       console.log(`Initiating checkout for ${selectedPlan} plan`);
@@ -96,6 +98,7 @@ export const TrialExpiredDialog = () => {
       console.error('Error creating checkout session:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       
+      setSyncError(errorMessage);
       toast({
         title: "Subscription Error",
         description: `Could not start subscription process: ${errorMessage.substring(0, 100)}`,
@@ -110,6 +113,7 @@ export const TrialExpiredDialog = () => {
 
   const verifyStripeSession = async (sessionId: string) => {
     setIsVerifying(true);
+    setSyncError(null);
     
     try {
       console.log('Verifying session:', sessionId);
@@ -122,6 +126,7 @@ export const TrialExpiredDialog = () => {
         await checkUserSubscription();
       } else {
         console.error('Session verification failed:', response);
+        setSyncError(response?.error || "There was a problem verifying your payment");
         toast({
           title: "Verification Issue",
           description: (response && response.error) || "There was a problem verifying your payment",
@@ -130,6 +135,8 @@ export const TrialExpiredDialog = () => {
       }
     } catch (error) {
       console.error('Error verifying session:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setSyncError(errorMessage);
       toast({
         title: "Verification Issue",
         description: "There was a problem verifying your payment",
@@ -144,21 +151,26 @@ export const TrialExpiredDialog = () => {
   const handleVerificationSuccess = () => {
     setOpen(false);
     setSubscriptionStatus('active');
+    setSyncError(null);
     toast({
       title: "Subscription Activated",
       description: "Thank you for subscribing to our service!",
     });
   };
 
-  // NEW: Manual sync functionality for trial expired dialog
+  // Manual sync functionality with improved error handling
   const handleManualSync = async () => {
     if (!user || isSyncing) return;
     
     setIsSyncing(true);
+    setSyncError(null);
+    
     try {
+      console.log('Starting manual sync for user:', user.email);
       const result = await manualSyncSubscription();
+      console.log('Manual sync result:', result);
       
-      if (result.success && result.status === 'active') {
+      if (result && result.success && result.status === 'active') {
         setSubscriptionStatus('active');
         setOpen(false);
         
@@ -166,14 +178,24 @@ export const TrialExpiredDialog = () => {
           title: "Payment Found!",
           description: "Your subscription has been activated successfully",
         });
-      } else {
+      } else if (result && result.status === 'trial_expired') {
         toast({
           title: "No Active Subscription",
           description: "No paid subscription found. Please subscribe to continue.",
         });
+      } else {
+        const errorMsg = result?.error || "Sync completed but no active subscription found";
+        setSyncError(errorMsg);
+        toast({
+          title: "Sync Complete",
+          description: errorMsg,
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error syncing subscription:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setSyncError(errorMessage);
       toast({
         title: "Sync Error",
         description: "Failed to check payment status. Please try again.",
@@ -208,6 +230,18 @@ export const TrialExpiredDialog = () => {
           <p className="text-center text-sm sm:text-base text-muted-foreground">
             Your 14-day free trial has ended. Please select a plan to continue using our services.
           </p>
+          
+          {/* Error display */}
+          {syncError && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-red-700 dark:text-red-300">
+                  <strong>Sync Error:</strong> {syncError}
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Manual sync button for users who already paid */}
           <div className="text-center">
@@ -244,7 +278,7 @@ export const TrialExpiredDialog = () => {
           <button
             onClick={handleSubscribe}
             disabled={loading}
-            className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             {loading ? "Processing..." : "Subscribe Now"}
           </button>
