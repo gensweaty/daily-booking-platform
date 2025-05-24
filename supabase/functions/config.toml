@@ -7,3 +7,5 @@ STRIPE_WEBHOOK_SECRET = "env(STRIPE_WEBHOOK_SECRET)"
 STRIPE_PRODUCT_ID = "env(STRIPE_PRODUCT_ID)"
 RESEND_API_KEY = "env(RESEND_API_KEY)"
 
+[functions.verify-stripe-subscription]
+verify_jwt = false
