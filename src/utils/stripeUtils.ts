@@ -3,16 +3,15 @@ import { supabase } from "@/lib/supabase";
 import { addDays } from "date-fns";
 
 // Update the Stripe price IDs to match your actual Stripe account
-// Using the price ID that was found in your Stripe account from the logs
 const STRIPE_PRICES = {
-  monthly: 'price_1RRIfK2MNASmq1vOrdsjIrYn', // Updated to correct price ID from logs
-  yearly: 'price_1RRIfL2MNASmq1vOvYvHHZzD',  // Updated with assumed yearly price ID
+  monthly: 'price_1RRIfK2MNASmq1vOrdsjIrYn',
+  yearly: 'price_1RRIfL2MNASmq1vOvYvHHZzD',
 };
 
 // Stripe product IDs
 const STRIPE_PRODUCTS = {
-  monthly: 'prod_SM0gHgA0G0cQN3', // Your monthly product ID (unchanged)
-  yearly: 'prod_SM0gLwKne0dVuy',  // Your yearly product ID (unchanged)
+  monthly: 'prod_SM0gHgA0G0cQN3',
+  yearly: 'prod_SM0gLwKne0dVuy',
 };
 
 interface StripeCheckoutResponse {
@@ -41,12 +40,10 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
     
     console.log(`Creating checkout session for ${planType} plan:`, { priceId, productId });
     
-    // Start a timeout to detect function invocation issues
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error("Request timed out after 15 seconds")), 15000);
     });
     
-    // Function invocation with the proper parameters
     const functionPromise = supabase.functions.invoke('create-stripe-checkout', {
       body: { 
         user_id: userData.user.id,
@@ -57,13 +54,11 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
       }
     });
     
-    // Race between timeout and function call
     const response = await Promise.race([
       functionPromise,
       timeoutPromise.catch(err => { throw err; })
     ]) as StripeCheckoutResponse;
     
-    // Safely access data and error properties with type checking
     const data = response?.data;
     const error = response?.error;
     
@@ -96,10 +91,7 @@ export const checkSubscriptionStatus = async () => {
     
     console.log('Checking subscription status for user:', userData.user.email);
     
-    // Check if this is our test user for expiring the trial
-    const isTestUser = userData.user.email === 'anania.devsurashvili885@law.tsu.edu.ge';
-    
-    // First, check if user has a subscription
+    // Check if user has a subscription
     const { data: existingSubscription, error: subError } = await supabase
       .from('subscriptions')
       .select('*')
@@ -110,33 +102,11 @@ export const checkSubscriptionStatus = async () => {
       console.error('Error fetching subscription:', subError);
     }
 
-    // For test user with active subscription, check directly with Stripe
-    if (isTestUser) {
-      try {
-        console.log('Test user detected, verifying with Stripe directly');
-        
-        // Verify subscription status with Stripe
-        const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
-          body: { user_id: userData.user.id }
-        });
-        
-        if (error) {
-          console.error('Error verifying test user subscription with Stripe:', error);
-        } else if (data && data.status === 'active') {
-          console.log('Test user has active subscription from Stripe check:', data);
-          return data;
-        }
-      } catch (verifyError) {
-        console.error('Exception verifying test user with Stripe:', verifyError);
-      }
-    }
-
     // If no subscription exists, create a trial subscription
     if (!existingSubscription) {
       console.log('No subscription found, creating trial subscription');
       await createTrialSubscription(userData.user.id);
       
-      // Return trial status
       return {
         success: true,
         status: 'trial',
@@ -150,7 +120,6 @@ export const checkSubscriptionStatus = async () => {
       console.log('Subscription has Stripe ID, verifying with Stripe');
       
       try {
-        // Verify subscription status with Stripe
         const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
           body: { 
             user_id: userData.user.id,
@@ -163,7 +132,6 @@ export const checkSubscriptionStatus = async () => {
         } else {
           console.log('Stripe verification result:', data);
           if (data && data.status === 'active') {
-            // Update local database with active status if needed
             if (existingSubscription.status !== 'active') {
               console.log('Updating subscription in database to active status');
               await supabase
@@ -183,7 +151,6 @@ export const checkSubscriptionStatus = async () => {
       }
     }
     
-    // Fall back to database status if Stripe verification fails or no Stripe ID
     console.log('Using database subscription status:', existingSubscription.status);
     
     // Check if trial has expired
@@ -197,12 +164,10 @@ export const checkSubscriptionStatus = async () => {
       existingSubscription.current_period_end && 
       new Date(existingSubscription.current_period_end) < now;
       
-    // Update status in memory if expired
     let effectiveStatus = existingSubscription.status;
     if (isTrialExpired) {
       effectiveStatus = 'trial_expired';
       
-      // Update database status
       await supabase
         .from('subscriptions')
         .update({ 
@@ -213,7 +178,6 @@ export const checkSubscriptionStatus = async () => {
     } else if (isSubscriptionExpired) {
       effectiveStatus = 'expired';
       
-      // Update database status
       await supabase
         .from('subscriptions')
         .update({ 
@@ -239,11 +203,43 @@ export const checkSubscriptionStatus = async () => {
   }
 };
 
+// NEW: Manual sync function to verify with Stripe directly
+export const manualSyncSubscription = async () => {
+  try {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !userData?.user) {
+      throw new Error("User not authenticated");
+    }
+    
+    console.log('Manual sync requested for user:', userData.user.email);
+    
+    const response = await supabase.functions.invoke('verify-stripe-subscription', {
+      body: { 
+        user_id: userData.user.id
+      }
+    });
+    
+    const data = response?.data;
+    const error = response?.error;
+    
+    if (error) {
+      console.error('Error in manual sync:', error);
+      throw new Error(error.message || 'Manual sync failed');
+    }
+    
+    console.log('Manual sync result:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in manualSyncSubscription:', error);
+    throw error;
+  }
+};
+
 export const verifySession = async (sessionId: string) => {
   try {
     console.log('Verifying Stripe session:', sessionId);
     
-    // Get current user
     const { data: userData, error: userError } = await supabase.auth.getUser();
     
     if (userError || !userData?.user) {
@@ -251,7 +247,6 @@ export const verifySession = async (sessionId: string) => {
       throw new Error("User not authenticated");
     }
     
-    // Verify the session with Stripe through our edge function
     const response = await supabase.functions.invoke('verify-stripe-subscription', {
       body: { 
         session_id: sessionId,
@@ -259,7 +254,6 @@ export const verifySession = async (sessionId: string) => {
       }
     });
     
-    // Type check and safely access response properties
     const data = response?.data || {};
     const error = response?.error;
     
@@ -270,9 +264,7 @@ export const verifySession = async (sessionId: string) => {
       return { success: false, error: error.message || 'Verification failed' };
     }
     
-    // If session verification succeeded
     if (data && (data.success || data.status === 'active')) {
-      // Force a refresh of subscription data in database
       console.log('Session verified successfully, refreshing subscription status');
       await refreshSubscriptionStatus(userData.user.id);
       return { 
@@ -289,12 +281,10 @@ export const verifySession = async (sessionId: string) => {
   }
 };
 
-// Add a new function to directly refresh subscription status
 async function refreshSubscriptionStatus(userId: string) {
   try {
     console.log('Manually refreshing subscription status for user:', userId);
     
-    // Use Supabase edge function to get the latest subscription data
     const response = await supabase.functions.invoke('verify-stripe-subscription', {
       body: { user_id: userId }
     });
@@ -334,7 +324,6 @@ export const openStripeCustomerPortal = async () => {
       throw error;
     }
     
-    // Open Stripe portal in a new tab
     if (data && data.url) {
       window.open(data.url, '_blank');
       return true;
@@ -347,14 +336,12 @@ export const openStripeCustomerPortal = async () => {
   }
 };
 
-// Helper function to create a trial subscription for new users
 export const createTrialSubscription = async (userId: string) => {
   try {
     console.log('Creating trial subscription for user:', userId);
-    const trialEndDate = addDays(new Date(), 14); // 14-day trial
+    const trialEndDate = addDays(new Date(), 14);
     const currentPeriodStart = new Date();
     
-    // Fetch the monthly plan to use as the trial plan
     const { data: plans, error: planError } = await supabase
       .from('subscription_plans')
       .select('*')
@@ -366,38 +353,14 @@ export const createTrialSubscription = async (userId: string) => {
       throw new Error('Failed to fetch subscription plan');
     }
     
-    // Check if this is our test user for expiring the trial
-    const { data: userInfo } = await supabase.auth.getUser();
-    const isTestUser = userInfo?.user?.email === 'anania.devsurashvili885@law.tsu.edu.ge';
-    
-    // For the test user with active subscription, don't create trial
-    if (isTestUser) {
-      // Check if we already have a record for this user in subscriptions
-      const { data: existingActiveSubscription } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .maybeSingle();
-        
-      if (existingActiveSubscription) {
-        console.log('Test user already has active subscription, not creating trial');
-        return {
-          success: true,
-          status: 'active'
-        };
-      }
-    }
-    
-    // Create a trial subscription - for test user, set as expired or active based on payment status
     const { error } = await supabase.from('subscriptions').insert({
       user_id: userId,
       plan_id: plans.id,
       plan_type: 'monthly',
-      status: isTestUser ? 'trial_expired' : 'trial',  // Set trial_expired for test user
-      trial_end_date: isTestUser ? addDays(new Date(), -1).toISOString() : trialEndDate.toISOString(), // Set expired date for test user
+      status: 'trial',
+      trial_end_date: trialEndDate.toISOString(),
       current_period_start: currentPeriodStart.toISOString(),
-      current_period_end: isTestUser ? addDays(new Date(), -1).toISOString() : trialEndDate.toISOString(),
+      current_period_end: trialEndDate.toISOString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
@@ -409,8 +372,8 @@ export const createTrialSubscription = async (userId: string) => {
     
     return { 
       success: true, 
-      trialEndDate: isTestUser ? null : trialEndDate,
-      status: isTestUser ? 'trial_expired' : 'trial'
+      trialEndDate: trialEndDate,
+      status: 'trial'
     };
   } catch (error) {
     console.error('Error creating trial subscription:', error);

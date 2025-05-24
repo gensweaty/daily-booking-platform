@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,7 +18,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { LanguageText } from "@/components/shared/LanguageText";
-import { checkSubscriptionStatus, openStripeCustomerPortal } from "@/utils/stripeUtils";
+import { checkSubscriptionStatus, openStripeCustomerPortal, manualSyncSubscription } from "@/utils/stripeUtils";
 import { differenceInDays } from "date-fns";
 import { ManageSubscriptionDialog } from "./subscription/ManageSubscriptionDialog";
 
@@ -45,6 +45,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const isGeorgian = language === 'ka';
   const [isManageSubscriptionOpen, setIsManageSubscriptionOpen] = useState(false);
   const [isRefreshingSubscription, setIsRefreshingSubscription] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     const fetchSubscription = async () => {
@@ -53,11 +54,9 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           setIsLoading(true);
           console.log('Checking subscription status for user:', user.email);
           
-          // First check the subscription status from Stripe
           const stripeStatus = await checkSubscriptionStatus();
           console.log('Stripe subscription status:', stripeStatus);
           
-          // If using Stripe check returned active subscription
           if (stripeStatus && stripeStatus.status === 'active') {
             console.log('Active subscription found via Stripe check');
             setSubscription({
@@ -72,7 +71,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             return;
           }
           
-          // Then get the detailed subscription data from the database
           const { data, error } = await supabase
             .from('subscriptions')
             .select('plan_type, status, current_period_end, trial_end_date, stripe_customer_id, stripe_subscription_id')
@@ -89,13 +87,10 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
 
           console.log('Fetched subscription from database:', data);
           
-          // If data exists and status is active, use it
           if (data && data.status === 'active') {
             setSubscription(data);
           } else if (data) {
-            // For other statuses, check if we need to re-verify with Stripe
             if (data.stripe_subscription_id) {
-              // Re-verify with Stripe if we have a subscription ID
               try {
                 const refreshedStatus = await supabase.functions.invoke('verify-stripe-subscription', {
                   body: { 
@@ -107,7 +102,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 console.log('Re-verified subscription with Stripe:', refreshedStatus);
                 
                 if (refreshedStatus.data && refreshedStatus.data.status === 'active') {
-                  // Update with fresh data from Stripe
                   setSubscription({
                     ...data,
                     status: 'active',
@@ -136,13 +130,11 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
 
     fetchSubscription();
     
-    // Set up a periodic check for subscription status
-    const intervalId = setInterval(fetchSubscription, 10000); // Check every 10 seconds
+    const intervalId = setInterval(fetchSubscription, 10000);
     
     return () => clearInterval(intervalId);
   }, [user]);
 
-  // Add manual refresh function
   const handleRefreshSubscription = async () => {
     if (!user || isRefreshingSubscription) return;
     
@@ -165,6 +157,44 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       });
     } finally {
       setIsRefreshingSubscription(false);
+    }
+  };
+
+  // NEW: Manual sync with Stripe
+  const handleManualSync = async () => {
+    if (!user || isSyncing) return;
+    
+    setIsSyncing(true);
+    try {
+      const result = await manualSyncSubscription();
+      
+      if (result.success && result.status === 'active') {
+        setSubscription(prev => ({
+          ...prev,
+          status: 'active',
+          plan_type: result.planType || prev?.plan_type || 'monthly',
+          current_period_end: result.currentPeriodEnd || prev?.current_period_end || null
+        }));
+        
+        toast({
+          title: "Sync Successful",
+          description: "Your subscription status has been updated from Stripe",
+        });
+      } else {
+        toast({
+          title: "Sync Complete",
+          description: result.status === 'trial_expired' ? "No active subscription found" : "Subscription status verified",
+        });
+      }
+    } catch (error) {
+      console.error('Error syncing subscription:', error);
+      toast({
+        title: "Sync Error",
+        description: "Failed to sync with Stripe. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -207,12 +237,10 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     try {
       const result = await openStripeCustomerPortal();
       if (!result) {
-        // If opening Stripe portal fails, open our dialog instead
         setIsManageSubscriptionOpen(true);
       }
     } catch (error) {
       console.error('Error opening customer portal:', error);
-      // Fall back to our dialog
       setIsManageSubscriptionOpen(true);
     }
   };
@@ -283,22 +311,43 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   <div className="flex justify-between items-center">
                     <p className="text-sm font-medium">Subscription</p>
                     {!isLoading && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-7 px-2 text-xs"
-                        onClick={handleRefreshSubscription}
-                        disabled={isRefreshingSubscription}
-                      >
-                        {isRefreshingSubscription ? (
-                          <span className="flex items-center gap-1">
-                            <div className="h-3 w-3 rounded-full border-2 border-t-transparent border-primary animate-spin"></div>
-                            Refreshing...
-                          </span>
-                        ) : (
-                          'Refresh'
-                        )}
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-7 px-2 text-xs"
+                          onClick={handleRefreshSubscription}
+                          disabled={isRefreshingSubscription}
+                        >
+                          {isRefreshingSubscription ? (
+                            <span className="flex items-center gap-1">
+                              <div className="h-3 w-3 rounded-full border-2 border-t-transparent border-primary animate-spin"></div>
+                              Refreshing...
+                            </span>
+                          ) : (
+                            'Refresh'
+                          )}
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-7 px-2 text-xs"
+                          onClick={handleManualSync}
+                          disabled={isSyncing}
+                        >
+                          {isSyncing ? (
+                            <span className="flex items-center gap-1">
+                              <RefreshCw className="h-3 w-3 animate-spin" />
+                              Syncing...
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <RefreshCw className="h-3 w-3" />
+                              Sync
+                            </span>
+                          )}
+                        </Button>
+                      </div>
                     )}
                   </div>
                   {isLoading ? (
@@ -387,7 +436,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         </p>
       </div>
 
-      {/* Manage Subscription Dialog */}
       <ManageSubscriptionDialog 
         open={isManageSubscriptionOpen} 
         onOpenChange={setIsManageSubscriptionOpen} 

@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14?target=denonext";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Initialize Stripe with minimal configuration - avoid complex crypto providers
+// Initialize Stripe with minimal configuration
 const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY"), {
   apiVersion: "2024-11-20",
   httpClient: Stripe.createFetchHttpClient()
@@ -31,7 +31,40 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders, status: 204 });
   }
 
-  // Get signature header
+  try {
+    // Handle webhook verification
+    if (req.headers.get("stripe-signature")) {
+      return await handleWebhook(req);
+    }
+    
+    // Handle manual verification requests
+    if (req.method === "POST") {
+      const body = await req.json();
+      
+      if (body.session_id) {
+        return await handleSessionVerification(body);
+      }
+      
+      if (body.user_id) {
+        return await handleManualSync(body);
+      }
+    }
+    
+    return new Response(JSON.stringify({ error: "Invalid request" }), {
+      status: 400,
+      headers: corsHeaders
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep("Global error", { error: errorMessage });
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: corsHeaders
+    });
+  }
+});
+
+async function handleWebhook(req) {
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
     logStep("No signature header found");
@@ -41,7 +74,6 @@ serve(async (req) => {
     });
   }
 
-  // Get webhook secret
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
   if (!webhookSecret) {
     logStep("No webhook secret configured");
@@ -51,13 +83,11 @@ serve(async (req) => {
     });
   }
 
-  // Get raw body - CRITICAL: Must use .text() for proper verification
   const body = await req.text();
   logStep("Body received", { length: body.length });
 
   let event;
   try {
-    // Use the SIMPLE synchronous method - this works reliably in Supabase
     event = stripe.webhooks.constructEvent(
       body,
       signature,
@@ -106,9 +136,8 @@ serve(async (req) => {
       headers: corsHeaders
     });
   }
-});
+}
 
-// Handle checkout session completion
 async function handleCheckoutCompleted(session) {
   logStep("Processing checkout completion", { sessionId: session.id });
   
@@ -121,10 +150,13 @@ async function handleCheckoutCompleted(session) {
     return;
   }
 
-  // Find user by metadata or email
+  // PRIORITY 1: Try to get user_id from metadata (CRITICAL FIX)
   let userId = session.metadata?.user_id;
+  logStep("User ID from metadata", { userId });
   
+  // PRIORITY 2: Find user by email if no metadata
   if (!userId && customerEmail) {
+    logStep("Searching for user by email", { email: customerEmail });
     const { data: users } = await supabase.auth.admin.listUsers({
       page: 1,
       perPage: 1000
@@ -136,8 +168,28 @@ async function handleCheckoutCompleted(session) {
     }
   }
 
+  // PRIORITY 3: Try to find user by customer ID in our database
+  if (!userId && customerId) {
+    logStep("Searching for user by customer ID", { customerId });
+    const { data: existingRecord } = await supabase
+      .from("subscriptions")
+      .select("user_id")
+      .eq("stripe_customer_id", customerId)
+      .single();
+    
+    if (existingRecord) {
+      userId = existingRecord.user_id;
+      logStep("Found user by customer ID", { userId, customerId });
+    }
+  }
+
   if (!userId) {
-    logStep("No user found for checkout session");
+    logStep("CRITICAL ERROR: No user found for checkout session", {
+      sessionId: session.id,
+      customerId,
+      customerEmail,
+      metadata: session.metadata
+    });
     return;
   }
 
@@ -147,7 +199,7 @@ async function handleCheckoutCompleted(session) {
     const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
 
-    // Update database
+    // Update database with proper error handling
     const { error } = await supabase
       .from("subscriptions")
       .upsert({
@@ -171,15 +223,19 @@ async function handleCheckoutCompleted(session) {
     logStep("Subscription activated successfully", {
       userId,
       subscriptionId,
-      planType
+      planType,
+      email: customerEmail
     });
   } catch (error) {
-    logStep("Error processing checkout", { error });
+    logStep("Error processing checkout", { 
+      error: error instanceof Error ? error.message : String(error),
+      userId,
+      sessionId: session.id
+    });
     throw error;
   }
 }
 
-// Handle subscription events
 async function handleSubscriptionEvent(subscription) {
   logStep("Processing subscription event", {
     subscriptionId: subscription.id,
@@ -228,7 +284,6 @@ async function handleSubscriptionEvent(subscription) {
   }
 }
 
-// Handle subscription cancellation
 async function handleSubscriptionCanceled(subscription) {
   logStep("Processing subscription cancellation", {
     subscriptionId: subscription.id
@@ -252,5 +307,129 @@ async function handleSubscriptionCanceled(subscription) {
   } catch (error) {
     logStep("Error processing cancellation", { error });
     throw error;
+  }
+}
+
+// Handle session verification from client
+async function handleSessionVerification(body) {
+  const { session_id, user_id } = body;
+  
+  if (!session_id) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Session ID is required" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+    );
+  }
+  
+  logStep("Verifying session", { sessionId: session_id });
+  
+  try {
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+    
+    if (!session || session.status !== "complete") {
+      return new Response(
+        JSON.stringify({ success: false, error: "Payment not complete" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
+    
+    // If session is complete, trigger checkout processing manually
+    if (session.subscription) {
+      await handleCheckoutCompleted(session);
+    }
+    
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        status: 'active'
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+    );
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep(`Error verifying session: ${errorMessage}`);
+    return new Response(
+      JSON.stringify({ success: false, error: errorMessage }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+    );
+  }
+}
+
+// Handle manual sync from client
+async function handleManualSync(body) {
+  const { user_id } = body;
+  
+  if (!user_id) {
+    return new Response(
+      JSON.stringify({ success: false, error: "User ID is required" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+    );
+  }
+  
+  logStep("Manual sync requested", { userId: user_id });
+  
+  try {
+    // Get user's subscription from database
+    const { data: subData } = await supabase
+      .from("subscriptions")
+      .select("stripe_customer_id, stripe_subscription_id")
+      .eq("user_id", user_id)
+      .single();
+    
+    if (!subData?.stripe_customer_id) {
+      return new Response(
+        JSON.stringify({ success: false, error: "No Stripe customer found" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
+    
+    // Get active subscriptions from Stripe
+    const subscriptions = await stripe.subscriptions.list({
+      customer: subData.stripe_customer_id,
+      status: "active",
+      limit: 1,
+    });
+    
+    if (subscriptions.data.length > 0) {
+      const subscription = subscriptions.data[0];
+      const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+      const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+      
+      // Update database
+      await supabase
+        .from("subscriptions")
+        .update({
+          status: "active",
+          stripe_subscription_id: subscription.id,
+          plan_type: planType,
+          current_period_end: currentPeriodEnd.toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("user_id", user_id);
+      
+      logStep("Manual sync successful", { userId: user_id, status: "active" });
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          status: "active",
+          planType: planType,
+          currentPeriodEnd: currentPeriodEnd.toISOString()
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    } else {
+      return new Response(
+        JSON.stringify({ success: true, status: "trial_expired" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep(`Error in manual sync: ${errorMessage}`);
+    return new Response(
+      JSON.stringify({ success: false, error: errorMessage }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+    );
   }
 }

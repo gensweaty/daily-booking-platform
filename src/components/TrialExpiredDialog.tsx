@@ -10,7 +10,9 @@ import { SubscriptionPlanSelect } from "./subscription/SubscriptionPlanSelect";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { checkSubscriptionStatus, createCheckoutSession, verifySession } from "@/utils/stripeUtils";
+import { checkSubscriptionStatus, createCheckoutSession, verifySession, manualSyncSubscription } from "@/utils/stripeUtils";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
@@ -18,6 +20,7 @@ export const TrialExpiredDialog = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [open, setOpen] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -25,23 +28,19 @@ export const TrialExpiredDialog = () => {
   useEffect(() => {
     if (!user) return;
     
-    // Check URL for session_id parameter
     const url = new URL(window.location.href);
     const sessionId = url.searchParams.get('session_id');
     
     if (sessionId) {
       console.log('Found session_id in URL, verifying payment:', sessionId);
       verifyStripeSession(sessionId);
-      // Clean URL after processing
       url.searchParams.delete('session_id');
       window.history.replaceState({}, document.title, url.toString());
     } else {
-      // If no session ID, check subscription status normally
       checkUserSubscription();
     }
     
-    // Set up a periodic check for subscription status - check more frequently after payment
-    const checkInterval = sessionId ? 2000 : 5000; // Check every 2 seconds after payment, otherwise every 5 seconds
+    const checkInterval = sessionId ? 2000 : 5000;
     const intervalId = setInterval(checkUserSubscription, checkInterval);
     
     return () => clearInterval(intervalId);
@@ -58,16 +57,11 @@ export const TrialExpiredDialog = () => {
       const status = data.status;
       setSubscriptionStatus(status);
       
-      // Check if this is our test user
-      const isTestUser = user.email === 'anania.devsurashvili885@law.tsu.edu.ge';
-      
-      // Show dialog if trial expired and no active subscription
-      // For test user, force showing the dialog without close button
       if (status === 'active') {
         console.log('Subscription is active, closing dialog');
         setOpen(false);
-      } else if (status === 'trial_expired' || (isTestUser && status === 'trial_expired')) {
-        console.log('Trial expired or test user, showing dialog');
+      } else if (status === 'trial_expired') {
+        console.log('Trial expired, showing dialog');
         setOpen(true);
       } else {
         console.log('Status is not active or trial_expired:', status);
@@ -89,7 +83,6 @@ export const TrialExpiredDialog = () => {
       
       if (data?.url) {
         console.log('Redirecting to Stripe checkout:', data.url);
-        // Use full page redirect instead of opening in a new tab
         window.location.href = data.url;
       } else {
         console.error('No checkout URL returned');
@@ -101,7 +94,6 @@ export const TrialExpiredDialog = () => {
       }
     } catch (error) {
       console.error('Error creating checkout session:', error);
-      // Show detailed error to help debugging
       const errorMessage = error instanceof Error ? error.message : String(error);
       
       toast({
@@ -110,7 +102,6 @@ export const TrialExpiredDialog = () => {
         variant: "destructive",
       });
       
-      // For testing purposes, log the entire error object
       console.log('Complete error object:', error);
     } finally {
       setLoading(false);
@@ -128,7 +119,6 @@ export const TrialExpiredDialog = () => {
       
       if (response && (response.success || response.status === 'active')) {
         handleVerificationSuccess();
-        // Force an immediate subscription check
         await checkUserSubscription();
       } else {
         console.error('Session verification failed:', response);
@@ -145,7 +135,6 @@ export const TrialExpiredDialog = () => {
         description: "There was a problem verifying your payment",
         variant: "destructive",
       });
-      // Even on error, try to check subscription status
       await checkUserSubscription();
     } finally {
       setIsVerifying(false);
@@ -161,13 +150,45 @@ export const TrialExpiredDialog = () => {
     });
   };
 
-  // Prevent closing when trial expired - but only for test user
+  // NEW: Manual sync functionality for trial expired dialog
+  const handleManualSync = async () => {
+    if (!user || isSyncing) return;
+    
+    setIsSyncing(true);
+    try {
+      const result = await manualSyncSubscription();
+      
+      if (result.success && result.status === 'active') {
+        setSubscriptionStatus('active');
+        setOpen(false);
+        
+        toast({
+          title: "Payment Found!",
+          description: "Your subscription has been activated successfully",
+        });
+      } else {
+        toast({
+          title: "No Active Subscription",
+          description: "No paid subscription found. Please subscribe to continue.",
+        });
+      }
+    } catch (error) {
+      console.error('Error syncing subscription:', error);
+      toast({
+        title: "Sync Error",
+        description: "Failed to check payment status. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const handleOpenChange = (newOpen: boolean) => {
-    // Special case for test user - prevent closing
     const isTestUser = user?.email === 'anania.devsurashvili885@law.tsu.edu.ge';
     
     if (isTestUser && subscriptionStatus === 'trial_expired' && !newOpen) {
-      return; // Prevent closing for test user
+      return;
     }
     setOpen(newOpen);
   };
@@ -187,6 +208,32 @@ export const TrialExpiredDialog = () => {
           <p className="text-center text-sm sm:text-base text-muted-foreground">
             Your 14-day free trial has ended. Please select a plan to continue using our services.
           </p>
+          
+          {/* Manual sync button for users who already paid */}
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground mb-2">
+              Already paid? Check your payment status:
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleManualSync}
+              disabled={isSyncing}
+              className="mb-4"
+            >
+              {isSyncing ? (
+                <span className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Checking Payment...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  Check Payment Status
+                </span>
+              )}
+            </Button>
+          </div>
           
           <SubscriptionPlanSelect
             selectedPlan={selectedPlan}

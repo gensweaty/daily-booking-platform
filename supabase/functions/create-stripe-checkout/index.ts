@@ -4,7 +4,7 @@ import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY") || "", {
-  apiVersion: "2023-10-16", // Using a valid Stripe API version
+  apiVersion: "2023-10-16",
   httpClient: Stripe.createFetchHttpClient(),
 });
 
@@ -12,20 +12,17 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// CORS headers for browser access
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Helper function for logging
 function logStep(step: string, data?: any) {
   console.log(`[CREATE-CHECKOUT] ${step}`, data ? JSON.stringify(data) : "");
 }
 
 serve(async (req) => {
-  // Handle CORS preflight request
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders, status: 204 });
   }
@@ -63,7 +60,6 @@ serve(async (req) => {
     
     let customerId = subscriptionData?.stripe_customer_id;
     
-    // Create new customer if one doesn't exist
     if (!customerId) {
       logStep("Creating new Stripe customer");
       const customer = await stripe.customers.create({
@@ -90,11 +86,12 @@ serve(async (req) => {
       logStep("Using existing customer", { customerId });
     }
     
-    // Create checkout session
+    // Create checkout session with user_id in metadata - THIS IS CRITICAL
     const baseUrl = return_url || req.headers.get("origin") || "https://smartbookly.com";
     
     let finalPriceId = price_id;
-    // First, verify if the price exists
+    
+    // Verify price exists
     try {
       logStep("Verifying price exists", { priceId: price_id });
       await stripe.prices.retrieve(price_id);
@@ -105,7 +102,7 @@ serve(async (req) => {
         priceId: price_id 
       });
       
-      // List available prices for the product
+      // List available prices for fallback
       try {
         logStep("Searching for available prices", { productId: product_id });
         const availablePrices = await stripe.prices.list({ 
@@ -114,18 +111,6 @@ serve(async (req) => {
         });
         
         if (availablePrices.data.length > 0) {
-          logStep("Available active prices", { 
-            count: availablePrices.data.length,
-            prices: availablePrices.data.map(p => ({ 
-              id: p.id, 
-              productId: p.product,
-              amount: p.unit_amount, 
-              currency: p.currency,
-              recurring: p.recurring
-            }))
-          });
-          
-          // Try to find a price for the specified product
           const matchingPrice = availablePrices.data.find(p => 
             typeof p.product === 'string' && p.product === product_id
           );
@@ -137,7 +122,6 @@ serve(async (req) => {
               priceId: finalPriceId 
             });
           } else {
-            // Use any valid price if we can't find one for this product
             finalPriceId = availablePrices.data[0].id;
             logStep("Using first available price", { fallbackPriceId: finalPriceId });
           }
@@ -150,11 +134,12 @@ serve(async (req) => {
       }
     }
     
-    // Create session with the specified product/price
+    // Create session with CRITICAL metadata for webhook processing
     logStep("Creating checkout session", { 
       customerId,
       priceId: finalPriceId,
-      baseUrl
+      baseUrl,
+      userId: user_id // Log this to confirm it's being passed
     });
     
     const session = await stripe.checkout.sessions.create({
@@ -171,6 +156,7 @@ serve(async (req) => {
       metadata: {
         user_id: user_id,
         plan_type: plan_type,
+        user_email: user.email, // Additional fallback
       },
     });
     
