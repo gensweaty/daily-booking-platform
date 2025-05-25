@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { addDays } from "date-fns";
 
@@ -16,6 +17,22 @@ const STRIPE_PRODUCTS = {
 interface StripeCheckoutResponse {
   data?: {
     url?: string;
+    [key: string]: any;
+  };
+  error?: {
+    message?: string;
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
+
+interface StripeVerifyResponse {
+  data?: {
+    success?: boolean;
+    status?: string;
+    currentPeriodEnd?: string;
+    planType?: string;
+    error?: string;
     [key: string]: any;
   };
   error?: {
@@ -119,12 +136,15 @@ export const checkSubscriptionStatus = async () => {
       console.log('Subscription has Stripe ID, verifying with Stripe');
       
       try {
-        const { data, error } = await supabase.functions.invoke('verify-stripe-subscription', {
+        const response = await supabase.functions.invoke('verify-stripe-subscription', {
           body: { 
             user_id: userData.user.id,
             subscription_id: existingSubscription.stripe_subscription_id 
           }
-        });
+        }) as StripeVerifyResponse;
+        
+        const data = response?.data;
+        const error = response?.error;
         
         if (error) {
           console.error('Error verifying subscription with Stripe:', error);
@@ -223,7 +243,7 @@ export const manualSyncSubscription = async () => {
       }
     });
     
-    const response = await Promise.race([syncPromise, timeoutPromise]);
+    const response = await Promise.race([syncPromise, timeoutPromise]) as StripeVerifyResponse;
     
     console.log('Raw response from verify-stripe-subscription:', response);
     
@@ -269,7 +289,7 @@ export const verifySession = async (sessionId: string) => {
       }
     });
     
-    const response = await Promise.race([verifyPromise, timeoutPromise]);
+    const response = await Promise.race([verifyPromise, timeoutPromise]) as StripeVerifyResponse;
     
     const data = response?.data || {};
     const error = response?.error;
@@ -304,7 +324,7 @@ async function refreshSubscriptionStatus(userId: string) {
     
     const response = await supabase.functions.invoke('verify-stripe-subscription', {
       body: { user_id: userId }
-    });
+    }) as StripeVerifyResponse;
     
     const data = response?.data;
     console.log('Refresh subscription result:', data);
@@ -334,7 +354,7 @@ export const openStripeCustomerPortal = async () => {
         user_id: userData.user.id,
         return_url: window.location.origin + window.location.pathname
       }
-    });
+    }) as StripeCheckoutResponse;
     
     if (error) {
       console.error('Error creating portal session:', error);
