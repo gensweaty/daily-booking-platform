@@ -1,13 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-// Initialize Stripe with correct API version
-const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY"), {
-  apiVersion: "2023-10-16",
-  httpClient: Stripe.createFetchHttpClient()
-});
 
 // Supabase admin client
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -24,6 +17,76 @@ function logStep(step, data) {
   console.log(`[VERIFY-SUBSCRIPTION] ${step}`, data ? JSON.stringify(data) : "");
 }
 
+// Simplified webhook signature verification using Web Crypto API
+async function verifyWebhookSignature(payload: string, signature: string, secret: string): Promise<boolean> {
+  try {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+
+    // Parse the signature header to get the timestamp and signature
+    const elements = signature.split(',');
+    let timestamp = '';
+    let v1Signature = '';
+
+    for (const element of elements) {
+      const [key, value] = element.split('=');
+      if (key === 't') {
+        timestamp = value;
+      } else if (key === 'v1') {
+        v1Signature = value;
+      }
+    }
+
+    if (!timestamp || !v1Signature) {
+      return false;
+    }
+
+    // Create the signed payload
+    const signedPayload = `${timestamp}.${payload}`;
+    const expectedSignature = await crypto.subtle.sign(
+      "HMAC",
+      key,
+      encoder.encode(signedPayload)
+    );
+
+    // Convert to hex
+    const expectedHex = Array.from(new Uint8Array(expectedSignature))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+
+    return expectedHex === v1Signature;
+  } catch (error) {
+    logStep("Webhook verification error", { error: error.message });
+    return false;
+  }
+}
+
+// Simple Stripe API call without SDK
+async function makeStripeApiCall(endpoint: string, method = 'GET') {
+  const apiKey = Deno.env.get("STRIPE_API_KEY");
+  if (!apiKey) throw new Error("STRIPE_API_KEY not configured");
+
+  const response = await fetch(`https://api.stripe.com/v1/${endpoint}`, {
+    method,
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Stripe API error: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
 serve(async (req) => {
   logStep("Request received", { method: req.method });
   
@@ -33,19 +96,23 @@ serve(async (req) => {
 
   try {
     if (req.method === "POST") {
-      const body = await req.json();
+      const body = await req.text();
       
-      // Check if this is a webhook event (has 'type' and 'data' properties)
-      if (body.type && body.data) {
-        return await handleWebhookEvent(body);
+      // Check if this is a webhook event (has stripe-signature header)
+      const signature = req.headers.get("stripe-signature");
+      if (signature) {
+        return await handleWebhookEvent(body, signature);
       }
       
-      if (body.session_id) {
-        return await handleSessionVerification(body);
+      // Parse JSON for non-webhook requests
+      const parsedBody = JSON.parse(body);
+      
+      if (parsedBody.session_id) {
+        return await handleSessionVerification(parsedBody);
       }
       
-      if (body.user_id) {
-        return await handleManualSync(body);
+      if (parsedBody.user_id) {
+        return await handleManualSync(parsedBody);
       }
     }
     
@@ -64,23 +131,35 @@ serve(async (req) => {
 });
 
 // Handle webhook events from Stripe
-async function handleWebhookEvent(event) {
-  logStep("Processing webhook event", { type: event.type, id: event.id });
+async function handleWebhookEvent(body: string, signature: string) {
+  logStep("Processing webhook event");
   
   try {
+    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+    if (!webhookSecret) {
+      throw new Error("STRIPE_WEBHOOK_SECRET not configured");
+    }
+
+    // Verify the webhook signature
+    const isValid = await verifyWebhookSignature(body, signature, webhookSecret);
+    if (!isValid) {
+      logStep("Invalid webhook signature");
+      return new Response(JSON.stringify({ error: "Invalid signature" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    const event = JSON.parse(body);
+    logStep("Webhook verified", { type: event.type, id: event.id });
+
     if (event.type === 'checkout.session.completed') {
       await handleCheckoutSessionCompleted(event.data.object);
       return new Response(JSON.stringify({ success: true }), { 
         headers: { ...corsHeaders, "Content-Type": "application/json" }, 
         status: 200 
       });
-    } else if (event.type === 'customer.subscription.updated') {
-      await handleCustomerSubscriptionUpdated(event.data.object);
-      return new Response(JSON.stringify({ success: true }), { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" }, 
-        status: 200 
-      });
-    } else if (event.type === 'customer.subscription.created') {
+    } else if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.created') {
       await handleCustomerSubscriptionUpdated(event.data.object);
       return new Response(JSON.stringify({ success: true }), { 
         headers: { ...corsHeaders, "Content-Type": "application/json" }, 
@@ -95,7 +174,7 @@ async function handleWebhookEvent(event) {
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("Error processing webhook", { error: errorMessage, eventType: event.type });
+    logStep("Error processing webhook", { error: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -122,7 +201,7 @@ async function handleCustomerSubscriptionUpdated(subscription) {
     
     // Try to find by email from Stripe customer
     try {
-      const customer = await stripe.customers.retrieve(customerId);
+      const customer = await makeStripeApiCall(`customers/${customerId}`);
       if (customer.email) {
         const { data: users } = await supabase.auth.admin.listUsers({
           page: 1,
@@ -233,8 +312,8 @@ async function handleCheckoutSessionCompleted(session) {
   }
 
   try {
-    // Get subscription details
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    // Get subscription details using direct API call
+    const subscription = await makeStripeApiCall(`subscriptions/${subscriptionId}`);
     const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
 
@@ -290,7 +369,7 @@ async function handleSessionVerification(body) {
   logStep("Verifying session", { sessionId: session_id });
   
   try {
-    const session = await stripe.checkout.sessions.retrieve(session_id);
+    const session = await makeStripeApiCall(`checkout/sessions/${session_id}`);
     
     if (!session || session.payment_status !== "paid") {
       return new Response(
@@ -346,10 +425,7 @@ async function handleManualSync(body) {
       // Try to find user by email and create customer record
       const { data: userData } = await supabase.auth.admin.getUserById(user_id);
       if (userData?.user?.email) {
-        const customers = await stripe.customers.list({
-          email: userData.user.email,
-          limit: 1
-        });
+        const customers = await makeStripeApiCall(`customers?email=${encodeURIComponent(userData.user.email)}&limit=1`);
         
         if (customers.data.length > 0) {
           const customer = customers.data[0];
@@ -390,11 +466,7 @@ async function handleManualSync(body) {
 async function syncCustomerSubscriptions(user_id, customerId) {
   try {
     // Get active subscriptions from Stripe
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 1,
-    });
+    const subscriptions = await makeStripeApiCall(`subscriptions?customer=${customerId}&status=active&limit=1`);
     
     if (subscriptions.data.length > 0) {
       const subscription = subscriptions.data[0];
@@ -431,10 +503,7 @@ async function syncCustomerSubscriptions(user_id, customerId) {
       );
     } else {
       // Check for any recent checkout sessions that might not have been processed
-      const sessions = await stripe.checkout.sessions.list({
-        customer: customerId,
-        limit: 5
-      });
+      const sessions = await makeStripeApiCall(`checkout/sessions?customer=${customerId}&limit=5`);
       
       const paidSessions = sessions.data.filter(s => s.payment_status === "paid" && s.subscription);
       
