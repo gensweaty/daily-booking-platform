@@ -40,7 +40,7 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
     console.log(`Creating checkout session for ${planType} plan:`, { priceId, productId });
     
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("Request timed out after 15 seconds")), 15000);
+      setTimeout(() => reject(new Error("Request timed out after 30 seconds")), 30000);
     });
     
     const functionPromise = supabase.functions.invoke('create-stripe-checkout', {
@@ -63,7 +63,7 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
     
     if (error) {
       console.error('Error creating checkout session:', error);
-      throw error;
+      throw new Error(error.message || 'Failed to create checkout session');
     }
     
     if (!data || !data.url) {
@@ -202,7 +202,7 @@ export const checkSubscriptionStatus = async () => {
   }
 };
 
-// NEW: Manual sync function to verify with Stripe directly
+// Enhanced manual sync function with better error handling
 export const manualSyncSubscription = async () => {
   try {
     const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -213,11 +213,17 @@ export const manualSyncSubscription = async () => {
     
     console.log('Manual sync requested for user:', userData.user.email);
     
-    const response = await supabase.functions.invoke('verify-stripe-subscription', {
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Sync request timed out after 30 seconds")), 30000);
+    });
+    
+    const syncPromise = supabase.functions.invoke('verify-stripe-subscription', {
       body: { 
         user_id: userData.user.id
       }
     });
+    
+    const response = await Promise.race([syncPromise, timeoutPromise]);
     
     console.log('Raw response from verify-stripe-subscription:', response);
     
@@ -252,12 +258,18 @@ export const verifySession = async (sessionId: string) => {
       throw new Error("User not authenticated");
     }
     
-    const response = await supabase.functions.invoke('verify-stripe-subscription', {
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Session verification timed out after 30 seconds")), 30000);
+    });
+    
+    const verifyPromise = supabase.functions.invoke('verify-stripe-subscription', {
       body: { 
         session_id: sessionId,
         user_id: userData.user.id
       }
     });
+    
+    const response = await Promise.race([verifyPromise, timeoutPromise]);
     
     const data = response?.data || {};
     const error = response?.error;

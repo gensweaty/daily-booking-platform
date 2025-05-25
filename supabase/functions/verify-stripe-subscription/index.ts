@@ -1,11 +1,11 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14?target=denonext";
+import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Initialize Stripe
+// Initialize Stripe with correct API version
 const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY"), {
-  apiVersion: "2024-11-20",
+  apiVersion: "2023-10-16",
   httpClient: Stripe.createFetchHttpClient()
 });
 
@@ -258,9 +258,10 @@ async function processSuccessfulPayment(session) {
     return;
   }
 
-  // Get user_id from metadata or find by email
+  // Enhanced user identification with multiple fallback methods
   let userId = session.metadata?.user_id;
   
+  // Fallback 1: Find by email in auth.users
   if (!userId && customerEmail) {
     logStep("Finding user by email", { email: customerEmail });
     const { data: users } = await supabase.auth.admin.listUsers({
@@ -271,6 +272,20 @@ async function processSuccessfulPayment(session) {
     if (matchingUser) {
       userId = matchingUser.id;
       logStep("Found user by email", { userId, email: customerEmail });
+    }
+  }
+
+  // Fallback 2: Check existing subscription records
+  if (!userId && customerId) {
+    const { data: existingSub } = await supabase
+      .from("subscriptions")
+      .select("user_id")
+      .eq("stripe_customer_id", customerId)
+      .single();
+    
+    if (existingSub?.user_id) {
+      userId = existingSub.user_id;
+      logStep("Found user from existing subscription", { userId, customerId });
     }
   }
 
@@ -290,7 +305,7 @@ async function processSuccessfulPayment(session) {
     const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
 
-    // Update database
+    // Update database with comprehensive data
     const { error } = await supabase
       .from("subscriptions")
       .upsert({
@@ -301,6 +316,7 @@ async function processSuccessfulPayment(session) {
         stripe_subscription_id: subscriptionId,
         plan_type: planType,
         current_period_end: currentPeriodEnd.toISOString(),
+        current_period_start: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }, {
         onConflict: "user_id"

@@ -66,6 +66,8 @@ serve(async (req) => {
         email: user.email,
         metadata: {
           user_id: user_id,
+          supabase_user_id: user_id,
+          user_email: user.email,
         },
       });
       customerId = customer.id;
@@ -78,6 +80,7 @@ serve(async (req) => {
           stripe_customer_id: customerId,
           email: user.email,
           status: 'trial_expired',
+          plan_type: plan_type,
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
         
@@ -86,7 +89,7 @@ serve(async (req) => {
       logStep("Using existing customer", { customerId });
     }
     
-    // Create checkout session with user_id in metadata - THIS IS CRITICAL
+    // Create checkout session with comprehensive metadata
     const baseUrl = return_url || req.headers.get("origin") || "https://smartbookly.com";
     
     let finalPriceId = price_id;
@@ -134,12 +137,12 @@ serve(async (req) => {
       }
     }
     
-    // Create session with CRITICAL metadata for webhook processing
+    // Create session with enhanced metadata for reliable user identification
     logStep("Creating checkout session", { 
       customerId,
       priceId: finalPriceId,
       baseUrl,
-      userId: user_id // Log this to confirm it's being passed
+      userId: user_id
     });
     
     const session = await stripe.checkout.sessions.create({
@@ -156,7 +159,9 @@ serve(async (req) => {
       metadata: {
         user_id: user_id,
         plan_type: plan_type,
-        user_email: user.email, // Additional fallback
+        user_email: user.email,
+        supabase_user_id: user_id,
+        stripe_customer_id: customerId,
       },
     });
     

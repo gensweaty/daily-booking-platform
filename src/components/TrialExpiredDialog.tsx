@@ -12,7 +12,54 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { checkSubscriptionStatus, createCheckoutSession, verifySession, manualSyncSubscription } from "@/utils/stripeUtils";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, AlertCircle } from "lucide-react";
+import { RefreshCw, AlertCircle, Clock } from "lucide-react";
+
+// Countdown component
+const CountdownTimer = ({ targetDate, label }: { targetDate: string | null, label: string }) => {
+  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+
+  useEffect(() => {
+    if (!targetDate) return;
+
+    const calculateTimeLeft = () => {
+      const now = new Date().getTime();
+      const target = new Date(targetDate).getTime();
+      const difference = target - now;
+
+      if (difference > 0) {
+        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+        setTimeLeft({ days, hours, minutes, seconds });
+      } else {
+        setTimeLeft(null);
+      }
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+
+    return () => clearInterval(timer);
+  }, [targetDate]);
+
+  if (!timeLeft) {
+    return <span className="text-red-500 font-semibold">Expired</span>;
+  }
+
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <Clock className="h-4 w-4" />
+      <span className="font-mono">
+        {timeLeft.days > 0 && `${timeLeft.days}d `}
+        {timeLeft.hours.toString().padStart(2, '0')}:
+        {timeLeft.minutes.toString().padStart(2, '0')}:
+        {timeLeft.seconds.toString().padStart(2, '0')} {label}
+      </span>
+    </div>
+  );
+};
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
@@ -20,8 +67,10 @@ export const TrialExpiredDialog = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [open, setOpen] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+  const [subscriptionData, setSubscriptionData] = useState<any>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [lastSyncAttempt, setLastSyncAttempt] = useState<Date | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -41,7 +90,7 @@ export const TrialExpiredDialog = () => {
       checkUserSubscription();
     }
     
-    const checkInterval = sessionId ? 2000 : 5000;
+    const checkInterval = sessionId ? 2000 : 10000;
     const intervalId = setInterval(checkUserSubscription, checkInterval);
     
     return () => clearInterval(intervalId);
@@ -57,13 +106,19 @@ export const TrialExpiredDialog = () => {
       
       const status = data.status;
       setSubscriptionStatus(status);
+      setSubscriptionData(data);
       
       if (status === 'active') {
         console.log('Subscription is active, closing dialog');
         setOpen(false);
+        setSyncError(null);
       } else if (status === 'trial_expired') {
         console.log('Trial expired, showing dialog');
         setOpen(true);
+      } else if (status === 'trial') {
+        console.log('Trial is active');
+        setOpen(false);
+        setSyncError(null);
       } else {
         console.log('Status is not active or trial_expired:', status);
         setOpen(false);
@@ -158,12 +213,22 @@ export const TrialExpiredDialog = () => {
     });
   };
 
-  // Manual sync functionality with improved error handling
+  // Enhanced manual sync with retry logic
   const handleManualSync = async () => {
     if (!user || isSyncing) return;
     
+    // Prevent too frequent sync attempts
+    if (lastSyncAttempt && Date.now() - lastSyncAttempt.getTime() < 5000) {
+      toast({
+        title: "Please Wait",
+        description: "Please wait a moment before trying again.",
+      });
+      return;
+    }
+    
     setIsSyncing(true);
     setSyncError(null);
+    setLastSyncAttempt(new Date());
     
     try {
       console.log('Starting manual sync for user:', user.email);
@@ -172,6 +237,7 @@ export const TrialExpiredDialog = () => {
       
       if (result && result.success && result.status === 'active') {
         setSubscriptionStatus('active');
+        setSubscriptionData(result);
         setOpen(false);
         
         toast({
@@ -198,7 +264,7 @@ export const TrialExpiredDialog = () => {
       setSyncError(errorMessage);
       toast({
         title: "Sync Error",
-        description: "Failed to check payment status. Please try again.",
+        description: "Failed to check payment status. Please try again in a moment.",
         variant: "destructive",
       });
     } finally {
@@ -215,6 +281,23 @@ export const TrialExpiredDialog = () => {
     setOpen(newOpen);
   };
 
+  // Get countdown target date based on subscription status
+  const getCountdownData = () => {
+    if (!subscriptionData) return { targetDate: null, label: '' };
+    
+    if (subscriptionData.status === 'trial' && subscriptionData.trialEnd) {
+      return { targetDate: subscriptionData.trialEnd, label: 'trial remaining' };
+    }
+    
+    if (subscriptionData.status === 'active' && subscriptionData.currentPeriodEnd) {
+      return { targetDate: subscriptionData.currentPeriodEnd, label: 'until renewal' };
+    }
+    
+    return { targetDate: null, label: '' };
+  };
+
+  const countdownData = getCountdownData();
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
@@ -230,6 +313,18 @@ export const TrialExpiredDialog = () => {
           <p className="text-center text-sm sm:text-base text-muted-foreground">
             Your 14-day free trial has ended. Please select a plan to continue using our services.
           </p>
+          
+          {/* Countdown display */}
+          {countdownData.targetDate && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
+              <div className="flex items-center justify-center">
+                <CountdownTimer 
+                  targetDate={countdownData.targetDate} 
+                  label={countdownData.label}
+                />
+              </div>
+            </div>
+          )}
           
           {/* Error display */}
           {syncError && (
@@ -252,7 +347,7 @@ export const TrialExpiredDialog = () => {
               variant="outline"
               size="sm"
               onClick={handleManualSync}
-              disabled={isSyncing}
+              disabled={isSyncing || isVerifying}
               className="mb-4"
             >
               {isSyncing ? (
@@ -267,20 +362,25 @@ export const TrialExpiredDialog = () => {
                 </span>
               )}
             </Button>
+            {lastSyncAttempt && (
+              <p className="text-xs text-muted-foreground">
+                Last checked: {lastSyncAttempt.toLocaleTimeString()}
+              </p>
+            )}
           </div>
           
           <SubscriptionPlanSelect
             selectedPlan={selectedPlan}
             setSelectedPlan={setSelectedPlan}
-            isLoading={loading}
+            isLoading={loading || isVerifying}
           />
           
           <button
             onClick={handleSubscribe}
-            disabled={loading}
+            disabled={loading || isVerifying || isSyncing}
             className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
-            {loading ? "Processing..." : "Subscribe Now"}
+            {loading ? "Processing..." : isVerifying ? "Verifying..." : "Subscribe Now"}
           </button>
         </div>
       </DialogContent>
