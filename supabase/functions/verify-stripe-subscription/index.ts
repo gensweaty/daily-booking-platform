@@ -78,9 +78,20 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("Global error", { error: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    let detailedErrorMessage;
+    if (error instanceof Error) {
+      detailedErrorMessage = error.message;
+    } else if (typeof error === 'object' && error !== null) {
+      try {
+        detailedErrorMessage = JSON.stringify(error, Object.getOwnPropertyNames(error));
+      } catch (e) {
+        detailedErrorMessage = JSON.stringify(error);
+      }
+    } else {
+      detailedErrorMessage = String(error);
+    }
+    logStep("Global error", { error: detailedErrorMessage });
+    return new Response(JSON.stringify({ error: detailedErrorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
@@ -118,9 +129,20 @@ async function handleWebhookEvent(event: any) {
       });
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("Error processing webhook", { error: errorMessage, eventType: event.type });
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    let detailedErrorMessage;
+    if (error instanceof Error) {
+      detailedErrorMessage = error.message;
+    } else if (typeof error === 'object' && error !== null) {
+      try {
+        detailedErrorMessage = JSON.stringify(error, Object.getOwnPropertyNames(error));
+      } catch (e) {
+        detailedErrorMessage = JSON.stringify(error);
+      }
+    } else {
+      detailedErrorMessage = String(error);
+    }
+    logStep("Error processing webhook", { error: detailedErrorMessage, eventType: event.type });
+    return new Response(JSON.stringify({ error: detailedErrorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
@@ -380,8 +402,20 @@ async function handleCheckoutSessionCompleted(session: any) {
       email: customerEmail
     });
   } catch (error) {
+    let detailedErrorMessage;
+    if (error instanceof Error) {
+      detailedErrorMessage = error.message;
+    } else if (typeof error === 'object' && error !== null) {
+      try {
+        detailedErrorMessage = JSON.stringify(error, Object.getOwnPropertyNames(error));
+      } catch (e) {
+        detailedErrorMessage = JSON.stringify(error);
+      }
+    } else {
+      detailedErrorMessage = String(error);
+    }
     logStep("Error processing payment", { 
-      error: error instanceof Error ? error.message : String(error),
+      error: detailedErrorMessage,
       sessionId: session.id
     });
     throw error;
