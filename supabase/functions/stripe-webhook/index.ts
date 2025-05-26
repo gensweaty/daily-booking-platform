@@ -1,293 +1,264 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Use Web Crypto API instead of Node.js crypto
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
+// Initialize Stripe with correct API version
+const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY"), {
+  apiVersion: "2023-10-16",
+  httpClient: Stripe.createFetchHttpClient()
+});
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// Supabase admin client
+const supabaseUrl = Deno.env.get("SUPABASE_URL");
+const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-function logStep(step: string, data?: any) {
-  console.log(`[STRIPE-WEBHOOK] ${step}`, data ? JSON.stringify(data, null, 2) : "");
-}
-
-// Web Crypto API compatible HMAC verification
-async function verifyStripeSignature(payload: string, signature: string, secret: string): Promise<boolean> {
-  try {
-    const elements = signature.split(',');
-    let timestamp = '';
-    let signatures: string[] = [];
-    
-    for (const element of elements) {
-      const [key, value] = element.split('=');
-      if (key === 't') {
-        timestamp = value;
-      } else if (key === 'v1') {
-        signatures.push(value);
-      }
-    }
-    
-    if (!timestamp || signatures.length === 0) {
-      return false;
-    }
-    
-    // Create the signed payload
-    const signedPayload = `${timestamp}.${payload}`;
-    
-    // Import the secret key
-    const key = await crypto.subtle.importKey(
-      'raw',
-      encoder.encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-    
-    // Sign the payload
-    const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(signedPayload));
-    const expectedSignature = Array.from(new Uint8Array(signatureBuffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-    
-    // Compare signatures
-    return signatures.some(sig => sig === expectedSignature);
-    
-  } catch (error) {
-    logStep("Signature verification error", { error: error.message });
-    return false;
-  }
+function logStep(step, data) {
+  console.log(`[STRIPE-WEBHOOK] ${step}`, data ? JSON.stringify(data) : "");
 }
 
 serve(async (req) => {
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
-
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders, status: 204 });
+  logStep("Webhook request received");
+  
+  // Get signature header
+  const signature = req.headers.get("stripe-signature");
+  if (!signature) {
+    logStep("No signature header found");
+    return new Response("Missing stripe-signature header", {
+      status: 400
+    });
   }
-
+  
+  // Get webhook secret
+  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+  if (!webhookSecret) {
+    logStep("No webhook secret configured");
+    return new Response("Webhook secret not configured", {
+      status: 500
+    });
+  }
+  
+  // Get raw body
+  const body = await req.text();
+  logStep("Body received", {
+    length: body.length
+  });
+  
+  let event;
   try {
-    const signature = req.headers.get("stripe-signature");
-    if (!signature) {
-      logStep("Missing Stripe signature");
-      return new Response("Missing stripe-signature header", { status: 400, headers: corsHeaders });
-    }
-
-    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-    if (!webhookSecret) {
-      logStep("Missing webhook secret");
-      return new Response("Webhook secret not configured", { status: 500, headers: corsHeaders });
-    }
-
-    const body = await req.text();
-    
-    // Verify signature using Web Crypto API
-    const isValid = await verifyStripeSignature(body, signature, webhookSecret);
-    if (!isValid) {
-      logStep("Invalid signature");
-      return new Response("Invalid signature", { status: 400, headers: corsHeaders });
-    }
-
-    const event = JSON.parse(body);
-    logStep("Webhook verified", { type: event.type, id: event.id });
-
-    switch (event.type) {
-      case "customer.subscription.updated":
-      case "customer.subscription.created":
-        await handleSubscriptionEvent(event.data.object);
-        break;
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    logStep("Webhook verified successfully", {
+      type: event.type,
+      id: event.id
+    });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    logStep("Webhook verification failed", {
+      error: errorMessage
+    });
+    return new Response(`Webhook verification failed: ${errorMessage}`, {
+      status: 400
+    });
+  }
+  
+  // Process different event types
+  try {
+    switch(event.type) {
       case "checkout.session.completed":
         await handleCheckoutCompleted(event.data.object);
+        break;
+      case "customer.subscription.created":
+      case "customer.subscription.updated":
+        await handleSubscriptionEvent(event.data.object);
         break;
       case "customer.subscription.deleted":
         await handleSubscriptionCanceled(event.data.object);
         break;
       default:
-        logStep("Unhandled event type", { type: event.type });
+        logStep("Unhandled event type", {
+          type: event.type
+        });
     }
-
-    return new Response(
-      JSON.stringify({ received: true, processed: event.type, timestamp: new Date().toISOString() }), 
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-
+    
+    logStep("Event processed successfully");
+    return new Response(JSON.stringify({
+      received: true
+    }), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("Webhook processing error", { error: errorMessage });
-    
-    return new Response(
-      JSON.stringify({ error: "Webhook processing failed", details: errorMessage, timestamp: new Date().toISOString() }), 
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    logStep("Error processing event", {
+      error: errorMessage
+    });
+    return new Response(`Error processing event: ${errorMessage}`, {
+      status: 500
+    });
   }
 });
 
-async function handleSubscriptionEvent(subscription: any) {
-  logStep("Processing subscription event", {
-    id: subscription.id,
-    customer: subscription.customer,
-    status: subscription.status
+// Handle checkout session completion
+async function handleCheckoutCompleted(session) {
+  logStep("Processing checkout completion", {
+    sessionId: session.id
   });
-
-  try {
-    // Use Stripe API to get customer information
-    const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
-    if (!stripeApiKey) {
-      throw new Error("Stripe API key not configured");
-    }
-
-    // Fetch customer data using fetch API instead of Stripe SDK
-    const customerResponse = await fetch(`https://api.stripe.com/v1/customers/${subscription.customer}`, {
-      headers: {
-        'Authorization': `Bearer ${stripeApiKey}`,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
+  
+  const customerId = session.customer;
+  const customerEmail = session.customer_details?.email;
+  const subscriptionId = session.subscription;
+  
+  if (!subscriptionId) {
+    logStep("No subscription in checkout session");
+    return;
+  }
+  
+  // Enhanced user identification with multiple fallback methods
+  let userId = session.metadata?.user_id || session.metadata?.supabase_user_id;
+  
+  // Fallback 1: Find by email in auth.users
+  if (!userId && customerEmail) {
+    const { data: users } = await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000
     });
-
-    if (!customerResponse.ok) {
-      throw new Error(`Failed to fetch customer: ${customerResponse.status}`);
-    }
-
-    const customer = await customerResponse.json();
-    logStep("Customer fetched", { email: customer.email, id: customer.id });
-
-    // Enhanced user identification
-    let userId = await findUserByCustomerId(subscription.customer);
-    
-    if (!userId && customer.email) {
-      userId = await findUserByEmail(customer.email);
-      
-      if (userId) {
-        // Update subscription record with customer ID
-        await updateSubscriptionCustomerId(userId, subscription.customer);
-      }
-    }
-
-    if (!userId) {
-      logStep("CRITICAL: No user found for subscription", {
-        subscriptionId: subscription.id,
-        customerId: subscription.customer,
-        email: customer.email
+    const matchingUser = users.users.find((u) => u.email === customerEmail);
+    if (matchingUser) {
+      userId = matchingUser.id;
+      logStep("Found user by email", {
+        userId,
+        email: customerEmail
       });
-      return;
     }
-
-    // Calculate subscription details
+  }
+  
+  // Fallback 2: Check existing subscription records
+  if (!userId && customerId) {
+    const { data: existingSub } = await supabase
+      .from("subscriptions")
+      .select("user_id")
+      .eq("stripe_customer_id", customerId)
+      .single();
+    
+    if (existingSub?.user_id) {
+      userId = existingSub.user_id;
+      logStep("Found user from existing subscription", { userId, customerId });
+    }
+  }
+  
+  if (!userId) {
+    logStep("CRITICAL ERROR: No user found for checkout session", {
+      sessionId: session.id,
+      customerId,
+      customerEmail,
+      metadata: session.metadata
+    });
+    return;
+  }
+  
+  try {
+    // Get subscription details
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
     const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-    const currentPeriodStart = new Date(subscription.current_period_start * 1000);
-
-    // Update subscription with enhanced data
-    const updateData = {
-      user_id: userId,
-      email: customer.email,
-      status: subscription.status === "active" ? "active" : subscription.status,
-      stripe_subscription_id: subscription.id,
-      stripe_customer_id: subscription.customer,
-      plan_type: planType,
-      current_period_end: currentPeriodEnd.toISOString(),
-      current_period_start: currentPeriodStart.toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
+    
+    // Update database
     const { error } = await supabase
       .from("subscriptions")
-      .upsert(updateData, { 
-        onConflict: 'user_id',
-        ignoreDuplicates: false 
+      .upsert({
+        user_id: userId,
+        email: customerEmail,
+        status: "active",
+        stripe_customer_id: customerId,
+        stripe_subscription_id: subscriptionId,
+        plan_type: planType,
+        current_period_end: currentPeriodEnd.toISOString(),
+        current_period_start: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: "user_id"
       });
-
+    
     if (error) {
-      logStep("Database update failed", { error, userId, updateData });
+      logStep("Database update failed", {
+        error
+      });
       throw error;
     }
-
-    logStep("Subscription updated successfully", { 
-      userId, 
-      status: subscription.status, 
-      planType,
-      email: customer.email
+    
+    logStep("Subscription activated successfully", {
+      userId,
+      subscriptionId,
+      planType
     });
-
   } catch (error) {
-    logStep("Error processing subscription event", { 
-      error: error.message, 
-      subscriptionId: subscription.id 
+    logStep("Error processing checkout", {
+      error
     });
     throw error;
   }
 }
 
-async function findUserByCustomerId(customerId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("subscriptions")
-    .select("user_id")
-    .eq("stripe_customer_id", customerId)
-    .single();
-  
-  return data?.user_id || null;
-}
-
-async function findUserByEmail(email: string): Promise<string | null> {
-  try {
-    const { data: users } = await supabase.auth.admin.listUsers();
-    const matchingUser = users.users.find(u => u.email === email);
-    return matchingUser?.id || null;
-  } catch (error) {
-    logStep("Error finding user by email", { error: error.message, email });
-    return null;
-  }
-}
-
-async function updateSubscriptionCustomerId(userId: string, customerId: string) {
-  const { error } = await supabase
-    .from("subscriptions")
-    .update({ 
-      stripe_customer_id: customerId,
-      updated_at: new Date().toISOString()
-    })
-    .eq("user_id", userId);
-    
-  if (error) {
-    logStep("Error updating customer ID", { error, userId, customerId });
-  }
-}
-
-async function handleCheckoutCompleted(session: any) {
-  logStep("Processing checkout completion", { sessionId: session.id });
-  
-  if (!session.subscription) {
-    logStep("No subscription in checkout session");
-    return;
-  }
-
-  // Fetch subscription data using Stripe API
-  const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
-  const subscriptionResponse = await fetch(`https://api.stripe.com/v1/subscriptions/${session.subscription}`, {
-    headers: {
-      'Authorization': `Bearer ${stripeApiKey}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    }
+// Handle subscription events
+async function handleSubscriptionEvent(subscription) {
+  logStep("Processing subscription event", {
+    subscriptionId: subscription.id,
+    status: subscription.status
   });
-
-  if (subscriptionResponse.ok) {
-    const subscription = await subscriptionResponse.json();
-    await handleSubscriptionEvent(subscription);
-  } else {
-    logStep("Failed to fetch subscription", { 
-      status: subscriptionResponse.status,
-      subscriptionId: session.subscription
+  
+  try {
+    // Find user by customer ID
+    const { data, error } = await supabase
+      .from("subscriptions")
+      .select("user_id")
+      .eq("stripe_customer_id", subscription.customer)
+      .limit(1);
+    
+    if (error || !data || data.length === 0) {
+      logStep("No user found for customer", {
+        customerId: subscription.customer
+      });
+      return;
+    }
+    
+    const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+    
+    // Update subscription
+    const { error: updateError } = await supabase
+      .from("subscriptions")
+      .update({
+        status: subscription.status === "active" ? "active" : "inactive",
+        plan_type: planType,
+        current_period_end: currentPeriodEnd.toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("user_id", data[0].user_id);
+    
+    if (updateError) {
+      logStep("Error updating subscription", {
+        updateError
+      });
+      throw updateError;
+    }
+    
+    logStep("Subscription updated successfully", {
+      userId: data[0].user_id,
+      status: subscription.status
     });
+  } catch (error) {
+    logStep("Error processing subscription event", {
+      error
+    });
+    throw error;
   }
 }
 
-async function handleSubscriptionCanceled(subscription: any) {
+// Handle subscription cancellation
+async function handleSubscriptionCanceled(subscription) {
   logStep("Processing subscription cancellation", {
     subscriptionId: subscription.id
   });
@@ -302,13 +273,17 @@ async function handleSubscriptionCanceled(subscription: any) {
       .eq("stripe_subscription_id", subscription.id);
     
     if (error) {
-      logStep("Error canceling subscription", { error });
+      logStep("Error canceling subscription", {
+        error
+      });
       throw error;
     }
     
     logStep("Subscription canceled successfully");
   } catch (error) {
-    logStep("Error processing cancellation", { error });
+    logStep("Error processing cancellation", {
+      error
+    });
     throw error;
   }
 }
