@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -16,17 +17,30 @@ function logStep(step: string, data?: any) {
   console.log(`[VERIFY-SUBSCRIPTION] ${step}`, data ? JSON.stringify(data) : "");
 }
 
-// Helper function to safely convert Stripe timestamps
+// Improved timestamp handling with proper validation
 function safeTimestamp(timestamp: number | null | undefined): string | null {
-  if (!timestamp || typeof timestamp !== 'number' || timestamp <= 0) {
+  // Check if timestamp is null, undefined, or not a number
+  if (timestamp == null || typeof timestamp !== 'number') {
+    logStep("Timestamp is null or undefined", { timestamp });
+    return null;
+  }
+  
+  // Check if timestamp is a valid positive number
+  if (!Number.isFinite(timestamp) || timestamp <= 0) {
+    logStep("Invalid timestamp value", { timestamp });
     return null;
   }
   
   try {
+    // Convert Unix timestamp to milliseconds and create date
     const date = new Date(timestamp * 1000);
+    
+    // Validate the created date
     if (isNaN(date.getTime())) {
+      logStep("Date creation failed", { timestamp, date });
       return null;
     }
+    
     return date.toISOString();
   } catch (error) {
     logStep("Error converting timestamp", { timestamp, error: error.message });
@@ -171,7 +185,8 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
                 rawStartTimestamp: subscription.current_period_start
               });
               
-              await supabase
+              // Use upsert with email as conflict resolution instead of user_id
+              const { error } = await supabase
                 .from('subscriptions')
                 .upsert({
                   user_id: matchingUser.id,
@@ -183,9 +198,17 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
                   current_period_end: currentPeriodEnd,
                   current_period_start: currentPeriodStart,
                   updated_at: new Date().toISOString()
-                }, { onConflict: 'user_id' });
+                }, { 
+                  onConflict: 'email',
+                  ignoreDuplicates: false 
+                });
 
-              logStep("Successfully created subscription for user", { userId: matchingUser.id });
+              if (error) {
+                logStep("Failed to create subscription", { error, userId: matchingUser.id });
+                throw error;
+              } else {
+                logStep("Successfully created subscription for user", { userId: matchingUser.id });
+              }
             }
           }
         }
@@ -209,21 +232,27 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
       rawStartTimestamp: subscription.current_period_start
     });
 
-    // Update Supabase
+    // Update Supabase using email for conflict resolution
     const { error } = await supabase
       .from('subscriptions')
-      .update({
+      .upsert({
+        user_id: subsData.user_id,
+        email: subsData.email,
         status: subscription.status === 'active' ? 'active' : 'inactive',
         stripe_subscription_id: subscriptionId,
+        stripe_customer_id: customerId,
         plan_type: planType,
         current_period_end: currentPeriodEnd,
         current_period_start: currentPeriodStart,
         updated_at: new Date().toISOString()
-      })
-      .eq('user_id', subsData.user_id);
+      }, { 
+        onConflict: 'email',
+        ignoreDuplicates: false 
+      });
 
     if (error) {
       logStep("Failed to update subscription", { error, userId: subsData.user_id });
+      throw error;
     } else {
       logStep("Updated subscription for user", { 
         userId: subsData.user_id, 
@@ -321,7 +350,7 @@ async function handleCheckoutSessionCompleted(session: any) {
       rawStartTimestamp: subscription.current_period_start
     });
 
-    // Update database
+    // Update database using email for conflict resolution
     const { error } = await supabase
       .from("subscriptions")
       .upsert({
@@ -335,7 +364,8 @@ async function handleCheckoutSessionCompleted(session: any) {
         current_period_start: currentPeriodStart,
         updated_at: new Date().toISOString()
       }, {
-        onConflict: "user_id"
+        onConflict: "email",
+        ignoreDuplicates: false
       });
 
     if (error) {
@@ -431,7 +461,7 @@ async function handleManualSync(body: any) {
     // Get user's subscription from database
     const { data: subData } = await supabase
       .from("subscriptions")
-      .select("stripe_customer_id, stripe_subscription_id")
+      .select("stripe_customer_id, stripe_subscription_id, email")
       .eq("user_id", user_id)
       .maybeSingle();
     
@@ -453,8 +483,8 @@ async function handleManualSync(body: any) {
           if (customers.data.length > 0) {
             const customer = customers.data[0];
             
-            // Update database with customer ID
-            await supabase
+            // Update database with customer ID using upsert with email conflict resolution
+            const { error } = await supabase
               .from("subscriptions")
               .upsert({
                 user_id: user_id,
@@ -462,7 +492,15 @@ async function handleManualSync(body: any) {
                 stripe_customer_id: customer.id,
                 status: "trial_expired",
                 updated_at: new Date().toISOString()
-              }, { onConflict: "user_id" });
+              }, { 
+                onConflict: "email",
+                ignoreDuplicates: false 
+              });
+            
+            if (error) {
+              logStep("Failed to update subscription with customer ID", { error, userId: user_id });
+              throw error;
+            }
             
             // Continue with sync using this customer
             return await syncCustomerSubscriptions(user_id, customer.id);
@@ -517,18 +555,31 @@ async function syncCustomerSubscriptions(user_id: string, customerId: string) {
         currentPeriodStart
       });
       
-      // Update database
+      // Get user email for upsert
+      const { data: userData } = await supabase.auth.admin.getUserById(user_id);
+      const userEmail = userData?.user?.email;
+      
+      if (!userEmail) {
+        throw new Error("User email not found");
+      }
+      
+      // Update database using upsert with email conflict resolution
       const { error } = await supabase
         .from("subscriptions")
-        .update({
+        .upsert({
+          user_id: user_id,
+          email: userEmail,
           status: "active",
+          stripe_customer_id: customerId,
           stripe_subscription_id: subscription.id,
           plan_type: planType,
           current_period_end: currentPeriodEnd,
           current_period_start: currentPeriodStart,
           updated_at: new Date().toISOString()
-        })
-        .eq("user_id", user_id);
+        }, { 
+          onConflict: "email",
+          ignoreDuplicates: false 
+        });
       
       if (error) {
         logStep("Database update error", { error, userId: user_id });
