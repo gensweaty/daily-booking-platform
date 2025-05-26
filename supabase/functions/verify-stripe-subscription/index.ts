@@ -134,7 +134,11 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
           if (matchingUser) {
             logStep("Found user by email", { userId: matchingUser.id, email: customer.email });
             
-            // Create or update subscription record
+            // Create or update subscription record with proper timestamps
+            const planType = subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly';
+            const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+            const currentPeriodStart = new Date(subscription.current_period_start * 1000);
+            
             await supabase
               .from('subscriptions')
               .upsert({
@@ -143,6 +147,9 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
                 stripe_customer_id: customerId,
                 stripe_subscription_id: subscriptionId,
                 status: subscription.status === 'active' ? 'active' : 'inactive',
+                plan_type: planType,
+                current_period_end: currentPeriodEnd.toISOString(),
+                current_period_start: currentPeriodStart.toISOString(),
                 updated_at: new Date().toISOString()
               }, { onConflict: 'user_id' });
           }
@@ -156,7 +163,8 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
   }
 
   const planType = subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly';
-  const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+  const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+  const currentPeriodStart = new Date(subscription.current_period_start * 1000);
 
   // Update Supabase
   const { error } = await supabase
@@ -165,8 +173,8 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
       status: subscription.status === 'active' ? 'active' : 'inactive',
       stripe_subscription_id: subscriptionId,
       plan_type: planType,
-      current_period_end: currentPeriodEnd,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+      current_period_end: currentPeriodEnd.toISOString(),
+      current_period_start: currentPeriodStart.toISOString(),
       updated_at: new Date().toISOString()
     })
     .eq('user_id', subsData.user_id);
@@ -178,7 +186,7 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
       userId: subsData.user_id, 
       status: subscription.status,
       planType,
-      currentPeriodEnd 
+      currentPeriodEnd: currentPeriodEnd.toISOString()
     });
   }
 }
@@ -197,7 +205,7 @@ async function handleCheckoutSessionCompleted(session: any) {
   }
 
   // Enhanced user identification
-  let userId = session.metadata?.user_id;
+  let userId = session.metadata?.user_id || session.metadata?.supabase_user_id;
   
   // Fallback 1: Find by email in auth.users
   if (!userId && customerEmail) {
@@ -252,7 +260,10 @@ async function handleCheckoutSessionCompleted(session: any) {
 
     const subscription = await subscriptionResponse.json();
     const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+    
+    // Fix: Use proper subscription timestamps
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+    const currentPeriodStart = new Date(subscription.current_period_start * 1000);
 
     // Update database
     const { error } = await supabase
@@ -265,7 +276,7 @@ async function handleCheckoutSessionCompleted(session: any) {
         stripe_subscription_id: subscriptionId,
         plan_type: planType,
         current_period_end: currentPeriodEnd.toISOString(),
-        current_period_start: new Date().toISOString(),
+        current_period_start: currentPeriodStart.toISOString(),
         updated_at: new Date().toISOString()
       }, {
         onConflict: "user_id"
@@ -349,7 +360,6 @@ async function handleSessionVerification(body: any) {
   }
 }
 
-// Handle manual sync from client
 async function handleManualSync(body: any) {
   const { user_id } = body;
   
@@ -443,6 +453,7 @@ async function syncCustomerSubscriptions(user_id: string, customerId: string) {
       const subscription = subscriptions.data[0];
       const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
       const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+      const currentPeriodStart = new Date(subscription.current_period_start * 1000);
       
       // Update database
       const { error } = await supabase
@@ -452,6 +463,7 @@ async function syncCustomerSubscriptions(user_id: string, customerId: string) {
           stripe_subscription_id: subscription.id,
           plan_type: planType,
           current_period_end: currentPeriodEnd.toISOString(),
+          current_period_start: currentPeriodStart.toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq("user_id", user_id);

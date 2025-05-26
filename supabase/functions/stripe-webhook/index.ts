@@ -13,9 +13,15 @@ function logStep(step: string, data?: any) {
   console.log(`[STRIPE-WEBHOOK] ${step}`, data ? JSON.stringify(data) : "");
 }
 
-// Web Crypto API compatible HMAC verification
+// Improved Web Crypto API compatible HMAC verification
 async function verifyStripeSignature(payload: string, signature: string, secret: string): Promise<boolean> {
   try {
+    logStep("Starting signature verification", { 
+      signatureLength: signature.length,
+      payloadLength: payload.length,
+      secretLength: secret.length 
+    });
+
     const elements = signature.split(',');
     let timestamp = '';
     let signatures: string[] = [];
@@ -29,12 +35,16 @@ async function verifyStripeSignature(payload: string, signature: string, secret:
       }
     }
     
+    logStep("Parsed signature elements", { timestamp, signatureCount: signatures.length });
+    
     if (!timestamp || signatures.length === 0) {
+      logStep("Missing timestamp or signatures");
       return false;
     }
     
     // Create the signed payload
     const signedPayload = `${timestamp}.${payload}`;
+    logStep("Created signed payload", { length: signedPayload.length });
     
     // Import the secret key
     const key = await crypto.subtle.importKey(
@@ -51,8 +61,20 @@ async function verifyStripeSignature(payload: string, signature: string, secret:
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
     
+    logStep("Generated expected signature", { 
+      expectedLength: expectedSignature.length,
+      receivedSignatures: signatures 
+    });
+    
     // Compare signatures
-    return signatures.some(sig => sig === expectedSignature);
+    const isValid = signatures.some(sig => {
+      const match = sig === expectedSignature;
+      logStep("Signature comparison", { received: sig, expected: expectedSignature, match });
+      return match;
+    });
+    
+    logStep("Signature verification result", { isValid });
+    return isValid;
     
   } catch (error) {
     logStep("Signature verification error", { error: error.message });
@@ -83,9 +105,7 @@ serve(async (req) => {
   
   // Get raw body
   const body = await req.text();
-  logStep("Body received", {
-    length: body.length
-  });
+  logStep("Body received", { length: body.length });
   
   // Verify signature using Web Crypto API
   const isValid = await verifyStripeSignature(body, signature, webhookSecret);
@@ -105,9 +125,7 @@ serve(async (req) => {
     });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    logStep("JSON parsing failed", {
-      error: errorMessage
-    });
+    logStep("JSON parsing failed", { error: errorMessage });
     return new Response(`JSON parsing failed: ${errorMessage}`, {
       status: 400
     });
@@ -127,9 +145,7 @@ serve(async (req) => {
         await handleSubscriptionCanceled(event.data.object);
         break;
       default:
-        logStep("Unhandled event type", {
-          type: event.type
-        });
+        logStep("Unhandled event type", { type: event.type });
     }
     
     logStep("Event processed successfully");
@@ -143,9 +159,7 @@ serve(async (req) => {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("Error processing event", {
-      error: errorMessage
-    });
+    logStep("Error processing event", { error: errorMessage });
     return new Response(`Error processing event: ${errorMessage}`, {
       status: 500
     });
@@ -226,7 +240,16 @@ async function handleCheckoutCompleted(session: any) {
 
     const subscription = await subscriptionResponse.json();
     const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+    
+    // Fix: Use proper subscription timestamps
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+    const currentPeriodStart = new Date(subscription.current_period_start * 1000);
+    
+    logStep("Subscription details fetched", {
+      planType,
+      currentPeriodEnd: currentPeriodEnd.toISOString(),
+      currentPeriodStart: currentPeriodStart.toISOString()
+    });
     
     // Update database - create or update subscription
     const { error } = await supabase
@@ -239,16 +262,14 @@ async function handleCheckoutCompleted(session: any) {
         stripe_subscription_id: subscriptionId,
         plan_type: planType,
         current_period_end: currentPeriodEnd.toISOString(),
-        current_period_start: new Date().toISOString(),
+        current_period_start: currentPeriodStart.toISOString(),
         updated_at: new Date().toISOString()
       }, {
         onConflict: "user_id"
       });
     
     if (error) {
-      logStep("Database update failed", {
-        error
-      });
+      logStep("Database update failed", { error });
       throw error;
     }
     
@@ -323,7 +344,10 @@ async function handleSubscriptionEvent(subscription: any) {
     }
     
     const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+    
+    // Fix: Use proper subscription timestamps
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+    const currentPeriodStart = new Date(subscription.current_period_start * 1000);
     
     // Update subscription
     const { error: updateError } = await supabase
@@ -336,16 +360,14 @@ async function handleSubscriptionEvent(subscription: any) {
         stripe_subscription_id: subscription.id,
         plan_type: planType,
         current_period_end: currentPeriodEnd.toISOString(),
-        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+        current_period_start: currentPeriodStart.toISOString(),
         updated_at: new Date().toISOString()
       }, {
         onConflict: "user_id"
       });
     
     if (updateError) {
-      logStep("Error updating subscription", {
-        updateError
-      });
+      logStep("Error updating subscription", { updateError });
       throw updateError;
     }
     
@@ -378,9 +400,7 @@ async function handleSubscriptionCanceled(subscription: any) {
       .eq("stripe_subscription_id", subscription.id);
     
     if (error) {
-      logStep("Error canceling subscription", {
-        error
-      });
+      logStep("Error canceling subscription", { error });
       throw error;
     }
     
