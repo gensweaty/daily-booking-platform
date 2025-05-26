@@ -1,21 +1,63 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-// Initialize Stripe with correct API version
-const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY"), {
-  apiVersion: "2023-10-16",
-  httpClient: Stripe.createFetchHttpClient()
-});
 
 // Supabase admin client
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-function logStep(step, data) {
+const encoder = new TextEncoder();
+
+function logStep(step: string, data?: any) {
   console.log(`[STRIPE-WEBHOOK] ${step}`, data ? JSON.stringify(data) : "");
+}
+
+// Web Crypto API compatible HMAC verification
+async function verifyStripeSignature(payload: string, signature: string, secret: string): Promise<boolean> {
+  try {
+    const elements = signature.split(',');
+    let timestamp = '';
+    let signatures: string[] = [];
+    
+    for (const element of elements) {
+      const [key, value] = element.split('=');
+      if (key === 't') {
+        timestamp = value;
+      } else if (key === 'v1') {
+        signatures.push(value);
+      }
+    }
+    
+    if (!timestamp || signatures.length === 0) {
+      return false;
+    }
+    
+    // Create the signed payload
+    const signedPayload = `${timestamp}.${payload}`;
+    
+    // Import the secret key
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    
+    // Sign the payload
+    const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(signedPayload));
+    const expectedSignature = Array.from(new Uint8Array(signatureBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    
+    // Compare signatures
+    return signatures.some(sig => sig === expectedSignature);
+    
+  } catch (error) {
+    logStep("Signature verification error", { error: error.message });
+    return false;
+  }
 }
 
 serve(async (req) => {
@@ -45,19 +87,28 @@ serve(async (req) => {
     length: body.length
   });
   
+  // Verify signature using Web Crypto API
+  const isValid = await verifyStripeSignature(body, signature, webhookSecret);
+  if (!isValid) {
+    logStep("Webhook verification failed");
+    return new Response("Webhook verification failed", {
+      status: 400
+    });
+  }
+  
   let event;
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    event = JSON.parse(body);
     logStep("Webhook verified successfully", {
       type: event.type,
       id: event.id
     });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    logStep("Webhook verification failed", {
+    logStep("JSON parsing failed", {
       error: errorMessage
     });
-    return new Response(`Webhook verification failed: ${errorMessage}`, {
+    return new Response(`JSON parsing failed: ${errorMessage}`, {
       status: 400
     });
   }
@@ -102,7 +153,7 @@ serve(async (req) => {
 });
 
 // Handle checkout session completion
-async function handleCheckoutCompleted(session) {
+async function handleCheckoutCompleted(session: any) {
   logStep("Processing checkout completion", {
     sessionId: session.id
   });
@@ -160,12 +211,24 @@ async function handleCheckoutCompleted(session) {
   }
   
   try {
-    // Get subscription details
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    // Get subscription details using REST API
+    const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
+    const subscriptionResponse = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
+      headers: {
+        'Authorization': `Bearer ${stripeApiKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+
+    if (!subscriptionResponse.ok) {
+      throw new Error(`Failed to fetch subscription: ${subscriptionResponse.status}`);
+    }
+
+    const subscription = await subscriptionResponse.json();
     const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
     
-    // Update database
+    // Update database - create or update subscription
     const { error } = await supabase
       .from("subscriptions")
       .upsert({
@@ -196,30 +259,65 @@ async function handleCheckoutCompleted(session) {
     });
   } catch (error) {
     logStep("Error processing checkout", {
-      error
+      error: error.message
     });
     throw error;
   }
 }
 
 // Handle subscription events
-async function handleSubscriptionEvent(subscription) {
+async function handleSubscriptionEvent(subscription: any) {
   logStep("Processing subscription event", {
     subscriptionId: subscription.id,
     status: subscription.status
   });
   
   try {
-    // Find user by customer ID
-    const { data, error } = await supabase
-      .from("subscriptions")
-      .select("user_id")
-      .eq("stripe_customer_id", subscription.customer)
-      .limit(1);
+    // Get customer information using REST API
+    const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
+    const customerResponse = await fetch(`https://api.stripe.com/v1/customers/${subscription.customer}`, {
+      headers: {
+        'Authorization': `Bearer ${stripeApiKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+
+    if (!customerResponse.ok) {
+      throw new Error(`Failed to fetch customer: ${customerResponse.status}`);
+    }
+
+    const customer = await customerResponse.json();
     
-    if (error || !data || data.length === 0) {
-      logStep("No user found for customer", {
-        customerId: subscription.customer
+    // Enhanced user identification
+    let userId = await findUserByCustomerId(subscription.customer);
+    
+    if (!userId && customer.email) {
+      userId = await findUserByEmail(customer.email);
+      
+      if (userId) {
+        // Update subscription record with customer ID
+        await updateSubscriptionCustomerId(userId, subscription.customer);
+      }
+    }
+
+    // If user doesn't exist but we have email, create subscription record
+    if (!userId && customer.email) {
+      const { data: users } = await supabase.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000
+      });
+      const matchingUser = users.users.find((u) => u.email === customer.email);
+      if (matchingUser) {
+        userId = matchingUser.id;
+        logStep("Found user by email in auth", { userId, email: customer.email });
+      }
+    }
+    
+    if (!userId) {
+      logStep("CRITICAL ERROR: No user found for subscription", {
+        subscriptionId: subscription.id,
+        customerId: subscription.customer,
+        email: customer.email
       });
       return;
     }
@@ -230,13 +328,19 @@ async function handleSubscriptionEvent(subscription) {
     // Update subscription
     const { error: updateError } = await supabase
       .from("subscriptions")
-      .update({
+      .upsert({
+        user_id: userId,
+        email: customer.email,
         status: subscription.status === "active" ? "active" : "inactive",
+        stripe_customer_id: subscription.customer,
+        stripe_subscription_id: subscription.id,
         plan_type: planType,
         current_period_end: currentPeriodEnd.toISOString(),
+        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
         updated_at: new Date().toISOString()
-      })
-      .eq("user_id", data[0].user_id);
+      }, {
+        onConflict: "user_id"
+      });
     
     if (updateError) {
       logStep("Error updating subscription", {
@@ -246,19 +350,20 @@ async function handleSubscriptionEvent(subscription) {
     }
     
     logStep("Subscription updated successfully", {
-      userId: data[0].user_id,
-      status: subscription.status
+      userId,
+      status: subscription.status,
+      email: customer.email
     });
   } catch (error) {
     logStep("Error processing subscription event", {
-      error
+      error: error.message
     });
     throw error;
   }
 }
 
 // Handle subscription cancellation
-async function handleSubscriptionCanceled(subscription) {
+async function handleSubscriptionCanceled(subscription: any) {
   logStep("Processing subscription cancellation", {
     subscriptionId: subscription.id
   });
@@ -282,8 +387,43 @@ async function handleSubscriptionCanceled(subscription) {
     logStep("Subscription canceled successfully");
   } catch (error) {
     logStep("Error processing cancellation", {
-      error
+      error: error.message
     });
     throw error;
+  }
+}
+
+async function findUserByCustomerId(customerId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("subscriptions")
+    .select("user_id")
+    .eq("stripe_customer_id", customerId)
+    .single();
+  
+  return data?.user_id || null;
+}
+
+async function findUserByEmail(email: string): Promise<string | null> {
+  try {
+    const { data: users } = await supabase.auth.admin.listUsers();
+    const matchingUser = users.users.find(u => u.email === email);
+    return matchingUser?.id || null;
+  } catch (error) {
+    logStep("Error finding user by email", { error: error.message, email });
+    return null;
+  }
+}
+
+async function updateSubscriptionCustomerId(userId: string, customerId: string) {
+  const { error } = await supabase
+    .from("subscriptions")
+    .update({ 
+      stripe_customer_id: customerId,
+      updated_at: new Date().toISOString()
+    })
+    .eq("user_id", userId);
+    
+  if (error) {
+    logStep("Error updating customer ID", { error, userId, customerId });
   }
 }

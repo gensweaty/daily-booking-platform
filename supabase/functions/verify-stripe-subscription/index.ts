@@ -1,13 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-// Initialize Stripe with correct API version
-const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY"), {
-  apiVersion: "2023-10-16",
-  httpClient: Stripe.createFetchHttpClient()
-});
 
 // Supabase admin client
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -20,7 +13,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS, GET",
 };
 
-function logStep(step, data) {
+function logStep(step: string, data?: any) {
   console.log(`[VERIFY-SUBSCRIPTION] ${step}`, data ? JSON.stringify(data) : "");
 }
 
@@ -64,7 +57,7 @@ serve(async (req) => {
 });
 
 // Handle webhook events from Stripe
-async function handleWebhookEvent(event) {
+async function handleWebhookEvent(event: any) {
   logStep("Processing webhook event", { type: event.type, id: event.id });
   
   try {
@@ -104,7 +97,7 @@ async function handleWebhookEvent(event) {
 }
 
 // Handle customer subscription updated webhook
-async function handleCustomerSubscriptionUpdated(subscription) {
+async function handleCustomerSubscriptionUpdated(subscription: any) {
   const customerId = subscription.customer;
   const subscriptionId = subscription.id;
   
@@ -120,28 +113,39 @@ async function handleCustomerSubscriptionUpdated(subscription) {
   if (!subsData || !subsData.user_id) {
     logStep("User not found for customer, trying email lookup", { customerId });
     
-    // Try to find by email from Stripe customer
+    // Try to find by email from Stripe customer using REST API
     try {
-      const customer = await stripe.customers.retrieve(customerId);
-      if (customer.email) {
-        const { data: users } = await supabase.auth.admin.listUsers({
-          page: 1,
-          perPage: 1000
-        });
-        const matchingUser = users.users.find(u => u.email === customer.email);
-        if (matchingUser) {
-          logStep("Found user by email", { userId: matchingUser.id, email: customer.email });
-          
-          // Create or update subscription record
-          await supabase
-            .from('subscriptions')
-            .upsert({
-              user_id: matchingUser.id,
-              email: customer.email,
-              stripe_customer_id: customerId,
-              status: subscription.status === 'active' ? 'active' : 'inactive',
-              updated_at: new Date().toISOString()
-            }, { onConflict: 'user_id' });
+      const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
+      const customerResponse = await fetch(`https://api.stripe.com/v1/customers/${customerId}`, {
+        headers: {
+          'Authorization': `Bearer ${stripeApiKey}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+
+      if (customerResponse.ok) {
+        const customer = await customerResponse.json();
+        if (customer.email) {
+          const { data: users } = await supabase.auth.admin.listUsers({
+            page: 1,
+            perPage: 1000
+          });
+          const matchingUser = users.users.find(u => u.email === customer.email);
+          if (matchingUser) {
+            logStep("Found user by email", { userId: matchingUser.id, email: customer.email });
+            
+            // Create or update subscription record
+            await supabase
+              .from('subscriptions')
+              .upsert({
+                user_id: matchingUser.id,
+                email: customer.email,
+                stripe_customer_id: customerId,
+                stripe_subscription_id: subscriptionId,
+                status: subscription.status === 'active' ? 'active' : 'inactive',
+                updated_at: new Date().toISOString()
+              }, { onConflict: 'user_id' });
+          }
         }
       }
     } catch (error) {
@@ -180,7 +184,7 @@ async function handleCustomerSubscriptionUpdated(subscription) {
 }
 
 // Handle checkout session completed webhook
-async function handleCheckoutSessionCompleted(session) {
+async function handleCheckoutSessionCompleted(session: any) {
   logStep("Processing checkout completion", { sessionId: session.id });
   
   const customerId = session.customer;
@@ -233,8 +237,20 @@ async function handleCheckoutSessionCompleted(session) {
   }
 
   try {
-    // Get subscription details
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    // Get subscription details using REST API
+    const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
+    const subscriptionResponse = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
+      headers: {
+        'Authorization': `Bearer ${stripeApiKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+
+    if (!subscriptionResponse.ok) {
+      throw new Error(`Failed to fetch subscription: ${subscriptionResponse.status}`);
+    }
+
+    const subscription = await subscriptionResponse.json();
     const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
 
@@ -277,7 +293,7 @@ async function handleCheckoutSessionCompleted(session) {
 }
 
 // Handle session verification from client
-async function handleSessionVerification(body) {
+async function handleSessionVerification(body: any) {
   const { session_id, user_id } = body;
   
   if (!session_id) {
@@ -290,7 +306,19 @@ async function handleSessionVerification(body) {
   logStep("Verifying session", { sessionId: session_id });
   
   try {
-    const session = await stripe.checkout.sessions.retrieve(session_id);
+    const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
+    const sessionResponse = await fetch(`https://api.stripe.com/v1/checkout/sessions/${session_id}`, {
+      headers: {
+        'Authorization': `Bearer ${stripeApiKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+
+    if (!sessionResponse.ok) {
+      throw new Error(`Failed to fetch session: ${sessionResponse.status}`);
+    }
+
+    const session = await sessionResponse.json();
     
     if (!session || session.payment_status !== "paid") {
       return new Response(
@@ -322,7 +350,7 @@ async function handleSessionVerification(body) {
 }
 
 // Handle manual sync from client
-async function handleManualSync(body) {
+async function handleManualSync(body: any) {
   const { user_id } = body;
   
   if (!user_id) {
@@ -346,27 +374,34 @@ async function handleManualSync(body) {
       // Try to find user by email and create customer record
       const { data: userData } = await supabase.auth.admin.getUserById(user_id);
       if (userData?.user?.email) {
-        const customers = await stripe.customers.list({
-          email: userData.user.email,
-          limit: 1
+        const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
+        const customersResponse = await fetch(`https://api.stripe.com/v1/customers?email=${encodeURIComponent(userData.user.email)}&limit=1`, {
+          headers: {
+            'Authorization': `Bearer ${stripeApiKey}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
         });
-        
-        if (customers.data.length > 0) {
-          const customer = customers.data[0];
+
+        if (customersResponse.ok) {
+          const customers = await customersResponse.json();
           
-          // Update database with customer ID
-          await supabase
-            .from("subscriptions")
-            .upsert({
-              user_id: user_id,
-              email: userData.user.email,
-              stripe_customer_id: customer.id,
-              status: "trial_expired",
-              updated_at: new Date().toISOString()
-            }, { onConflict: "user_id" });
-          
-          // Continue with sync using this customer
-          return await syncCustomerSubscriptions(user_id, customer.id);
+          if (customers.data.length > 0) {
+            const customer = customers.data[0];
+            
+            // Update database with customer ID
+            await supabase
+              .from("subscriptions")
+              .upsert({
+                user_id: user_id,
+                email: userData.user.email,
+                stripe_customer_id: customer.id,
+                status: "trial_expired",
+                updated_at: new Date().toISOString()
+              }, { onConflict: "user_id" });
+            
+            // Continue with sync using this customer
+            return await syncCustomerSubscriptions(user_id, customer.id);
+          }
         }
       }
       
@@ -387,14 +422,22 @@ async function handleManualSync(body) {
   }
 }
 
-async function syncCustomerSubscriptions(user_id, customerId) {
+async function syncCustomerSubscriptions(user_id: string, customerId: string) {
   try {
-    // Get active subscriptions from Stripe
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 1,
+    // Get active subscriptions from Stripe using REST API
+    const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
+    const subscriptionsResponse = await fetch(`https://api.stripe.com/v1/subscriptions?customer=${customerId}&status=active&limit=1`, {
+      headers: {
+        'Authorization': `Bearer ${stripeApiKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
     });
+
+    if (!subscriptionsResponse.ok) {
+      throw new Error(`Failed to fetch subscriptions: ${subscriptionsResponse.status}`);
+    }
+
+    const subscriptions = await subscriptionsResponse.json();
     
     if (subscriptions.data.length > 0) {
       const subscription = subscriptions.data[0];
@@ -431,25 +474,30 @@ async function syncCustomerSubscriptions(user_id, customerId) {
       );
     } else {
       // Check for any recent checkout sessions that might not have been processed
-      const sessions = await stripe.checkout.sessions.list({
-        customer: customerId,
-        limit: 5
+      const sessionsResponse = await fetch(`https://api.stripe.com/v1/checkout/sessions?customer=${customerId}&limit=5`, {
+        headers: {
+          'Authorization': `Bearer ${stripeApiKey}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
       });
-      
-      const paidSessions = sessions.data.filter(s => s.payment_status === "paid" && s.subscription);
-      
-      if (paidSessions.length > 0) {
-        // Process the most recent paid session
-        await handleCheckoutSessionCompleted(paidSessions[0]);
+
+      if (sessionsResponse.ok) {
+        const sessions = await sessionsResponse.json();
+        const paidSessions = sessions.data.filter((s: any) => s.payment_status === "paid" && s.subscription);
         
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            status: "active",
-            message: "Found and processed recent payment"
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-        );
+        if (paidSessions.length > 0) {
+          // Process the most recent paid session
+          await handleCheckoutSessionCompleted(paidSessions[0]);
+          
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              status: "active",
+              message: "Found and processed recent payment"
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+          );
+        }
       }
       
       return new Response(
