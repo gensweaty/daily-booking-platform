@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { LogOut, User, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -99,6 +98,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           plan_type: result.planType || 'monthly',
           status: result.status,
           current_period_end: result.currentPeriodEnd || null,
+          trial_end_date: result.trialEnd || null,
           stripe_customer_id: null,
           stripe_subscription_id: result.stripe_subscription_id || null
         });
@@ -134,6 +134,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           plan_type: result.planType || 'monthly',
           status: result.status,
           current_period_end: result.currentPeriodEnd || null,
+          trial_end_date: result.trialEnd || null,
           stripe_customer_id: null,
           stripe_subscription_id: result.stripe_subscription_id || null
         });
@@ -236,50 +237,72 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 <User className="w-4 h-4" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px] p-0">
-              <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white">
-                <DialogTitle className="text-2xl font-bold">Profile</DialogTitle>
-              </DialogHeader>
-              <div className="p-6 space-y-6">
-                {/* User Information Section */}
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 space-y-4">
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">Email</p>
-                      </div>
-                      <p className="text-base font-medium pl-4">{user?.email}</p>
+            <DialogContent className="sm:max-w-[600px] p-0 max-h-[90vh] overflow-y-auto">
+              <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-8 text-white relative overflow-hidden">
+                <div className="absolute inset-0 bg-black/10"></div>
+                <div className="relative z-10">
+                  <DialogHeader>
+                    <DialogTitle className="text-3xl font-bold mb-2 text-center">
+                      User Profile
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="text-center">
+                    <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
+                      <User className="w-10 h-10 text-white" />
                     </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">Username</p>
+                    <p className="text-white/90 text-lg">Welcome back!</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 space-y-8">
+                {/* User Information Section */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200/50 dark:border-blue-800/50">
+                  <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    Account Information
+                  </h3>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4 backdrop-blur-sm">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        </div>
+                        <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Email Address</p>
                       </div>
-                      <p className="text-base font-medium pl-4">{username}</p>
+                      <p className="text-lg font-semibold text-gray-800 dark:text-gray-200 pl-11">{user?.email}</p>
+                    </div>
+                    <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4 backdrop-blur-sm">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        </div>
+                        <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Username</p>
+                      </div>
+                      <p className="text-lg font-semibold text-gray-800 dark:text-gray-200 pl-11">{username}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Subscription Section */}
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-6 border border-purple-200/50 dark:border-purple-800/50">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                       <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                      <p className="text-lg font-semibold">Subscription</p>
-                    </div>
+                      Subscription Status
+                    </h3>
                     {!isLoading && (
                       <div className="flex gap-2">
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="h-8 px-3 text-xs"
+                          className="h-9 px-4 text-sm border-purple-200 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-900/50"
                           onClick={handleRefreshSubscription}
                           disabled={isRefreshingSubscription}
                         >
                           {isRefreshingSubscription ? (
-                            <span className="flex items-center gap-1">
-                              <div className="h-3 w-3 rounded-full border-2 border-t-transparent border-primary animate-spin"></div>
+                            <span className="flex items-center gap-2">
+                              <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-purple-500 animate-spin"></div>
                               Refreshing...
                             </span>
                           ) : (
@@ -289,18 +312,18 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="h-8 px-3 text-xs"
+                          className="h-9 px-4 text-sm border-purple-200 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-900/50"
                           onClick={handleManualSync}
                           disabled={isSyncing}
                         >
                           {isSyncing ? (
-                            <span className="flex items-center gap-1">
-                              <RefreshCw className="h-3 w-3 animate-spin" />
+                            <span className="flex items-center gap-2">
+                              <RefreshCw className="h-4 w-4 animate-spin" />
                               Syncing...
                             </span>
                           ) : (
-                            <span className="flex items-center gap-1">
-                              <RefreshCw className="h-3 w-3" />
+                            <span className="flex items-center gap-2">
+                              <RefreshCw className="h-4 w-4" />
                               Sync
                             </span>
                           )}
@@ -310,36 +333,36 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   </div>
                   
                   {isLoading ? (
-                    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+                    <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-6 backdrop-blur-sm">
                       <div className="animate-pulse flex space-x-4">
-                        <div className="rounded-full bg-gray-300 h-10 w-10"></div>
-                        <div className="flex-1 space-y-2 py-1">
-                          <div className="h-4 bg-gray-300 rounded w-3/4"></div>
-                          <div className="h-4 bg-gray-300 rounded w-1/2"></div>
+                        <div className="rounded-full bg-purple-200 dark:bg-purple-700 h-12 w-12"></div>
+                        <div className="flex-1 space-y-3 py-1">
+                          <div className="h-4 bg-purple-200 dark:bg-purple-700 rounded w-3/4"></div>
+                          <div className="h-4 bg-purple-200 dark:bg-purple-700 rounded w-1/2"></div>
                         </div>
                       </div>
                     </div>
                   ) : subscription ? (
-                    <div className="space-y-4">
-                      <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-3 h-3 rounded-full ${
+                    <div className="space-y-6">
+                      <div className="bg-white/80 dark:bg-gray-800/80 rounded-lg p-6 backdrop-blur-sm border border-white/50 dark:border-gray-700/50">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-4 h-4 rounded-full flex-shrink-0 ${
                               subscription.status === 'active' ? 'bg-green-500' :
                               subscription.status === 'trial' ? 'bg-blue-500' :
                               'bg-red-500'
                             }`}></div>
-                            <span className="font-semibold text-lg">
+                            <span className="text-xl font-bold text-gray-800 dark:text-gray-200">
                               {subscription.status === 'trial' ? 'Trial Plan' : 
                                subscription.status === 'active' ? formatPlanType(subscription.plan_type) :
                                subscription.status === 'trial_expired' ? 'Trial Expired' : 
                                'No active subscription'}
                             </span>
                           </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            subscription.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
-                            subscription.status === 'trial' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
-                            'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                          <span className={`px-4 py-2 rounded-full text-sm font-semibold uppercase tracking-wide ${
+                            subscription.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400' :
+                            subscription.status === 'trial' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400' :
+                            'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400'
                           }`}>
                             {subscription.status.replace('_', ' ')}
                           </span>
@@ -347,29 +370,34 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                         
                         {/* Countdown Component */}
                         {(subscription.status === 'trial' || subscription.status === 'active') && (
-                          <SubscriptionCountdown
-                            status={subscription.status as 'trial' | 'active'}
-                            currentPeriodEnd={subscription.current_period_end}
-                            trialEnd={subscription.trial_end_date}
-                            planType={subscription.plan_type as 'monthly' | 'yearly'}
-                          />
+                          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-lg p-4 border border-indigo-200/50 dark:border-indigo-800/50">
+                            <SubscriptionCountdown
+                              status={subscription.status as 'trial' | 'active'}
+                              currentPeriodEnd={subscription.current_period_end}
+                              trialEnd={subscription.trial_end_date}
+                              planType={subscription.plan_type as 'monthly' | 'yearly'}
+                            />
+                          </div>
                         )}
                       </div>
                       
                       <Button 
-                        variant="outline" 
-                        className="w-full h-12 font-medium bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-0 hover:from-purple-600 hover:to-indigo-700"
+                        className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white border-0 hover:from-purple-700 hover:via-indigo-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
                         onClick={handleManageSubscription}
                       >
-                        Manage Subscription
+                        <span className="flex items-center gap-2">
+                          Manage Subscription
+                        </span>
                       </Button>
                     </div>
                   ) : (
-                    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 space-y-3">
-                      <p className="text-center text-gray-600 dark:text-gray-300">No subscription information available</p>
+                    <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-6 backdrop-blur-sm text-center space-y-4">
+                      <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto">
+                        <User className="w-8 h-8 text-gray-500 dark:text-gray-400" />
+                      </div>
+                      <p className="text-lg text-gray-600 dark:text-gray-300">No subscription information available</p>
                       <Button 
-                        variant="outline" 
-                        className="w-full h-12 font-medium bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-0 hover:from-purple-600 hover:to-indigo-700"
+                        className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white border-0 hover:from-purple-700 hover:via-indigo-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
                         onClick={() => setIsManageSubscriptionOpen(true)}
                       >
                         Get Subscription
@@ -379,10 +407,14 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 </div>
 
                 {/* Change Password Section */}
-                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl p-6 border border-orange-200/50 dark:border-orange-800/50">
+                  <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    Security Settings
+                  </h3>
                   <Button 
-                    variant="info" 
-                    className="w-full h-12 font-medium"
+                    variant="outline"
+                    className="w-full h-12 text-lg font-medium border-orange-200 hover:bg-orange-50 dark:border-orange-800 dark:hover:bg-orange-900/50"
                     onClick={handleChangePassword}
                   >
                     Change Password
