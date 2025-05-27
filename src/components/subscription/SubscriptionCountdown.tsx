@@ -32,26 +32,32 @@ export const SubscriptionCountdown = ({
       // Determine the target date based on status
       if (status === 'trial' && trialEnd) {
         targetDate = new Date(trialEnd);
-        console.log('Using trial end date:', trialEnd);
       } else if (status === 'active') {
+        // For active subscriptions, prefer currentPeriodEnd, but fallback to calculating from now
         if (currentPeriodEnd) {
           targetDate = new Date(currentPeriodEnd);
-          console.log('Using current period end date:', currentPeriodEnd);
         } else {
-          // For active subscriptions without currentPeriodEnd, we should not show a countdown
-          // This indicates the sync function hasn't retrieved the proper date yet
-          console.log('Active subscription missing currentPeriodEnd - sync needed');
-          setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-          return;
+          // Fallback: calculate based on plan type from current time
+          const now = new Date();
+          if (planType === 'monthly') {
+            targetDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days
+          } else if (planType === 'yearly') {
+            targetDate = new Date(now.getTime() + (365 * 24 * 60 * 60 * 1000)); // 365 days
+          }
+          console.log('Using fallback calculation for active subscription:', { 
+            planType, 
+            calculatedEndDate: targetDate?.toISOString() 
+          });
         }
       }
       
       if (!targetDate || isNaN(targetDate.getTime())) {
-        console.log('Invalid or missing target date, resetting countdown', {
-          status,
-          currentPeriodEnd,
-          trialEnd,
-          targetDate
+        console.log('Invalid or missing target date:', { 
+          status, 
+          currentPeriodEnd, 
+          trialEnd, 
+          planType,
+          targetDate 
         });
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         return;
@@ -67,7 +73,9 @@ export const SubscriptionCountdown = ({
         targetDate: targetDate.toISOString(), 
         now: new Date(now).toISOString(), 
         difference,
-        differenceInDays: Math.floor(difference / (1000 * 60 * 60 * 24))
+        differenceInDays: difference / (1000 * 60 * 60 * 24),
+        currentPeriodEnd,
+        trialEnd
       });
       
       if (difference > 0) {
@@ -76,13 +84,7 @@ export const SubscriptionCountdown = ({
         const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((difference % (1000 * 60)) / 1000);
         
-        // Ensure all values are non-negative
-        setTimeLeft({ 
-          days: Math.max(0, days), 
-          hours: Math.max(0, hours), 
-          minutes: Math.max(0, minutes), 
-          seconds: Math.max(0, seconds) 
-        });
+        setTimeLeft({ days, hours, minutes, seconds });
       } else {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
       }
@@ -147,9 +149,9 @@ export const SubscriptionCountdown = ({
     );
   }
 
-  // Check if subscription has valid dates
+  // Check if subscription has valid dates or can calculate them
   const hasValidDate = (status === 'trial' && trialEnd) || 
-                      (status === 'active' && currentPeriodEnd);
+                      (status === 'active' && (currentPeriodEnd || planType));
   const isExpired = timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0;
   
   if (hasValidDate && isExpired) {
@@ -159,16 +161,6 @@ export const SubscriptionCountdown = ({
           {status === 'trial' ? 'Trial Expired' : 'Subscription Expired'}
         </p>
         <p className="text-sm text-red-600 mt-1">Please upgrade to continue</p>
-      </div>
-    );
-  }
-
-  // Handle case when no valid dates are available for active subscription
-  if (status === 'active' && !currentPeriodEnd) {
-    return (
-      <div className="text-center p-4 rounded-lg border-2 border-yellow-200 bg-yellow-50">
-        <p className="text-yellow-700 font-semibold">Active Subscription</p>
-        <p className="text-xs text-yellow-600 mt-1">Syncing subscription details...</p>
       </div>
     );
   }
