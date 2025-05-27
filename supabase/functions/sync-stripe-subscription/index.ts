@@ -35,9 +35,9 @@ serve(async (req) => {
     
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // Get user's email to find Stripe customer using the exact table name from the wrapper
+    // Get user's email to find Stripe customer
     const { data: stripeCustomers, error: customerError } = await supabase
-      .from('Stripe cusotmers')
+      .from('customers')
       .select('*')
       .eq('email', user.email)
       .limit(1);
@@ -50,9 +50,9 @@ serve(async (req) => {
     if (!stripeCustomers || stripeCustomers.length === 0) {
       logStep("No Stripe customer found");
       
-      // Create or update user_subscriptions with trial_expired status
+      // Create or update subscriptions with trial_expired status
       const { error: upsertError } = await supabase
-        .from('user_subscriptions')
+        .from('subscriptions')
         .upsert({
           user_id: user.id,
           email: user.email,
@@ -79,12 +79,13 @@ serve(async (req) => {
     const stripeCustomer = stripeCustomers[0];
     logStep("Found Stripe customer", { customerId: stripeCustomer.id });
 
-    // Check for active subscriptions using the exact table name from the wrapper
+    // Check for active subscriptions using Stripe Wrapper
     const currentTime = Math.floor(Date.now() / 1000); // Current time in Unix timestamp
     const { data: activeSubscriptions, error: subscriptionError } = await supabase
-      .from('Stripe subscriptions')
+      .from('subscriptions')
       .select('*')
-      .eq('customer', stripeCustomer.id)
+      .eq('stripe_customer_id', stripeCustomer.id)
+      .eq('status', 'active')
       .gt('current_period_end', currentTime)
       .order('current_period_end', { ascending: false })
       .limit(1);
@@ -107,29 +108,11 @@ serve(async (req) => {
         }
       }
 
-      // Update user_subscriptions with active status
-      const { error: upsertError } = await supabase
-        .from('user_subscriptions')
-        .upsert({
-          user_id: user.id,
-          email: user.email,
-          stripe_customer_id: stripeCustomer.id,
-          stripe_subscription_id: subscription.id,
-          status: 'active',
-          plan_type: planType,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
-
-      if (upsertError) {
-        logStep("Error upserting active subscription", upsertError);
-        throw new Error(`Failed to update subscription: ${upsertError.message}`);
-      }
-
       return new Response(JSON.stringify({
         success: true,
         status: 'active',
         planType: planType,
-        stripe_subscription_id: subscription.id,
+        stripe_subscription_id: subscription.stripe_subscription_id,
         currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString()
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -138,9 +121,9 @@ serve(async (req) => {
     } else {
       logStep("No active subscription found");
       
-      // Update user_subscriptions with expired status
+      // Update subscriptions with expired status
       const { error: upsertError } = await supabase
-        .from('user_subscriptions')
+        .from('subscriptions')
         .upsert({
           user_id: user.id,
           email: user.email,

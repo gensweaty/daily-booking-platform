@@ -697,79 +697,31 @@ export type Database = {
       }
       "Stripe checkouts": {
         Row: {
-          attrs: Json | null
-          customer: string | null
-          id: string | null
-          payment_intent: string | null
-          subscription: string | null
+          created_at: string
+          id: number
         }
         Insert: {
-          attrs?: Json | null
-          customer?: string | null
-          id?: string | null
-          payment_intent?: string | null
-          subscription?: string | null
+          created_at?: string
+          id?: number
         }
         Update: {
-          attrs?: Json | null
-          customer?: string | null
-          id?: string | null
-          payment_intent?: string | null
-          subscription?: string | null
+          created_at?: string
+          id?: number
         }
         Relationships: []
       }
       "Stripe cusotmers": {
         Row: {
-          attrs: Json | null
-          created: string | null
-          description: string | null
-          email: string | null
-          id: string | null
-          name: string | null
+          created_at: string
+          id: number
         }
         Insert: {
-          attrs?: Json | null
-          created?: string | null
-          description?: string | null
-          email?: string | null
-          id?: string | null
-          name?: string | null
+          created_at?: string
+          id?: number
         }
         Update: {
-          attrs?: Json | null
-          created?: string | null
-          description?: string | null
-          email?: string | null
-          id?: string | null
-          name?: string | null
-        }
-        Relationships: []
-      }
-      "Stripe subscriptions": {
-        Row: {
-          attrs: Json | null
-          currency: string | null
-          current_period_end: string | null
-          current_period_start: string | null
-          customer: string | null
-          id: string | null
-        }
-        Insert: {
-          attrs?: Json | null
-          currency?: string | null
-          current_period_end?: string | null
-          current_period_start?: string | null
-          customer?: string | null
-          id?: string | null
-        }
-        Update: {
-          attrs?: Json | null
-          currency?: string | null
-          current_period_end?: string | null
-          current_period_start?: string | null
-          customer?: string | null
-          id?: string | null
+          created_at?: string
+          id?: number
         }
         Relationships: []
       }

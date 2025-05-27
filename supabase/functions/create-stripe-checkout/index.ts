@@ -45,9 +45,9 @@ serve(async (req) => {
       apiVersion: "2023-10-16",
     });
 
-    // Check if customer already exists in Stripe Wrapper table using the exact table name
+    // Check if customer already exists in customers table
     const { data: existingCustomer } = await supabase
-      .from('Stripe cusotmers')
+      .from('customers')
       .select('*')
       .eq('email', userData.user.email)
       .limit(1)
@@ -80,6 +80,18 @@ serve(async (req) => {
       sessionId: session.id, 
       url: session.url 
     });
+
+    // Store checkout session in our database
+    await supabase
+      .from('checkout_sessions')
+      .upsert({
+        id: session.id,
+        customer: session.customer as string,
+        subscription: session.subscription as string,
+        attrs: session,
+        currency: session.currency,
+        user_id: user_id,
+      });
 
     return new Response(JSON.stringify({ 
       url: session.url,
