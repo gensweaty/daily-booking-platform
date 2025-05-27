@@ -117,7 +117,8 @@ serve(async (req) => {
                   subscriptionId: subscription.id,
                   planType,
                   currentPeriodEnd,
-                  currentPeriodStart
+                  currentPeriodStart,
+                  rawEndTimestamp: subscription.current_period_end
                 });
 
                 // Update subscription to active
@@ -142,7 +143,10 @@ serve(async (req) => {
                   throw updateError;
                 }
 
-                logStep("Successfully converted trial to active subscription");
+                logStep("Successfully converted trial to active subscription with timestamp", {
+                  currentPeriodEnd,
+                  planType
+                });
 
                 return new Response(JSON.stringify({
                   success: true,
@@ -212,16 +216,15 @@ serve(async (req) => {
             const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
             const currentPeriodStart = safeTimestamp(subscription.current_period_start);
             
-            logStep("Found active subscription with valid timestamps", { 
+            logStep("Found active subscription with fresh Stripe data", { 
               subscriptionId: subscription.id,
               planType,
               currentPeriodEnd,
               currentPeriodStart,
-              rawCurrentPeriodEnd: subscription.current_period_end,
-              rawCurrentPeriodStart: subscription.current_period_start
+              rawEndTimestamp: subscription.current_period_end
             });
 
-            // Update subscription record
+            // Update subscription record with fresh Stripe data
             const { error: updateError } = await supabase
               .from('subscriptions')
               .update({
@@ -238,11 +241,14 @@ serve(async (req) => {
               .eq('user_id', user.id);
 
             if (updateError) {
-              logStep("Error updating subscription", updateError);
+              logStep("Error updating subscription with fresh data", updateError);
               throw updateError;
             }
 
-            logStep("Successfully updated existing subscription");
+            logStep("Successfully updated existing subscription with fresh Stripe data", {
+              currentPeriodEnd,
+              planType
+            });
 
             return new Response(JSON.stringify({
               success: true,
@@ -365,7 +371,7 @@ serve(async (req) => {
 
     if (subscriptions.data && subscriptions.data.length > 0) {
       const subscription = subscriptions.data[0];
-      logStep("Found active subscription", { 
+      logStep("Found active subscription from customer lookup", { 
         subscriptionId: subscription.id,
         rawCurrentPeriodEnd: subscription.current_period_end,
         rawCurrentPeriodStart: subscription.current_period_start
@@ -375,7 +381,7 @@ serve(async (req) => {
       const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
       const currentPeriodStart = safeTimestamp(subscription.current_period_start);
 
-      logStep("Processed subscription timestamps", {
+      logStep("Processed subscription timestamps from customer lookup", {
         planType,
         currentPeriodEnd,
         currentPeriodStart
@@ -405,7 +411,10 @@ serve(async (req) => {
         throw new Error(`Failed to update subscription: ${upsertError.message}`);
       }
 
-      logStep("Successfully updated subscription in database");
+      logStep("Successfully updated subscription in database with timestamp", {
+        currentPeriodEnd,
+        planType
+      });
 
       return new Response(JSON.stringify({
         success: true,
