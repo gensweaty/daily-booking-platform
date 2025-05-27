@@ -33,32 +33,25 @@ export const SubscriptionCountdown = ({
       if (status === 'trial' && trialEnd) {
         targetDate = new Date(trialEnd);
       } else if (status === 'active') {
-        // For active subscriptions, prefer currentPeriodEnd, but fallback to calculating from now
         if (currentPeriodEnd) {
           targetDate = new Date(currentPeriodEnd);
-        } else {
-          // Fallback: calculate based on plan type from current time
+        } else if (planType) {
+          // If no currentPeriodEnd but we have planType, calculate from now
           const now = new Date();
           if (planType === 'monthly') {
-            targetDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days
+            targetDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days from now
           } else if (planType === 'yearly') {
-            targetDate = new Date(now.getTime() + (365 * 24 * 60 * 60 * 1000)); // 365 days
+            targetDate = new Date(now.getTime() + (365 * 24 * 60 * 60 * 1000)); // 365 days from now
           }
-          console.log('Using fallback calculation for active subscription:', { 
+          console.log('Calculated fallback date for active subscription:', { 
             planType, 
-            calculatedEndDate: targetDate?.toISOString() 
+            targetDate: targetDate?.toISOString() 
           });
         }
       }
       
       if (!targetDate || isNaN(targetDate.getTime())) {
-        console.log('Invalid or missing target date:', { 
-          status, 
-          currentPeriodEnd, 
-          trialEnd, 
-          planType,
-          targetDate 
-        });
+        console.log('Invalid or missing target date, resetting countdown');
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         return;
       }
@@ -73,9 +66,7 @@ export const SubscriptionCountdown = ({
         targetDate: targetDate.toISOString(), 
         now: new Date(now).toISOString(), 
         difference,
-        differenceInDays: difference / (1000 * 60 * 60 * 24),
-        currentPeriodEnd,
-        trialEnd
+        differenceInDays: Math.floor(difference / (1000 * 60 * 60 * 24))
       });
       
       if (difference > 0) {
@@ -84,7 +75,13 @@ export const SubscriptionCountdown = ({
         const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((difference % (1000 * 60)) / 1000);
         
-        setTimeLeft({ days, hours, minutes, seconds });
+        // Ensure all values are non-negative
+        setTimeLeft({ 
+          days: Math.max(0, days), 
+          hours: Math.max(0, hours), 
+          minutes: Math.max(0, minutes), 
+          seconds: Math.max(0, seconds) 
+        });
       } else {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
       }
