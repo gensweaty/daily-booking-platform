@@ -34,7 +34,6 @@ interface StripeSyncResponse {
     planType?: string;
     stripe_subscription_id?: string;
     error?: string;
-    trialEnd?: string;
     [key: string]: any;
   };
   error?: {
@@ -140,7 +139,7 @@ export const checkSubscriptionStatus = async () => {
   }
 };
 
-// Enhanced manual sync function with better error handling and feedback
+// Enhanced manual sync function
 export const manualSyncSubscription = async () => {
   try {
     const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -157,8 +156,7 @@ export const manualSyncSubscription = async () => {
     
     const syncPromise = supabase.functions.invoke('sync-stripe-subscription', {
       body: { 
-        user_id: userData.user.id,
-        force_refresh: true // Add force refresh flag
+        user_id: userData.user.id
       }
     });
     
@@ -179,14 +177,7 @@ export const manualSyncSubscription = async () => {
     }
     
     console.log('Manual sync result:', data);
-    return {
-      success: data.success || true,
-      status: data.status,
-      currentPeriodEnd: data.currentPeriodEnd,
-      trialEnd: data.trialEnd,
-      planType: data.planType,
-      stripe_subscription_id: data.stripe_subscription_id
-    };
+    return data;
   } catch (error) {
     console.error('Error in manualSyncSubscription:', error);
     throw error;
@@ -211,8 +202,7 @@ export const verifySession = async (sessionId: string) => {
     
     const syncPromise = supabase.functions.invoke('sync-stripe-subscription', {
       body: { 
-        user_id: userData.user.id,
-        session_id: sessionId // Pass session ID for verification
+        user_id: userData.user.id
       }
     });
     
@@ -233,8 +223,7 @@ export const verifySession = async (sessionId: string) => {
       return { 
         success: true,
         status: data.status || 'active',
-        currentPeriodEnd: data.currentPeriodEnd || null,
-        planType: data.planType
+        currentPeriodEnd: data.currentPeriodEnd || null
       };
     }
     

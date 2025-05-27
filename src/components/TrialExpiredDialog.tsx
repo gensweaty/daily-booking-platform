@@ -128,11 +128,10 @@ export const TrialExpiredDialog = () => {
         await checkUserSubscription();
       } else {
         console.error('Session verification failed:', response);
-        const errorMessage = response && 'error' in response ? response.error : "There was a problem verifying your payment";
-        setSyncError(errorMessage);
+        setSyncError(response?.error || "There was a problem verifying your payment");
         toast({
           title: "Verification Issue",
-          description: errorMessage,
+          description: (response && response.error) || "There was a problem verifying your payment",
           variant: "destructive",
         });
       }
@@ -195,7 +194,7 @@ export const TrialExpiredDialog = () => {
           description: "No paid subscription found. Please subscribe to continue.",
         });
       } else {
-        const errorMsg = "Sync completed but no active subscription found";
+        const errorMsg = result?.error || "Sync completed but no active subscription found";
         setSyncError(errorMsg);
         toast({
           title: "Sync Complete",
