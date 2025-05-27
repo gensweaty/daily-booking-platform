@@ -30,7 +30,6 @@ interface Subscription {
   plan_type: string;
   status: string;
   current_period_end: string | null;
-  trial_end_date: string | null;
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
 }
@@ -54,74 +53,23 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           setIsLoading(true);
           console.log('Checking subscription status for user:', user.email);
           
-          const stripeStatus = await checkSubscriptionStatus();
-          console.log('Stripe subscription status:', stripeStatus);
+          const statusResult = await checkSubscriptionStatus();
+          console.log('Subscription status result:', statusResult);
           
-          if (stripeStatus && stripeStatus.status === 'active') {
-            console.log('Active subscription found via Stripe check');
+          if (statusResult && statusResult.status) {
             setSubscription({
-              plan_type: stripeStatus.planType || 'monthly',
-              status: stripeStatus.status,
-              current_period_end: stripeStatus.currentPeriodEnd || null,
-              trial_end_date: null,
-              stripe_customer_id: stripeStatus.stripe_customer_id || null,
-              stripe_subscription_id: stripeStatus.stripe_subscription_id || null
+              plan_type: statusResult.planType || 'monthly',
+              status: statusResult.status,
+              current_period_end: statusResult.currentPeriodEnd || null,
+              stripe_customer_id: null,
+              stripe_subscription_id: statusResult.subscriptionId || null
             });
-            setIsLoading(false);
-            return;
-          }
-          
-          const { data, error } = await supabase
-            .from('subscriptions')
-            .select('plan_type, status, current_period_end, trial_end_date, stripe_customer_id, stripe_subscription_id')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (error) {
-            console.error('Error fetching subscription:', error);
-            setIsLoading(false);
-            return;
-          }
-
-          console.log('Fetched subscription from database:', data);
-          
-          if (data && data.status === 'active') {
-            setSubscription(data);
-          } else if (data) {
-            if (data.stripe_subscription_id) {
-              try {
-                const refreshedStatus = await supabase.functions.invoke('verify-stripe-subscription', {
-                  body: { 
-                    user_id: user.id, 
-                    subscription_id: data.stripe_subscription_id
-                  }
-                });
-                
-                console.log('Re-verified subscription with Stripe:', refreshedStatus);
-                
-                if (refreshedStatus.data && refreshedStatus.data.status === 'active') {
-                  setSubscription({
-                    ...data,
-                    status: 'active',
-                    current_period_end: refreshedStatus.data.currentPeriodEnd || data.current_period_end
-                  });
-                } else {
-                  setSubscription(data);
-                }
-              } catch (verifyError) {
-                console.error('Error re-verifying with Stripe:', verifyError);
-                setSubscription(data);
-              }
-            } else {
-              setSubscription(data);
-            }
           } else {
             setSubscription(null);
           }
         } catch (error) {
           console.error('Subscription fetch error:', error);
+          setSubscription(null);
         } finally {
           setIsLoading(false);
         }
@@ -130,7 +78,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
 
     fetchSubscription();
     
-    const intervalId = setInterval(fetchSubscription, 10000);
+    const intervalId = setInterval(fetchSubscription, 30000); // Check every 30 seconds
     
     return () => clearInterval(intervalId);
   }, [user]);
@@ -141,6 +89,16 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     setIsRefreshingSubscription(true);
     try {
       const result = await checkSubscriptionStatus();
+      
+      if (result && result.status) {
+        setSubscription({
+          plan_type: result.planType || 'monthly',
+          status: result.status,
+          current_period_end: result.currentPeriodEnd || null,
+          stripe_customer_id: null,
+          stripe_subscription_id: result.subscriptionId || null
+        });
+      }
       
       toast({
         title: "Subscription Status",
@@ -160,7 +118,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
   };
 
-  // NEW: Manual sync with Stripe
   const handleManualSync = async () => {
     if (!user || isSyncing) return;
     
@@ -169,12 +126,13 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       const result = await manualSyncSubscription();
       
       if (result.success && result.status === 'active') {
-        setSubscription(prev => ({
-          ...prev,
-          status: 'active',
-          plan_type: result.planType || prev?.plan_type || 'monthly',
-          current_period_end: result.currentPeriodEnd || prev?.current_period_end || null
-        }));
+        setSubscription({
+          plan_type: result.planType || 'monthly',
+          status: result.status,
+          current_period_end: result.currentPeriodEnd || null,
+          stripe_customer_id: null,
+          stripe_subscription_id: result.subscriptionId || null
+        });
         
         toast({
           title: "Sync Successful",
@@ -249,16 +207,12 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     return planType === 'monthly' ? 'Monthly Plan' : 'Yearly Plan';
   };
 
-  const formatTimeLeft = (endDate: string | null, isTrialPeriod: boolean = false) => {
+  const formatTimeLeft = (endDate: string | null) => {
     if (!endDate) return '';
     
     const end = new Date(endDate);
     const now = new Date();
     const daysLeft = Math.max(0, differenceInDays(end, now));
-    
-    if (isTrialPeriod) {
-      return `${daysLeft} days left in trial`;
-    }
     
     return `${daysLeft} days left in ${subscription?.plan_type === 'monthly' ? 'monthly' : 'yearly'} plan`;
   };
@@ -360,11 +314,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                          subscription.status === 'trial_expired' ? 'Trial Expired' : 
                          'No active subscription'}
                       </p>
-                      {subscription.status === 'trial' ? (
-                        <p className="text-xs text-muted-foreground">
-                          {formatTimeLeft(subscription.trial_end_date, true)}
-                        </p>
-                      ) : subscription.status === 'active' && (
+                      {subscription.status === 'active' && subscription.current_period_end && (
                         <p className="text-xs text-muted-foreground">
                           {formatTimeLeft(subscription.current_period_end)}
                         </p>

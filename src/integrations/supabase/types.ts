@@ -695,6 +695,84 @@ export type Database = {
         }
         Relationships: []
       }
+      "Stripe checkouts": {
+        Row: {
+          attrs: Json | null
+          customer: string | null
+          id: string | null
+          payment_intent: string | null
+          subscription: string | null
+        }
+        Insert: {
+          attrs?: Json | null
+          customer?: string | null
+          id?: string | null
+          payment_intent?: string | null
+          subscription?: string | null
+        }
+        Update: {
+          attrs?: Json | null
+          customer?: string | null
+          id?: string | null
+          payment_intent?: string | null
+          subscription?: string | null
+        }
+        Relationships: []
+      }
+      "Stripe cusotmers": {
+        Row: {
+          attrs: Json | null
+          created: string | null
+          description: string | null
+          email: string | null
+          id: string | null
+          name: string | null
+        }
+        Insert: {
+          attrs?: Json | null
+          created?: string | null
+          description?: string | null
+          email?: string | null
+          id?: string | null
+          name?: string | null
+        }
+        Update: {
+          attrs?: Json | null
+          created?: string | null
+          description?: string | null
+          email?: string | null
+          id?: string | null
+          name?: string | null
+        }
+        Relationships: []
+      }
+      "Stripe subscriptions": {
+        Row: {
+          attrs: Json | null
+          currency: string | null
+          current_period_end: string | null
+          current_period_start: string | null
+          customer: string | null
+          id: string | null
+        }
+        Insert: {
+          attrs?: Json | null
+          currency?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          customer?: string | null
+          id?: string | null
+        }
+        Update: {
+          attrs?: Json | null
+          currency?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          customer?: string | null
+          id?: string | null
+        }
+        Relationships: []
+      }
       stripe_webhook_events: {
         Row: {
           created_at: string | null
