@@ -110,6 +110,15 @@ serve(async (req) => {
                 // User has paid, activate subscription
                 const subscription = subscriptions.data[0];
                 const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+                
+                logStep("Raw Stripe subscription data", {
+                  subscriptionId: subscription.id,
+                  currentPeriodEnd: subscription.current_period_end,
+                  currentPeriodStart: subscription.current_period_start,
+                  status: subscription.status,
+                  planType
+                });
+                
                 const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
                 const currentPeriodStart = safeTimestamp(subscription.current_period_start);
                 
@@ -197,6 +206,9 @@ serve(async (req) => {
       // Check Stripe if user has a customer ID
       if (existingSubscription.stripe_customer_id) {
         const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
+        
+        logStep("Fetching subscription from Stripe", { customerId: existingSubscription.stripe_customer_id });
+        
         const subscriptionsResponse = await fetch(
           `https://api.stripe.com/v1/subscriptions?customer=${existingSubscription.stripe_customer_id}&status=active&limit=1`,
           {
@@ -213,53 +225,119 @@ serve(async (req) => {
           if (subscriptions.data.length > 0) {
             const subscription = subscriptions.data[0];
             const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
-            const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
-            const currentPeriodStart = safeTimestamp(subscription.current_period_start);
             
-            logStep("Found active subscription with fresh Stripe data", { 
+            logStep("Raw Stripe subscription data from existing customer", {
               subscriptionId: subscription.id,
+              currentPeriodEnd: subscription.current_period_end,
+              currentPeriodStart: subscription.current_period_start,
+              status: subscription.status,
               planType,
-              currentPeriodEnd,
-              currentPeriodStart,
-              rawEndTimestamp: subscription.current_period_end
+              rawSubscriptionObject: subscription
             });
+            
+            // Check if we have valid timestamps
+            if (subscription.current_period_end) {
+              const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
+              const currentPeriodStart = safeTimestamp(subscription.current_period_start);
+              
+              logStep("Found active subscription with fresh Stripe data", { 
+                subscriptionId: subscription.id,
+                planType,
+                currentPeriodEnd,
+                currentPeriodStart,
+                rawEndTimestamp: subscription.current_period_end
+              });
 
-            // Update subscription record with fresh Stripe data
-            const { error: updateError } = await supabase
-              .from('subscriptions')
-              .update({
+              // Update subscription record with fresh Stripe data
+              const { error: updateError } = await supabase
+                .from('subscriptions')
+                .update({
+                  status: 'active',
+                  plan_type: planType,
+                  current_period_end: currentPeriodEnd,
+                  current_period_start: currentPeriodStart,
+                  subscription_end_date: currentPeriodEnd,
+                  stripe_subscription_id: subscription.id,
+                  attrs: subscription,
+                  currency: subscription.currency || 'usd',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('user_id', user.id);
+
+              if (updateError) {
+                logStep("Error updating subscription with fresh data", updateError);
+                throw updateError;
+              }
+
+              logStep("Successfully updated existing subscription with fresh Stripe data", {
+                currentPeriodEnd,
+                planType
+              });
+
+              return new Response(JSON.stringify({
+                success: true,
                 status: 'active',
-                plan_type: planType,
-                current_period_end: currentPeriodEnd,
-                current_period_start: currentPeriodStart,
-                subscription_end_date: currentPeriodEnd,
+                planType: planType,
                 stripe_subscription_id: subscription.id,
-                attrs: subscription,
-                currency: subscription.currency || 'usd',
-                updated_at: new Date().toISOString()
-              })
-              .eq('user_id', user.id);
+                currentPeriodEnd: currentPeriodEnd
+              }), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                status: 200,
+              });
+            } else {
+              logStep("Subscription missing period end timestamp", { 
+                subscriptionId: subscription.id,
+                subscription: subscription 
+              });
+              
+              // If no period end, calculate it based on plan type and current time
+              const now = new Date();
+              const calculatedEnd = new Date(now);
+              if (planType === 'monthly') {
+                calculatedEnd.setMonth(calculatedEnd.getMonth() + 1);
+              } else {
+                calculatedEnd.setFullYear(calculatedEnd.getFullYear() + 1);
+              }
+              
+              const calculatedEndISO = calculatedEnd.toISOString();
+              
+              logStep("Using calculated end date", {
+                planType,
+                calculatedEnd: calculatedEndISO
+              });
+              
+              // Update with calculated date
+              const { error: updateError } = await supabase
+                .from('subscriptions')
+                .update({
+                  status: 'active',
+                  plan_type: planType,
+                  current_period_end: calculatedEndISO,
+                  current_period_start: now.toISOString(),
+                  subscription_end_date: calculatedEndISO,
+                  stripe_subscription_id: subscription.id,
+                  attrs: subscription,
+                  currency: subscription.currency || 'usd',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('user_id', user.id);
 
-            if (updateError) {
-              logStep("Error updating subscription with fresh data", updateError);
-              throw updateError;
+              if (updateError) {
+                logStep("Error updating subscription with calculated data", updateError);
+                throw updateError;
+              }
+
+              return new Response(JSON.stringify({
+                success: true,
+                status: 'active',
+                planType: planType,
+                stripe_subscription_id: subscription.id,
+                currentPeriodEnd: calculatedEndISO
+              }), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                status: 200,
+              });
             }
-
-            logStep("Successfully updated existing subscription with fresh Stripe data", {
-              currentPeriodEnd,
-              planType
-            });
-
-            return new Response(JSON.stringify({
-              success: true,
-              status: 'active',
-              planType: planType,
-              stripe_subscription_id: subscription.id,
-              currentPeriodEnd: currentPeriodEnd
-            }), {
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-              status: 200,
-            });
           }
         }
       }
