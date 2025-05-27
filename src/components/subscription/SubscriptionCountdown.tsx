@@ -7,13 +7,15 @@ interface SubscriptionCountdownProps {
   currentPeriodEnd?: string;
   trialEnd?: string;
   planType?: 'monthly' | 'yearly';
+  compact?: boolean;
 }
 
 export const SubscriptionCountdown = ({ 
   status, 
   currentPeriodEnd, 
   trialEnd, 
-  planType 
+  planType,
+  compact = false
 }: SubscriptionCountdownProps) => {
   const { t } = useLanguage();
   const [timeLeft, setTimeLeft] = useState<{
@@ -135,29 +137,48 @@ export const SubscriptionCountdown = ({
     );
   }
 
+  if (compact) {
+    return (
+      <div className="text-center">
+        <div className={`text-sm font-medium ${getStatusColor()}`}>
+          {timeLeft.days > 0 ? (
+            <span>{timeLeft.days} day{timeLeft.days !== 1 ? 's' : ''} left</span>
+          ) : (
+            <span>{timeLeft.hours}h {timeLeft.minutes}m left</span>
+          )}
+        </div>
+        <p className="text-xs text-gray-500 mt-1">
+          {status === 'trial' 
+            ? (t('subscription.timeLeftInTrial') || 'Time left in trial') 
+            : (t('subscription.timeLeftInSubscription') || 'Time left in subscription')
+          }
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className={`text-center p-4 rounded-lg border-2 ${getBorderColor()}`}>
-      <p className={`font-semibold ${getStatusColor()}`}>{getStatusMessage()}</p>
+    <div className="text-center">
       <div className={`mt-2 ${getStatusColor()}`}>
-        <div className="flex justify-center space-x-4 text-lg font-mono">
+        <div className="flex justify-center space-x-4 text-sm font-mono">
           <div className="text-center">
-            <div className="font-bold text-2xl">{timeLeft.days}</div>
+            <div className="font-bold text-lg">{timeLeft.days}</div>
             <div className="text-xs">{t('subscription.days') || 'days'}</div>
           </div>
           <div className="text-center">
-            <div className="font-bold text-2xl">{timeLeft.hours}</div>
+            <div className="font-bold text-lg">{timeLeft.hours}</div>
             <div className="text-xs">{t('subscription.hours') || 'hours'}</div>
           </div>
           <div className="text-center">
-            <div className="font-bold text-2xl">{timeLeft.minutes}</div>
+            <div className="font-bold text-lg">{timeLeft.minutes}</div>
             <div className="text-xs">{t('subscription.minutes') || 'minutes'}</div>
           </div>
           <div className="text-center">
-            <div className="font-bold text-2xl">{timeLeft.seconds}</div>
+            <div className="font-bold text-lg">{timeLeft.seconds}</div>
             <div className="text-xs">{t('subscription.seconds') || 'seconds'}</div>
           </div>
         </div>
-        <p className="text-sm mt-2">
+        <p className="text-xs mt-2">
           {status === 'trial' 
             ? (t('subscription.timeLeftInTrial') || 'Time left in trial') 
             : (t('subscription.timeLeftInSubscription') || 'Time left in subscription')

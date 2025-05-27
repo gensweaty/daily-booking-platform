@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { LogOut, User, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -21,6 +22,7 @@ import { LanguageText } from "@/components/shared/LanguageText";
 import { checkSubscriptionStatus, openStripeCustomerPortal, manualSyncSubscription } from "@/utils/stripeUtils";
 import { differenceInDays } from "date-fns";
 import { ManageSubscriptionDialog } from "./subscription/ManageSubscriptionDialog";
+import { SubscriptionCountdown } from "./subscription/SubscriptionCountdown";
 
 interface DashboardHeaderProps {
   username: string;
@@ -30,6 +32,7 @@ interface Subscription {
   plan_type: string;
   status: string;
   current_period_end: string | null;
+  trial_end_date: string | null;
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
 }
@@ -61,6 +64,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
               plan_type: statusResult.planType || 'monthly',
               status: statusResult.status,
               current_period_end: statusResult.currentPeriodEnd || null,
+              trial_end_date: statusResult.trialEnd || null,
               stripe_customer_id: null,
               stripe_subscription_id: statusResult.stripe_subscription_id || null
             });
@@ -207,20 +211,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     return planType === 'monthly' ? 'Monthly Plan' : 'Yearly Plan';
   };
 
-  const formatTimeLeft = (endDate: string | null, status: string) => {
-    if (!endDate) return '';
-    
-    const end = new Date(endDate);
-    const now = new Date();
-    const daysLeft = Math.max(0, Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-    
-    if (status === 'trial') {
-      return `${daysLeft} days left in trial`;
-    }
-    
-    return `${daysLeft} days left in ${subscription?.plan_type === 'monthly' ? 'monthly' : 'yearly'} plan`;
-  };
-
   return (
     <header className="mb-4">
       <div className="flex items-center justify-between mb-3">
@@ -246,34 +236,44 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 <User className="w-4 h-4" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>{t('dashboard.profile')}</DialogTitle>
+            <DialogContent className="sm:max-w-[500px] p-0">
+              <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white">
+                <DialogTitle className="text-2xl font-bold">Profile</DialogTitle>
               </DialogHeader>
-              <div className="py-4 space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">
-                    {isGeorgian ? (
-                      <GeorgianAuthText fontWeight="medium">ელექტრონული ფოსტა</GeorgianAuthText>
-                    ) : (
-                      t('auth.emailLabel')
-                    )}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+              <div className="p-6 space-y-6">
+                {/* User Information Section */}
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 space-y-4">
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">Email</p>
+                      </div>
+                      <p className="text-base font-medium pl-4">{user?.email}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">Username</p>
+                      </div>
+                      <p className="text-base font-medium pl-4">{username}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">{t('auth.usernameLabel')}</p>
-                  <p className="text-sm text-muted-foreground">{username}</p>
-                </div>
-                <div className="space-y-2">
+
+                {/* Subscription Section */}
+                <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <p className="text-sm font-medium">Subscription</p>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                      <p className="text-lg font-semibold">Subscription</p>
+                    </div>
                     {!isLoading && (
-                      <div className="flex gap-1">
+                      <div className="flex gap-2">
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="h-7 px-2 text-xs"
+                          className="h-8 px-3 text-xs"
                           onClick={handleRefreshSubscription}
                           disabled={isRefreshingSubscription}
                         >
@@ -289,7 +289,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="h-7 px-2 text-xs"
+                          className="h-8 px-3 text-xs"
                           onClick={handleManualSync}
                           disabled={isSyncing}
                         >
@@ -308,37 +308,68 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                       </div>
                     )}
                   </div>
+                  
                   {isLoading ? (
-                    <p className="text-sm text-muted-foreground">Loading subscription details...</p>
+                    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+                      <div className="animate-pulse flex space-x-4">
+                        <div className="rounded-full bg-gray-300 h-10 w-10"></div>
+                        <div className="flex-1 space-y-2 py-1">
+                          <div className="h-4 bg-gray-300 rounded w-3/4"></div>
+                          <div className="h-4 bg-gray-300 rounded w-1/2"></div>
+                        </div>
+                      </div>
+                    </div>
                   ) : subscription ? (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">
-                        {subscription.status === 'trial' ? 'Trial Plan' : 
-                         subscription.status === 'active' ? formatPlanType(subscription.plan_type) :
-                         subscription.status === 'trial_expired' ? 'Trial Expired' : 
-                         'No active subscription'}
-                      </p>
-                      {(subscription.status === 'active' || subscription.status === 'trial') && subscription.current_period_end && (
-                        <p className="text-xs text-muted-foreground">
-                          {formatTimeLeft(subscription.current_period_end, subscription.status)}
-                        </p>
-                      )}
+                    <div className="space-y-4">
+                      <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${
+                              subscription.status === 'active' ? 'bg-green-500' :
+                              subscription.status === 'trial' ? 'bg-blue-500' :
+                              'bg-red-500'
+                            }`}></div>
+                            <span className="font-semibold text-lg">
+                              {subscription.status === 'trial' ? 'Trial Plan' : 
+                               subscription.status === 'active' ? formatPlanType(subscription.plan_type) :
+                               subscription.status === 'trial_expired' ? 'Trial Expired' : 
+                               'No active subscription'}
+                            </span>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            subscription.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                            subscription.status === 'trial' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
+                            'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                          }`}>
+                            {subscription.status.replace('_', ' ')}
+                          </span>
+                        </div>
+                        
+                        {/* Countdown Component */}
+                        {(subscription.status === 'trial' || subscription.status === 'active') && (
+                          <SubscriptionCountdown
+                            status={subscription.status as 'trial' | 'active'}
+                            currentPeriodEnd={subscription.current_period_end}
+                            trialEnd={subscription.trial_end_date}
+                            planType={subscription.plan_type as 'monthly' | 'yearly'}
+                          />
+                        )}
+                      </div>
+                      
                       <Button 
                         variant="outline" 
-                        size="sm" 
-                        className="mt-2 w-full"
+                        className="w-full h-12 font-medium bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-0 hover:from-purple-600 hover:to-indigo-700"
                         onClick={handleManageSubscription}
                       >
                         Manage Subscription
                       </Button>
                     </div>
                   ) : (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">No subscription information available</p>
+                    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 space-y-3">
+                      <p className="text-center text-gray-600 dark:text-gray-300">No subscription information available</p>
                       <Button 
                         variant="outline" 
-                        size="sm" 
-                        className="mt-2 w-full"
+                        className="w-full h-12 font-medium bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-0 hover:from-purple-600 hover:to-indigo-700"
                         onClick={() => setIsManageSubscriptionOpen(true)}
                       >
                         Get Subscription
@@ -346,13 +377,15 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                     </div>
                   )}
                 </div>
-                <div className="pt-4 space-y-2">
+
+                {/* Change Password Section */}
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                   <Button 
                     variant="info" 
-                    className="w-full"
+                    className="w-full h-12 font-medium"
                     onClick={handleChangePassword}
                   >
-                    {t('dashboard.changePassword')}
+                    Change Password
                   </Button>
                 </div>
               </div>
