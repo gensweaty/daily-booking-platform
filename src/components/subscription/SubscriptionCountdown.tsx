@@ -186,19 +186,19 @@ export const SubscriptionCountdown = ({
         <div className="flex justify-center space-x-4 text-sm font-mono">
           <div className="text-center">
             <div className="font-bold text-lg">{timeLeft.days}</div>
-            <div className="text-xs">{t('subscription.days') || 'days'}</div>
+            <div className="text-xs">days</div>
           </div>
           <div className="text-center">
             <div className="font-bold text-lg">{timeLeft.hours}</div>
-            <div className="text-xs">{t('subscription.hours') || 'hours'}</div>
+            <div className="text-xs">hours</div>
           </div>
           <div className="text-center">
             <div className="font-bold text-lg">{timeLeft.minutes}</div>
-            <div className="text-xs">{t('subscription.minutes') || 'minutes'}</div>
+            <div className="text-xs">minutes</div>
           </div>
           <div className="text-center">
             <div className="font-bold text-lg">{timeLeft.seconds}</div>
-            <div className="text-xs">{t('subscription.seconds') || 'seconds'}</div>
+            <div className="text-xs">seconds</div>
           </div>
         </div>
         <p className="text-xs mt-2">
