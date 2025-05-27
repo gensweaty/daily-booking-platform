@@ -208,6 +208,48 @@ export type Database = {
         }
         Relationships: []
       }
+      checkout_sessions: {
+        Row: {
+          amount_total: number | null
+          attrs: Json | null
+          created_at: string | null
+          currency: string | null
+          customer: string | null
+          id: string
+          payment_intent: string | null
+          payment_status: string | null
+          status: string | null
+          subscription: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount_total?: number | null
+          attrs?: Json | null
+          created_at?: string | null
+          currency?: string | null
+          customer?: string | null
+          id: string
+          payment_intent?: string | null
+          payment_status?: string | null
+          status?: string | null
+          subscription?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount_total?: number | null
+          attrs?: Json | null
+          created_at?: string | null
+          currency?: string | null
+          customer?: string | null
+          id?: string
+          payment_intent?: string | null
+          payment_status?: string | null
+          status?: string | null
+          subscription?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       customer_files: {
         Row: {
           content_type: string | null
@@ -695,21 +737,6 @@ export type Database = {
         }
         Relationships: []
       }
-      "Stripe checkouts": {
-        Row: {
-          created_at: string
-          id: number
-        }
-        Insert: {
-          created_at?: string
-          id?: number
-        }
-        Update: {
-          created_at?: string
-          id?: number
-        }
-        Relationships: []
-      }
       "Stripe cusotmers": {
         Row: {
           created_at: string
@@ -787,13 +814,15 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          attrs: Json | null
           created_at: string | null
+          currency: string | null
           current_period_end: string | null
           current_period_start: string | null
           email: string | null
           id: string
           last_payment_id: string | null
-          plan_id: string
+          plan_id: string | null
           plan_type: string
           status: string
           stripe_customer_id: string | null
@@ -804,13 +833,15 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          attrs?: Json | null
           created_at?: string | null
+          currency?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
           email?: string | null
           id?: string
           last_payment_id?: string | null
-          plan_id: string
+          plan_id?: string | null
           plan_type: string
           status: string
           stripe_customer_id?: string | null
@@ -821,13 +852,15 @@ export type Database = {
           user_id: string
         }
         Update: {
+          attrs?: Json | null
           created_at?: string | null
+          currency?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
           email?: string | null
           id?: string
           last_payment_id?: string | null
-          plan_id?: string
+          plan_id?: string | null
           plan_type?: string
           status?: string
           stripe_customer_id?: string | null

@@ -94,7 +94,12 @@ serve(async (req) => {
     return new Response("Missing stripe-signature header", { status: 400 });
   }
   
-  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") || "whsec_aiFAzqABwU8OyJMpyVxTncZyLkghduNX";
+  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+  if (!webhookSecret) {
+    logStep("No webhook secret configured");
+    return new Response("Webhook secret not configured", { status: 500 });
+  }
+  
   const body = await req.text();
   logStep("Body received", { length: body.length });
   
@@ -145,9 +150,9 @@ async function handleCheckoutCompleted(session: any, supabase: any) {
   const customerEmail = session.customer_details?.email;
   const subscriptionId = session.subscription;
   
-  // Store checkout session data in "Stripe checkouts" table
+  // Store checkout session data in checkout_sessions table
   const { error: checkoutError } = await supabase
-    .from("Stripe checkouts")
+    .from("checkout_sessions")
     .upsert({
       id: session.id,
       customer: customerId,

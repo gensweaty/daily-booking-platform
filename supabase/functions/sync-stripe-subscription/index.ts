@@ -110,6 +110,8 @@ serve(async (req) => {
               subscription_end_date: currentPeriodEnd,
               stripe_subscription_id: subscription.id,
               stripe_customer_id: existingSubscription.stripe_customer_id,
+              attrs: subscription,
+              currency: subscription.currency || 'usd',
               updated_at: new Date().toISOString()
             }, {
               onConflict: 'email'
@@ -164,6 +166,7 @@ serve(async (req) => {
           email: user.email,
           status: 'trial_expired',
           plan_type: 'monthly',
+          currency: 'usd',
           updated_at: new Date().toISOString()
         }, { onConflict: 'email' });
 
@@ -224,6 +227,7 @@ serve(async (req) => {
           current_period_start: currentPeriodStart,
           subscription_end_date: currentPeriodEnd,
           attrs: subscription,
+          currency: subscription.currency || 'usd',
           updated_at: new Date().toISOString()
         }, { onConflict: 'email' });
 
@@ -254,6 +258,7 @@ serve(async (req) => {
           stripe_customer_id: stripeCustomer.id,
           status: 'trial_expired',
           plan_type: 'monthly',
+          currency: 'usd',
           updated_at: new Date().toISOString()
         }, { onConflict: 'email' });
 

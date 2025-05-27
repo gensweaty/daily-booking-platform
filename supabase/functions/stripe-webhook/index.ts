@@ -85,6 +85,16 @@ async function verifyStripeSignature(payload: string, signature: string, secret:
 serve(async (req) => {
   logStep("Webhook request received");
   
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response(null, { 
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+      }
+    });
+  }
+  
   // Get signature header
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
@@ -154,7 +164,8 @@ serve(async (req) => {
     }), {
       status: 200,
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
       }
     });
   } catch (error) {
@@ -206,7 +217,7 @@ async function handleCheckoutCompleted(session: any) {
       .from("subscriptions")
       .select("user_id")
       .eq("stripe_customer_id", customerId)
-      .single();
+      .maybeSingle();
     
     if (existingSub?.user_id) {
       userId = existingSub.user_id;
@@ -251,7 +262,7 @@ async function handleCheckoutCompleted(session: any) {
       currentPeriodStart: currentPeriodStart.toISOString()
     });
     
-    // Update database - create or update subscription
+    // Update database - create or update subscription using email conflict resolution
     const { error } = await supabase
       .from("subscriptions")
       .upsert({
@@ -263,9 +274,12 @@ async function handleCheckoutCompleted(session: any) {
         plan_type: planType,
         current_period_end: currentPeriodEnd.toISOString(),
         current_period_start: currentPeriodStart.toISOString(),
+        subscription_end_date: currentPeriodEnd.toISOString(),
+        attrs: subscription,
+        currency: subscription.currency || 'usd',
         updated_at: new Date().toISOString()
       }, {
-        onConflict: "user_id"
+        onConflict: "email"
       });
     
     if (error) {
@@ -349,7 +363,7 @@ async function handleSubscriptionEvent(subscription: any) {
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
     const currentPeriodStart = new Date(subscription.current_period_start * 1000);
     
-    // Update subscription
+    // Update subscription using email conflict resolution
     const { error: updateError } = await supabase
       .from("subscriptions")
       .upsert({
@@ -361,9 +375,12 @@ async function handleSubscriptionEvent(subscription: any) {
         plan_type: planType,
         current_period_end: currentPeriodEnd.toISOString(),
         current_period_start: currentPeriodStart.toISOString(),
+        subscription_end_date: currentPeriodEnd.toISOString(),
+        attrs: subscription,
+        currency: subscription.currency || 'usd',
         updated_at: new Date().toISOString()
       }, {
-        onConflict: "user_id"
+        onConflict: "email"
       });
     
     if (updateError) {
@@ -418,7 +435,7 @@ async function findUserByCustomerId(customerId: string): Promise<string | null> 
     .from("subscriptions")
     .select("user_id")
     .eq("stripe_customer_id", customerId)
-    .single();
+    .maybeSingle();
   
   return data?.user_id || null;
 }
