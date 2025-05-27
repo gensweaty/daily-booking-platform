@@ -27,14 +27,18 @@ function safeTimestamp(timestamp: number | null | undefined): string | null {
   }
   
   try {
-    // Stripe timestamps are in seconds, convert to milliseconds
+    // Stripe timestamps are in seconds, convert to milliseconds for JavaScript Date
     const date = new Date(numTimestamp * 1000);
     if (isNaN(date.getTime())) {
       logStep("Date creation failed", { timestamp: numTimestamp, date });
       return null;
     }
     const isoString = date.toISOString();
-    logStep("Timestamp converted successfully", { timestamp: numTimestamp, isoString });
+    logStep("Timestamp converted successfully", { 
+      originalTimestamp: numTimestamp, 
+      convertedDate: isoString,
+      dateCheck: date.getTime()
+    });
     return isoString;
   } catch (error) {
     logStep("Error converting timestamp", { timestamp: numTimestamp, error: error.message });
@@ -73,7 +77,6 @@ serve(async (req) => {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    // If user has existing trial or active subscription, check if it's still valid
     if (existingSubscription) {
       logStep("Found existing subscription", { 
         status: existingSubscription.status,
@@ -91,7 +94,6 @@ serve(async (req) => {
         if (trialEnd > now) {
           // Trial is still valid, but check if user has paid for a subscription
           if (existingSubscription.stripe_customer_id) {
-            // User has a Stripe customer ID, check for active subscriptions
             const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
             const subscriptionsResponse = await fetch(
               `https://api.stripe.com/v1/subscriptions?customer=${existingSubscription.stripe_customer_id}&status=active&limit=1`,
@@ -107,9 +109,16 @@ serve(async (req) => {
               const subscriptions = await subscriptionsResponse.json();
               
               if (subscriptions.data.length > 0) {
-                // User has paid, activate subscription
                 const subscription = subscriptions.data[0];
                 const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+                
+                logStep("Raw Stripe subscription data", {
+                  subscriptionId: subscription.id,
+                  currentPeriodEnd: subscription.current_period_end,
+                  currentPeriodStart: subscription.current_period_start,
+                  status: subscription.status
+                });
+                
                 const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
                 const currentPeriodStart = safeTimestamp(subscription.current_period_start);
                 
@@ -120,7 +129,7 @@ serve(async (req) => {
                   currentPeriodStart
                 });
 
-                // Update subscription to active
+                // Update subscription to active with proper end dates
                 const { error: updateError } = await supabase
                   .from('subscriptions')
                   .update({
@@ -190,7 +199,7 @@ serve(async (req) => {
         }
       }
 
-      // Check Stripe if user has a customer ID
+      // Check Stripe if user has a customer ID (for active subscriptions or force refresh)
       if (existingSubscription.stripe_customer_id) {
         const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
         const subscriptionsResponse = await fetch(
@@ -209,11 +218,19 @@ serve(async (req) => {
           if (subscriptions.data.length > 0) {
             const subscription = subscriptions.data[0];
             const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+            
+            logStep("Raw Stripe subscription data for active subscription", {
+              subscriptionId: subscription.id,
+              currentPeriodEnd: subscription.current_period_end,
+              currentPeriodStart: subscription.current_period_start,
+              status: subscription.status,
+              rawData: subscription
+            });
+            
             const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
             const currentPeriodStart = safeTimestamp(subscription.current_period_start);
             
-            logStep("Found active subscription with valid timestamps", { 
-              subscriptionId: subscription.id,
+            logStep("Processed subscription timestamps for active subscription", {
               planType,
               currentPeriodEnd,
               currentPeriodStart,
@@ -221,7 +238,7 @@ serve(async (req) => {
               rawCurrentPeriodStart: subscription.current_period_start
             });
 
-            // Update subscription record
+            // Update subscription record with fresh data from Stripe
             const { error: updateError } = await supabase
               .from('subscriptions')
               .update({
@@ -233,6 +250,7 @@ serve(async (req) => {
                 stripe_subscription_id: subscription.id,
                 attrs: subscription,
                 currency: subscription.currency || 'usd',
+                trial_end_date: null, // Clear trial date for active subscriptions
                 updated_at: new Date().toISOString()
               })
               .eq('user_id', user.id);
@@ -242,7 +260,7 @@ serve(async (req) => {
               throw updateError;
             }
 
-            logStep("Successfully updated existing subscription");
+            logStep("Successfully updated existing subscription with fresh Stripe data");
 
             return new Response(JSON.stringify({
               success: true,
@@ -259,7 +277,7 @@ serve(async (req) => {
       }
     }
 
-    // Try to find Stripe customer by email
+    // If no existing subscription or no Stripe customer ID, try to find Stripe customer by email
     const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
     const customersResponse = await fetch(
       `https://api.stripe.com/v1/customers?email=${encodeURIComponent(user.email)}&limit=1`,
@@ -365,17 +383,20 @@ serve(async (req) => {
 
     if (subscriptions.data && subscriptions.data.length > 0) {
       const subscription = subscriptions.data[0];
-      logStep("Found active subscription", { 
+      
+      logStep("Found active subscription - raw Stripe data", { 
         subscriptionId: subscription.id,
         rawCurrentPeriodEnd: subscription.current_period_end,
-        rawCurrentPeriodStart: subscription.current_period_start
+        rawCurrentPeriodStart: subscription.current_period_start,
+        status: subscription.status,
+        fullSubscription: subscription
       });
 
       const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
       const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
       const currentPeriodStart = safeTimestamp(subscription.current_period_start);
 
-      logStep("Processed subscription timestamps", {
+      logStep("Processed subscription timestamps for new subscription", {
         planType,
         currentPeriodEnd,
         currentPeriodStart
