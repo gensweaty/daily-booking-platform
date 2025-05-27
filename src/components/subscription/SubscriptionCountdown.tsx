@@ -32,12 +32,33 @@ export const SubscriptionCountdown = ({
       // Determine the target date based on status
       if (status === 'trial' && trialEnd) {
         targetDate = new Date(trialEnd);
-      } else if (status === 'active' && currentPeriodEnd) {
-        targetDate = new Date(currentPeriodEnd);
+      } else if (status === 'active') {
+        // For active subscriptions, prefer currentPeriodEnd, but fallback to calculating from now
+        if (currentPeriodEnd) {
+          targetDate = new Date(currentPeriodEnd);
+        } else {
+          // Fallback: calculate based on plan type from current time
+          const now = new Date();
+          if (planType === 'monthly') {
+            targetDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days
+          } else if (planType === 'yearly') {
+            targetDate = new Date(now.getTime() + (365 * 24 * 60 * 60 * 1000)); // 365 days
+          }
+          console.log('Using fallback calculation for active subscription:', { 
+            planType, 
+            calculatedEndDate: targetDate?.toISOString() 
+          });
+        }
       }
       
       if (!targetDate || isNaN(targetDate.getTime())) {
-        console.log('Invalid or missing target date:', { status, currentPeriodEnd, trialEnd, targetDate });
+        console.log('Invalid or missing target date:', { 
+          status, 
+          currentPeriodEnd, 
+          trialEnd, 
+          planType,
+          targetDate 
+        });
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         return;
       }
@@ -48,10 +69,13 @@ export const SubscriptionCountdown = ({
       
       console.log('Countdown calculation:', { 
         status, 
+        planType,
         targetDate: targetDate.toISOString(), 
         now: new Date(now).toISOString(), 
         difference,
-        differenceInDays: difference / (1000 * 60 * 60 * 24)
+        differenceInDays: difference / (1000 * 60 * 60 * 24),
+        currentPeriodEnd,
+        trialEnd
       });
       
       if (difference > 0) {
@@ -73,7 +97,7 @@ export const SubscriptionCountdown = ({
     const timer = setInterval(calculateTimeLeft, 1000);
     
     return () => clearInterval(timer);
-  }, [status, currentPeriodEnd, trialEnd]);
+  }, [status, currentPeriodEnd, trialEnd, planType]);
 
   const getStatusMessage = () => {
     if (status === 'trial') {
@@ -125,8 +149,9 @@ export const SubscriptionCountdown = ({
     );
   }
 
-  // Check if subscription has valid dates but time has expired
-  const hasValidDate = (status === 'trial' && trialEnd) || (status === 'active' && currentPeriodEnd);
+  // Check if subscription has valid dates or can calculate them
+  const hasValidDate = (status === 'trial' && trialEnd) || 
+                      (status === 'active' && (currentPeriodEnd || planType));
   const isExpired = timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0;
   
   if (hasValidDate && isExpired) {
@@ -145,6 +170,7 @@ export const SubscriptionCountdown = ({
     return (
       <div className="text-center p-4 rounded-lg border-2 border-gray-200 bg-gray-50">
         <p className="text-gray-600">{t('subscription.noActiveSubscription') || 'No active subscription'}</p>
+        <p className="text-xs text-gray-500 mt-1">Please sync or refresh to update status</p>
       </div>
     );
   }
