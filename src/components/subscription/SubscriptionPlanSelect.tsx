@@ -38,7 +38,7 @@ export const SubscriptionPlanSelect = ({
           onValueChange={(value: 'monthly' | 'yearly') => setSelectedPlan(value)}
           disabled={isLoading}
         >
-          <div className="flex items-start space-x-4 p-4 border rounded-lg hover:bg-gray-50">
+          <div className="flex items-start space-x-4 p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900">
             <RadioGroupItem value="monthly" id="monthly" className="mt-1" />
             <Label htmlFor="monthly" className="flex-1 space-y-1 cursor-pointer">
               <div className="font-semibold">Monthly Plan</div>
@@ -51,7 +51,7 @@ export const SubscriptionPlanSelect = ({
             </Label>
           </div>
           
-          <div className="flex items-start space-x-4 p-4 border rounded-lg hover:bg-gray-50">
+          <div className="flex items-start space-x-4 p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900">
             <RadioGroupItem value="yearly" id="yearly" className="mt-1" />
             <Label htmlFor="yearly" className="flex-1 space-y-1 cursor-pointer">
               <div className="font-semibold flex items-center gap-2">

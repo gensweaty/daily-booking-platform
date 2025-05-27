@@ -207,12 +207,16 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     return planType === 'monthly' ? 'Monthly Plan' : 'Yearly Plan';
   };
 
-  const formatTimeLeft = (endDate: string | null) => {
+  const formatTimeLeft = (endDate: string | null, status: string) => {
     if (!endDate) return '';
     
     const end = new Date(endDate);
     const now = new Date();
-    const daysLeft = Math.max(0, differenceInDays(end, now));
+    const daysLeft = Math.max(0, Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+    
+    if (status === 'trial') {
+      return `${daysLeft} days left in trial`;
+    }
     
     return `${daysLeft} days left in ${subscription?.plan_type === 'monthly' ? 'monthly' : 'yearly'} plan`;
   };
@@ -314,9 +318,9 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                          subscription.status === 'trial_expired' ? 'Trial Expired' : 
                          'No active subscription'}
                       </p>
-                      {subscription.status === 'active' && subscription.current_period_end && (
+                      {(subscription.status === 'active' || subscription.status === 'trial') && subscription.current_period_end && (
                         <p className="text-xs text-muted-foreground">
-                          {formatTimeLeft(subscription.current_period_end)}
+                          {formatTimeLeft(subscription.current_period_end, subscription.status)}
                         </p>
                       )}
                       <Button 

@@ -67,76 +67,119 @@ serve(async (req) => {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (existingSubscription?.stripe_customer_id) {
-      logStep("Found existing subscription with customer ID", { 
-        customerId: existingSubscription.stripe_customer_id 
+    // If user has existing trial or active subscription, check if it's still valid
+    if (existingSubscription) {
+      logStep("Found existing subscription", { 
+        status: existingSubscription.status,
+        planType: existingSubscription.plan_type,
+        currentPeriodEnd: existingSubscription.current_period_end,
+        trialEndDate: existingSubscription.trial_end_date
       });
 
-      // Check subscription status using REST API
-      const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
-      const subscriptionsResponse = await fetch(
-        `https://api.stripe.com/v1/subscriptions?customer=${existingSubscription.stripe_customer_id}&status=active&limit=1`,
-        {
-          headers: {
-            'Authorization': `Bearer ${stripeApiKey}`,
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        }
-      );
-
-      if (subscriptionsResponse.ok) {
-        const subscriptions = await subscriptionsResponse.json();
+      // For trial subscriptions, check if trial is still valid
+      if (existingSubscription.status === 'trial' && existingSubscription.trial_end_date) {
+        const trialEnd = new Date(existingSubscription.trial_end_date);
+        const now = new Date();
         
-        if (subscriptions.data.length > 0) {
-          const subscription = subscriptions.data[0];
-          const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
-          const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
-          
-          logStep("Found active subscription", { 
-            subscriptionId: subscription.id,
-            planType,
-            currentPeriodEnd 
+        if (trialEnd > now) {
+          // Trial is still valid
+          return new Response(JSON.stringify({
+            success: true,
+            status: 'trial',
+            planType: existingSubscription.plan_type,
+            trialEnd: existingSubscription.trial_end_date,
+            currentPeriodEnd: existingSubscription.current_period_end
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
           });
-
-          // Update subscription record using email for conflict resolution
-          const { error: updateError } = await supabase
+        } else {
+          // Trial has expired, update status
+          await supabase
             .from('subscriptions')
-            .upsert({
-              user_id: user.id,
-              email: user.email,
-              status: 'active',
-              plan_type: planType,
-              current_period_end: currentPeriodEnd,
-              subscription_end_date: currentPeriodEnd,
-              stripe_subscription_id: subscription.id,
-              stripe_customer_id: existingSubscription.stripe_customer_id,
-              attrs: subscription,
-              currency: subscription.currency || 'usd',
+            .update({
+              status: 'trial_expired',
               updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'email'
-            });
-
-          if (updateError) {
-            logStep("Error updating subscription", updateError);
-            throw updateError;
-          }
+            })
+            .eq('user_id', user.id);
 
           return new Response(JSON.stringify({
             success: true,
-            status: 'active',
-            planType: planType,
-            stripe_subscription_id: subscription.id,
-            currentPeriodEnd: currentPeriodEnd
+            status: 'trial_expired',
+            message: 'Trial period has expired'
           }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 200,
           });
         }
       }
+
+      // Check Stripe if user has a customer ID
+      if (existingSubscription.stripe_customer_id) {
+        const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
+        const subscriptionsResponse = await fetch(
+          `https://api.stripe.com/v1/subscriptions?customer=${existingSubscription.stripe_customer_id}&status=active&limit=1`,
+          {
+            headers: {
+              'Authorization': `Bearer ${stripeApiKey}`,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
+          }
+        );
+
+        if (subscriptionsResponse.ok) {
+          const subscriptions = await subscriptionsResponse.json();
+          
+          if (subscriptions.data.length > 0) {
+            const subscription = subscriptions.data[0];
+            const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+            const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
+            const currentPeriodStart = safeTimestamp(subscription.current_period_start);
+            
+            logStep("Found active subscription", { 
+              subscriptionId: subscription.id,
+              planType,
+              currentPeriodEnd,
+              currentPeriodStart
+            });
+
+            // Update subscription record
+            const { error: updateError } = await supabase
+              .from('subscriptions')
+              .update({
+                status: 'active',
+                plan_type: planType,
+                current_period_end: currentPeriodEnd,
+                current_period_start: currentPeriodStart,
+                subscription_end_date: currentPeriodEnd,
+                stripe_subscription_id: subscription.id,
+                attrs: subscription,
+                currency: subscription.currency || 'usd',
+                updated_at: new Date().toISOString()
+              })
+              .eq('email', user.email);
+
+            if (updateError) {
+              logStep("Error updating subscription", updateError);
+              throw updateError;
+            }
+
+            return new Response(JSON.stringify({
+              success: true,
+              status: 'active',
+              planType: planType,
+              stripe_subscription_id: subscription.id,
+              currentPeriodEnd: currentPeriodEnd
+            }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            });
+          }
+        }
+      }
     }
 
-    // Try to find Stripe customer by email using REST API
+    // Try to find Stripe customer by email
     const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
     const customersResponse = await fetch(
       `https://api.stripe.com/v1/customers?email=${encodeURIComponent(user.email)}&limit=1`,
@@ -158,21 +201,56 @@ serve(async (req) => {
     if (!customers.data || customers.data.length === 0) {
       logStep("No Stripe customer found");
       
-      // Create or update subscriptions with trial_expired status using email conflict resolution
-      const { error: upsertError } = await supabase
-        .from('subscriptions')
-        .upsert({
-          user_id: user.id,
-          email: user.email,
-          status: 'trial_expired',
-          plan_type: 'monthly',
-          currency: 'usd',
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'email' });
+      // If user doesn't have a trial subscription, create one
+      if (!existingSubscription) {
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialEndDate.getDate() + 14);
 
-      if (upsertError) {
-        logStep("Error upserting user subscription", upsertError);
-        throw new Error(`Failed to update subscription: ${upsertError.message}`);
+        const { error: createError } = await supabase
+          .from('subscriptions')
+          .insert({
+            user_id: user.id,
+            email: user.email,
+            status: 'trial',
+            plan_type: 'monthly',
+            trial_end_date: trialEndDate.toISOString(),
+            current_period_start: new Date().toISOString(),
+            current_period_end: trialEndDate.toISOString(),
+            currency: 'usd',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+        if (createError) {
+          logStep("Error creating trial subscription", createError);
+        } else {
+          logStep("Trial subscription created", { trialEndDate: trialEndDate.toISOString() });
+          return new Response(JSON.stringify({
+            success: true,
+            status: 'trial',
+            planType: 'monthly',
+            trialEnd: trialEndDate.toISOString(),
+            currentPeriodEnd: trialEndDate.toISOString()
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        }
+      }
+
+      // Update existing subscription to trial_expired if no Stripe customer
+      if (existingSubscription && existingSubscription.status !== 'trial_expired') {
+        const { error: upsertError } = await supabase
+          .from('subscriptions')
+          .update({
+            status: 'trial_expired',
+            updated_at: new Date().toISOString()
+          })
+          .eq('email', user.email);
+
+        if (upsertError) {
+          logStep("Error updating subscription to expired", upsertError);
+        }
       }
 
       return new Response(JSON.stringify({
@@ -226,6 +304,7 @@ serve(async (req) => {
           current_period_end: currentPeriodEnd,
           current_period_start: currentPeriodStart,
           subscription_end_date: currentPeriodEnd,
+          trial_end_date: null, // Clear trial date for active subscriptions
           attrs: subscription,
           currency: subscription.currency || 'usd',
           updated_at: new Date().toISOString()
