@@ -42,31 +42,6 @@ function safeTimestamp(timestamp: number | null | undefined): string | null {
   }
 }
 
-// Calculate subscription end date based on plan type and webhook timestamp
-function calculateSubscriptionEndDate(planType: string, webhookTimestamp?: number): string {
-  // Use webhook timestamp if available, otherwise use current time
-  const startDate = webhookTimestamp ? new Date(webhookTimestamp * 1000) : new Date();
-  const endDate = new Date(startDate);
-  
-  if (planType === 'monthly') {
-    endDate.setDate(endDate.getDate() + 30);
-  } else if (planType === 'yearly') {
-    endDate.setDate(endDate.getDate() + 365);
-  } else {
-    // Default to 30 days for unknown plan types
-    endDate.setDate(endDate.getDate() + 30);
-  }
-  
-  logStep("Calculated subscription end date", {
-    planType,
-    webhookTimestamp,
-    startDate: startDate.toISOString(),
-    endDate: endDate.toISOString()
-  });
-  
-  return endDate.toISOString();
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -90,18 +65,6 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     
     logStep("User authenticated", { userId: user.id, email: user.email });
-
-    // Parse request body to check if this comes from a webhook
-    let requestBody;
-    try {
-      const bodyText = await req.text();
-      if (bodyText) {
-        requestBody = JSON.parse(bodyText);
-        logStep("Request body parsed", { hasWebhookTimestamp: !!requestBody.webhook_timestamp });
-      }
-    } catch (e) {
-      logStep("No request body or failed to parse", { error: e.message });
-    }
 
     // Check for existing subscription record first
     const { data: existingSubscription } = await supabase
@@ -147,18 +110,15 @@ serve(async (req) => {
                 // User has paid, activate subscription
                 const subscription = subscriptions.data[0];
                 const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+                const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
+                const currentPeriodStart = safeTimestamp(subscription.current_period_start);
                 
                 logStep("Converting trial to active subscription", { 
                   subscriptionId: subscription.id,
                   planType,
-                  webhookTimestamp: requestBody?.webhook_timestamp
+                  currentPeriodEnd,
+                  currentPeriodStart
                 });
-
-                // Calculate end date using webhook timestamp if available
-                const subscriptionEndDate = calculateSubscriptionEndDate(
-                  planType, 
-                  requestBody?.webhook_timestamp
-                );
 
                 // Update subscription to active
                 const { error: updateError } = await supabase
@@ -166,15 +126,13 @@ serve(async (req) => {
                   .update({
                     status: 'active',
                     plan_type: planType,
-                    current_period_end: subscriptionEndDate,
-                    current_period_start: requestBody?.webhook_timestamp 
-                      ? new Date(requestBody.webhook_timestamp * 1000).toISOString()
-                      : new Date().toISOString(),
-                    subscription_end_date: subscriptionEndDate,
+                    current_period_end: currentPeriodEnd,
+                    current_period_start: currentPeriodStart,
+                    subscription_end_date: currentPeriodEnd,
                     stripe_subscription_id: subscription.id,
                     attrs: subscription,
                     currency: subscription.currency || 'usd',
-                    trial_end_date: null,
+                    trial_end_date: null, // Clear trial date
                     updated_at: new Date().toISOString()
                   })
                   .eq('user_id', user.id);
@@ -184,17 +142,14 @@ serve(async (req) => {
                   throw updateError;
                 }
 
-                logStep("Successfully converted trial to active subscription", {
-                  subscriptionEndDate,
-                  planType
-                });
+                logStep("Successfully converted trial to active subscription");
 
                 return new Response(JSON.stringify({
                   success: true,
                   status: 'active',
                   planType: planType,
                   stripe_subscription_id: subscription.id,
-                  currentPeriodEnd: subscriptionEndDate
+                  currentPeriodEnd: currentPeriodEnd
                 }), {
                   headers: { ...corsHeaders, "Content-Type": "application/json" },
                   status: 200,
@@ -238,9 +193,6 @@ serve(async (req) => {
       // Check Stripe if user has a customer ID
       if (existingSubscription.stripe_customer_id) {
         const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
-        
-        logStep("Fetching subscription from Stripe", { customerId: existingSubscription.stripe_customer_id });
-        
         const subscriptionsResponse = await fetch(
           `https://api.stripe.com/v1/subscriptions?customer=${existingSubscription.stripe_customer_id}&status=active&limit=1`,
           {
@@ -257,36 +209,27 @@ serve(async (req) => {
           if (subscriptions.data.length > 0) {
             const subscription = subscriptions.data[0];
             const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+            const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
+            const currentPeriodStart = safeTimestamp(subscription.current_period_start);
             
-            logStep("Found active subscription with Stripe data", { 
+            logStep("Found active subscription with valid timestamps", { 
               subscriptionId: subscription.id,
               planType,
-              webhookTimestamp: requestBody?.webhook_timestamp
+              currentPeriodEnd,
+              currentPeriodStart,
+              rawCurrentPeriodEnd: subscription.current_period_end,
+              rawCurrentPeriodStart: subscription.current_period_start
             });
-            
-            // Use webhook timestamp if available, otherwise use existing end date if valid
-            let subscriptionEndDate = existingSubscription.current_period_end;
-            
-            // If we have a webhook timestamp, recalculate the end date
-            if (requestBody?.webhook_timestamp) {
-              subscriptionEndDate = calculateSubscriptionEndDate(planType, requestBody.webhook_timestamp);
-            }
-            // If no webhook timestamp and no valid existing end date, calculate from now
-            else if (!subscriptionEndDate || new Date(subscriptionEndDate) <= new Date()) {
-              subscriptionEndDate = calculateSubscriptionEndDate(planType);
-            }
 
-            // Update subscription record with fresh data
+            // Update subscription record
             const { error: updateError } = await supabase
               .from('subscriptions')
               .update({
                 status: 'active',
                 plan_type: planType,
-                current_period_end: subscriptionEndDate,
-                current_period_start: requestBody?.webhook_timestamp 
-                  ? new Date(requestBody.webhook_timestamp * 1000).toISOString()
-                  : existingSubscription.current_period_start,
-                subscription_end_date: subscriptionEndDate,
+                current_period_end: currentPeriodEnd,
+                current_period_start: currentPeriodStart,
+                subscription_end_date: currentPeriodEnd,
                 stripe_subscription_id: subscription.id,
                 attrs: subscription,
                 currency: subscription.currency || 'usd',
@@ -295,21 +238,18 @@ serve(async (req) => {
               .eq('user_id', user.id);
 
             if (updateError) {
-              logStep("Error updating subscription with fresh data", updateError);
+              logStep("Error updating subscription", updateError);
               throw updateError;
             }
 
-            logStep("Successfully updated existing subscription", {
-              subscriptionEndDate,
-              planType
-            });
+            logStep("Successfully updated existing subscription");
 
             return new Response(JSON.stringify({
               success: true,
               status: 'active',
               planType: planType,
               stripe_subscription_id: subscription.id,
-              currentPeriodEnd: subscriptionEndDate
+              currentPeriodEnd: currentPeriodEnd
             }), {
               headers: { ...corsHeaders, "Content-Type": "application/json" },
               status: 200,
@@ -425,22 +365,20 @@ serve(async (req) => {
 
     if (subscriptions.data && subscriptions.data.length > 0) {
       const subscription = subscriptions.data[0];
-      logStep("Found active subscription from customer lookup", { 
+      logStep("Found active subscription", { 
         subscriptionId: subscription.id,
-        webhookTimestamp: requestBody?.webhook_timestamp
+        rawCurrentPeriodEnd: subscription.current_period_end,
+        rawCurrentPeriodStart: subscription.current_period_start
       });
 
       const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
-      
-      // Calculate subscription end date using webhook timestamp if available
-      const subscriptionEndDate = calculateSubscriptionEndDate(
-        planType, 
-        requestBody?.webhook_timestamp
-      );
+      const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
+      const currentPeriodStart = safeTimestamp(subscription.current_period_start);
 
-      logStep("Processed subscription for customer lookup", {
+      logStep("Processed subscription timestamps", {
         planType,
-        subscriptionEndDate
+        currentPeriodEnd,
+        currentPeriodStart
       });
 
       // Update subscription record using email for conflict resolution
@@ -453,12 +391,10 @@ serve(async (req) => {
           stripe_subscription_id: subscription.id,
           status: 'active',
           plan_type: planType,
-          current_period_end: subscriptionEndDate,
-          current_period_start: requestBody?.webhook_timestamp 
-            ? new Date(requestBody.webhook_timestamp * 1000).toISOString()
-            : new Date().toISOString(),
-          subscription_end_date: subscriptionEndDate,
-          trial_end_date: null,
+          current_period_end: currentPeriodEnd,
+          current_period_start: currentPeriodStart,
+          subscription_end_date: currentPeriodEnd,
+          trial_end_date: null, // Clear trial date for active subscriptions
           attrs: subscription,
           currency: subscription.currency || 'usd',
           updated_at: new Date().toISOString()
@@ -469,17 +405,14 @@ serve(async (req) => {
         throw new Error(`Failed to update subscription: ${upsertError.message}`);
       }
 
-      logStep("Successfully updated subscription in database", {
-        subscriptionEndDate,
-        planType
-      });
+      logStep("Successfully updated subscription in database");
 
       return new Response(JSON.stringify({
         success: true,
         status: 'active',
         planType: planType,
         stripe_subscription_id: subscription.id,
-        currentPeriodEnd: subscriptionEndDate
+        currentPeriodEnd: currentPeriodEnd
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
