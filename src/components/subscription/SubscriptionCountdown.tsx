@@ -32,29 +32,32 @@ export const SubscriptionCountdown = ({
       // Determine the target date based on status
       if (status === 'trial' && trialEnd) {
         targetDate = new Date(trialEnd);
-        console.log('Trial countdown using trialEnd:', { 
-          trialEnd, 
-          targetDate: targetDate.toISOString(),
-          isValid: !isNaN(targetDate.getTime())
-        });
-      } else if (status === 'active' && currentPeriodEnd) {
-        targetDate = new Date(currentPeriodEnd);
-        console.log('Active subscription countdown using currentPeriodEnd:', { 
-          currentPeriodEnd, 
-          targetDate: targetDate.toISOString(),
-          isValid: !isNaN(targetDate.getTime())
-        });
+      } else if (status === 'active') {
+        // For active subscriptions, prefer currentPeriodEnd, but fallback to calculating from now
+        if (currentPeriodEnd) {
+          targetDate = new Date(currentPeriodEnd);
+        } else {
+          // Fallback: calculate based on plan type from current time
+          const now = new Date();
+          if (planType === 'monthly') {
+            targetDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days
+          } else if (planType === 'yearly') {
+            targetDate = new Date(now.getTime() + (365 * 24 * 60 * 60 * 1000)); // 365 days
+          }
+          console.log('Using fallback calculation for active subscription:', { 
+            planType, 
+            calculatedEndDate: targetDate?.toISOString() 
+          });
+        }
       }
       
-      // If we don't have a valid target date, don't calculate countdown
       if (!targetDate || isNaN(targetDate.getTime())) {
-        console.log('No valid target date for countdown:', { 
+        console.log('Invalid or missing target date:', { 
           status, 
           currentPeriodEnd, 
           trialEnd, 
           planType,
-          targetDate,
-          hasValidDate: targetDate && !isNaN(targetDate.getTime())
+          targetDate 
         });
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         return;
@@ -146,24 +149,12 @@ export const SubscriptionCountdown = ({
     );
   }
 
-  // Check if we have the required date for countdown
+  // Check if subscription has valid dates or can calculate them
   const hasValidDate = (status === 'trial' && trialEnd) || 
-                      (status === 'active' && currentPeriodEnd);
+                      (status === 'active' && (currentPeriodEnd || planType));
+  const isExpired = timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0;
   
-  // If no valid date available for active subscription, show syncing state
-  if (status === 'active' && !currentPeriodEnd) {
-    return (
-      <div className="text-center p-4 rounded-lg border-2 border-blue-200 bg-blue-50">
-        <p className="text-blue-600 font-semibold">Syncing Subscription Data...</p>
-        <p className="text-sm text-blue-600 mt-1">Please wait while we fetch your subscription details</p>
-      </div>
-    );
-  }
-
-  // Check if subscription has expired (countdown reached zero)
-  const isExpired = hasValidDate && timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0;
-  
-  if (isExpired) {
+  if (hasValidDate && isExpired) {
     return (
       <div className="text-center p-4 rounded-lg border-2 border-red-200 bg-red-50">
         <p className="text-red-600 font-semibold">

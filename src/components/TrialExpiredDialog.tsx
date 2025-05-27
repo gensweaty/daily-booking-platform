@@ -22,7 +22,6 @@ export const TrialExpiredDialog = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [lastSyncAttempt, setLastSyncAttempt] = useState<Date | null>(null);
-  const [needsSync, setNeedsSync] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -57,19 +56,6 @@ export const TrialExpiredDialog = () => {
       
       const status = data.status;
       setSubscriptionStatus(status);
-      
-      // Check if we have an active subscription but missing currentPeriodEnd
-      if (status === 'active' && !data.currentPeriodEnd) {
-        console.log('Active subscription detected but missing currentPeriodEnd - needs sync');
-        setNeedsSync(true);
-        toast({
-          title: "Subscription Data Sync Needed",
-          description: "Please sync your subscription to get the correct countdown.",
-          variant: "destructive",
-        });
-      } else {
-        setNeedsSync(false);
-      }
       
       if (status === 'active') {
         console.log('Subscription is active, closing dialog');
@@ -197,18 +183,12 @@ export const TrialExpiredDialog = () => {
       
       if (result && result.success && result.status === 'active') {
         setSubscriptionStatus('active');
-        setNeedsSync(false);
         setOpen(false);
         
         toast({
-          title: "Sync Successful!",
-          description: "Your subscription data has been updated successfully",
+          title: "Payment Found!",
+          description: "Your subscription has been activated successfully",
         });
-        
-        // Force refresh subscription status to get the updated data
-        setTimeout(() => {
-          checkUserSubscription();
-        }, 1000);
       } else if (result && result.status === 'trial_expired') {
         toast({
           title: "No Active Subscription",
@@ -272,17 +252,6 @@ export const TrialExpiredDialog = () => {
               </div>
             </div>
           )}
-
-          {needsSync && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-blue-700 dark:text-blue-300">
-                  <strong>Sync Required:</strong> Your subscription is active but countdown data is missing. Please sync to fix this.
-                </div>
-              </div>
-            </div>
-          )}
           
           <div className="text-center">
             <p className="text-xs text-muted-foreground mb-2">
@@ -298,12 +267,12 @@ export const TrialExpiredDialog = () => {
               {isSyncing ? (
                 <span className="flex items-center gap-2">
                   <RefreshCw className="h-4 w-4 animate-spin" />
-                  {needsSync ? 'Syncing Data...' : 'Checking Payment...'}
+                  Checking Payment...
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
                   <RefreshCw className="h-4 w-4" />
-                  {needsSync ? 'Sync Subscription Data' : 'Check Payment Status'}
+                  Check Payment Status
                 </span>
               )}
             </Button>
