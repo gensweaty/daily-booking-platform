@@ -62,7 +62,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
               status: statusResult.status,
               current_period_end: statusResult.currentPeriodEnd || null,
               stripe_customer_id: null,
-              stripe_subscription_id: statusResult.subscriptionId || null
+              stripe_subscription_id: statusResult.stripe_subscription_id || null
             });
           } else {
             setSubscription(null);
@@ -96,7 +96,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           status: result.status,
           current_period_end: result.currentPeriodEnd || null,
           stripe_customer_id: null,
-          stripe_subscription_id: result.subscriptionId || null
+          stripe_subscription_id: result.stripe_subscription_id || null
         });
       }
       
@@ -131,7 +131,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           status: result.status,
           current_period_end: result.currentPeriodEnd || null,
           stripe_customer_id: null,
-          stripe_subscription_id: result.subscriptionId || null
+          stripe_subscription_id: result.stripe_subscription_id || null
         });
         
         toast({
