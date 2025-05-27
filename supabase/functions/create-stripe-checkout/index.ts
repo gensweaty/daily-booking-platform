@@ -45,7 +45,7 @@ serve(async (req) => {
       apiVersion: "2023-10-16",
     });
 
-    // Check if customer already exists in Stripe Wrapper table
+    // Check if customer already exists in Stripe Wrapper table using the exact table name
     const { data: existingCustomer } = await supabase
       .from('Stripe cusotmers')
       .select('*')

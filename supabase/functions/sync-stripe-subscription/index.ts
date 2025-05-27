@@ -35,7 +35,7 @@ serve(async (req) => {
     
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // Get user's email to find Stripe customer
+    // Get user's email to find Stripe customer using the exact table name from the wrapper
     const { data: stripeCustomers, error: customerError } = await supabase
       .from('Stripe cusotmers')
       .select('*')
@@ -79,7 +79,7 @@ serve(async (req) => {
     const stripeCustomer = stripeCustomers[0];
     logStep("Found Stripe customer", { customerId: stripeCustomer.id });
 
-    // Check for active subscriptions
+    // Check for active subscriptions using the exact table name from the wrapper
     const currentTime = Math.floor(Date.now() / 1000); // Current time in Unix timestamp
     const { data: activeSubscriptions, error: subscriptionError } = await supabase
       .from('Stripe subscriptions')
@@ -129,7 +129,7 @@ serve(async (req) => {
         success: true,
         status: 'active',
         planType: planType,
-        subscriptionId: subscription.id,
+        stripe_subscription_id: subscription.id,
         currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString()
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
