@@ -108,7 +108,7 @@ export const checkSubscriptionStatus = async () => {
     
     console.log('Checking subscription status for user:', userData.user.email);
     
-    // Use the new sync function to check status
+    // Use the updated sync function to check status
     const response = await supabase.functions.invoke('sync-stripe-subscription', {
       body: { 
         user_id: userData.user.id

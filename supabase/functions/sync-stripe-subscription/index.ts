@@ -35,19 +35,96 @@ serve(async (req) => {
     
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // Get user's email to find Stripe customer
-    const { data: stripeCustomers, error: customerError } = await supabase
-      .from('customers')
+    // Check for existing subscription record first
+    const { data: existingSubscription } = await supabase
+      .from('subscriptions')
       .select('*')
-      .eq('email', user.email)
-      .limit(1);
+      .eq('user_id', user.id)
+      .maybeSingle();
 
-    if (customerError) {
-      logStep("Error fetching Stripe customers", customerError);
-      throw new Error(`Database error: ${customerError.message}`);
+    if (existingSubscription?.stripe_customer_id) {
+      logStep("Found existing subscription with customer ID", { 
+        customerId: existingSubscription.stripe_customer_id 
+      });
+
+      // Check subscription status using REST API
+      const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
+      const subscriptionsResponse = await fetch(
+        `https://api.stripe.com/v1/subscriptions?customer=${existingSubscription.stripe_customer_id}&status=active&limit=1`,
+        {
+          headers: {
+            'Authorization': `Bearer ${stripeApiKey}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+
+      if (subscriptionsResponse.ok) {
+        const subscriptions = await subscriptionsResponse.json();
+        
+        if (subscriptions.data.length > 0) {
+          const subscription = subscriptions.data[0];
+          const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+          const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+          
+          logStep("Found active subscription", { 
+            subscriptionId: subscription.id,
+            planType,
+            currentPeriodEnd 
+          });
+
+          // Update subscription record
+          const { error: updateError } = await supabase
+            .from('subscriptions')
+            .update({
+              status: 'active',
+              plan_type: planType,
+              current_period_end: currentPeriodEnd,
+              subscription_end_date: currentPeriodEnd,
+              stripe_subscription_id: subscription.id,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id);
+
+          if (updateError) {
+            logStep("Error updating subscription", updateError);
+            throw updateError;
+          }
+
+          return new Response(JSON.stringify({
+            success: true,
+            status: 'active',
+            planType: planType,
+            stripe_subscription_id: subscription.id,
+            currentPeriodEnd: currentPeriodEnd
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        }
+      }
     }
 
-    if (!stripeCustomers || stripeCustomers.length === 0) {
+    // Try to find Stripe customer by email using REST API
+    const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
+    const customersResponse = await fetch(
+      `https://api.stripe.com/v1/customers?email=${encodeURIComponent(user.email)}&limit=1`,
+      {
+        headers: {
+          'Authorization': `Bearer ${stripeApiKey}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
+
+    if (!customersResponse.ok) {
+      logStep("Error fetching customers from Stripe", { status: customersResponse.status });
+      throw new Error(`Failed to fetch customers: ${customersResponse.status}`);
+    }
+
+    const customers = await customersResponse.json();
+    
+    if (!customers.data || customers.data.length === 0) {
       logStep("No Stripe customer found");
       
       // Create or update subscriptions with trial_expired status
@@ -76,44 +153,62 @@ serve(async (req) => {
       });
     }
 
-    const stripeCustomer = stripeCustomers[0];
+    const stripeCustomer = customers.data[0];
     logStep("Found Stripe customer", { customerId: stripeCustomer.id });
 
-    // Check for active subscriptions using Stripe Wrapper
-    const currentTime = Math.floor(Date.now() / 1000); // Current time in Unix timestamp
-    const { data: activeSubscriptions, error: subscriptionError } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('stripe_customer_id', stripeCustomer.id)
-      .eq('status', 'active')
-      .gt('current_period_end', currentTime)
-      .order('current_period_end', { ascending: false })
-      .limit(1);
+    // Check for active subscriptions
+    const subscriptionsResponse = await fetch(
+      `https://api.stripe.com/v1/subscriptions?customer=${stripeCustomer.id}&status=active&limit=1`,
+      {
+        headers: {
+          'Authorization': `Bearer ${stripeApiKey}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
 
-    if (subscriptionError) {
-      logStep("Error fetching Stripe subscriptions", subscriptionError);
-      throw new Error(`Database error: ${subscriptionError.message}`);
+    if (!subscriptionsResponse.ok) {
+      throw new Error(`Failed to fetch subscriptions: ${subscriptionsResponse.status}`);
     }
 
-    if (activeSubscriptions && activeSubscriptions.length > 0) {
-      const subscription = activeSubscriptions[0];
+    const subscriptions = await subscriptionsResponse.json();
+
+    if (subscriptions.data && subscriptions.data.length > 0) {
+      const subscription = subscriptions.data[0];
       logStep("Found active subscription", { subscriptionId: subscription.id });
 
-      // Determine plan type based on subscription data
-      let planType = 'monthly';
-      if (subscription.attrs && subscription.attrs.items && subscription.attrs.items.data) {
-        const items = subscription.attrs.items.data;
-        if (items.length > 0 && items[0].price && items[0].price.recurring) {
-          planType = items[0].price.recurring.interval === 'year' ? 'yearly' : 'monthly';
-        }
+      const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+      const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+      const currentPeriodStart = new Date(subscription.current_period_start * 1000).toISOString();
+
+      // Update subscription record
+      const { error: upsertError } = await supabase
+        .from('subscriptions')
+        .upsert({
+          user_id: user.id,
+          email: user.email,
+          stripe_customer_id: stripeCustomer.id,
+          stripe_subscription_id: subscription.id,
+          status: 'active',
+          plan_type: planType,
+          current_period_end: currentPeriodEnd,
+          current_period_start: currentPeriodStart,
+          subscription_end_date: currentPeriodEnd,
+          attrs: subscription,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+
+      if (upsertError) {
+        logStep("Error upserting subscription", upsertError);
+        throw new Error(`Failed to update subscription: ${upsertError.message}`);
       }
 
       return new Response(JSON.stringify({
         success: true,
         status: 'active',
         planType: planType,
-        stripe_subscription_id: subscription.stripe_subscription_id,
-        currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString()
+        stripe_subscription_id: subscription.id,
+        currentPeriodEnd: currentPeriodEnd
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
