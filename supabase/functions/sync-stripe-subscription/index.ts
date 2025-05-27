@@ -117,7 +117,8 @@ serve(async (req) => {
                   subscriptionId: subscription.id,
                   planType,
                   currentPeriodEnd,
-                  currentPeriodStart
+                  currentPeriodStart,
+                  rawCurrentPeriodEnd: subscription.current_period_end
                 });
 
                 // Update subscription to active
@@ -193,6 +194,11 @@ serve(async (req) => {
       // Check Stripe if user has a customer ID
       if (existingSubscription.stripe_customer_id) {
         const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
+        
+        logStep("Checking Stripe for active subscription", { 
+          customerId: existingSubscription.stripe_customer_id 
+        });
+        
         const subscriptionsResponse = await fetch(
           `https://api.stripe.com/v1/subscriptions?customer=${existingSubscription.stripe_customer_id}&status=active&limit=1`,
           {
@@ -220,6 +226,15 @@ serve(async (req) => {
               rawCurrentPeriodEnd: subscription.current_period_end,
               rawCurrentPeriodStart: subscription.current_period_start
             });
+
+            // Ensure we have a valid currentPeriodEnd
+            if (!currentPeriodEnd) {
+              logStep("ERROR: Failed to convert current_period_end", {
+                rawValue: subscription.current_period_end,
+                subscriptionId: subscription.id
+              });
+              throw new Error("Failed to extract valid current_period_end from Stripe subscription");
+            }
 
             // Update subscription record
             const { error: updateError } = await supabase
@@ -380,6 +395,15 @@ serve(async (req) => {
         currentPeriodEnd,
         currentPeriodStart
       });
+
+      // Ensure we have a valid currentPeriodEnd
+      if (!currentPeriodEnd) {
+        logStep("ERROR: Failed to convert current_period_end for new subscription", {
+          rawValue: subscription.current_period_end,
+          subscriptionId: subscription.id
+        });
+        throw new Error("Failed to extract valid current_period_end from Stripe subscription");
+      }
 
       // Update subscription record using email for conflict resolution
       const { error: upsertError } = await supabase

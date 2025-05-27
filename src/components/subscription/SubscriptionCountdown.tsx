@@ -32,26 +32,27 @@ export const SubscriptionCountdown = ({
       // Determine the target date based on status
       if (status === 'trial' && trialEnd) {
         targetDate = new Date(trialEnd);
+        console.log('Using trial end date:', trialEnd);
       } else if (status === 'active') {
         if (currentPeriodEnd) {
           targetDate = new Date(currentPeriodEnd);
-        } else if (planType) {
-          // If no currentPeriodEnd but we have planType, calculate from now
-          const now = new Date();
-          if (planType === 'monthly') {
-            targetDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days from now
-          } else if (planType === 'yearly') {
-            targetDate = new Date(now.getTime() + (365 * 24 * 60 * 60 * 1000)); // 365 days from now
-          }
-          console.log('Calculated fallback date for active subscription:', { 
-            planType, 
-            targetDate: targetDate?.toISOString() 
-          });
+          console.log('Using current period end date:', currentPeriodEnd);
+        } else {
+          // For active subscriptions without currentPeriodEnd, we should not show a countdown
+          // This indicates the sync function hasn't retrieved the proper date yet
+          console.log('Active subscription missing currentPeriodEnd - sync needed');
+          setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+          return;
         }
       }
       
       if (!targetDate || isNaN(targetDate.getTime())) {
-        console.log('Invalid or missing target date, resetting countdown');
+        console.log('Invalid or missing target date, resetting countdown', {
+          status,
+          currentPeriodEnd,
+          trialEnd,
+          targetDate
+        });
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         return;
       }
@@ -146,9 +147,9 @@ export const SubscriptionCountdown = ({
     );
   }
 
-  // Check if subscription has valid dates or can calculate them
+  // Check if subscription has valid dates
   const hasValidDate = (status === 'trial' && trialEnd) || 
-                      (status === 'active' && (currentPeriodEnd || planType));
+                      (status === 'active' && currentPeriodEnd);
   const isExpired = timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0;
   
   if (hasValidDate && isExpired) {
@@ -158,6 +159,16 @@ export const SubscriptionCountdown = ({
           {status === 'trial' ? 'Trial Expired' : 'Subscription Expired'}
         </p>
         <p className="text-sm text-red-600 mt-1">Please upgrade to continue</p>
+      </div>
+    );
+  }
+
+  // Handle case when no valid dates are available for active subscription
+  if (status === 'active' && !currentPeriodEnd) {
+    return (
+      <div className="text-center p-4 rounded-lg border-2 border-yellow-200 bg-yellow-50">
+        <p className="text-yellow-700 font-semibold">Active Subscription</p>
+        <p className="text-xs text-yellow-600 mt-1">Syncing subscription details...</p>
       </div>
     );
   }
