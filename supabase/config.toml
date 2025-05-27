@@ -22,11 +22,17 @@ project_id = "mrueqpffzauvdxmuwhfa"
 [functions.stripe-webhook]
 verify_jwt = false
 
+[functions.stripe-checkout-webhook]
+verify_jwt = false
+
 [functions.create-stripe-checkout]
 verify_jwt = true
 
 [functions.verify-stripe-subscription]
 verify_jwt = false
+
+[functions.sync-stripe-subscription]
+verify_jwt = true
 
 [storage]
 # The maximum file size allowed (e.g. "5MB", "500KB").

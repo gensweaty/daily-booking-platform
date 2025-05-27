@@ -1,7 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@14.21.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -95,7 +94,7 @@ serve(async (req) => {
     return new Response("Missing stripe-signature header", { status: 400 });
   }
   
-  const webhookSecret = "whsec_aiFAzqABwU8OyJMpyVxTncZyLkghduNX";
+  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") || "whsec_aiFAzqABwU8OyJMpyVxTncZyLkghduNX";
   const body = await req.text();
   logStep("Body received", { length: body.length });
   
@@ -174,7 +173,7 @@ async function handleCheckoutCompleted(session: any, supabase: any) {
     return;
   }
 
-  // Find user by email
+  // Find user by email from metadata or customer details
   let userId = session.metadata?.user_id || session.metadata?.supabase_user_id;
   
   if (!userId && customerEmail) {
@@ -224,7 +223,7 @@ async function handleCheckoutCompleted(session: any, supabase: any) {
     currentPeriodStart
   });
   
-  // Update subscriptions table
+  // Update subscriptions table using email for conflict resolution
   const { error } = await supabase
     .from("subscriptions")
     .upsert({
@@ -242,7 +241,7 @@ async function handleCheckoutCompleted(session: any, supabase: any) {
       attrs: subscription,
       updated_at: new Date().toISOString()
     }, {
-      onConflict: "user_id"
+      onConflict: "email"
     });
   
   if (error) {

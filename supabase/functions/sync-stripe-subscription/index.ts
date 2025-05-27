@@ -11,6 +11,31 @@ function logStep(step: string, data?: any) {
   console.log(`[SYNC-STRIPE-SUBSCRIPTION] ${step}`, data ? JSON.stringify(data) : "");
 }
 
+// Safe timestamp conversion function
+function safeTimestamp(timestamp: number | null | undefined): string | null {
+  if (timestamp == null || typeof timestamp !== 'number') {
+    logStep("Timestamp is null or undefined", { timestamp });
+    return null;
+  }
+  
+  if (!Number.isFinite(timestamp) || timestamp <= 0) {
+    logStep("Invalid timestamp value", { timestamp });
+    return null;
+  }
+  
+  try {
+    const date = new Date(timestamp * 1000);
+    if (isNaN(date.getTime())) {
+      logStep("Date creation failed", { timestamp, date });
+      return null;
+    }
+    return date.toISOString();
+  } catch (error) {
+    logStep("Error converting timestamp", { timestamp, error: error.message });
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -65,7 +90,7 @@ serve(async (req) => {
         if (subscriptions.data.length > 0) {
           const subscription = subscriptions.data[0];
           const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
-          const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+          const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
           
           logStep("Found active subscription", { 
             subscriptionId: subscription.id,
@@ -73,18 +98,22 @@ serve(async (req) => {
             currentPeriodEnd 
           });
 
-          // Update subscription record
+          // Update subscription record using email for conflict resolution
           const { error: updateError } = await supabase
             .from('subscriptions')
-            .update({
+            .upsert({
+              user_id: user.id,
+              email: user.email,
               status: 'active',
               plan_type: planType,
               current_period_end: currentPeriodEnd,
               subscription_end_date: currentPeriodEnd,
               stripe_subscription_id: subscription.id,
+              stripe_customer_id: existingSubscription.stripe_customer_id,
               updated_at: new Date().toISOString()
-            })
-            .eq('user_id', user.id);
+            }, {
+              onConflict: 'email'
+            });
 
           if (updateError) {
             logStep("Error updating subscription", updateError);
@@ -127,7 +156,7 @@ serve(async (req) => {
     if (!customers.data || customers.data.length === 0) {
       logStep("No Stripe customer found");
       
-      // Create or update subscriptions with trial_expired status
+      // Create or update subscriptions with trial_expired status using email conflict resolution
       const { error: upsertError } = await supabase
         .from('subscriptions')
         .upsert({
@@ -136,7 +165,7 @@ serve(async (req) => {
           status: 'trial_expired',
           plan_type: 'monthly',
           updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
+        }, { onConflict: 'email' });
 
       if (upsertError) {
         logStep("Error upserting user subscription", upsertError);
@@ -178,10 +207,10 @@ serve(async (req) => {
       logStep("Found active subscription", { subscriptionId: subscription.id });
 
       const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
-      const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
-      const currentPeriodStart = new Date(subscription.current_period_start * 1000).toISOString();
+      const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
+      const currentPeriodStart = safeTimestamp(subscription.current_period_start);
 
-      // Update subscription record
+      // Update subscription record using email for conflict resolution
       const { error: upsertError } = await supabase
         .from('subscriptions')
         .upsert({
@@ -196,7 +225,7 @@ serve(async (req) => {
           subscription_end_date: currentPeriodEnd,
           attrs: subscription,
           updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
+        }, { onConflict: 'email' });
 
       if (upsertError) {
         logStep("Error upserting subscription", upsertError);
@@ -216,7 +245,7 @@ serve(async (req) => {
     } else {
       logStep("No active subscription found");
       
-      // Update subscriptions with expired status
+      // Update subscriptions with expired status using email conflict resolution
       const { error: upsertError } = await supabase
         .from('subscriptions')
         .upsert({
@@ -226,7 +255,7 @@ serve(async (req) => {
           status: 'trial_expired',
           plan_type: 'monthly',
           updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
+        }, { onConflict: 'email' });
 
       if (upsertError) {
         logStep("Error upserting expired subscription", upsertError);
