@@ -4,8 +4,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 interface SubscriptionCountdownProps {
   status: 'trial' | 'trial_expired' | 'active' | 'expired' | 'canceled';
-  currentPeriodEnd?: string;
-  trialEnd?: string;
+  currentPeriodEnd?: string | null;
+  trialEnd?: string | null;
   planType?: 'monthly' | 'yearly';
   compact?: boolean;
 }
@@ -36,7 +36,8 @@ export const SubscriptionCountdown = ({
         targetDate = new Date(currentPeriodEnd);
       }
       
-      if (!targetDate) {
+      if (!targetDate || isNaN(targetDate.getTime())) {
+        console.log('Invalid or missing target date:', { status, currentPeriodEnd, trialEnd, targetDate });
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         return;
       }
@@ -44,6 +45,14 @@ export const SubscriptionCountdown = ({
       const now = new Date().getTime();
       const target = targetDate.getTime();
       const difference = target - now;
+      
+      console.log('Countdown calculation:', { 
+        status, 
+        targetDate: targetDate.toISOString(), 
+        now: new Date(now).toISOString(), 
+        difference,
+        differenceInDays: difference / (1000 * 60 * 60 * 24)
+      });
       
       if (difference > 0) {
         const days = Math.floor(difference / (1000 * 60 * 60 * 24));
@@ -116,20 +125,23 @@ export const SubscriptionCountdown = ({
     );
   }
 
-  // Handle case when no valid dates are available
-  if (timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0) {
-    // If we have a status but no time left, it might mean the subscription just expired
-    if (status === 'trial' || status === 'active') {
-      return (
-        <div className="text-center p-4 rounded-lg border-2 border-red-200 bg-red-50">
-          <p className="text-red-600 font-semibold">
-            {status === 'trial' ? 'Trial Expired' : 'Subscription Expired'}
-          </p>
-          <p className="text-sm text-red-600 mt-1">Please upgrade to continue</p>
-        </div>
-      );
-    }
+  // Check if subscription has valid dates but time has expired
+  const hasValidDate = (status === 'trial' && trialEnd) || (status === 'active' && currentPeriodEnd);
+  const isExpired = timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0;
+  
+  if (hasValidDate && isExpired) {
+    return (
+      <div className="text-center p-4 rounded-lg border-2 border-red-200 bg-red-50">
+        <p className="text-red-600 font-semibold">
+          {status === 'trial' ? 'Trial Expired' : 'Subscription Expired'}
+        </p>
+        <p className="text-sm text-red-600 mt-1">Please upgrade to continue</p>
+      </div>
+    );
+  }
 
+  // Handle case when no valid dates are available
+  if (!hasValidDate) {
     return (
       <div className="text-center p-4 rounded-lg border-2 border-gray-200 bg-gray-50">
         <p className="text-gray-600">{t('subscription.noActiveSubscription') || 'No active subscription'}</p>
