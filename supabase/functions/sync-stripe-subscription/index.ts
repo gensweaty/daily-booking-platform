@@ -11,7 +11,7 @@ function logStep(step: string, data?: any) {
   console.log(`[SYNC-STRIPE-SUBSCRIPTION] ${step}`, data ? JSON.stringify(data) : "");
 }
 
-// Enhanced timestamp conversion function with better error handling
+// Fixed timestamp conversion function with better error handling
 function safeTimestamp(timestamp: number | null | undefined): string | null {
   if (timestamp == null) {
     logStep("Timestamp is null or undefined", { timestamp });
@@ -19,20 +19,28 @@ function safeTimestamp(timestamp: number | null | undefined): string | null {
   }
   
   // Convert to number if it's a string
-  const numTimestamp = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp;
+  let numTimestamp: number;
+  if (typeof timestamp === 'string') {
+    numTimestamp = parseInt(timestamp, 10);
+  } else {
+    numTimestamp = timestamp;
+  }
   
   if (typeof numTimestamp !== 'number' || !Number.isFinite(numTimestamp) || numTimestamp <= 0) {
-    logStep("Invalid timestamp value", { timestamp, numTimestamp });
+    logStep("Invalid timestamp value", { timestamp, numTimestamp, type: typeof numTimestamp });
     return null;
   }
   
   try {
     // Stripe timestamps are in seconds, convert to milliseconds for JavaScript Date
-    const date = new Date(numTimestamp * 1000);
+    const dateInMs = numTimestamp * 1000;
+    const date = new Date(dateInMs);
+    
     if (isNaN(date.getTime())) {
-      logStep("Date creation failed", { timestamp: numTimestamp, date });
+      logStep("Date creation failed", { timestamp: numTimestamp, dateInMs, date });
       return null;
     }
+    
     const isoString = date.toISOString();
     logStep("Timestamp converted successfully", { 
       originalTimestamp: numTimestamp, 
@@ -112,13 +120,16 @@ serve(async (req) => {
                 const subscription = subscriptions.data[0];
                 const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
                 
-                logStep("Raw Stripe subscription data", {
+                logStep("Raw Stripe subscription data for trial conversion", {
                   subscriptionId: subscription.id,
                   currentPeriodEnd: subscription.current_period_end,
                   currentPeriodStart: subscription.current_period_start,
-                  status: subscription.status
+                  status: subscription.status,
+                  rawEndTimestamp: subscription.current_period_end,
+                  rawStartTimestamp: subscription.current_period_start
                 });
                 
+                // Fixed timestamp conversion - ensure we get valid dates
                 const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
                 const currentPeriodStart = safeTimestamp(subscription.current_period_start);
                 
@@ -126,43 +137,48 @@ serve(async (req) => {
                   subscriptionId: subscription.id,
                   planType,
                   currentPeriodEnd,
-                  currentPeriodStart
+                  currentPeriodStart,
+                  conversionSuccess: !!(currentPeriodEnd && currentPeriodStart)
                 });
 
-                // Update subscription to active with proper end dates
-                const { error: updateError } = await supabase
-                  .from('subscriptions')
-                  .update({
+                // Only update if we have valid timestamps
+                if (currentPeriodEnd && currentPeriodStart) {
+                  const { error: updateError } = await supabase
+                    .from('subscriptions')
+                    .update({
+                      status: 'active',
+                      plan_type: planType,
+                      current_period_end: currentPeriodEnd,
+                      current_period_start: currentPeriodStart,
+                      subscription_end_date: currentPeriodEnd,
+                      stripe_subscription_id: subscription.id,
+                      attrs: subscription,
+                      currency: subscription.currency || 'usd',
+                      trial_end_date: null, // Clear trial date
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq('user_id', user.id);
+
+                  if (updateError) {
+                    logStep("Error updating trial to active", updateError);
+                    throw updateError;
+                  }
+
+                  logStep("Successfully converted trial to active subscription");
+
+                  return new Response(JSON.stringify({
+                    success: true,
                     status: 'active',
-                    plan_type: planType,
-                    current_period_end: currentPeriodEnd,
-                    current_period_start: currentPeriodStart,
-                    subscription_end_date: currentPeriodEnd,
+                    planType: planType,
                     stripe_subscription_id: subscription.id,
-                    attrs: subscription,
-                    currency: subscription.currency || 'usd',
-                    trial_end_date: null, // Clear trial date
-                    updated_at: new Date().toISOString()
-                  })
-                  .eq('user_id', user.id);
-
-                if (updateError) {
-                  logStep("Error updating trial to active", updateError);
-                  throw updateError;
+                    currentPeriodEnd: currentPeriodEnd
+                  }), {
+                    headers: { ...corsHeaders, "Content-Type": "application/json" },
+                    status: 200,
+                  });
+                } else {
+                  logStep("Failed to convert timestamps, keeping trial status");
                 }
-
-                logStep("Successfully converted trial to active subscription");
-
-                return new Response(JSON.stringify({
-                  success: true,
-                  status: 'active',
-                  planType: planType,
-                  stripe_subscription_id: subscription.id,
-                  currentPeriodEnd: currentPeriodEnd
-                }), {
-                  headers: { ...corsHeaders, "Content-Type": "application/json" },
-                  status: 200,
-                });
               }
             }
           }
@@ -219,59 +235,77 @@ serve(async (req) => {
             const subscription = subscriptions.data[0];
             const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
             
-            logStep("Raw Stripe subscription data for active subscription", {
+            logStep("Raw Stripe subscription data for existing active subscription", {
               subscriptionId: subscription.id,
               currentPeriodEnd: subscription.current_period_end,
               currentPeriodStart: subscription.current_period_start,
               status: subscription.status,
-              rawData: subscription
+              rawData: {
+                current_period_end: subscription.current_period_end,
+                current_period_start: subscription.current_period_start
+              }
             });
             
+            // Fixed timestamp conversion with detailed logging
             const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
             const currentPeriodStart = safeTimestamp(subscription.current_period_start);
             
-            logStep("Processed subscription timestamps for active subscription", {
+            logStep("Processed subscription timestamps for existing active subscription", {
               planType,
               currentPeriodEnd,
               currentPeriodStart,
               rawCurrentPeriodEnd: subscription.current_period_end,
-              rawCurrentPeriodStart: subscription.current_period_start
+              rawCurrentPeriodStart: subscription.current_period_start,
+              timestampConversionSuccess: !!(currentPeriodEnd && currentPeriodStart)
             });
 
-            // Update subscription record with fresh data from Stripe
-            const { error: updateError } = await supabase
-              .from('subscriptions')
-              .update({
+            // Only update if we have valid timestamps
+            if (currentPeriodEnd && currentPeriodStart) {
+              const { error: updateError } = await supabase
+                .from('subscriptions')
+                .update({
+                  status: 'active',
+                  plan_type: planType,
+                  current_period_end: currentPeriodEnd,
+                  current_period_start: currentPeriodStart,
+                  subscription_end_date: currentPeriodEnd,
+                  stripe_subscription_id: subscription.id,
+                  attrs: subscription,
+                  currency: subscription.currency || 'usd',
+                  trial_end_date: null, // Clear trial date for active subscriptions
+                  updated_at: new Date().toISOString()
+                })
+                .eq('user_id', user.id);
+
+              if (updateError) {
+                logStep("Error updating subscription", updateError);
+                throw updateError;
+              }
+
+              logStep("Successfully updated existing subscription with fresh Stripe data");
+
+              return new Response(JSON.stringify({
+                success: true,
                 status: 'active',
-                plan_type: planType,
-                current_period_end: currentPeriodEnd,
-                current_period_start: currentPeriodStart,
-                subscription_end_date: currentPeriodEnd,
+                planType: planType,
                 stripe_subscription_id: subscription.id,
-                attrs: subscription,
-                currency: subscription.currency || 'usd',
-                trial_end_date: null, // Clear trial date for active subscriptions
-                updated_at: new Date().toISOString()
-              })
-              .eq('user_id', user.id);
-
-            if (updateError) {
-              logStep("Error updating subscription", updateError);
-              throw updateError;
+                currentPeriodEnd: currentPeriodEnd
+              }), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                status: 200,
+              });
+            } else {
+              logStep("Failed to convert Stripe timestamps - data sync issue");
+              return new Response(JSON.stringify({
+                success: false,
+                status: 'active',
+                error: 'Failed to sync subscription timestamps from Stripe',
+                message: 'Subscription is active but dates could not be synced'
+              }), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                status: 500,
+              });
             }
-
-            logStep("Successfully updated existing subscription with fresh Stripe data");
-
-            return new Response(JSON.stringify({
-              success: true,
-              status: 'active',
-              planType: planType,
-              stripe_subscription_id: subscription.id,
-              currentPeriodEnd: currentPeriodEnd
-            }), {
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-              status: 200,
-            });
           }
         }
       }
@@ -399,45 +433,60 @@ serve(async (req) => {
       logStep("Processed subscription timestamps for new subscription", {
         planType,
         currentPeriodEnd,
-        currentPeriodStart
+        currentPeriodStart,
+        timestampConversionSuccess: !!(currentPeriodEnd && currentPeriodStart)
       });
 
-      // Update subscription record using email for conflict resolution
-      const { error: upsertError } = await supabase
-        .from('subscriptions')
-        .upsert({
-          user_id: user.id,
-          email: user.email,
-          stripe_customer_id: stripeCustomer.id,
-          stripe_subscription_id: subscription.id,
+      // Only proceed if we have valid timestamps
+      if (currentPeriodEnd && currentPeriodStart) {
+        // Update subscription record using email for conflict resolution
+        const { error: upsertError } = await supabase
+          .from('subscriptions')
+          .upsert({
+            user_id: user.id,
+            email: user.email,
+            stripe_customer_id: stripeCustomer.id,
+            stripe_subscription_id: subscription.id,
+            status: 'active',
+            plan_type: planType,
+            current_period_end: currentPeriodEnd,
+            current_period_start: currentPeriodStart,
+            subscription_end_date: currentPeriodEnd,
+            trial_end_date: null, // Clear trial date for active subscriptions
+            attrs: subscription,
+            currency: subscription.currency || 'usd',
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id' });
+
+        if (upsertError) {
+          logStep("Error upserting subscription", upsertError);
+          throw new Error(`Failed to update subscription: ${upsertError.message}`);
+        }
+
+        logStep("Successfully updated subscription in database");
+
+        return new Response(JSON.stringify({
+          success: true,
           status: 'active',
-          plan_type: planType,
-          current_period_end: currentPeriodEnd,
-          current_period_start: currentPeriodStart,
-          subscription_end_date: currentPeriodEnd,
-          trial_end_date: null, // Clear trial date for active subscriptions
-          attrs: subscription,
-          currency: subscription.currency || 'usd',
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
-
-      if (upsertError) {
-        logStep("Error upserting subscription", upsertError);
-        throw new Error(`Failed to update subscription: ${upsertError.message}`);
+          planType: planType,
+          stripe_subscription_id: subscription.id,
+          currentPeriodEnd: currentPeriodEnd
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      } else {
+        logStep("Failed to convert Stripe timestamps for new subscription");
+        return new Response(JSON.stringify({
+          success: false,
+          status: 'active',
+          error: 'Failed to sync subscription timestamps from Stripe',
+          message: 'Subscription found but dates could not be synced'
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        });
       }
-
-      logStep("Successfully updated subscription in database");
-
-      return new Response(JSON.stringify({
-        success: true,
-        status: 'active',
-        planType: planType,
-        stripe_subscription_id: subscription.id,
-        currentPeriodEnd: currentPeriodEnd
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
     } else {
       logStep("No active subscription found");
       
