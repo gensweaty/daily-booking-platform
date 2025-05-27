@@ -11,7 +11,7 @@ function logStep(step: string, data?: any) {
   console.log(`[SYNC-STRIPE-SUBSCRIPTION] ${step}`, data ? JSON.stringify(data) : "");
 }
 
-// Safe timestamp conversion function
+// Enhanced timestamp conversion function
 function safeTimestamp(timestamp: number | null | undefined): string | null {
   if (timestamp == null || typeof timestamp !== 'number') {
     logStep("Timestamp is null or undefined", { timestamp });
@@ -29,7 +29,9 @@ function safeTimestamp(timestamp: number | null | undefined): string | null {
       logStep("Date creation failed", { timestamp, date });
       return null;
     }
-    return date.toISOString();
+    const isoString = date.toISOString();
+    logStep("Timestamp converted successfully", { timestamp, isoString });
+    return isoString;
   } catch (error) {
     logStep("Error converting timestamp", { timestamp, error: error.message });
     return null;
@@ -136,11 +138,13 @@ serve(async (req) => {
             const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
             const currentPeriodStart = safeTimestamp(subscription.current_period_start);
             
-            logStep("Found active subscription", { 
+            logStep("Found active subscription with valid timestamps", { 
               subscriptionId: subscription.id,
               planType,
               currentPeriodEnd,
-              currentPeriodStart
+              currentPeriodStart,
+              rawCurrentPeriodEnd: subscription.current_period_end,
+              rawCurrentPeriodStart: subscription.current_period_start
             });
 
             // Update subscription record
@@ -285,11 +289,21 @@ serve(async (req) => {
 
     if (subscriptions.data && subscriptions.data.length > 0) {
       const subscription = subscriptions.data[0];
-      logStep("Found active subscription", { subscriptionId: subscription.id });
+      logStep("Found active subscription", { 
+        subscriptionId: subscription.id,
+        rawCurrentPeriodEnd: subscription.current_period_end,
+        rawCurrentPeriodStart: subscription.current_period_start
+      });
 
       const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
       const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
       const currentPeriodStart = safeTimestamp(subscription.current_period_start);
+
+      logStep("Processed subscription timestamps", {
+        planType,
+        currentPeriodEnd,
+        currentPeriodStart
+      });
 
       // Update subscription record using email for conflict resolution
       const { error: upsertError } = await supabase
@@ -314,6 +328,8 @@ serve(async (req) => {
         logStep("Error upserting subscription", upsertError);
         throw new Error(`Failed to update subscription: ${upsertError.message}`);
       }
+
+      logStep("Successfully updated subscription in database");
 
       return new Response(JSON.stringify({
         success: true,
