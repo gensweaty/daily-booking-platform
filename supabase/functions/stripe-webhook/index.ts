@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -10,6 +11,41 @@ const encoder = new TextEncoder();
 
 function logStep(step: string, data?: any) {
   console.log(`[STRIPE-WEBHOOK] ${step}`, data ? JSON.stringify(data) : "");
+}
+
+// Enhanced timestamp extraction from webhook headers
+function extractWebhookTimestamp(req: Request): string {
+  // Try to get the GMT timestamp from headers
+  const dateHeader = req.headers.get("date");
+  if (dateHeader) {
+    logStep("Using webhook date header as authoritative timestamp", { dateHeader });
+    return new Date(dateHeader).toISOString();
+  }
+  
+  // Fallback to current time if no date header
+  const fallbackTime = new Date().toISOString();
+  logStep("No date header found, using fallback timestamp", { fallbackTime });
+  return fallbackTime;
+}
+
+// Calculate subscription dates based on payment timestamp
+function calculateSubscriptionDates(webhookTimestamp: string, planType: 'monthly' | 'yearly') {
+  const paymentDate = new Date(webhookTimestamp);
+  const startDate = paymentDate.toISOString();
+  
+  // Calculate end date manually based on plan type
+  const endDate = new Date(paymentDate);
+  if (planType === 'monthly') {
+    endDate.setMonth(endDate.getMonth() + 1);
+  } else {
+    endDate.setFullYear(endDate.getFullYear() + 1);
+  }
+  
+  return {
+    startDate,
+    endDate: endDate.toISOString(),
+    paymentTimestamp: webhookTimestamp
+  };
 }
 
 // Improved Web Crypto API compatible HMAC verification
@@ -94,6 +130,10 @@ serve(async (req) => {
     });
   }
   
+  // Extract webhook timestamp from headers first
+  const webhookTimestamp = extractWebhookTimestamp(req);
+  logStep("Extracted webhook timestamp", { webhookTimestamp });
+  
   // Get signature header
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
@@ -130,7 +170,8 @@ serve(async (req) => {
     event = JSON.parse(body);
     logStep("Webhook verified successfully", {
       type: event.type,
-      id: event.id
+      id: event.id,
+      created: event.created
     });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -144,14 +185,14 @@ serve(async (req) => {
   try {
     switch(event.type) {
       case "checkout.session.completed":
-        await handleCheckoutCompleted(event.data.object);
+        await handleCheckoutCompleted(event.data.object, webhookTimestamp);
         break;
       case "customer.subscription.created":
       case "customer.subscription.updated":
-        await handleSubscriptionEvent(event.data.object);
+        await handleSubscriptionEvent(event.data.object, webhookTimestamp);
         break;
       case "customer.subscription.deleted":
-        await handleSubscriptionCanceled(event.data.object);
+        await handleSubscriptionCanceled(event.data.object, webhookTimestamp);
         break;
       default:
         logStep("Unhandled event type", { type: event.type });
@@ -176,10 +217,11 @@ serve(async (req) => {
   }
 });
 
-// Handle checkout session completion
-async function handleCheckoutCompleted(session: any) {
+// Handle checkout session completion with proper timestamp handling
+async function handleCheckoutCompleted(session: any, webhookTimestamp: string) {
   logStep("Processing checkout completion", {
-    sessionId: session.id
+    sessionId: session.id,
+    webhookTimestamp
   });
   
   const customerId = session.customer;
@@ -251,17 +293,24 @@ async function handleCheckoutCompleted(session: any) {
     const subscription = await subscriptionResponse.json();
     const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
     
-    // Use Stripe's actual timestamps
-    const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
-    const currentPeriodStart = new Date(subscription.current_period_start * 1000).toISOString();
+    // Calculate dates based on webhook timestamp (actual payment time)
+    const calculatedDates = calculateSubscriptionDates(webhookTimestamp, planType);
     
-    logStep("Subscription details fetched", {
+    // Also use Stripe's period for comparison
+    const stripePeriodStart = new Date(subscription.current_period_start * 1000).toISOString();
+    const stripePeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+    
+    logStep("Subscription details with timestamp calculations", {
       planType,
-      currentPeriodEnd,
-      currentPeriodStart
+      webhookTimestamp,
+      calculatedStartDate: calculatedDates.startDate,
+      calculatedEndDate: calculatedDates.endDate,
+      stripePeriodStart,
+      stripePeriodEnd,
+      subscriptionCreated: new Date(subscription.created * 1000).toISOString()
     });
     
-    // Update database - create or update subscription using email conflict resolution
+    // Update database with webhook timestamp-based calculations
     const { error } = await supabase
       .from("subscriptions")
       .upsert({
@@ -271,9 +320,9 @@ async function handleCheckoutCompleted(session: any) {
         stripe_customer_id: customerId,
         stripe_subscription_id: subscriptionId,
         plan_type: planType,
-        current_period_end: currentPeriodEnd,
-        current_period_start: currentPeriodStart,
-        subscription_end_date: currentPeriodEnd,
+        current_period_end: calculatedDates.endDate, // Use calculated end date
+        current_period_start: calculatedDates.startDate, // Use webhook timestamp
+        subscription_end_date: calculatedDates.endDate,
         trial_end_date: null, // Clear trial when activating paid subscription
         attrs: subscription,
         currency: subscription.currency || 'usd',
@@ -287,11 +336,17 @@ async function handleCheckoutCompleted(session: any) {
       throw error;
     }
     
-    logStep("Subscription activated successfully", {
+    logStep("Subscription activated successfully with webhook timestamp", {
       userId,
       subscriptionId,
-      planType
+      planType,
+      paymentTimestamp: webhookTimestamp,
+      calculatedEndDate: calculatedDates.endDate
     });
+
+    // Trigger frontend refresh event
+    logStep("Triggering frontend subscription update event");
+    
   } catch (error) {
     logStep("Error processing checkout", {
       error: error.message
@@ -300,11 +355,12 @@ async function handleCheckoutCompleted(session: any) {
   }
 }
 
-// Handle subscription events
-async function handleSubscriptionEvent(subscription: any) {
+// Handle subscription events with timestamp handling
+async function handleSubscriptionEvent(subscription: any, webhookTimestamp: string) {
   logStep("Processing subscription event", {
     subscriptionId: subscription.id,
-    status: subscription.status
+    status: subscription.status,
+    webhookTimestamp
   });
   
   try {
@@ -359,9 +415,21 @@ async function handleSubscriptionEvent(subscription: any) {
     
     const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
     
-    // Use Stripe's actual timestamps
-    const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
-    const currentPeriodStart = new Date(subscription.current_period_start * 1000).toISOString();
+    // Calculate dates using webhook timestamp for payment events
+    const calculatedDates = calculateSubscriptionDates(webhookTimestamp, planType);
+    
+    // Use Stripe's timestamps as secondary reference
+    const stripePeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+    const stripePeriodStart = new Date(subscription.current_period_start * 1000).toISOString();
+    
+    logStep("Subscription event with timestamp calculations", {
+      planType,
+      webhookTimestamp,
+      calculatedStartDate: calculatedDates.startDate,
+      calculatedEndDate: calculatedDates.endDate,
+      stripePeriodStart,
+      stripePeriodEnd
+    });
     
     // Update subscription using email conflict resolution
     const { error: updateError } = await supabase
@@ -373,9 +441,9 @@ async function handleSubscriptionEvent(subscription: any) {
         stripe_customer_id: subscription.customer,
         stripe_subscription_id: subscription.id,
         plan_type: planType,
-        current_period_end: currentPeriodEnd,
-        current_period_start: currentPeriodStart,
-        subscription_end_date: currentPeriodEnd,
+        current_period_end: calculatedDates.endDate, // Use calculated date
+        current_period_start: calculatedDates.startDate, // Use webhook timestamp
+        subscription_end_date: calculatedDates.endDate,
         trial_end_date: null, // Clear trial when activating paid subscription
         attrs: subscription,
         currency: subscription.currency || 'usd',
@@ -389,10 +457,11 @@ async function handleSubscriptionEvent(subscription: any) {
       throw updateError;
     }
     
-    logStep("Subscription updated successfully", {
+    logStep("Subscription updated successfully with webhook timestamp", {
       userId,
       status: subscription.status,
-      email: customer.email
+      email: customer.email,
+      paymentTimestamp: webhookTimestamp
     });
   } catch (error) {
     logStep("Error processing subscription event", {
@@ -403,9 +472,10 @@ async function handleSubscriptionEvent(subscription: any) {
 }
 
 // Handle subscription cancellation
-async function handleSubscriptionCanceled(subscription: any) {
+async function handleSubscriptionCanceled(subscription: any, webhookTimestamp: string) {
   logStep("Processing subscription cancellation", {
-    subscriptionId: subscription.id
+    subscriptionId: subscription.id,
+    webhookTimestamp
   });
   
   try {

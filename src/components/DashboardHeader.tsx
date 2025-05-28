@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { LogOut, User, RefreshCw } from "lucide-react";
+import { LogOut, User, RefreshCw, Wrench } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,6 +47,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const [isManageSubscriptionOpen, setIsManageSubscriptionOpen] = useState(false);
   const [isRefreshingSubscription, setIsRefreshingSubscription] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isRepairing, setIsRepairing] = useState(false);
 
   useEffect(() => {
     const fetchSubscription = async () => {
@@ -173,6 +174,60 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
   };
 
+  const handleRepairSubscription = async () => {
+    if (!user || isRepairing) return;
+    
+    setIsRepairing(true);
+    try {
+      console.log('Starting subscription repair...');
+      
+      const response = await supabase.functions.invoke('repair-subscriptions', {
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        console.error('Repair function error:', response.error);
+        throw new Error(response.error.message || 'Failed to repair subscription');
+      }
+
+      const result = response.data;
+      console.log('Repair result:', result);
+
+      if (result.success) {
+        setSubscription({
+          plan_type: result.planType || 'monthly',
+          status: result.status,
+          current_period_end: result.currentPeriodEnd || null,
+          trial_end_date: null,
+          stripe_customer_id: null,
+          stripe_subscription_id: result.stripe_subscription_id || null
+        });
+        
+        toast({
+          title: "Subscription Repaired!",
+          description: `Found your ${result.planType} subscription. Payment date: ${new Date(result.actualPaymentDate).toLocaleDateString()}`,
+        });
+      } else {
+        toast({
+          title: "No Subscription Found",
+          description: result.message || "No paid subscription found in Stripe for your account",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error repairing subscription:', error);
+      toast({
+        title: "Repair Failed",
+        description: "Could not repair subscription. Please contact support.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRepairing(false);
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -268,7 +323,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
               </div>
 
               <div className="p-8 space-y-8">
-                {/* User Information Section */}
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200/50 dark:border-blue-800/50">
                   <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200 flex items-center gap-2">
                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -296,7 +350,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   </div>
                 </div>
 
-                {/* Subscription Section */}
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-6 border border-purple-200/50 dark:border-purple-800/50">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
@@ -308,7 +361,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="h-9 px-4 text-sm border-purple-200 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-900/50"
+                          className="h-9 px-3 text-sm border-purple-200 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-900/50"
                           onClick={handleRefreshSubscription}
                           disabled={isRefreshingSubscription}
                         >
@@ -324,7 +377,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="h-9 px-4 text-sm border-purple-200 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-900/50"
+                          className="h-9 px-3 text-sm border-purple-200 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-900/50"
                           onClick={handleManualSync}
                           disabled={isSyncing}
                         >
@@ -337,6 +390,25 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                             <span className="flex items-center gap-2">
                               <RefreshCw className="h-4 w-4" />
                               Sync
+                            </span>
+                          )}
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-9 px-3 text-sm border-orange-200 hover:bg-orange-50 dark:border-orange-800 dark:hover:bg-orange-900/50"
+                          onClick={handleRepairSubscription}
+                          disabled={isRepairing}
+                        >
+                          {isRepairing ? (
+                            <span className="flex items-center gap-2">
+                              <Wrench className="h-4 w-4 animate-spin" />
+                              Repairing...
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-2">
+                              <Wrench className="h-4 w-4" />
+                              Repair
                             </span>
                           )}
                         </Button>
@@ -380,7 +452,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                           </span>
                         </div>
                         
-                        {/* Countdown Component */}
                         {(subscription.status === 'trial' || subscription.status === 'active') && (
                           <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-lg p-4 border border-indigo-200/50 dark:border-indigo-800/50">
                             <SubscriptionCountdown
@@ -418,7 +489,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   )}
                 </div>
 
-                {/* Change Password Section */}
                 <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl p-6 border border-orange-200/50 dark:border-orange-800/50">
                   <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200 flex items-center gap-2">
                     <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
@@ -450,6 +520,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           </Button>
         </div>
       </div>
+      
       <div className="text-center mb-2">
         <h1 className="text-xl sm:text-2xl font-bold text-primary">
           {isGeorgian ? (
