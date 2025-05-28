@@ -169,28 +169,17 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
             if (matchingUser) {
               logStep("Found user by email", { userId: matchingUser.id, email: customer.email });
               
-              // Create or update subscription record with calculated timestamps
+              // Create or update subscription record with Stripe timestamps
               const planType = subscription.items?.data?.[0]?.price?.recurring?.interval === 'month' ? 'monthly' : 'yearly';
               
-              // Use function execution timestamp and calculate end date based on plan type
-              const now = new Date();
-              const startDate = now.toISOString();
-              let calculatedEndDate: string;
+              // Use actual Stripe-provided period start & end
+              const startDate = new Date(subscription.current_period_start * 1000).toISOString();
+              const calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
               
-              if (planType === 'monthly') {
-                calculatedEndDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-              } else if (planType === 'yearly') {
-                calculatedEndDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
-              } else {
-                // Fallback to Stripe's timestamp if plan type is unknown
-                calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
-              }
-              
-              logStep("Creating subscription with calculated timestamps", {
+              logStep("Creating subscription with Stripe timestamps", {
                 planType,
-                functionTimestamp: startDate,
-                calculatedEndDate,
-                daysAdded: planType === 'monthly' ? 30 : planType === 'yearly' ? 365 : 'stripe-default'
+                startDate,
+                calculatedEndDate
               });
               
               // Use upsert with email as conflict resolution instead of user_id
@@ -203,9 +192,10 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
                   stripe_subscription_id: subscriptionId,
                   status: subscription.status === 'active' ? 'active' : 'inactive',
                   plan_type: planType,
-                  current_period_end: calculatedEndDate,
                   current_period_start: startDate,
-                  updated_at: now.toISOString()
+                  current_period_end: calculatedEndDate,
+                  subscription_end_date: calculatedEndDate,
+                  updated_at: new Date().toISOString()
                 }, { 
                   onConflict: 'email',
                   ignoreDuplicates: false 
@@ -229,26 +219,15 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
 
     const planType = subscription.items?.data?.[0]?.price?.recurring?.interval === 'month' ? 'monthly' : 'yearly';
     
-    // Use function execution timestamp and calculate end date based on plan type
-    const now = new Date();
-    const startDate = now.toISOString();
-    let calculatedEndDate: string;
-    
-    if (planType === 'monthly') {
-      calculatedEndDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    } else if (planType === 'yearly') {
-      calculatedEndDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
-    } else {
-      // Fallback to Stripe's timestamp if plan type is unknown
-      calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
-    }
+    // Use actual Stripe-provided period start & end
+    const startDate = new Date(subscription.current_period_start * 1000).toISOString();
+    const calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
 
-    logStep("Updating existing subscription with calculated timestamps", {
+    logStep("Updating existing subscription with Stripe timestamps", {
       userId: subsData.user_id,
       planType,
-      functionTimestamp: startDate,
-      calculatedEndDate,
-      daysAdded: planType === 'monthly' ? 30 : planType === 'yearly' ? 365 : 'stripe-default'
+      startDate,
+      calculatedEndDate
     });
 
     // Update Supabase using email for conflict resolution
@@ -261,9 +240,10 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
         stripe_subscription_id: subscriptionId,
         stripe_customer_id: customerId,
         plan_type: planType,
-        current_period_end: calculatedEndDate,
         current_period_start: startDate,
-        updated_at: now.toISOString()
+        current_period_end: calculatedEndDate,
+        subscription_end_date: calculatedEndDate,
+        updated_at: new Date().toISOString()
       }, { 
         onConflict: 'email',
         ignoreDuplicates: false 
@@ -357,25 +337,14 @@ async function handleCheckoutSessionCompleted(session: any) {
     const subscription = await subscriptionResponse.json();
     const planType = subscription.items?.data?.[0]?.price?.recurring?.interval === "month" ? "monthly" : "yearly";
     
-    // Use function execution timestamp and calculate end date based on plan type
-    const now = new Date();
-    const startDate = now.toISOString();
-    let calculatedEndDate: string;
-    
-    if (planType === 'monthly') {
-      calculatedEndDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    } else if (planType === 'yearly') {
-      calculatedEndDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
-    } else {
-      // Fallback to Stripe's timestamp if plan type is unknown
-      calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
-    }
+    // Use actual Stripe-provided period start & end
+    const startDate = new Date(subscription.current_period_start * 1000).toISOString();
+    const calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
 
-    logStep("Processing checkout with calculated subscription dates", {
+    logStep("Processing checkout with Stripe subscription dates", {
       planType,
-      functionTimestamp: startDate,
-      calculatedEndDate,
-      daysAdded: planType === 'monthly' ? 30 : planType === 'yearly' ? 365 : 'stripe-default'
+      startDate,
+      calculatedEndDate
     });
 
     // Update database using email for conflict resolution
@@ -388,9 +357,10 @@ async function handleCheckoutSessionCompleted(session: any) {
         stripe_customer_id: customerId,
         stripe_subscription_id: subscriptionId,
         plan_type: planType,
-        current_period_end: calculatedEndDate,
         current_period_start: startDate,
-        updated_at: now.toISOString()
+        current_period_end: calculatedEndDate,
+        subscription_end_date: calculatedEndDate,
+        updated_at: new Date().toISOString()
       }, {
         onConflict: "email",
         ignoreDuplicates: false
@@ -575,26 +545,15 @@ async function syncCustomerSubscriptions(user_id: string, customerId: string) {
       const subscription = subscriptions.data[0];
       const planType = subscription.items?.data?.[0]?.price?.recurring?.interval === "month" ? "monthly" : "yearly";
       
-      // Use function execution timestamp and calculate end date based on plan type
-      const now = new Date();
-      const startDate = now.toISOString();
-      let calculatedEndDate: string;
+      // Use actual Stripe-provided period start & end
+      const startDate = new Date(subscription.current_period_start * 1000).toISOString();
+      const calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
       
-      if (planType === 'monthly') {
-        calculatedEndDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      } else if (planType === 'yearly') {
-        calculatedEndDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
-      } else {
-        // Fallback to Stripe's timestamp if plan type is unknown
-        calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
-      }
-      
-      logStep("Syncing active subscription with calculated dates", {
+      logStep("Syncing active subscription with Stripe dates", {
         userId: user_id,
         planType,
-        functionTimestamp: startDate,
-        calculatedEndDate,
-        daysAdded: planType === 'monthly' ? 30 : planType === 'yearly' ? 365 : 'stripe-default'
+        startDate,
+        calculatedEndDate
       });
       
       // Get user email for upsert
@@ -615,8 +574,9 @@ async function syncCustomerSubscriptions(user_id: string, customerId: string) {
           stripe_customer_id: customerId,
           stripe_subscription_id: subscription.id,
           plan_type: planType,
-          current_period_end: calculatedEndDate,
           current_period_start: startDate,
+          current_period_end: calculatedEndDate,
+          subscription_end_date: calculatedEndDate,
           updated_at: new Date().toISOString()
         }, { 
           onConflict: "email",
