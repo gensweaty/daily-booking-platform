@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -172,30 +173,26 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
               // Create or update subscription record with Stripe timestamps
               const planType = subscription.items?.data?.[0]?.price?.recurring?.interval === 'month' ? 'monthly' : 'yearly';
               
-              // Use Stripe's actual subscription start time instead of current time
+              // Use Stripe's actual timestamps instead of calculating
               const startTimestamp = subscription.current_period_start;
+              const endTimestamp = subscription.current_period_end;
+              
               if (!startTimestamp) {
                 logStep("WARNING: current_period_start missing", { subscriptionId });
               }
+              if (!endTimestamp) {
+                logStep("WARNING: current_period_end missing", { subscriptionId });
+              }
               
               const currentPeriodStart = startTimestamp ? new Date(startTimestamp * 1000).toISOString() : new Date().toISOString();
-              let calculatedEndDate: string;
-              
-              if (planType === 'monthly') {
-                calculatedEndDate = startTimestamp 
-                  ? new Date(startTimestamp * 1000 + 30 * 24 * 60 * 60 * 1000).toISOString()
-                  : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-              } else {
-                calculatedEndDate = startTimestamp 
-                  ? new Date(startTimestamp * 1000 + 365 * 24 * 60 * 60 * 1000).toISOString()
-                  : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
-              }
+              const currentPeriodEnd = endTimestamp ? new Date(endTimestamp * 1000).toISOString() : new Date().toISOString();
               
               logStep("Creating subscription with Stripe timestamps", {
                 planType,
                 stripeStartTimestamp: startTimestamp,
+                stripeEndTimestamp: endTimestamp,
                 currentPeriodStart,
-                calculatedEndDate
+                currentPeriodEnd
               });
               
               // Use upsert with email as conflict resolution instead of user_id
@@ -208,7 +205,7 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
                   stripe_subscription_id: subscriptionId,
                   status: subscription.status === 'active' ? 'active' : 'inactive',
                   plan_type: planType,
-                  current_period_end: calculatedEndDate,
+                  current_period_end: currentPeriodEnd,
                   current_period_start: currentPeriodStart,
                   updated_at: new Date().toISOString()
                 }, { 
@@ -234,31 +231,27 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
 
     const planType = subscription.items?.data?.[0]?.price?.recurring?.interval === 'month' ? 'monthly' : 'yearly';
     
-    // Use Stripe's actual subscription start time instead of current time
+    // Use Stripe's actual timestamps instead of calculating
     const startTimestamp = subscription.current_period_start;
+    const endTimestamp = subscription.current_period_end;
+    
     if (!startTimestamp) {
       logStep("WARNING: current_period_start missing", { subscriptionId });
     }
+    if (!endTimestamp) {
+      logStep("WARNING: current_period_end missing", { subscriptionId });
+    }
     
     const currentPeriodStart = startTimestamp ? new Date(startTimestamp * 1000).toISOString() : new Date().toISOString();
-    let calculatedEndDate: string;
-    
-    if (planType === 'monthly') {
-      calculatedEndDate = startTimestamp 
-        ? new Date(startTimestamp * 1000 + 30 * 24 * 60 * 60 * 1000).toISOString()
-        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    } else {
-      calculatedEndDate = startTimestamp 
-        ? new Date(startTimestamp * 1000 + 365 * 24 * 60 * 60 * 1000).toISOString()
-        : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
-    }
+    const currentPeriodEnd = endTimestamp ? new Date(endTimestamp * 1000).toISOString() : new Date().toISOString();
 
     logStep("Updating existing subscription with Stripe timestamps", {
       userId: subsData.user_id,
       planType,
       stripeStartTimestamp: startTimestamp,
+      stripeEndTimestamp: endTimestamp,
       currentPeriodStart,
-      calculatedEndDate
+      currentPeriodEnd
     });
 
     // Update Supabase using email for conflict resolution
@@ -271,7 +264,7 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
         stripe_subscription_id: subscriptionId,
         stripe_customer_id: customerId,
         plan_type: planType,
-        current_period_end: calculatedEndDate,
+        current_period_end: currentPeriodEnd,
         current_period_start: currentPeriodStart,
         updated_at: new Date().toISOString()
       }, { 
@@ -287,7 +280,7 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
         userId: subsData.user_id, 
         status: subscription.status,
         planType,
-        calculatedEndDate
+        currentPeriodEnd
       });
     }
   } catch (error) {
@@ -367,30 +360,26 @@ async function handleCheckoutSessionCompleted(session: any) {
     const subscription = await subscriptionResponse.json();
     const planType = subscription.items?.data?.[0]?.price?.recurring?.interval === "month" ? "monthly" : "yearly";
     
-    // Use Stripe's actual subscription start time instead of current time
+    // Use Stripe's actual timestamps instead of calculating
     const startTimestamp = subscription.current_period_start;
+    const endTimestamp = subscription.current_period_end;
+    
     if (!startTimestamp) {
       logStep("WARNING: current_period_start missing", { subscriptionId });
     }
+    if (!endTimestamp) {
+      logStep("WARNING: current_period_end missing", { subscriptionId });
+    }
     
     const currentPeriodStart = startTimestamp ? new Date(startTimestamp * 1000).toISOString() : new Date().toISOString();
-    let calculatedEndDate: string;
-    
-    if (planType === 'monthly') {
-      calculatedEndDate = startTimestamp 
-        ? new Date(startTimestamp * 1000 + 30 * 24 * 60 * 60 * 1000).toISOString()
-        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    } else {
-      calculatedEndDate = startTimestamp 
-        ? new Date(startTimestamp * 1000 + 365 * 24 * 60 * 60 * 1000).toISOString()
-        : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
-    }
+    const currentPeriodEnd = endTimestamp ? new Date(endTimestamp * 1000).toISOString() : new Date().toISOString();
 
     logStep("Processing checkout with Stripe timestamps", {
       planType,
       stripeStartTimestamp: startTimestamp,
+      stripeEndTimestamp: endTimestamp,
       currentPeriodStart,
-      calculatedEndDate
+      currentPeriodEnd
     });
 
     // Update database using email for conflict resolution
@@ -403,7 +392,7 @@ async function handleCheckoutSessionCompleted(session: any) {
         stripe_customer_id: customerId,
         stripe_subscription_id: subscriptionId,
         plan_type: planType,
-        current_period_end: calculatedEndDate,
+        current_period_end: currentPeriodEnd,
         current_period_start: currentPeriodStart,
         updated_at: new Date().toISOString()
       }, {
@@ -589,31 +578,27 @@ async function syncCustomerSubscriptions(user_id: string, customerId: string) {
       const subscription = subscriptions.data[0];
       const planType = subscription.items?.data?.[0]?.price?.recurring?.interval === "month" ? "monthly" : "yearly";
       
-      // Use Stripe's actual subscription start time instead of current time
+      // Use Stripe's actual timestamps instead of calculating
       const startTimestamp = subscription.current_period_start;
+      const endTimestamp = subscription.current_period_end;
+      
       if (!startTimestamp) {
         logStep("WARNING: current_period_start missing", { subscriptionId: subscription.id });
       }
+      if (!endTimestamp) {
+        logStep("WARNING: current_period_end missing", { subscriptionId: subscription.id });
+      }
       
       const currentPeriodStart = startTimestamp ? new Date(startTimestamp * 1000).toISOString() : new Date().toISOString();
-      let calculatedEndDate: string;
-      
-      if (planType === 'monthly') {
-        calculatedEndDate = startTimestamp 
-          ? new Date(startTimestamp * 1000 + 30 * 24 * 60 * 60 * 1000).toISOString()
-          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      } else {
-        calculatedEndDate = startTimestamp 
-          ? new Date(startTimestamp * 1000 + 365 * 24 * 60 * 60 * 1000).toISOString()
-          : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
-      }
+      const currentPeriodEnd = endTimestamp ? new Date(endTimestamp * 1000).toISOString() : new Date().toISOString();
       
       logStep("Syncing active subscription with Stripe timestamps", {
         userId: user_id,
         planType,
         stripeStartTimestamp: startTimestamp,
+        stripeEndTimestamp: endTimestamp,
         currentPeriodStart,
-        calculatedEndDate
+        currentPeriodEnd
       });
       
       // Get user email for upsert
@@ -634,7 +619,7 @@ async function syncCustomerSubscriptions(user_id: string, customerId: string) {
           stripe_customer_id: customerId,
           stripe_subscription_id: subscription.id,
           plan_type: planType,
-          current_period_end: calculatedEndDate,
+          current_period_end: currentPeriodEnd,
           current_period_start: currentPeriodStart,
           updated_at: new Date().toISOString()
         }, { 
@@ -654,7 +639,7 @@ async function syncCustomerSubscriptions(user_id: string, customerId: string) {
           success: true, 
           status: "active",
           planType: planType,
-          currentPeriodEnd: calculatedEndDate
+          currentPeriodEnd: currentPeriodEnd
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
