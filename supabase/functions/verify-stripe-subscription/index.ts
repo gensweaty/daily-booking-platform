@@ -88,23 +88,23 @@ serve(async (req) => {
 
 // Handle webhook events from Stripe
 async function handleWebhookEvent(event: any) {
-  logStep("Processing webhook event", { type: event.type, id: event.id });
+  logStep("Processing webhook event", { type: event.type, id: event.id, created: event.created });
   
   try {
     if (event.type === 'checkout.session.completed') {
-      await handleCheckoutSessionCompleted(event.data.object);
+      await handleCheckoutSessionCompleted(event.data.object, event.created);
       return new Response(JSON.stringify({ success: true }), { 
         headers: { ...corsHeaders, "Content-Type": "application/json" }, 
         status: 200 
       });
     } else if (event.type === 'customer.subscription.updated') {
-      await handleCustomerSubscriptionUpdated(event.data.object);
+      await handleCustomerSubscriptionUpdated(event.data.object, event.created);
       return new Response(JSON.stringify({ success: true }), { 
         headers: { ...corsHeaders, "Content-Type": "application/json" }, 
         status: 200 
       });
     } else if (event.type === 'customer.subscription.created') {
-      await handleCustomerSubscriptionUpdated(event.data.object);
+      await handleCustomerSubscriptionUpdated(event.data.object, event.created);
       return new Response(JSON.stringify({ success: true }), { 
         headers: { ...corsHeaders, "Content-Type": "application/json" }, 
         status: 200 
@@ -127,14 +127,15 @@ async function handleWebhookEvent(event: any) {
 }
 
 // Handle customer subscription updated webhook
-async function handleCustomerSubscriptionUpdated(subscription: any) {
+async function handleCustomerSubscriptionUpdated(subscription: any, eventCreated?: number) {
   const customerId = subscription.customer;
   const subscriptionId = subscription.id;
   
   logStep("Processing subscription update", { 
     customerId, 
     subscriptionId, 
-    status: subscription.status
+    status: subscription.status,
+    eventCreated
   });
 
   try {
@@ -219,16 +220,41 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
 
     const planType = subscription.items?.data?.[0]?.price?.recurring?.interval === 'month' ? 'monthly' : 'yearly';
     
-    // Use actual Stripe-provided period start & end
-    const startDate = new Date(subscription.current_period_start * 1000).toISOString();
-    const calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
-
-    logStep("Updating existing subscription with Stripe timestamps", {
-      userId: subsData.user_id,
-      planType,
-      startDate,
-      calculatedEndDate
-    });
+    // Use event created timestamp if available, otherwise use current time
+    let startDate: string;
+    let calculatedEndDate: string;
+    
+    if (eventCreated) {
+      // Use webhook event created timestamp as subscription start date
+      startDate = new Date(eventCreated * 1000).toISOString();
+      
+      // Calculate end date based on plan type using event created timestamp
+      if (planType === 'monthly') {
+        calculatedEndDate = new Date(eventCreated * 1000 + 30 * 24 * 60 * 60 * 1000).toISOString();
+      } else if (planType === 'yearly') {
+        calculatedEndDate = new Date(eventCreated * 1000 + 365 * 24 * 60 * 60 * 1000).toISOString();
+      } else {
+        // Fallback to Stripe's period end if plan type is unknown
+        calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
+      }
+      
+      logStep("Using event created timestamp for subscription dates", {
+        eventCreated,
+        planType,
+        startDate,
+        calculatedEndDate
+      });
+    } else {
+      // Fallback to Stripe's period dates if no event created timestamp
+      startDate = new Date(subscription.current_period_start * 1000).toISOString();
+      calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
+      
+      logStep("Using Stripe subscription dates as fallback", {
+        planType,
+        startDate,
+        calculatedEndDate
+      });
+    }
 
     // Update Supabase using email for conflict resolution
     const { error } = await supabase
@@ -268,8 +294,8 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
 }
 
 // Handle checkout session completed webhook
-async function handleCheckoutSessionCompleted(session: any) {
-  logStep("Processing checkout completion", { sessionId: session.id });
+async function handleCheckoutSessionCompleted(session: any, eventCreated?: number) {
+  logStep("Processing checkout completion", { sessionId: session.id, eventCreated });
   
   const customerId = session.customer;
   const customerEmail = session.customer_details?.email;
@@ -337,15 +363,41 @@ async function handleCheckoutSessionCompleted(session: any) {
     const subscription = await subscriptionResponse.json();
     const planType = subscription.items?.data?.[0]?.price?.recurring?.interval === "month" ? "monthly" : "yearly";
     
-    // Use actual Stripe-provided period start & end
-    const startDate = new Date(subscription.current_period_start * 1000).toISOString();
-    const calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
-
-    logStep("Processing checkout with Stripe subscription dates", {
-      planType,
-      startDate,
-      calculatedEndDate
-    });
+    // Use event created timestamp if available, otherwise use current time
+    let startDate: string;
+    let calculatedEndDate: string;
+    
+    if (eventCreated) {
+      // Use webhook event created timestamp as subscription start date
+      startDate = new Date(eventCreated * 1000).toISOString();
+      
+      // Calculate end date based on plan type using event created timestamp
+      if (planType === 'monthly') {
+        calculatedEndDate = new Date(eventCreated * 1000 + 30 * 24 * 60 * 60 * 1000).toISOString();
+      } else if (planType === 'yearly') {
+        calculatedEndDate = new Date(eventCreated * 1000 + 365 * 24 * 60 * 60 * 1000).toISOString();
+      } else {
+        // Fallback to Stripe's period end if plan type is unknown
+        calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
+      }
+      
+      logStep("Processing checkout with event created timestamp", {
+        eventCreated,
+        planType,
+        startDate,
+        calculatedEndDate
+      });
+    } else {
+      // Fallback to Stripe's period dates if no event created timestamp
+      startDate = new Date(subscription.current_period_start * 1000).toISOString();
+      calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
+      
+      logStep("Processing checkout with Stripe subscription dates", {
+        planType,
+        startDate,
+        calculatedEndDate
+      });
+    }
 
     // Update database using email for conflict resolution
     const { error } = await supabase
@@ -545,7 +597,7 @@ async function syncCustomerSubscriptions(user_id: string, customerId: string) {
       const subscription = subscriptions.data[0];
       const planType = subscription.items?.data?.[0]?.price?.recurring?.interval === "month" ? "monthly" : "yearly";
       
-      // Use actual Stripe-provided period start & end
+      // Use actual Stripe-provided period start & end for manual sync
       const startDate = new Date(subscription.current_period_start * 1000).toISOString();
       const calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
       
