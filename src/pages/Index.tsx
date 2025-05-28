@@ -196,7 +196,7 @@ const Index = () => {
         >
           <TrialExpiredDialog />
           <motion.div variants={childVariants}>
-            <DashboardHeader />
+            <DashboardHeader username={username} />
           </motion.div>
           <motion.div variants={childVariants}>
             <DashboardContent 
