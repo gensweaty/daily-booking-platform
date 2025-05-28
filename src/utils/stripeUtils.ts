@@ -129,7 +129,7 @@ export const checkSubscriptionStatus = async () => {
       success: data?.success || true,
       status: data?.status || 'trial_expired',
       currentPeriodEnd: data?.currentPeriodEnd,
-      trialEnd: data?.trialEnd,
+      trialEnd: data?.trialEnd, // Add trial end date
       planType: data?.planType,
       stripe_subscription_id: data?.stripe_subscription_id
     };

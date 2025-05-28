@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -130,8 +131,7 @@ serve(async (req) => {
     event = JSON.parse(body);
     logStep("Webhook verified successfully", {
       type: event.type,
-      id: event.id,
-      created: event.created
+      id: event.id
     });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -145,11 +145,11 @@ serve(async (req) => {
   try {
     switch(event.type) {
       case "checkout.session.completed":
-        await handleCheckoutCompleted(event.data.object, event.created);
+        await handleCheckoutCompleted(event.data.object);
         break;
       case "customer.subscription.created":
       case "customer.subscription.updated":
-        await handleSubscriptionEvent(event.data.object, event.created);
+        await handleSubscriptionEvent(event.data.object);
         break;
       case "customer.subscription.deleted":
         await handleSubscriptionCanceled(event.data.object);
@@ -178,10 +178,9 @@ serve(async (req) => {
 });
 
 // Handle checkout session completion
-async function handleCheckoutCompleted(session: any, eventCreated: number) {
+async function handleCheckoutCompleted(session: any) {
   logStep("Processing checkout completion", {
-    sessionId: session.id,
-    eventCreated
+    sessionId: session.id
   });
   
   const customerId = session.customer;
@@ -253,25 +252,14 @@ async function handleCheckoutCompleted(session: any, eventCreated: number) {
     const subscription = await subscriptionResponse.json();
     const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
     
-    // Use event created timestamp as subscription start date
-    const startDate = new Date(eventCreated * 1000).toISOString();
+    // Fix: Use proper subscription timestamps
+    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+    const currentPeriodStart = new Date(subscription.current_period_start * 1000);
     
-    // Calculate end date based on plan type using event created timestamp
-    let calculatedEndDate: string;
-    if (planType === "monthly") {
-      calculatedEndDate = new Date(eventCreated * 1000 + 30 * 24 * 60 * 60 * 1000).toISOString();
-    } else if (planType === "yearly") {
-      calculatedEndDate = new Date(eventCreated * 1000 + 365 * 24 * 60 * 60 * 1000).toISOString();
-    } else {
-      // Fallback to Stripe's period end if plan type is unknown
-      calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
-    }
-    
-    logStep("Calculated subscription dates from event timestamp", {
+    logStep("Subscription details fetched", {
       planType,
-      eventCreated,
-      startDate,
-      calculatedEndDate
+      currentPeriodEnd: currentPeriodEnd.toISOString(),
+      currentPeriodStart: currentPeriodStart.toISOString()
     });
     
     // Update database - create or update subscription using email conflict resolution
@@ -284,9 +272,9 @@ async function handleCheckoutCompleted(session: any, eventCreated: number) {
         stripe_customer_id: customerId,
         stripe_subscription_id: subscriptionId,
         plan_type: planType,
-        current_period_end: calculatedEndDate,
-        current_period_start: startDate,
-        subscription_end_date: calculatedEndDate,
+        current_period_end: currentPeriodEnd.toISOString(),
+        current_period_start: currentPeriodStart.toISOString(),
+        subscription_end_date: currentPeriodEnd.toISOString(),
         attrs: subscription,
         currency: subscription.currency || 'usd',
         updated_at: new Date().toISOString()
@@ -302,8 +290,7 @@ async function handleCheckoutCompleted(session: any, eventCreated: number) {
     logStep("Subscription activated successfully", {
       userId,
       subscriptionId,
-      planType,
-      endDate: calculatedEndDate
+      planType
     });
   } catch (error) {
     logStep("Error processing checkout", {
@@ -314,11 +301,10 @@ async function handleCheckoutCompleted(session: any, eventCreated: number) {
 }
 
 // Handle subscription events
-async function handleSubscriptionEvent(subscription: any, eventCreated: number) {
+async function handleSubscriptionEvent(subscription: any) {
   logStep("Processing subscription event", {
     subscriptionId: subscription.id,
-    status: subscription.status,
-    eventCreated
+    status: subscription.status
   });
   
   try {
@@ -373,28 +359,10 @@ async function handleSubscriptionEvent(subscription: any, eventCreated: number) 
     
     const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
     
-    // Use event created timestamp as subscription start date
-    const startDate = new Date(eventCreated * 1000).toISOString();
+    // Fix: Use proper subscription timestamps
+    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+    const currentPeriodStart = new Date(subscription.current_period_start * 1000);
     
-    // Calculate end date based on plan type using event created timestamp
-    let calculatedEndDate: string;
-    if (planType === "monthly") {
-      calculatedEndDate = new Date(eventCreated * 1000 + 30 * 24 * 60 * 60 * 1000).toISOString();
-    } else if (planType === "yearly") {
-      calculatedEndDate = new Date(eventCreated * 1000 + 365 * 24 * 60 * 60 * 1000).toISOString();
-    } else {
-      // Fallback to Stripe's period end if plan type is unknown
-      calculatedEndDate = new Date(subscription.current_period_end * 1000).toISOString();
-    }
-
-    logStep("Calculated subscription dates for update from event timestamp", {
-      planType,
-      eventCreated,
-      startDate,
-      calculatedEndDate,
-      subscriptionStatus: subscription.status
-    });
-
     // Update subscription using email conflict resolution
     const { error: updateError } = await supabase
       .from("subscriptions")
@@ -405,9 +373,9 @@ async function handleSubscriptionEvent(subscription: any, eventCreated: number) 
         stripe_customer_id: subscription.customer,
         stripe_subscription_id: subscription.id,
         plan_type: planType,
-        current_period_end: calculatedEndDate,
-        current_period_start: startDate,
-        subscription_end_date: calculatedEndDate,
+        current_period_end: currentPeriodEnd.toISOString(),
+        current_period_start: currentPeriodStart.toISOString(),
+        subscription_end_date: currentPeriodEnd.toISOString(),
         attrs: subscription,
         currency: subscription.currency || 'usd',
         updated_at: new Date().toISOString()
@@ -423,8 +391,7 @@ async function handleSubscriptionEvent(subscription: any, eventCreated: number) 
     logStep("Subscription updated successfully", {
       userId,
       status: subscription.status,
-      email: customer.email,
-      endDate: calculatedEndDate
+      email: customer.email
     });
   } catch (error) {
     logStep("Error processing subscription event", {
