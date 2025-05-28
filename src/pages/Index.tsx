@@ -156,9 +156,20 @@ const Index = () => {
         } catch (error) {
           console.error('Error in subscription status poll:', error);
         }
-      }, 10000); // Check every 10 seconds
+      }, 30000); // Reduced frequency to every 30 seconds to avoid too many calls
       
-      return () => clearInterval(intervalId);
+      // Listen for subscription update events
+      const handleSubscriptionUpdate = () => {
+        console.log('Subscription updated event received');
+        checkSubscriptionStatus();
+      };
+      
+      window.addEventListener('subscriptionUpdated', handleSubscriptionUpdate);
+      
+      return () => {
+        clearInterval(intervalId);
+        window.removeEventListener('subscriptionUpdated', handleSubscriptionUpdate);
+      };
     }
   }, [user])
 

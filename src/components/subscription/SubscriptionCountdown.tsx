@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { checkSubscriptionStatus } from '@/utils/stripeUtils';
 
 interface SubscriptionCountdownProps {
   status: 'trial' | 'trial_expired' | 'active' | 'expired' | 'canceled';
@@ -24,16 +25,39 @@ export const SubscriptionCountdown = ({
     minutes: number;
     seconds: number;
   }>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [actualPeriodEnd, setActualPeriodEnd] = useState<string | null>(null);
+
+  // Fetch fresh subscription data to get accurate period end
+  useEffect(() => {
+    const fetchLatestSubscription = async () => {
+      try {
+        const data = await checkSubscriptionStatus();
+        console.log('Fresh subscription data for countdown:', data);
+        
+        if (data.currentPeriodEnd) {
+          setActualPeriodEnd(data.currentPeriodEnd);
+        } else if (data.trialEnd && status === 'trial') {
+          setActualPeriodEnd(data.trialEnd);
+        }
+      } catch (error) {
+        console.error('Error fetching subscription for countdown:', error);
+        // Fallback to props
+        setActualPeriodEnd(currentPeriodEnd || trialEnd || null);
+      }
+    };
+
+    fetchLatestSubscription();
+  }, [status, currentPeriodEnd, trialEnd]);
 
   useEffect(() => {
     const calculateTimeLeft = () => {
       let targetDate: Date | null = null;
       
-      // Determine the target date based on status
-      if (status === 'trial' && trialEnd) {
-        targetDate = new Date(trialEnd);
-      } else if (status === 'active' && currentPeriodEnd) {
-        targetDate = new Date(currentPeriodEnd);
+      // Use the latest fetched data first, then fallback to props
+      if (status === 'active' && actualPeriodEnd) {
+        targetDate = new Date(actualPeriodEnd);
+      } else if (status === 'trial' && (actualPeriodEnd || trialEnd)) {
+        targetDate = new Date(actualPeriodEnd || trialEnd!);
       }
       
       if (!targetDate) {
@@ -44,6 +68,13 @@ export const SubscriptionCountdown = ({
       const now = new Date().getTime();
       const target = targetDate.getTime();
       const difference = target - now;
+      
+      console.log('Countdown calculation:', {
+        now: new Date(now).toISOString(),
+        target: targetDate.toISOString(),
+        difference,
+        differenceInDays: difference / (1000 * 60 * 60 * 24)
+      });
       
       if (difference > 0) {
         const days = Math.floor(difference / (1000 * 60 * 60 * 24));
@@ -64,7 +95,7 @@ export const SubscriptionCountdown = ({
     const timer = setInterval(calculateTimeLeft, 1000);
     
     return () => clearInterval(timer);
-  }, [status, currentPeriodEnd, trialEnd]);
+  }, [status, actualPeriodEnd, trialEnd]);
 
   const getStatusMessage = () => {
     if (status === 'trial') {
