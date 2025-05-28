@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react"
 import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 import { ThemeToggle } from "@/components/ThemeToggle"
@@ -14,21 +15,17 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import { Icons } from "@/components/icons"
-import { SubscriptionButton } from "@/components/subscription/SubscriptionButton"
 import { checkSubscriptionStatus, manualSyncSubscription } from "@/utils/stripeUtils"
-import { useUser } from "convex/react"
 import { useLanguage } from "@/contexts/LanguageContext"
-import { LogOut, Loader2, RefreshCw, Settings } from "lucide-react"
+import { LogOut, Loader2, RefreshCw, Settings, User } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { SubscriptionCountdown } from "@/components/subscription/SubscriptionCountdown"
 import { LanguageText } from "@/components/shared/LanguageText"
-
-import { simulateTestPayment } from "@/utils/testPaymentSimulation";
+import { simulateTestPayment } from "@/utils/testPaymentSimulation"
 
 export const DashboardHeader = () => {
   const { toast } = useToast()
-  const user = useUser()
+  const [user, setUser] = useState<any>(null)
   const [subscriptionStatus, setSubscriptionStatus] = useState<{
     status: 'trial' | 'trial_expired' | 'active' | 'expired' | 'canceled';
     currentPeriodEnd?: string;
@@ -39,6 +36,13 @@ export const DashboardHeader = () => {
   const { t } = useLanguage()
 
   useEffect(() => {
+    // Get current user
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    getCurrentUser()
+    
     handleRefreshSubscription()
   }, [])
 
@@ -47,7 +51,16 @@ export const DashboardHeader = () => {
       setIsRefreshing(true)
       const data = await checkSubscriptionStatus()
       console.log('Subscription status:', data)
-      setSubscriptionStatus(data)
+      
+      // Ensure we set the correct type for status
+      const statusUpdate = {
+        status: (data.status || 'trial') as 'trial' | 'trial_expired' | 'active' | 'expired' | 'canceled',
+        currentPeriodEnd: data.currentPeriodEnd,
+        trialEnd: data.trialEnd,
+        planType: data.planType as 'monthly' | 'yearly' | undefined
+      }
+      
+      setSubscriptionStatus(statusUpdate)
     } catch (error: any) {
       toast({
         title: t("dashboard.errorRefreshing"),
@@ -64,7 +77,16 @@ export const DashboardHeader = () => {
       setIsRefreshing(true)
       const data = await manualSyncSubscription()
       console.log('Subscription repair result:', data)
-      setSubscriptionStatus(data)
+      
+      // Ensure we set the correct type for status
+      const statusUpdate = {
+        status: (data.status || 'trial') as 'trial' | 'trial_expired' | 'active' | 'expired' | 'canceled',
+        currentPeriodEnd: data.currentPeriodEnd,
+        trialEnd: data.trialEnd,
+        planType: data.planType as 'monthly' | 'yearly' | undefined
+      }
+      
+      setSubscriptionStatus(statusUpdate)
       toast({
         title: t("dashboard.subscriptionRepaired"),
         description: t("dashboard.subscriptionSynced"),
@@ -111,8 +133,8 @@ export const DashboardHeader = () => {
     <header className="bg-background border-b px-6 py-4">
       <div className="flex items-center justify-between">
         <a href="/" className="flex items-center gap-2 font-bold">
-          <Icons.logo className="h-6 w-6" />
-          <span>{process.env.NEXT_PUBLIC_APP_NAME}</span>
+          <User className="h-6 w-6" />
+          <span>{process.env.NEXT_PUBLIC_APP_NAME || "App"}</span>
         </a>
 
         <div className="flex items-center gap-4">
@@ -127,11 +149,6 @@ export const DashboardHeader = () => {
           ) : (
             <Skeleton className="w-[150px] h-5 rounded-md" />
           )}
-
-          <SubscriptionButton
-            isSubscribed={subscriptionStatus.status === 'active'}
-            planType={subscriptionStatus.planType}
-          />
 
           <div className="flex items-center gap-2">
             <Button
