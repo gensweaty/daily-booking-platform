@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -170,29 +169,33 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
             if (matchingUser) {
               logStep("Found user by email", { userId: matchingUser.id, email: customer.email });
               
-              // Create or update subscription record with Stripe timestamps
+              // Create or update subscription record with Stripe's actual timestamps
               const planType = subscription.items?.data?.[0]?.price?.recurring?.interval === 'month' ? 'monthly' : 'yearly';
               
-              // Use Stripe's actual timestamps instead of calculating
+              // Use Stripe's actual timestamps - this is the key fix
               const startTimestamp = subscription.current_period_start;
               const endTimestamp = subscription.current_period_end;
               
-              if (!startTimestamp) {
-                logStep("WARNING: current_period_start missing", { subscriptionId });
-              }
-              if (!endTimestamp) {
-                logStep("WARNING: current_period_end missing", { subscriptionId });
+              // Validate Stripe timestamps exist
+              if (!startTimestamp || !endTimestamp) {
+                logStep("CRITICAL: Missing Stripe timestamps", { 
+                  subscriptionId,
+                  startTimestamp, 
+                  endTimestamp 
+                });
+                throw new Error("Stripe subscription missing period timestamps");
               }
               
-              const currentPeriodStart = startTimestamp ? new Date(startTimestamp * 1000).toISOString() : new Date().toISOString();
-              const currentPeriodEnd = endTimestamp ? new Date(endTimestamp * 1000).toISOString() : new Date().toISOString();
+              const currentPeriodStart = new Date(startTimestamp * 1000).toISOString();
+              const currentPeriodEnd = new Date(endTimestamp * 1000).toISOString();
               
-              logStep("Creating subscription with Stripe timestamps", {
+              logStep("Creating subscription with Stripe's actual timestamps", {
                 planType,
                 stripeStartTimestamp: startTimestamp,
                 stripeEndTimestamp: endTimestamp,
                 currentPeriodStart,
-                currentPeriodEnd
+                currentPeriodEnd,
+                stripePeriodEndUTC: new Date(endTimestamp * 1000).toUTCString()
               });
               
               // Use upsert with email as conflict resolution instead of user_id
@@ -231,27 +234,31 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
 
     const planType = subscription.items?.data?.[0]?.price?.recurring?.interval === 'month' ? 'monthly' : 'yearly';
     
-    // Use Stripe's actual timestamps instead of calculating
+    // Use Stripe's actual timestamps - this is the key fix
     const startTimestamp = subscription.current_period_start;
     const endTimestamp = subscription.current_period_end;
     
-    if (!startTimestamp) {
-      logStep("WARNING: current_period_start missing", { subscriptionId });
-    }
-    if (!endTimestamp) {
-      logStep("WARNING: current_period_end missing", { subscriptionId });
+    // Validate Stripe timestamps exist
+    if (!startTimestamp || !endTimestamp) {
+      logStep("CRITICAL: Missing Stripe timestamps", { 
+        subscriptionId,
+        startTimestamp, 
+        endTimestamp 
+      });
+      throw new Error("Stripe subscription missing period timestamps");
     }
     
-    const currentPeriodStart = startTimestamp ? new Date(startTimestamp * 1000).toISOString() : new Date().toISOString();
-    const currentPeriodEnd = endTimestamp ? new Date(endTimestamp * 1000).toISOString() : new Date().toISOString();
+    const currentPeriodStart = new Date(startTimestamp * 1000).toISOString();
+    const currentPeriodEnd = new Date(endTimestamp * 1000).toISOString();
 
-    logStep("Updating existing subscription with Stripe timestamps", {
+    logStep("Updating existing subscription with Stripe's actual timestamps", {
       userId: subsData.user_id,
       planType,
       stripeStartTimestamp: startTimestamp,
       stripeEndTimestamp: endTimestamp,
       currentPeriodStart,
-      currentPeriodEnd
+      currentPeriodEnd,
+      stripePeriodEndUTC: new Date(endTimestamp * 1000).toUTCString()
     });
 
     // Update Supabase using email for conflict resolution
@@ -360,26 +367,30 @@ async function handleCheckoutSessionCompleted(session: any) {
     const subscription = await subscriptionResponse.json();
     const planType = subscription.items?.data?.[0]?.price?.recurring?.interval === "month" ? "monthly" : "yearly";
     
-    // Use Stripe's actual timestamps instead of calculating
+    // Use Stripe's actual timestamps - this is the key fix
     const startTimestamp = subscription.current_period_start;
     const endTimestamp = subscription.current_period_end;
     
-    if (!startTimestamp) {
-      logStep("WARNING: current_period_start missing", { subscriptionId });
-    }
-    if (!endTimestamp) {
-      logStep("WARNING: current_period_end missing", { subscriptionId });
+    // Validate Stripe timestamps exist
+    if (!startTimestamp || !endTimestamp) {
+      logStep("CRITICAL: Missing Stripe timestamps", { 
+        subscriptionId,
+        startTimestamp, 
+        endTimestamp 
+      });
+      throw new Error("Stripe subscription missing period timestamps");
     }
     
-    const currentPeriodStart = startTimestamp ? new Date(startTimestamp * 1000).toISOString() : new Date().toISOString();
-    const currentPeriodEnd = endTimestamp ? new Date(endTimestamp * 1000).toISOString() : new Date().toISOString();
+    const currentPeriodStart = new Date(startTimestamp * 1000).toISOString();
+    const currentPeriodEnd = new Date(endTimestamp * 1000).toISOString();
 
-    logStep("Processing checkout with Stripe timestamps", {
+    logStep("Processing checkout with Stripe's actual timestamps", {
       planType,
       stripeStartTimestamp: startTimestamp,
       stripeEndTimestamp: endTimestamp,
       currentPeriodStart,
-      currentPeriodEnd
+      currentPeriodEnd,
+      stripePeriodEndUTC: new Date(endTimestamp * 1000).toUTCString()
     });
 
     // Update database using email for conflict resolution
@@ -578,27 +589,31 @@ async function syncCustomerSubscriptions(user_id: string, customerId: string) {
       const subscription = subscriptions.data[0];
       const planType = subscription.items?.data?.[0]?.price?.recurring?.interval === "month" ? "monthly" : "yearly";
       
-      // Use Stripe's actual timestamps instead of calculating
+      // Use Stripe's actual timestamps - this is the key fix
       const startTimestamp = subscription.current_period_start;
       const endTimestamp = subscription.current_period_end;
       
-      if (!startTimestamp) {
-        logStep("WARNING: current_period_start missing", { subscriptionId: subscription.id });
-      }
-      if (!endTimestamp) {
-        logStep("WARNING: current_period_end missing", { subscriptionId: subscription.id });
+      // Validate Stripe timestamps exist
+      if (!startTimestamp || !endTimestamp) {
+        logStep("CRITICAL: Missing Stripe timestamps", { 
+          subscriptionId: subscription.id,
+          startTimestamp, 
+          endTimestamp 
+        });
+        throw new Error("Stripe subscription missing period timestamps");
       }
       
-      const currentPeriodStart = startTimestamp ? new Date(startTimestamp * 1000).toISOString() : new Date().toISOString();
-      const currentPeriodEnd = endTimestamp ? new Date(endTimestamp * 1000).toISOString() : new Date().toISOString();
+      const currentPeriodStart = new Date(startTimestamp * 1000).toISOString();
+      const currentPeriodEnd = new Date(endTimestamp * 1000).toISOString();
       
-      logStep("Syncing active subscription with Stripe timestamps", {
+      logStep("Syncing active subscription with Stripe's actual timestamps", {
         userId: user_id,
         planType,
         stripeStartTimestamp: startTimestamp,
         stripeEndTimestamp: endTimestamp,
         currentPeriodStart,
-        currentPeriodEnd
+        currentPeriodEnd,
+        stripePeriodEndUTC: new Date(endTimestamp * 1000).toUTCString()
       });
       
       // Get user email for upsert

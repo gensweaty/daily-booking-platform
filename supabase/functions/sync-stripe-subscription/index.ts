@@ -109,27 +109,31 @@ serve(async (req) => {
             const subscription = subscriptions.data[0];
             const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
             
-            // Use Stripe's actual timestamps instead of calculating
+            // Use Stripe's actual timestamps - this is the key fix
             const startTimestamp = subscription.current_period_start;
             const endTimestamp = subscription.current_period_end;
             
-            if (!startTimestamp) {
-              logStep("WARNING: current_period_start missing", { subscriptionId: subscription.id });
-            }
-            if (!endTimestamp) {
-              logStep("WARNING: current_period_end missing", { subscriptionId: subscription.id });
+            // Validate Stripe timestamps exist
+            if (!startTimestamp || !endTimestamp) {
+              logStep("CRITICAL: Missing Stripe timestamps", { 
+                subscriptionId: subscription.id,
+                startTimestamp, 
+                endTimestamp 
+              });
+              throw new Error("Stripe subscription missing period timestamps");
             }
             
-            const currentPeriodStart = startTimestamp ? new Date(startTimestamp * 1000).toISOString() : new Date().toISOString();
-            const currentPeriodEnd = endTimestamp ? new Date(endTimestamp * 1000).toISOString() : new Date().toISOString();
+            const currentPeriodStart = new Date(startTimestamp * 1000).toISOString();
+            const currentPeriodEnd = new Date(endTimestamp * 1000).toISOString();
             
-            logStep("Found active subscription, using Stripe timestamps", { 
+            logStep("Using Stripe's actual period", { 
               subscriptionId: subscription.id,
               planType,
               stripeStartTimestamp: startTimestamp,
               stripeEndTimestamp: endTimestamp,
               currentPeriodStart,
-              currentPeriodEnd
+              currentPeriodEnd,
+              stripePeriodEndUTC: new Date(endTimestamp * 1000).toUTCString()
             });
 
             // Update subscription record with Stripe's actual timestamps
@@ -278,26 +282,30 @@ serve(async (req) => {
 
       const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
       
-      // Use Stripe's actual timestamps instead of calculating
+      // Use Stripe's actual timestamps - this is the key fix
       const startTimestamp = subscription.current_period_start;
       const endTimestamp = subscription.current_period_end;
       
-      if (!startTimestamp) {
-        logStep("WARNING: current_period_start missing", { subscriptionId: subscription.id });
-      }
-      if (!endTimestamp) {
-        logStep("WARNING: current_period_end missing", { subscriptionId: subscription.id });
+      // Validate Stripe timestamps exist
+      if (!startTimestamp || !endTimestamp) {
+        logStep("CRITICAL: Missing Stripe timestamps", { 
+          subscriptionId: subscription.id,
+          startTimestamp, 
+          endTimestamp 
+        });
+        throw new Error("Stripe subscription missing period timestamps");
       }
       
-      const currentPeriodStart = startTimestamp ? new Date(startTimestamp * 1000).toISOString() : new Date().toISOString();
-      const currentPeriodEnd = endTimestamp ? new Date(endTimestamp * 1000).toISOString() : new Date().toISOString();
+      const currentPeriodStart = new Date(startTimestamp * 1000).toISOString();
+      const currentPeriodEnd = new Date(endTimestamp * 1000).toISOString();
 
-      logStep("Using Stripe's subscription period", {
+      logStep("Using Stripe's actual period", {
         planType,
         stripeStartTimestamp: startTimestamp,
         stripeEndTimestamp: endTimestamp,
         currentPeriodStart,
-        currentPeriodEnd
+        currentPeriodEnd,
+        stripePeriodEndUTC: new Date(endTimestamp * 1000).toUTCString()
       });
 
       // Update subscription record using email for conflict resolution
