@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -252,14 +251,14 @@ async function handleCheckoutCompleted(session: any) {
     const subscription = await subscriptionResponse.json();
     const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
     
-    // Fix: Use proper subscription timestamps
-    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-    const currentPeriodStart = new Date(subscription.current_period_start * 1000);
+    // Use Stripe's actual timestamps
+    const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+    const currentPeriodStart = new Date(subscription.current_period_start * 1000).toISOString();
     
     logStep("Subscription details fetched", {
       planType,
-      currentPeriodEnd: currentPeriodEnd.toISOString(),
-      currentPeriodStart: currentPeriodStart.toISOString()
+      currentPeriodEnd,
+      currentPeriodStart
     });
     
     // Update database - create or update subscription using email conflict resolution
@@ -272,9 +271,10 @@ async function handleCheckoutCompleted(session: any) {
         stripe_customer_id: customerId,
         stripe_subscription_id: subscriptionId,
         plan_type: planType,
-        current_period_end: currentPeriodEnd.toISOString(),
-        current_period_start: currentPeriodStart.toISOString(),
-        subscription_end_date: currentPeriodEnd.toISOString(),
+        current_period_end: currentPeriodEnd,
+        current_period_start: currentPeriodStart,
+        subscription_end_date: currentPeriodEnd,
+        trial_end_date: null, // Clear trial when activating paid subscription
         attrs: subscription,
         currency: subscription.currency || 'usd',
         updated_at: new Date().toISOString()
@@ -359,9 +359,9 @@ async function handleSubscriptionEvent(subscription: any) {
     
     const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
     
-    // Fix: Use proper subscription timestamps
-    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-    const currentPeriodStart = new Date(subscription.current_period_start * 1000);
+    // Use Stripe's actual timestamps
+    const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+    const currentPeriodStart = new Date(subscription.current_period_start * 1000).toISOString();
     
     // Update subscription using email conflict resolution
     const { error: updateError } = await supabase
@@ -373,9 +373,10 @@ async function handleSubscriptionEvent(subscription: any) {
         stripe_customer_id: subscription.customer,
         stripe_subscription_id: subscription.id,
         plan_type: planType,
-        current_period_end: currentPeriodEnd.toISOString(),
-        current_period_start: currentPeriodStart.toISOString(),
-        subscription_end_date: currentPeriodEnd.toISOString(),
+        current_period_end: currentPeriodEnd,
+        current_period_start: currentPeriodStart,
+        subscription_end_date: currentPeriodEnd,
+        trial_end_date: null, // Clear trial when activating paid subscription
         attrs: subscription,
         currency: subscription.currency || 'usd',
         updated_at: new Date().toISOString()
