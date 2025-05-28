@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -109,25 +108,34 @@ serve(async (req) => {
             const subscription = subscriptions.data[0];
             const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
             
-            // Calculate subscription period manually from current time
-            const now = new Date();
-            const currentPeriodStart = now.toISOString();
+            // Use Stripe's actual subscription start time instead of current time
+            const startTimestamp = subscription.current_period_start;
+            if (!startTimestamp) {
+              logStep("WARNING: current_period_start missing", { subscriptionId: subscription.id });
+            }
+            
+            const currentPeriodStart = startTimestamp ? new Date(startTimestamp * 1000).toISOString() : new Date().toISOString();
             let calculatedEndDate: string;
             
             if (planType === 'monthly') {
-              calculatedEndDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+              calculatedEndDate = startTimestamp 
+                ? new Date(startTimestamp * 1000 + 30 * 24 * 60 * 60 * 1000).toISOString()
+                : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
             } else {
-              calculatedEndDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
+              calculatedEndDate = startTimestamp 
+                ? new Date(startTimestamp * 1000 + 365 * 24 * 60 * 60 * 1000).toISOString()
+                : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
             }
             
-            logStep("Found active subscription, calculating manual period", { 
+            logStep("Found active subscription, using Stripe timestamps", { 
               subscriptionId: subscription.id,
               planType,
+              stripeStartTimestamp: startTimestamp,
               currentPeriodStart,
               calculatedEndDate
             });
 
-            // Update subscription record with manually calculated dates
+            // Update subscription record with Stripe's actual timestamps
             const { error: updateError } = await supabase
               .from('subscriptions')
               .update({
@@ -139,7 +147,7 @@ serve(async (req) => {
                 stripe_subscription_id: subscription.id,
                 attrs: subscription,
                 currency: subscription.currency || 'usd',
-                updated_at: now.toISOString()
+                updated_at: new Date().toISOString()
               })
               .eq('email', user.email);
 
@@ -273,19 +281,28 @@ serve(async (req) => {
 
       const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
       
-      // Calculate subscription period manually from current time
-      const now = new Date();
-      const currentPeriodStart = now.toISOString();
+      // Use Stripe's actual subscription start time instead of current time
+      const startTimestamp = subscription.current_period_start;
+      if (!startTimestamp) {
+        logStep("WARNING: current_period_start missing", { subscriptionId: subscription.id });
+      }
+      
+      const currentPeriodStart = startTimestamp ? new Date(startTimestamp * 1000).toISOString() : new Date().toISOString();
       let calculatedEndDate: string;
       
       if (planType === 'monthly') {
-        calculatedEndDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        calculatedEndDate = startTimestamp 
+          ? new Date(startTimestamp * 1000 + 30 * 24 * 60 * 60 * 1000).toISOString()
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       } else {
-        calculatedEndDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
+        calculatedEndDate = startTimestamp 
+          ? new Date(startTimestamp * 1000 + 365 * 24 * 60 * 60 * 1000).toISOString()
+          : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
       }
 
-      logStep("Calculating manual subscription period", {
+      logStep("Using Stripe's subscription period", {
         planType,
+        stripeStartTimestamp: startTimestamp,
         currentPeriodStart,
         calculatedEndDate
       });
@@ -306,7 +323,7 @@ serve(async (req) => {
           trial_end_date: null, // Clear trial date for active subscriptions
           attrs: subscription,
           currency: subscription.currency || 'usd',
-          updated_at: now.toISOString()
+          updated_at: new Date().toISOString()
         }, { onConflict: 'email' });
 
       if (upsertError) {
