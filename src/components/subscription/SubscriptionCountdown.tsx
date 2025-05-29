@@ -31,15 +31,15 @@ export const SubscriptionCountdown = ({
     const calculateTimeLeft = () => {
       let targetDate: Date | null = null;
       
-      // First priority: use subscription_end_date for active subscriptions
+      // Priority 1: Use subscription_end_date for active subscriptions (most reliable)
       if (status === 'active' && subscription_end_date) {
         targetDate = new Date(subscription_end_date);
       } 
-      // Second priority: use trial end date for trials
+      // Priority 2: Use trial end date for trials
       else if (status === 'trial' && trialEnd) {
         targetDate = new Date(trialEnd);
       } 
-      // Fallback: use current period end (legacy)
+      // Fallback: Use current period end (legacy support)
       else if ((status === 'trial' || status === 'active') && currentPeriodEnd) {
         targetDate = new Date(currentPeriodEnd);
       }

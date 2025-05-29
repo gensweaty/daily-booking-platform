@@ -149,7 +149,7 @@ serve(async (req) => {
         break;
       case "customer.subscription.created":
       case "customer.subscription.updated":
-        await handleSubscriptionEvent(event.data.object);
+        await handleSubscriptionEvent(event.data.object, event.data.previous_attributes);
         break;
       case "customer.subscription.deleted":
         await handleSubscriptionCanceled(event.data.object);
@@ -250,47 +250,11 @@ async function handleCheckoutCompleted(session: any) {
     }
 
     const subscription = await subscriptionResponse.json();
-    const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+    await processSubscriptionActivation(subscription, userId, customerEmail, customerId);
     
-    // Fix: Use proper subscription timestamps
-    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-    const currentPeriodStart = new Date(subscription.current_period_start * 1000);
-    
-    logStep("Subscription details fetched", {
-      planType,
-      currentPeriodEnd: currentPeriodEnd.toISOString(),
-      currentPeriodStart: currentPeriodStart.toISOString()
-    });
-    
-    // Update database - create or update subscription using email conflict resolution
-    const { error } = await supabase
-      .from("subscriptions")
-      .upsert({
-        user_id: userId,
-        email: customerEmail,
-        status: "active",
-        stripe_customer_id: customerId,
-        stripe_subscription_id: subscriptionId,
-        plan_type: planType,
-        current_period_end: currentPeriodEnd.toISOString(),
-        current_period_start: currentPeriodStart.toISOString(),
-        subscription_end_date: currentPeriodEnd.toISOString(),
-        attrs: subscription,
-        currency: subscription.currency || 'usd',
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: "email"
-      });
-    
-    if (error) {
-      logStep("Database update failed", { error });
-      throw error;
-    }
-    
-    logStep("Subscription activated successfully", {
+    logStep("Checkout session processed successfully", {
       userId,
-      subscriptionId,
-      planType
+      subscriptionId
     });
   } catch (error) {
     logStep("Error processing checkout", {
@@ -300,11 +264,12 @@ async function handleCheckoutCompleted(session: any) {
   }
 }
 
-// Handle subscription events
-async function handleSubscriptionEvent(subscription: any) {
+// Handle subscription events with trial-to-paid detection
+async function handleSubscriptionEvent(subscription: any, previousAttributes?: any) {
   logStep("Processing subscription event", {
     subscriptionId: subscription.id,
-    status: subscription.status
+    status: subscription.status,
+    previousStatus: previousAttributes?.status
   });
   
   try {
@@ -357,41 +322,24 @@ async function handleSubscriptionEvent(subscription: any) {
       return;
     }
     
-    const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+    // Check if this is a trial-to-paid transition
+    const isTrialToPaidTransition = subscription.status === 'active' && 
+      (previousAttributes?.status === 'trialing' || 
+       (!previousAttributes?.status && await isFirstTimeActivation(userId)));
     
-    // Fix: Use proper subscription timestamps
-    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-    const currentPeriodStart = new Date(subscription.current_period_start * 1000);
+    logStep("Transition detection", {
+      newStatus: subscription.status,
+      previousStatus: previousAttributes?.status,
+      isTrialToPaidTransition
+    });
     
-    // Update subscription using email conflict resolution
-    const { error: updateError } = await supabase
-      .from("subscriptions")
-      .upsert({
-        user_id: userId,
-        email: customer.email,
-        status: subscription.status === "active" ? "active" : "inactive",
-        stripe_customer_id: subscription.customer,
-        stripe_subscription_id: subscription.id,
-        plan_type: planType,
-        current_period_end: currentPeriodEnd.toISOString(),
-        current_period_start: currentPeriodStart.toISOString(),
-        subscription_end_date: currentPeriodEnd.toISOString(),
-        attrs: subscription,
-        currency: subscription.currency || 'usd',
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: "email"
-      });
-    
-    if (updateError) {
-      logStep("Error updating subscription", { updateError });
-      throw updateError;
-    }
+    await processSubscriptionActivation(subscription, userId, customer.email, subscription.customer, isTrialToPaidTransition);
     
     logStep("Subscription updated successfully", {
       userId,
       status: subscription.status,
-      email: customer.email
+      email: customer.email,
+      isTrialToPaidTransition
     });
   } catch (error) {
     logStep("Error processing subscription event", {
@@ -399,6 +347,98 @@ async function handleSubscriptionEvent(subscription: any) {
     });
     throw error;
   }
+}
+
+// Process subscription activation with proper date handling
+async function processSubscriptionActivation(subscription: any, userId: string, email: string, customerId: string, isTrialToPaidTransition = false) {
+  const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+  
+  // Get existing subscription to check if we should set start/end dates
+  const { data: existingSub } = await supabase
+    .from("subscriptions")
+    .select("subscription_start_date, subscription_end_date, status")
+    .eq("user_id", userId)
+    .maybeSingle();
+  
+  // Determine if this is first-time activation
+  const isFirstTimeActivation = isTrialToPaidTransition || 
+    !existingSub || 
+    !existingSub.subscription_start_date ||
+    (existingSub.status !== 'active' && subscription.status === 'active');
+  
+  logStep("Activation analysis", {
+    isFirstTimeActivation,
+    existingStartDate: existingSub?.subscription_start_date,
+    existingStatus: existingSub?.status,
+    newStatus: subscription.status
+  });
+  
+  // Prepare update data
+  const updateData: any = {
+    user_id: userId,
+    email: email,
+    status: subscription.status === "active" ? "active" : "inactive",
+    stripe_customer_id: customerId,
+    stripe_subscription_id: subscription.id,
+    plan_type: planType,
+    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+    current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  // Set subscription start and end dates only for first-time activation
+  if (isFirstTimeActivation && subscription.status === 'active') {
+    const startTimestamp = subscription.current_period_start;
+    const startDate = new Date(startTimestamp * 1000);
+    
+    // Calculate end date based on plan type
+    const endDate = new Date(startTimestamp * 1000);
+    if (planType === 'monthly') {
+      endDate.setDate(startDate.getDate() + 30);
+    } else if (planType === 'yearly') {
+      endDate.setDate(startDate.getDate() + 365);
+    }
+    
+    updateData.subscription_start_date = startDate.toISOString();
+    updateData.subscription_end_date = endDate.toISOString();
+    
+    logStep("Setting subscription dates for first-time activation", {
+      startDate: updateData.subscription_start_date,
+      endDate: updateData.subscription_end_date,
+      planType,
+      stripeStartTimestamp: startTimestamp
+    });
+  }
+
+  // Update database using email conflict resolution
+  const { error } = await supabase
+    .from("subscriptions")
+    .upsert(updateData, {
+      onConflict: "email"
+    });
+  
+  if (error) {
+    logStep("Database update failed", { error });
+    throw error;
+  }
+  
+  logStep("Subscription activation processed", {
+    userId,
+    isFirstTimeActivation,
+    startDate: updateData.subscription_start_date,
+    endDate: updateData.subscription_end_date
+  });
+}
+
+// Check if this is the first time activation for a user
+async function isFirstTimeActivation(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("subscriptions")
+    .select("subscription_start_date, status")
+    .eq("user_id", userId)
+    .maybeSingle();
+  
+  return !data || !data.subscription_start_date || data.status !== 'active';
 }
 
 // Handle subscription cancellation
