@@ -10,41 +10,135 @@ function logStep(step: string, data?: any) {
   console.log(`[SYNC-STRIPE-SUBSCRIPTION] ${step}`, data ? JSON.stringify(data) : "");
 }
 
-// Enhanced timestamp conversion with better debugging
-function safeTimestamp(timestamp: number | null | undefined, source: string = "unknown"): string | null {
-  logStep(`Processing timestamp from ${source}`, { timestamp, type: typeof timestamp });
-  
-  if (timestamp == null) {
-    logStep(`Timestamp is null/undefined from ${source}`);
+// Enhanced timestamp conversion with multiple fallback strategies
+function extractTimestampFromStripe(stripeSubscription: any, source: string = "stripe"): string | null {
+  logStep(`Analyzing Stripe subscription object structure from ${source}`, {
+    fullObject: stripeSubscription,
+    hasCurrentPeriodStart: !!stripeSubscription.current_period_start,
+    hasCurrentPeriodEnd: !!stripeSubscription.current_period_end,
+    hasStartDate: !!stripeSubscription.start_date,
+    hasCreated: !!stripeSubscription.created,
+    currentPeriodStartType: typeof stripeSubscription.current_period_start,
+    currentPeriodEndType: typeof stripeSubscription.current_period_end
+  });
+
+  // Strategy 1: Use current_period_start (most recent billing cycle)
+  if (stripeSubscription.current_period_start) {
+    const timestamp = parseStripeTimestamp(stripeSubscription.current_period_start, "current_period_start");
+    if (timestamp) {
+      logStep(`Successfully extracted timestamp from current_period_start`, { 
+        raw: stripeSubscription.current_period_start, 
+        parsed: timestamp 
+      });
+      return timestamp;
+    }
+  }
+
+  // Strategy 2: Use start_date (original subscription start)
+  if (stripeSubscription.start_date) {
+    const timestamp = parseStripeTimestamp(stripeSubscription.start_date, "start_date");
+    if (timestamp) {
+      logStep(`Successfully extracted timestamp from start_date`, { 
+        raw: stripeSubscription.start_date, 
+        parsed: timestamp 
+      });
+      return timestamp;
+    }
+  }
+
+  // Strategy 3: Use created (subscription creation time)
+  if (stripeSubscription.created) {
+    const timestamp = parseStripeTimestamp(stripeSubscription.created, "created");
+    if (timestamp) {
+      logStep(`Successfully extracted timestamp from created`, { 
+        raw: stripeSubscription.created, 
+        parsed: timestamp 
+      });
+      return timestamp;
+    }
+  }
+
+  logStep(`Failed to extract any valid timestamp from Stripe subscription`, {
+    availableFields: Object.keys(stripeSubscription),
+    timestampFields: {
+      current_period_start: stripeSubscription.current_period_start,
+      current_period_end: stripeSubscription.current_period_end,
+      start_date: stripeSubscription.start_date,
+      created: stripeSubscription.created
+    }
+  });
+
+  return null;
+}
+
+// Robust timestamp parser that handles multiple formats
+function parseStripeTimestamp(value: any, fieldName: string): string | null {
+  logStep(`Parsing timestamp field ${fieldName}`, { 
+    value, 
+    type: typeof value,
+    isNumber: typeof value === 'number',
+    isString: typeof value === 'string',
+    isFinite: Number.isFinite(value)
+  });
+
+  if (value == null || value === undefined) {
+    logStep(`Timestamp field ${fieldName} is null/undefined`);
     return null;
   }
-  
-  if (typeof timestamp !== 'number') {
-    logStep(`Timestamp is not a number from ${source}`, { timestamp, type: typeof timestamp });
+
+  let timestamp: number;
+
+  // Handle different formats
+  if (typeof value === 'number') {
+    timestamp = value;
+  } else if (typeof value === 'string') {
+    // Try to parse string as number
+    const parsed = parseFloat(value);
+    if (isNaN(parsed)) {
+      logStep(`Cannot parse string timestamp ${fieldName}`, { value });
+      return null;
+    }
+    timestamp = parsed;
+  } else {
+    logStep(`Unsupported timestamp type for ${fieldName}`, { value, type: typeof value });
     return null;
   }
-  
+
+  // Validate timestamp is reasonable
   if (!Number.isFinite(timestamp) || timestamp <= 0) {
-    logStep(`Invalid timestamp value from ${source}`, { timestamp });
+    logStep(`Invalid timestamp value for ${fieldName}`, { timestamp });
     return null;
   }
-  
+
+  // Handle potential scientific notation or milliseconds vs seconds
+  if (timestamp > 1e12) {
+    // Timestamp is in milliseconds, convert to seconds
+    timestamp = timestamp / 1000;
+    logStep(`Converted milliseconds to seconds for ${fieldName}`, { original: value, converted: timestamp });
+  }
+
   try {
     const date = new Date(timestamp * 1000);
     if (isNaN(date.getTime())) {
-      logStep(`Date creation failed from ${source}`, { timestamp, date });
+      logStep(`Date creation failed for ${fieldName}`, { timestamp, date });
       return null;
     }
+    
     const isoString = date.toISOString();
-    logStep(`Successfully converted timestamp from ${source}`, { timestamp, isoString });
+    logStep(`Successfully converted timestamp for ${fieldName}`, { 
+      originalValue: value,
+      timestamp, 
+      isoString,
+      dateCheck: date.getTime()
+    });
     return isoString;
   } catch (error) {
-    logStep(`Error converting timestamp from ${source}`, { timestamp, error: error.message });
+    logStep(`Error converting timestamp for ${fieldName}`, { timestamp, error: error.message });
     return null;
   }
 }
 
-// Function to calculate subscription end date from start date and plan type
+// Calculate subscription end date from start date and plan type
 function calculateSubscriptionEndDate(startDate: string, planType: string): string {
   const start = new Date(startDate);
   let endDate = new Date(start);
@@ -61,96 +155,72 @@ function calculateSubscriptionEndDate(startDate: string, planType: string): stri
   return endDate.toISOString();
 }
 
-// Enhanced function to fix active subscriptions with missing dates
-async function fixActiveSubscriptionDates(supabase: any, userId: string, planType: string, stripeSubscription?: any) {
-  logStep("FIXING MISSING SUBSCRIPTION DATES", { userId, planType, hasStripeData: !!stripeSubscription });
-  
+// CRITICAL: Handle payment detection and proper date calculation
+async function handleActiveSubscriptionDates(supabase: any, userId: string, planType: string, stripeSubscription: any, existingSubscription?: any) {
+  logStep("HANDLING ACTIVE SUBSCRIPTION DATES", { 
+    userId, 
+    planType, 
+    hasStripeData: !!stripeSubscription,
+    existingStatus: existingSubscription?.status,
+    existingHasStartDate: !!existingSubscription?.subscription_start_date,
+    existingHasEndDate: !!existingSubscription?.subscription_end_date
+  });
+
   let subscription_start_date: string;
   let subscription_end_date: string;
-  
-  // If we have Stripe subscription data, try to use it first
-  if (stripeSubscription) {
-    logStep("Attempting to use Stripe subscription data for dates", {
-      id: stripeSubscription.id,
-      created: stripeSubscription.created,
-      current_period_start: stripeSubscription.current_period_start,
-      current_period_end: stripeSubscription.current_period_end,
-      start_date: stripeSubscription.start_date
+
+  // DETECT PAYMENT EVENT: If user was on trial and now has active Stripe subscription
+  const isPaymentEvent = existingSubscription?.status === 'trial' || 
+                        !existingSubscription?.subscription_start_date ||
+                        !existingSubscription?.subscription_end_date;
+
+  if (isPaymentEvent) {
+    logStep("PAYMENT EVENT DETECTED - User just paid or needs fresh dates", {
+      reason: existingSubscription?.status === 'trial' ? 'trial_to_active' : 'missing_dates',
+      existingStatus: existingSubscription?.status
     });
+
+    // For payment events, try to use Stripe timestamps first
+    const stripeStartDate = extractTimestampFromStripe(stripeSubscription, "payment_event");
     
-    // Try different Stripe timestamp fields in order of preference
-    let stripeStartTimestamp = null;
+    if (stripeStartDate) {
+      subscription_start_date = stripeStartDate;
+      logStep("Using Stripe timestamp for payment event", { subscription_start_date });
+    } else {
+      // Fallback: Use current time (user just paid)
+      subscription_start_date = new Date().toISOString();
+      logStep("FALLBACK: Using current time for payment event", { 
+        subscription_start_date,
+        reason: "No valid Stripe timestamp found"
+      });
+    }
+
+    subscription_end_date = calculateSubscriptionEndDate(subscription_start_date, planType);
+
+    logStep("PAYMENT EVENT: Calculated fresh subscription period", {
+      subscription_start_date,
+      subscription_end_date,
+      planType,
+      daysFromNow: Math.ceil((new Date(subscription_end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    });
+
+  } else {
+    // User already has valid dates, keep them unless Stripe has newer data
+    const stripeStartDate = extractTimestampFromStripe(stripeSubscription, "existing_subscription");
     
-    // 1. Try current_period_start (most recent billing period)
-    if (stripeSubscription.current_period_start) {
-      stripeStartTimestamp = stripeSubscription.current_period_start;
-      logStep("Using current_period_start from Stripe", { timestamp: stripeStartTimestamp });
-    }
-    // 2. Try start_date (original subscription start)
-    else if (stripeSubscription.start_date) {
-      stripeStartTimestamp = stripeSubscription.start_date;
-      logStep("Using start_date from Stripe", { timestamp: stripeStartTimestamp });
-    }
-    // 3. Try created (subscription creation time)
-    else if (stripeSubscription.created) {
-      stripeStartTimestamp = stripeSubscription.created;
-      logStep("Using created from Stripe", { timestamp: stripeStartTimestamp });
-    }
-    
-    if (stripeStartTimestamp) {
-      const stripeStartDate = safeTimestamp(stripeStartTimestamp, "stripe_subscription");
-      if (stripeStartDate) {
-        subscription_start_date = stripeStartDate;
-        subscription_end_date = calculateSubscriptionEndDate(subscription_start_date, planType);
-        
-        logStep("Successfully calculated dates from Stripe data", {
-          subscription_start_date,
-          subscription_end_date,
-          planType,
-          source: "stripe_subscription_data"
-        });
-        
-        // Update the subscription with Stripe-based dates
-        const { error: updateError } = await supabase
-          .from('subscriptions')
-          .update({
-            subscription_start_date,
-            subscription_end_date,
-            current_period_start: subscription_start_date,
-            current_period_end: subscription_end_date,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', userId);
-        
-        if (updateError) {
-          logStep("Error updating subscription with Stripe dates", updateError);
-        } else {
-          logStep("Successfully updated subscription with Stripe dates");
-        }
-        
-        return { subscription_start_date, subscription_end_date };
-      }
+    if (stripeStartDate && new Date(stripeStartDate) > new Date(existingSubscription.subscription_start_date)) {
+      // Stripe has newer data, use it
+      subscription_start_date = stripeStartDate;
+      subscription_end_date = calculateSubscriptionEndDate(subscription_start_date, planType);
+      logStep("Updated with newer Stripe timestamp", { subscription_start_date, subscription_end_date });
+    } else {
+      // Keep existing dates
+      subscription_start_date = existingSubscription.subscription_start_date;
+      subscription_end_date = existingSubscription.subscription_end_date;
+      logStep("Keeping existing subscription dates", { subscription_start_date, subscription_end_date });
     }
   }
-  
-  // Fallback: Use current time as start date (user just paid)
-  logStep("FALLBACK: Using current time as subscription start (recent payment)", {
-    reason: "No valid Stripe timestamps found",
-    userId,
-    planType
-  });
-  
-  const now = new Date();
-  subscription_start_date = now.toISOString();
-  subscription_end_date = calculateSubscriptionEndDate(subscription_start_date, planType);
-  
-  logStep("FALLBACK: Calculated subscription dates from current time", {
-    subscription_start_date,
-    subscription_end_date,
-    planType,
-    warning: "Using current time as fallback - this should give user fresh period"
-  });
-  
+
   // Update the subscription with the calculated dates
   const { error: updateError } = await supabase
     .from('subscriptions')
@@ -159,16 +229,21 @@ async function fixActiveSubscriptionDates(supabase: any, userId: string, planTyp
       subscription_end_date,
       current_period_start: subscription_start_date,
       current_period_end: subscription_end_date,
+      status: 'active',
       updated_at: new Date().toISOString()
     })
     .eq('user_id', userId);
-  
+
   if (updateError) {
-    logStep("Error updating subscription with fallback dates", updateError);
+    logStep("Error updating subscription dates", updateError);
   } else {
-    logStep("Successfully updated subscription with fallback dates (CURRENT TIME)");
+    logStep("Successfully updated subscription with dates", {
+      subscription_start_date,
+      subscription_end_date,
+      daysRemaining: Math.ceil((new Date(subscription_end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    });
   }
-  
+
   return { subscription_start_date, subscription_end_date };
 }
 
@@ -203,7 +278,7 @@ serve(async (req) => {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    // If user has existing trial or active subscription, check if it's still valid
+    // If user has existing subscription, check if it's still valid
     if (existingSubscription) {
       logStep("Found existing subscription", { 
         status: existingSubscription.status,
@@ -214,55 +289,14 @@ serve(async (req) => {
         subscriptionEndDate: existingSubscription.subscription_end_date
       });
 
-      // CRITICAL FIX: Check for active subscriptions with missing dates
-      if (existingSubscription.status === 'active' && 
-          (!existingSubscription.subscription_start_date || !existingSubscription.subscription_end_date)) {
-        
-        logStep("FOUND ACTIVE SUBSCRIPTION WITH MISSING DATES - FIXING NOW", {
-          userId: user.id,
-          email: user.email,
-          status: existingSubscription.status,
-          planType: existingSubscription.plan_type
-        });
-        
-        const fixedDates = await fixActiveSubscriptionDates(
-          supabase, 
-          user.id, 
-          existingSubscription.plan_type || 'monthly'
-        );
-        
-        return new Response(JSON.stringify({
-          success: true,
-          status: 'active',
-          planType: existingSubscription.plan_type,
-          currentPeriodEnd: fixedDates.subscription_end_date,
-          subscription_start_date: fixedDates.subscription_start_date,
-          subscription_end_date: fixedDates.subscription_end_date,
-          message: 'Fixed missing subscription dates'
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
-      }
-
       // For trial subscriptions, check if trial is still valid
       if (existingSubscription.status === 'trial' && existingSubscription.trial_end_date) {
         const trialEnd = new Date(existingSubscription.trial_end_date);
         const now = new Date();
         
         if (trialEnd > now) {
-          // Trial is still valid
-          return new Response(JSON.stringify({
-            success: true,
-            status: 'trial',
-            planType: existingSubscription.plan_type,
-            trialEnd: existingSubscription.trial_end_date,
-            currentPeriodEnd: existingSubscription.current_period_end,
-            subscription_end_date: existingSubscription.subscription_end_date
-          }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200,
-          });
+          // Trial is still valid, but check Stripe for payment
+          logStep("Trial still valid, checking Stripe for payment");
         } else {
           // Trial has expired, update status
           await supabase
@@ -305,52 +339,33 @@ serve(async (req) => {
             const subscription = subscriptions.data[0];
             const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
             
-            logStep("Found active Stripe subscription - detailed data", {
+            logStep("Found active Stripe subscription - FULL DEBUG", {
               subscriptionId: subscription.id,
               planType,
-              created: subscription.created,
-              current_period_start: subscription.current_period_start,
-              current_period_end: subscription.current_period_end,
-              start_date: subscription.start_date,
-              status: subscription.status
+              fullStripeObject: subscription,
+              timestampFields: {
+                created: subscription.created,
+                current_period_start: subscription.current_period_start,
+                current_period_end: subscription.current_period_end,
+                start_date: subscription.start_date
+              }
             });
             
-            // FIXED: Use Stripe's data to determine proper start date for PAID subscriptions
-            const currentPeriodEnd = safeTimestamp(subscription.current_period_end, "current_period_end");
-            const currentPeriodStart = safeTimestamp(subscription.current_period_start, "current_period_start");
-
-            // Check if this is a first-time activation (missing start/end dates)
-            const isFirstTimeActivation = !existingSubscription.subscription_start_date || !existingSubscription.subscription_end_date;
-            
-            let subscription_start_date = existingSubscription.subscription_start_date;
-            let subscription_end_date = existingSubscription.subscription_end_date;
-            
-            // CRITICAL FIX: For paid subscriptions, use the most recent period or fix missing dates
-            if (isFirstTimeActivation || !subscription_start_date) {
-              logStep("Need to fix subscription dates for paid plan", {
-                isFirstTimeActivation,
-                hasStartDate: !!subscription_start_date,
-                stripeCurrentPeriodStart: currentPeriodStart
-              });
-              
-              // Use the enhanced fixing function that tries Stripe data first
-              const fixedDates = await fixActiveSubscriptionDates(
-                supabase, 
-                user.id, 
-                planType,
-                subscription  // Pass the full Stripe subscription object
-              );
-              
-              subscription_start_date = fixedDates.subscription_start_date;
-              subscription_end_date = fixedDates.subscription_end_date;
-            }
+            // Handle the active subscription with proper date calculation
+            const { subscription_start_date, subscription_end_date } = await handleActiveSubscriptionDates(
+              supabase, 
+              user.id, 
+              planType,
+              subscription,
+              existingSubscription
+            );
 
             return new Response(JSON.stringify({
               success: true,
               status: 'active',
               planType: planType,
               stripe_subscription_id: subscription.id,
-              currentPeriodEnd: currentPeriodEnd || subscription_end_date,
+              currentPeriodEnd: subscription_end_date,
               subscription_start_date: subscription_start_date,
               subscription_end_date: subscription_end_date
             }), {
@@ -470,26 +485,29 @@ serve(async (req) => {
 
     if (subscriptions.data && subscriptions.data.length > 0) {
       const subscription = subscriptions.data[0];
-      logStep("Found active subscription for new customer", { subscriptionId: subscription.id });
+      logStep("Found active subscription for customer", { subscriptionId: subscription.id });
 
       const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
       
-      logStep("New customer active subscription - detailed data", {
+      logStep("New customer active subscription - FULL DEBUG", {
         subscriptionId: subscription.id,
         planType,
-        created: subscription.created,
-        current_period_start: subscription.current_period_start,
-        current_period_end: subscription.current_period_end,
-        start_date: subscription.start_date,
-        status: subscription.status
+        fullStripeObject: subscription,
+        timestampFields: {
+          created: subscription.created,
+          current_period_start: subscription.current_period_start,
+          current_period_end: subscription.current_period_end,
+          start_date: subscription.start_date
+        }
       });
 
-      // For new customers, always use the enhanced fixing function
-      const fixedDates = await fixActiveSubscriptionDates(
+      // Handle the new active subscription
+      const { subscription_start_date, subscription_end_date } = await handleActiveSubscriptionDates(
         supabase, 
         user.id, 
         planType,
-        subscription  // Pass the full Stripe subscription object
+        subscription,
+        existingSubscription
       );
 
       // Prepare update data
@@ -500,13 +518,13 @@ serve(async (req) => {
         stripe_subscription_id: subscription.id,
         status: 'active',
         plan_type: planType,
-        current_period_end: fixedDates.subscription_end_date,
-        current_period_start: fixedDates.subscription_start_date,
+        current_period_end: subscription_end_date,
+        current_period_start: subscription_start_date,
         trial_end_date: null,
         attrs: subscription,
         currency: subscription.currency || 'usd',
-        subscription_start_date: fixedDates.subscription_start_date,
-        subscription_end_date: fixedDates.subscription_end_date,
+        subscription_start_date: subscription_start_date,
+        subscription_end_date: subscription_end_date,
         updated_at: new Date().toISOString()
       };
 
@@ -525,9 +543,9 @@ serve(async (req) => {
         status: 'active',
         planType: planType,
         stripe_subscription_id: subscription.id,
-        currentPeriodEnd: fixedDates.subscription_end_date,
-        subscription_start_date: fixedDates.subscription_start_date,
-        subscription_end_date: fixedDates.subscription_end_date
+        currentPeriodEnd: subscription_end_date,
+        subscription_start_date: subscription_start_date,
+        subscription_end_date: subscription_end_date
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
