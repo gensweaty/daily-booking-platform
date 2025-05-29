@@ -81,21 +81,9 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
 
     fetchSubscription();
     
-    // Check more frequently to catch webhook updates
-    const intervalId = setInterval(fetchSubscription, 15000); // Check every 15 seconds
+    const intervalId = setInterval(fetchSubscription, 30000); // Check every 30 seconds
     
-    // Listen for subscription updates from webhooks
-    const handleSubscriptionUpdate = () => {
-      console.log('Subscription update event received, refreshing...');
-      fetchSubscription();
-    };
-    
-    window.addEventListener('subscriptionUpdated', handleSubscriptionUpdate);
-    
-    return () => {
-      clearInterval(intervalId);
-      window.removeEventListener('subscriptionUpdated', handleSubscriptionUpdate);
-    };
+    return () => clearInterval(intervalId);
   }, [user]);
 
   const handleRefreshSubscription = async () => {

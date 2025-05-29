@@ -11,6 +11,31 @@ function logStep(step: string, data?: any) {
   console.log(`[SYNC-STRIPE-SUBSCRIPTION] ${step}`, data ? JSON.stringify(data) : "");
 }
 
+// Safe timestamp conversion function
+function safeTimestamp(timestamp: number | null | undefined): string | null {
+  if (timestamp == null || typeof timestamp !== 'number') {
+    logStep("Timestamp is null or undefined", { timestamp });
+    return null;
+  }
+  
+  if (!Number.isFinite(timestamp) || timestamp <= 0) {
+    logStep("Invalid timestamp value", { timestamp });
+    return null;
+  }
+  
+  try {
+    const date = new Date(timestamp * 1000);
+    if (isNaN(date.getTime())) {
+      logStep("Date creation failed", { timestamp, date });
+      return null;
+    }
+    return date.toISOString();
+  } catch (error) {
+    logStep("Error converting timestamp", { timestamp, error: error.message });
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -108,35 +133,17 @@ serve(async (req) => {
           if (subscriptions.data.length > 0) {
             const subscription = subscriptions.data[0];
             const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+            const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
+            const currentPeriodStart = safeTimestamp(subscription.current_period_start);
             
-            // Use Stripe's actual timestamps - this is the key fix
-            const startTimestamp = subscription.current_period_start;
-            const endTimestamp = subscription.current_period_end;
-            
-            // Validate Stripe timestamps exist
-            if (!startTimestamp || !endTimestamp) {
-              logStep("CRITICAL: Missing Stripe timestamps", { 
-                subscriptionId: subscription.id,
-                startTimestamp, 
-                endTimestamp 
-              });
-              throw new Error("Stripe subscription missing period timestamps");
-            }
-            
-            const currentPeriodStart = new Date(startTimestamp * 1000).toISOString();
-            const currentPeriodEnd = new Date(endTimestamp * 1000).toISOString();
-            
-            logStep("Using Stripe's actual period", { 
+            logStep("Found active subscription", { 
               subscriptionId: subscription.id,
               planType,
-              stripeStartTimestamp: startTimestamp,
-              stripeEndTimestamp: endTimestamp,
-              currentPeriodStart,
               currentPeriodEnd,
-              stripePeriodEndUTC: new Date(endTimestamp * 1000).toUTCString()
+              currentPeriodStart
             });
 
-            // Update subscription record with Stripe's actual timestamps
+            // Update subscription record
             const { error: updateError } = await supabase
               .from('subscriptions')
               .update({
@@ -281,32 +288,8 @@ serve(async (req) => {
       logStep("Found active subscription", { subscriptionId: subscription.id });
 
       const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
-      
-      // Use Stripe's actual timestamps - this is the key fix
-      const startTimestamp = subscription.current_period_start;
-      const endTimestamp = subscription.current_period_end;
-      
-      // Validate Stripe timestamps exist
-      if (!startTimestamp || !endTimestamp) {
-        logStep("CRITICAL: Missing Stripe timestamps", { 
-          subscriptionId: subscription.id,
-          startTimestamp, 
-          endTimestamp 
-        });
-        throw new Error("Stripe subscription missing period timestamps");
-      }
-      
-      const currentPeriodStart = new Date(startTimestamp * 1000).toISOString();
-      const currentPeriodEnd = new Date(endTimestamp * 1000).toISOString();
-
-      logStep("Using Stripe's actual period", {
-        planType,
-        stripeStartTimestamp: startTimestamp,
-        stripeEndTimestamp: endTimestamp,
-        currentPeriodStart,
-        currentPeriodEnd,
-        stripePeriodEndUTC: new Date(endTimestamp * 1000).toUTCString()
-      });
+      const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
+      const currentPeriodStart = safeTimestamp(subscription.current_period_start);
 
       // Update subscription record using email for conflict resolution
       const { error: upsertError } = await supabase

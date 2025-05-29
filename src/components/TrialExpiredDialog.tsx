@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -60,10 +61,6 @@ export const TrialExpiredDialog = () => {
         console.log('Subscription is active, closing dialog');
         setOpen(false);
         setSyncError(null);
-        // Force update any countdown components by triggering a small delay
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('subscriptionUpdated', { detail: data }));
-        }, 100);
       } else if (status === 'trial_expired') {
         console.log('Trial expired, showing dialog');
         setOpen(true);
@@ -161,11 +158,6 @@ export const TrialExpiredDialog = () => {
       title: "Subscription Activated",
       description: "Thank you for subscribing to our service!",
     });
-    
-    // Force refresh subscription data after successful payment
-    setTimeout(() => {
-      checkUserSubscription();
-    }, 1000);
   };
 
   const handleManualSync = async () => {
