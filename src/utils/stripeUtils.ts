@@ -40,52 +40,61 @@ interface StripeSyncResponse {
 
 export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
   try {
+    console.log(`🔥 YEARLY DEBUG: Starting checkout session creation for ${planType} plan`);
+    
     const { data: userData, error: userError } = await supabase.auth.getUser();
     
     if (userError || !userData?.user) {
-      console.error('Authentication error:', userError);
+      console.error('❌ YEARLY DEBUG: Authentication error:', userError);
       throw new Error("User not authenticated");
     }
     
     const priceId = STRIPE_PRICES[planType];
+    console.log(`🔥 YEARLY DEBUG: Using price ID for ${planType}:`, priceId);
     
-    console.log(`Creating checkout session for ${planType} plan:`, { priceId });
+    const requestPayload = { 
+      user_id: userData.user.id,
+      price_id: priceId,
+      plan_type: planType,
+      return_url: window.location.origin + window.location.pathname
+    };
+    
+    console.log(`🔥 YEARLY DEBUG: Sending request payload:`, requestPayload);
     
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error("Request timed out after 30 seconds")), 30000);
     });
     
     const functionPromise = supabase.functions.invoke('create-stripe-checkout', {
-      body: { 
-        user_id: userData.user.id,
-        price_id: priceId,
-        plan_type: planType,
-        return_url: window.location.origin + window.location.pathname
-      }
+      body: requestPayload
     });
+    
+    console.log(`🔥 YEARLY DEBUG: Invoking create-stripe-checkout function...`);
     
     const response = await Promise.race([
       functionPromise,
       timeoutPromise.catch(err => { throw err; })
     ]) as StripeCheckoutResponse;
     
+    console.log(`🔥 YEARLY DEBUG: Raw response from create-stripe-checkout:`, response);
+    
     const data = response?.data;
     const error = response?.error;
     
     if (error) {
-      console.error('Error creating checkout session:', error);
+      console.error('❌ YEARLY DEBUG: Error from edge function:', error);
       throw new Error(error.message || 'Failed to create checkout session');
     }
     
     if (!data || !data.url) {
-      console.error('No URL returned from checkout session creation');
+      console.error('❌ YEARLY DEBUG: No URL returned. Response data:', data);
       throw new Error('Failed to create checkout session - no URL returned');
     }
     
-    console.log('Checkout session created:', data);
+    console.log(`✅ YEARLY DEBUG: Checkout session created successfully:`, data);
     return data;
   } catch (error) {
-    console.error('Error in createCheckoutSession:', error);
+    console.error('❌ YEARLY DEBUG: Error in createCheckoutSession:', error);
     throw error;
   }
 };
