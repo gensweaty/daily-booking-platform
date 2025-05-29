@@ -49,6 +49,15 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
       throw new Error("User not authenticated");
     }
     
+    // Get session for authorization header
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    
+    if (!accessToken) {
+      console.error('❌ YEARLY DEBUG: No access token found');
+      throw new Error("No access token available");
+    }
+    
     const priceId = STRIPE_PRICES[planType];
     console.log(`🔥 YEARLY DEBUG: Using price ID for ${planType}:`, priceId);
     
@@ -60,16 +69,20 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
     };
     
     console.log(`🔥 YEARLY DEBUG: Sending request payload:`, requestPayload);
+    console.log(`🔥 YEARLY DEBUG: Using access token:`, accessToken ? 'Present' : 'Missing');
     
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error("Request timed out after 30 seconds")), 30000);
     });
     
     const functionPromise = supabase.functions.invoke('create-stripe-checkout', {
-      body: requestPayload
+      body: requestPayload,
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
     });
     
-    console.log(`🔥 YEARLY DEBUG: Invoking create-stripe-checkout function...`);
+    console.log(`🔥 YEARLY DEBUG: Invoking create-stripe-checkout function with auth header...`);
     
     const response = await Promise.race([
       functionPromise,
