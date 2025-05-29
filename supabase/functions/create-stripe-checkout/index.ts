@@ -30,6 +30,7 @@ serve(async (req) => {
     const requestBody = await req.json();
     logStep("Request body received", requestBody);
 
+    // Extract only the required parameters, ignore any extra ones like product_id
     const { user_id, price_id, plan_type, return_url } = requestBody;
     
     if (!user_id || !price_id || !plan_type) {
@@ -66,21 +67,28 @@ serve(async (req) => {
     let customerId = existingCustomers.data.length > 0 ? existingCustomers.data[0].id : undefined;
     logStep("Customer lookup result", { customerId: customerId || "none" });
 
-    // Validate the price ID exists in Stripe
+    // Validate the price ID exists in Stripe and check if it's a recurring price
     try {
       const priceValidation = await stripe.prices.retrieve(price_id);
       logStep("Price validation successful", { 
         priceId: price_id, 
         currency: priceValidation.currency,
         amount: priceValidation.unit_amount,
-        interval: priceValidation.recurring?.interval
+        interval: priceValidation.recurring?.interval,
+        type: priceValidation.type
       });
+
+      // Ensure the price is recurring for subscription mode
+      if (priceValidation.type !== 'recurring' || !priceValidation.recurring) {
+        logStep("Price is not recurring", { priceId: price_id, type: priceValidation.type });
+        throw new Error(`Price ${price_id} is not a recurring price. Subscription mode requires recurring prices.`);
+      }
     } catch (priceError) {
       logStep("Price validation failed", { priceId: price_id, error: priceError.message });
-      throw new Error(`Invalid price ID: ${price_id}`);
+      throw new Error(`Invalid price ID: ${price_id} - ${priceError.message}`);
     }
 
-    // Create checkout session
+    // Create checkout session parameters
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       customer_email: customerId ? undefined : userData.user.email,
@@ -102,7 +110,8 @@ serve(async (req) => {
     logStep("Creating checkout session", { 
       customerId: customerId || "new customer",
       priceId: price_id,
-      planType: plan_type
+      planType: plan_type,
+      mode: "subscription"
     });
 
     const session = await stripe.checkout.sessions.create(sessionParams);

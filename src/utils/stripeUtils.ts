@@ -7,12 +7,6 @@ const STRIPE_PRICES = {
   yearly: 'price_1RUC8R2MNASmq1vOqUKYksKA',
 };
 
-// Stripe product IDs
-const STRIPE_PRODUCTS = {
-  monthly: 'prod_SM0gHgA0G0cQN3',
-  yearly: 'prod_SP089KemSaaDj7',
-};
-
 interface StripeCheckoutResponse {
   data?: {
     url?: string;
@@ -54,9 +48,8 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
     }
     
     const priceId = STRIPE_PRICES[planType];
-    const productId = STRIPE_PRODUCTS[planType];
     
-    console.log(`Creating checkout session for ${planType} plan:`, { priceId, productId });
+    console.log(`Creating checkout session for ${planType} plan:`, { priceId });
     
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error("Request timed out after 30 seconds")), 30000);
@@ -66,7 +59,6 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
       body: { 
         user_id: userData.user.id,
         price_id: priceId,
-        product_id: productId,
         plan_type: planType,
         return_url: window.location.origin + window.location.pathname
       }
