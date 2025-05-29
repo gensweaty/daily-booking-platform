@@ -34,17 +34,21 @@ export const SubscriptionCountdown = ({
       // Priority 1: Use subscription_end_date for active subscriptions (most reliable)
       if (status === 'active' && subscription_end_date) {
         targetDate = new Date(subscription_end_date);
+        console.log('[SubscriptionCountdown] Using subscription_end_date:', subscription_end_date);
       } 
       // Priority 2: Use trial end date for trials
       else if (status === 'trial' && trialEnd) {
         targetDate = new Date(trialEnd);
+        console.log('[SubscriptionCountdown] Using trialEnd:', trialEnd);
       } 
       // Fallback: Use current period end (legacy support)
       else if ((status === 'trial' || status === 'active') && currentPeriodEnd) {
         targetDate = new Date(currentPeriodEnd);
+        console.log('[SubscriptionCountdown] Using currentPeriodEnd:', currentPeriodEnd);
       }
       
       if (!targetDate) {
+        console.log('[SubscriptionCountdown] No valid target date found');
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         return;
       }
@@ -52,6 +56,13 @@ export const SubscriptionCountdown = ({
       const now = new Date().getTime();
       const target = targetDate.getTime();
       const difference = target - now;
+      
+      console.log('[SubscriptionCountdown] Time calculation:', {
+        now: new Date(now).toISOString(),
+        target: targetDate.toISOString(),
+        difference: difference,
+        differenceInDays: Math.floor(difference / (1000 * 60 * 60 * 24))
+      });
       
       if (difference > 0) {
         const days = Math.floor(difference / (1000 * 60 * 60 * 24));

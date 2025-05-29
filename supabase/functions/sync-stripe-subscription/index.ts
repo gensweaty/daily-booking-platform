@@ -74,6 +74,7 @@ serve(async (req) => {
         planType: existingSubscription.plan_type,
         currentPeriodEnd: existingSubscription.current_period_end,
         trialEndDate: existingSubscription.trial_end_date,
+        subscriptionStartDate: existingSubscription.subscription_start_date,
         subscriptionEndDate: existingSubscription.subscription_end_date
       });
 
@@ -139,20 +140,17 @@ serve(async (req) => {
             const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
             const currentPeriodStart = safeTimestamp(subscription.current_period_start);
 
-            // Track if this is a first-time activation (status change to active)
-            const isFirstTimeActivation = existingSubscription.status !== 'active' && 
-                                         (existingSubscription.status === 'trial' || 
-                                          existingSubscription.status === 'trial_expired') && 
-                                         !existingSubscription.subscription_start_date;
+            // Check if this is a first-time activation (missing start/end dates)
+            const isFirstTimeActivation = !existingSubscription.subscription_start_date || !existingSubscription.subscription_end_date;
             
             let subscription_start_date = existingSubscription.subscription_start_date;
             let subscription_end_date = existingSubscription.subscription_end_date;
             
-            // If this is first time activation, set the start/end dates
+            // If this is first time activation or dates are missing, set them based on current period
             if (isFirstTimeActivation) {
               subscription_start_date = currentPeriodStart;
               
-              // Calculate subscription end date based on plan type
+              // Calculate subscription end date based on plan type from the start date
               if (subscription_start_date) {
                 const startDate = new Date(subscription_start_date);
                 if (planType === 'monthly') {
@@ -168,10 +166,12 @@ serve(async (req) => {
                 }
               }
               
-              logStep("First time activation detected", {
+              logStep("Setting subscription dates for first-time activation", {
                 subscription_start_date,
                 subscription_end_date,
-                planType
+                planType,
+                currentPeriodStart,
+                currentPeriodEnd
               });
             }
             
@@ -181,10 +181,11 @@ serve(async (req) => {
               currentPeriodEnd,
               currentPeriodStart,
               subscription_start_date,
-              subscription_end_date
+              subscription_end_date,
+              isFirstTimeActivation
             });
 
-            // Update subscription record with activation dates if first time
+            // Update subscription record with proper dates
             const updateData: any = {
               status: 'active',
               plan_type: planType,
@@ -196,7 +197,7 @@ serve(async (req) => {
               updated_at: new Date().toISOString()
             };
             
-            // Only set these fields on first activation
+            // Set the dates if this is first activation or they're missing
             if (isFirstTimeActivation) {
               updateData.subscription_start_date = subscription_start_date;
               updateData.subscription_end_date = subscription_end_date;
@@ -345,8 +346,8 @@ serve(async (req) => {
 
       // Check if this is a first-time activation
       const isFirstTimeActivation = !existingSubscription || 
-                                   (existingSubscription.status !== 'active' && 
-                                   !existingSubscription.subscription_start_date);
+                                   !existingSubscription.subscription_start_date ||
+                                   !existingSubscription.subscription_end_date;
       
       let subscription_start_date = existingSubscription?.subscription_start_date;
       let subscription_end_date = existingSubscription?.subscription_end_date;
@@ -388,16 +389,16 @@ serve(async (req) => {
         plan_type: planType,
         current_period_end: currentPeriodEnd,
         current_period_start: currentPeriodStart,
-        subscription_end_date: subscription_end_date,
         trial_end_date: null, // Clear trial date for active subscriptions
         attrs: subscription,
         currency: subscription.currency || 'usd',
         updated_at: new Date().toISOString()
       };
 
-      // Only set subscription_start_date if this is first activation
+      // Only set subscription dates if this is first activation
       if (isFirstTimeActivation) {
         upsertData.subscription_start_date = subscription_start_date;
+        upsertData.subscription_end_date = subscription_end_date;
       }
 
       // Update subscription record using email for conflict resolution
