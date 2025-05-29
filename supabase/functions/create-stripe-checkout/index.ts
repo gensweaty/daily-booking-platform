@@ -27,33 +27,58 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
 
-    const { user_id, price_id, plan_type, return_url } = await req.json();
+    const requestBody = await req.json();
+    logStep("Request body received", requestBody);
+
+    const { user_id, price_id, plan_type, return_url } = requestBody;
     
     if (!user_id || !price_id || !plan_type) {
+      logStep("Missing required parameters", { user_id: !!user_id, price_id: !!price_id, plan_type: !!plan_type });
       throw new Error("Missing required parameters");
+    }
+
+    // Validate plan_type
+    if (!['monthly', 'yearly'].includes(plan_type)) {
+      logStep("Invalid plan type", { plan_type });
+      throw new Error(`Invalid plan type: ${plan_type}`);
     }
 
     // Get user data
     const { data: userData, error: userError } = await supabase.auth.admin.getUserById(user_id);
     if (userError || !userData.user?.email) {
+      logStep("User lookup failed", { error: userError });
       throw new Error("User not found or no email");
     }
 
-    logStep("User found", { userId: user_id, email: userData.user.email });
+    logStep("User found", { userId: user_id, email: userData.user.email, planType: plan_type });
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2023-10-16",
     });
 
-    // Check if customer already exists in customers table
-    const { data: existingCustomer } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('email', userData.user.email)
-      .limit(1)
-      .maybeSingle();
+    // Check if customer already exists
+    logStep("Checking for existing customer", { email: userData.user.email });
+    const existingCustomers = await stripe.customers.list({ 
+      email: userData.user.email,
+      limit: 1 
+    });
 
-    let customerId = existingCustomer?.id;
+    let customerId = existingCustomers.data.length > 0 ? existingCustomers.data[0].id : undefined;
+    logStep("Customer lookup result", { customerId: customerId || "none" });
+
+    // Validate the price ID exists in Stripe
+    try {
+      const priceValidation = await stripe.prices.retrieve(price_id);
+      logStep("Price validation successful", { 
+        priceId: price_id, 
+        currency: priceValidation.currency,
+        amount: priceValidation.unit_amount,
+        interval: priceValidation.recurring?.interval
+      });
+    } catch (priceError) {
+      logStep("Price validation failed", { priceId: price_id, error: priceError.message });
+      throw new Error(`Invalid price ID: ${price_id}`);
+    }
 
     // Create checkout session
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
@@ -74,24 +99,36 @@ serve(async (req) => {
       },
     };
 
+    logStep("Creating checkout session", { 
+      customerId: customerId || "new customer",
+      priceId: price_id,
+      planType: plan_type
+    });
+
     const session = await stripe.checkout.sessions.create(sessionParams);
     
-    logStep("Checkout session created", { 
+    logStep("Checkout session created successfully", { 
       sessionId: session.id, 
       url: session.url 
     });
 
-    // Store checkout session in our database
-    await supabase
-      .from('checkout_sessions')
-      .upsert({
-        id: session.id,
-        customer: session.customer as string,
-        subscription: session.subscription as string,
-        attrs: session,
-        currency: session.currency,
-        user_id: user_id,
-      });
+    // Store checkout session in database
+    try {
+      await supabase
+        .from('checkout_sessions')
+        .upsert({
+          id: session.id,
+          customer: session.customer as string,
+          subscription: session.subscription as string,
+          attrs: session,
+          currency: session.currency,
+          user_id: user_id,
+        });
+      logStep("Checkout session stored in database");
+    } catch (dbError) {
+      logStep("Database storage failed", { error: dbError });
+      // Don't fail the whole request if database storage fails
+    }
 
     return new Response(JSON.stringify({ 
       url: session.url,
@@ -103,7 +140,7 @@ serve(async (req) => {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in create-stripe-checkout", { message: errorMessage });
+    logStep("ERROR in create-stripe-checkout", { message: errorMessage, stack: error instanceof Error ? error.stack : undefined });
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
