@@ -294,15 +294,24 @@ serve(async (req) => {
         const trialEnd = new Date(existingSubscription.trial_end_date);
         const now = new Date();
         
+        logStep("Checking trial validity", {
+          trialEndDate: existingSubscription.trial_end_date,
+          currentTime: now.toISOString(),
+          isTrialValid: trialEnd > now,
+          hoursRemaining: Math.round((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60))
+        });
+        
         if (trialEnd > now) {
-          // Trial is still valid, but check Stripe for payment
+          // Trial is still valid, but check Stripe for payment first
           logStep("Trial still valid, checking Stripe for payment");
         } else {
-          // Trial has expired, update status
+          // Trial has expired, update status with proper constraint handling
+          logStep("Trial has expired, updating status");
           await supabase
             .from('subscriptions')
             .update({
               status: 'trial_expired',
+              subscription_end_date: existingSubscription.trial_end_date, // Set end date to satisfy constraint
               updated_at: new Date().toISOString()
             })
             .eq('user_id', user.id);
@@ -311,7 +320,7 @@ serve(async (req) => {
             success: true,
             status: 'trial_expired',
             message: 'Trial period has expired',
-            subscription_end_date: existingSubscription.subscription_end_date
+            subscription_end_date: existingSubscription.trial_end_date
           }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 200,
@@ -435,14 +444,36 @@ serve(async (req) => {
             status: 200,
           });
         }
-      }
-
-      // Update existing subscription to trial_expired if no Stripe customer
-      if (existingSubscription && existingSubscription.status !== 'trial_expired') {
+      } else {
+        // User has existing subscription but no Stripe customer
+        // Check if trial is still valid
+        if (existingSubscription.status === 'trial' && existingSubscription.trial_end_date) {
+          const trialEnd = new Date(existingSubscription.trial_end_date);
+          const now = new Date();
+          
+          if (trialEnd > now) {
+            // Trial is still valid, return trial status
+            logStep("Existing trial is still valid, returning trial status");
+            return new Response(JSON.stringify({
+              success: true,
+              status: 'trial',
+              planType: existingSubscription.plan_type,
+              trialEnd: existingSubscription.trial_end_date,
+              currentPeriodEnd: existingSubscription.trial_end_date,
+              subscription_end_date: null
+            }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            });
+          }
+        }
+        
+        // Trial has expired or user has no valid subscription, update with proper constraint handling
         const { error: upsertError } = await supabase
           .from('subscriptions')
           .update({
             status: 'trial_expired',
+            subscription_end_date: existingSubscription.trial_end_date || new Date().toISOString(),
             updated_at: new Date().toISOString()
           })
           .eq('email', user.email);
@@ -454,9 +485,9 @@ serve(async (req) => {
 
       return new Response(JSON.stringify({
         success: true,
-        status: 'trial_expired',
-        message: 'No Stripe customer found',
-        subscription_end_date: existingSubscription?.subscription_end_date
+        status: existingSubscription?.status === 'trial' ? 'trial' : 'trial_expired',
+        message: existingSubscription?.status === 'trial' ? 'Trial is active' : 'No Stripe customer found',
+        subscription_end_date: existingSubscription?.trial_end_date
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -553,7 +584,8 @@ serve(async (req) => {
     } else {
       logStep("No active subscription found");
       
-      // Update subscriptions with expired status using email conflict resolution
+      // Update subscriptions with expired status using email conflict resolution, but set proper end date
+      const endDate = existingSubscription?.trial_end_date || new Date().toISOString();
       const { error: upsertError } = await supabase
         .from('subscriptions')
         .upsert({
@@ -563,6 +595,7 @@ serve(async (req) => {
           status: 'trial_expired',
           plan_type: 'monthly',
           currency: 'usd',
+          subscription_end_date: endDate, // Set end date to satisfy constraint
           updated_at: new Date().toISOString()
         }, { onConflict: 'email' });
 
@@ -575,7 +608,7 @@ serve(async (req) => {
         success: true,
         status: 'trial_expired',
         message: 'Customer found but no active subscription',
-        subscription_end_date: existingSubscription?.subscription_end_date
+        subscription_end_date: endDate
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
