@@ -19,6 +19,8 @@ export interface Subscription {
   trial_end_date: string | null;
   current_period_start: string | null;
   current_period_end: string | null;
+  subscription_start_date: string | null;
+  subscription_end_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -32,4 +34,6 @@ export interface SubscriptionStatus {
   planType?: 'monthly' | 'yearly';
   isTrialExpired?: boolean;
   isSubscriptionExpired?: boolean;
+  subscription_start_date?: string;
+  subscription_end_date?: string;
 }

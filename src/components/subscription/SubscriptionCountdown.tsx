@@ -6,6 +6,7 @@ interface SubscriptionCountdownProps {
   status: 'trial' | 'trial_expired' | 'active' | 'expired' | 'canceled';
   currentPeriodEnd?: string;
   trialEnd?: string;
+  subscription_end_date?: string;
   planType?: 'monthly' | 'yearly';
   compact?: boolean;
 }
@@ -14,6 +15,7 @@ export const SubscriptionCountdown = ({
   status, 
   currentPeriodEnd, 
   trialEnd, 
+  subscription_end_date,
   planType,
   compact = false
 }: SubscriptionCountdownProps) => {
@@ -29,10 +31,16 @@ export const SubscriptionCountdown = ({
     const calculateTimeLeft = () => {
       let targetDate: Date | null = null;
       
-      // Determine the target date based on status
-      if (status === 'trial' && trialEnd) {
+      // First priority: use subscription_end_date for active subscriptions
+      if (status === 'active' && subscription_end_date) {
+        targetDate = new Date(subscription_end_date);
+      } 
+      // Second priority: use trial end date for trials
+      else if (status === 'trial' && trialEnd) {
         targetDate = new Date(trialEnd);
-      } else if (status === 'active' && currentPeriodEnd) {
+      } 
+      // Fallback: use current period end (legacy)
+      else if ((status === 'trial' || status === 'active') && currentPeriodEnd) {
         targetDate = new Date(currentPeriodEnd);
       }
       
@@ -64,7 +72,7 @@ export const SubscriptionCountdown = ({
     const timer = setInterval(calculateTimeLeft, 1000);
     
     return () => clearInterval(timer);
-  }, [status, currentPeriodEnd, trialEnd]);
+  }, [status, currentPeriodEnd, trialEnd, subscription_end_date]);
 
   const getStatusMessage = () => {
     if (status === 'trial') {
@@ -116,9 +124,9 @@ export const SubscriptionCountdown = ({
     );
   }
 
-  // Handle case when no valid dates are available
+  // Handle case when the subscription has ended (countdown reached zero)
   if (timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0) {
-    // If we have a status but no time left, it might mean the subscription just expired
+    // If we have a status but no time left, it means the subscription just expired
     if (status === 'trial' || status === 'active') {
       return (
         <div className="text-center p-4 rounded-lg border-2 border-red-200 bg-red-50">

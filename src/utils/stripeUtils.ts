@@ -33,6 +33,8 @@ interface StripeSyncResponse {
     currentPeriodEnd?: string;
     planType?: string;
     stripe_subscription_id?: string;
+    subscription_start_date?: string;
+    subscription_end_date?: string;
     error?: string;
     [key: string]: any;
   };
@@ -129,9 +131,11 @@ export const checkSubscriptionStatus = async () => {
       success: data?.success || true,
       status: data?.status || 'trial_expired',
       currentPeriodEnd: data?.currentPeriodEnd,
-      trialEnd: data?.trialEnd, // Add trial end date
+      trialEnd: data?.trialEnd,
       planType: data?.planType,
-      stripe_subscription_id: data?.stripe_subscription_id
+      stripe_subscription_id: data?.stripe_subscription_id,
+      subscription_start_date: data?.subscription_start_date,
+      subscription_end_date: data?.subscription_end_date
     };
   } catch (error) {
     console.error('Error in checkSubscriptionStatus:', error);
@@ -223,7 +227,9 @@ export const verifySession = async (sessionId: string) => {
       return { 
         success: true,
         status: data.status || 'active',
-        currentPeriodEnd: data.currentPeriodEnd || null
+        currentPeriodEnd: data.currentPeriodEnd || null,
+        subscription_start_date: data.subscription_start_date,
+        subscription_end_date: data.subscription_end_date
       };
     }
     
@@ -283,6 +289,11 @@ export const createTrialSubscription = async (userId: string) => {
       console.error('Error fetching subscription plan:', planError);
       throw new Error('Failed to fetch subscription plan');
     }
+    
+    console.log('Found plan:', plans);
+    
+    // Calculate dates
+    const trialEnd = addDays(new Date(), 14); // 14-day trial
     
     const { error } = await supabase.from('subscriptions').insert({
       user_id: userId,

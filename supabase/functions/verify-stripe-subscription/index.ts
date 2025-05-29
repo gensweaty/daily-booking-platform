@@ -144,7 +144,7 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
     // Get the associated user from Supabase
     const { data: subsData } = await supabase
       .from('subscriptions')
-      .select('user_id, email')
+      .select('user_id, email, status, subscription_start_date')
       .eq('stripe_customer_id', customerId)
       .maybeSingle();
 
@@ -177,10 +177,34 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
               const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
               const currentPeriodStart = safeTimestamp(subscription.current_period_start);
               
+              // Check if this is a first-time activation
+              const isFirstTimeActivation = true; // Assume first time since we're creating a new record
+              
+              let subscription_start_date = currentPeriodStart;
+              let subscription_end_date = null;
+              
+              // Calculate subscription end date for first-time activations
+              if (subscription_start_date) {
+                const startDate = new Date(subscription_start_date);
+                if (planType === 'monthly') {
+                  // Add 30 days
+                  const endDate = new Date(startDate);
+                  endDate.setDate(startDate.getDate() + 30);
+                  subscription_end_date = endDate.toISOString();
+                } else if (planType === 'yearly') {
+                  // Add 365 days
+                  const endDate = new Date(startDate);
+                  endDate.setDate(startDate.getDate() + 365);
+                  subscription_end_date = endDate.toISOString();
+                }
+              }
+              
               logStep("Creating subscription with timestamps", {
                 planType,
                 currentPeriodEnd,
                 currentPeriodStart,
+                subscription_start_date,
+                subscription_end_date,
                 rawEndTimestamp: subscription.current_period_end,
                 rawStartTimestamp: subscription.current_period_start
               });
@@ -197,6 +221,8 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
                   plan_type: planType,
                   current_period_end: currentPeriodEnd,
                   current_period_start: currentPeriodStart,
+                  subscription_start_date: subscription_start_date,
+                  subscription_end_date: subscription_end_date,
                   updated_at: new Date().toISOString()
                 }, { 
                   onConflict: 'email',
@@ -207,7 +233,11 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
                 logStep("Failed to create subscription", { error, userId: matchingUser.id });
                 throw error;
               } else {
-                logStep("Successfully created subscription for user", { userId: matchingUser.id });
+                logStep("Successfully created subscription for user", { 
+                  userId: matchingUser.id,
+                  subscription_start_date,
+                  subscription_end_date
+                });
               }
             }
           }
@@ -223,11 +253,56 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
     const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
     const currentPeriodStart = safeTimestamp(subscription.current_period_start);
 
+    // Check if this is a first-time activation (status changing from trial/trial_expired to active)
+    const isFirstTimeActivation = (subsData.status !== 'active' && 
+                                (subsData.status === 'trial' || subsData.status === 'trial_expired')) && 
+                                !subsData.subscription_start_date;
+    
+    // Prepare update data
+    const updateData: any = {
+      user_id: subsData.user_id,
+      email: subsData.email,
+      status: subscription.status === 'active' ? 'active' : 'inactive',
+      stripe_subscription_id: subscriptionId,
+      stripe_customer_id: customerId,
+      plan_type: planType,
+      current_period_end: currentPeriodEnd,
+      current_period_start: currentPeriodStart,
+      updated_at: new Date().toISOString()
+    };
+
+    // Handle first-time activation
+    if (isFirstTimeActivation) {
+      logStep("First-time activation detected", { previousStatus: subsData.status });
+      updateData.subscription_start_date = currentPeriodStart;
+      
+      // Calculate subscription end date based on plan type
+      if (currentPeriodStart) {
+        const startDate = new Date(currentPeriodStart);
+        let endDate = new Date(startDate);
+        
+        if (planType === 'monthly') {
+          endDate.setDate(startDate.getDate() + 30);
+        } else if (planType === 'yearly') {
+          endDate.setDate(startDate.getDate() + 365);
+        }
+        
+        updateData.subscription_end_date = endDate.toISOString();
+        
+        logStep("Setting subscription dates", {
+          start: updateData.subscription_start_date,
+          end: updateData.subscription_end_date,
+          planType
+        });
+      }
+    }
+
     logStep("Updating existing subscription with timestamps", {
       userId: subsData.user_id,
       planType,
       currentPeriodEnd,
       currentPeriodStart,
+      isFirstTimeActivation,
       rawEndTimestamp: subscription.current_period_end,
       rawStartTimestamp: subscription.current_period_start
     });
@@ -235,17 +310,7 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
     // Update Supabase using email for conflict resolution
     const { error } = await supabase
       .from('subscriptions')
-      .upsert({
-        user_id: subsData.user_id,
-        email: subsData.email,
-        status: subscription.status === 'active' ? 'active' : 'inactive',
-        stripe_subscription_id: subscriptionId,
-        stripe_customer_id: customerId,
-        plan_type: planType,
-        current_period_end: currentPeriodEnd,
-        current_period_start: currentPeriodStart,
-        updated_at: new Date().toISOString()
-      }, { 
+      .upsert(updateData, { 
         onConflict: 'email',
         ignoreDuplicates: false 
       });
@@ -258,7 +323,8 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
         userId: subsData.user_id, 
         status: subscription.status,
         planType,
-        currentPeriodEnd
+        currentPeriodEnd,
+        isFirstTimeActivation
       });
     }
   } catch (error) {
@@ -302,7 +368,7 @@ async function handleCheckoutSessionCompleted(session: any) {
     if (!userId && customerId) {
       const { data: existingSub } = await supabase
         .from("subscriptions")
-        .select("user_id")
+        .select("user_id, status, subscription_start_date")
         .eq("stripe_customer_id", customerId)
         .maybeSingle();
       
@@ -342,10 +408,59 @@ async function handleCheckoutSessionCompleted(session: any) {
     const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
     const currentPeriodStart = safeTimestamp(subscription.current_period_start);
 
+    // Check if existing subscription to see if this is a first-time activation
+    const { data: existingSub } = await supabase
+      .from("subscriptions")
+      .select("status, subscription_start_date")
+      .eq("user_id", userId)
+      .maybeSingle();
+    
+    // Check if this is first-time activation
+    const isFirstTimeActivation = !existingSub || 
+                              (existingSub.status !== 'active' && !existingSub.subscription_start_date);
+    
+    // Prepare update data
+    const updateData: any = {
+      user_id: userId,
+      email: customerEmail,
+      status: "active",
+      stripe_customer_id: customerId,
+      stripe_subscription_id: subscriptionId,
+      plan_type: planType,
+      current_period_end: currentPeriodEnd,
+      current_period_start: currentPeriodStart,
+      updated_at: new Date().toISOString()
+    };
+
+    // Handle first time activation
+    if (isFirstTimeActivation) {
+      updateData.subscription_start_date = currentPeriodStart;
+      
+      if (currentPeriodStart) {
+        const startDate = new Date(currentPeriodStart);
+        let endDate = new Date(startDate);
+        
+        if (planType === 'monthly') {
+          endDate.setDate(startDate.getDate() + 30);
+        } else if (planType === 'yearly') {
+          endDate.setDate(startDate.getDate() + 365);
+        }
+        
+        updateData.subscription_end_date = endDate.toISOString();
+      }
+      
+      logStep("First-time activation via checkout", {
+        subscription_start_date: updateData.subscription_start_date,
+        subscription_end_date: updateData.subscription_end_date,
+        planType
+      });
+    }
+
     logStep("Processing checkout with subscription details", {
       planType,
       currentPeriodEnd,
       currentPeriodStart,
+      isFirstTimeActivation,
       rawEndTimestamp: subscription.current_period_end,
       rawStartTimestamp: subscription.current_period_start
     });
@@ -353,17 +468,7 @@ async function handleCheckoutSessionCompleted(session: any) {
     // Update database using email for conflict resolution
     const { error } = await supabase
       .from("subscriptions")
-      .upsert({
-        user_id: userId,
-        email: customerEmail,
-        status: "active",
-        stripe_customer_id: customerId,
-        stripe_subscription_id: subscriptionId,
-        plan_type: planType,
-        current_period_end: currentPeriodEnd,
-        current_period_start: currentPeriodStart,
-        updated_at: new Date().toISOString()
-      }, {
+      .upsert(updateData, {
         onConflict: "email",
         ignoreDuplicates: false
       });
@@ -377,7 +482,9 @@ async function handleCheckoutSessionCompleted(session: any) {
       userId,
       subscriptionId,
       planType,
-      email: customerEmail
+      email: customerEmail,
+      subscription_start_date: updateData.subscription_start_date,
+      subscription_end_date: updateData.subscription_end_date
     });
   } catch (error) {
     logStep("Error processing payment", { 
@@ -461,7 +568,7 @@ async function handleManualSync(body: any) {
     // Get user's subscription from database
     const { data: subData } = await supabase
       .from("subscriptions")
-      .select("stripe_customer_id, stripe_subscription_id, email")
+      .select("stripe_customer_id, stripe_subscription_id, email, status, subscription_start_date")
       .eq("user_id", user_id)
       .maybeSingle();
     
@@ -503,7 +610,7 @@ async function handleManualSync(body: any) {
             }
             
             // Continue with sync using this customer
-            return await syncCustomerSubscriptions(user_id, customer.id);
+            return await syncCustomerSubscriptions(user_id, customer.id, subData);
           }
         }
       }
@@ -514,7 +621,7 @@ async function handleManualSync(body: any) {
       );
     }
     
-    return await syncCustomerSubscriptions(user_id, subData.stripe_customer_id);
+    return await syncCustomerSubscriptions(user_id, subData.stripe_customer_id, subData);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep(`Error in manual sync: ${errorMessage}`, { userId: user_id, error: errorMessage });
@@ -525,7 +632,7 @@ async function handleManualSync(body: any) {
   }
 }
 
-async function syncCustomerSubscriptions(user_id: string, customerId: string) {
+async function syncCustomerSubscriptions(user_id: string, customerId: string, existingSubscription: any = null) {
   try {
     // Get active subscriptions from Stripe using REST API
     const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
@@ -548,11 +655,52 @@ async function syncCustomerSubscriptions(user_id: string, customerId: string) {
       const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
       const currentPeriodStart = safeTimestamp(subscription.current_period_start);
       
+      // Check for first-time activation
+      const isFirstTimeActivation = existingSubscription && 
+                                existingSubscription.status !== 'active' && 
+                                !existingSubscription.subscription_start_date;
+      
+      // Prepare update data
+      const updateData: any = {
+        status: 'active',
+        plan_type: planType,
+        current_period_end: currentPeriodEnd,
+        current_period_start: currentPeriodStart,
+        stripe_subscription_id: subscription.id
+      };
+      
+      // Handle first-time activation
+      if (isFirstTimeActivation) {
+        updateData.subscription_start_date = currentPeriodStart;
+        
+        if (currentPeriodStart) {
+          const startDate = new Date(currentPeriodStart);
+          let endDate = new Date(startDate);
+          
+          if (planType === 'monthly') {
+            endDate.setDate(startDate.getDate() + 30);
+          } else if (planType === 'yearly') {
+            endDate.setDate(startDate.getDate() + 365);
+          }
+          
+          updateData.subscription_end_date = endDate.toISOString();
+        }
+        
+        logStep("First-time activation via manual sync", {
+          subscription_start_date: updateData.subscription_start_date,
+          subscription_end_date: updateData.subscription_end_date,
+          planType
+        });
+      }
+      
       logStep("Syncing active subscription", {
         userId: user_id,
         planType,
         currentPeriodEnd,
-        currentPeriodStart
+        currentPeriodStart,
+        isFirstTimeActivation,
+        subscription_start_date: updateData.subscription_start_date,
+        subscription_end_date: updateData.subscription_end_date
       });
       
       // Get user email for upsert
@@ -564,36 +712,33 @@ async function syncCustomerSubscriptions(user_id: string, customerId: string) {
       }
       
       // Update database using upsert with email conflict resolution
-      const { error } = await supabase
+      const { error, data: updatedSub } = await supabase
         .from("subscriptions")
-        .upsert({
-          user_id: user_id,
-          email: userEmail,
-          status: "active",
-          stripe_customer_id: customerId,
-          stripe_subscription_id: subscription.id,
-          plan_type: planType,
-          current_period_end: currentPeriodEnd,
-          current_period_start: currentPeriodStart,
-          updated_at: new Date().toISOString()
-        }, { 
-          onConflict: "email",
-          ignoreDuplicates: false 
-        });
+        .update(updateData)
+        .eq("user_id", user_id)
+        .select("subscription_start_date, subscription_end_date")
+        .single();
       
       if (error) {
         logStep("Database update error", { error, userId: user_id });
         throw new Error(`Database update failed: ${error.message}`);
       }
       
-      logStep("Manual sync successful", { userId: user_id, status: "active" });
+      logStep("Manual sync successful", { 
+        userId: user_id, 
+        status: "active",
+        subscription_start_date: updatedSub?.subscription_start_date,
+        subscription_end_date: updatedSub?.subscription_end_date
+      });
       
       return new Response(
         JSON.stringify({ 
           success: true, 
           status: "active",
           planType: planType,
-          currentPeriodEnd: currentPeriodEnd
+          currentPeriodEnd: currentPeriodEnd,
+          subscription_start_date: updatedSub?.subscription_start_date,
+          subscription_end_date: updatedSub?.subscription_end_date
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
@@ -614,19 +759,34 @@ async function syncCustomerSubscriptions(user_id: string, customerId: string) {
           // Process the most recent paid session
           await handleCheckoutSessionCompleted(paidSessions[0]);
           
+          // Fetch the updated subscription
+          const { data: updatedSub } = await supabase
+            .from("subscriptions")
+            .select("subscription_start_date, subscription_end_date, status")
+            .eq("user_id", user_id)
+            .single();
+          
           return new Response(
             JSON.stringify({ 
               success: true, 
               status: "active",
-              message: "Found and processed recent payment"
+              message: "Found and processed recent payment",
+              subscription_start_date: updatedSub?.subscription_start_date,
+              subscription_end_date: updatedSub?.subscription_end_date
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
           );
         }
       }
       
+      // No active subscription found, return existing subscription data
       return new Response(
-        JSON.stringify({ success: true, status: "trial_expired" }),
+        JSON.stringify({ 
+          success: true, 
+          status: "trial_expired",
+          subscription_start_date: existingSubscription?.subscription_start_date,
+          subscription_end_date: existingSubscription?.subscription_end_date
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }

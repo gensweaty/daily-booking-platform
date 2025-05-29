@@ -88,7 +88,8 @@ serve(async (req) => {
             status: 'trial',
             planType: existingSubscription.plan_type,
             trialEnd: existingSubscription.trial_end_date,
-            currentPeriodEnd: existingSubscription.current_period_end
+            currentPeriodEnd: existingSubscription.current_period_end,
+            subscription_end_date: existingSubscription.subscription_end_date
           }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 200,
@@ -106,7 +107,8 @@ serve(async (req) => {
           return new Response(JSON.stringify({
             success: true,
             status: 'trial_expired',
-            message: 'Trial period has expired'
+            message: 'Trial period has expired',
+            subscription_end_date: existingSubscription.subscription_end_date
           }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 200,
@@ -135,28 +137,73 @@ serve(async (req) => {
             const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
             const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
             const currentPeriodStart = safeTimestamp(subscription.current_period_start);
+
+            // Track if this is a first-time activation (status change to active)
+            const isFirstTimeActivation = existingSubscription.status !== 'active' && 
+                                         (existingSubscription.status === 'trial' || 
+                                          existingSubscription.status === 'trial_expired') && 
+                                         !existingSubscription.subscription_start_date;
+            
+            let subscription_start_date = existingSubscription.subscription_start_date;
+            let subscription_end_date = existingSubscription.subscription_end_date;
+            
+            // If this is first time activation, set the start/end dates
+            if (isFirstTimeActivation) {
+              subscription_start_date = currentPeriodStart;
+              
+              // Calculate subscription end date based on plan type
+              if (subscription_start_date) {
+                const startDate = new Date(subscription_start_date);
+                if (planType === 'monthly') {
+                  // Add 30 days
+                  const endDate = new Date(startDate);
+                  endDate.setDate(startDate.getDate() + 30);
+                  subscription_end_date = endDate.toISOString();
+                } else if (planType === 'yearly') {
+                  // Add 365 days
+                  const endDate = new Date(startDate);
+                  endDate.setDate(startDate.getDate() + 365);
+                  subscription_end_date = endDate.toISOString();
+                }
+              }
+              
+              logStep("First time activation detected", {
+                subscription_start_date,
+                subscription_end_date,
+                planType
+              });
+            }
             
             logStep("Found active subscription", { 
               subscriptionId: subscription.id,
               planType,
               currentPeriodEnd,
-              currentPeriodStart
+              currentPeriodStart,
+              subscription_start_date,
+              subscription_end_date
             });
 
-            // Update subscription record
+            // Update subscription record with activation dates if first time
+            const updateData: any = {
+              status: 'active',
+              plan_type: planType,
+              current_period_end: currentPeriodEnd,
+              current_period_start: currentPeriodStart,
+              stripe_subscription_id: subscription.id,
+              attrs: subscription,
+              currency: subscription.currency || 'usd',
+              updated_at: new Date().toISOString()
+            };
+            
+            // Only set these fields on first activation
+            if (isFirstTimeActivation) {
+              updateData.subscription_start_date = subscription_start_date;
+              updateData.subscription_end_date = subscription_end_date;
+            }
+
             const { error: updateError } = await supabase
               .from('subscriptions')
-              .update({
-                status: 'active',
-                plan_type: planType,
-                current_period_end: currentPeriodEnd,
-                current_period_start: currentPeriodStart,
-                subscription_end_date: currentPeriodEnd,
-                stripe_subscription_id: subscription.id,
-                attrs: subscription,
-                currency: subscription.currency || 'usd',
-                updated_at: new Date().toISOString()
-              })
+              .update(updateData)
               .eq('email', user.email);
 
             if (updateError) {
@@ -169,7 +216,9 @@ serve(async (req) => {
               status: 'active',
               planType: planType,
               stripe_subscription_id: subscription.id,
-              currentPeriodEnd: currentPeriodEnd
+              currentPeriodEnd: currentPeriodEnd,
+              subscription_start_date: subscription_start_date,
+              subscription_end_date: subscription_end_date
             }), {
               headers: { ...corsHeaders, "Content-Type": "application/json" },
               status: 200,
@@ -256,7 +305,8 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         success: true,
         status: 'trial_expired',
-        message: 'No Stripe customer found'
+        message: 'No Stripe customer found',
+        subscription_end_date: existingSubscription?.subscription_end_date
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -291,24 +341,67 @@ serve(async (req) => {
       const currentPeriodEnd = safeTimestamp(subscription.current_period_end);
       const currentPeriodStart = safeTimestamp(subscription.current_period_start);
 
+      // Check if this is a first-time activation
+      const isFirstTimeActivation = !existingSubscription || 
+                                   (existingSubscription.status !== 'active' && 
+                                   !existingSubscription.subscription_start_date);
+      
+      let subscription_start_date = existingSubscription?.subscription_start_date;
+      let subscription_end_date = existingSubscription?.subscription_end_date;
+      
+      // If this is first time activation, set the start/end dates
+      if (isFirstTimeActivation) {
+        subscription_start_date = currentPeriodStart;
+        
+        // Calculate subscription end date based on plan type
+        if (subscription_start_date) {
+          const startDate = new Date(subscription_start_date);
+          if (planType === 'monthly') {
+            // Add 30 days
+            const endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 30);
+            subscription_end_date = endDate.toISOString();
+          } else if (planType === 'yearly') {
+            // Add 365 days
+            const endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 365);
+            subscription_end_date = endDate.toISOString();
+          }
+        }
+        
+        logStep("First time activation detected for new customer", {
+          subscription_start_date,
+          subscription_end_date,
+          planType
+        });
+      }
+
+      // Prepare update data
+      const upsertData: any = {
+        user_id: user.id,
+        email: user.email,
+        stripe_customer_id: stripeCustomer.id,
+        stripe_subscription_id: subscription.id,
+        status: 'active',
+        plan_type: planType,
+        current_period_end: currentPeriodEnd,
+        current_period_start: currentPeriodStart,
+        subscription_end_date: subscription_end_date,
+        trial_end_date: null, // Clear trial date for active subscriptions
+        attrs: subscription,
+        currency: subscription.currency || 'usd',
+        updated_at: new Date().toISOString()
+      };
+
+      // Only set subscription_start_date if this is first activation
+      if (isFirstTimeActivation) {
+        upsertData.subscription_start_date = subscription_start_date;
+      }
+
       // Update subscription record using email for conflict resolution
       const { error: upsertError } = await supabase
         .from('subscriptions')
-        .upsert({
-          user_id: user.id,
-          email: user.email,
-          stripe_customer_id: stripeCustomer.id,
-          stripe_subscription_id: subscription.id,
-          status: 'active',
-          plan_type: planType,
-          current_period_end: currentPeriodEnd,
-          current_period_start: currentPeriodStart,
-          subscription_end_date: currentPeriodEnd,
-          trial_end_date: null, // Clear trial date for active subscriptions
-          attrs: subscription,
-          currency: subscription.currency || 'usd',
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'email' });
+        .upsert(upsertData, { onConflict: 'email' });
 
       if (upsertError) {
         logStep("Error upserting subscription", upsertError);
@@ -320,7 +413,9 @@ serve(async (req) => {
         status: 'active',
         planType: planType,
         stripe_subscription_id: subscription.id,
-        currentPeriodEnd: currentPeriodEnd
+        currentPeriodEnd: currentPeriodEnd,
+        subscription_start_date: subscription_start_date,
+        subscription_end_date: subscription_end_date
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -349,7 +444,8 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         success: true,
         status: 'trial_expired',
-        message: 'Customer found but no active subscription'
+        message: 'Customer found but no active subscription',
+        subscription_end_date: existingSubscription?.subscription_end_date
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
