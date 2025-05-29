@@ -4,7 +4,7 @@ import { addDays } from "date-fns";
 // Update the Stripe price IDs to match your actual Stripe account
 const STRIPE_PRICES = {
   monthly: 'price_1RRIfK2MNASmq1vOrdsjIrYn',
-  yearly: 'price_1RUC8R2MNASmq1vOqUKYksKA',
+  yearly: 'price_1RUDGz2MNASmq1vOx7sZB7VR',
 };
 
 interface StripeCheckoutResponse {
