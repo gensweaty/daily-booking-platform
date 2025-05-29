@@ -1,4 +1,5 @@
 
+
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -25,7 +26,13 @@ serve(async (req) => {
     logStep("🔥 YEARLY DEBUG: Function started");
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    if (!authHeader) {
+      logStep("❌ YEARLY DEBUG: No authorization header provided");
+      return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     const requestBody = await req.json();
     logStep("🔥 YEARLY DEBUG: Request body received", requestBody);
@@ -35,7 +42,7 @@ serve(async (req) => {
     
     if (!user_id || !price_id || !plan_type) {
       logStep("❌ YEARLY DEBUG: Missing required parameters", { user_id: !!user_id, price_id: !!price_id, plan_type: !!plan_type });
-      return new Response(JSON.stringify({ error: 'Missing required parameters' }), {
+      return new Response(JSON.stringify({ error: 'Missing required parameters: user_id, price_id, or plan_type' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -48,7 +55,7 @@ serve(async (req) => {
     // Validate plan_type
     if (!['monthly', 'yearly'].includes(plan_type)) {
       logStep("❌ YEARLY DEBUG: Invalid plan type", { plan_type });
-      return new Response(JSON.stringify({ error: `Invalid plan type: ${plan_type}` }), {
+      return new Response(JSON.stringify({ error: `Invalid plan type: ${plan_type}. Must be 'monthly' or 'yearly'` }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -58,7 +65,10 @@ serve(async (req) => {
     const { data: userData, error: userError } = await supabase.auth.admin.getUserById(user_id);
     if (userError || !userData.user?.email) {
       logStep("❌ YEARLY DEBUG: User lookup failed", { error: userError });
-      throw new Error("User not found or no email");
+      return new Response(JSON.stringify({ error: 'User not found or no email associated' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     logStep("✅ YEARLY DEBUG: User found", { userId: user_id, email: userData.user.email, planType: plan_type });
@@ -91,19 +101,28 @@ serve(async (req) => {
         product: priceValidation.product
       });
 
-      // Ensure the price is recurring for subscription mode
-      if (priceValidation.type !== 'recurring' || !priceValidation.recurring) {
-        logStep("❌ YEARLY DEBUG: Price is not recurring", { priceId: price_id, type: priceValidation.type });
-        return new Response(JSON.stringify({ error: `Price ${price_id} is not a recurring price. Subscription mode requires recurring prices.` }), {
+      // Check if price is active
+      if (!priceValidation.active) {
+        logStep("❌ YEARLY DEBUG: Price is not active", { priceId: price_id, active: priceValidation.active });
+        return new Response(JSON.stringify({ 
+          error: `Price ${price_id} is not active in Stripe. Please contact support.` 
+        }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
 
-      // Check if price is active
-      if (!priceValidation.active) {
-        logStep("❌ YEARLY DEBUG: Price is not active", { priceId: price_id, active: priceValidation.active });
-        return new Response(JSON.stringify({ error: `Price ${price_id} is not active in Stripe.` }), {
+      // For subscription mode, ensure the price is recurring
+      if (priceValidation.type !== 'recurring' || !priceValidation.recurring) {
+        logStep("❌ YEARLY DEBUG: Price is not recurring", { priceId: price_id, type: priceValidation.type });
+        return new Response(JSON.stringify({ 
+          error: `Price ${price_id} is configured as a one-time payment, not a subscription. Please use a recurring price for ${plan_type} subscriptions.`,
+          details: {
+            priceType: priceValidation.type,
+            planType: plan_type,
+            solution: `Create a new ${plan_type} recurring price in your Stripe dashboard`
+          }
+        }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
@@ -111,13 +130,16 @@ serve(async (req) => {
 
     } catch (priceError) {
       logStep("❌ YEARLY DEBUG: Price validation failed", { priceId: price_id, error: priceError.message });
-      return new Response(JSON.stringify({ error: `Invalid price ID: ${price_id} - ${priceError.message}` }), {
+      return new Response(JSON.stringify({ 
+        error: `Invalid price ID: ${price_id}`,
+        details: priceError.message 
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    // FIXED: Create checkout session with conditional customer/customer_email
+    // Create checkout session with conditional customer/customer_email
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ['card'],
       mode: 'subscription',
@@ -133,7 +155,7 @@ serve(async (req) => {
         user_id: user_id,
         plan_type: plan_type,
       },
-      // CRITICAL FIX: Use either customer OR customer_email, never both
+      // Use either customer OR customer_email, never both
       ...(customerId
         ? { customer: customerId }
         : { customer_email: userData.user.email }
@@ -187,9 +209,13 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("❌ YEARLY DEBUG: ERROR in create-stripe-checkout", { message: errorMessage, stack: error instanceof Error ? error.stack : undefined });
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ 
+      error: errorMessage,
+      timestamp: new Date().toISOString()
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
   }
 });
+

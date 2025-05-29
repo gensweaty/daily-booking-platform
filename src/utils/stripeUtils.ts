@@ -14,6 +14,7 @@ interface StripeCheckoutResponse {
   };
   error?: {
     message?: string;
+    details?: any;
     [key: string]: any;
   };
   [key: string]: any;
@@ -96,6 +97,16 @@ export const createCheckoutSession = async (planType: 'monthly' | 'yearly') => {
     
     if (error) {
       console.error('❌ YEARLY DEBUG: Error from edge function:', error);
+      
+      // Handle specific error types with user-friendly messages
+      if (error.message?.includes('not a recurring price')) {
+        throw new Error(`The ${planType} plan is not properly configured as a subscription. Please contact support to fix this issue.`);
+      } else if (error.message?.includes('not active')) {
+        throw new Error(`The ${planType} plan is currently unavailable. Please try again later or contact support.`);
+      } else if (error.message?.includes('Invalid price ID')) {
+        throw new Error(`The ${planType} plan configuration is invalid. Please contact support.`);
+      }
+      
       throw new Error(error.message || 'Failed to create checkout session');
     }
     
