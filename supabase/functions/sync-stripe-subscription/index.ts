@@ -37,7 +37,7 @@ function safeTimestamp(timestamp: number | null | undefined): string | null {
 
 // Function to fix active subscriptions with missing dates
 async function fixActiveSubscriptionDates(supabase: any, userId: string, planType: string) {
-  logStep("Attempting to fix missing subscription dates", { userId, planType });
+  logStep("FIXING MISSING SUBSCRIPTION DATES", { userId, planType });
   
   // Get the subscription record to see when it was created/updated
   const { data: subRecord, error: subError } = await supabase
