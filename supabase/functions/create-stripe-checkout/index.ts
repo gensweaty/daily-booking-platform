@@ -117,15 +117,13 @@ serve(async (req) => {
       });
     }
 
-    // Step 1: Create checkout session with the provided price_id
+    // FIXED: Create checkout session with conditional customer/customer_email
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ['card'],
       mode: 'subscription',
-      customer: customerId,
-      customer_email: customerId ? undefined : userData.user.email,
       line_items: [
         {
-          price: price_id, // use what the client provided
+          price: price_id,
           quantity: 1,
         },
       ],
@@ -135,15 +133,21 @@ serve(async (req) => {
         user_id: user_id,
         plan_type: plan_type,
       },
+      // CRITICAL FIX: Use either customer OR customer_email, never both
+      ...(customerId
+        ? { customer: customerId }
+        : { customer_email: userData.user.email }
+      ),
     };
 
     logStep("🔥 YEARLY DEBUG: Creating checkout session", { 
       customerId: customerId || "new customer",
       priceId: price_id,
       planType: plan_type,
-      mode: "subscription",
-      sessionParams: sessionParams
+      mode: "subscription"
     });
+
+    logStep("🧾 YEARLY DEBUG: Final sessionParams", sessionParams);
 
     const session = await stripe.checkout.sessions.create(sessionParams);
     
