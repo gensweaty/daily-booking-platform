@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -138,19 +139,27 @@ function parseStripeTimestamp(value: any, fieldName: string): string | null {
   }
 }
 
-// Calculate subscription end date from start date and plan type
+// Step 3: Enhanced plan recognition for yearly subscriptions
 function calculateSubscriptionEndDate(startDate: string, planType: string): string {
   const start = new Date(startDate);
   let endDate = new Date(start);
   
-  if (planType === 'monthly') {
-    endDate.setDate(start.getDate() + 30);
-  } else if (planType === 'yearly') {
+  if (planType === 'yearly') {
+    // Add 365 days for yearly plan
     endDate.setDate(start.getDate() + 365);
+  } else if (planType === 'monthly') {
+    endDate.setDate(start.getDate() + 30);
   } else {
     // Default to 30 days
     endDate.setDate(start.getDate() + 30);
   }
+  
+  logStep(`Calculated subscription end date`, { 
+    startDate, 
+    planType, 
+    endDate: endDate.toISOString(),
+    daysAdded: planType === 'yearly' ? 365 : 30
+  });
   
   return endDate.toISOString();
 }
@@ -346,11 +355,17 @@ serve(async (req) => {
           
           if (subscriptions.data.length > 0) {
             const subscription = subscriptions.data[0];
-            const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+            
+            // Step 3: Enhanced plan recognition for yearly subscriptions
+            const interval = subscription.items.data[0].price.recurring?.interval;
+            const planType = interval === 'year' ? 'yearly'
+                          : interval === 'month' ? 'monthly'
+                          : 'unknown';
             
             logStep("Found active Stripe subscription - FULL DEBUG", {
               subscriptionId: subscription.id,
               planType,
+              interval,
               fullStripeObject: subscription,
               timestampFields: {
                 created: subscription.created,
@@ -518,11 +533,16 @@ serve(async (req) => {
       const subscription = subscriptions.data[0];
       logStep("Found active subscription for customer", { subscriptionId: subscription.id });
 
-      const planType = subscription.items.data[0].price.recurring?.interval === "month" ? "monthly" : "yearly";
+      // Step 3: Enhanced plan recognition for yearly subscriptions  
+      const interval = subscription.items.data[0].price.recurring?.interval;
+      const planType = interval === 'year' ? 'yearly'
+                    : interval === 'month' ? 'monthly'
+                    : 'unknown';
       
       logStep("New customer active subscription - FULL DEBUG", {
         subscriptionId: subscription.id,
         planType,
+        interval,
         fullStripeObject: subscription,
         timestampFields: {
           created: subscription.created,

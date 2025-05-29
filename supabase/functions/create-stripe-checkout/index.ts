@@ -30,18 +30,28 @@ serve(async (req) => {
     const requestBody = await req.json();
     logStep("Request body received", requestBody);
 
-    // Extract only the required parameters, ignore any extra ones like product_id
+    // Step 1: Accept and validate required parameters
     const { user_id, price_id, plan_type, return_url } = requestBody;
     
     if (!user_id || !price_id || !plan_type) {
       logStep("Missing required parameters", { user_id: !!user_id, price_id: !!price_id, plan_type: !!plan_type });
-      throw new Error("Missing required parameters");
+      return new Response(JSON.stringify({ error: 'Missing required parameters' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
+
+    // Step 2: Enhanced logging for debugging
+    console.log('Received plan_type:', plan_type);
+    console.log('Using price_id:', price_id);
 
     // Validate plan_type
     if (!['monthly', 'yearly'].includes(plan_type)) {
       logStep("Invalid plan type", { plan_type });
-      throw new Error(`Invalid plan type: ${plan_type}`);
+      return new Response(JSON.stringify({ error: `Invalid plan type: ${plan_type}` }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     // Get user data
@@ -81,24 +91,31 @@ serve(async (req) => {
       // Ensure the price is recurring for subscription mode
       if (priceValidation.type !== 'recurring' || !priceValidation.recurring) {
         logStep("Price is not recurring", { priceId: price_id, type: priceValidation.type });
-        throw new Error(`Price ${price_id} is not a recurring price. Subscription mode requires recurring prices.`);
+        return new Response(JSON.stringify({ error: `Price ${price_id} is not a recurring price. Subscription mode requires recurring prices.` }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       }
     } catch (priceError) {
       logStep("Price validation failed", { priceId: price_id, error: priceError.message });
-      throw new Error(`Invalid price ID: ${price_id} - ${priceError.message}`);
+      return new Response(JSON.stringify({ error: `Invalid price ID: ${price_id} - ${priceError.message}` }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    // Create checkout session parameters
+    // Step 1: Create checkout session with the provided price_id
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
+      payment_method_types: ['card'],
+      mode: 'subscription',
       customer: customerId,
       customer_email: customerId ? undefined : userData.user.email,
       line_items: [
         {
-          price: price_id,
+          price: price_id, // use what the client provided
           quantity: 1,
         },
       ],
-      mode: "subscription",
       success_url: `${return_url}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: return_url,
       metadata: {
