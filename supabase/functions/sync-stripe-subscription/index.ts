@@ -73,7 +73,8 @@ serve(async (req) => {
         status: existingSubscription.status,
         planType: existingSubscription.plan_type,
         currentPeriodEnd: existingSubscription.current_period_end,
-        trialEndDate: existingSubscription.trial_end_date
+        trialEndDate: existingSubscription.trial_end_date,
+        subscriptionEndDate: existingSubscription.subscription_end_date
       });
 
       // For trial subscriptions, check if trial is still valid
@@ -279,7 +280,8 @@ serve(async (req) => {
             status: 'trial',
             planType: 'monthly',
             trialEnd: trialEndDate.toISOString(),
-            currentPeriodEnd: trialEndDate.toISOString()
+            currentPeriodEnd: trialEndDate.toISOString(),
+            subscription_end_date: null
           }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 200,
