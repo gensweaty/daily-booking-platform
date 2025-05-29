@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -11,7 +10,7 @@ function logStep(step: string, data?: any) {
   console.log(`[SYNC-STRIPE-SUBSCRIPTION] ${step}`, data ? JSON.stringify(data) : "");
 }
 
-// Safe timestamp conversion function
+// Safe timestamp conversion function with fallback logic
 function safeTimestamp(timestamp: number | null | undefined): string | null {
   if (timestamp == null || typeof timestamp !== 'number') {
     logStep("Timestamp is null or undefined", { timestamp });
@@ -34,6 +33,67 @@ function safeTimestamp(timestamp: number | null | undefined): string | null {
     logStep("Error converting timestamp", { timestamp, error: error.message });
     return null;
   }
+}
+
+// Function to fix active subscriptions with missing dates
+async function fixActiveSubscriptionDates(supabase: any, userId: string, planType: string) {
+  logStep("Attempting to fix missing subscription dates", { userId, planType });
+  
+  // Get the subscription record to see when it was created/updated
+  const { data: subRecord, error: subError } = await supabase
+    .from('subscriptions')
+    .select('created_at, updated_at')
+    .eq('user_id', userId)
+    .single();
+  
+  if (subError || !subRecord) {
+    logStep("Could not fetch subscription record for date fixing", { error: subError });
+    return { subscription_start_date: null, subscription_end_date: null };
+  }
+  
+  // Use the subscription creation date as start date
+  const startDate = new Date(subRecord.created_at);
+  const subscription_start_date = startDate.toISOString();
+  
+  // Calculate end date based on plan type
+  let endDate = new Date(startDate);
+  if (planType === 'monthly') {
+    endDate.setDate(startDate.getDate() + 30);
+  } else if (planType === 'yearly') {
+    endDate.setDate(startDate.getDate() + 365);
+  } else {
+    // Default to 30 days
+    endDate.setDate(startDate.getDate() + 30);
+  }
+  
+  const subscription_end_date = endDate.toISOString();
+  
+  logStep("Calculated subscription dates from creation time", {
+    created_at: subRecord.created_at,
+    subscription_start_date,
+    subscription_end_date,
+    planType
+  });
+  
+  // Update the subscription with the calculated dates
+  const { error: updateError } = await supabase
+    .from('subscriptions')
+    .update({
+      subscription_start_date,
+      subscription_end_date,
+      current_period_start: subscription_start_date,
+      current_period_end: subscription_end_date,
+      updated_at: new Date().toISOString()
+    })
+    .eq('user_id', userId);
+  
+  if (updateError) {
+    logStep("Error updating subscription with calculated dates", updateError);
+  } else {
+    logStep("Successfully updated subscription with calculated dates");
+  }
+  
+  return { subscription_start_date, subscription_end_date };
 }
 
 serve(async (req) => {
@@ -77,6 +137,37 @@ serve(async (req) => {
         subscriptionStartDate: existingSubscription.subscription_start_date,
         subscriptionEndDate: existingSubscription.subscription_end_date
       });
+
+      // CRITICAL FIX: Check for active subscriptions with missing dates
+      if (existingSubscription.status === 'active' && 
+          (!existingSubscription.subscription_start_date || !existingSubscription.subscription_end_date)) {
+        
+        logStep("FOUND ACTIVE SUBSCRIPTION WITH MISSING DATES - FIXING NOW", {
+          userId: user.id,
+          email: user.email,
+          status: existingSubscription.status,
+          planType: existingSubscription.plan_type
+        });
+        
+        const fixedDates = await fixActiveSubscriptionDates(
+          supabase, 
+          user.id, 
+          existingSubscription.plan_type || 'monthly'
+        );
+        
+        return new Response(JSON.stringify({
+          success: true,
+          status: 'active',
+          planType: existingSubscription.plan_type,
+          currentPeriodEnd: fixedDates.subscription_end_date,
+          subscription_start_date: fixedDates.subscription_start_date,
+          subscription_end_date: fixedDates.subscription_end_date,
+          message: 'Fixed missing subscription dates'
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
 
       // For trial subscriptions, check if trial is still valid
       if (existingSubscription.status === 'trial' && existingSubscription.trial_end_date) {
@@ -146,24 +237,30 @@ serve(async (req) => {
             let subscription_start_date = existingSubscription.subscription_start_date;
             let subscription_end_date = existingSubscription.subscription_end_date;
             
-            // If this is first time activation or dates are missing, set them based on current period
+            // If this is first time activation or dates are missing, set them based on current period OR fallback to creation time
             if (isFirstTimeActivation) {
-              subscription_start_date = currentPeriodStart;
-              
-              // Calculate subscription end date based on plan type from the start date
-              if (subscription_start_date) {
-                const startDate = new Date(subscription_start_date);
-                if (planType === 'monthly') {
-                  // Add 30 days
-                  const endDate = new Date(startDate);
-                  endDate.setDate(startDate.getDate() + 30);
-                  subscription_end_date = endDate.toISOString();
-                } else if (planType === 'yearly') {
-                  // Add 365 days
-                  const endDate = new Date(startDate);
-                  endDate.setDate(startDate.getDate() + 365);
-                  subscription_end_date = endDate.toISOString();
+              if (currentPeriodStart) {
+                subscription_start_date = currentPeriodStart;
+                
+                // Calculate subscription end date based on plan type from the start date
+                if (subscription_start_date) {
+                  const startDate = new Date(subscription_start_date);
+                  if (planType === 'monthly') {
+                    const endDate = new Date(startDate);
+                    endDate.setDate(startDate.getDate() + 30);
+                    subscription_end_date = endDate.toISOString();
+                  } else if (planType === 'yearly') {
+                    const endDate = new Date(startDate);
+                    endDate.setDate(startDate.getDate() + 365);
+                    subscription_end_date = endDate.toISOString();
+                  }
                 }
+              } else {
+                // Fallback: Use creation time for missing dates
+                logStep("Stripe timestamps missing, using creation time fallback");
+                const fixedDates = await fixActiveSubscriptionDates(supabase, user.id, planType);
+                subscription_start_date = fixedDates.subscription_start_date;
+                subscription_end_date = fixedDates.subscription_end_date;
               }
               
               logStep("Setting subscription dates for first-time activation", {
@@ -189,8 +286,8 @@ serve(async (req) => {
             const updateData: any = {
               status: 'active',
               plan_type: planType,
-              current_period_end: currentPeriodEnd,
-              current_period_start: currentPeriodStart,
+              current_period_end: currentPeriodEnd || subscription_end_date,
+              current_period_start: currentPeriodStart || subscription_start_date,
               stripe_subscription_id: subscription.id,
               attrs: subscription,
               currency: subscription.currency || 'usd',
@@ -218,7 +315,7 @@ serve(async (req) => {
               status: 'active',
               planType: planType,
               stripe_subscription_id: subscription.id,
-              currentPeriodEnd: currentPeriodEnd,
+              currentPeriodEnd: currentPeriodEnd || subscription_end_date,
               subscription_start_date: subscription_start_date,
               subscription_end_date: subscription_end_date
             }), {
@@ -354,22 +451,28 @@ serve(async (req) => {
       
       // If this is first time activation, set the start/end dates
       if (isFirstTimeActivation) {
-        subscription_start_date = currentPeriodStart;
-        
-        // Calculate subscription end date based on plan type
-        if (subscription_start_date) {
-          const startDate = new Date(subscription_start_date);
-          if (planType === 'monthly') {
-            // Add 30 days
-            const endDate = new Date(startDate);
-            endDate.setDate(startDate.getDate() + 30);
-            subscription_end_date = endDate.toISOString();
-          } else if (planType === 'yearly') {
-            // Add 365 days
-            const endDate = new Date(startDate);
-            endDate.setDate(startDate.getDate() + 365);
-            subscription_end_date = endDate.toISOString();
+        if (currentPeriodStart) {
+          subscription_start_date = currentPeriodStart;
+          
+          // Calculate subscription end date based on plan type
+          if (subscription_start_date) {
+            const startDate = new Date(subscription_start_date);
+            if (planType === 'monthly') {
+              const endDate = new Date(startDate);
+              endDate.setDate(startDate.getDate() + 30);
+              subscription_end_date = endDate.toISOString();
+            } else if (planType === 'yearly') {
+              const endDate = new Date(startDate);
+              endDate.setDate(startDate.getDate() + 365);
+              subscription_end_date = endDate.toISOString();
+            }
           }
+        } else {
+          // Fallback: Use creation time for missing dates
+          logStep("Stripe timestamps missing for new customer, using creation time fallback");
+          const fixedDates = await fixActiveSubscriptionDates(supabase, user.id, planType);
+          subscription_start_date = fixedDates.subscription_start_date;
+          subscription_end_date = fixedDates.subscription_end_date;
         }
         
         logStep("First time activation detected for new customer", {
@@ -387,9 +490,9 @@ serve(async (req) => {
         stripe_subscription_id: subscription.id,
         status: 'active',
         plan_type: planType,
-        current_period_end: currentPeriodEnd,
-        current_period_start: currentPeriodStart,
-        trial_end_date: null, // Clear trial date for active subscriptions
+        current_period_end: currentPeriodEnd || subscription_end_date,
+        current_period_start: currentPeriodStart || subscription_start_date,
+        trial_end_date: null,
         attrs: subscription,
         currency: subscription.currency || 'usd',
         updated_at: new Date().toISOString()
@@ -416,7 +519,7 @@ serve(async (req) => {
         status: 'active',
         planType: planType,
         stripe_subscription_id: subscription.id,
-        currentPeriodEnd: currentPeriodEnd,
+        currentPeriodEnd: currentPeriodEnd || subscription_end_date,
         subscription_start_date: subscription_start_date,
         subscription_end_date: subscription_end_date
       }), {

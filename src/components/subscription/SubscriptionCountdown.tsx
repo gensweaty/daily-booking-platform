@@ -135,20 +135,35 @@ export const SubscriptionCountdown = ({
     );
   }
 
-  // Handle case when the subscription has ended (countdown reached zero)
-  if (timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0) {
-    // If we have a status but no time left, it means the subscription just expired
-    if (status === 'trial' || status === 'active') {
+  // CRITICAL FIX: Handle active subscriptions with missing dates gracefully
+  if (status === 'active' && timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0) {
+    // If we have an active status but no countdown data, show a positive active message instead of "expired"
+    if (!subscription_end_date && !currentPeriodEnd) {
       return (
-        <div className="text-center p-4 rounded-lg border-2 border-red-200 bg-red-50">
-          <p className="text-red-600 font-semibold">
-            {status === 'trial' ? 'Trial Expired' : 'Subscription Expired'}
+        <div className="text-center p-4 rounded-lg border-2 border-green-200 bg-green-50">
+          <p className="text-green-600 font-semibold">
+            {getStatusMessage()}
           </p>
-          <p className="text-sm text-red-600 mt-1">Please upgrade to continue</p>
+          <p className="text-sm text-green-600 mt-1">
+            {t('subscription.subscriptionActive') || 'Your subscription is active'}
+          </p>
         </div>
       );
     }
+  }
 
+  // Handle case when the subscription has ended (countdown reached zero) for trials only
+  if ((status === 'trial') && timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0) {
+    return (
+      <div className="text-center p-4 rounded-lg border-2 border-red-200 bg-red-50">
+        <p className="text-red-600 font-semibold">Trial Expired</p>
+        <p className="text-sm text-red-600 mt-1">Please upgrade to continue</p>
+      </div>
+    );
+  }
+
+  // If no status at all
+  if (!status) {
     return (
       <div className="text-center p-4 rounded-lg border-2 border-gray-200 bg-gray-50">
         <p className="text-gray-600">{t('subscription.noActiveSubscription') || 'No active subscription'}</p>
