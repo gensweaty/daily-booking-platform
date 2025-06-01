@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { LogOut, User, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -212,33 +211,48 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
 
     try {
-      // Use Supabase's built-in password reset instead of the custom edge function
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      // Use the same custom password reset edge function that works in the login page
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/password-reset`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({ email: user.email })
       });
 
-      if (error) {
-        console.error('Password reset error:', error);
-        toast({
-          title: t('common.error'),
-          description: t('profile.failedSendPasswordReset'),
-          variant: "destructive",
-        });
-        return;
+      const result = await response.json();
+      console.log("Password reset response:", result);
+
+      if (!response.ok) {
+        console.error("Password reset request failed:", result.error);
+        
+        if (result.error?.includes('rate limit') || result.error?.includes('too many requests')) {
+          toast({
+            title: "Too many attempts",
+            description: "Please wait a moment before trying again",
+            variant: "destructive"
+          });
+        } else {
+          // Still show success message for security
+          handlePasswordResetSuccess();
+        }
+      } else {
+        console.log("Reset password email sent successfully");
+        handlePasswordResetSuccess();
       }
-
-      toast({
-        title: t('profile.passwordResetEmailSent'),
-        description: t('profile.checkEmailForResetLink'),
-      });
     } catch (error: any) {
-      console.error('Password reset error:', error);
-      toast({
-        title: t('common.error'),
-        description: t('profile.failedSendPasswordReset'),
-        variant: "destructive",
-      });
+      console.error("Password reset request error:", error);
+      // Still show success message for security
+      handlePasswordResetSuccess();
     }
+  };
+
+  const handlePasswordResetSuccess = () => {
+    toast({
+      title: t('profile.passwordResetEmailSent'),
+      description: t('profile.checkEmailForResetLink'),
+    });
   };
   
   const handleManageSubscription = async () => {
