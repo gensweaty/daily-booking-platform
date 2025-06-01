@@ -484,6 +484,7 @@ export const es: TranslationType = {
     subscriptionExpired: "Suscripción Expirada",
     pleaseUpgrade: "Por favor actualiza para continuar usando las funciones premium",
     subscriptionActive: "Tu suscripción está activa",
+    noActiveSubscription: "Sin suscripción activa",
     timeLeft: "Tiempo restante",
     days: "días",
     hours: "horas",
