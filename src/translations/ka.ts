@@ -466,8 +466,12 @@ export const ka: TranslationType = {
     yearlyPrice: "$199.99/წელი",
     yearlyOriginalPrice: "$399.99",
     discount50: "50% ფასდაკლება",
-    additionalSavings: "დამატებით 17% ოფერი თვიურ გეგმასთან შედარებით",
+    additionalSavings: "დაზოგეთ 17% ოქმები თვიური გეგმისგან",
     monthlyDuration: "30 დღე პრემიუმ წვდომა",
-    yearlyDuration: "365 დღე პრემიუმ წვდომა"
+    yearlyDuration: "365 დღე პრემიუმ წვდომა",
+    manageSubscription: "გამოწერის მართვა",
+    chooseUpgradeRenew: "აირჩიეთ გეგმა თქვენი გამოწერის განახლებისთვის ან განახლებისთვის.",
+    subscribeNow: "გამოწერა ახლა",
+    processing: "მუშავდება..."
   }
 };

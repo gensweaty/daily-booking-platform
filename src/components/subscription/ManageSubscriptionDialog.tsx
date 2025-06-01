@@ -5,13 +5,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogClose,
 } from "@/components/ui/dialog";
 import { SubscriptionPlanSelect } from "./SubscriptionPlanSelect";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { createCheckoutSession } from "@/utils/stripeUtils";
-import { X } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "@/components/shared/LanguageText";
 
 export const ManageSubscriptionDialog = ({ 
   open, 
@@ -24,6 +24,7 @@ export const ManageSubscriptionDialog = ({
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   const handleSubscribe = async () => {
     if (!user) return;
@@ -69,18 +70,14 @@ export const ManageSubscriptionDialog = ({
       <DialogContent 
         className="w-[90vw] max-w-[475px] p-4 sm:p-6"
       >
-        <DialogHeader className="relative">
+        <DialogHeader>
           <DialogTitle className="text-center text-xl sm:text-2xl font-bold">
-            Manage Your Subscription
+            <LanguageText>{t('subscription.manageSubscription')}</LanguageText>
           </DialogTitle>
-          <DialogClose className="absolute right-0 top-0 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-            <X className="h-4 w-4" />
-            <span className="sr-only">Close</span>
-          </DialogClose>
         </DialogHeader>
         <div className="mt-4 space-y-6 px-2 sm:px-4">
           <p className="text-center text-sm sm:text-base text-muted-foreground">
-            Choose a plan to upgrade or renew your subscription.
+            <LanguageText>{t('subscription.chooseUpgradeRenew')}</LanguageText>
           </p>
           
           <SubscriptionPlanSelect
@@ -94,7 +91,7 @@ export const ManageSubscriptionDialog = ({
             disabled={loading}
             className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
           >
-            {loading ? "Processing..." : "Subscribe Now"}
+            <LanguageText>{loading ? t('subscription.processing') : t('subscription.subscribeNow')}</LanguageText>
           </button>
         </div>
       </DialogContent>

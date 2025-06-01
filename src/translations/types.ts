@@ -465,6 +465,10 @@ export interface TranslationType {
     additionalSavings: string;
     monthlyDuration: string;
     yearlyDuration: string;
+    manageSubscription: string;
+    chooseUpgradeRenew: string;
+    subscribeNow: string;
+    processing: string;
   };
 }
 

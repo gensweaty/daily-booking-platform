@@ -468,6 +468,10 @@ export const translations: TranslationType = {
     discount50: "50% OFF",
     additionalSavings: "Save additional 17% from monthly plan",
     monthlyDuration: "30 days of premium access",
-    yearlyDuration: "365 days of premium access"
+    yearlyDuration: "365 days of premium access",
+    manageSubscription: "Manage Your Subscription",
+    chooseUpgradeRenew: "Choose a plan to upgrade or renew your subscription.",
+    subscribeNow: "Subscribe Now",
+    processing: "Processing..."
   }
 };
