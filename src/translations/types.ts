@@ -1,10 +1,5 @@
-export type Language = 'en' | 'es' | 'ka';
 
-export interface LanguageContextType {
-  language: Language;
-  setLanguage: (language: Language) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
-}
+export type Language = 'en' | 'es' | 'ka';
 
 export interface TranslationType {
   nav: {
@@ -183,8 +178,6 @@ export interface TranslationType {
     notFound: string;
     notFoundDescription: string;
     viewPublicPage: string;
-    scanQrCode: string;
-    qrCodeTooltip: string;
     customer: string;
     title: string;
     dateTime: string;
@@ -206,6 +199,8 @@ export interface TranslationType {
     availableTimes: string;
     clickToRequest: string;
     contactInformation: string;
+    scanQrCode: string;
+    qrCodeTooltip: string;
   };
   dashboard: {
     welcome: string;
@@ -327,11 +322,16 @@ export interface TranslationType {
     weekOf: string;
   };
   common: {
-    cancel: string;
     success: string;
     error: string;
     warning: string;
+    cancel: string;
     submitting: string;
+    create: string;
+    update: string;
+    delete: string;
+    errorOccurred: string;
+    and: string;
     loading: string;
     rateLimitReached: string;
     waitBeforeBooking: string;
@@ -345,15 +345,10 @@ export interface TranslationType {
     deleteSuccess: string;
     deleteError: string;
     missingUserInfo: string;
-    errorOccurred: string;
     new: string;
     request: string;
     requests: string;
-    backToHome: string;
-    create: string;
-    update: string;
-    delete: string;
-    and: string;
+		backToHome: string;
     supportedFormats: string;
     deleteConfirmMessage: string;
     noDescription: string;
@@ -475,20 +470,6 @@ export interface TranslationType {
     chooseUpgradeRenew: string;
     subscribeNow: string;
     processing: string;
-    trialPeriod: string;
-    monthlySubscription: string;
-    yearlySubscription: string;
-    activeSubscription: string;
-    trialExpired: string;
-    subscriptionExpired: string;
-    pleaseUpgrade: string;
-    subscriptionActive: string;
-    noActiveSubscription: string;
-    timeLeft: string;
-    days: string;
-    hours: string;
-    minutes: string;
-    seconds: string;
   };
   profile: {
     title: string;
@@ -559,4 +540,10 @@ export interface TranslationType {
     checkEmailForResetLink: string;
     failedSendPasswordReset: string;
   };
+}
+
+export interface LanguageContextType {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }

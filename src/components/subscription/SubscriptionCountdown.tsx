@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -181,7 +182,10 @@ export const SubscriptionCountdown = ({
           )}
         </div>
         <p className="text-xs text-gray-500 mt-1">
-          {t('subscription.timeLeft') || 'Time left'}
+          {status === 'trial' 
+            ? (t('subscription.timeLeftInTrial') || 'Time left in trial') 
+            : (t('subscription.timeLeftInSubscription') || 'Time left in subscription')
+          }
         </p>
       </div>
     );
@@ -209,7 +213,10 @@ export const SubscriptionCountdown = ({
           </div>
         </div>
         <p className="text-xs mt-2">
-          {t('subscription.timeLeft') || 'Time left'}
+          {status === 'trial' 
+            ? (t('subscription.timeLeftInTrial') || 'Time left in trial') 
+            : (t('subscription.timeLeftInSubscription') || 'Time left in subscription')
+          }
         </p>
       </div>
     </div>

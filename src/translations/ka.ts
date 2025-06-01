@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 export const ka: TranslationType = {
@@ -226,7 +227,7 @@ export const ka: TranslationType = {
   hero: {
     title: "გაზარდეთ თქვენი ბიზნესის პროდუქტიულობა SmartBookly-სთან ერთად",
     subtitle: "ყველაფერი-ერთში - ჯავშნები, დავალებები, CRM, ანალიტიკა და ბიზნეს ვებსაიტი",
-    description: "აიღეთ სრული კონტროლი თქვენი სამუშაო პროცესზე ჩვენი ჯავშნების კალენდარი, ძლიერი დავალებების მართვის სისტემა, ჭკვიანი მომხმარებელთან ურთიერთობის მართვა და ჩაშენებული ანალიტიკა. ყველაფერი რაც თქვენს ბიზნესს სჭირდება, ერთ ადგილზე."
+    description: "აიღეთ სრული კონტროლი თქვენს სამუშაო პროცესზე ჩვენი ჯავშნების კალენდარი, ძლიერი დავალებების მართვის სისტემა, ჭკვიანი მომხმარებელთან ურთიერთობის მართვა და ჩაშენებული ანალიტიკა. ყველაფერი რაც თქვენს ბიზნესს სჭირდება, ერთ ადგილზე."
   },
   features: {
     title: "რას გთავაზობთ",
@@ -277,7 +278,7 @@ export const ka: TranslationType = {
     feature5: "ელფოსტით შეხვედრის დადასტურება"
   },
   cta: {
-    title: "მზად ხართ გაზარდოთ თქვენი ბიზნეს?",
+    title: "მზად ხართ გაზარდოთ თქვენი ბიზნესი?",
     subtitle: "დაიწყეთ ჩვენი პლატფორმის გამოყენება დღესვე და იხილეთ განსხვავება!",
     button: "დაიწყეთ ახლავე"
   },
@@ -351,7 +352,7 @@ export const ka: TranslationType = {
   },
   auth: {
     welcome: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში",
-    description: "მართეთ თქვენი ბიზნეს ჩვენი ყველაფერი-ერთში გადაწყვეტილებით",
+    description: "მართეთ თქვენი ბიზნესი ჩვენი ყველაფერი-ერთში გადაწყვეტილებით",
     signInButton: "შესვლა",
     signUpButton: "რეგისტრაცია",
     emailLabel: "ელ-ფოსტა",
@@ -460,33 +461,19 @@ export const ka: TranslationType = {
   },
   subscription: {
     monthlyPlan: "თვიური გეგმა",
-    annualPlan: "წლიური გეგმა",
-    monthlyPrice: "$10.00/თვეში",
-    monthlyOriginalPrice: "$20.00",
-    yearlyPrice: "$100.00/წელიწადში",
-    yearlyOriginalPrice: "$240.00",
+    annualPlan: "წლიური გეგმა", 
+    monthlyPrice: "$19.99/თვე",
+    monthlyOriginalPrice: "$39.99",
+    yearlyPrice: "$199.99/წელი",
+    yearlyOriginalPrice: "$399.99",
     discount50: "50% ფასდაკლება",
-    additionalSavings: "დაზოგეთ $140 წელიწადში",
-    monthlyDuration: "თვეში",
-    yearlyDuration: "წელიწადში",
+    additionalSavings: "დაზოგეთ 17% თვიური გეგმისგან",
+    monthlyDuration: "30 დღე პრემიუმ წვდომა",
+    yearlyDuration: "365 დღე პრემიუმ წვდომა",
     manageSubscription: "გამოწერის მართვა",
-    chooseUpgradeRenew: "აირჩიეთ განახლება ან განახლება",
-    subscribeNow: "ახლა გამოიწერეთ",
-    processing: "მუშავდება...",
-    trialPeriod: "საცდელი პერიოდი",
-    monthlySubscription: "თვიური გამოწერა",
-    yearlySubscription: "წლიური გამოწერა",
-    activeSubscription: "აქტიური გამოწერა",
-    trialExpired: "საცდელი ვადა ამოიწურა",
-    subscriptionExpired: "გამოწერის ვადა ამოიწურა",
-    pleaseUpgrade: "გთხოვთ განაახლოთ პრემიუმ ფუნქციების გამოსაყენებლად",
-    subscriptionActive: "თქვენი გამოწერა აქტიურია",
-    noActiveSubscription: "აქტიური გამოწერა არ არის",
-    timeLeft: "დარჩენილი დრო",
-    days: "დღე",
-    hours: "საათი",
-    minutes: "წუთი",
-    seconds: "წამი"
+    chooseUpgradeRenew: "აირჩიეთ გეგმა თქვენი გამოწერის განახლებისთვის.",
+    subscribeNow: "გამოიწერეთ ახლავე",
+    processing: "მუშავდება..."
   },
   profile: {
     title: "მომხმარებლის პროფილი",
@@ -524,7 +511,7 @@ export const ka: TranslationType = {
     dataExport: "მონაცემების ექსპორტი",
     deleteAccountWarning: "ეს მოქმედება შეუძლებელია გაუქმდეს",
     confirmDelete: "ანგარიშის წაშლის დადასტურება",
-    userProfile: "მომხმარებლის პროфილი",
+    userProfile: "მომხმარებლის პროფილი",
     welcomeBack: "კეთილი იყოს თქვენი დაბრუნება!",
     accountInformation: "ანგარიშის ინფორმაცია",
     emailAddress: "ელ-ფოსტის მისამართი",
@@ -535,11 +522,11 @@ export const ka: TranslationType = {
     sync: "სინქრონიზაცია",
     syncing: "იასინქრონებს...",
     trialPlan: "საცდელი გეგმა",
-    trialExpired: "საცდელი ვადა ამოიწურა",
+    trialExpired: "საცდელი ვადა გავიდა",
     noActiveSubscription: "არ არის აქტიური გამოწერა",
     trial: "საცდელი",
     active: "აქტიური",
-    trialexpired: "საცდელი ვადა ამოიწურა",
+    trialexpired: "საცდელი ვადა გავიდა",
     securitySettings: "უსაფრთხოების პარამეტრები",
     noSubscriptionInfo: "გამოწერის ინფორმაცია მიუწვდომელია",
     getSubscription: "გამოწერის მიღება",
