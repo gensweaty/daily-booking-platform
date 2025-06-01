@@ -43,7 +43,7 @@ export const SubscriptionPlanSelect = ({
             <Label htmlFor="monthly" className="flex-1 space-y-1 cursor-pointer">
               <div className="font-semibold">Monthly Plan</div>
               <div className="text-sm text-muted-foreground">
-                $9.99/month - Perfect for trying out premium features
+                $19.99/month - <span className="line-through text-gray-400">$39.99</span> <span className="text-green-600 font-medium">50% OFF</span>
               </div>
               <div className="text-xs text-green-600">
                 30 days of premium access
@@ -57,11 +57,11 @@ export const SubscriptionPlanSelect = ({
               <div className="font-semibold flex items-center gap-2">
                 Annual Plan 
                 <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                  Save 17%
+                  Save 50%
                 </span>
               </div>
               <div className="text-sm text-muted-foreground">
-                $99.99/year - Best value for long-term use
+                $199.99/year - <span className="line-through text-gray-400">$399.99</span> <span className="text-green-600 font-medium">50% OFF</span>
               </div>
               <div className="text-xs text-green-600">
                 365 days of premium access
