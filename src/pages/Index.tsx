@@ -31,8 +31,8 @@ const Index = () => {
   // Use the subscription redirect hook
   useSubscriptionRedirect();
 
-  // Get calendar events
-  const { data: events = [] } = useCalendarEvents();
+  // Get calendar events - destructure events directly, not data
+  const { events = [] } = useCalendarEvents();
 
   // Generate days for the calendar view
   const getDaysForView = () => {
