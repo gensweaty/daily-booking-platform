@@ -16,6 +16,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
 import { LanguageText } from '@/components/shared/LanguageText';
 import { useSubscriptionRedirect } from '@/hooks/useSubscriptionRedirect';
+import { useCalendarEvents } from '@/hooks/useCalendarEvents';
+import { startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 
 const Index = () => {
   const { user } = useAuth();
@@ -23,9 +25,27 @@ const Index = () => {
   const isGeorgian = language === 'ka';
   const [activeTab, setActiveTab] = useState('overview');
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [view, setView] = useState<'month' | 'week' | 'day'>('month');
 
   // Use the subscription redirect hook
   useSubscriptionRedirect();
+
+  // Get calendar events
+  const { data: events = [] } = useCalendarEvents();
+
+  // Generate days for the calendar view
+  const getDaysForView = () => {
+    if (view === 'month') {
+      const monthStart = startOfMonth(selectedDate);
+      const monthEnd = endOfMonth(selectedDate);
+      return eachDayOfInterval({ start: monthStart, end: monthEnd });
+    }
+    // For week and day views, we can return a simpler array
+    return [selectedDate];
+  };
+
+  const days = getDaysForView();
 
   // Scroll to top when tab changes
   useEffect(() => {
@@ -72,7 +92,12 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="calendar">
-            <CalendarView />
+            <CalendarView 
+              days={days}
+              events={events}
+              selectedDate={selectedDate}
+              view={view}
+            />
           </TabsContent>
 
           <TabsContent value="tasks">
