@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -461,19 +460,32 @@ export const translations: TranslationType = {
   },
   subscription: {
     monthlyPlan: "Monthly Plan",
-    annualPlan: "Annual Plan", 
-    monthlyPrice: "$19.99/month",
-    monthlyOriginalPrice: "$39.99",
-    yearlyPrice: "$199.99/year",
-    yearlyOriginalPrice: "$399.99",
-    discount50: "50% discount",
-    additionalSavings: "Save additional 17% from monthly plan",
-    monthlyDuration: "30 days premium access",
-    yearlyDuration: "365 days premium access",
+    annualPlan: "Annual Plan",
+    monthlyPrice: "$10.00/month",
+    monthlyOriginalPrice: "$20.00",
+    yearlyPrice: "$100.00/year",
+    yearlyOriginalPrice: "$240.00",
+    discount50: "50% OFF",
+    additionalSavings: "Save $140 annually",
+    monthlyDuration: "per month",
+    yearlyDuration: "per year",
     manageSubscription: "Manage Subscription",
-    chooseUpgradeRenew: "Choose a plan to upgrade or renew your subscription.",
+    chooseUpgradeRenew: "Choose to upgrade or renew",
     subscribeNow: "Subscribe Now",
-    processing: "Processing..."
+    processing: "Processing...",
+    trialPeriod: "Trial Period",
+    monthlySubscription: "Monthly Subscription",
+    yearlySubscription: "Yearly Subscription",
+    activeSubscription: "Active Subscription",
+    trialExpired: "Trial Expired",
+    subscriptionExpired: "Subscription Expired",
+    pleaseUpgrade: "Please upgrade to continue using premium features",
+    subscriptionActive: "Your subscription is active",
+    timeLeft: "Time left",
+    days: "days",
+    hours: "hours",
+    minutes: "minutes",
+    seconds: "seconds"
   },
   profile: {
     title: "User Profile",

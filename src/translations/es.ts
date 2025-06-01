@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 export const es: TranslationType = {
@@ -464,19 +463,32 @@ export const es: TranslationType = {
   },
   subscription: {
     monthlyPlan: "Plan Mensual",
-    annualPlan: "Plan Anual", 
-    monthlyPrice: "$19.99/mes",
-    monthlyOriginalPrice: "$39.99",
-    yearlyPrice: "$199.99/año",
-    yearlyOriginalPrice: "$399.99",
-    discount50: "50% de descuento",
-    additionalSavings: "Ahorra 17% adicional del plan mensual",
-    monthlyDuration: "30 días de acceso premium",
-    yearlyDuration: "365 días de acceso premium",
+    annualPlan: "Plan Anual",
+    monthlyPrice: "$10.00/mes",
+    monthlyOriginalPrice: "$20.00",
+    yearlyPrice: "$100.00/año",
+    yearlyOriginalPrice: "$240.00",
+    discount50: "50% DESCUENTO",
+    additionalSavings: "Ahorra $140 anuales",
+    monthlyDuration: "por mes",
+    yearlyDuration: "por año",
     manageSubscription: "Gestionar Suscripción",
-    chooseUpgradeRenew: "Elige un plan para actualizar o renovar tu suscripción.",
+    chooseUpgradeRenew: "Elige actualizar o renovar",
     subscribeNow: "Suscribirse Ahora",
-    processing: "Procesando..."
+    processing: "Procesando...",
+    trialPeriod: "Período de Prueba",
+    monthlySubscription: "Suscripción Mensual",
+    yearlySubscription: "Suscripción Anual",
+    activeSubscription: "Suscripción Activa",
+    trialExpired: "Prueba Expirada",
+    subscriptionExpired: "Suscripción Expirada",
+    pleaseUpgrade: "Por favor actualiza para continuar usando las funciones premium",
+    subscriptionActive: "Tu suscripción está activa",
+    timeLeft: "Tiempo restante",
+    days: "días",
+    hours: "horas",
+    minutes: "minutos",
+    seconds: "segundos"
   },
   profile: {
     title: "Perfil de Usuario",

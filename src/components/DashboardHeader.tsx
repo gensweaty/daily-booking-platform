@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { LogOut, User, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -23,6 +22,7 @@ import { checkSubscriptionStatus, openStripeCustomerPortal, manualSyncSubscripti
 import { differenceInDays } from "date-fns";
 import { ManageSubscriptionDialog } from "./subscription/ManageSubscriptionDialog";
 import { SubscriptionCountdown } from "./subscription/SubscriptionCountdown";
+import { AvatarUpload } from "@/components/AvatarUpload";
 
 interface DashboardHeaderProps {
   username: string;
@@ -48,6 +48,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const [isManageSubscriptionOpen, setIsManageSubscriptionOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string>('');
 
   // Fetch subscription data function
   const fetchSubscription = async () => {
@@ -87,15 +88,36 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   };
 
   useEffect(() => {
-    // Only fetch on initial load or when returning from payment
-    if (user) {
-      const isPaymentReturn = checkForPaymentReturn();
-      if (isPaymentReturn) {
-        console.log('Detected payment return, fetching subscription data');
+    const getProfile = async () => {
+      if (user) {
+        try {
+          // Fetch user profile including avatar
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('username, avatar_url')
+            .eq('id', user.id)
+            .maybeSingle()
+          
+          if (error) {
+            console.error('Error fetching profile:', error)
+            return
+          }
+          
+          if (data) {
+            setAvatarUrl(data.avatar_url || '');
+          }
+
+          // Only check subscription status once on login, not continuously
+          await checkSubscriptionStatus();
+          
+        } catch (error: any) {
+          console.error('Profile fetch error:', error)
+        }
       }
-      fetchSubscription();
     }
-  }, [user]);
+
+    getProfile()
+  }, [user])
 
   // Fetch when dialog opens
   const handleDialogOpenChange = (open: boolean) => {
@@ -165,7 +187,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       });
     }
   };
-
+  
   const handleChangePassword = async () => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(user?.email || '', {
@@ -204,6 +226,10 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     return planType === 'monthly' ? t('subscription.monthlyPlan') : t('subscription.annualPlan');
   };
 
+  const handleAvatarUpdate = (newAvatarUrl: string) => {
+    setAvatarUrl(newAvatarUrl);
+  };
+
   return (
     <header className="mb-4">
       <div className="flex items-center justify-between mb-3">
@@ -239,8 +265,11 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                     </DialogTitle>
                   </DialogHeader>
                   <div className="text-center">
-                    <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-                      <User className="w-10 h-10 text-white" />
+                    <div className="mx-auto mb-4">
+                      <AvatarUpload 
+                        currentAvatarUrl={avatarUrl}
+                        onAvatarUpdate={handleAvatarUpdate}
+                      />
                     </div>
                     <p className="text-white/90 text-lg">
                       <LanguageText>{t('profile.welcomeBack')}</LanguageText>
