@@ -470,6 +470,43 @@ export interface TranslationType {
     subscribeNow: string;
     processing: string;
   };
+  profile: {
+    title: string;
+    editProfile: string;
+    personalInfo: string;
+    accountSettings: string;
+    subscription: string;
+    billing: string;
+    notifications: string;
+    privacy: string;
+    security: string;
+    deleteAccount: string;
+    save: string;
+    cancel: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    timezone: string;
+    language: string;
+    profilePicture: string;
+    uploadPhoto: string;
+    removePhoto: string;
+    currentPlan: string;
+    planExpires: string;
+    manageBilling: string;
+    upgradeSubscription: string;
+    emailNotifications: string;
+    pushNotifications: string;
+    marketingEmails: string;
+    twoFactorAuth: string;
+    changePassword: string;
+    loginSessions: string;
+    connectedAccounts: string;
+    dataExport: string;
+    deleteAccountWarning: string;
+    confirmDelete: string;
+  };
 }
 
 export interface LanguageContextType {

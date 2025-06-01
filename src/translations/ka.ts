@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const ka: TranslationType = {
@@ -471,7 +472,44 @@ export const ka: TranslationType = {
     yearlyDuration: "365 დღე პრემიუმ წვდომა",
     manageSubscription: "გამოწერის მართვა",
     chooseUpgradeRenew: "აირჩიეთ გეგმა თქვენი გამოწერის განახლებისთვის.",
-    subscribeNow: "გამოწერა ახლა",
+    subscribeNow: "გამოიწერეთ ახლავე",
     processing: "მუშავდება..."
+  },
+  profile: {
+    title: "მომხმარებლის პროფილი",
+    editProfile: "პროფილის რედაქტირება",
+    personalInfo: "პირადი ინფორმაცია",
+    accountSettings: "ანგარიშის პარამეტრები",
+    subscription: "გამოწერა",
+    billing: "ანგარიშსწორება",
+    notifications: "შეტყობინებები",
+    privacy: "კონფიდენციალურობის პარამეტრები",
+    security: "უსაფრთხოება",
+    deleteAccount: "ანგარიშის წაშლა",
+    save: "ცვლილებების შენახვა",
+    cancel: "გაუქმება",
+    firstName: "სახელი",
+    lastName: "გვარი",
+    email: "ელ-ფოსტის მისამართი",
+    phone: "ტელეფონის ნომერი",
+    timezone: "დროის ზონა",
+    language: "ენა",
+    profilePicture: "პროფილის ფოტო",
+    uploadPhoto: "ფოტოს ატვირთვა",
+    removePhoto: "ფოტოს წაშლა",
+    currentPlan: "მიმდინარე გეგმა",
+    planExpires: "გეგმის ვადა იწურება",
+    manageBilling: "ანგარიშსწორების მართვა",
+    upgradeSubscription: "გამოწერის განახლება",
+    emailNotifications: "ელ-ფოსტის შეტყობინებები",
+    pushNotifications: "Push შეტყობინებები",
+    marketingEmails: "მარკეტინგული ელ-ფოსტები",
+    twoFactorAuth: "ორ-ფაქტორიანი ავთენტიფიკაცია",
+    changePassword: "პაროლის შეცვლა",
+    loginSessions: "შესვლის სესიები",
+    connectedAccounts: "დაკავშირებული ანგარიშები",
+    dataExport: "მონაცემების ექსპორტი",
+    deleteAccountWarning: "ეს მოქმედება ვერ გაუქმდება",
+    confirmDelete: "ანგარიშის წაშლის დადასტურება"
   }
 };
