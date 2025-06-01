@@ -53,7 +53,7 @@ export const ka: TranslationType = {
     endDateTime: "დასრულების თარიღი და დრო",
     eventNotes: "შენიშვნები",
     addEventNotes: "დაამატეთ შენიშვნები თქვენს ჯავშანზე",
-    editEvent: "ჯავშნის რედაქტირება", // Fixed the Georgian text
+    editEvent: "ჯავშნის რედაქტირება",
     addNewEvent: "ახალი ჯავშნის დამატება",
     updateEvent: "ჯავშნის განახლება",
     createEvent: "ჯავშნის შექმნა",
@@ -325,8 +325,8 @@ export const ka: TranslationType = {
     notFound: "ბიზნესი ვერ მოიძებნა",
     notFoundDescription: "სამწუხაროდ, ვერ ვიპოვეთ ბიზნესი ამ URL-ით. გთხოვთ, შეამოწმოთ URL და სცადოთ ხელახლა.",
     viewPublicPage: "საჯარო გვერდის ნახვა",
-    scanQrCode: "დაასკანერეთ QR კოდი", // Added translation for scanning QR code
-    qrCodeTooltip: "გაუზიარე ეს QR კოდი შენს მომხმარებლებს", // Added tooltip translation
+    scanQrCode: "დაასკანერეთ QR კოდი",
+    qrCodeTooltip: "გაუზიარე ეს QR კოდი შენს მომხმარებლებს",
     customer: "მომხმარებელი",
     title: "სათაური",
     dateTime: "თარიღი და დრო",
@@ -466,11 +466,11 @@ export const ka: TranslationType = {
     yearlyPrice: "$199.99/წელი",
     yearlyOriginalPrice: "$399.99",
     discount50: "50% ფასდაკლება",
-    additionalSavings: "დაზოგეთ 17% ოქმები თვიური გეგმისგან",
+    additionalSavings: "დაზოგეთ 17% თვიური გეგმისგან",
     monthlyDuration: "30 დღე პრემიუმ წვდომა",
     yearlyDuration: "365 დღე პრემიუმ წვდომა",
     manageSubscription: "გამოწერის მართვა",
-    chooseUpgradeRenew: "აირჩიეთ გეგმა თქვენი გამოწერის განახლებისთვის ან განახლებისთვის.",
+    chooseUpgradeRenew: "აირჩიეთ გეგმა თქვენი გამოწერის განახლებისთვის.",
     subscribeNow: "გამოწერა ახლა",
     processing: "მუშავდება..."
   }
