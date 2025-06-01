@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Bell, User, LogOut, Settings, Sync } from 'lucide-react';
+import { Bell, User, LogOut, Settings, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { LanguageText } from '@/components/shared/LanguageText';
@@ -339,7 +340,7 @@ export const DashboardHeader = () => {
                     disabled={isSyncing}
                     className="flex items-center gap-2"
                   >
-                    <Sync className={`h-3 w-3 ${isSyncing ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`h-3 w-3 ${isSyncing ? 'animate-spin' : ''}`} />
                     {isSyncing ? (
                       isGeorgian ? (
                         <GeorgianAuthText>{t('profile.syncing')}</GeorgianAuthText>

@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface TranslationType {
@@ -347,7 +348,7 @@ export interface TranslationType {
     new: string;
     request: string;
     requests: string;
-		backToHome: string;
+    backToHome: string;
     supportedFormats: string;
     deleteConfirmMessage: string;
     noDescription: string;
@@ -469,6 +470,21 @@ export interface TranslationType {
     chooseUpgradeRenew: string;
     subscribeNow: string;
     processing: string;
+    trialPeriod: string;
+    monthlySubscription: string;
+    yearlySubscription: string;
+    activeSubscription: string;
+    trialExpired: string;
+    subscriptionExpired: string;
+    pleaseUpgrade: string;
+    subscriptionActive: string;
+    noActiveSubscription: string;
+    timeLeftInTrial: string;
+    timeLeftInSubscription: string;
+    days: string;
+    hours: string;
+    minutes: string;
+    seconds: string;
   };
   profile: {
     title: string;
@@ -543,11 +559,6 @@ export interface TranslationType {
     avatarUploadError: string;
     avatarUploading: string;
     changeAvatar: string;
+    timeLeft: string;
   };
-}
-
-export interface LanguageContextType {
-  language: Language;
-  setLanguage: (language: Language) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
 }
