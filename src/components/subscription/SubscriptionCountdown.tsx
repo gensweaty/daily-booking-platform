@@ -182,10 +182,7 @@ export const SubscriptionCountdown = ({
           )}
         </div>
         <p className="text-xs text-gray-500 mt-1">
-          {status === 'trial' 
-            ? (t('subscription.timeLeftInTrial') || 'Time left in trial') 
-            : (t('subscription.timeLeftInSubscription') || 'Time left in subscription')
-          }
+          {t('subscription.timeLeft') || 'Time left'}
         </p>
       </div>
     );
@@ -213,10 +210,7 @@ export const SubscriptionCountdown = ({
           </div>
         </div>
         <p className="text-xs mt-2">
-          {status === 'trial' 
-            ? (t('subscription.timeLeftInTrial') || 'Time left in trial') 
-            : (t('subscription.timeLeftInSubscription') || 'Time left in subscription')
-          }
+          {t('subscription.timeLeft') || 'Time left'}
         </p>
       </div>
     </div>

@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -473,7 +472,20 @@ export const translations: TranslationType = {
     manageSubscription: "Manage Subscription",
     chooseUpgradeRenew: "Choose a plan to upgrade or renew your subscription.",
     subscribeNow: "Subscribe Now",
-    processing: "Processing..."
+    processing: "Processing...",
+    trialPeriod: "Trial Period",
+    monthlySubscription: "Monthly Subscription",
+    yearlySubscription: "Yearly Subscription",
+    activeSubscription: "Active Subscription",
+    trialExpired: "Trial Expired",
+    subscriptionExpired: "Subscription Expired",
+    pleaseUpgrade: "Please upgrade to continue using premium features",
+    subscriptionActive: "Your subscription is active",
+    timeLeft: "Time left",
+    days: "days",
+    hours: "hours",
+    minutes: "minutes",
+    seconds: "seconds"
   },
   profile: {
     title: "User Profile",
@@ -542,6 +554,12 @@ export const translations: TranslationType = {
     pleaseTryAgain: "Please try again.",
     passwordResetEmailSent: "Password Reset Email Sent",
     checkEmailForResetLink: "Please check your email for the password reset link.",
-    failedSendPasswordReset: "Failed to send password reset email. Please try again."
+    failedSendPasswordReset: "Failed to send password reset email. Please try again.",
+    uploadAvatar: "Upload Avatar",
+    changeAvatar: "Change Avatar",
+    avatarUploadError: "Error uploading avatar",
+    avatarUploaded: "Avatar uploaded successfully",
+    invalidFileType: "Invalid file type. Please use PNG, JPG, JPEG, or WebP.",
+    fileTooLarge: "File too large. Maximum size is 5MB."
   }
 };

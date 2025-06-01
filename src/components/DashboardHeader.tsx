@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { LogOut, User, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -23,6 +22,7 @@ import { checkSubscriptionStatus, openStripeCustomerPortal, manualSyncSubscripti
 import { differenceInDays } from "date-fns";
 import { ManageSubscriptionDialog } from "./subscription/ManageSubscriptionDialog";
 import { SubscriptionCountdown } from "./subscription/SubscriptionCountdown";
+import { AvatarUpload } from "./AvatarUpload";
 
 interface DashboardHeaderProps {
   username: string;
@@ -48,6 +48,31 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const [isManageSubscriptionOpen, setIsManageSubscriptionOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  // Fetch user profile data including avatar
+  const fetchUserProfile = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', error);
+        return;
+      }
+
+      if (data?.avatar_url) {
+        setAvatarUrl(data.avatar_url);
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
 
   // Fetch subscription data function
   const fetchSubscription = async () => {
@@ -94,6 +119,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         console.log('Detected payment return, fetching subscription data');
       }
       fetchSubscription();
+      fetchUserProfile();
     }
   }, [user]);
 
@@ -103,7 +129,13 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     if (open && user && !isLoading) {
       console.log('Profile dialog opened, refreshing subscription data');
       fetchSubscription();
+      fetchUserProfile();
     }
+  };
+
+  // Handle avatar update
+  const handleAvatarUpdate = (newAvatarUrl: string) => {
+    setAvatarUrl(newAvatarUrl);
   };
 
   const handleManualSync = async () => {
@@ -224,9 +256,13 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
               <Button 
                 variant="purple" 
                 size="icon"
-                className="text-foreground"
+                className="text-foreground p-0 h-12 w-12 rounded-full"
               >
-                <User className="w-4 h-4" />
+                <AvatarUpload 
+                  avatarUrl={avatarUrl}
+                  onAvatarUpdate={handleAvatarUpdate}
+                  size="sm"
+                />
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px] p-0 max-h-[90vh] overflow-y-auto">
@@ -239,8 +275,12 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                     </DialogTitle>
                   </DialogHeader>
                   <div className="text-center">
-                    <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-                      <User className="w-10 h-10 text-white" />
+                    <div className="mx-auto mb-4">
+                      <AvatarUpload 
+                        avatarUrl={avatarUrl}
+                        onAvatarUpdate={handleAvatarUpdate}
+                        size="lg"
+                      />
                     </div>
                     <p className="text-white/90 text-lg">
                       <LanguageText>{t('profile.welcomeBack')}</LanguageText>
@@ -422,6 +462,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           </Button>
         </div>
       </div>
+      
       <div className="text-center mb-2">
         <h1 className="text-xl sm:text-2xl font-bold text-primary">
           {isGeorgian ? (

@@ -1,4 +1,3 @@
-
 import { TranslationType } from "./types";
 
 export const es: TranslationType = {
@@ -369,7 +368,7 @@ export const es: TranslationType = {
     usernameLabel: "Nombre de usuario",
     forgotPassword: "¿Olvidaste tu contraseña?",
     noAccount: "¿No tienes una cuenta?",
-    haveAccount: "��Ya tienes una cuenta?",
+    haveAccount: "¿Ya tienes una cuenta?",
     signInCta: "Iniciar sesión",
     signUpCta: "Registrarse",
     agreeToTerms: "Estoy de acuerdo con los términos y condiciones",
@@ -476,7 +475,20 @@ export const es: TranslationType = {
     manageSubscription: "Gestionar Suscripción",
     chooseUpgradeRenew: "Elige un plan para actualizar o renovar tu suscripción.",
     subscribeNow: "Suscribirse Ahora",
-    processing: "Procesando..."
+    processing: "Procesando...",
+    trialPeriod: "Período de Prueba",
+    monthlySubscription: "Suscripción Mensual",
+    yearlySubscription: "Suscripción Anual",
+    activeSubscription: "Suscripción Activa",
+    trialExpired: "Prueba Expirada",
+    subscriptionExpired: "Suscripción Expirada",
+    pleaseUpgrade: "Por favor actualiza para continuar usando las características premium",
+    subscriptionActive: "Tu suscripción está activa",
+    timeLeft: "Tiempo restante",
+    days: "días",
+    hours: "horas",
+    minutes: "minutos",
+    seconds: "segundos"
   },
   profile: {
     title: "Perfil de Usuario",
@@ -545,6 +557,12 @@ export const es: TranslationType = {
     pleaseTryAgain: "Por favor, inténtelo de nuevo.",
     passwordResetEmailSent: "Correo de Restablecimiento Enviado",
     checkEmailForResetLink: "Por favor, revise su correo para el enlace de restablecimiento.",
-    failedSendPasswordReset: "Error al enviar correo de restablecimiento. Inténtelo de nuevo."
+    failedSendPasswordReset: "Error al enviar correo de restablecimiento. Inténtelo de nuevo.",
+    uploadAvatar: "Subir Avatar",
+    changeAvatar: "Cambiar Avatar",
+    avatarUploadError: "Error al subir avatar",
+    avatarUploaded: "Avatar subido exitosamente",
+    invalidFileType: "Tipo de archivo inválido. Por favor use PNG, JPG, JPEG, o WebP.",
+    fileTooLarge: "Archivo demasiado grande. El tamaño máximo es 5MB."
   }
 };

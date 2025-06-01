@@ -348,7 +348,7 @@ export interface TranslationType {
     new: string;
     request: string;
     requests: string;
-		backToHome: string;
+    backToHome: string;
     supportedFormats: string;
     deleteConfirmMessage: string;
     noDescription: string;
@@ -470,6 +470,19 @@ export interface TranslationType {
     chooseUpgradeRenew: string;
     subscribeNow: string;
     processing: string;
+    trialPeriod: string;
+    monthlySubscription: string;
+    yearlySubscription: string;
+    activeSubscription: string;
+    trialExpired: string;
+    subscriptionExpired: string;
+    pleaseUpgrade: string;
+    subscriptionActive: string;
+    timeLeft: string;
+    days: string;
+    hours: string;
+    minutes: string;
+    seconds: string;
   };
   profile: {
     title: string;
@@ -539,6 +552,12 @@ export interface TranslationType {
     passwordResetEmailSent: string;
     checkEmailForResetLink: string;
     failedSendPasswordReset: string;
+    uploadAvatar: string;
+    changeAvatar: string;
+    avatarUploadError: string;
+    avatarUploaded: string;
+    invalidFileType: string;
+    fileTooLarge: string;
   };
 }
 
