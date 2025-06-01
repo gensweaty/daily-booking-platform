@@ -290,7 +290,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 borderRadius: '0'
               } : {}}
             >
-              <style jsx global>{`
+              <style>{`
                 .mobile-dialog[data-state="open"] {
                   position: fixed !important;
                   top: 0 !important;
