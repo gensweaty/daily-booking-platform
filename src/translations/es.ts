@@ -475,7 +475,22 @@ export const es: TranslationType = {
     manageSubscription: "Gestionar Suscripción",
     chooseUpgradeRenew: "Elige un plan para actualizar o renovar tu suscripción.",
     subscribeNow: "Suscribirse Ahora",
-    processing: "Procesando..."
+    processing: "Procesando...",
+    trialPeriod: "Período de Prueba",
+    monthlySubscription: "Suscripción Mensual",
+    yearlySubscription: "Suscripción Anual",
+    activeSubscription: "Suscripción Activa",
+    trialExpired: "Prueba Expirada",
+    subscriptionExpired: "Suscripción Expirada",
+    pleaseUpgrade: "Por favor actualiza tu plan",
+    subscriptionActive: "Suscripción Activa",
+    noActiveSubscription: "Sin Suscripción Activa",
+    timeLeftInTrial: "Tiempo restante en prueba",
+    timeLeftInSubscription: "Tiempo restante en suscripción",
+    days: "días",
+    hours: "horas",
+    minutes: "minutos",
+    seconds: "segundos"
   },
   profile: {
     title: 'Perfil',

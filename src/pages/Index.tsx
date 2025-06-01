@@ -22,6 +22,7 @@ const Index = () => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
   const [activeTab, setActiveTab] = useState('overview');
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
 
   // Use the subscription redirect hook
   useSubscriptionRedirect();
@@ -64,7 +65,10 @@ const Index = () => {
           </div>
 
           <TabsContent value="overview">
-            <DashboardContent />
+            <DashboardContent 
+              isTaskDialogOpen={isTaskDialogOpen}
+              setIsTaskDialogOpen={setIsTaskDialogOpen}
+            />
           </TabsContent>
 
           <TabsContent value="calendar">
