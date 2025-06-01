@@ -1,3 +1,4 @@
+
 import { TranslationType } from "./types";
 
 export const es: TranslationType = {
@@ -512,6 +513,38 @@ export const es: TranslationType = {
     connectedAccounts: "Cuentas Conectadas",
     dataExport: "Exportar Datos",
     deleteAccountWarning: "Esta acción no se puede deshacer",
-    confirmDelete: "Confirmar Eliminación de Cuenta"
+    confirmDelete: "Confirmar Eliminación de Cuenta",
+    userProfile: "Perfil de Usuario",
+    welcomeBack: "¡Bienvenido de vuelta!",
+    accountInformation: "Información de Cuenta",
+    emailAddress: "Dirección de Correo",
+    username: "Nombre de Usuario",
+    subscriptionStatus: "Estado de Suscripción",
+    refresh: "Actualizar",
+    refreshing: "Actualizando...",
+    sync: "Sincronizar",
+    syncing: "Sincronizando...",
+    trialPlan: "Plan de Prueba",
+    trialExpired: "Prueba Expirada",
+    noActiveSubscription: "Sin suscripción activa",
+    trial: "Prueba",
+    active: "Activo",
+    trialexpired: "Prueba Expirada",
+    securitySettings: "Configuración de Seguridad",
+    noSubscriptionInfo: "No hay información de suscripción disponible",
+    getSubscription: "Obtener Suscripción",
+    statusRefreshed: "Estado actualizado",
+    failedRefreshSubscription: "Error al actualizar estado de suscripción",
+    syncSuccessful: "Sincronización Exitosa",
+    subscriptionUpdatedFromStripe: "Su estado de suscripción ha sido actualizado desde Stripe",
+    syncComplete: "Sincronización Completa",
+    subscriptionStatusVerified: "Estado de suscripción verificado",
+    syncError: "Error de Sincronización",
+    failedSyncWithStripe: "Error al sincronizar con Stripe. Inténtelo de nuevo.",
+    signOutError: "Error al cerrar sesión",
+    pleaseTryAgain: "Por favor, inténtelo de nuevo.",
+    passwordResetEmailSent: "Correo de Restablecimiento Enviado",
+    checkEmailForResetLink: "Por favor, revise su correo para el enlace de restablecimiento.",
+    failedSendPasswordReset: "Error al enviar correo de restablecimiento. Inténtelo de nuevo."
   }
 };

@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -509,6 +510,38 @@ export const translations: TranslationType = {
     connectedAccounts: "Connected Accounts",
     dataExport: "Export Data",
     deleteAccountWarning: "This action cannot be undone",
-    confirmDelete: "Confirm Account Deletion"
+    confirmDelete: "Confirm Account Deletion",
+    userProfile: "User Profile",
+    welcomeBack: "Welcome back!",
+    accountInformation: "Account Information",
+    emailAddress: "Email Address",
+    username: "Username",
+    subscriptionStatus: "Subscription Status",
+    refresh: "Refresh",
+    refreshing: "Refreshing...",
+    sync: "Sync",
+    syncing: "Syncing...",
+    trialPlan: "Trial Plan",
+    trialExpired: "Trial Expired",
+    noActiveSubscription: "No active subscription",
+    trial: "Trial",
+    active: "Active",
+    trialexpired: "Trial Expired",
+    securitySettings: "Security Settings",
+    noSubscriptionInfo: "No subscription information available",
+    getSubscription: "Get Subscription",
+    statusRefreshed: "Status refreshed",
+    failedRefreshSubscription: "Failed to refresh subscription status",
+    syncSuccessful: "Sync Successful",
+    subscriptionUpdatedFromStripe: "Your subscription status has been updated from Stripe",
+    syncComplete: "Sync Complete",
+    subscriptionStatusVerified: "Subscription status verified",
+    syncError: "Sync Error",
+    failedSyncWithStripe: "Failed to sync with Stripe. Please try again.",
+    signOutError: "Error during sign out",
+    pleaseTryAgain: "Please try again.",
+    passwordResetEmailSent: "Password Reset Email Sent",
+    checkEmailForResetLink: "Please check your email for the password reset link.",
+    failedSendPasswordReset: "Failed to send password reset email. Please try again."
   }
 };

@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface TranslationType {
@@ -506,6 +507,38 @@ export interface TranslationType {
     dataExport: string;
     deleteAccountWarning: string;
     confirmDelete: string;
+    userProfile: string;
+    welcomeBack: string;
+    accountInformation: string;
+    emailAddress: string;
+    username: string;
+    subscriptionStatus: string;
+    refresh: string;
+    refreshing: string;
+    sync: string;
+    syncing: string;
+    trialPlan: string;
+    trialExpired: string;
+    noActiveSubscription: string;
+    trial: string;
+    active: string;
+    trialexpired: string;
+    securitySettings: string;
+    noSubscriptionInfo: string;
+    getSubscription: string;
+    statusRefreshed: string;
+    failedRefreshSubscription: string;
+    syncSuccessful: string;
+    subscriptionUpdatedFromStripe: string;
+    syncComplete: string;
+    subscriptionStatusVerified: string;
+    syncError: string;
+    failedSyncWithStripe: string;
+    signOutError: string;
+    pleaseTryAgain: string;
+    passwordResetEmailSent: string;
+    checkEmailForResetLink: string;
+    failedSendPasswordReset: string;
   };
 }
 

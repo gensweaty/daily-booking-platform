@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { LogOut, User, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -105,16 +106,16 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       }
       
       toast({
-        title: "Subscription Status",
-        description: `Status refreshed: ${result.status}`,
+        title: t('profile.subscriptionStatus'),
+        description: `${t('profile.statusRefreshed')}: ${result.status}`,
       });
       
       console.log('Manual subscription refresh result:', result);
     } catch (error) {
       console.error('Error refreshing subscription:', error);
       toast({
-        title: "Error",
-        description: "Failed to refresh subscription status",
+        title: t('common.error'),
+        description: t('profile.failedRefreshSubscription'),
         variant: "destructive",
       });
     } finally {
@@ -140,20 +141,20 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         });
         
         toast({
-          title: "Sync Successful",
-          description: "Your subscription status has been updated from Stripe",
+          title: t('profile.syncSuccessful'),
+          description: t('profile.subscriptionUpdatedFromStripe'),
         });
       } else {
         toast({
-          title: "Sync Complete",
-          description: result.status === 'trial_expired' ? "No active subscription found" : "Subscription status verified",
+          title: t('profile.syncComplete'),
+          description: result.status === 'trial_expired' ? t('profile.noActiveSubscription') : t('profile.subscriptionStatusVerified'),
         });
       }
     } catch (error) {
       console.error('Error syncing subscription:', error);
       toast({
-        title: "Sync Error",
-        description: "Failed to sync with Stripe. Please try again.",
+        title: t('profile.syncError'),
+        description: t('profile.failedSyncWithStripe'),
         variant: "destructive",
       });
     } finally {
@@ -167,8 +168,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     } catch (error) {
       console.error('Sign out error:', error);
       toast({
-        title: "Error during sign out",
-        description: "Please try again.",
+        title: t('profile.signOutError'),
+        description: t('profile.pleaseTryAgain'),
         variant: "destructive",
       });
     }
@@ -183,14 +184,14 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       if (error) throw error;
 
       toast({
-        title: "Password Reset Email Sent",
-        description: "Please check your email for the password reset link.",
+        title: t('profile.passwordResetEmailSent'),
+        description: t('profile.checkEmailForResetLink'),
       });
     } catch (error: any) {
       console.error('Password reset error:', error);
       toast({
-        title: "Error",
-        description: "Failed to send password reset email. Please try again.",
+        title: t('common.error'),
+        description: t('profile.failedSendPasswordReset'),
         variant: "destructive",
       });
     }
@@ -209,7 +210,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   };
 
   const formatPlanType = (planType: string) => {
-    return planType === 'monthly' ? 'Monthly Plan' : 'Yearly Plan';
+    return planType === 'monthly' ? t('subscription.monthlyPlan') : t('subscription.annualPlan');
   };
 
   return (
@@ -243,14 +244,16 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 <div className="relative z-10">
                   <DialogHeader>
                     <DialogTitle className="text-3xl font-bold mb-2 text-center">
-                      User Profile
+                      <LanguageText>{t('profile.userProfile')}</LanguageText>
                     </DialogTitle>
                   </DialogHeader>
                   <div className="text-center">
                     <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
                       <User className="w-10 h-10 text-white" />
                     </div>
-                    <p className="text-white/90 text-lg">Welcome back!</p>
+                    <p className="text-white/90 text-lg">
+                      <LanguageText>{t('profile.welcomeBack')}</LanguageText>
+                    </p>
                   </div>
                 </div>
               </div>
@@ -260,7 +263,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200/50 dark:border-blue-800/50">
                   <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200 flex items-center gap-2">
                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    Account Information
+                    <LanguageText>{t('profile.accountInformation')}</LanguageText>
                   </h3>
                   <div className="grid grid-cols-1 gap-4">
                     <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4 backdrop-blur-sm">
@@ -268,7 +271,9 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                         <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
                           <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                         </div>
-                        <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Email Address</p>
+                        <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                          <LanguageText>{t('profile.emailAddress')}</LanguageText>
+                        </p>
                       </div>
                       <p className="text-lg font-semibold text-gray-800 dark:text-gray-200 pl-11">{user?.email}</p>
                     </div>
@@ -277,7 +282,9 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                         <div className="w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center">
                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                         </div>
-                        <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Username</p>
+                        <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                          <LanguageText>{t('profile.username')}</LanguageText>
+                        </p>
                       </div>
                       <p className="text-lg font-semibold text-gray-800 dark:text-gray-200 pl-11">{username}</p>
                     </div>
@@ -289,7 +296,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                       <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                      Subscription Status
+                      <LanguageText>{t('profile.subscriptionStatus')}</LanguageText>
                     </h3>
                     {!isLoading && (
                       <div className="flex gap-2">
@@ -303,10 +310,10 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                           {isRefreshingSubscription ? (
                             <span className="flex items-center gap-2">
                               <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-purple-500 animate-spin"></div>
-                              Refreshing...
+                              <LanguageText>{t('profile.refreshing')}</LanguageText>
                             </span>
                           ) : (
-                            'Refresh'
+                            <LanguageText>{t('profile.refresh')}</LanguageText>
                           )}
                         </Button>
                         <Button 
@@ -319,12 +326,12 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                           {isSyncing ? (
                             <span className="flex items-center gap-2">
                               <RefreshCw className="h-4 w-4 animate-spin" />
-                              Syncing...
+                              <LanguageText>{t('profile.syncing')}</LanguageText>
                             </span>
                           ) : (
                             <span className="flex items-center gap-2">
                               <RefreshCw className="h-4 w-4" />
-                              Sync
+                              <LanguageText>{t('profile.sync')}</LanguageText>
                             </span>
                           )}
                         </Button>
@@ -353,10 +360,12 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                               'bg-red-500'
                             }`}></div>
                             <span className="text-xl font-bold text-gray-800 dark:text-gray-200">
-                              {subscription.status === 'trial' ? 'Trial Plan' : 
-                               subscription.status === 'active' ? formatPlanType(subscription.plan_type) :
-                               subscription.status === 'trial_expired' ? 'Trial Expired' : 
-                               'No active subscription'}
+                              <LanguageText>
+                                {subscription.status === 'trial' ? t('profile.trialPlan') : 
+                                 subscription.status === 'active' ? formatPlanType(subscription.plan_type) :
+                                 subscription.status === 'trial_expired' ? t('profile.trialExpired') : 
+                                 t('profile.noActiveSubscription')}
+                              </LanguageText>
                             </span>
                           </div>
                           <span className={`px-4 py-2 rounded-full text-sm font-semibold uppercase tracking-wide ${
@@ -364,7 +373,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                             subscription.status === 'trial' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400' :
                             'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400'
                           }`}>
-                            {subscription.status.replace('_', ' ')}
+                            <LanguageText>{t(`profile.${subscription.status.replace('_', '')}`)}</LanguageText>
                           </span>
                         </div>
                         
@@ -386,7 +395,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                         onClick={handleManageSubscription}
                       >
                         <span className="flex items-center gap-2">
-                          Manage Subscription
+                          <LanguageText>{t('subscription.manageSubscription')}</LanguageText>
                         </span>
                       </Button>
                     </div>
@@ -395,12 +404,14 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                       <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto">
                         <User className="w-8 h-8 text-gray-500 dark:text-gray-400" />
                       </div>
-                      <p className="text-lg text-gray-600 dark:text-gray-300">No subscription information available</p>
+                      <p className="text-lg text-gray-600 dark:text-gray-300">
+                        <LanguageText>{t('profile.noSubscriptionInfo')}</LanguageText>
+                      </p>
                       <Button 
                         className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white border-0 hover:from-purple-700 hover:via-indigo-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
                         onClick={() => setIsManageSubscriptionOpen(true)}
                       >
-                        Get Subscription
+                        <LanguageText>{t('profile.getSubscription')}</LanguageText>
                       </Button>
                     </div>
                   )}
@@ -410,14 +421,14 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl p-6 border border-orange-200/50 dark:border-orange-800/50">
                   <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200 flex items-center gap-2">
                     <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    Security Settings
+                    <LanguageText>{t('profile.securitySettings')}</LanguageText>
                   </h3>
                   <Button 
                     variant="outline"
                     className="w-full h-12 text-lg font-medium border-orange-200 hover:bg-orange-50 dark:border-orange-800 dark:hover:bg-orange-900/50"
                     onClick={handleChangePassword}
                   >
-                    Change Password
+                    <LanguageText>{t('profile.changePassword')}</LanguageText>
                   </Button>
                 </div>
               </div>
