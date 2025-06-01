@@ -274,20 +274,40 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
               </Button>
             </DialogTrigger>
             <DialogContent 
-              className={`${
+              className={
                 isMobile 
-                  ? 'fixed inset-4 top-4 left-4 right-4 bottom-4 w-auto h-auto max-w-none max-h-none translate-x-0 translate-y-0 rounded-lg' 
-                  : 'sm:max-w-[600px] max-h-[90vh]'
-              } p-0 overflow-y-auto`}
+                  ? 'mobile-dialog w-screen h-screen max-w-none max-h-none p-0 border-0 rounded-none' 
+                  : 'sm:max-w-[600px] max-h-[90vh] p-0'
+              }
               style={isMobile ? {
                 position: 'fixed',
-                top: 'max(1rem, env(safe-area-inset-top))',
-                left: '1rem',
-                right: '1rem',
-                bottom: 'max(1rem, env(safe-area-inset-bottom))',
-                transform: 'none'
+                top: '0',
+                left: '0',
+                right: '0',
+                bottom: '0',
+                transform: 'none',
+                margin: '0',
+                borderRadius: '0'
               } : {}}
             >
+              <style jsx global>{`
+                .mobile-dialog[data-state="open"] {
+                  position: fixed !important;
+                  top: 0 !important;
+                  left: 0 !important;
+                  right: 0 !important;
+                  bottom: 0 !important;
+                  width: 100vw !important;
+                  height: 100vh !important;
+                  max-width: none !important;
+                  max-height: none !important;
+                  transform: none !important;
+                  margin: 0 !important;
+                  border-radius: 0 !important;
+                  border: none !important;
+                }
+              `}</style>
+              
               <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-6 md:p-8 text-white relative overflow-hidden">
                 <div className="absolute inset-0 bg-black/10"></div>
                 <div className="relative z-10">
@@ -311,7 +331,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 </div>
               </div>
 
-              <div className={`${isMobile ? 'p-4 space-y-6' : 'p-8 space-y-8'}`}>
+              <div className={`${isMobile ? 'p-4 space-y-6 overflow-y-auto flex-1' : 'p-8 space-y-8'}`}>
                 {/* User Information Section */}
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 md:p-6 border border-blue-200/50 dark:border-blue-800/50">
                   <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold mb-4 text-gray-800 dark:text-gray-200 flex items-center gap-2`}>
