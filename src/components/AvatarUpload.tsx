@@ -133,7 +133,7 @@ export const AvatarUpload = ({ avatarUrl, onAvatarUpdate, size = 'md' }: AvatarU
   };
 
   return (
-    <div className="relative">
+    <div className="relative flex justify-center">
       <div
         className={`${sizeClasses[size]} relative bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/50 dark:to-purple-900/50 rounded-full flex items-center justify-center overflow-hidden border-2 border-white dark:border-gray-700 shadow-lg cursor-pointer transition-all duration-300 ${
           isHovered ? 'scale-105 shadow-xl' : ''
@@ -149,7 +149,9 @@ export const AvatarUpload = ({ avatarUrl, onAvatarUpdate, size = 'md' }: AvatarU
             className="w-full h-full object-cover"
           />
         ) : (
-          <User className={`${iconSizes[size]} text-gray-400 dark:text-gray-500`} />
+          <div className="flex items-center justify-center w-full h-full">
+            <User className={`${iconSizes[size]} text-gray-400 dark:text-gray-500`} />
+          </div>
         )}
 
         {/* Overlay with upload icon */}

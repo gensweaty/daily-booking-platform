@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { LogOut, User, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -256,13 +257,19 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
               <Button 
                 variant="purple" 
                 size="icon"
-                className="text-foreground p-0 h-12 w-12 rounded-full"
+                className="text-foreground h-12 w-12 rounded-full p-0"
               >
-                <AvatarUpload 
-                  avatarUrl={avatarUrl}
-                  onAvatarUpdate={handleAvatarUpdate}
-                  size="sm"
-                />
+                <div className="w-10 h-10 relative bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/50 dark:to-purple-900/50 rounded-full flex items-center justify-center overflow-hidden border-2 border-white dark:border-gray-700 shadow-lg">
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt="Avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                  )}
+                </div>
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px] p-0 max-h-[90vh] overflow-y-auto">
