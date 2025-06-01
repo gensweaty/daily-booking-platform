@@ -1,6 +1,6 @@
 export type Language = 'en' | 'es' | 'ka';
 
-export type TranslationType = {
+export interface TranslationType {
   nav: {
     signin: string;
     startJourney: string;
@@ -454,10 +454,22 @@ export type TranslationType = {
   reminders: {
     reminderCreated: string;
   };
-};
+  subscription: {
+    monthlyPlan: string;
+    annualPlan: string;
+    monthlyPrice: string;
+    monthlyOriginalPrice: string;
+    yearlyPrice: string;
+    yearlyOriginalPrice: string;
+    discount50: string;
+    additionalSavings: string;
+    monthlyDuration: string;
+    yearlyDuration: string;
+  };
+}
 
-export type LanguageContextType = {
+export interface LanguageContextType {
   language: Language;
   setLanguage: (language: Language) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
-};
+}

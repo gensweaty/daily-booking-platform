@@ -181,7 +181,7 @@ export const ka: TranslationType = {
     tasks: "დავალებები",
     reminders: "შეხსენებები",
     notes: "შენიშვნები",
-    business: "ბიზნესი",
+    business: "ბიზნესის მართვა",
     stats: "სტატისტიკა",
     statistics: "სტატისტიკა",
     crm: "მომხმარებლების მართვა",
@@ -457,5 +457,17 @@ export const ka: TranslationType = {
         "დაუყოვნებლივ გვაცნობეთ თქვენს ანგარიშზე არაავტორიზებული წვდომის შესახებ."
       ]
     }
+  },
+  subscription: {
+    monthlyPlan: "თვიური გეგმა",
+    annualPlan: "წლიური გეგმა", 
+    monthlyPrice: "$19.99/თვე",
+    monthlyOriginalPrice: "$39.99",
+    yearlyPrice: "$199.99/წელი",
+    yearlyOriginalPrice: "$399.99",
+    discount50: "50% ფასდაკლება",
+    additionalSavings: "დამატებით 17% ოფერი თვიურ გეგმასთან შედარებით",
+    monthlyDuration: "30 დღე პრემიუმ წვდომა",
+    yearlyDuration: "365 დღე პრემიუმ წვდომა"
   }
 };

@@ -460,5 +460,17 @@ export const es: TranslationType = {
   
   reminders: {
     reminderCreated: "Recordatorio creado con éxito"
+  },
+  subscription: {
+    monthlyPlan: "Plan Mensual",
+    annualPlan: "Plan Anual",
+    monthlyPrice: "$19.99/mes",
+    monthlyOriginalPrice: "$39.99",
+    yearlyPrice: "$199.99/año",
+    yearlyOriginalPrice: "$399.99",
+    discount50: "50% DESCUENTO",
+    additionalSavings: "Ahorra 17% adicional del plan mensual",
+    monthlyDuration: "30 días de acceso premium",
+    yearlyDuration: "365 días de acceso premium"
   }
 };

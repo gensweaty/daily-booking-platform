@@ -1,5 +1,4 @@
-
-import { TranslationType } from "./types";
+import { TranslationType } from './types';
 
 export const translations: TranslationType = {
   nav: {
@@ -9,13 +8,13 @@ export const translations: TranslationType = {
   },
   hero: {
     title: "Boost Your Business Productivity with SmartBookly",
-    subtitle: "All-in-One Solution - Event Booking, Task Management, CRM & Analytics",
+    subtitle: "All-in-One Solution - Event Bookings, Task Management, CRM & Analytics",
     description: "Take complete control of your workflow with our seamless booking calendar, powerful task management, smart customer relationship management, and built-in analytics. Everything your business needs, in one place.",
   },
   features: {
     title: "What We Offer",
     mainTitle: "Everything you need to make your business thrive",
-    booking: "Booking",
+    booking: "Bookings",
     tasks: "Tasks",
     crm: "CRM",
     analytics: "Analytics",
@@ -458,5 +457,17 @@ export const translations: TranslationType = {
   },
   reminders: {
     reminderCreated: "Reminder created successfully"
+  },
+  subscription: {
+    monthlyPlan: "Monthly Plan",
+    annualPlan: "Annual Plan",
+    monthlyPrice: "$19.99/month",
+    monthlyOriginalPrice: "$39.99",
+    yearlyPrice: "$199.99/year",
+    yearlyOriginalPrice: "$399.99",
+    discount50: "50% OFF",
+    additionalSavings: "Save additional 17% from monthly plan",
+    monthlyDuration: "30 days of premium access",
+    yearlyDuration: "365 days of premium access"
   }
 };
