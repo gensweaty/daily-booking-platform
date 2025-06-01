@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { LogOut, User, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -24,6 +23,7 @@ import { differenceInDays } from "date-fns";
 import { ManageSubscriptionDialog } from "./subscription/ManageSubscriptionDialog";
 import { SubscriptionCountdown } from "./subscription/SubscriptionCountdown";
 import { AvatarUpload } from "./AvatarUpload";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface DashboardHeaderProps {
   username: string;
@@ -50,6 +50,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   // Fetch user profile data including avatar
   const fetchUserProfile = async () => {
@@ -272,12 +273,12 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 </div>
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] p-0 max-h-[90vh] overflow-y-auto">
-              <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-8 text-white relative overflow-hidden">
+            <DialogContent className={`${isMobile ? 'w-[95vw] max-w-[95vw] h-[90vh] max-h-[90vh]' : 'sm:max-w-[600px] max-h-[90vh]'} p-0 overflow-y-auto`}>
+              <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-6 md:p-8 text-white relative overflow-hidden">
                 <div className="absolute inset-0 bg-black/10"></div>
                 <div className="relative z-10">
                   <DialogHeader>
-                    <DialogTitle className="text-3xl font-bold mb-2 text-center">
+                    <DialogTitle className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold mb-2 text-center`}>
                       <LanguageText>{t('profile.userProfile')}</LanguageText>
                     </DialogTitle>
                   </DialogHeader>
@@ -286,53 +287,53 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                       <AvatarUpload 
                         avatarUrl={avatarUrl}
                         onAvatarUpdate={handleAvatarUpdate}
-                        size="lg"
+                        size={isMobile ? "md" : "lg"}
                       />
                     </div>
-                    <p className="text-white/90 text-lg">
+                    <p className={`text-white/90 ${isMobile ? 'text-base' : 'text-lg'}`}>
                       <LanguageText>{t('profile.welcomeBack')}</LanguageText>
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="p-8 space-y-8">
+              <div className={`${isMobile ? 'p-4 space-y-6' : 'p-8 space-y-8'}`}>
                 {/* User Information Section */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200/50 dark:border-blue-800/50">
-                  <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 md:p-6 border border-blue-200/50 dark:border-blue-800/50">
+                  <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold mb-4 text-gray-800 dark:text-gray-200 flex items-center gap-2`}>
                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                     <LanguageText>{t('profile.accountInformation')}</LanguageText>
                   </h3>
                   <div className="grid grid-cols-1 gap-4">
-                    <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4 backdrop-blur-sm">
+                    <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-3 md:p-4 backdrop-blur-sm">
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+                        <div className="w-6 h-6 md:w-8 md:h-8 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center flex-shrink-0">
                           <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                         </div>
-                        <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                        <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-gray-600 dark:text-gray-300`}>
                           <LanguageText>{t('profile.emailAddress')}</LanguageText>
                         </p>
                       </div>
-                      <p className="text-lg font-semibold text-gray-800 dark:text-gray-200 pl-11">{user?.email}</p>
+                      <p className={`${isMobile ? 'text-sm pl-9' : 'text-lg font-semibold pl-11'} text-gray-800 dark:text-gray-200 break-all`}>{user?.email}</p>
                     </div>
-                    <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4 backdrop-blur-sm">
+                    <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-3 md:p-4 backdrop-blur-sm">
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center">
+                        <div className="w-6 h-6 md:w-8 md:h-8 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center flex-shrink-0">
                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                         </div>
-                        <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                        <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-gray-600 dark:text-gray-300`}>
                           <LanguageText>{t('profile.username')}</LanguageText>
                         </p>
                       </div>
-                      <p className="text-lg font-semibold text-gray-800 dark:text-gray-200 pl-11">{username}</p>
+                      <p className={`${isMobile ? 'text-sm pl-9' : 'text-lg font-semibold pl-11'} text-gray-800 dark:text-gray-200 break-all`}>{username}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Subscription Section */}
-                <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-6 border border-purple-200/50 dark:border-purple-800/50">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-4 md:p-6 border border-purple-200/50 dark:border-purple-800/50">
+                  <div className="flex justify-between items-center mb-4 md:mb-6">
+                    <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2`}>
                       <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                       <LanguageText>{t('profile.subscriptionStatus')}</LanguageText>
                     </h3>
@@ -340,18 +341,18 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="h-9 px-4 text-sm border-purple-200 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-900/50"
+                        className={`${isMobile ? 'h-8 px-3 text-xs' : 'h-9 px-4 text-sm'} border-purple-200 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-900/50`}
                         onClick={handleManualSync}
                         disabled={isSyncing}
                       >
                         {isSyncing ? (
-                          <span className="flex items-center gap-2">
-                            <RefreshCw className="h-4 w-4 animate-spin" />
+                          <span className="flex items-center gap-1 md:gap-2">
+                            <RefreshCw className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} animate-spin`} />
                             <LanguageText>{t('profile.syncing')}</LanguageText>
                           </span>
                         ) : (
-                          <span className="flex items-center gap-2">
-                            <RefreshCw className="h-4 w-4" />
+                          <span className="flex items-center gap-1 md:gap-2">
+                            <RefreshCw className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
                             <LanguageText>{t('profile.sync')}</LanguageText>
                           </span>
                         )}
@@ -360,9 +361,9 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   </div>
                   
                   {isLoading ? (
-                    <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-6 backdrop-blur-sm">
+                    <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4 md:p-6 backdrop-blur-sm">
                       <div className="animate-pulse flex space-x-4">
-                        <div className="rounded-full bg-purple-200 dark:bg-purple-700 h-12 w-12"></div>
+                        <div className={`rounded-full bg-purple-200 dark:bg-purple-700 ${isMobile ? 'h-10 w-10' : 'h-12 w-12'}`}></div>
                         <div className="flex-1 space-y-3 py-1">
                           <div className="h-4 bg-purple-200 dark:bg-purple-700 rounded w-3/4"></div>
                           <div className="h-4 bg-purple-200 dark:bg-purple-700 rounded w-1/2"></div>
@@ -370,16 +371,16 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                       </div>
                     </div>
                   ) : subscription ? (
-                    <div className="space-y-6">
-                      <div className="bg-white/80 dark:bg-gray-800/80 rounded-lg p-6 backdrop-blur-sm border border-white/50 dark:border-gray-700/50">
+                    <div className="space-y-4 md:space-y-6">
+                      <div className="bg-white/80 dark:bg-gray-800/80 rounded-lg p-4 md:p-6 backdrop-blur-sm border border-white/50 dark:border-gray-700/50">
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center gap-3">
-                            <div className={`w-4 h-4 rounded-full flex-shrink-0 ${
+                            <div className={`w-3 h-3 md:w-4 md:h-4 rounded-full flex-shrink-0 ${
                               subscription.status === 'active' ? 'bg-green-500' :
                               subscription.status === 'trial' ? 'bg-blue-500' :
                               'bg-red-500'
                             }`}></div>
-                            <span className="text-xl font-bold text-gray-800 dark:text-gray-200">
+                            <span className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-gray-800 dark:text-gray-200`}>
                               <LanguageText>
                                 {subscription.status === 'trial' ? t('profile.trialPlan') : 
                                  subscription.status === 'active' ? formatPlanType(subscription.plan_type) :
@@ -388,7 +389,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                               </LanguageText>
                             </span>
                           </div>
-                          <span className={`px-4 py-2 rounded-full text-sm font-semibold uppercase tracking-wide ${
+                          <span className={`px-2 md:px-4 py-1 md:py-2 rounded-full ${isMobile ? 'text-xs' : 'text-sm'} font-semibold uppercase tracking-wide ${
                             subscription.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400' :
                             subscription.status === 'trial' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400' :
                             'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400'
@@ -399,7 +400,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                         
                         {/* Countdown Component */}
                         {(subscription.status === 'trial' || subscription.status === 'active') && (
-                          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-lg p-4 border border-indigo-200/50 dark:border-indigo-800/50">
+                          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-lg p-3 md:p-4 border border-indigo-200/50 dark:border-indigo-800/50">
                             <SubscriptionCountdown
                               status={subscription.status as 'trial' | 'active'}
                               currentPeriodEnd={subscription.current_period_end}
@@ -411,7 +412,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                       </div>
                       
                       <Button 
-                        className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white border-0 hover:from-purple-700 hover:via-indigo-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
+                        className={`w-full ${isMobile ? 'h-12 text-base' : 'h-14 text-lg'} font-semibold bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white border-0 hover:from-purple-700 hover:via-indigo-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]`}
                         onClick={handleManageSubscription}
                       >
                         <span className="flex items-center gap-2">
@@ -420,15 +421,15 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                       </Button>
                     </div>
                   ) : (
-                    <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-6 backdrop-blur-sm text-center space-y-4">
-                      <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto">
-                        <User className="w-8 h-8 text-gray-500 dark:text-gray-400" />
+                    <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4 md:p-6 backdrop-blur-sm text-center space-y-4">
+                      <div className={`${isMobile ? 'w-12 h-12' : 'w-16 h-16'} bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto`}>
+                        <User className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} text-gray-500 dark:text-gray-400`} />
                       </div>
-                      <p className="text-lg text-gray-600 dark:text-gray-300">
+                      <p className={`${isMobile ? 'text-base' : 'text-lg'} text-gray-600 dark:text-gray-300`}>
                         <LanguageText>{t('profile.noSubscriptionInfo')}</LanguageText>
                       </p>
                       <Button 
-                        className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white border-0 hover:from-purple-700 hover:via-indigo-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
+                        className={`w-full ${isMobile ? 'h-12 text-base' : 'h-14 text-lg'} font-semibold bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white border-0 hover:from-purple-700 hover:via-indigo-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]`}
                         onClick={() => setIsManageSubscriptionOpen(true)}
                       >
                         <LanguageText>{t('profile.getSubscription')}</LanguageText>
@@ -438,14 +439,14 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 </div>
 
                 {/* Change Password Section */}
-                <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl p-6 border border-orange-200/50 dark:border-orange-800/50">
-                  <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl p-4 md:p-6 border border-orange-200/50 dark:border-orange-800/50">
+                  <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold mb-4 text-gray-800 dark:text-gray-200 flex items-center gap-2`}>
                     <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                     <LanguageText>{t('profile.securitySettings')}</LanguageText>
                   </h3>
                   <Button 
                     variant="outline"
-                    className="w-full h-12 text-lg font-medium border-orange-200 hover:bg-orange-50 dark:border-orange-800 dark:hover:bg-orange-900/50"
+                    className={`w-full ${isMobile ? 'h-10 text-base' : 'h-12 text-lg'} font-medium border-orange-200 hover:bg-orange-50 dark:border-orange-800 dark:hover:bg-orange-900/50`}
                     onClick={handleChangePassword}
                   >
                     <LanguageText>{t('profile.changePassword')}</LanguageText>
