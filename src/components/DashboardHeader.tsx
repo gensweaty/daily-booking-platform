@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { LogOut, User, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -201,12 +202,30 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   };
 
   const handleChangePassword = async () => {
+    if (!user?.email) {
+      toast({
+        title: t('common.error'),
+        description: t('profile.noEmailFound'),
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(user?.email || '', {
-        redirectTo: 'https://daily-booking-platform.lovable.app/reset-password',
+      // Use Supabase's built-in password reset instead of the custom edge function
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/reset-password`,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Password reset error:', error);
+        toast({
+          title: t('common.error'),
+          description: t('profile.failedSendPasswordReset'),
+          variant: "destructive",
+        });
+        return;
+      }
 
       toast({
         title: t('profile.passwordResetEmailSent'),
