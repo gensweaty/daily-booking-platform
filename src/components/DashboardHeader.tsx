@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { LogOut, User, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -23,6 +22,7 @@ import { checkSubscriptionStatus, openStripeCustomerPortal, manualSyncSubscripti
 import { differenceInDays } from "date-fns";
 import { ManageSubscriptionDialog } from "./subscription/ManageSubscriptionDialog";
 import { SubscriptionCountdown } from "./subscription/SubscriptionCountdown";
+import { AvatarUpload } from "./profile/AvatarUpload";
 
 interface DashboardHeaderProps {
   username: string;
@@ -48,6 +48,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const [isManageSubscriptionOpen, setIsManageSubscriptionOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string>('');
 
   // Fetch subscription data function
   const fetchSubscription = async () => {
@@ -95,6 +96,34 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       }
       fetchSubscription();
     }
+  }, [user]);
+
+  // Fetch user avatar
+  useEffect(() => {
+    const fetchAvatar = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        if (error) {
+          console.error('Error fetching avatar:', error);
+          return;
+        }
+        
+        if (data?.avatar_url) {
+          setAvatarUrl(data.avatar_url);
+        }
+      } catch (error) {
+        console.error('Avatar fetch error:', error);
+      }
+    };
+
+    fetchAvatar();
   }, [user]);
 
   // Fetch when dialog opens
@@ -165,7 +194,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       });
     }
   };
-
+  
   const handleChangePassword = async () => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(user?.email || '', {
@@ -204,6 +233,10 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     return planType === 'monthly' ? t('subscription.monthlyPlan') : t('subscription.annualPlan');
   };
 
+  const handleAvatarUpdate = (url: string) => {
+    setAvatarUrl(url);
+  };
+
   return (
     <header className="mb-4">
       <div className="flex items-center justify-between mb-3">
@@ -239,11 +272,16 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                     </DialogTitle>
                   </DialogHeader>
                   <div className="text-center">
-                    <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-                      <User className="w-10 h-10 text-white" />
-                    </div>
-                    <p className="text-white/90 text-lg">
-                      <LanguageText>{t('profile.welcomeBack')}</LanguageText>
+                    <AvatarUpload 
+                      avatarUrl={avatarUrl}
+                      onAvatarUpdate={handleAvatarUpdate}
+                    />
+                    <p className="text-white/90 text-lg mt-2">
+                      {isGeorgian ? (
+                        <GeorgianAuthText>{t('profile.welcomeBack')}</GeorgianAuthText>
+                      ) : (
+                        <LanguageText>{t('profile.welcomeBack')}</LanguageText>
+                      )}
                     </p>
                   </div>
                 </div>

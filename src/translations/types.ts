@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es' | 'ka';
 
 export interface TranslationType {
@@ -539,6 +538,11 @@ export interface TranslationType {
     passwordResetEmailSent: string;
     checkEmailForResetLink: string;
     failedSendPasswordReset: string;
+    uploadAvatar: string;
+    avatarUploadSuccess: string;
+    avatarUploadError: string;
+    avatarUploading: string;
+    changeAvatar: string;
   };
 }
 
