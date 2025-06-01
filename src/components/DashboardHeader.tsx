@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { LogOut, User, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -274,7 +273,21 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 </div>
               </Button>
             </DialogTrigger>
-            <DialogContent className={`${isMobile ? 'w-[95vw] max-w-[95vw] h-[90vh] max-h-[90vh] top-[5vh] left-[2.5vw] translate-x-0 translate-y-0' : 'sm:max-w-[600px] max-h-[90vh]'} p-0 overflow-y-auto`}>
+            <DialogContent 
+              className={`${
+                isMobile 
+                  ? 'fixed inset-4 top-4 left-4 right-4 bottom-4 w-auto h-auto max-w-none max-h-none translate-x-0 translate-y-0 rounded-lg' 
+                  : 'sm:max-w-[600px] max-h-[90vh]'
+              } p-0 overflow-y-auto`}
+              style={isMobile ? {
+                position: 'fixed',
+                top: 'max(1rem, env(safe-area-inset-top))',
+                left: '1rem',
+                right: '1rem',
+                bottom: 'max(1rem, env(safe-area-inset-bottom))',
+                transform: 'none'
+              } : {}}
+            >
               <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-6 md:p-8 text-white relative overflow-hidden">
                 <div className="absolute inset-0 bg-black/10"></div>
                 <div className="relative z-10">
