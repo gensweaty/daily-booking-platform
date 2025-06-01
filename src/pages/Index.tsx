@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
@@ -137,7 +138,7 @@ const Index = () => {
             setUsername(data.username)
           }
 
-          // Check subscription status for all users
+          // Only check subscription status once on login, not continuously
           await checkSubscriptionStatus();
           
         } catch (error: any) {
@@ -147,19 +148,6 @@ const Index = () => {
     }
 
     getProfile()
-    
-    // Add subscription status polling for more reliable updates
-    if (user) {
-      const intervalId = setInterval(async () => {
-        try {
-          await checkSubscriptionStatus();
-        } catch (error) {
-          console.error('Error in subscription status poll:', error);
-        }
-      }, 10000); // Check every 10 seconds
-      
-      return () => clearInterval(intervalId);
-    }
   }, [user])
 
   if (processingCode) {

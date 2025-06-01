@@ -46,80 +46,63 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
   const [isManageSubscriptionOpen, setIsManageSubscriptionOpen] = useState(false);
-  const [isRefreshingSubscription, setIsRefreshingSubscription] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Fetch subscription data function
+  const fetchSubscription = async () => {
+    if (!user) return;
+    
+    try {
+      setIsLoading(true);
+      console.log('Checking subscription status for user:', user.email);
+      
+      const statusResult = await checkSubscriptionStatus();
+      console.log('Subscription status result:', statusResult);
+      
+      if (statusResult && statusResult.status) {
+        setSubscription({
+          plan_type: statusResult.planType || 'monthly',
+          status: statusResult.status,
+          current_period_end: statusResult.currentPeriodEnd || null,
+          trial_end_date: statusResult.trialEnd || null,
+          stripe_customer_id: null,
+          stripe_subscription_id: statusResult.stripe_subscription_id || null
+        });
+      } else {
+        setSubscription(null);
+      }
+    } catch (error) {
+      console.error('Subscription fetch error:', error);
+      setSubscription(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Check for payment return in URL
+  const checkForPaymentReturn = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.has('session_id') || urlParams.has('subscription');
+  };
 
   useEffect(() => {
-    const fetchSubscription = async () => {
-      if (user) {
-        try {
-          setIsLoading(true);
-          console.log('Checking subscription status for user:', user.email);
-          
-          const statusResult = await checkSubscriptionStatus();
-          console.log('Subscription status result:', statusResult);
-          
-          if (statusResult && statusResult.status) {
-            setSubscription({
-              plan_type: statusResult.planType || 'monthly',
-              status: statusResult.status,
-              current_period_end: statusResult.currentPeriodEnd || null,
-              trial_end_date: statusResult.trialEnd || null,
-              stripe_customer_id: null,
-              stripe_subscription_id: statusResult.stripe_subscription_id || null
-            });
-          } else {
-            setSubscription(null);
-          }
-        } catch (error) {
-          console.error('Subscription fetch error:', error);
-          setSubscription(null);
-        } finally {
-          setIsLoading(false);
-        }
+    // Only fetch on initial load or when returning from payment
+    if (user) {
+      const isPaymentReturn = checkForPaymentReturn();
+      if (isPaymentReturn) {
+        console.log('Detected payment return, fetching subscription data');
       }
-    };
-
-    fetchSubscription();
-    
-    const intervalId = setInterval(fetchSubscription, 30000); // Check every 30 seconds
-    
-    return () => clearInterval(intervalId);
+      fetchSubscription();
+    }
   }, [user]);
 
-  const handleRefreshSubscription = async () => {
-    if (!user || isRefreshingSubscription) return;
-    
-    setIsRefreshingSubscription(true);
-    try {
-      const result = await checkSubscriptionStatus();
-      
-      if (result && result.status) {
-        setSubscription({
-          plan_type: result.planType || 'monthly',
-          status: result.status,
-          current_period_end: result.currentPeriodEnd || null,
-          trial_end_date: result.trialEnd || null,
-          stripe_customer_id: null,
-          stripe_subscription_id: result.stripe_subscription_id || null
-        });
-      }
-      
-      toast({
-        title: t('profile.subscriptionStatus'),
-        description: `${t('profile.statusRefreshed')}: ${result.status}`,
-      });
-      
-      console.log('Manual subscription refresh result:', result);
-    } catch (error) {
-      console.error('Error refreshing subscription:', error);
-      toast({
-        title: t('common.error'),
-        description: t('profile.failedRefreshSubscription'),
-        variant: "destructive",
-      });
-    } finally {
-      setIsRefreshingSubscription(false);
+  // Fetch when dialog opens
+  const handleDialogOpenChange = (open: boolean) => {
+    setDialogOpen(open);
+    if (open && user && !isLoading) {
+      console.log('Profile dialog opened, refreshing subscription data');
+      fetchSubscription();
     }
   };
 
@@ -128,9 +111,11 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     
     setIsSyncing(true);
     try {
+      console.log('Starting manual sync for user:', user.email);
       const result = await manualSyncSubscription();
+      console.log('Manual sync result:', result);
       
-      if (result.success && result.status === 'active') {
+      if (result && result.success && result.status === 'active') {
         setSubscription({
           plan_type: result.planType || 'monthly',
           status: result.status,
@@ -144,7 +129,13 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           title: t('profile.syncSuccessful'),
           description: t('profile.subscriptionUpdatedFromStripe'),
         });
+      } else if (result && result.status === 'trial_expired') {
+        toast({
+          title: t('profile.syncComplete'),
+          description: t('profile.noActiveSubscription'),
+        });
       } else {
+        const errorMsg = result?.error || "Sync completed but no active subscription found";
         toast({
           title: t('profile.syncComplete'),
           description: result.status === 'trial_expired' ? t('profile.noActiveSubscription') : t('profile.subscriptionStatusVerified'),
@@ -228,7 +219,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         </Link>
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
-          <Dialog>
+          <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
             <DialogTrigger asChild>
               <Button 
                 variant="purple" 
@@ -299,43 +290,25 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                       <LanguageText>{t('profile.subscriptionStatus')}</LanguageText>
                     </h3>
                     {!isLoading && (
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-9 px-4 text-sm border-purple-200 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-900/50"
-                          onClick={handleRefreshSubscription}
-                          disabled={isRefreshingSubscription}
-                        >
-                          {isRefreshingSubscription ? (
-                            <span className="flex items-center gap-2">
-                              <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-purple-500 animate-spin"></div>
-                              <LanguageText>{t('profile.refreshing')}</LanguageText>
-                            </span>
-                          ) : (
-                            <LanguageText>{t('profile.refresh')}</LanguageText>
-                          )}
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-9 px-4 text-sm border-purple-200 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-900/50"
-                          onClick={handleManualSync}
-                          disabled={isSyncing}
-                        >
-                          {isSyncing ? (
-                            <span className="flex items-center gap-2">
-                              <RefreshCw className="h-4 w-4 animate-spin" />
-                              <LanguageText>{t('profile.syncing')}</LanguageText>
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-2">
-                              <RefreshCw className="h-4 w-4" />
-                              <LanguageText>{t('profile.sync')}</LanguageText>
-                            </span>
-                          )}
-                        </Button>
-                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-9 px-4 text-sm border-purple-200 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-900/50"
+                        onClick={handleManualSync}
+                        disabled={isSyncing}
+                      >
+                        {isSyncing ? (
+                          <span className="flex items-center gap-2">
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            <LanguageText>{t('profile.syncing')}</LanguageText>
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <RefreshCw className="h-4 w-4" />
+                            <LanguageText>{t('profile.sync')}</LanguageText>
+                          </span>
+                        )}
+                      </Button>
                     )}
                   </div>
                   
