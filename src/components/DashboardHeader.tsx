@@ -274,7 +274,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 </div>
               </Button>
             </DialogTrigger>
-            <DialogContent className={`${isMobile ? 'w-[95vw] max-w-[95vw] h-[95vh] max-h-[95vh] top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%]' : 'sm:max-w-[600px] max-h-[90vh]'} p-0 overflow-y-auto`}>
+            <DialogContent className={`${isMobile ? 'w-[95vw] max-w-[95vw] h-[90vh] max-h-[90vh] top-[5vh] left-[2.5vw] translate-x-0 translate-y-0' : 'sm:max-w-[600px] max-h-[90vh]'} p-0 overflow-y-auto`}>
               <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-6 md:p-8 text-white relative overflow-hidden">
                 <div className="absolute inset-0 bg-black/10"></div>
                 <div className="relative z-10">
