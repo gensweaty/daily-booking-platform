@@ -488,7 +488,11 @@ export const es: TranslationType = {
     days: "días",
     hours: "horas",
     minutes: "minutos",
-    seconds: "segundos"
+    seconds: "segundos",
+    trialIncluded: "Prueba gratuita de 14 días incluida",
+    freeTrial: "Prueba gratuita de 14 días, no se requiere tarjeta de crédito",
+    startFreeTrial: "Comenzar Prueba Gratuita",
+    trialThenBilling: "No se requiere tarjeta de crédito"
   },
   profile: {
     title: "Perfil de Usuario",

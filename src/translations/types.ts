@@ -178,6 +178,8 @@ export interface TranslationType {
     notFound: string;
     notFoundDescription: string;
     viewPublicPage: string;
+    scanQrCode: string;
+    qrCodeTooltip: string;
     customer: string;
     title: string;
     dateTime: string;
@@ -199,8 +201,6 @@ export interface TranslationType {
     availableTimes: string;
     clickToRequest: string;
     contactInformation: string;
-    scanQrCode: string;
-    qrCodeTooltip: string;
   };
   dashboard: {
     welcome: string;
@@ -322,16 +322,11 @@ export interface TranslationType {
     weekOf: string;
   };
   common: {
+    cancel: string;
     success: string;
     error: string;
     warning: string;
-    cancel: string;
     submitting: string;
-    create: string;
-    update: string;
-    delete: string;
-    errorOccurred: string;
-    and: string;
     loading: string;
     rateLimitReached: string;
     waitBeforeBooking: string;
@@ -345,10 +340,15 @@ export interface TranslationType {
     deleteSuccess: string;
     deleteError: string;
     missingUserInfo: string;
+    errorOccurred: string;
     new: string;
     request: string;
     requests: string;
     backToHome: string;
+    create: string;
+    update: string;
+    delete: string;
+    and: string;
     supportedFormats: string;
     deleteConfirmMessage: string;
     noDescription: string;
@@ -483,6 +483,10 @@ export interface TranslationType {
     hours: string;
     minutes: string;
     seconds: string;
+    trialIncluded: string;
+    freeTrial: string;
+    startFreeTrial: string;
+    trialThenBilling: string;
   };
   profile: {
     title: string;

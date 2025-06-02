@@ -485,7 +485,11 @@ export const translations: TranslationType = {
     days: "days",
     hours: "hours",
     minutes: "minutes",
-    seconds: "seconds"
+    seconds: "seconds",
+    trialIncluded: "14-day free trial included",
+    freeTrial: "Free 14-day trial, no credit card required",
+    startFreeTrial: "Start Free Trial",
+    trialThenBilling: "No credit card required"
   },
   profile: {
     title: "User Profile",

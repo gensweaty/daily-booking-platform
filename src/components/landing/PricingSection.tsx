@@ -64,15 +64,18 @@ export const PricingSection = () => {
   const yearlyOriginalPrice = language === 'ka' ? '₾360' : language === 'es' ? '$360' : '$360';
 
   const features = [
-    t('booking.title'),
-    t('tasks.title'),
-    t('crm.title'),
+    t('website.title'),
+    'Unlimited live bookings',
+    'Unlimited CRM customers',
+    'Unlimited tasks on board',
     t('analytics.title'),
-    t('website.title')
+    'Unlimited Booking approvals with email',
+    'QR code fast booking system',
+    'Modern, responsive dashboard for any device'
   ];
 
   return (
-    <section className="py-20 bg-gradient-to-br from-slate-900 via-primary/20 to-slate-800 text-white relative overflow-hidden">
+    <section className="py-16 bg-gradient-to-br from-slate-900 via-primary/20 to-slate-800 text-white relative overflow-hidden">
       {/* Background decorative elements */}
       <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-blue-600/10" />
       <div 
@@ -83,20 +86,20 @@ export const PricingSection = () => {
       />
       
       <div className="container mx-auto px-4 relative z-10">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
             <LanguageText>{t('cta.title')}</LanguageText>
           </h2>
-          <p className="text-xl text-gray-200 mb-4 max-w-2xl mx-auto">
+          <p className="text-lg text-gray-200 mb-3 max-w-2xl mx-auto">
             <LanguageText>{t('cta.subtitle')}</LanguageText>
           </p>
-          <div className="bg-green-500/20 text-green-300 px-4 py-2 rounded-full text-lg font-semibold inline-block mb-8">
+          <div className="bg-green-500/20 text-green-300 px-3 py-1 rounded-full text-base font-semibold inline-block mb-6">
             <LanguageText>{t('subscription.freeTrial')}</LanguageText>
           </div>
           
           {/* Pricing Toggle */}
-          <div className="flex items-center justify-center gap-4 mb-12">
-            <span className={`text-lg font-medium transition-colors ${!isYearly ? 'text-white' : 'text-gray-300'}`}>
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <span className={`text-base font-medium transition-colors ${!isYearly ? 'text-white' : 'text-gray-300'}`}>
               <LanguageText>{t('subscription.monthlyPlan')}</LanguageText>
             </span>
             <div className="relative">
@@ -106,11 +109,11 @@ export const PricingSection = () => {
                 className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-gray-600 border-2 border-gray-400"
               />
             </div>
-            <span className={`text-lg font-medium transition-colors ${isYearly ? 'text-white' : 'text-gray-300'}`}>
+            <span className={`text-base font-medium transition-colors ${isYearly ? 'text-white' : 'text-gray-300'}`}>
               <LanguageText>{t('subscription.annualPlan')}</LanguageText>
             </span>
             {isYearly && (
-              <span className="bg-yellow-500 text-black px-3 py-1 rounded-full text-sm font-bold ml-2">
+              <span className="bg-yellow-500 text-black px-2 py-1 rounded-full text-xs font-bold ml-2">
                 <LanguageText>{t('subscription.discount50')}</LanguageText>
               </span>
             )}
@@ -118,54 +121,49 @@ export const PricingSection = () => {
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {/* Monthly Plan */}
           <Card className={`relative bg-slate-800/80 backdrop-blur-sm border-slate-600 text-white transition-all duration-300 hover:scale-105 hover:bg-slate-700/80 shadow-2xl ${!isYearly ? 'ring-2 ring-primary shadow-primary/25' : ''}`}>
-            <CardHeader className="text-center pb-4">
-              <div className="bg-green-500/20 text-green-300 px-3 py-1 rounded-full text-sm font-medium inline-block mb-2">
+            <CardHeader className="text-center pb-3">
+              <div className="bg-green-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2">
                 <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
               </div>
-              <CardTitle className="text-2xl font-bold text-white">
+              <CardTitle className="text-xl font-bold text-white">
                 <LanguageText>{t('subscription.monthlyPlan')}</LanguageText>
               </CardTitle>
-              <div className="mt-4">
+              <div className="mt-3">
                 <div className="flex items-center justify-center gap-2">
-                  <span className="text-4xl font-bold text-white">{monthlyPrice}</span>
-                  <span className="text-lg text-gray-300">/{t('subscription.monthlyDuration')}</span>
+                  <span className="text-3xl font-bold text-white">{monthlyPrice}</span>
+                  <span className="text-base text-gray-300">/{t('subscription.monthlyDuration')}</span>
                 </div>
                 <div className="flex items-center justify-center gap-2 mt-1">
-                  <span className="text-lg line-through text-gray-400">{monthlyOriginalPrice}</span>
-                  <span className="bg-green-500 text-white px-2 py-1 rounded text-sm font-medium">
+                  <span className="text-base line-through text-gray-400">{monthlyOriginalPrice}</span>
+                  <span className="bg-green-500 text-white px-2 py-1 rounded text-xs font-medium">
                     <LanguageText>{t('subscription.discount50')}</LanguageText>
                   </span>
                 </div>
-                <p className="text-sm text-gray-300 mt-2">
-                  <LanguageText>{t('subscription.freeTrialDescription')}</LanguageText>
-                </p>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              <ul className="space-y-3 mb-6">
+              <ul className="space-y-2 mb-4">
                 {features.map((feature, index) => (
-                  <li key={index} className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-400 flex-shrink-0" />
-                    <span className="text-gray-200"><LanguageText>{feature}</LanguageText></span>
+                  <li key={index} className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-400 flex-shrink-0" />
+                    <span className="text-gray-200 text-sm"><LanguageText>{feature}</LanguageText></span>
                   </li>
                 ))}
               </ul>
               <Button
                 onClick={() => handleSubscribe('monthly')}
                 disabled={loading !== null}
-                className="w-full bg-white text-slate-900 hover:bg-gray-100 font-semibold py-3 transition-colors"
+                className="w-full bg-white text-slate-900 hover:bg-gray-100 font-semibold py-2 transition-colors text-sm"
               >
                 <LanguageText>
                   {loading === 'monthly' ? t('subscription.processing') : t('subscription.startFreeTrial')}
                 </LanguageText>
               </Button>
-              <p className="text-center text-sm text-gray-400 mt-2">
-                <LanguageText translateParams={{ price: monthlyPrice, period: t('subscription.monthlyDuration') }}>
-                  {t('subscription.trialThenBilling')}
-                </LanguageText>
+              <p className="text-center text-xs text-gray-400 mt-2">
+                <LanguageText>{t('subscription.trialThenBilling')}</LanguageText>
               </p>
             </CardContent>
           </Card>
@@ -173,65 +171,60 @@ export const PricingSection = () => {
           {/* Yearly Plan */}
           <Card className={`relative bg-slate-800/80 backdrop-blur-sm border-slate-600 text-white transition-all duration-300 hover:scale-105 hover:bg-slate-700/80 shadow-2xl ${isYearly ? 'ring-2 ring-yellow-500 shadow-yellow-500/25' : ''}`}>
             {isYearly && (
-              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                <div className="bg-yellow-500 text-black px-4 py-1 rounded-full text-sm font-bold flex items-center gap-1">
-                  <Star className="h-4 w-4" />
+              <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                <div className="bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                  <Star className="h-3 w-3" />
                   <LanguageText>{t('subscription.additionalSavings')}</LanguageText>
                 </div>
               </div>
             )}
-            <CardHeader className="text-center pb-4">
-              <div className="bg-green-500/20 text-green-300 px-3 py-1 rounded-full text-sm font-medium inline-block mb-2">
+            <CardHeader className="text-center pb-3">
+              <div className="bg-green-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2">
                 <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
               </div>
-              <CardTitle className="text-2xl font-bold text-white">
+              <CardTitle className="text-xl font-bold text-white">
                 <LanguageText>{t('subscription.annualPlan')}</LanguageText>
               </CardTitle>
-              <div className="mt-4">
+              <div className="mt-3">
                 <div className="flex items-center justify-center gap-2">
-                  <span className="text-4xl font-bold text-white">{yearlyPrice}</span>
-                  <span className="text-lg text-gray-300">/{t('subscription.yearlyDuration')}</span>
+                  <span className="text-3xl font-bold text-white">{yearlyPrice}</span>
+                  <span className="text-base text-gray-300">/{t('subscription.yearlyDuration')}</span>
                 </div>
                 <div className="flex items-center justify-center gap-2 mt-1">
-                  <span className="text-lg line-through text-gray-400">{yearlyOriginalPrice}</span>
-                  <span className="bg-green-500 text-white px-2 py-1 rounded text-sm font-medium">
+                  <span className="text-base line-through text-gray-400">{yearlyOriginalPrice}</span>
+                  <span className="bg-green-500 text-white px-2 py-1 rounded text-xs font-medium">
                     58% <LanguageText>{t('subscription.additionalSavings')}</LanguageText>
                   </span>
                 </div>
-                <p className="text-sm text-gray-300 mt-2">
-                  <LanguageText>{t('subscription.freeTrialDescription')}</LanguageText>
-                </p>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              <ul className="space-y-3 mb-6">
+              <ul className="space-y-2 mb-4">
                 {features.map((feature, index) => (
-                  <li key={index} className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-400 flex-shrink-0" />
-                    <span className="text-gray-200"><LanguageText>{feature}</LanguageText></span>
+                  <li key={index} className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-400 flex-shrink-0" />
+                    <span className="text-gray-200 text-sm"><LanguageText>{feature}</LanguageText></span>
                   </li>
                 ))}
               </ul>
               <Button
                 onClick={() => handleSubscribe('yearly')}
                 disabled={loading !== null}
-                className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:from-yellow-400 hover:to-orange-400 font-semibold py-3 transition-all"
+                className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:from-yellow-400 hover:to-orange-400 font-semibold py-2 transition-all text-sm"
               >
                 <LanguageText>
                   {loading === 'yearly' ? t('subscription.processing') : t('subscription.startFreeTrial')}
                 </LanguageText>
               </Button>
-              <p className="text-center text-sm text-gray-400 mt-2">
-                <LanguageText translateParams={{ price: yearlyPrice, period: t('subscription.yearlyDuration') }}>
-                  {t('subscription.trialThenBilling')}
-                </LanguageText>
+              <p className="text-center text-xs text-gray-400 mt-2">
+                <LanguageText>{t('subscription.trialThenBilling')}</LanguageText>
               </p>
             </CardContent>
           </Card>
         </div>
 
         {/* Additional Info */}
-        <div className="text-center mt-12">
+        <div className="text-center mt-8">
           <p className="text-gray-300 text-sm">
             {!user && (
               <span>
