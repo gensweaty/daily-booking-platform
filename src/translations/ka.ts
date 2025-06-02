@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const ka: TranslationType = {
@@ -487,7 +486,6 @@ export const ka: TranslationType = {
     hours: 'საათები',
     minutes: 'წუთები',
     seconds: 'წამები',
-    trialIncluded: 'უფასო ტესტი ჩართული',
     startFreeTrial: 'უფასო ტესტის დაწყება',
     trialThenBilling: 'შემდეგ {{price}} {{period}}',
   },
