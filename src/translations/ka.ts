@@ -486,7 +486,6 @@ export const ka: TranslationType = {
     hours: 'საათები',
     minutes: 'წუთები',
     seconds: 'წამები',
-    freeTrial: '14-დღიანი უფასო ტესტი',
     freeTrialDescription: 'უფასო ტესტის პერიოდის შემდეგ დაიწყება გადახდა',
     trialIncluded: 'უფასო ტესტი ჩართული',
     startFreeTrial: 'უფასო ტესტის დაწყება',
