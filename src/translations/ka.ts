@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const ka: TranslationType = {
@@ -9,7 +8,7 @@ export const ka: TranslationType = {
   },
   hero: {
     title: 'გაზარდეთ თქვენი ბიზნესის პროდუქტიულობა SmartBookly-სთან ერთად',
-    subtitle: 'ყველაფერი-ერთში - ჯავშნები, დავალებები, CRM, ანალიტიკა და ბიზნეს ვებსაიტი',
+    subtitle: 'ყველაფერი ერთში - ჯავშნები, დავალებები, CRM, ანალიტიკა და ბიზნეს ვებსაიტი',
     description: 'აიღეთ სრული კონტროლი თქვენს სამუშაო პროცესზე ჩვენი ჯავშნების კალენდარი, ძლიერი დავალებების მართვის სისტემა, ჭკვიანი მომხმარებელთან ურთიერთობის მართვა და ჩაშენებული ანალიტიკა. ყველაფერი რაც თქვენს ბიზნესს სჭირდება, ერთ ადგილზე.',
   },
   features: {
@@ -488,7 +487,7 @@ export const ka: TranslationType = {
     minutes: 'წუთები',
     seconds: 'წამები',
     freeTrial: '14-დღიანი უფასო ტესტი',
-    freeTrialDescription: 'თქვენი გადახდა დაიწყება 14 დღის შემდეგ',
+    freeTrialDescription: 'უფასო ტესტის პერიოდის შემდეგ დაიწყება გადახდა',
     trialIncluded: 'უფასო ტესტი ჩართული',
     startFreeTrial: 'უფასო ტესტის დაწყება',
     trialThenBilling: 'შემდეგ {{price}} {{period}}',
