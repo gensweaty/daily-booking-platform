@@ -486,7 +486,6 @@ export const ka: TranslationType = {
     hours: 'საათები',
     minutes: 'წუთები',
     seconds: 'წამები',
-    startFreeTrial: 'უფასო ტესტის დაწყება',
     trialThenBilling: 'შემდეგ {{price}} {{period}}',
   },
   profile: {
