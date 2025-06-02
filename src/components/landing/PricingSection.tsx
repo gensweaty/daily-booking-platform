@@ -72,40 +72,45 @@ export const PricingSection = () => {
   ];
 
   return (
-    <section className="py-20 bg-gradient-to-br from-primary/90 via-primary to-primary/80 text-white relative overflow-hidden">
+    <section className="py-20 bg-gradient-to-br from-slate-900 via-primary/20 to-slate-800 text-white relative overflow-hidden">
       {/* Background decorative elements */}
-      <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20" />
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-blue-600/10" />
       <div 
-        className="absolute top-0 left-0 w-full h-full opacity-30"
+        className="absolute top-0 left-0 w-full h-full opacity-20"
         style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
         }}
       />
       
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white">
             <LanguageText>{t('cta.title')}</LanguageText>
           </h2>
-          <p className="text-xl opacity-90 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-gray-200 mb-4 max-w-2xl mx-auto">
             <LanguageText>{t('cta.subtitle')}</LanguageText>
           </p>
+          <div className="bg-green-500/20 text-green-300 px-4 py-2 rounded-full text-lg font-semibold inline-block mb-8">
+            <LanguageText>{t('subscription.freeTrial')}</LanguageText>
+          </div>
           
           {/* Pricing Toggle */}
           <div className="flex items-center justify-center gap-4 mb-12">
-            <span className={`text-lg font-medium ${!isYearly ? 'text-white' : 'text-white/70'}`}>
+            <span className={`text-lg font-medium transition-colors ${!isYearly ? 'text-white' : 'text-gray-300'}`}>
               <LanguageText>{t('subscription.monthlyPlan')}</LanguageText>
             </span>
-            <Switch
-              checked={isYearly}
-              onCheckedChange={setIsYearly}
-              className="data-[state=checked]:bg-white data-[state=unchecked]:bg-white/30"
-            />
-            <span className={`text-lg font-medium ${isYearly ? 'text-white' : 'text-white/70'}`}>
+            <div className="relative">
+              <Switch
+                checked={isYearly}
+                onCheckedChange={setIsYearly}
+                className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-gray-600 border-2 border-gray-400"
+              />
+            </div>
+            <span className={`text-lg font-medium transition-colors ${isYearly ? 'text-white' : 'text-gray-300'}`}>
               <LanguageText>{t('subscription.annualPlan')}</LanguageText>
             </span>
             {isYearly && (
-              <span className="bg-white/20 px-3 py-1 rounded-full text-sm font-medium ml-2">
+              <span className="bg-yellow-500 text-black px-3 py-1 rounded-full text-sm font-bold ml-2">
                 <LanguageText>{t('subscription.discount50')}</LanguageText>
               </span>
             )}
@@ -115,22 +120,28 @@ export const PricingSection = () => {
         {/* Pricing Cards */}
         <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {/* Monthly Plan */}
-          <Card className={`relative bg-white/10 backdrop-blur-sm border-white/20 text-white transition-all duration-300 hover:scale-105 hover:bg-white/15 ${!isYearly ? 'ring-2 ring-white/50' : ''}`}>
+          <Card className={`relative bg-slate-800/80 backdrop-blur-sm border-slate-600 text-white transition-all duration-300 hover:scale-105 hover:bg-slate-700/80 shadow-2xl ${!isYearly ? 'ring-2 ring-primary shadow-primary/25' : ''}`}>
             <CardHeader className="text-center pb-4">
-              <CardTitle className="text-2xl font-bold">
+              <div className="bg-green-500/20 text-green-300 px-3 py-1 rounded-full text-sm font-medium inline-block mb-2">
+                <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
+              </div>
+              <CardTitle className="text-2xl font-bold text-white">
                 <LanguageText>{t('subscription.monthlyPlan')}</LanguageText>
               </CardTitle>
               <div className="mt-4">
                 <div className="flex items-center justify-center gap-2">
-                  <span className="text-4xl font-bold">{monthlyPrice}</span>
-                  <span className="text-lg opacity-70">/{t('subscription.monthlyDuration').split(' ')[0]}</span>
+                  <span className="text-4xl font-bold text-white">{monthlyPrice}</span>
+                  <span className="text-lg text-gray-300">/{t('subscription.monthlyDuration')}</span>
                 </div>
                 <div className="flex items-center justify-center gap-2 mt-1">
-                  <span className="text-lg line-through opacity-50">{monthlyOriginalPrice}</span>
+                  <span className="text-lg line-through text-gray-400">{monthlyOriginalPrice}</span>
                   <span className="bg-green-500 text-white px-2 py-1 rounded text-sm font-medium">
                     <LanguageText>{t('subscription.discount50')}</LanguageText>
                   </span>
                 </div>
+                <p className="text-sm text-gray-300 mt-2">
+                  <LanguageText>{t('subscription.freeTrialDescription')}</LanguageText>
+                </p>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -138,47 +149,58 @@ export const PricingSection = () => {
                 {features.map((feature, index) => (
                   <li key={index} className="flex items-center gap-3">
                     <Check className="h-5 w-5 text-green-400 flex-shrink-0" />
-                    <span><LanguageText>{feature}</LanguageText></span>
+                    <span className="text-gray-200"><LanguageText>{feature}</LanguageText></span>
                   </li>
                 ))}
               </ul>
               <Button
                 onClick={() => handleSubscribe('monthly')}
                 disabled={loading !== null}
-                className="w-full bg-white text-primary hover:bg-white/90 font-semibold py-3"
+                className="w-full bg-white text-slate-900 hover:bg-gray-100 font-semibold py-3 transition-colors"
               >
                 <LanguageText>
-                  {loading === 'monthly' ? t('subscription.processing') : t('subscription.subscribeNow')}
+                  {loading === 'monthly' ? t('subscription.processing') : t('subscription.startFreeTrial')}
                 </LanguageText>
               </Button>
+              <p className="text-center text-sm text-gray-400 mt-2">
+                <LanguageText translateParams={{ price: monthlyPrice, period: t('subscription.monthlyDuration') }}>
+                  {t('subscription.trialThenBilling')}
+                </LanguageText>
+              </p>
             </CardContent>
           </Card>
 
           {/* Yearly Plan */}
-          <Card className={`relative bg-white/10 backdrop-blur-sm border-white/20 text-white transition-all duration-300 hover:scale-105 hover:bg-white/15 ${isYearly ? 'ring-2 ring-white/50' : ''}`}>
+          <Card className={`relative bg-slate-800/80 backdrop-blur-sm border-slate-600 text-white transition-all duration-300 hover:scale-105 hover:bg-slate-700/80 shadow-2xl ${isYearly ? 'ring-2 ring-yellow-500 shadow-yellow-500/25' : ''}`}>
             {isYearly && (
               <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                <div className="bg-yellow-500 text-primary px-4 py-1 rounded-full text-sm font-bold flex items-center gap-1">
+                <div className="bg-yellow-500 text-black px-4 py-1 rounded-full text-sm font-bold flex items-center gap-1">
                   <Star className="h-4 w-4" />
                   <LanguageText>{t('subscription.additionalSavings')}</LanguageText>
                 </div>
               </div>
             )}
             <CardHeader className="text-center pb-4">
-              <CardTitle className="text-2xl font-bold">
+              <div className="bg-green-500/20 text-green-300 px-3 py-1 rounded-full text-sm font-medium inline-block mb-2">
+                <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
+              </div>
+              <CardTitle className="text-2xl font-bold text-white">
                 <LanguageText>{t('subscription.annualPlan')}</LanguageText>
               </CardTitle>
               <div className="mt-4">
                 <div className="flex items-center justify-center gap-2">
-                  <span className="text-4xl font-bold">{yearlyPrice}</span>
-                  <span className="text-lg opacity-70">/{t('subscription.yearlyDuration').split(' ')[0]}</span>
+                  <span className="text-4xl font-bold text-white">{yearlyPrice}</span>
+                  <span className="text-lg text-gray-300">/{t('subscription.yearlyDuration')}</span>
                 </div>
                 <div className="flex items-center justify-center gap-2 mt-1">
-                  <span className="text-lg line-through opacity-50">{yearlyOriginalPrice}</span>
+                  <span className="text-lg line-through text-gray-400">{yearlyOriginalPrice}</span>
                   <span className="bg-green-500 text-white px-2 py-1 rounded text-sm font-medium">
                     58% <LanguageText>{t('subscription.additionalSavings')}</LanguageText>
                   </span>
                 </div>
+                <p className="text-sm text-gray-300 mt-2">
+                  <LanguageText>{t('subscription.freeTrialDescription')}</LanguageText>
+                </p>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -186,32 +208,37 @@ export const PricingSection = () => {
                 {features.map((feature, index) => (
                   <li key={index} className="flex items-center gap-3">
                     <Check className="h-5 w-5 text-green-400 flex-shrink-0" />
-                    <span><LanguageText>{feature}</LanguageText></span>
+                    <span className="text-gray-200"><LanguageText>{feature}</LanguageText></span>
                   </li>
                 ))}
               </ul>
               <Button
                 onClick={() => handleSubscribe('yearly')}
                 disabled={loading !== null}
-                className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-primary hover:from-yellow-400 hover:to-orange-400 font-semibold py-3"
+                className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:from-yellow-400 hover:to-orange-400 font-semibold py-3 transition-all"
               >
                 <LanguageText>
-                  {loading === 'yearly' ? t('subscription.processing') : t('subscription.subscribeNow')}
+                  {loading === 'yearly' ? t('subscription.processing') : t('subscription.startFreeTrial')}
                 </LanguageText>
               </Button>
+              <p className="text-center text-sm text-gray-400 mt-2">
+                <LanguageText translateParams={{ price: yearlyPrice, period: t('subscription.yearlyDuration') }}>
+                  {t('subscription.trialThenBilling')}
+                </LanguageText>
+              </p>
             </CardContent>
           </Card>
         </div>
 
         {/* Additional Info */}
         <div className="text-center mt-12">
-          <p className="text-white/80 text-sm">
+          <p className="text-gray-300 text-sm">
             {!user && (
               <span>
                 <LanguageText>{t('auth.noAccount')}</LanguageText>{' '}
                 <button 
                   onClick={() => navigate('/signup')}
-                  className="underline hover:text-white transition-colors"
+                  className="underline hover:text-white transition-colors font-medium"
                 >
                   <LanguageText>{t('auth.signUpCta')}</LanguageText>
                 </button>

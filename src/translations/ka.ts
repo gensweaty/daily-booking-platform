@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const ka: TranslationType = {
@@ -130,7 +131,7 @@ export const ka: TranslationType = {
   },
   cta: {
     title: 'მზად ხართ დასაწყებად?',
-    subtitle: 'შეუერთდით ათასობით კმაყოფილ მომხმარებელს',
+    subtitle: 'შეუერთდით ათასობით კმაყოფილ მომხმარებელს და დაიწყეთ 14-დღიანი უფასო ტესტი',
     button: 'უფასოდ დაიწყეთ',
   },
   footer: {
@@ -459,19 +460,19 @@ export const ka: TranslationType = {
     reminderCreated: 'შეხსენება შეიქმნა',
   },
   subscription: {
-    monthlyPlan: 'ყოველთვიური პლანი',
-    annualPlan: 'წლიური პლანი',
+    monthlyPlan: 'ყოველთვიური გეგმა',
+    annualPlan: 'წლიური გეგმა',
     monthlyPrice: '₾15/თვე',
     monthlyOriginalPrice: '₾30/თვე',
     yearlyPrice: '₾150/წელი',
     yearlyOriginalPrice: '₾360/წელი',
     discount50: '50% ფასდაკლება',
     additionalSavings: 'დამატებითი ეკონომია',
-    monthlyDuration: 'ყოველთვიური გამოწერა',
-    yearlyDuration: 'წლიური გამოწერა (58% ეკონომია)',
+    monthlyDuration: 'ყოველთვიური',
+    yearlyDuration: 'წლიური',
     manageSubscription: 'გამოწერის მართვა',
     chooseUpgradeRenew: 'აირჩიეთ, განაახლეთ ან განაახლეთ თქვენი პლანი',
-    subscribeNow: 'ახლავე გამოიწერეთ',
+    subscribeNow: '14-დღიანი უფასო ტესტის დაწყება',
     processing: 'მუშავდება...',
     trialPeriod: 'საცდელი პერიოდი',
     monthlySubscription: 'ყოველთვიური გამოწერა',
@@ -486,6 +487,11 @@ export const ka: TranslationType = {
     hours: 'საათები',
     minutes: 'წუთები',
     seconds: 'წამები',
+    freeTrial: '14-დღიანი უფასო ტესტი',
+    freeTrialDescription: 'თქვენი გადახდა დაიწყება 14 დღის შემდეგ',
+    trialIncluded: 'უფასო ტესტი ჩართული',
+    startFreeTrial: 'უფასო ტესტის დაწყება',
+    trialThenBilling: 'შემდეგ {{price}} {{period}}',
   },
   profile: {
     title: 'პროფილი',
