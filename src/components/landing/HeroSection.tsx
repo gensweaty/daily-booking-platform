@@ -141,7 +141,7 @@ export const HeroSection = () => {
               {user?.email?.charAt(0)?.toUpperCase() || 'U'}
             </AvatarFallback>
           </Avatar>
-          Dashboard
+          <LanguageText>{language === 'ka' ? "პანელი" : t('dashboard.profile')}</LanguageText>
         </Button>
         
         <Button 
@@ -150,7 +150,7 @@ export const HeroSection = () => {
           className="hover:scale-105 transition-transform text-sm flex items-center gap-2"
         >
           <LogOut className="h-4 w-4" />
-          <LanguageText>{t('nav.signOut')}</LanguageText>
+          <LanguageText>{language === 'ka' ? "გამოსვლა" : t('nav.signOut')}</LanguageText>
         </Button>
         
         <Link to="/contact">
@@ -182,7 +182,7 @@ export const HeroSection = () => {
           variant="outline" 
           size="sm"
           className="p-2"
-          aria-label={t('nav.signOut')}
+          aria-label={language === 'ka' ? "გამოსვლა" : t('nav.signOut')}
         >
           <LogOut className="h-4 w-4" />
         </Button>
