@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -486,10 +487,10 @@ export const translations: TranslationType = {
     hours: "საათი",
     minutes: "წუთი",
     seconds: "წამი",
-    trialIncluded: "14-დღიანი უფასო საცდელი ჩართულია",
-    freeTrial: "14-დღიანი უფასო საცდელი, საბანკო ბარათი არ არის საჭიროები",
-    startFreeTrial: "უფასო საცდელის დაწყება",
-    trialThenBilling: "საბანკო ბარათი არ არის საჭიროები"
+    trialIncluded: "14 დღიანი უფასო საცდელი ვერსია",
+    freeTrial: "გამოიყენე 14-დღიანი უფასო საცდელი ვერსია, საბანკო ბარათი არ არის საჭირო",
+    startFreeTrial: "დაიწყე უფასოდ გამოცდა",
+    trialThenBilling: "საბანკო ბარათი არ არის საჭირო"
   },
   profile: {
     title: 'პროფილი',
@@ -567,3 +568,5 @@ export const translations: TranslationType = {
     fileTooLarge: 'ფაილი ძალიან დიდია',
   },
 };
+
+```
