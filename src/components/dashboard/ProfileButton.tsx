@@ -41,7 +41,7 @@ export const ProfileButton = ({ onClick, className, mobileVersion = false }: Pro
         <Avatar className="h-8 w-8">
           <AvatarImage src={avatarUrl} />
           <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-            {avatarUrl ? null : <User className="h-4 w-4" />}
+            {user?.email?.charAt(0)?.toUpperCase() || <User className="h-4 w-4" />}
           </AvatarFallback>
         </Avatar>
       </Button>
@@ -57,7 +57,7 @@ export const ProfileButton = ({ onClick, className, mobileVersion = false }: Pro
       <Avatar className="h-8 w-8">
         <AvatarImage src={avatarUrl} />
         <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-          {avatarUrl ? null : <User className="h-4 w-4" />}
+          {user?.email?.charAt(0)?.toUpperCase() || <User className="h-4 w-4" />}
         </AvatarFallback>
       </Avatar>
       <span className="text-sm font-medium">
