@@ -23,8 +23,8 @@ export const translations: TranslationType = {
     businessTitle: 'ბიზნეს ამოცანები',
     smartAppointment: 'ჭკვიანური ვიზიტების დაგეგმვა',
     automatedAnalytics: 'ავტომატიზებული ანალიტიკა',
-    modernCRM: 'თანამედროვე CRM',
-    kanbanManagement: 'კანბან მართვა',
+    modernCRM: 'თანამედროვე CRM გადაწყვეტა',
+    kanbanManagement: 'დავალებების მართვა Kanban ბორდზე',
   },
   booking: {
     title: 'ჯავშანი',
