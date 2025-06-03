@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { LogOut, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -290,7 +291,16 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
             <DialogTrigger asChild>
               <div>
-                <ProfileButton onClick={() => {}} />
+                <ProfileButton 
+                  onClick={() => {}} 
+                  mobileVersion={isMobile}
+                  className="md:flex hidden"
+                />
+                <ProfileButton 
+                  onClick={() => {}} 
+                  mobileVersion={true}
+                  className="md:hidden flex"
+                />
               </div>
             </DialogTrigger>
             <DialogContent 
@@ -510,9 +520,10 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             </DialogContent>
           </Dialog>
           <ThemeToggle />
+          {/* Desktop Sign Out Button */}
           <Button 
             variant="orange" 
-            className="flex items-center gap-2 text-white"
+            className="hidden md:flex items-center gap-2 text-white"
             onClick={handleSignOut}
           >
             <LogOut className="w-4 h-4" />
@@ -521,6 +532,15 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             ) : (
               t('dashboard.signOut')
             )}
+          </Button>
+          {/* Mobile Sign Out Button */}
+          <Button 
+            variant="orange" 
+            size="icon"
+            className="md:hidden flex h-10 w-10 rounded-full text-white"
+            onClick={handleSignOut}
+          >
+            <LogOut className="w-4 h-4" />
           </Button>
         </div>
       </div>

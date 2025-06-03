@@ -4,13 +4,15 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { User } from "lucide-react";
 
 interface ProfileButtonProps {
   onClick?: () => void;
   className?: string;
+  mobileVersion?: boolean;
 }
 
-export const ProfileButton = ({ onClick, className }: ProfileButtonProps) => {
+export const ProfileButton = ({ onClick, className, mobileVersion = false }: ProfileButtonProps) => {
   const { user } = useAuth();
   const { language, t } = useLanguage();
 
@@ -25,6 +27,27 @@ export const ProfileButton = ({ onClick, className }: ProfileButtonProps) => {
     }
   };
 
+  // Get avatar URL from user metadata or profile
+  const avatarUrl = user?.user_metadata?.avatar_url;
+
+  if (mobileVersion) {
+    return (
+      <Button 
+        variant="ghost" 
+        size="icon"
+        onClick={onClick}
+        className={`h-10 w-10 rounded-full p-0 ${className}`}
+      >
+        <Avatar className="h-8 w-8">
+          <AvatarImage src={avatarUrl} />
+          <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+            {avatarUrl ? null : <User className="h-4 w-4" />}
+          </AvatarFallback>
+        </Avatar>
+      </Button>
+    );
+  }
+
   return (
     <Button 
       variant="ghost" 
@@ -32,9 +55,9 @@ export const ProfileButton = ({ onClick, className }: ProfileButtonProps) => {
       className={`flex items-center gap-3 px-3 py-2 h-auto ${className}`}
     >
       <Avatar className="h-8 w-8">
-        <AvatarImage src={user?.user_metadata?.avatar_url} />
+        <AvatarImage src={avatarUrl} />
         <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-          {user?.email?.charAt(0)?.toUpperCase() || 'U'}
+          {avatarUrl ? null : <User className="h-4 w-4" />}
         </AvatarFallback>
       </Avatar>
       <span className="text-sm font-medium">
