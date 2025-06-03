@@ -141,7 +141,7 @@ export const HeroSection = () => {
               {user?.email?.charAt(0)?.toUpperCase() || 'U'}
             </AvatarFallback>
           </Avatar>
-          <LanguageText>{language === 'ka' ? "პანელი" : t('dashboard.profile')}</LanguageText>
+          <LanguageText>{language === 'ka' ? "პანელი" : "Dashboard"}</LanguageText>
         </Button>
         
         <Button 

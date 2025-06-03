@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { LogOut, User, RefreshCw } from "lucide-react";
+import { LogOut, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,6 +24,7 @@ import { ManageSubscriptionDialog } from "./subscription/ManageSubscriptionDialo
 import { SubscriptionCountdown } from "./subscription/SubscriptionCountdown";
 import { AvatarUpload } from "./AvatarUpload";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { ProfileButton } from "./dashboard/ProfileButton";
 
 interface DashboardHeaderProps {
   username: string;
@@ -288,23 +289,9 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           <LanguageSwitcher />
           <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
             <DialogTrigger asChild>
-              <Button 
-                variant="purple" 
-                size="icon"
-                className="text-foreground h-12 w-12 rounded-full p-0"
-              >
-                <div className="w-10 h-10 relative bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/50 dark:to-purple-900/50 rounded-full flex items-center justify-center overflow-hidden border-2 border-white dark:border-gray-700 shadow-lg">
-                  {avatarUrl ? (
-                    <img
-                      src={avatarUrl}
-                      alt="Avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <User className="w-5 h-5 text-gray-400 dark:text-gray-500" />
-                  )}
-                </div>
-              </Button>
+              <div>
+                <ProfileButton onClick={() => {}} />
+              </div>
             </DialogTrigger>
             <DialogContent 
               className={
@@ -490,7 +477,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   ) : (
                     <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4 md:p-6 backdrop-blur-sm text-center space-y-4">
                       <div className={`${isMobile ? 'w-12 h-12' : 'w-16 h-16'} bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto`}>
-                        <User className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} text-gray-500 dark:text-gray-400`} />
+                        <ProfileButton onClick={() => {}} className="w-full h-full" />
                       </div>
                       <p className={`${isMobile ? 'text-base' : 'text-lg'} text-gray-600 dark:text-gray-300`}>
                         <LanguageText>{t('profile.noSubscriptionInfo')}</LanguageText>
