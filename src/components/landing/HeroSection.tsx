@@ -131,17 +131,16 @@ export const HeroSection = () => {
       
       {/* Desktop Navigation */}
       <div className="hidden md:flex items-center gap-3">
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={user?.user_metadata?.avatar_url} />
-          <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-            {user?.email?.charAt(0)?.toUpperCase() || 'U'}
-          </AvatarFallback>
-        </Avatar>
-        
         <Button 
           onClick={handleDashboardClick}
-          className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm"
+          className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm flex items-center gap-2"
         >
+          <Avatar className="h-6 w-6">
+            <AvatarImage src={user?.user_metadata?.avatar_url} />
+            <AvatarFallback className="bg-white text-primary text-xs">
+              {user?.email?.charAt(0)?.toUpperCase() || 'U'}
+            </AvatarFallback>
+          </Avatar>
           Dashboard
         </Button>
         
@@ -163,12 +162,20 @@ export const HeroSection = () => {
 
       {/* Mobile Navigation */}
       <div className="flex items-center gap-2 md:hidden">
-        <Avatar className="h-7 w-7">
-          <AvatarImage src={user?.user_metadata?.avatar_url} />
-          <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-            {user?.email?.charAt(0)?.toUpperCase() || 'U'}
-          </AvatarFallback>
-        </Avatar>
+        <Button 
+          onClick={handleDashboardClick}
+          variant="ghost"
+          size="sm"
+          className="p-2"
+          aria-label="Go to Dashboard"
+        >
+          <Avatar className="h-7 w-7">
+            <AvatarImage src={user?.user_metadata?.avatar_url} />
+            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+              {user?.email?.charAt(0)?.toUpperCase() || 'U'}
+            </AvatarFallback>
+          </Avatar>
+        </Button>
         
         <Button 
           onClick={handleSignOut}
@@ -222,13 +229,6 @@ export const HeroSection = () => {
     if (user) {
       return (
         <div id="mobile-menu" className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-2 p-4 space-y-3 md:hidden animate-fade-in z-50" role="menu">
-          <Button 
-            onClick={handleDashboardClick}
-            className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90"
-            role="menuitem"
-          >
-            Dashboard
-          </Button>
           <Link to="/contact" onClick={handleMenuClose} role="menuitem">
             <Button variant="outline" className="w-full justify-start">
               {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
