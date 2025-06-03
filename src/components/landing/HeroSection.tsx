@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
@@ -126,16 +125,51 @@ export const HeroSection = () => {
   }, [theme, resolvedTheme, mounted]);
 
   const renderAuthenticatedNav = () => (
-    <>
-      <div className="flex items-center gap-3 md:hidden">
-        <LanguageSwitcher />
-        <ThemeToggle />
+    <div className="flex items-center gap-3">
+      <LanguageSwitcher />
+      <ThemeToggle />
+      
+      {/* Desktop Navigation */}
+      <div className="hidden md:flex items-center gap-3">
+        <Avatar className="h-8 w-8">
+          <AvatarImage src={user?.user_metadata?.avatar_url} />
+          <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+            {user?.email?.charAt(0)?.toUpperCase() || 'U'}
+          </AvatarFallback>
+        </Avatar>
+        
+        <Button 
+          onClick={handleDashboardClick}
+          className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm"
+        >
+          Dashboard
+        </Button>
+        
+        <Button 
+          onClick={handleSignOut}
+          variant="outline" 
+          className="hover:scale-105 transition-transform text-sm flex items-center gap-2"
+        >
+          <LogOut className="h-4 w-4" />
+          <LanguageText>{t('nav.signOut')}</LanguageText>
+        </Button>
+        
+        <Link to="/contact">
+          <Button variant="outline" className="hover:scale-105 transition-transform text-sm">
+            {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
+          </Button>
+        </Link>
+      </div>
+
+      {/* Mobile Navigation */}
+      <div className="flex items-center gap-2 md:hidden">
         <Avatar className="h-7 w-7">
           <AvatarImage src={user?.user_metadata?.avatar_url} />
           <AvatarFallback className="bg-primary text-primary-foreground text-xs">
             {user?.email?.charAt(0)?.toUpperCase() || 'U'}
           </AvatarFallback>
         </Avatar>
+        
         <Button 
           onClick={handleSignOut}
           variant="outline" 
@@ -145,68 +179,43 @@ export const HeroSection = () => {
         >
           <LogOut className="h-4 w-4" />
         </Button>
+        
         <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-expanded={isMobileMenuOpen} aria-controls="mobile-menu" aria-label="Toggle menu">
           {isMobileMenuOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
         </Button>
       </div>
-
-      <div className="hidden md:flex items-center space-x-3 lg:space-x-4" role="navigation">
-        <LanguageSwitcher />
-        <ThemeToggle />
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={user?.user_metadata?.avatar_url} />
-          <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-            {user?.email?.charAt(0)?.toUpperCase() || 'U'}
-          </AvatarFallback>
-        </Avatar>
-        <Button 
-          onClick={handleDashboardClick}
-          className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm md:text-base"
-        >
-          <LanguageText>{t('nav.dashboard')}</LanguageText>
-        </Button>
-        <Button 
-          onClick={handleSignOut}
-          variant="outline" 
-          className="hover:scale-105 transition-transform text-sm md:text-base flex items-center gap-2"
-        >
-          <LogOut className="h-4 w-4" />
-          <LanguageText>{t('nav.signOut')}</LanguageText>
-        </Button>
-        <Link to="/contact">
-          <Button variant="outline" className="hover:scale-105 transition-transform text-sm md:text-base">
-            {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
-          </Button>
-        </Link>
-      </div>
-    </>
+    </div>
   );
 
   const renderUnauthenticatedNav = () => (
-    <>
-      <div className="flex items-center gap-3 md:hidden">
-        <LanguageSwitcher />
-        <ThemeToggle />
-        <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-expanded={isMobileMenuOpen} aria-controls="mobile-menu" aria-label="Toggle menu">
-          {isMobileMenuOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
-        </Button>
-      </div>
-
+    <div className="flex items-center gap-3">
+      <LanguageSwitcher />
+      <ThemeToggle />
+      
       <div className="hidden md:flex items-center space-x-3 lg:space-x-4" role="navigation">
-        <LanguageSwitcher />
-        <ThemeToggle />
         <Link to="/login">
           <Button variant="outline" className="hover:scale-105 transition-transform text-sm md:text-base">
             {language === 'ka' ? "შესვლა" : t('nav.signin')}
           </Button>
         </Link>
+        <Link to="/signup">
+          <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm md:text-base">
+            {language === 'ka' ? "რეგისტრაცია" : "Sign Up"}
+          </Button>
+        </Link>
         <Link to="/contact">
           <Button variant="outline" className="hover:scale-105 transition-transform text-sm md:text-base">
             {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
           </Button>
         </Link>
       </div>
-    </>
+
+      <div className="flex items-center gap-3 md:hidden">
+        <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-expanded={isMobileMenuOpen} aria-controls="mobile-menu" aria-label="Toggle menu">
+          {isMobileMenuOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
+        </Button>
+      </div>
+    </div>
   );
 
   const renderMobileMenu = () => {
@@ -218,7 +227,7 @@ export const HeroSection = () => {
             className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90"
             role="menuitem"
           >
-            <LanguageText>{t('nav.dashboard')}</LanguageText>
+            Dashboard
           </Button>
           <Link to="/contact" onClick={handleMenuClose} role="menuitem">
             <Button variant="outline" className="w-full justify-start">
@@ -237,7 +246,7 @@ export const HeroSection = () => {
           </Link>
           <Link to="/signup" onClick={handleMenuClose} role="menuitem">
             <Button className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90">
-              {language === 'ka' ? "გამოსცადეთ უფასოდ" : t('nav.startJourney')}
+              {language === 'ka' ? "რეგისტრაცია" : "Sign Up"}
             </Button>
           </Link>
           <Link to="/contact" onClick={handleMenuClose} role="menuitem">
