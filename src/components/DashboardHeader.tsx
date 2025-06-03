@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { LogOut, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -294,11 +293,13 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 <ProfileButton 
                   onClick={() => {}} 
                   mobileVersion={isMobile}
+                  avatarUrl={avatarUrl}
                   className="md:flex hidden"
                 />
                 <ProfileButton 
                   onClick={() => {}} 
                   mobileVersion={true}
+                  avatarUrl={avatarUrl}
                   className="md:hidden flex"
                 />
               </div>

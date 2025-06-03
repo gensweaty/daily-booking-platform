@@ -10,9 +10,10 @@ interface ProfileButtonProps {
   onClick?: () => void;
   className?: string;
   mobileVersion?: boolean;
+  avatarUrl?: string | null;
 }
 
-export const ProfileButton = ({ onClick, className, mobileVersion = false }: ProfileButtonProps) => {
+export const ProfileButton = ({ onClick, className, mobileVersion = false, avatarUrl }: ProfileButtonProps) => {
   const { user } = useAuth();
   const { language, t } = useLanguage();
 
@@ -27,9 +28,6 @@ export const ProfileButton = ({ onClick, className, mobileVersion = false }: Pro
     }
   };
 
-  // Get avatar URL from user metadata or profile
-  const avatarUrl = user?.user_metadata?.avatar_url;
-
   if (mobileVersion) {
     return (
       <Button 
@@ -39,7 +37,7 @@ export const ProfileButton = ({ onClick, className, mobileVersion = false }: Pro
         className={`h-10 w-10 rounded-full p-0 ${className}`}
       >
         <Avatar className="h-8 w-8">
-          <AvatarImage src={avatarUrl} />
+          <AvatarImage src={avatarUrl || undefined} />
           <AvatarFallback className="bg-primary text-primary-foreground text-sm">
             {user?.email?.charAt(0)?.toUpperCase() || <User className="h-4 w-4" />}
           </AvatarFallback>
@@ -55,7 +53,7 @@ export const ProfileButton = ({ onClick, className, mobileVersion = false }: Pro
       className={`flex items-center gap-3 px-3 py-2 h-auto ${className}`}
     >
       <Avatar className="h-8 w-8">
-        <AvatarImage src={avatarUrl} />
+        <AvatarImage src={avatarUrl || undefined} />
         <AvatarFallback className="bg-primary text-primary-foreground text-sm">
           {user?.email?.charAt(0)?.toUpperCase() || <User className="h-4 w-4" />}
         </AvatarFallback>
