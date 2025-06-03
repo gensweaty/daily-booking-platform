@@ -82,6 +82,18 @@ export const PricingSection = () => {
     'Modern, responsive dashboard for any device'
   ];
 
+  // Get the cheaper text based on language
+  const getCheaperText = () => {
+    switch (language) {
+      case 'ka':
+        return 'ყოველთვიურზე 17%-ით იაფი';
+      case 'es':
+        return '17% más barato que el mensual';
+      default:
+        return '17% cheaper than monthly';
+    }
+  };
+
   return (
     <section className="py-16 bg-gradient-to-br from-slate-900 via-primary/20 to-slate-800 text-white relative overflow-hidden">
       {/* Background decorative elements */}
@@ -121,8 +133,8 @@ export const PricingSection = () => {
               <LanguageText>{t('subscription.annualPlan')}</LanguageText>
             </span>
             {isYearly && (
-              <span className="bg-yellow-500 text-black px-2 py-1 rounded-full text-xs font-bold ml-2">
-                <LanguageText>{t('subscription.additionalSavings')}</LanguageText>
+              <span className="bg-green-500 text-black px-2 py-1 rounded-full text-xs font-bold ml-2">
+                {getCheaperText()}
               </span>
             )}
           </div>
@@ -180,9 +192,9 @@ export const PricingSection = () => {
           <Card className={`relative bg-slate-800/80 backdrop-blur-sm border-slate-600 text-white transition-all duration-300 hover:scale-105 hover:bg-slate-700/80 shadow-2xl ${isYearly ? 'ring-2 ring-yellow-500 shadow-yellow-500/25' : ''}`}>
             {isYearly && (
               <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-                <div className="bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                <div className="bg-green-500 text-black px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
                   <Star className="h-3 w-3" />
-                  <LanguageText>{t('subscription.additionalSavings')}</LanguageText>
+                  {getCheaperText()}
                 </div>
               </div>
             )}
@@ -190,8 +202,11 @@ export const PricingSection = () => {
               <div className="bg-green-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2">
                 <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
               </div>
-              <CardTitle className="text-xl font-bold text-white">
+              <CardTitle className="text-xl font-bold text-white flex items-center justify-center gap-2">
                 <LanguageText>{t('subscription.annualPlan')}</LanguageText>
+                <span className="bg-green-500 text-black px-2 py-1 rounded-full text-xs font-bold">
+                  {getCheaperText()}
+                </span>
               </CardTitle>
               <div className="mt-3">
                 <div className="flex items-center justify-center gap-2">
@@ -201,7 +216,7 @@ export const PricingSection = () => {
                 <div className="flex items-center justify-center gap-2 mt-1">
                   <span className="text-base line-through text-gray-400">{yearlyOriginalPrice}</span>
                   <span className="bg-green-500 text-white px-2 py-1 rounded text-xs font-medium">
-                    58% <LanguageText>{t('subscription.additionalSavings')}</LanguageText>
+                    <LanguageText>{t('subscription.discount50')}</LanguageText>
                   </span>
                 </div>
               </div>
