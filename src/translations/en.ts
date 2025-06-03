@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -466,7 +467,7 @@ export const translations: TranslationType = {
     yearlyPrice: "$199.99/year",
     yearlyOriginalPrice: "$399.99",
     discount50: "50% discount",
-    additionalSavings: "Save additional 17% from monthly plan",
+    additionalSavings: "Save 17% more",
     monthlyDuration: "30 days premium access",
     yearlyDuration: "365 days premium access",
     manageSubscription: "Manage Subscription",

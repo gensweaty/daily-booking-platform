@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Check, Star } from "lucide-react";
-import { useLanguage, getCurrencySymbol } from "@/contexts/LanguageContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { useAuth } from "@/contexts/AuthContext";
 import { createCheckoutSession } from "@/utils/stripeUtils";
@@ -56,19 +56,18 @@ export const PricingSection = () => {
     }
   };
 
-  const currencySymbol = getCurrencySymbol(language);
-
-  const monthlyPrice = language === 'ka' ? '₾15' : language === 'es' ? '$15' : '$15';
-  const yearlyPrice = language === 'ka' ? '₾150' : language === 'es' ? '$150' : '$150';
-  const monthlyOriginalPrice = language === 'ka' ? '₾30' : language === 'es' ? '$30' : '$30';
-  const yearlyOriginalPrice = language === 'ka' ? '₾360' : language === 'es' ? '$360' : '$360';
+  // Use USD pricing for all languages
+  const monthlyPrice = '$19.99';
+  const yearlyPrice = '$199.99';
+  const monthlyOriginalPrice = '$39.99';
+  const yearlyOriginalPrice = '$399.99';
 
   const features = [
-    t('website.title'),
+    'Free website for your business',
     'Unlimited live bookings',
     'Unlimited CRM customers',
     'Unlimited tasks on board',
-    t('analytics.title'),
+    'Comprehensive Analytics',
     'Unlimited Booking approvals with email',
     'QR code fast booking system',
     'Modern, responsive dashboard for any device'
@@ -114,7 +113,7 @@ export const PricingSection = () => {
             </span>
             {isYearly && (
               <span className="bg-yellow-500 text-black px-2 py-1 rounded-full text-xs font-bold ml-2">
-                <LanguageText>{t('subscription.discount50')}</LanguageText>
+                <LanguageText>{t('subscription.additionalSavings')}</LanguageText>
               </span>
             )}
           </div>

@@ -1,6 +1,6 @@
-import { TranslationType } from "./types";
+import { TranslationType } from './types';
 
-export const es: TranslationType = {
+export const translations: TranslationType = {
   nav: {
     signin: "Iniciar sesión",
     startJourney: "Comienza tu viaje",
@@ -463,13 +463,13 @@ export const es: TranslationType = {
   },
   subscription: {
     monthlyPlan: "Plan Mensual",
-    annualPlan: "Plan Anual", 
+    annualPlan: "Plan Anual",
     monthlyPrice: "$19.99/mes",
     monthlyOriginalPrice: "$39.99",
     yearlyPrice: "$199.99/año",
     yearlyOriginalPrice: "$399.99",
     discount50: "50% de descuento",
-    additionalSavings: "Ahorra 17% adicional del plan mensual",
+    additionalSavings: "Ahorra 17% más",
     monthlyDuration: "30 días de acceso premium",
     yearlyDuration: "365 días de acceso premium",
     manageSubscription: "Gestionar Suscripción",
@@ -482,7 +482,7 @@ export const es: TranslationType = {
     activeSubscription: "Suscripción Activa",
     trialExpired: "Prueba Expirada",
     subscriptionExpired: "Suscripción Expirada",
-    pleaseUpgrade: "Por favor actualiza para continuar usando las características premium",
+    pleaseUpgrade: "Por favor actualiza para continuar usando las funciones premium",
     subscriptionActive: "Tu suscripción está activa",
     timeLeft: "Tiempo restante",
     days: "días",
