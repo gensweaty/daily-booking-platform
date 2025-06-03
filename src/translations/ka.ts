@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -568,5 +567,3 @@ export const translations: TranslationType = {
     fileTooLarge: 'ფაილი ძალიან დიდია',
   },
 };
-
-```

@@ -62,7 +62,16 @@ export const PricingSection = () => {
   const monthlyOriginalPrice = '$39.99';
   const yearlyOriginalPrice = '$399.99';
 
-  const features = [
+  const features = language === 'ka' ? [
+    'უფასო საიტი თქვენი ბიზნესისთვის',
+    'ულიმიტო ლაივ ჯავშნები',
+    'ულიმიტო CRM მომხმარებლები',
+    'ულიმიტო ამოცანები ბორდზე',
+    'ყოვლისმომცველი ანალიტიკა',
+    'ულიმიტო ჯავშნების დასტური ემაილით',
+    'QR კოდით სწრაფი დაჯავშნის სისტემა',
+    'თანამედროვე, ყველა დევაისზე ოპტიმიზირებული სამართავი პანელი'
+  ] : [
     'Free website for your business',
     'Unlimited live bookings',
     'Unlimited CRM customers',
@@ -148,7 +157,7 @@ export const PricingSection = () => {
                 {features.map((feature, index) => (
                   <li key={index} className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-400 flex-shrink-0" />
-                    <span className="text-gray-200 text-sm"><LanguageText>{feature}</LanguageText></span>
+                    <span className="text-gray-200 text-sm">{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -202,7 +211,7 @@ export const PricingSection = () => {
                 {features.map((feature, index) => (
                   <li key={index} className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-400 flex-shrink-0" />
-                    <span className="text-gray-200 text-sm"><LanguageText>{feature}</LanguageText></span>
+                    <span className="text-gray-200 text-sm">{feature}</span>
                   </li>
                 ))}
               </ul>
