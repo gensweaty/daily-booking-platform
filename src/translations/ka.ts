@@ -5,7 +5,6 @@ export const translations: TranslationType = {
     signin: "შესვლა",
     startJourney: "დაიწყეთ თქვენი მოგზაურობა",
     contact: "კონტაქტი",
-    signOut: "გამოსვლა",
   },
   hero: {
     title: "გაზარდეთ თქვენი ბიზნესის პროდუქტიულობა SmartBookly-ით",
