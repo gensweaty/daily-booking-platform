@@ -1,109 +1,323 @@
-
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { ImageCarousel } from "./ImageCarousel";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { Menu, X, Sparkles, LogOut } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useAuth } from "@/contexts/AuthContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+
+const productImages = [{
+  src: "/lovable-uploads/89b6a836-d818-4753-a3f8-9d0d83dc7406.png", // Pet Grooming Salon
+  alt: "Pet Grooming Salon",
+  loading: "lazy",
+  customStyle: "object-cover", 
+  customPadding: "p-4" // Adding padding specifically for this image
+}, {
+  src: "/lovable-uploads/a00576d5-fb16-4a4b-a313-0e1cbb61b00c.png",
+  alt: "Calendar Preview",
+  loading: "lazy"
+}, {
+  src: "/lovable-uploads/7a8c5cac-2431-44db-8e9b-ca6e5ba6d633.png",
+  alt: "Analytics Preview",
+  loading: "lazy"
+}, {
+  src: "/lovable-uploads/292b8b91-64ee-4bf3-b4e6-1e68f77a6563.png",
+  alt: "Tasks Preview",
+  loading: "lazy"
+}, {
+  src: "/lovable-uploads/f35ff4e8-3ae5-4bc2-95f6-c3bef5d53689.png",
+  alt: "CRM Preview",
+  loading: "lazy"
+}];
 
 export const HeroSection = () => {
-  const { user } = useAuth();
-  const { language, t } = useLanguage();
-  const [isVisible, setIsVisible] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { theme, resolvedTheme } = useTheme();
+  const { t, language } = useLanguage();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [mounted, setMounted] = useState(false);
+  const [currentLogo, setCurrentLogo] = useState<string>("/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png");
+  const isMobile = useMediaQuery("(max-width: 640px)");
 
   useEffect(() => {
-    setIsVisible(true);
+    setMounted(true);
+    // Set initial logo
+    updateLogoForTheme();
   }, []);
 
-  return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600">
-      {/* Background overlay */}
-      <div className="absolute inset-0 bg-black/20"></div>
+  const handleMenuClose = () => {
+    setIsMobileMenuOpen(false);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast({
+        title: t('auth.signOutSuccess'),
+        description: t('auth.signOutSuccess'),
+      });
+      navigate('/');
+    } catch (error) {
+      toast({
+        title: t('profile.signOutError'),
+        description: t('profile.pleaseTryAgain'),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDashboardClick = () => {
+    navigate('/dashboard');
+    handleMenuClose();
+  };
+
+  // Function to update logo based on current theme
+  const updateLogoForTheme = () => {
+    // Get current theme from various sources in order of reliability
+    const isDarkTheme = 
+      document.documentElement.classList.contains('dark') || 
+      document.documentElement.getAttribute('data-theme') === 'dark' ||
+      (resolvedTheme || theme) === 'dark';
+    
+    const newLogoSrc = isDarkTheme 
+      ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" 
+      : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png";
+    
+    setCurrentLogo(newLogoSrc);
+    console.log("[HeroSection] Logo updated based on theme:", isDarkTheme ? "dark" : "light");
+  };
+
+  // Listen for theme changes to update logo
+  useEffect(() => {
+    if (!mounted) return;
+
+    const handleThemeChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const newTheme = customEvent.detail?.theme;
+      console.log("[HeroSection] Theme changed detected:", newTheme);
+      updateLogoForTheme();
+    };
+
+    document.addEventListener('themeChanged', handleThemeChange);
+    document.addEventListener('themeInit', handleThemeChange);
+    
+    return () => {
+      document.removeEventListener('themeChanged', handleThemeChange);
+      document.removeEventListener('themeInit', handleThemeChange);
+    };
+  }, [mounted]);
+
+  // Update logo when theme or resolvedTheme changes
+  useEffect(() => {
+    if (mounted) {
+      updateLogoForTheme();
+    }
+  }, [theme, resolvedTheme, mounted]);
+
+  const renderAuthenticatedNav = () => (
+    <div className="flex items-center gap-3">
+      <LanguageSwitcher />
+      <ThemeToggle />
       
-      {/* Animated background shapes */}
-      <div className="absolute inset-0">
-        <div className="absolute top-20 left-20 w-72 h-72 bg-white/10 rounded-full blur-xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-white/10 rounded-full blur-xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-white/5 rounded-full blur-2xl animate-pulse delay-500"></div>
+      {/* Desktop Navigation */}
+      <div className="hidden md:flex items-center gap-3">
+        <Button 
+          onClick={handleDashboardClick}
+          className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm flex items-center gap-2"
+        >
+          <Avatar className="h-6 w-6">
+            <AvatarImage src={user?.user_metadata?.avatar_url} />
+            <AvatarFallback className="bg-white text-primary text-xs">
+              {user?.email?.charAt(0)?.toUpperCase() || 'U'}
+            </AvatarFallback>
+          </Avatar>
+          <LanguageText>{language === 'ka' ? "პანელი" : "Dashboard"}</LanguageText>
+        </Button>
+        
+        <Button 
+          onClick={handleSignOut}
+          variant="outline" 
+          className="hover:scale-105 transition-transform text-sm flex items-center gap-2"
+        >
+          <LogOut className="h-4 w-4" />
+          <LanguageText>{language === 'ka' ? "გამოსვლა" : t('nav.signOut')}</LanguageText>
+        </Button>
+        
+        <Link to="/contact">
+          <Button variant="outline" className="hover:scale-105 transition-transform text-sm">
+            {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
+          </Button>
+        </Link>
       </div>
 
-      <div className={`relative z-10 text-center text-white px-4 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
-          {language === 'ka' ? (
-            <GeorgianAuthText className="block">
-              <span className="block">თქვენი ყველაზე დიდი</span>
-              <span className="block text-yellow-300">პროდუქტიულობის</span>
-              <span className="block">ცენტრი</span>
-            </GeorgianAuthText>
-          ) : (
-            <>
-              <span className="block"><LanguageText>{t('hero.yourUltimate')}</LanguageText></span>
-              <span className="block text-yellow-300"><LanguageText>{t('hero.productivity')}</LanguageText></span>
-              <span className="block"><LanguageText>{t('hero.hub')}</LanguageText></span>
-            </>
-          )}
-        </h1>
+      {/* Mobile Navigation */}
+      <div className="flex items-center gap-2 md:hidden">
+        <Button 
+          onClick={handleDashboardClick}
+          variant="ghost"
+          size="sm"
+          className="p-2"
+          aria-label="Go to Dashboard"
+        >
+          <Avatar className="h-7 w-7">
+            <AvatarImage src={user?.user_metadata?.avatar_url} />
+            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+              {user?.email?.charAt(0)?.toUpperCase() || 'U'}
+            </AvatarFallback>
+          </Avatar>
+        </Button>
         
-        <p className="text-lg md:text-xl mb-8 text-white/90 max-w-3xl mx-auto leading-relaxed">
-          {language === 'ka' ? (
-            <GeorgianAuthText>
-              შექმენით, მართეთ და შეისრულეთ თქვენი ყველა დავალება ერთ ადგილას.
-              ორგანიზება, რომელიც აღზრდის წარმატებას.
-            </GeorgianAuthText>
-          ) : (
-            <LanguageText>{t('hero.description')}</LanguageText>
-          )}
-        </p>
+        <Button 
+          onClick={handleSignOut}
+          variant="outline" 
+          size="sm"
+          className="p-2"
+          aria-label={language === 'ka' ? "გამოსვლა" : t('nav.signOut')}
+        >
+          <LogOut className="h-4 w-4" />
+        </Button>
         
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          {user ? (
-            <Link to="/dashboard">
-              <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-100 text-lg px-8 py-4 rounded-full shadow-2xl transform transition-all duration-300 hover:scale-105 hover:shadow-white/20">
-                {language === 'ka' ? (
-                  <span className="hidden md:inline">
-                    <GeorgianAuthText fontWeight="bold">მართვის პანელი</GeorgianAuthText>
-                  </span>
-                ) : (
-                  <span className="hidden md:inline">
-                    <LanguageText>{t('hero.goToDashboard')}</LanguageText>
-                  </span>
-                )}
-                {language === 'ka' ? (
-                  <span className="md:hidden">
-                    <GeorgianAuthText fontWeight="bold">პანელი</GeorgianAuthText>
-                  </span>
-                ) : (
-                  <span className="md:hidden">
-                    <LanguageText>{t('hero.dashboard')}</LanguageText>
-                  </span>
-                )}
-              </Button>
-            </Link>
-          ) : (
-            <>
-              <Link to="/signup">
-                <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-100 text-lg px-8 py-4 rounded-full shadow-2xl transform transition-all duration-300 hover:scale-105 hover:shadow-white/20">
-                  {language === 'ka' ? (
-                    <GeorgianAuthText fontWeight="bold">დაიწყეთ უფასოდ</GeorgianAuthText>
-                  ) : (
-                    <LanguageText>{t('hero.getStarted')}</LanguageText>
-                  )}
-                </Button>
-              </Link>
-              <Link to="/signin">
-                <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white hover:text-purple-600 text-lg px-8 py-4 rounded-full shadow-2xl backdrop-blur-sm bg-white/10 transform transition-all duration-300 hover:scale-105">
-                  {language === 'ka' ? (
-                    <GeorgianAuthText fontWeight="bold">შესვლა</GeorgianAuthText>
-                  ) : (
-                    <LanguageText>{t('hero.signIn')}</LanguageText>
-                  )}
-                </Button>
-              </Link>
-            </>
-          )}
-        </div>
+        <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-expanded={isMobileMenuOpen} aria-controls="mobile-menu" aria-label="Toggle menu">
+          {isMobileMenuOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
+        </Button>
       </div>
     </div>
   );
+
+  const renderUnauthenticatedNav = () => (
+    <div className="flex items-center gap-3">
+      <LanguageSwitcher />
+      <ThemeToggle />
+      
+      <div className="hidden md:flex items-center space-x-3 lg:space-x-4" role="navigation">
+        <Link to="/login">
+          <Button variant="outline" className="hover:scale-105 transition-transform text-sm md:text-base">
+            {language === 'ka' ? "შესვლა" : t('nav.signin')}
+          </Button>
+        </Link>
+        <Link to="/signup">
+          <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm md:text-base">
+            {language === 'ka' ? "რეგისტრაცია" : "Sign Up"}
+          </Button>
+        </Link>
+        <Link to="/contact">
+          <Button variant="outline" className="hover:scale-105 transition-transform text-sm md:text-base">
+            {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
+          </Button>
+        </Link>
+      </div>
+
+      <div className="flex items-center gap-3 md:hidden">
+        <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-expanded={isMobileMenuOpen} aria-controls="mobile-menu" aria-label="Toggle menu">
+          {isMobileMenuOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
+        </Button>
+      </div>
+    </div>
+  );
+
+  const renderMobileMenu = () => {
+    if (user) {
+      return (
+        <div id="mobile-menu" className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-2 p-4 space-y-3 md:hidden animate-fade-in z-50" role="menu">
+          <Link to="/contact" onClick={handleMenuClose} role="menuitem">
+            <Button variant="outline" className="w-full justify-start">
+              {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
+            </Button>
+          </Link>
+        </div>
+      );
+    } else {
+      return (
+        <div id="mobile-menu" className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-2 p-4 space-y-3 md:hidden animate-fade-in z-50" role="menu">
+          <Link to="/login" onClick={handleMenuClose} role="menuitem">
+            <Button variant="outline" className="w-full justify-start">
+              {language === 'ka' ? "შესვლა" : t('nav.signin')}
+            </Button>
+          </Link>
+          <Link to="/signup" onClick={handleMenuClose} role="menuitem">
+            <Button className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90">
+              {language === 'ka' ? "რეგისტრაცია" : "Sign Up"}
+            </Button>
+          </Link>
+          <Link to="/contact" onClick={handleMenuClose} role="menuitem">
+            <Button variant="outline" className="w-full justify-start">
+              {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
+            </Button>
+          </Link>
+        </div>
+      );
+    }
+  };
+
+  return <>
+      <header className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-light via-background to-accent-light opacity-10" />
+        
+        <div className="container mx-auto px-4 py-4 md:py-6 lg:py-8 relative">
+          <nav className="relative" aria-label="Main navigation">
+            <div className="flex justify-between items-center">
+              <Link to="/" className="flex items-center gap-2" aria-label="SmartBookly Home">
+                <img 
+                  src={currentLogo}
+                  alt="SmartBookly Logo" 
+                  className="h-7 md:h-8 lg:h-10 w-auto" 
+                  width="160" 
+                  height="40" 
+                  loading="eager" 
+                  fetchPriority="high" 
+                />
+              </Link>
+              
+              {user ? renderAuthenticatedNav() : renderUnauthenticatedNav()}
+            </div>
+
+            {isMobileMenuOpen && renderMobileMenu()}
+          </nav>
+
+          <main className="grid md:grid-cols-2 gap-6 md:gap-8 lg:gap-12 items-center mt-6 md:mt-8 lg:mt-12">
+            <div className="space-y-3 md:space-y-4 animate-fade-in">
+              <article className="space-y-2 md:space-y-4">
+                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary">
+                  <LanguageText>{t('hero.title')}</LanguageText>
+                </h1>
+                <h2 className="text-xl md:text-2xl font-semibold text-foreground/90">
+                  <LanguageText>{t('hero.subtitle')}</LanguageText>
+                </h2>
+                <h3 className="text-base md:text-lg text-muted-foreground leading-relaxed">
+                  <LanguageText>{t('hero.description')}</LanguageText>
+                </h3>
+              </article>
+              <div className="pt-2 md:pt-3">
+                <Link to="/signup">
+                  <Button size={isMobile ? "default" : "lg"} className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
+                    <span className="flex items-center gap-2">
+                      {language === 'ka' ? "გამოსცადეთ უფასოდ" : t('nav.startJourney')}
+                      <Sparkles className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} animate-pulse`} aria-hidden="true" />
+                    </span>
+                  </Button>
+                </Link>
+              </div>
+            </div>
+            <div className="animate-fade-in">
+              <ImageCarousel 
+                images={productImages} 
+                permanentArrows={true} 
+                imageHeight="h-[480px]"
+                objectFit="object-contain"
+              />
+            </div>
+          </main>
+        </div>
+      </header>
+    </>;
 };

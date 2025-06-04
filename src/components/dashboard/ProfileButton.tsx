@@ -34,7 +34,7 @@ export const ProfileButton = ({ onClick, className, mobileVersion = false, avata
         variant="ghost" 
         size="icon"
         onClick={onClick}
-        className={`h-10 w-10 rounded-full p-0 border border-border/50 hover:border-border ${className}`}
+        className={`h-10 w-10 rounded-full p-0 ${className}`}
       >
         <Avatar className="h-8 w-8">
           <AvatarImage src={avatarUrl || undefined} />
@@ -50,7 +50,7 @@ export const ProfileButton = ({ onClick, className, mobileVersion = false, avata
     <Button 
       variant="ghost" 
       onClick={onClick}
-      className={`flex items-center gap-3 px-3 py-2 h-auto border border-border/50 hover:border-border ${className}`}
+      className={`flex items-center gap-3 px-3 py-2 h-auto ${className}`}
     >
       <Avatar className="h-8 w-8">
         <AvatarImage src={avatarUrl || undefined} />
