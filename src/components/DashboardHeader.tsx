@@ -307,8 +307,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             <DialogContent 
               className={
                 isMobile 
-                  ? 'mobile-dialog w-screen h-screen max-w-none max-h-none p-0 border-0 rounded-none' 
-                  : 'sm:max-w-[600px] max-h-[90vh] p-0'
+                  ? 'mobile-dialog w-screen h-screen max-w-none max-h-none p-0 border-0 rounded-none animate-fade-in' 
+                  : 'sm:max-w-[600px] max-h-[90vh] p-0 animate-scale-in'
               }
               style={isMobile ? {
                 position: 'fixed',
