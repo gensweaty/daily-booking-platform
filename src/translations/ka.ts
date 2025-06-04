@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -66,7 +67,7 @@ export const translations: TranslationType = {
     fullNamePlaceholder: "სრული სახელი",
     phoneNumber: "ტელეფონის ნომერი",
     phoneNumberPlaceholder: "ტელეფონის ნომერი",
-    socialLinkEmail: "ელ-ფოსტა/სოციალური ლინკი",
+    socialLinkEmail: "ელ-ფოსტა",
     socialLinkEmailPlaceholder: "example@email.com",
     createEventForCustomer: "ღონისძიების შექმნა ამ კლიენტისთვის",
     customerFromEvent: "კლიენტი ღონისძიებიდან",
@@ -208,7 +209,7 @@ export const translations: TranslationType = {
     lightMode: "ღია რეჟიმი",
     systemMode: "სისტემა",
     more: "მეტი",
-    addEvent: "ღონისძიების დამატება",
+    addEvent: "ჯავშნის დამატება",
     day: "დღე",
     week: "კვირა",
     month: "თვე",
@@ -261,7 +262,7 @@ export const translations: TranslationType = {
     timeSlotUnavailable: "დროის სლოტი მიუწვდომელია",
     timeSlotConflict: "დროის სლოტის კონფლიქტი",
     timeSlotNotAvailable: "დროის სლოტი მიუწვდომელია",
-    socialLinkEmail: "ელ-ფოსტა/სოციალური ლინკი",
+    socialLinkEmail: "ელ-ფოსტა",
     dateAndTime: "თარიღი და დრო",
     date: "თარიღი",
     time: "დრო",
@@ -301,7 +302,7 @@ export const translations: TranslationType = {
     day: "დღე",
     week: "კვირა",
     month: "თვე",
-    addEvent: "ღონისძიების დამატება",
+    addEvent: "ჯავშნის დამატება",
     bookNow: "ახლავე დაჯავშნა",
     weekOf: "კვირა",
   },
