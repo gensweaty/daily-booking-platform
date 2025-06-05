@@ -32,7 +32,7 @@ export const SEOManager = () => {
     
     let title = langConfig.title;
     let description = langConfig.description;
-    let structuredData = generateOrganizationSchema();
+    let structuredData: any = generateOrganizationSchema();
     
     // Page-specific SEO
     if (currentPath === '/contact') {
