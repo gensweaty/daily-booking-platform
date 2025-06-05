@@ -215,35 +215,84 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         };
       });
 
-      // Optimize monthly income calculations
-      let monthsToCompare;
+      // NEW LOGIC: Monthly income should ALWAYS show 3 months (current + past 2) for the income chart
+      // while other statistics respect the selected date range
       const currentDate = new Date();
       const isDefaultDateRange = 
         format(dateRange.start, 'yyyy-MM-dd') === format(startOfMonth(currentDate), 'yyyy-MM-dd') &&
         format(dateRange.end, 'yyyy-MM-dd') === format(endOfMonth(currentDate), 'yyyy-MM-dd');
 
-      if (isDefaultDateRange) {
-        // For default view, show current month and previous 2 months
-        monthsToCompare = [
-          addMonths(startOfMonth(currentDate), -2),
-          addMonths(startOfMonth(currentDate), -1),
-          startOfMonth(currentDate)
-        ];
-      } else {
-        // For manually selected date range, use those months
-        monthsToCompare = eachMonthOfInterval({
-          start: startOfMonth(dateRange.start),
-          end: endOfMonth(dateRange.end)
-        });
-      }
+      // For monthly income, we need to fetch events from a wider range to get 3 months of data
+      const incomeRangeStart = addMonths(startOfMonth(currentDate), -2);
+      const incomeRangeEnd = endOfDay(endOfMonth(currentDate));
       
-      // Calculate monthly income with consistent payment parsing
-      const monthlyIncome = monthsToCompare.map(month => {
+      // Fetch additional events for income calculation if needed
+      let allEventsForIncome = allEvents;
+      
+      if (isDefaultDateRange) {
+        // We need to fetch events from the wider range for income calculation
+        const { data: additionalCalendarEvents } = await supabase
+          .from('events')
+          .select('*')
+          .eq('user_id', userId)
+          .gte('start_date', incomeRangeStart.toISOString())
+          .lte('start_date', incomeRangeEnd.toISOString())
+          .is('deleted_at', null);
+
+        const { data: additionalCrmEvents } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('create_event', true)
+          .gte('start_date', incomeRangeStart.toISOString())
+          .lte('start_date', incomeRangeEnd.toISOString())
+          .is('deleted_at', null);
+
+        // Combine additional events for income calculation
+        const additionalEventsMap = new Map();
+        
+        additionalCalendarEvents?.forEach(event => {
+          const key = `${event.start_date}-${event.end_date}-${event.title}`;
+          additionalEventsMap.set(key, {
+            ...event,
+            payment_status: normalizePaymentStatus(event.payment_status)
+          });
+        });
+        
+        additionalCrmEvents?.forEach(event => {
+          const key = `${event.start_date}-${event.end_date}-${event.title}`;
+          if (!additionalEventsMap.has(key)) {
+            additionalEventsMap.set(key, {
+              id: event.id,
+              title: event.title,
+              user_surname: event.user_surname || event.title,
+              start_date: event.start_date,
+              end_date: event.end_date,
+              payment_status: normalizePaymentStatus(event.payment_status),
+              payment_amount: event.payment_amount,
+              type: event.type || 'event',
+              created_at: event.created_at,
+              user_id: event.user_id,
+            });
+          }
+        });
+        
+        allEventsForIncome = Array.from(additionalEventsMap.values());
+      }
+
+      // Calculate monthly income - always show 3 months for the chart
+      const monthsForIncome = [
+        addMonths(startOfMonth(currentDate), -2),
+        addMonths(startOfMonth(currentDate), -1),
+        startOfMonth(currentDate)
+      ];
+      
+      const monthlyIncome = monthsForIncome.map(month => {
         const monthStart = startOfMonth(month);
         const monthEnd = endOfDay(endOfMonth(month));
         
-        // Filter events within this month
-        const monthEvents = allEvents.filter(event => {
+        // Filter events within this month from the income events
+        const monthEvents = allEventsForIncome.filter(event => {
           if (!event.start_date) return false;
           const eventDate = parseISO(event.start_date);
           return eventDate >= monthStart && eventDate <= monthEnd;
@@ -291,26 +340,40 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         }
       });
       
-      // Double check by calculating total from monthly income
-      const monthlyTotal = monthlyIncome.reduce((sum, month) => sum + month.income, 0);
+      // Double check by calculating total from current month only (for totalIncome display)
+      const currentMonthEvents = allEvents.filter(event => {
+        if (!event.start_date) return false;
+        const eventDate = parseISO(event.start_date);
+        const currentMonthStart = startOfMonth(currentDate);
+        const currentMonthEnd = endOfDay(endOfMonth(currentDate));
+        return eventDate >= currentMonthStart && eventDate <= currentMonthEnd;
+      });
+      
+      let currentMonthIncome = 0;
+      currentMonthEvents.forEach(event => {
+        const status = normalizePaymentStatus(event.payment_status);
+        const isPaid = status === 'fully_paid' || status === 'partly_paid';
+                       
+        if (isPaid && (event.payment_amount !== undefined && event.payment_amount !== null)) {
+          const parsedAmount = parsePaymentAmount(event.payment_amount);
+          if (parsedAmount > 0) {
+            currentMonthIncome += parsedAmount;
+          }
+        }
+      });
+      
+      // Use current month income for totalIncome display if we're in default view
+      if (isDefaultDateRange) {
+        totalIncome = currentMonthIncome;
+      }
       
       console.log('Income calculation summary:', {
         totalDirectCalculation: totalIncome,
-        monthlyTotalSum: monthlyTotal, 
+        currentMonthIncome,
         eventsWithValidPayment: validPaymentCount,
         totalEventCount: allEvents.length,
-        mismatch: Math.abs(totalIncome - monthlyTotal) > 0.01 ? 'YES' : 'NO'
+        isDefaultView: isDefaultDateRange
       });
-      
-      // If there's a discrepancy, use the monthly sum as it's more reliable
-      if (Math.abs(totalIncome - monthlyTotal) > 0.01) {
-        console.warn('Income calculation discrepancy detected, using monthly sum instead:', {
-          directTotal: totalIncome,
-          monthlySum: monthlyTotal,
-          difference: totalIncome - monthlyTotal
-        });
-        totalIncome = monthlyTotal;
-      }
 
       // Final validation to ensure totalIncome is a valid number
       if (typeof totalIncome !== 'number' || isNaN(totalIncome)) {
