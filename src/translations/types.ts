@@ -1,6 +1,7 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
-export type TranslationType = {
+export interface TranslationType {
   nav: {
     signin: string;
     startJourney: string;
@@ -177,6 +178,8 @@ export type TranslationType = {
     notFound: string;
     notFoundDescription: string;
     viewPublicPage: string;
+    scanQrCode: string;
+    qrCodeTooltip: string;
     customer: string;
     title: string;
     dateTime: string;
@@ -198,8 +201,6 @@ export type TranslationType = {
     availableTimes: string;
     clickToRequest: string;
     contactInformation: string;
-    scanQrCode: string;
-    qrCodeTooltip: string;
   };
   dashboard: {
     welcome: string;
@@ -321,16 +322,11 @@ export type TranslationType = {
     weekOf: string;
   };
   common: {
+    cancel: string;
     success: string;
     error: string;
     warning: string;
-    cancel: string;
     submitting: string;
-    create: string;
-    update: string;
-    delete: string;
-    errorOccurred: string;
-    and: string;
     loading: string;
     rateLimitReached: string;
     waitBeforeBooking: string;
@@ -344,10 +340,15 @@ export type TranslationType = {
     deleteSuccess: string;
     deleteError: string;
     missingUserInfo: string;
+    errorOccurred: string;
     new: string;
     request: string;
     requests: string;
-		backToHome: string;
+    backToHome: string;
+    create: string;
+    update: string;
+    delete: string;
+    and: string;
     supportedFormats: string;
     deleteConfirmMessage: string;
     noDescription: string;
@@ -454,10 +455,118 @@ export type TranslationType = {
   reminders: {
     reminderCreated: string;
   };
-};
+  subscription: {
+    monthlyPlan: string;
+    annualPlan: string;
+    monthlyPrice: string;
+    monthlyOriginalPrice: string;
+    yearlyPrice: string;
+    yearlyOriginalPrice: string;
+    discount50: string;
+    additionalSavings: string;
+    monthlyDuration: string;
+    yearlyDuration: string;
+    manageSubscription: string;
+    chooseUpgradeRenew: string;
+    subscribeNow: string;
+    processing: string;
+    trialPeriod: string;
+    monthlySubscription: string;
+    yearlySubscription: string;
+    activeSubscription: string;
+    trialExpired: string;
+    subscriptionExpired: string;
+    pleaseUpgrade: string;
+    subscriptionActive: string;
+    timeLeft: string;
+    days: string;
+    hours: string;
+    minutes: string;
+    seconds: string;
+    trialIncluded: string;
+    freeTrial: string;
+    startFreeTrial: string;
+    trialThenBilling: string;
+  };
+  profile: {
+    title: string;
+    editProfile: string;
+    personalInfo: string;
+    accountSettings: string;
+    subscription: string;
+    billing: string;
+    notifications: string;
+    privacy: string;
+    security: string;
+    deleteAccount: string;
+    save: string;
+    cancel: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    timezone: string;
+    language: string;
+    profilePicture: string;
+    uploadPhoto: string;
+    removePhoto: string;
+    currentPlan: string;
+    planExpires: string;
+    manageBilling: string;
+    upgradeSubscription: string;
+    emailNotifications: string;
+    pushNotifications: string;
+    marketingEmails: string;
+    twoFactorAuth: string;
+    changePassword: string;
+    loginSessions: string;
+    connectedAccounts: string;
+    dataExport: string;
+    deleteAccountWarning: string;
+    confirmDelete: string;
+    userProfile: string;
+    welcomeBack: string;
+    accountInformation: string;
+    emailAddress: string;
+    username: string;
+    subscriptionStatus: string;
+    refresh: string;
+    refreshing: string;
+    sync: string;
+    syncing: string;
+    trialPlan: string;
+    trialExpired: string;
+    noActiveSubscription: string;
+    trial: string;
+    active: string;
+    trialexpired: string;
+    securitySettings: string;
+    noSubscriptionInfo: string;
+    getSubscription: string;
+    statusRefreshed: string;
+    failedRefreshSubscription: string;
+    syncSuccessful: string;
+    subscriptionUpdatedFromStripe: string;
+    syncComplete: string;
+    subscriptionStatusVerified: string;
+    syncError: string;
+    failedSyncWithStripe: string;
+    signOutError: string;
+    pleaseTryAgain: string;
+    passwordResetEmailSent: string;
+    checkEmailForResetLink: string;
+    failedSendPasswordReset: string;
+    uploadAvatar: string;
+    changeAvatar: string;
+    avatarUploadError: string;
+    avatarUploaded: string;
+    invalidFileType: string;
+    fileTooLarge: string;
+  };
+}
 
-export type LanguageContextType = {
+export interface LanguageContextType {
   language: Language;
   setLanguage: (language: Language) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
-};
+}

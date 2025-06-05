@@ -1,7 +1,7 @@
 
 "use client"
 
-import * as React from "react"
+import { useState, useEffect } from "react"
 import { ThemeProvider as NextThemesProvider } from "next-themes"
 import type { ThemeProviderProps as NextThemeProviderProps } from "next-themes"
 
@@ -25,11 +25,11 @@ export function ThemeProvider({
   enableColorScheme = true,
   ...props 
 }: ThemeProviderProps) {
-  // Ensure React is in scope for the useState hook
-  const [themeInitialized, setThemeInitialized] = React.useState(false);
+  // Use the directly imported useState hook
+  const [themeInitialized, setThemeInitialized] = useState(false);
 
   // Force immediate theme application to prevent flicker
-  React.useEffect(() => {
+  useEffect(() => {
     // Get user preference first from localStorage or system
     const storedTheme = localStorage.getItem(storageKey);
     
@@ -72,7 +72,7 @@ export function ThemeProvider({
   }, [storageKey, defaultTheme, forcedTheme, enableSystem]);
 
   // Handle theme changes from other tabs or windows
-  React.useEffect(() => {
+  useEffect(() => {
     if (!themeInitialized) return;
 
     const handleStorage = (e: StorageEvent) => {

@@ -96,6 +96,37 @@ serve(async (req) => {
 
         console.log(`Successfully created user with ID ${data.user.id}`);
 
+        // Create a 14-day trial subscription for the new user
+        try {
+          const trialEndDate = new Date();
+          trialEndDate.setDate(trialEndDate.getDate() + 14);
+
+          const { error: subscriptionError } = await supabaseAdmin
+            .from('subscriptions')
+            .insert({
+              user_id: data.user.id,
+              email: email,
+              status: 'trial',
+              plan_type: 'monthly',
+              trial_end_date: trialEndDate.toISOString(),
+              current_period_start: new Date().toISOString(),
+              current_period_end: trialEndDate.toISOString(),
+              currency: 'usd',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+
+          if (subscriptionError) {
+            console.error('Error creating trial subscription:', subscriptionError);
+            // Don't fail the user creation, but log the error
+          } else {
+            console.log('Trial subscription created successfully for user:', data.user.id);
+          }
+        } catch (trialError) {
+          console.error('Error in trial subscription creation:', trialError);
+          // Don't fail the user creation
+        }
+
         // Get the base URL for the app
         const domain = req.url.includes('localhost') || req.url.includes('lovable.app') 
           ? new URL(req.url).origin 

@@ -208,6 +208,48 @@ export type Database = {
         }
         Relationships: []
       }
+      checkout_sessions: {
+        Row: {
+          amount_total: number | null
+          attrs: Json | null
+          created_at: string | null
+          currency: string | null
+          customer: string | null
+          id: string
+          payment_intent: string | null
+          payment_status: string | null
+          status: string | null
+          subscription: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount_total?: number | null
+          attrs?: Json | null
+          created_at?: string | null
+          currency?: string | null
+          customer?: string | null
+          id: string
+          payment_intent?: string | null
+          payment_status?: string | null
+          status?: string | null
+          subscription?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount_total?: number | null
+          attrs?: Json | null
+          created_at?: string | null
+          currency?: string | null
+          customer?: string | null
+          id?: string
+          payment_intent?: string | null
+          payment_status?: string | null
+          status?: string | null
+          subscription?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       customer_files: {
         Row: {
           content_type: string | null
@@ -625,16 +667,19 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string | null
           id: string
           username: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string | null
           id: string
           username: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string | null
           id?: string
           username?: string
@@ -695,6 +740,54 @@ export type Database = {
         }
         Relationships: []
       }
+      "Stripe cusotmers": {
+        Row: {
+          created_at: string
+          id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+        }
+        Relationships: []
+      }
+      stripe_webhook_events: {
+        Row: {
+          created_at: string | null
+          data: Json | null
+          id: string
+          object_id: string | null
+          object_type: string | null
+          processed: boolean | null
+          processing_error: string | null
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          data?: Json | null
+          id: string
+          object_id?: string | null
+          object_type?: string | null
+          processed?: boolean | null
+          processing_error?: string | null
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          data?: Json | null
+          id?: string
+          object_id?: string | null
+          object_type?: string | null
+          processed?: boolean | null
+          processing_error?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
       subscription_plans: {
         Row: {
           created_at: string | null
@@ -724,40 +817,61 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          attrs: Json | null
           created_at: string | null
+          currency: string | null
           current_period_end: string | null
           current_period_start: string | null
+          email: string | null
           id: string
           last_payment_id: string | null
-          plan_id: string
+          plan_id: string | null
           plan_type: string
           status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_end_date: string | null
+          subscription_start_date: string | null
           trial_end_date: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          attrs?: Json | null
           created_at?: string | null
+          currency?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
+          email?: string | null
           id?: string
           last_payment_id?: string | null
-          plan_id: string
+          plan_id?: string | null
           plan_type: string
           status: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_end_date?: string | null
+          subscription_start_date?: string | null
           trial_end_date?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          attrs?: Json | null
           created_at?: string | null
+          currency?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
+          email?: string | null
           id?: string
           last_payment_id?: string | null
-          plan_id?: string
+          plan_id?: string | null
           plan_type?: string
           status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_end_date?: string | null
+          subscription_start_date?: string | null
           trial_end_date?: string | null
           updated_at?: string | null
           user_id?: string
@@ -810,6 +924,10 @@ export type Database = {
           code_id: string
           error_message: string
         }[]
+      }
+      check_subscription_status: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       check_trial_status: {
         Args: Record<PropertyKey, never>

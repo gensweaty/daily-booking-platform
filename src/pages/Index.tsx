@@ -11,6 +11,7 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
+import { checkSubscriptionStatus } from "@/utils/stripeUtils"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -35,7 +36,6 @@ const childVariants = {
 const Index = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false)
   const [username, setUsername] = useState("")
-  const [showTrialExpired, setShowTrialExpired] = useState(false)
   const [processingCode, setProcessingCode] = useState(false)
   const { user } = useAuth()
   const { toast } = useToast()
@@ -122,6 +122,7 @@ const Index = () => {
     const getProfile = async () => {
       if (user) {
         try {
+          // Fetch user profile
           const { data, error } = await supabase
             .from('profiles')
             .select('username')
@@ -136,6 +137,10 @@ const Index = () => {
           if (data) {
             setUsername(data.username)
           }
+
+          // Only check subscription status once on login, not continuously
+          await checkSubscriptionStatus();
+          
         } catch (error: any) {
           console.error('Profile fetch error:', error)
         }
@@ -166,15 +171,7 @@ const Index = () => {
           initial="hidden"
           animate="visible"
         >
-          {showTrialExpired && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-            >
-              <TrialExpiredDialog />
-            </motion.div>
-          )}
+          <TrialExpiredDialog />
           <motion.div variants={childVariants}>
             <DashboardHeader username={username} />
           </motion.div>
