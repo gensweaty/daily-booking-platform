@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -48,6 +47,10 @@ export const BookingRequestForm = ({ businessProfile, onSuccess }: BookingReques
       payment_amount: 0,
     },
   });
+
+  const handleFileSelect = (file: File) => {
+    setUploadedFiles(prev => [...prev, file]);
+  };
 
   const onSubmit = async (data: BookingFormData) => {
     setIsSubmitting(true);
@@ -355,8 +358,8 @@ export const BookingRequestForm = ({ businessProfile, onSuccess }: BookingReques
             <div>
               <Label>{t('bookings.attachments')} ({t('common.optional')})</Label>
               <FileUploadField
-                onFilesSelected={setUploadedFiles}
-                allowedTypes="image/*,application/pdf,.doc,.docx"
+                onFileSelect={handleFileSelect}
+                acceptedFileTypes="image/*,application/pdf,.doc,.docx"
                 maxSizeMB={10}
               />
             </div>
