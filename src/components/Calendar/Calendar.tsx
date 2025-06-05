@@ -28,8 +28,6 @@ import { BookingRequestForm } from "../business/BookingRequestForm";
 import { useToast } from "@/hooks/use-toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
-import { supabase } from "@/lib/supabase";
-import { BusinessProfile } from "@/types/database";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -58,7 +56,6 @@ export const Calendar = ({
   const [view, setView] = useState<CalendarViewType>(defaultView);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
-  const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null);
   
   const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
@@ -76,27 +73,6 @@ export const Calendar = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-
-  // Fetch business profile when businessId is provided
-  useEffect(() => {
-    if (businessId) {
-      const fetchBusinessProfile = async () => {
-        const { data, error } = await supabase
-          .from('business_profiles')
-          .select('*')
-          .eq('id', businessId)
-          .single();
-        
-        if (error) {
-          console.error('Error fetching business profile:', error);
-        } else {
-          setBusinessProfile(data);
-        }
-      };
-      
-      fetchBusinessProfile();
-    }
-  }, [businessId]);
 
   useEffect(() => {
     if (currentView) {
@@ -273,10 +249,7 @@ export const Calendar = ({
     setIsBookingFormOpen(false);
     queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
     
-    toast({
-      title: "Booking Request Submitted",
-      description: "Your booking request has been sent to the business owner.",
-    });
+    toast.event.bookingSubmitted();
   };
 
   if (error && !directEvents) {
@@ -352,13 +325,17 @@ export const Calendar = ({
         </>
       )}
 
-      {isExternalCalendar && allowBookingRequests && businessProfile && (
+      {isExternalCalendar && allowBookingRequests && businessId && (
         <Dialog open={isBookingFormOpen} onOpenChange={setIsBookingFormOpen}>
           <DialogContent className="sm:max-w-md">
             {bookingDate && (
               <BookingRequestForm
-                businessProfile={businessProfile}
+                businessId={businessId}
+                selectedDate={bookingDate}
+                startTime={bookingStartTime}
+                endTime={bookingEndTime}
                 onSuccess={handleBookingSuccess}
+                isExternalBooking={true}
               />
             )}
           </DialogContent>
