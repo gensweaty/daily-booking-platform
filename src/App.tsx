@@ -1,4 +1,3 @@
-
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
@@ -15,6 +14,7 @@ import { ForgotPassword } from "@/components/ForgotPassword";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { SEOManager } from '@/components/SEOManager';
 
 // Create a client for React Query with improved retry logic
 const queryClient = new QueryClient({
@@ -278,12 +278,13 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <BusinessRouteInterceptor />
-        <ThemeProvider defaultTheme="system">
-          <LanguageProvider>
-            <AuthProvider>
-              <SessionAndRealtimeWrapper>
+      <AuthProvider>
+        <LanguageProvider>
+          <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+            <BrowserRouter>
+              <SEOManager />
+              <BusinessRouteInterceptor />
+              <RouteAwareThemeProvider>
                 <RouteAwareWrapper>
                   <Routes>
                     <Route path="/" element={<Landing />} />
@@ -301,11 +302,11 @@ function App() {
                   </Routes>
                   <Toaster />
                 </RouteAwareWrapper>
-              </SessionAndRealtimeWrapper>
-            </AuthProvider>
-          </LanguageProvider>
-        </ThemeProvider>
-      </BrowserRouter>
+              </RouteAwareThemeProvider>
+            </BrowserRouter>
+          </ThemeProvider>
+        </LanguageProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
