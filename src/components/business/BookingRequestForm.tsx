@@ -258,14 +258,8 @@ export const BookingRequestForm = ({
       const bookingId = bookingResponse.id;
       console.log('Booking request created with ID:', bookingId);
 
-      // Flag to track if we need to upload a file
-      let hasFile = !!selectedFile;
-
-      // Step 2: Start email notification in parallel to file upload
-      // We'll use Promise.all to run these operations in parallel
-      
-      // Prepare file upload promise if a file is selected
-      const fileUploadPromise = selectedFile && bookingId ? (async () => {
+      // Step 2: Handle file upload if present
+      if (selectedFile && bookingId) {
         try {
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${bookingId}/${Date.now()}.${fileExt}`;
@@ -277,105 +271,75 @@ export const BookingRequestForm = ({
 
           if (uploadError) {
             console.error('Error uploading file:', uploadError);
-            return { success: false, error: uploadError };
+          } else {
+            console.log('File uploaded successfully to path:', filePath);
+
+            const fileRecord = {
+              filename: selectedFile.name,
+              file_path: filePath,
+              content_type: selectedFile.type,
+              size: selectedFile.size,
+              event_id: bookingId
+            };
+
+            const { error: fileRecordError } = await supabase
+              .from('event_files')
+              .insert(fileRecord);
+
+            if (fileRecordError) {
+              console.error('Error creating file record:', fileRecordError);
+            } else {
+              console.log('File record created successfully in event_files');
+            }
           }
-
-          console.log('File uploaded successfully to path:', filePath);
-
-          const fileRecord = {
-            filename: selectedFile.name,
-            file_path: filePath,
-            content_type: selectedFile.type,
-            size: selectedFile.size,
-            event_id: bookingId
-          };
-
-          const { error: fileRecordError } = await supabase
-            .from('event_files')
-            .insert(fileRecord);
-
-          if (fileRecordError) {
-            console.error('Error creating file record:', fileRecordError);
-            return { success: false, error: fileRecordError };
-          }
-          
-          console.log('File record created successfully in event_files');
-          return { success: true };
         } catch (fileError) {
           console.error('Error handling file upload:', fileError);
-          return { success: false, error: fileError };
         }
-      })() : Promise.resolve({ success: true });
+      }
 
-      // Prepare email notification promise
-      const emailNotificationPromise = (async () => {
-        try {
-          console.log('Sending notification email...');
-          
-          // Use cached business data instead of fetching again
-          const businessNameToUse = businessData?.businessName || "Business";
-          
-          // Prepare notification data with the business email if we have it
-          const notificationData = {
-            businessId: businessId,
-            businessEmail: businessData?.businessEmail, // Use cached email if available
-            requesterName: fullName,
-            requesterEmail: socialNetworkLink,
-            requesterPhone: userNumber,
-            notes: eventNotes || "No additional notes",
-            startDate: startDateTime.toISOString(),
-            endDate: endDateTime.toISOString(),
-            hasAttachment: hasFile,
-            paymentStatus: paymentStatus,
-            paymentAmount: finalPaymentAmount,
-            businessName: businessNameToUse,
-            businessAddress: businessData?.businessAddress,
-            language: language // Include the current language
-          };
-          
-          // Log notification data
-          console.log("Sending email notification with data:", JSON.stringify(notificationData));
-          
-          // Use the full function URL with a timeout to prevent long waits
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-          
-          try {
-            const response = await fetch(
-              "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-request-notification",
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(notificationData),
-                signal: controller.signal
-              }
-            );
-            
-            clearTimeout(timeoutId);
-            console.log("Email notification response status:", response.status);
-            
-            return { success: true };
-          } catch (fetchError) {
-            clearTimeout(timeoutId);
-            console.warn("Email notification request error (continuing anyway):", fetchError);
-            return { success: false, error: fetchError };
+      // Step 3: Send notification email to business owner
+      try {
+        console.log('Sending notification email to business owner...');
+        
+        // Prepare notification data
+        const notificationData = {
+          businessId: businessId,
+          businessEmail: businessData?.businessEmail,
+          requesterName: fullName,
+          requesterEmail: socialNetworkLink,
+          requesterPhone: userNumber,
+          notes: eventNotes || "No additional notes",
+          startDate: startDateTime.toISOString(),
+          endDate: endDateTime.toISOString(),
+          hasAttachment: !!selectedFile,
+          paymentStatus: paymentStatus,
+          paymentAmount: finalPaymentAmount,
+          businessName: businessData?.businessName || "Business",
+          businessAddress: businessData?.businessAddress,
+          language: language
+        };
+        
+        console.log("Sending email notification with data:", JSON.stringify(notificationData));
+        
+        // Call the edge function to send notification email
+        const { data: emailResult, error: emailError } = await supabase.functions.invoke(
+          'send-booking-request-notification',
+          {
+            body: notificationData
           }
-        } catch (emailError) {
-          console.error("Failed to send email notification:", emailError);
-          return { success: false, error: emailError };
+        );
+
+        if (emailError) {
+          console.error('Error calling email function:', emailError);
+        } else {
+          console.log('Email notification sent successfully:', emailResult);
         }
-      })();
+      } catch (emailError) {
+        console.error("Failed to send email notification:", emailError);
+        // Don't throw - we still want to show success to user
+      }
 
-      // Start both operations in parallel but don't wait for them to complete
-      Promise.all([fileUploadPromise, emailNotificationPromise])
-        .then(results => {
-          console.log("Background operations completed:", results);
-        })
-        .catch(error => {
-          console.error("Error in background operations:", error);
-        });
-
-      // Show success message immediately after booking creation
+      // Show success message
       setIsSubmitting(false);
       
       // Reset form
@@ -490,7 +454,7 @@ export const BookingRequestForm = ({
           />
         </div>
 
-        {/* Email Field - THIS IS THE FIXED PART */}
+        {/* Email Field */}
         <div>
           <Label htmlFor="socialNetworkLink" className={labelClass} style={georgianFontStyle}>
             {isGeorgian ? (

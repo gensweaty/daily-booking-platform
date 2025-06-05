@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { supabase, forceBucketCreation } from "@/lib/supabase";
@@ -13,6 +12,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
+import { BusinessSEO } from './BusinessSEO';
 
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -230,6 +230,8 @@ export const PublicBusinessPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {business && <BusinessSEO business={business} />}
+      
       <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
         <ThemeToggle />
         <LanguageSwitcher />

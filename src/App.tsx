@@ -15,6 +15,7 @@ import { ForgotPassword } from "@/components/ForgotPassword";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { SEOManager } from '@/components/SEOManager';
 
 // Create a client for React Query with improved retry logic
 const queryClient = new QueryClient({
@@ -242,6 +243,37 @@ const BusinessRouteInterceptor = () => {
   return null;
 };
 
+// Inner App component that uses router hooks
+const AppContent = () => {
+  return (
+    <SessionAndRealtimeWrapper>
+      <AuthProvider>
+        <SEOManager />
+        <BusinessRouteInterceptor />
+        <RouteAwareThemeProvider>
+          <RouteAwareWrapper>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/dashboard" element={<Index />} />
+              <Route path="/dashboard/*" element={<Index />} />
+              <Route path="/legal" element={<Legal />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/business/:slug" element={<PublicBusinessPage />} />
+              <Route path="/business" element={<PublicBusinessPage />} />
+              <Route path="/login" element={<Index />} />
+              <Route path="/signup" element={<Index />} />
+              <Route path="*" element={<Landing />} />
+            </Routes>
+            <Toaster />
+          </RouteAwareWrapper>
+        </RouteAwareThemeProvider>
+      </AuthProvider>
+    </SessionAndRealtimeWrapper>
+  );
+};
+
 function App() {
   // Enable Supabase realtime functionality
   useEffect(() => {
@@ -278,34 +310,13 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <BusinessRouteInterceptor />
-        <ThemeProvider defaultTheme="system">
-          <LanguageProvider>
-            <AuthProvider>
-              <SessionAndRealtimeWrapper>
-                <RouteAwareWrapper>
-                  <Routes>
-                    <Route path="/" element={<Landing />} />
-                    <Route path="/dashboard" element={<Index />} />
-                    <Route path="/dashboard/*" element={<Index />} />
-                    <Route path="/legal" element={<Legal />} />
-                    <Route path="/contact" element={<Contact />} />
-                    <Route path="/reset-password" element={<ResetPassword />} />
-                    <Route path="/forgot-password" element={<ForgotPassword />} />
-                    <Route path="/business/:slug" element={<PublicBusinessPage />} />
-                    <Route path="/business" element={<PublicBusinessPage />} />
-                    <Route path="/login" element={<Index />} />
-                    <Route path="/signup" element={<Index />} />
-                    <Route path="*" element={<Landing />} />
-                  </Routes>
-                  <Toaster />
-                </RouteAwareWrapper>
-              </SessionAndRealtimeWrapper>
-            </AuthProvider>
-          </LanguageProvider>
+      <LanguageProvider>
+        <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+          <BrowserRouter>
+            <AppContent />
+          </BrowserRouter>
         </ThemeProvider>
-      </BrowserRouter>
+      </LanguageProvider>
     </QueryClientProvider>
   );
 }
