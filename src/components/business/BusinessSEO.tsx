@@ -30,7 +30,7 @@ export const BusinessSEO = ({ business }: BusinessSEOProps) => {
       phone: business.contact_phone || undefined,
       email: business.contact_email || undefined,
       website: business.contact_website || undefined,
-      type: business.business_type || undefined
+      type: 'LocalBusiness'
     });
     
     // Generate hreflang links for business page
@@ -44,7 +44,7 @@ export const BusinessSEO = ({ business }: BusinessSEOProps) => {
     updatePageMetaTags({
       title,
       description,
-      keywords: `${business.business_name}, ${business.business_type || 'business'}, booking, appointments, online scheduling`,
+      keywords: `${business.business_name}, business, booking, appointments, online scheduling`,
       ogTitle: title,
       ogDescription: description,
       ogImage: business.cover_photo_url || '/og-image.png',

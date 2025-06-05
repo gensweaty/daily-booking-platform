@@ -1,7 +1,14 @@
 
-import { SEO_CONFIG } from './seoConfig';
+interface MetaTag {
+  name?: string;
+  property?: string;
+  content: string;
+  rel?: string;
+  href?: string;
+  hreflang?: string;
+}
 
-export interface MetaTagsConfig {
+interface MetaTagsConfig {
   title: string;
   description: string;
   keywords?: string;
@@ -10,108 +17,98 @@ export interface MetaTagsConfig {
   ogImage?: string;
   canonicalUrl?: string;
   hreflang?: Array<{ lang: string; href: string }>;
-  structuredData?: object;
+  structuredData?: any;
 }
 
-export const generateMetaTags = (config: MetaTagsConfig) => {
-  const metaTags: Array<{ name?: string; property?: string; content: string; rel?: string; href?: string; hreflang?: string }> = [];
+export const updatePageMetaTags = (config: MetaTagsConfig) => {
+  // Update title
+  document.title = config.title;
   
-  // Basic meta tags
-  metaTags.push({ name: 'description', content: config.description });
+  // Remove existing meta tags
+  const existingMetas = document.querySelectorAll('meta[data-seo="true"]');
+  existingMetas.forEach(meta => meta.remove());
+  
+  // Remove existing canonical links
+  const existingCanonical = document.querySelectorAll('link[rel="canonical"]');
+  existingCanonical.forEach(link => link.remove());
+  
+  // Remove existing hreflang links
+  const existingHreflang = document.querySelectorAll('link[rel="alternate"]');
+  existingHreflang.forEach(link => link.remove());
+  
+  const metaTags: MetaTag[] = [
+    { name: 'description', content: config.description },
+  ];
+  
   if (config.keywords) {
     metaTags.push({ name: 'keywords', content: config.keywords });
   }
   
-  // Open Graph tags
-  metaTags.push({ property: 'og:title', content: config.ogTitle || config.title });
-  metaTags.push({ property: 'og:description', content: config.ogDescription || config.description });
-  metaTags.push({ property: 'og:type', content: 'website' });
-  metaTags.push({ property: 'og:image', content: config.ogImage || '/og-image.png' });
-  
-  // Twitter tags
-  metaTags.push({ name: 'twitter:card', content: 'summary_large_image' });
-  metaTags.push({ name: 'twitter:title', content: config.ogTitle || config.title });
-  metaTags.push({ name: 'twitter:description', content: config.ogDescription || config.description });
-  
-  // Canonical URL
-  if (config.canonicalUrl) {
-    metaTags.push({ rel: 'canonical', href: config.canonicalUrl });
+  if (config.ogTitle) {
+    metaTags.push({ property: 'og:title', content: config.ogTitle });
   }
   
-  return metaTags;
-};
-
-export const generateBusinessMetaTags = (businessName: string, businessDescription?: string, businessType?: string, language: string = 'en') => {
-  const langConfig = SEO_CONFIG.languages[language as keyof typeof SEO_CONFIG.languages];
-  const title = `${businessName} - Book Now | Smartbookly`;
-  const description = businessDescription 
-    ? `Book appointments with ${businessName}. ${businessDescription}` 
-    : `Book appointments with ${businessName}. Online booking available.`;
+  if (config.ogDescription) {
+    metaTags.push({ property: 'og:description', content: config.ogDescription });
+  }
   
-  return generateMetaTags({
-    title,
-    description,
-    keywords: `${businessName}, ${businessType || 'business'}, booking, appointments, ${langConfig.keywords}`,
-    ogTitle: title,
-    ogDescription: description,
-    canonicalUrl: `${SEO_CONFIG.siteUrl}/business/${businessName.toLowerCase().replace(/\s+/g, '-')}`
-  });
-};
-
-export const updatePageMetaTags = (config: MetaTagsConfig) => {
-  // Update document title
-  document.title = config.title;
+  if (config.ogImage) {
+    metaTags.push({ property: 'og:image', content: config.ogImage });
+  }
   
-  // Update existing meta tags or create new ones
-  const metaTags = generateMetaTags(config);
-  
+  // Add meta tags
   metaTags.forEach(tag => {
-    let element: HTMLMetaElement | HTMLLinkElement | null = null;
-    
-    if (tag.name) {
-      element = document.querySelector(`meta[name="${tag.name}"]`);
-    } else if (tag.property) {
-      element = document.querySelector(`meta[property="${tag.property}"]`);
-    } else if (tag.rel) {
-      element = document.querySelector(`link[rel="${tag.rel}"]`);
-    }
-    
-    if (element) {
-      if (tag.content) element.setAttribute('content', tag.content);
-      if (tag.href) element.setAttribute('href', tag.href);
-    } else {
-      const newElement = document.createElement(tag.rel ? 'link' : 'meta');
-      Object.entries(tag).forEach(([key, value]) => {
-        if (value) newElement.setAttribute(key, value);
-      });
-      document.head.appendChild(newElement);
-    }
+    const meta = document.createElement('meta');
+    if (tag.name) meta.setAttribute('name', tag.name);
+    if (tag.property) meta.setAttribute('property', tag.property);
+    meta.setAttribute('content', tag.content);
+    meta.setAttribute('data-seo', 'true');
+    document.head.appendChild(meta);
   });
   
-  // Add hreflang tags
+  // Add canonical URL
+  if (config.canonicalUrl) {
+    const canonical = document.createElement('link');
+    canonical.setAttribute('rel', 'canonical');
+    canonical.setAttribute('href', config.canonicalUrl);
+    document.head.appendChild(canonical);
+  }
+  
+  // Add hreflang links
   if (config.hreflang) {
-    // Remove existing hreflang tags
-    document.querySelectorAll('link[hreflang]').forEach(el => el.remove());
-    
     config.hreflang.forEach(({ lang, href }) => {
-      const link = document.createElement('link');
-      link.rel = 'alternate';
-      link.hreflang = lang;
-      link.href = href;
-      document.head.appendChild(link);
+      const hreflang = document.createElement('link');
+      hreflang.setAttribute('rel', 'alternate');
+      hreflang.setAttribute('hreflang', lang);
+      hreflang.setAttribute('href', href);
+      document.head.appendChild(hreflang);
     });
   }
   
   // Add structured data
   if (config.structuredData) {
-    const existingScript = document.querySelector('script[type="application/ld+json"]');
-    if (existingScript) {
-      existingScript.textContent = JSON.stringify(config.structuredData);
-    } else {
-      const script = document.createElement('script');
-      script.type = 'application/ld+json';
-      script.textContent = JSON.stringify(config.structuredData);
-      document.head.appendChild(script);
-    }
+    // Remove existing structured data
+    const existingStructuredData = document.querySelectorAll('script[type="application/ld+json"]');
+    existingStructuredData.forEach(script => script.remove());
+    
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.textContent = JSON.stringify(config.structuredData);
+    document.head.appendChild(script);
   }
+};
+
+export const generateBusinessMetaTags = (business: any) => {
+  return {
+    title: `${business.business_name} - Book Now | Smartbookly`,
+    description: business.description 
+      ? `Book appointments with ${business.business_name}. ${business.description}` 
+      : `Book appointments with ${business.business_name}. Online booking available.`,
+    keywords: `${business.business_name}, booking, appointments, online scheduling`,
+    ogTitle: `${business.business_name} - Book Now | Smartbookly`,
+    ogDescription: business.description 
+      ? `Book appointments with ${business.business_name}. ${business.description}` 
+      : `Book appointments with ${business.business_name}. Online booking available.`,
+    ogImage: business.cover_photo_url || '/og-image.png'
+  };
 };
