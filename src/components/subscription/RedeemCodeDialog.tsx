@@ -39,10 +39,12 @@ export const RedeemCodeDialog = ({
       return;
     }
     
+    console.log('Attempting to redeem code:', code.trim());
     setLoading(true);
     
     try {
       const result = await redeemCode(code.trim());
+      console.log('Redeem result:', result);
       
       if (result.success) {
         toast({
@@ -63,7 +65,7 @@ export const RedeemCodeDialog = ({
       console.error('Error redeeming code:', error);
       toast({
         title: "Error",
-        description: "Failed to redeem code. Please try again.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
