@@ -39,14 +39,16 @@ export const RedeemCodeDialog = ({
       return;
     }
     
-    console.log('Attempting to redeem code:', code.trim());
+    console.log('=== UI: Starting redeem process ===');
+    console.log('UI: Code entered:', code.trim());
     setLoading(true);
     
     try {
       const result = await redeemCode(code.trim());
-      console.log('Redeem result:', result);
+      console.log('UI: Redeem result received:', result);
       
       if (result.success) {
+        console.log('UI: Success - showing success toast');
         toast({
           title: "Success",
           description: result.message,
@@ -55,6 +57,7 @@ export const RedeemCodeDialog = ({
         onOpenChange(false);
         onSuccess();
       } else {
+        console.log('UI: Failed - showing error toast:', result.message);
         toast({
           title: "Error",
           description: result.message,
@@ -62,7 +65,7 @@ export const RedeemCodeDialog = ({
         });
       }
     } catch (error) {
-      console.error('Error redeeming code:', error);
+      console.error('UI: Unexpected error during redeem:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
@@ -92,7 +95,8 @@ export const RedeemCodeDialog = ({
               value={code}
               onChange={(e) => setCode(e.target.value)}
               disabled={loading}
-              onKeyPress={(e) => e.key === 'Enter' && handleRedeem()}
+              onKeyPress={(e) => e.key === 'Enter' && !loading && handleRedeem()}
+              className="text-center"
             />
           </div>
           
