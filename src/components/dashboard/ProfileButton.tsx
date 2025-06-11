@@ -11,9 +11,16 @@ interface ProfileButtonProps {
   className?: string;
   mobileVersion?: boolean;
   avatarUrl?: string | null;
+  onRedeemClick?: () => void;
 }
 
-export const ProfileButton = ({ onClick, className, mobileVersion = false, avatarUrl }: ProfileButtonProps) => {
+export const ProfileButton = ({ 
+  onClick, 
+  className, 
+  mobileVersion = false, 
+  avatarUrl,
+  onRedeemClick
+}: ProfileButtonProps) => {
   const { user } = useAuth();
   const { language, t } = useLanguage();
 

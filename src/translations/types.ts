@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es' | 'ka';
 
 export interface TranslationType {
@@ -487,6 +486,8 @@ export interface TranslationType {
     freeTrial: string;
     startFreeTrial: string;
     trialThenBilling: string;
+    ultimateSubscription: string;
+    unlimitedAccess: string;
   };
   profile: {
     title: string;

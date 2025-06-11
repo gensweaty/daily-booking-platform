@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -463,7 +462,7 @@ export const translations: TranslationType = {
     monthlySubscription: "ყოველთვიური გამოწერა",
     yearlySubscription: "წლიური გამოწერა",
     activeSubscription: "აქტიური გამოწერა",
-    trialExpired: "საცდელი პერიოდი ამოიწურა",
+    trialExpired: "საცდელი ამოიწურა",
     subscriptionExpired: "გამოწერა ამოიწურა",
     pleaseUpgrade: "გთხოვთ განაახლოთ",
     subscriptionActive: "გამოწერა აქტიურია",
@@ -476,6 +475,8 @@ export const translations: TranslationType = {
     freeTrial: "უფასო საცდელი",
     startFreeTrial: "უფასო საცდელის დაწყება",
     trialThenBilling: "საცდელი, შემდეგ ბილინგი",
+    ultimateSubscription: "ულიმიტო პაკეტი",
+    unlimitedAccess: "ულიმიტო წვდომა - ვადის გარეშე",
   },
   profile: {
     title: "პროფილი",

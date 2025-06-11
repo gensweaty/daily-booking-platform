@@ -134,7 +134,30 @@ export const checkSubscriptionStatus = async () => {
     
     console.log('Checking subscription status for user:', userData.user.email);
     
-    // Use the updated sync function to check status
+    // First check for ultimate subscription in the database
+    const { data: subscription, error: subError } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userData.user.id)
+      .maybeSingle();
+    
+    if (subError) {
+      console.error('Error checking subscription:', subError);
+    }
+    
+    // If user has ultimate plan, return that immediately
+    if (subscription && subscription.plan_type === 'ultimate') {
+      console.log('User has ultimate subscription');
+      return {
+        success: true,
+        status: 'active',
+        planType: 'ultimate',
+        subscription_start_date: subscription.subscription_start_date,
+        subscription_end_date: null // Ultimate has no end date
+      };
+    }
+    
+    // For non-ultimate users, use the sync function to check status
     const response = await supabase.functions.invoke('sync-stripe-subscription', {
       body: { 
         user_id: userData.user.id

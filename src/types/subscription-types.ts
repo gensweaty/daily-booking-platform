@@ -2,7 +2,7 @@
 export interface SubscriptionPlan {
   id: string;
   name: string;
-  type: 'monthly' | 'yearly';
+  type: 'monthly' | 'yearly' | 'ultimate';
   price: number;
   description: string | null;
   created_at: string;
@@ -12,7 +12,7 @@ export interface Subscription {
   id: string;
   user_id: string;
   plan_id: string;
-  plan_type: 'monthly' | 'yearly';
+  plan_type: 'monthly' | 'yearly' | 'ultimate';
   status: 'trial' | 'trial_expired' | 'active' | 'expired' | 'canceled';
   stripe_customer_id?: string;
   stripe_subscription_id?: string;
@@ -31,7 +31,7 @@ export interface SubscriptionStatus {
   daysRemaining?: number;
   trialEnd?: string;
   currentPeriodEnd?: string;
-  planType?: 'monthly' | 'yearly';
+  planType?: 'monthly' | 'yearly' | 'ultimate';
   isTrialExpired?: boolean;
   isSubscriptionExpired?: boolean;
   subscription_start_date?: string;

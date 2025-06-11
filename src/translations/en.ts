@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -490,7 +489,9 @@ export const translations: TranslationType = {
     trialIncluded: "14-day free trial included",
     freeTrial: "Free 14-day trial, no credit card required",
     startFreeTrial: "Start Free Trial",
-    trialThenBilling: "No credit card required"
+    trialThenBilling: "No credit card required",
+    ultimateSubscription: "Unlimited Plan",
+    unlimitedAccess: "Unlimited Access - No Expiration"
   },
   profile: {
     title: "User Profile",

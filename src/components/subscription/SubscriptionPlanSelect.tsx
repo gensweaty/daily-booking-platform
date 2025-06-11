@@ -1,6 +1,7 @@
 
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { SubscriptionCountdown } from "./SubscriptionCountdown";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -9,11 +10,12 @@ interface SubscriptionPlanSelectProps {
   selectedPlan: 'monthly' | 'yearly';
   setSelectedPlan: (plan: 'monthly' | 'yearly') => void;
   isLoading: boolean;
+  onRedeemClick?: () => void;
   currentStatus?: {
     status: 'trial' | 'trial_expired' | 'active' | 'expired' | 'canceled';
     currentPeriodEnd?: string;
     trialEnd?: string;
-    planType?: 'monthly' | 'yearly';
+    planType?: 'monthly' | 'yearly' | 'ultimate';
   };
 }
 
@@ -21,6 +23,7 @@ export const SubscriptionPlanSelect = ({
   selectedPlan, 
   setSelectedPlan, 
   isLoading,
+  onRedeemClick,
   currentStatus
 }: SubscriptionPlanSelectProps) => {
   const { t } = useLanguage();
@@ -34,6 +37,26 @@ export const SubscriptionPlanSelect = ({
           trialEnd={currentStatus.trialEnd}
           planType={currentStatus.planType}
         />
+      )}
+      
+      {/* Show redeem code option if user doesn't have ultimate plan */}
+      {currentStatus?.planType !== 'ultimate' && (
+        <div className="text-center p-4 border-2 border-dashed border-purple-300 rounded-lg bg-purple-50">
+          <p className="text-purple-700 font-medium mb-2">
+            <LanguageText>Have a promo code?</LanguageText>
+          </p>
+          <p className="text-sm text-purple-600 mb-3">
+            <LanguageText>Get unlimited access with your promo code</LanguageText>
+          </p>
+          <Button
+            variant="outline"
+            onClick={onRedeemClick}
+            disabled={isLoading}
+            className="border-purple-300 text-purple-700 hover:bg-purple-100"
+          >
+            <LanguageText>Redeem Promo Code</LanguageText>
+          </Button>
+        </div>
       )}
       
       <div className="space-y-4">
