@@ -100,27 +100,81 @@ serve(async (req) => {
         console.log(`Successfully created user with ID ${data.user.id}`);
 
         // Create subscription based on whether redeem code was provided
+        let redeemCodeSuccess = false;
         try {
           if (redeemCode) {
-            console.log('User provided redeem code, using validate_and_use_redeem_code function');
+            console.log('User provided redeem code, attempting to use it:', redeemCode);
             
-            // Use the existing function to validate and use the redeem code
-            const { data: redeemResult, error: redeemError } = await supabaseAdmin.rpc('validate_and_use_redeem_code', {
-              p_code: redeemCode,
-              p_user_id: data.user.id
-            });
+            // Check if code exists and is not used
+            const { data: codeCheck, error: checkError } = await supabaseAdmin
+              .from('redeem_codes')
+              .select('*')
+              .eq('code', redeemCode)
+              .eq('is_used', false)
+              .maybeSingle();
 
-            if (redeemError) {
-              console.error('Error using redeem code:', redeemError);
-              // User was created but redeem failed - that's okay, they'll get a trial
-              console.log('Redeem code failed, creating trial subscription instead');
-            } else if (redeemResult) {
-              console.log('Redeem code used successfully, user has ultimate subscription');
+            if (checkError) {
+              console.error('Error checking redeem code:', checkError);
+            } else if (!codeCheck) {
+              console.log('Redeem code not found or already used');
             } else {
-              console.log('Redeem code validation failed, creating trial subscription');
+              // Get ultimate plan
+              const { data: ultimatePlan, error: planError } = await supabaseAdmin
+                .from('subscription_plans')
+                .select('*')
+                .eq('type', 'ultimate')
+                .maybeSingle();
+
+              if (!planError && ultimatePlan) {
+                console.log('Found ultimate plan:', ultimatePlan);
+
+                // Mark code as used
+                const { error: updateCodeError } = await supabaseAdmin
+                  .from('redeem_codes')
+                  .update({
+                    is_used: true,
+                    used_by: data.user.id,
+                    used_at: new Date().toISOString()
+                  })
+                  .eq('code', redeemCode)
+                  .eq('is_used', false);
+
+                if (!updateCodeError) {
+                  // Create ultimate subscription
+                  const { error: subscriptionError } = await supabaseAdmin
+                    .from('subscriptions')
+                    .insert({
+                      user_id: data.user.id,
+                      plan_id: ultimatePlan.id,
+                      plan_type: 'ultimate',
+                      status: 'active',
+                      current_period_start: new Date().toISOString(),
+                      current_period_end: null,
+                      trial_end_date: null,
+                      email: email,
+                      currency: 'usd',
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString()
+                    });
+
+                  if (!subscriptionError) {
+                    console.log('Ultimate subscription created successfully');
+                    redeemCodeSuccess = true;
+                  } else {
+                    console.error('Error creating ultimate subscription:', subscriptionError);
+                  }
+                } else {
+                  console.error('Error marking code as used:', updateCodeError);
+                }
+              } else {
+                console.error('Error getting ultimate plan:', planError);
+              }
             }
-          } else {
-            // Create a regular trial subscription
+          }
+
+          // If no redeem code or redeem failed, create trial subscription
+          if (!redeemCodeSuccess) {
+            console.log('Creating trial subscription');
             const trialEndDate = new Date();
             trialEndDate.setDate(trialEndDate.getDate() + 14);
 
@@ -141,14 +195,12 @@ serve(async (req) => {
 
             if (subscriptionError) {
               console.error('Error creating trial subscription:', subscriptionError);
-              // Don't fail the user creation, but log the error
             } else {
               console.log('Trial subscription created successfully for user:', data.user.id);
             }
           }
         } catch (subscriptionError) {
           console.error('Error in subscription creation:', subscriptionError);
-          // Don't fail the user creation
         }
 
         // Get the base URL for the app
@@ -200,7 +252,7 @@ serve(async (req) => {
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <h2 style="color: #4f46e5;">Welcome to SmartBookly!</h2>
               <p>Thank you for signing up. Please verify your email address to get started.</p>
-              ${redeemCode ? '<p style="background: #f0f9ff; border: 1px solid #0ea5e9; padding: 12px; border-radius: 6px; color: #0369a1;"><strong>🎉 Congratulations!</strong> Your promo code was successfully applied and you now have unlimited access to all features!</p>' : ''}
+              ${redeemCodeSuccess ? '<p style="background: #f0f9ff; border: 1px solid #0ea5e9; padding: 12px; border-radius: 6px; color: #0369a1;"><strong>🎉 Congratulations!</strong> Your promo code was successfully applied and you now have unlimited access to all features!</p>' : ''}
               <div style="margin: 30px 0;">
                 <a href="${actionUrl}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
                   Verify your email
@@ -220,7 +272,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: true, 
-            message: redeemCode 
+            message: redeemCodeSuccess 
               ? "User created successfully with unlimited access! Please check your email for the verification link."
               : "User created successfully. Please check your email (including spam folder) for the verification link.",
             user: data.user

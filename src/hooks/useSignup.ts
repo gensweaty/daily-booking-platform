@@ -60,16 +60,19 @@ export const useSignup = () => {
         return null;
       }
       
-      // Step 1: Validate redeem code if provided
+      // Step 1: Validate redeem code if provided (but don't mark as used yet)
       let hasValidRedeemCode = false;
       if (redeemCode) {
         const trimmedCode = redeemCode.trim();
-        console.log('Checking redeem code:', trimmedCode);
+        console.log('Checking redeem code during signup:', trimmedCode);
 
-        const { data: codeResult, error: codeError } = await supabase
-          .rpc('check_and_lock_redeem_code', {
-            p_code: trimmedCode
-          });
+        // Check if code exists and is valid (without marking as used)
+        const { data: codeData, error: codeError } = await supabase
+          .from('redeem_codes')
+          .select('*')
+          .eq('code', trimmedCode)
+          .eq('is_used', false)
+          .maybeSingle();
 
         if (codeError) {
           console.error('Redeem code check error:', codeError);
@@ -83,14 +86,10 @@ export const useSignup = () => {
           return null;
         }
 
-        // The function always returns exactly one row
-        const validationResult = codeResult[0];
-        console.log('Code validation result:', validationResult);
-
-        if (!validationResult.is_valid) {
+        if (!codeData) {
           toast({
             title: "Invalid Redeem Code",
-            description: validationResult.error_message,
+            description: "The redeem code is invalid or has already been used",
             variant: "destructive",
             duration: 5000,
           });
@@ -99,6 +98,7 @@ export const useSignup = () => {
         }
 
         hasValidRedeemCode = true;
+        console.log('Valid redeem code found during signup');
       }
 
       // Create user using admin API

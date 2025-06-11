@@ -492,7 +492,9 @@ export const translations: TranslationType = {
     trialIncluded: "Prueba gratuita de 14 días incluida",
     freeTrial: "Prueba gratuita de 14 días, no se requiere tarjeta de crédito",
     startFreeTrial: "Comenzar Prueba Gratuita",
-    trialThenBilling: "No se requiere tarjeta de crédito"
+    trialThenBilling: "No se requiere tarjeta de crédito",
+    ultimateSubscription: "Plan Ilimitado",
+    unlimitedAccess: "Acceso Ilimitado - Sin Expiración"
   },
   profile: {
     title: "Perfil de Usuario",
