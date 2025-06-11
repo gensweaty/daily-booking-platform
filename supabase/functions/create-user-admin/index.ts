@@ -12,6 +12,7 @@ interface CreateUserRequest {
   email: string;
   password: string;
   username: string;
+  redeemCode?: string;
 }
 
 serve(async (req) => {
@@ -47,9 +48,11 @@ serve(async (req) => {
 
     if (req.method === 'POST') {
       // Parse the request body
-      const { email, password, username } = await req.json() as CreateUserRequest;
+      const { email, password, username, redeemCode } = await req.json() as CreateUserRequest;
 
-      console.log(`Creating user with email ${email} and username ${username}`);
+      console.log(`Creating user with email ${email} and username ${username}`, {
+        hasRedeemCode: !!redeemCode
+      });
 
       if (!email || !password || !username) {
         throw new Error('Missing required parameters (email, password, or username)');
@@ -96,34 +99,55 @@ serve(async (req) => {
 
         console.log(`Successfully created user with ID ${data.user.id}`);
 
-        // Create a 14-day trial subscription for the new user
+        // Create subscription based on whether redeem code was provided
         try {
-          const trialEndDate = new Date();
-          trialEndDate.setDate(trialEndDate.getDate() + 14);
-
-          const { error: subscriptionError } = await supabaseAdmin
-            .from('subscriptions')
-            .insert({
-              user_id: data.user.id,
-              email: email,
-              status: 'trial',
-              plan_type: 'monthly',
-              trial_end_date: trialEndDate.toISOString(),
-              current_period_start: new Date().toISOString(),
-              current_period_end: trialEndDate.toISOString(),
-              currency: 'usd',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
+          if (redeemCode) {
+            console.log('User provided redeem code, using validate_and_use_redeem_code function');
+            
+            // Use the existing function to validate and use the redeem code
+            const { data: redeemResult, error: redeemError } = await supabaseAdmin.rpc('validate_and_use_redeem_code', {
+              p_code: redeemCode,
+              p_user_id: data.user.id
             });
 
-          if (subscriptionError) {
-            console.error('Error creating trial subscription:', subscriptionError);
-            // Don't fail the user creation, but log the error
+            if (redeemError) {
+              console.error('Error using redeem code:', redeemError);
+              // User was created but redeem failed - that's okay, they'll get a trial
+              console.log('Redeem code failed, creating trial subscription instead');
+            } else if (redeemResult) {
+              console.log('Redeem code used successfully, user has ultimate subscription');
+            } else {
+              console.log('Redeem code validation failed, creating trial subscription');
+            }
           } else {
-            console.log('Trial subscription created successfully for user:', data.user.id);
+            // Create a regular trial subscription
+            const trialEndDate = new Date();
+            trialEndDate.setDate(trialEndDate.getDate() + 14);
+
+            const { error: subscriptionError } = await supabaseAdmin
+              .from('subscriptions')
+              .insert({
+                user_id: data.user.id,
+                email: email,
+                status: 'trial',
+                plan_type: 'monthly',
+                trial_end_date: trialEndDate.toISOString(),
+                current_period_start: new Date().toISOString(),
+                current_period_end: trialEndDate.toISOString(),
+                currency: 'usd',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              });
+
+            if (subscriptionError) {
+              console.error('Error creating trial subscription:', subscriptionError);
+              // Don't fail the user creation, but log the error
+            } else {
+              console.log('Trial subscription created successfully for user:', data.user.id);
+            }
           }
-        } catch (trialError) {
-          console.error('Error in trial subscription creation:', trialError);
+        } catch (subscriptionError) {
+          console.error('Error in subscription creation:', subscriptionError);
           // Don't fail the user creation
         }
 
@@ -176,6 +200,7 @@ serve(async (req) => {
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <h2 style="color: #4f46e5;">Welcome to SmartBookly!</h2>
               <p>Thank you for signing up. Please verify your email address to get started.</p>
+              ${redeemCode ? '<p style="background: #f0f9ff; border: 1px solid #0ea5e9; padding: 12px; border-radius: 6px; color: #0369a1;"><strong>🎉 Congratulations!</strong> Your promo code was successfully applied and you now have unlimited access to all features!</p>' : ''}
               <div style="margin: 30px 0;">
                 <a href="${actionUrl}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
                   Verify your email
@@ -195,7 +220,9 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: true, 
-            message: "User created successfully. Please check your email (including spam folder) for the verification link.",
+            message: redeemCode 
+              ? "User created successfully with unlimited access! Please check your email for the verification link."
+              : "User created successfully. Please check your email (including spam folder) for the verification link.",
             user: data.user
           }),
           {
@@ -237,7 +264,7 @@ serve(async (req) => {
         success: false
       }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
       }
     );

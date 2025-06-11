@@ -7,7 +7,7 @@ interface SubscriptionCountdownProps {
   currentPeriodEnd?: string;
   trialEnd?: string;
   subscription_end_date?: string;
-  planType?: 'monthly' | 'yearly';
+  planType?: 'monthly' | 'yearly' | 'ultimate';
   compact?: boolean;
 }
 
@@ -28,6 +28,11 @@ export const SubscriptionCountdown = ({
   }>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
   useEffect(() => {
+    // If it's an ultimate plan, no countdown needed
+    if (planType === 'ultimate') {
+      return;
+    }
+
     const calculateTimeLeft = () => {
       let targetDate: Date | null = null;
       
@@ -83,10 +88,12 @@ export const SubscriptionCountdown = ({
     const timer = setInterval(calculateTimeLeft, 1000);
     
     return () => clearInterval(timer);
-  }, [status, currentPeriodEnd, trialEnd, subscription_end_date]);
+  }, [status, currentPeriodEnd, trialEnd, subscription_end_date, planType]);
 
   const getStatusMessage = () => {
-    if (status === 'trial') {
+    if (planType === 'ultimate') {
+      return t('subscription.ultimateSubscription') || 'Ultimate Subscription';
+    } else if (status === 'trial') {
       return t('subscription.trialPeriod') || 'Trial Period';
     } else if (status === 'active') {
       if (planType === 'monthly') {
@@ -104,7 +111,9 @@ export const SubscriptionCountdown = ({
   };
 
   const getStatusColor = () => {
-    if (status === 'trial') {
+    if (planType === 'ultimate') {
+      return 'text-purple-600';
+    } else if (status === 'trial') {
       return timeLeft.days <= 3 ? 'text-orange-600' : 'text-blue-600';
     } else if (status === 'active') {
       return timeLeft.days <= 7 ? 'text-orange-600' : 'text-green-600';
@@ -115,7 +124,9 @@ export const SubscriptionCountdown = ({
   };
 
   const getBorderColor = () => {
-    if (status === 'trial') {
+    if (planType === 'ultimate') {
+      return 'border-purple-200 bg-purple-50';
+    } else if (status === 'trial') {
       return timeLeft.days <= 3 ? 'border-orange-200 bg-orange-50' : 'border-blue-200 bg-blue-50';
     } else if (status === 'active') {
       return timeLeft.days <= 7 ? 'border-orange-200 bg-orange-50' : 'border-green-200 bg-green-50';
@@ -124,6 +135,18 @@ export const SubscriptionCountdown = ({
     }
     return 'border-gray-200 bg-gray-50';
   };
+
+  // Ultimate plan - show unlimited status
+  if (planType === 'ultimate') {
+    return (
+      <div className={`text-center p-4 rounded-lg border-2 ${getBorderColor()}`}>
+        <p className={`font-semibold ${getStatusColor()}`}>{getStatusMessage()}</p>
+        <p className="text-sm mt-1 text-purple-600">
+          {t('subscription.unlimitedAccess') || 'Unlimited Access - No Expiration'}
+        </p>
+      </div>
+    );
+  }
 
   // Handle expired states
   if (status === 'trial_expired' || status === 'expired') {

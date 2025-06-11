@@ -60,9 +60,8 @@ export const useSignup = () => {
         return null;
       }
       
-      let codeId: string | null = null;
-
       // Step 1: Validate redeem code if provided
+      let hasValidRedeemCode = false;
       if (redeemCode) {
         const trimmedCode = redeemCode.trim();
         console.log('Checking redeem code:', trimmedCode);
@@ -99,7 +98,7 @@ export const useSignup = () => {
           return null;
         }
 
-        codeId = validationResult.code_id;
+        hasValidRedeemCode = true;
       }
 
       // Create user using admin API
@@ -110,7 +109,8 @@ export const useSignup = () => {
           body: {
             email,
             password,
-            username
+            username,
+            redeemCode: hasValidRedeemCode ? redeemCode.trim() : null
           }
         });
 
@@ -154,9 +154,13 @@ export const useSignup = () => {
 
         console.log('User created successfully, confirmation email sent');
         
+        const successMessage = hasValidRedeemCode 
+          ? "Your account has been created with unlimited access! Please check your email to verify your account."
+          : "Your account has been created. Please check your email (including spam folder) to verify your account.";
+        
         toast({
           title: "Account Created",
-          description: "Your account has been created. Please check your email (including spam folder) to verify your account.",
+          description: successMessage,
           duration: 8000,
         });
         
