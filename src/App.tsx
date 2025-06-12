@@ -15,9 +15,9 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SEOManager } from '@/components/SEOManager';
-import { AdminPanel } from "@/components/AdminPanel";
-import { AdminRoute } from "@/components/AdminRoute";
-import { AdminPanelDashboard } from "@/components/AdminPanelDashboard";
+import AdminPanel from "@/pages/AdminPanel";
+import { AdminRoute } from "@/components/admin/AdminRoute";
+import AdminPanelDashboard from "@/pages/AdminPanelDashboard";
 
 // Create a client for React Query with improved retry logic
 const queryClient = new QueryClient({
