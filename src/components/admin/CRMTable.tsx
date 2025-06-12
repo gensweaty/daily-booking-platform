@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface UserData {
   id: string;
+  username: string;
   email: string;
   registeredOn: string;
   lastLogin: string;
@@ -35,6 +36,7 @@ export const CRMTable = () => {
 
   useEffect(() => {
     const filtered = users.filter(user =>
+      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredUsers(filtered);
@@ -58,6 +60,7 @@ export const CRMTable = () => {
 
   const exportToCSV = () => {
     const headers = [
+      'Username',
       'Email',
       'Registered On',
       'Last Login',
@@ -72,6 +75,7 @@ export const CRMTable = () => {
     const csvContent = [
       headers.join(','),
       ...filteredUsers.map(user => [
+        user.username,
         user.email,
         user.registeredOn,
         user.lastLogin,
@@ -94,11 +98,20 @@ export const CRMTable = () => {
   };
 
   const getStatusBadge = (status: string, plan: string) => {
-    if (status === 'expired' || status === 'trial') {
-      return <Badge variant="destructive" className="font-medium">{status}</Badge>;
+    if (status === 'expired' || status === 'trial_expired') {
+      return <Badge variant="destructive" className="font-medium">Expired</Badge>;
     }
-    if (plan === 'ultimate') {
+    if (status === 'trial') {
+      return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 font-medium">Trial</Badge>;
+    }
+    if (plan === 'ultimate' && status === 'active') {
       return <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 font-medium">Ultimate</Badge>;
+    }
+    if (plan === 'yearly' && status === 'active') {
+      return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 font-medium">Yearly</Badge>;
+    }
+    if (plan === 'monthly' && status === 'active') {
+      return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 font-medium">Monthly</Badge>;
     }
     return <Badge variant="secondary" className="font-medium">{status}</Badge>;
   };
@@ -154,7 +167,7 @@ export const CRMTable = () => {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
-            placeholder="Search by email..."
+            placeholder="Search by username or email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 bg-background border-border focus:border-primary transition-colors"
@@ -166,6 +179,7 @@ export const CRMTable = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
+                <TableHead className="font-semibold text-foreground">Username</TableHead>
                 <TableHead className="font-semibold text-foreground">Email</TableHead>
                 <TableHead className="font-semibold text-foreground">Registered</TableHead>
                 <TableHead className="font-semibold text-foreground">Last Login</TableHead>
@@ -180,7 +194,8 @@ export const CRMTable = () => {
               {currentUsers.length > 0 ? (
                 currentUsers.map((user) => (
                   <TableRow key={user.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell className="font-medium text-foreground">{user.email}</TableCell>
+                    <TableCell className="font-medium text-foreground">{user.username}</TableCell>
+                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {new Date(user.registeredOn).toLocaleDateString()}
                     </TableCell>
@@ -206,7 +221,7 @@ export const CRMTable = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     No users found matching your search criteria.
                   </TableCell>
                 </TableRow>

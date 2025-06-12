@@ -3,9 +3,21 @@ import { Shield, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { useNavigate } from 'react-router-dom';
 
 export const AdminHeader = () => {
   const { logout } = useAdminAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    // Force navigation to admin login page immediately
+    navigate('/admin-panel', { replace: true });
+    // Force a page reload to ensure complete logout
+    setTimeout(() => {
+      window.location.href = '/admin-panel';
+    }, 100);
+  };
 
   return (
     <header className="bg-card border-b border-border shadow-sm">
@@ -25,7 +37,7 @@ export const AdminHeader = () => {
             <span className="text-sm text-muted-foreground">Welcome, Anania39</span>
             <ThemeToggle />
             <Button 
-              onClick={logout}
+              onClick={handleLogout}
               variant="outline"
               size="sm"
               className="flex items-center gap-2 hover:bg-destructive hover:text-destructive-foreground transition-colors"

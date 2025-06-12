@@ -49,8 +49,8 @@ serve(async (req) => {
       
       const subscriptionData = [
         { name: 'Trial', value: subscriptionStats.trial || 0, color: '#8884d8' },
-        { name: 'Basic', value: subscriptionStats.basic || 0, color: '#82ca9d' },
-        { name: 'Premium', value: subscriptionStats.premium || 0, color: '#ffc658' },
+        { name: 'Monthly', value: subscriptionStats.monthly || 0, color: '#82ca9d' },
+        { name: 'Yearly', value: subscriptionStats.yearly || 0, color: '#ffc658' },
         { name: 'Ultimate', value: subscriptionStats.ultimate || 0, color: '#ff7300' }
       ]
       
@@ -89,7 +89,7 @@ serve(async (req) => {
     }
     
     if (type === 'users') {
-      // Get comprehensive user data
+      // Get comprehensive user data with usernames from profiles
       const { data: profiles } = await supabase
         .from('profiles')
         .select('*')
@@ -97,12 +97,45 @@ serve(async (req) => {
       
       const userData = await Promise.all(
         profiles?.map(async (profile) => {
-          // Get subscription info
+          // Get subscription info with proper status calculation
           const { data: subscription } = await supabase
             .from('subscriptions')
-            .select('plan_type, status')
+            .select('*')
             .eq('user_id', profile.id)
             .single()
+          
+          // Determine actual subscription status and plan
+          let actualStatus = 'trial'
+          let actualPlan = 'trial'
+          
+          if (subscription) {
+            actualPlan = subscription.plan_type || 'trial'
+            
+            // Check if subscription is active based on dates
+            const now = new Date()
+            
+            if (subscription.status === 'active') {
+              if (subscription.plan_type === 'ultimate') {
+                // Ultimate plans don't expire
+                actualStatus = 'active'
+              } else if (subscription.current_period_end) {
+                // Check if subscription has expired
+                const endDate = new Date(subscription.current_period_end)
+                actualStatus = endDate > now ? 'active' : 'expired'
+              } else {
+                actualStatus = 'active'
+              }
+            } else if (subscription.status === 'trial') {
+              if (subscription.trial_end_date) {
+                const trialEnd = new Date(subscription.trial_end_date)
+                actualStatus = trialEnd > now ? 'trial' : 'trial_expired'
+              } else {
+                actualStatus = 'trial'
+              }
+            } else {
+              actualStatus = subscription.status
+            }
+          }
           
           // Get task count
           const { count: tasksCount } = await supabase
@@ -134,11 +167,12 @@ serve(async (req) => {
           
           return {
             id: profile.id,
+            username: profile.username || 'N/A',
             email: authUser.user?.email || 'N/A',
             registeredOn: profile.created_at,
             lastLogin: authUser.user?.last_sign_in_at || null,
-            subscriptionPlan: subscription?.plan_type || 'trial',
-            subscriptionStatus: subscription?.status || 'trial',
+            subscriptionPlan: actualPlan,
+            subscriptionStatus: actualStatus,
             tasksCount: tasksCount || 0,
             bookingsCount: bookingsCount || 0,
             customersCount: customersCount || 0,
