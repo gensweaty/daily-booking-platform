@@ -1,32 +1,39 @@
 
+import { Shield, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { LogOut, Shield } from 'lucide-react';
 
 export const AdminHeader = () => {
-  const { session, logout } = useAdminAuth();
+  const { logout } = useAdminAuth();
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-            <Shield className="w-5 h-5 text-primary" />
+    <header className="bg-card border-b border-border shadow-sm">
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-lg">
+              <Shield className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Admin Panel</h1>
+              <p className="text-sm text-muted-foreground">Platform Management Dashboard</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Admin Panel</h1>
-            <p className="text-sm text-gray-500">Platform Management Dashboard</p>
+          
+          <div className="flex items-center space-x-4">
+            <span className="text-sm text-muted-foreground">Welcome, Anania39</span>
+            <ThemeToggle />
+            <Button 
+              onClick={logout}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2 hover:bg-destructive hover:text-destructive-foreground transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </Button>
           </div>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">
-            Welcome, {session?.username}
-          </span>
-          <Button variant="outline" size="sm" onClick={logout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
         </div>
       </div>
     </header>

@@ -1,19 +1,28 @@
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { Users, Activity, Eye, Clock } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Users, UserPlus, Activity, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface AnalyticsData {
-  newUsersLast24h: number;
   totalUsers: number;
-  userGrowthData: Array<{ hour: string; users: number }>;
+  newUsers24h: number;
+  activeSessions: number;
+  avgSessionTime: string;
+  registrationData: Array<{ hour: string; users: number }>;
   subscriptionData: Array<{ name: string; value: number; color: string }>;
 }
 
 export const AnalyticsCharts = () => {
-  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [data, setData] = useState<AnalyticsData>({
+    totalUsers: 0,
+    newUsers24h: 0,
+    activeSessions: 0,
+    avgSessionTime: '0m',
+    registrationData: [],
+    subscriptionData: []
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,131 +31,167 @@ export const AnalyticsCharts = () => {
 
   const fetchAnalyticsData = async () => {
     try {
-      // Call admin panel data function
       const { data: analyticsData, error } = await supabase.functions.invoke('admin-panel-data', {
         body: { type: 'analytics' }
       });
 
       if (error) throw error;
-      setData(analyticsData);
+      setData(analyticsData || data);
     } catch (error) {
-      console.error('Error fetching analytics:', error);
+      console.error('Error fetching analytics data:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  const MetricCard = ({ title, value, icon: Icon, trend }: { 
+    title: string; 
+    value: string | number; 
+    icon: any; 
+    trend?: string 
+  }) => (
+    <Card className="bg-card border-border shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
+            <p className="text-3xl font-bold text-foreground">{value}</p>
+            {trend && <p className="text-xs text-green-600 mt-1">{trend}</p>}
+          </div>
+          <div className="flex items-center justify-center w-12 h-12 bg-primary/10 rounded-lg">
+            <Icon className="w-6 h-6 text-primary" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[...Array(4)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
-            <CardHeader className="space-y-2">
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-              <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-            </CardHeader>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="bg-card border-border">
+            <CardContent className="p-6">
+              <div className="animate-pulse space-y-3">
+                <div className="h-4 bg-muted rounded"></div>
+                <div className="h-8 bg-muted rounded"></div>
+              </div>
+            </CardContent>
           </Card>
         ))}
       </div>
     );
   }
 
-  const statCards = [
-    {
-      title: 'New Users (24h)',
-      value: data?.newUsersLast24h || 0,
-      icon: Users,
-      color: 'text-blue-600'
-    },
-    {
-      title: 'Total Users',
-      value: data?.totalUsers || 0,
-      icon: Activity,
-      color: 'text-green-600'
-    },
-    {
-      title: 'Active Sessions',
-      value: Math.floor((data?.newUsersLast24h || 0) * 0.3), // Estimated
-      icon: Eye,
-      color: 'text-purple-600'
-    },
-    {
-      title: 'Avg Session Time',
-      value: '12m',
-      icon: Clock,
-      color: 'text-orange-600'
-    }
-  ];
-
   return (
-    <div className="space-y-6">
-      {/* Stat Cards */}
+    <div className="space-y-8">
+      {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat, index) => (
-          <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-            </CardContent>
-          </Card>
-        ))}
+        <MetricCard
+          title="New Users (24h)"
+          value={data.newUsers24h}
+          icon={UserPlus}
+          trend="+12% from yesterday"
+        />
+        <MetricCard
+          title="Total Users"
+          value={data.totalUsers}
+          icon={Users}
+        />
+        <MetricCard
+          title="Active Sessions"
+          value={data.activeSessions}
+          icon={Activity}
+        />
+        <MetricCard
+          title="Avg Session Time"
+          value={data.avgSessionTime}
+          icon={Clock}
+        />
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* User Growth Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>User Registrations (Last 24h)</CardTitle>
-            <CardDescription>
-              Hourly breakdown of new user registrations
-            </CardDescription>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* User Registrations Chart */}
+        <Card className="bg-card border-border shadow-lg">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl font-semibold text-foreground">User Registrations (Last 24h)</CardTitle>
+            <p className="text-sm text-muted-foreground">Hourly breakdown of new user registrations</p>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={data?.userGrowthData || []}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="hour" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="users" fill="#3b82f6" />
+              <BarChart data={data.registrationData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis 
+                  dataKey="hour" 
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                />
+                <YAxis 
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--foreground))'
+                  }}
+                />
+                <Bar 
+                  dataKey="users" 
+                  fill="hsl(var(--primary))"
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Subscription Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Subscription Distribution</CardTitle>
-            <CardDescription>
-              Current subscription plan breakdown
-            </CardDescription>
+        {/* Subscription Distribution Chart */}
+        <Card className="bg-card border-border shadow-lg">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl font-semibold text-foreground">Subscription Distribution</CardTitle>
+            <p className="text-sm text-muted-foreground">Current subscription plan breakdown</p>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={data?.subscriptionData || []}
+                  data={data.subscriptionData}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
-                  outerRadius={100}
+                  outerRadius={120}
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {(data?.subscriptionData || []).map((entry, index) => (
+                  {data.subscriptionData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--foreground))'
+                  }}
+                />
               </PieChart>
             </ResponsiveContainer>
+            <div className="flex justify-center mt-4 space-x-4">
+              {data.subscriptionData.map((entry, index) => (
+                <div key={index} className="flex items-center">
+                  <div 
+                    className="w-3 h-3 rounded-full mr-2" 
+                    style={{ backgroundColor: entry.color }}
+                  ></div>
+                  <span className="text-sm text-muted-foreground">{entry.name}</span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>

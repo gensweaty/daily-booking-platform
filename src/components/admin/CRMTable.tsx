@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Download, ChevronLeft, ChevronRight, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface UserData {
@@ -95,12 +95,12 @@ export const CRMTable = () => {
 
   const getStatusBadge = (status: string, plan: string) => {
     if (status === 'expired' || status === 'trial') {
-      return <Badge variant="destructive">{status}</Badge>;
+      return <Badge variant="destructive" className="font-medium">{status}</Badge>;
     }
     if (plan === 'ultimate') {
-      return <Badge className="bg-purple-100 text-purple-800">Ultimate</Badge>;
+      return <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 font-medium">Ultimate</Badge>;
     }
-    return <Badge variant="secondary">{status}</Badge>;
+    return <Badge variant="secondary" className="font-medium">{status}</Badge>;
   };
 
   // Pagination
@@ -111,14 +111,17 @@ export const CRMTable = () => {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>User Management</CardTitle>
+      <Card className="bg-card border-border shadow-lg">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-xl font-semibold">
+            <Users className="w-5 h-5" />
+            User Management
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="animate-pulse space-y-4">
-            <div className="h-10 bg-gray-200 rounded"></div>
-            <div className="h-64 bg-gray-200 rounded"></div>
+            <div className="h-10 bg-muted rounded-lg"></div>
+            <div className="h-64 bg-muted rounded-lg"></div>
           </div>
         </CardContent>
       </Card>
@@ -126,105 +129,125 @@ export const CRMTable = () => {
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="bg-card border-border shadow-lg">
+      <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle>User Management ({filteredUsers.length} users)</CardTitle>
-          <Button onClick={exportToCSV} variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" />
+          <div className="flex items-center gap-2">
+            <Users className="w-5 h-5 text-primary" />
+            <CardTitle className="text-xl font-semibold text-foreground">
+              User Management ({filteredUsers.length} users)
+            </CardTitle>
+          </div>
+          <Button 
+            onClick={exportToCSV} 
+            variant="outline" 
+            size="sm"
+            className="flex items-center gap-2 hover:bg-primary hover:text-primary-foreground transition-colors"
+          >
+            <Download className="w-4 h-4" />
             Export CSV
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="Search by email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+      <CardContent className="space-y-6">
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <Input
+            placeholder="Search by email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 bg-background border-border focus:border-primary transition-colors"
+          />
+        </div>
 
-          {/* Table */}
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Registered</TableHead>
-                  <TableHead>Last Login</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Tasks</TableHead>
-                  <TableHead>Bookings</TableHead>
-                  <TableHead>Customers</TableHead>
-                  <TableHead>Business</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {currentUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.email}</TableCell>
-                    <TableCell>
+        {/* Table */}
+        <div className="rounded-lg border border-border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead className="font-semibold text-foreground">Email</TableHead>
+                <TableHead className="font-semibold text-foreground">Registered</TableHead>
+                <TableHead className="font-semibold text-foreground">Last Login</TableHead>
+                <TableHead className="font-semibold text-foreground">Plan</TableHead>
+                <TableHead className="font-semibold text-foreground">Tasks</TableHead>
+                <TableHead className="font-semibold text-foreground">Bookings</TableHead>
+                <TableHead className="font-semibold text-foreground">Customers</TableHead>
+                <TableHead className="font-semibold text-foreground">Business</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {currentUsers.length > 0 ? (
+                currentUsers.map((user) => (
+                  <TableRow key={user.id} className="hover:bg-muted/30 transition-colors">
+                    <TableCell className="font-medium text-foreground">{user.email}</TableCell>
+                    <TableCell className="text-muted-foreground">
                       {new Date(user.registeredOn).toLocaleDateString()}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-muted-foreground">
                       {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(user.subscriptionStatus, user.subscriptionPlan)}
                     </TableCell>
-                    <TableCell>{user.tasksCount}</TableCell>
-                    <TableCell>{user.bookingsCount}</TableCell>
-                    <TableCell>{user.customersCount}</TableCell>
+                    <TableCell className="text-center font-medium">{user.tasksCount}</TableCell>
+                    <TableCell className="text-center font-medium">{user.bookingsCount}</TableCell>
+                    <TableCell className="text-center font-medium">{user.customersCount}</TableCell>
                     <TableCell>
                       {user.hasBusinessProfile ? (
-                        <Badge variant="outline">Yes</Badge>
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700">
+                          Yes
+                        </Badge>
                       ) : (
-                        <span className="text-gray-400">No</span>
+                        <span className="text-muted-foreground">No</span>
                       )}
                     </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                Showing {indexOfFirstUser + 1} to {Math.min(indexOfLastUser, filteredUsers.length)} of {filteredUsers.length} users
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
-                </Button>
-                <span className="text-sm">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    No users found matching your search criteria.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-4">
+            <div className="text-sm text-muted-foreground">
+              Showing {indexOfFirstUser + 1} to {Math.min(indexOfLastUser, filteredUsers.length)} of {filteredUsers.length} users
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="flex items-center gap-1"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Previous
+              </Button>
+              <span className="text-sm font-medium px-3 py-1 bg-muted rounded-md">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="flex items-center gap-1"
+              >
+                Next
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
