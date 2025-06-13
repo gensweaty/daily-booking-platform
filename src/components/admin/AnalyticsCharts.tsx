@@ -66,6 +66,36 @@ export const AnalyticsCharts = () => {
     </Card>
   );
 
+  // Custom tooltip component for better dark mode support
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-popover border border-border rounded-lg shadow-lg p-3">
+          <p className="text-foreground font-medium">{`${label}`}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} className="text-foreground">
+              {`${entry.name || 'Users'}: ${entry.value}`}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Custom pie chart tooltip
+  const CustomPieTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0];
+      return (
+        <div className="bg-popover border border-border rounded-lg shadow-lg p-3">
+          <p className="text-foreground font-medium">{`${data.name}: ${data.value}`}</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -131,14 +161,7 @@ export const AnalyticsCharts = () => {
                   stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
                 />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    color: 'hsl(var(--foreground))'
-                  }}
-                />
+                <Tooltip content={<CustomTooltip />} />
                 <Bar 
                   dataKey="users" 
                   fill="hsl(var(--primary))"
@@ -171,14 +194,7 @@ export const AnalyticsCharts = () => {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    color: 'hsl(var(--foreground))'
-                  }}
-                />
+                <Tooltip content={<CustomPieTooltip />} />
               </PieChart>
             </ResponsiveContainer>
             <div className="flex justify-center mt-4 space-x-4">

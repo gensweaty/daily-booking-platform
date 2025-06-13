@@ -110,6 +110,8 @@ serve(async (req) => {
           
           if (subscription) {
             const now = new Date()
+            
+            // Set the plan type first
             displayPlan = subscription.plan_type || 'trial'
             
             if (subscription.plan_type === 'ultimate') {
@@ -117,36 +119,45 @@ serve(async (req) => {
               displayStatus = 'active'
               displayPlan = 'ultimate'
             } else if (subscription.plan_type === 'yearly') {
-              // For yearly plans, check if they're within the subscription period
+              // For yearly plans, always show as yearly regardless of status
+              displayPlan = 'yearly'
+              
               if (subscription.status === 'active') {
                 // Check if we have valid period dates
                 if (subscription.current_period_end) {
                   const endDate = new Date(subscription.current_period_end)
                   displayStatus = endDate > now ? 'active' : 'expired'
+                } else if (subscription.subscription_end_date) {
+                  // Check subscription_end_date as fallback
+                  const endDate = new Date(subscription.subscription_end_date)
+                  displayStatus = endDate > now ? 'active' : 'expired'
                 } else {
                   // If no end date, assume active yearly
                   displayStatus = 'active'
                 }
-                displayPlan = 'yearly'
               } else if (subscription.status === 'trial') {
                 displayStatus = 'trial'
               } else {
-                displayStatus = subscription.status
+                displayStatus = subscription.status || 'active'
               }
             } else if (subscription.plan_type === 'monthly') {
               // For monthly plans
+              displayPlan = 'monthly'
+              
               if (subscription.status === 'active') {
                 if (subscription.current_period_end) {
                   const endDate = new Date(subscription.current_period_end)
                   displayStatus = endDate > now ? 'active' : 'expired'
+                } else if (subscription.subscription_end_date) {
+                  const endDate = new Date(subscription.subscription_end_date)
+                  displayStatus = endDate > now ? 'active' : 'expired'
                 } else {
                   displayStatus = 'active'
                 }
-                displayPlan = 'monthly'
               } else if (subscription.status === 'trial') {
                 displayStatus = 'trial'
               } else {
-                displayStatus = subscription.status
+                displayStatus = subscription.status || 'active'
               }
             } else {
               // For trial or other statuses
@@ -154,8 +165,21 @@ serve(async (req) => {
                 const trialEnd = new Date(subscription.trial_end_date)
                 displayStatus = trialEnd > now ? 'trial' : 'trial_expired'
               } else {
-                displayStatus = subscription.status
+                displayStatus = subscription.status || 'trial'
               }
+            }
+            
+            // Debug logging for specific user
+            if (profile.id === '55c08d65-77db-4c26-b7ad-f3a10be89d4b') {
+              console.log('Debug user subscription:', {
+                email: 'ananiadevsurashvili@hotmail.com',
+                plan_type: subscription.plan_type,
+                status: subscription.status,
+                current_period_end: subscription.current_period_end,
+                subscription_end_date: subscription.subscription_end_date,
+                displayPlan,
+                displayStatus
+              })
             }
           }
           
