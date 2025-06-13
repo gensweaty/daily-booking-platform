@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { type } = await req.json()
+    const { type, dateRange } = await req.json()
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -21,31 +21,44 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     if (type === 'analytics') {
-      // Get analytics data
       const now = new Date()
-      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+      let startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000) // Default to 24h ago
+      let endDate = now
+
+      // Use date range if provided
+      if (dateRange) {
+        startDate = new Date(dateRange.start)
+        endDate = new Date(dateRange.end)
+      }
       
-      // Get total users
+      // Get total users in date range
       const { count: totalUsers } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString())
       
-      // Get new users in last 24h
-      const { count: newUsers24h } = await supabase
+      // Get new users in selected date range
+      const { count: newUsers } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
-        .gte('created_at', yesterday.toISOString())
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString())
       
-      // Get subscription distribution
-      const { data: subscriptions } = await supabase
-        .from('subscriptions')
-        .select('plan_type, status')
+      // Get all users for subscription distribution (not filtered by date)
+      const { data: allUsers } = await supabase.functions.invoke('admin-panel-data', {
+        body: { type: 'users' }
+      });
+
+      let subscriptionStats = { trial: 0, monthly: 0, yearly: 0, ultimate: 0 }
       
-      const subscriptionStats = subscriptions?.reduce((acc: any, sub) => {
-        const key = sub.plan_type || 'trial'
-        acc[key] = (acc[key] || 0) + 1
-        return acc
-      }, {}) || {}
+      if (allUsers && Array.isArray(allUsers)) {
+        subscriptionStats = allUsers.reduce((acc: any, user) => {
+          const plan = user.subscriptionPlan || 'trial'
+          acc[plan] = (acc[plan] || 0) + 1
+          return acc
+        }, { trial: 0, monthly: 0, yearly: 0, ultimate: 0 })
+      }
       
       const subscriptionData = [
         { name: 'Trial', value: subscriptionStats.trial || 0, color: '#8884d8' },
@@ -54,31 +67,56 @@ serve(async (req) => {
         { name: 'Ultimate', value: subscriptionStats.ultimate || 0, color: '#ff7300' }
       ]
       
-      // Generate hourly registration data for last 24h
+      // Generate hourly registration data for selected date range
       const registrationData = []
-      for (let i = 23; i >= 0; i--) {
-        const hour = new Date(now.getTime() - i * 60 * 60 * 1000)
-        const hourStart = new Date(hour)
-        hourStart.setMinutes(0, 0, 0)
-        const hourEnd = new Date(hourStart.getTime() + 60 * 60 * 1000)
-        
-        const { count } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', hourStart.toISOString())
-          .lt('created_at', hourEnd.toISOString())
-        
-        registrationData.push({
-          hour: hourStart.getHours().toString().padStart(2, '0') + ':00',
-          users: count || 0
-        })
+      const diffTime = Math.abs(endDate.getTime() - startDate.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      
+      if (diffDays <= 1) {
+        // Hourly data for single day
+        for (let i = 23; i >= 0; i--) {
+          const hour = new Date(endDate.getTime() - i * 60 * 60 * 1000)
+          const hourStart = new Date(hour)
+          hourStart.setMinutes(0, 0, 0)
+          const hourEnd = new Date(hourStart.getTime() + 60 * 60 * 1000)
+          
+          const { count } = await supabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true })
+            .gte('created_at', hourStart.toISOString())
+            .lt('created_at', hourEnd.toISOString())
+          
+          registrationData.push({
+            hour: hourStart.getHours().toString().padStart(2, '0') + ':00',
+            users: count || 0
+          })
+        }
+      } else {
+        // Daily data for longer ranges
+        for (let i = diffDays - 1; i >= 0; i--) {
+          const day = new Date(endDate.getTime() - i * 24 * 60 * 60 * 1000)
+          const dayStart = new Date(day)
+          dayStart.setHours(0, 0, 0, 0)
+          const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000)
+          
+          const { count } = await supabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true })
+            .gte('created_at', dayStart.toISOString())
+            .lt('created_at', dayEnd.toISOString())
+          
+          registrationData.push({
+            hour: dayStart.toLocaleDateString(),
+            users: count || 0
+          })
+        }
       }
       
       const analyticsData = {
         totalUsers: totalUsers || 0,
-        newUsers24h: newUsers24h || 0,
-        activeSessions: Math.floor(Math.random() * 50) + 10, // Simulated for now
-        avgSessionTime: '12m', // Simulated for now
+        newUsers24h: newUsers || 0,
+        activeSessions: Math.floor(Math.random() * 50) + 10,
+        avgSessionTime: '12m',
         registrationData,
         subscriptionData
       }
@@ -109,13 +147,27 @@ serve(async (req) => {
         })
       }
 
+      // Get ALL auth users to cross-reference
+      const { data: { users: authUsers }, error: authUsersError } = await supabase.auth.admin.listUsers()
+      if (authUsersError) {
+        console.error('Error fetching auth users:', authUsersError)
+      }
+
+      // Create a map of auth users by ID for quick lookup
+      const authUserMap = new Map()
+      if (authUsers) {
+        authUsers.forEach(user => {
+          authUserMap.set(user.id, user)
+        })
+      }
+
       const userData = await Promise.all(
         profiles.map(async (profile) => {
           try {
-            // Get user auth data for email and last login
-            const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(profile.id)
-            if (authError) {
-              console.error(`Error getting auth data for user ${profile.id}:`, authError)
+            // Get user auth data from the map
+            const authUser = authUserMap.get(profile.id)
+            if (!authUser) {
+              console.error(`No auth user found for profile ${profile.id}`)
             }
 
             // Get subscription info - get the most recent subscription
@@ -131,14 +183,14 @@ serve(async (req) => {
 
             const subscription = subscriptions && subscriptions.length > 0 ? subscriptions[0] : null
             
-            // Determine subscription status and plan based on the same logic as dashboard
+            // Use the same logic as the dashboard for subscription status
             let displayStatus = 'trial'
             let displayPlan = 'trial'
             
             if (subscription) {
               const now = new Date()
               
-              console.log(`Processing subscription for user ${authUser.user?.email}:`, {
+              console.log(`Processing subscription for user ${authUser?.email || 'unknown'}:`, {
                 plan_type: subscription.plan_type,
                 status: subscription.status,
                 current_period_end: subscription.current_period_end,
@@ -147,29 +199,24 @@ serve(async (req) => {
               })
               
               if (subscription.plan_type === 'ultimate') {
-                // Ultimate plans are always active and never expire
                 displayStatus = 'active'
                 displayPlan = 'ultimate'
               } else if (subscription.plan_type === 'yearly') {
                 displayPlan = 'yearly'
                 
-                // Check if subscription is active based on end dates
                 if (subscription.status === 'active') {
                   let isActive = true
                   
-                  // Check current_period_end first
                   if (subscription.current_period_end) {
                     const endDate = new Date(subscription.current_period_end)
                     isActive = endDate > now
                   } else if (subscription.subscription_end_date) {
-                    // Fallback to subscription_end_date
                     const endDate = new Date(subscription.subscription_end_date)
                     isActive = endDate > now
                   }
                   
                   displayStatus = isActive ? 'active' : 'expired'
                 } else if (subscription.status === 'trial') {
-                  // Check if trial is still valid
                   if (subscription.trial_end_date) {
                     const trialEnd = new Date(subscription.trial_end_date)
                     displayStatus = trialEnd > now ? 'trial' : 'trial_expired'
@@ -205,7 +252,6 @@ serve(async (req) => {
                   displayStatus = subscription.status || 'expired'
                 }
               } else {
-                // For trial or other statuses
                 if (subscription.trial_end_date) {
                   const trialEnd = new Date(subscription.trial_end_date)
                   displayStatus = trialEnd > now ? 'trial' : 'trial_expired'
@@ -241,7 +287,7 @@ serve(async (req) => {
               .eq('user_id', profile.id)
               .single()
             
-            const userEmail = authUser.user?.email || 'N/A'
+            const userEmail = authUser?.email || 'N/A'
             
             console.log(`Final result for ${userEmail}:`, {
               displayPlan,
@@ -253,7 +299,7 @@ serve(async (req) => {
               username: profile.username || 'N/A',
               email: userEmail,
               registeredOn: profile.created_at,
-              lastLogin: authUser.user?.last_sign_in_at || null,
+              lastLogin: authUser?.last_sign_in_at || null,
               subscriptionPlan: displayPlan,
               subscriptionStatus: displayStatus,
               tasksCount: tasksCount || 0,

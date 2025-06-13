@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Download, ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { Search, Download, ChevronLeft, ChevronRight, Users, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface UserData {
@@ -44,12 +44,15 @@ export const CRMTable = () => {
   }, [searchTerm, users]);
 
   const fetchUserData = async () => {
+    setLoading(true);
     try {
       const { data: userData, error } = await supabase.functions.invoke('admin-panel-data', {
         body: { type: 'users' }
       });
 
       if (error) throw error;
+      
+      console.log('Fetched user data:', userData);
       setUsers(userData || []);
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -151,15 +154,27 @@ export const CRMTable = () => {
               User Management ({filteredUsers.length} users)
             </CardTitle>
           </div>
-          <Button 
-            onClick={exportToCSV} 
-            variant="outline" 
-            size="sm"
-            className="flex items-center gap-2 hover:bg-primary hover:text-primary-foreground transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Export CSV
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              onClick={fetchUserData} 
+              variant="outline" 
+              size="sm"
+              className="flex items-center gap-2 hover:bg-primary hover:text-primary-foreground transition-colors"
+              disabled={loading}
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button 
+              onClick={exportToCSV} 
+              variant="outline" 
+              size="sm"
+              className="flex items-center gap-2 hover:bg-primary hover:text-primary-foreground transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
