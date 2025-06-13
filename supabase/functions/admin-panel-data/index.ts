@@ -97,43 +97,65 @@ serve(async (req) => {
       
       const userData = await Promise.all(
         profiles?.map(async (profile) => {
-          // Get subscription info with proper status calculation
+          // Get subscription info
           const { data: subscription } = await supabase
             .from('subscriptions')
             .select('*')
             .eq('user_id', profile.id)
             .single()
           
-          // Determine actual subscription status and plan
-          let actualStatus = 'trial'
-          let actualPlan = 'trial'
+          // Determine subscription status and plan based on what users see in dashboard
+          let displayStatus = 'trial'
+          let displayPlan = 'trial'
           
           if (subscription) {
-            actualPlan = subscription.plan_type || 'trial'
-            
-            // Check if subscription is active based on dates
             const now = new Date()
+            displayPlan = subscription.plan_type || 'trial'
             
-            if (subscription.status === 'active') {
-              if (subscription.plan_type === 'ultimate') {
-                // Ultimate plans don't expire
-                actualStatus = 'active'
-              } else if (subscription.current_period_end) {
-                // Check if subscription has expired
-                const endDate = new Date(subscription.current_period_end)
-                actualStatus = endDate > now ? 'active' : 'expired'
+            if (subscription.plan_type === 'ultimate') {
+              // Ultimate plans are always active and never expire
+              displayStatus = 'active'
+              displayPlan = 'ultimate'
+            } else if (subscription.plan_type === 'yearly') {
+              // For yearly plans, check if they're within the subscription period
+              if (subscription.status === 'active') {
+                // Check if we have valid period dates
+                if (subscription.current_period_end) {
+                  const endDate = new Date(subscription.current_period_end)
+                  displayStatus = endDate > now ? 'active' : 'expired'
+                } else {
+                  // If no end date, assume active yearly
+                  displayStatus = 'active'
+                }
+                displayPlan = 'yearly'
+              } else if (subscription.status === 'trial') {
+                displayStatus = 'trial'
               } else {
-                actualStatus = 'active'
+                displayStatus = subscription.status
               }
-            } else if (subscription.status === 'trial') {
-              if (subscription.trial_end_date) {
-                const trialEnd = new Date(subscription.trial_end_date)
-                actualStatus = trialEnd > now ? 'trial' : 'trial_expired'
+            } else if (subscription.plan_type === 'monthly') {
+              // For monthly plans
+              if (subscription.status === 'active') {
+                if (subscription.current_period_end) {
+                  const endDate = new Date(subscription.current_period_end)
+                  displayStatus = endDate > now ? 'active' : 'expired'
+                } else {
+                  displayStatus = 'active'
+                }
+                displayPlan = 'monthly'
+              } else if (subscription.status === 'trial') {
+                displayStatus = 'trial'
               } else {
-                actualStatus = 'trial'
+                displayStatus = subscription.status
               }
             } else {
-              actualStatus = subscription.status
+              // For trial or other statuses
+              if (subscription.trial_end_date) {
+                const trialEnd = new Date(subscription.trial_end_date)
+                displayStatus = trialEnd > now ? 'trial' : 'trial_expired'
+              } else {
+                displayStatus = subscription.status
+              }
             }
           }
           
@@ -171,8 +193,8 @@ serve(async (req) => {
             email: authUser.user?.email || 'N/A',
             registeredOn: profile.created_at,
             lastLogin: authUser.user?.last_sign_in_at || null,
-            subscriptionPlan: actualPlan,
-            subscriptionStatus: actualStatus,
+            subscriptionPlan: displayPlan,
+            subscriptionStatus: displayStatus,
             tasksCount: tasksCount || 0,
             bookingsCount: bookingsCount || 0,
             customersCount: customersCount || 0,
