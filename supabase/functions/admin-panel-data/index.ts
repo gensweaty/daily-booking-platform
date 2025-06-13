@@ -89,143 +89,198 @@ serve(async (req) => {
     }
     
     if (type === 'users') {
-      // Get comprehensive user data with usernames from profiles
-      const { data: profiles } = await supabase
+      console.log('Fetching user data for admin panel...')
+      
+      // Get ALL profiles first
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false })
       
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError)
+      }
+      
+      console.log(`Found ${profiles?.length || 0} profiles`)
+      
+      if (!profiles || profiles.length === 0) {
+        return new Response(JSON.stringify([]), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
       const userData = await Promise.all(
-        profiles?.map(async (profile) => {
-          // Get subscription info
-          const { data: subscription } = await supabase
-            .from('subscriptions')
-            .select('*')
-            .eq('user_id', profile.id)
-            .single()
-          
-          // Determine subscription status and plan based on what users see in dashboard
-          let displayStatus = 'trial'
-          let displayPlan = 'trial'
-          
-          if (subscription) {
-            const now = new Date()
-            
-            // Set the plan type first
-            displayPlan = subscription.plan_type || 'trial'
-            
-            if (subscription.plan_type === 'ultimate') {
-              // Ultimate plans are always active and never expire
-              displayStatus = 'active'
-              displayPlan = 'ultimate'
-            } else if (subscription.plan_type === 'yearly') {
-              // For yearly plans, always show as yearly regardless of status
-              displayPlan = 'yearly'
-              
-              if (subscription.status === 'active') {
-                // Check if we have valid period dates
-                if (subscription.current_period_end) {
-                  const endDate = new Date(subscription.current_period_end)
-                  displayStatus = endDate > now ? 'active' : 'expired'
-                } else if (subscription.subscription_end_date) {
-                  // Check subscription_end_date as fallback
-                  const endDate = new Date(subscription.subscription_end_date)
-                  displayStatus = endDate > now ? 'active' : 'expired'
-                } else {
-                  // If no end date, assume active yearly
-                  displayStatus = 'active'
-                }
-              } else if (subscription.status === 'trial') {
-                displayStatus = 'trial'
-              } else {
-                displayStatus = subscription.status || 'active'
-              }
-            } else if (subscription.plan_type === 'monthly') {
-              // For monthly plans
-              displayPlan = 'monthly'
-              
-              if (subscription.status === 'active') {
-                if (subscription.current_period_end) {
-                  const endDate = new Date(subscription.current_period_end)
-                  displayStatus = endDate > now ? 'active' : 'expired'
-                } else if (subscription.subscription_end_date) {
-                  const endDate = new Date(subscription.subscription_end_date)
-                  displayStatus = endDate > now ? 'active' : 'expired'
-                } else {
-                  displayStatus = 'active'
-                }
-              } else if (subscription.status === 'trial') {
-                displayStatus = 'trial'
-              } else {
-                displayStatus = subscription.status || 'active'
-              }
-            } else {
-              // For trial or other statuses
-              if (subscription.trial_end_date) {
-                const trialEnd = new Date(subscription.trial_end_date)
-                displayStatus = trialEnd > now ? 'trial' : 'trial_expired'
-              } else {
-                displayStatus = subscription.status || 'trial'
-              }
+        profiles.map(async (profile) => {
+          try {
+            // Get user auth data for email and last login
+            const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(profile.id)
+            if (authError) {
+              console.error(`Error getting auth data for user ${profile.id}:`, authError)
             }
+
+            // Get subscription info - get the most recent subscription
+            const { data: subscriptions, error: subError } = await supabase
+              .from('subscriptions')
+              .select('*')
+              .eq('user_id', profile.id)
+              .order('updated_at', { ascending: false })
             
-            // Debug logging for specific user
-            if (profile.id === '55c08d65-77db-4c26-b7ad-f3a10be89d4b') {
-              console.log('Debug user subscription:', {
-                email: 'ananiadevsurashvili@hotmail.com',
+            if (subError) {
+              console.error(`Error getting subscription for user ${profile.id}:`, subError)
+            }
+
+            const subscription = subscriptions && subscriptions.length > 0 ? subscriptions[0] : null
+            
+            // Determine subscription status and plan based on the same logic as dashboard
+            let displayStatus = 'trial'
+            let displayPlan = 'trial'
+            
+            if (subscription) {
+              const now = new Date()
+              
+              console.log(`Processing subscription for user ${authUser.user?.email}:`, {
                 plan_type: subscription.plan_type,
                 status: subscription.status,
                 current_period_end: subscription.current_period_end,
                 subscription_end_date: subscription.subscription_end_date,
-                displayPlan,
-                displayStatus
+                trial_end_date: subscription.trial_end_date
               })
+              
+              if (subscription.plan_type === 'ultimate') {
+                // Ultimate plans are always active and never expire
+                displayStatus = 'active'
+                displayPlan = 'ultimate'
+              } else if (subscription.plan_type === 'yearly') {
+                displayPlan = 'yearly'
+                
+                // Check if subscription is active based on end dates
+                if (subscription.status === 'active') {
+                  let isActive = true
+                  
+                  // Check current_period_end first
+                  if (subscription.current_period_end) {
+                    const endDate = new Date(subscription.current_period_end)
+                    isActive = endDate > now
+                  } else if (subscription.subscription_end_date) {
+                    // Fallback to subscription_end_date
+                    const endDate = new Date(subscription.subscription_end_date)
+                    isActive = endDate > now
+                  }
+                  
+                  displayStatus = isActive ? 'active' : 'expired'
+                } else if (subscription.status === 'trial') {
+                  // Check if trial is still valid
+                  if (subscription.trial_end_date) {
+                    const trialEnd = new Date(subscription.trial_end_date)
+                    displayStatus = trialEnd > now ? 'trial' : 'trial_expired'
+                  } else {
+                    displayStatus = 'trial'
+                  }
+                } else {
+                  displayStatus = subscription.status || 'expired'
+                }
+              } else if (subscription.plan_type === 'monthly') {
+                displayPlan = 'monthly'
+                
+                if (subscription.status === 'active') {
+                  let isActive = true
+                  
+                  if (subscription.current_period_end) {
+                    const endDate = new Date(subscription.current_period_end)
+                    isActive = endDate > now
+                  } else if (subscription.subscription_end_date) {
+                    const endDate = new Date(subscription.subscription_end_date)
+                    isActive = endDate > now
+                  }
+                  
+                  displayStatus = isActive ? 'active' : 'expired'
+                } else if (subscription.status === 'trial') {
+                  if (subscription.trial_end_date) {
+                    const trialEnd = new Date(subscription.trial_end_date)
+                    displayStatus = trialEnd > now ? 'trial' : 'trial_expired'
+                  } else {
+                    displayStatus = 'trial'
+                  }
+                } else {
+                  displayStatus = subscription.status || 'expired'
+                }
+              } else {
+                // For trial or other statuses
+                if (subscription.trial_end_date) {
+                  const trialEnd = new Date(subscription.trial_end_date)
+                  displayStatus = trialEnd > now ? 'trial' : 'trial_expired'
+                } else {
+                  displayStatus = subscription.status || 'trial'
+                }
+                displayPlan = subscription.plan_type || 'trial'
+              }
+            }
+
+            // Get task count
+            const { count: tasksCount } = await supabase
+              .from('tasks')
+              .select('*', { count: 'exact', head: true })
+              .eq('user_id', profile.id)
+            
+            // Get booking/event count
+            const { count: bookingsCount } = await supabase
+              .from('events')
+              .select('*', { count: 'exact', head: true })
+              .eq('user_id', profile.id)
+            
+            // Get customer count
+            const { count: customersCount } = await supabase
+              .from('customers')
+              .select('*', { count: 'exact', head: true })
+              .eq('user_id', profile.id)
+            
+            // Check business profile
+            const { data: businessProfile } = await supabase
+              .from('business_profiles')
+              .select('id')
+              .eq('user_id', profile.id)
+              .single()
+            
+            const userEmail = authUser.user?.email || 'N/A'
+            
+            console.log(`Final result for ${userEmail}:`, {
+              displayPlan,
+              displayStatus
+            })
+            
+            return {
+              id: profile.id,
+              username: profile.username || 'N/A',
+              email: userEmail,
+              registeredOn: profile.created_at,
+              lastLogin: authUser.user?.last_sign_in_at || null,
+              subscriptionPlan: displayPlan,
+              subscriptionStatus: displayStatus,
+              tasksCount: tasksCount || 0,
+              bookingsCount: bookingsCount || 0,
+              customersCount: customersCount || 0,
+              hasBusinessProfile: !!businessProfile
+            }
+          } catch (error) {
+            console.error(`Error processing user ${profile.id}:`, error)
+            return {
+              id: profile.id,
+              username: profile.username || 'N/A',
+              email: 'Error loading',
+              registeredOn: profile.created_at,
+              lastLogin: null,
+              subscriptionPlan: 'trial',
+              subscriptionStatus: 'trial',
+              tasksCount: 0,
+              bookingsCount: 0,
+              customersCount: 0,
+              hasBusinessProfile: false
             }
           }
-          
-          // Get task count
-          const { count: tasksCount } = await supabase
-            .from('tasks')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', profile.id)
-          
-          // Get booking/event count
-          const { count: bookingsCount } = await supabase
-            .from('events')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', profile.id)
-          
-          // Get customer count
-          const { count: customersCount } = await supabase
-            .from('customers')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', profile.id)
-          
-          // Check business profile
-          const { data: businessProfile } = await supabase
-            .from('business_profiles')
-            .select('id')
-            .eq('user_id', profile.id)
-            .single()
-          
-          // Get user auth data for email and last login
-          const { data: authUser } = await supabase.auth.admin.getUserById(profile.id)
-          
-          return {
-            id: profile.id,
-            username: profile.username || 'N/A',
-            email: authUser.user?.email || 'N/A',
-            registeredOn: profile.created_at,
-            lastLogin: authUser.user?.last_sign_in_at || null,
-            subscriptionPlan: displayPlan,
-            subscriptionStatus: displayStatus,
-            tasksCount: tasksCount || 0,
-            bookingsCount: bookingsCount || 0,
-            customersCount: customersCount || 0,
-            hasBusinessProfile: !!businessProfile
-          }
-        }) || []
+        })
       )
+      
+      console.log(`Processed ${userData.length} users`)
       
       return new Response(JSON.stringify(userData), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
