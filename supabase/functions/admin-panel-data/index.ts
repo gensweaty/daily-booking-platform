@@ -129,7 +129,25 @@ serve(async (req) => {
     if (type === 'users') {
       console.log('Fetching user data for admin panel...')
       
-      // Get ALL profiles first
+      // Get ALL auth users first to ensure we don't miss anyone
+      const { data: { users: authUsers }, error: authUsersError } = await supabase.auth.admin.listUsers()
+      if (authUsersError) {
+        console.error('Error fetching auth users:', authUsersError)
+        return new Response(JSON.stringify({ error: 'Failed to fetch auth users' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      console.log(`Found ${authUsers?.length || 0} auth users`)
+      
+      if (!authUsers || authUsers.length === 0) {
+        return new Response(JSON.stringify([]), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      // Get ALL profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
@@ -140,45 +158,33 @@ serve(async (req) => {
       }
       
       console.log(`Found ${profiles?.length || 0} profiles`)
-      
-      if (!profiles || profiles.length === 0) {
-        return new Response(JSON.stringify([]), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+
+      // Create a map of profiles by ID for quick lookup
+      const profileMap = new Map()
+      if (profiles) {
+        profiles.forEach(profile => {
+          profileMap.set(profile.id, profile)
         })
       }
 
-      // Get ALL auth users to cross-reference
-      const { data: { users: authUsers }, error: authUsersError } = await supabase.auth.admin.listUsers()
-      if (authUsersError) {
-        console.error('Error fetching auth users:', authUsersError)
-      }
-
-      // Create a map of auth users by ID for quick lookup
-      const authUserMap = new Map()
-      if (authUsers) {
-        authUsers.forEach(user => {
-          authUserMap.set(user.id, user)
-        })
-      }
-
+      // Process ALL auth users (not just those with profiles)
       const userData = await Promise.all(
-        profiles.map(async (profile) => {
+        authUsers.map(async (authUser) => {
           try {
-            // Get user auth data from the map
-            const authUser = authUserMap.get(profile.id)
-            if (!authUser) {
-              console.error(`No auth user found for profile ${profile.id}`)
-            }
+            console.log(`Processing user: ${authUser.email}`)
+
+            // Get profile data from the map (might not exist)
+            const profile = profileMap.get(authUser.id)
 
             // Get subscription info - get the most recent subscription
             const { data: subscriptions, error: subError } = await supabase
               .from('subscriptions')
               .select('*')
-              .eq('user_id', profile.id)
+              .eq('user_id', authUser.id)
               .order('updated_at', { ascending: false })
             
             if (subError) {
-              console.error(`Error getting subscription for user ${profile.id}:`, subError)
+              console.error(`Error getting subscription for user ${authUser.id}:`, subError)
             }
 
             const subscription = subscriptions && subscriptions.length > 0 ? subscriptions[0] : null
@@ -190,7 +196,7 @@ serve(async (req) => {
             if (subscription) {
               const now = new Date()
               
-              console.log(`Processing subscription for user ${authUser?.email || 'unknown'}:`, {
+              console.log(`Processing subscription for user ${authUser.email}:`, {
                 plan_type: subscription.plan_type,
                 status: subscription.status,
                 current_period_end: subscription.current_period_end,
@@ -266,40 +272,38 @@ serve(async (req) => {
             const { count: tasksCount } = await supabase
               .from('tasks')
               .select('*', { count: 'exact', head: true })
-              .eq('user_id', profile.id)
+              .eq('user_id', authUser.id)
             
             // Get booking/event count
             const { count: bookingsCount } = await supabase
               .from('events')
               .select('*', { count: 'exact', head: true })
-              .eq('user_id', profile.id)
+              .eq('user_id', authUser.id)
             
             // Get customer count
             const { count: customersCount } = await supabase
               .from('customers')
               .select('*', { count: 'exact', head: true })
-              .eq('user_id', profile.id)
+              .eq('user_id', authUser.id)
             
             // Check business profile
             const { data: businessProfile } = await supabase
               .from('business_profiles')
               .select('id')
-              .eq('user_id', profile.id)
+              .eq('user_id', authUser.id)
               .single()
             
-            const userEmail = authUser?.email || 'N/A'
-            
-            console.log(`Final result for ${userEmail}:`, {
+            console.log(`Final result for ${authUser.email}:`, {
               displayPlan,
               displayStatus
             })
             
             return {
-              id: profile.id,
-              username: profile.username || 'N/A',
-              email: userEmail,
-              registeredOn: profile.created_at,
-              lastLogin: authUser?.last_sign_in_at || null,
+              id: authUser.id,
+              username: profile?.username || 'N/A',
+              email: authUser.email || 'N/A',
+              registeredOn: profile?.created_at || authUser.created_at,
+              lastLogin: authUser.last_sign_in_at || null,
               subscriptionPlan: displayPlan,
               subscriptionStatus: displayStatus,
               tasksCount: tasksCount || 0,
@@ -308,12 +312,12 @@ serve(async (req) => {
               hasBusinessProfile: !!businessProfile
             }
           } catch (error) {
-            console.error(`Error processing user ${profile.id}:`, error)
+            console.error(`Error processing user ${authUser.id}:`, error)
             return {
-              id: profile.id,
-              username: profile.username || 'N/A',
-              email: 'Error loading',
-              registeredOn: profile.created_at,
+              id: authUser.id,
+              username: 'Error loading',
+              email: authUser.email || 'Error loading',
+              registeredOn: authUser.created_at,
               lastLogin: null,
               subscriptionPlan: 'trial',
               subscriptionStatus: 'trial',
