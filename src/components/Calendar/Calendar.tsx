@@ -111,7 +111,7 @@ export const Calendar = ({
   } = useEventDialog({
     createEvent: async (data) => {
       const result = await createEvent?.(data);
-      return result;
+      // Don't return the result to match Promise<void>
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
@@ -122,7 +122,7 @@ export const Calendar = ({
         id: selectedEvent.id,
         type: selectedEvent.type  // Make sure to pass the type from the selected event
       });
-      return result;
+      // Don't return the result to match Promise<void>
     },
     deleteEvent: async (id) => {
       await deleteEvent?.(id);
