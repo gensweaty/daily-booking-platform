@@ -1,3 +1,4 @@
+
 export interface Task {
   id: string;
   title: string;
@@ -104,4 +105,26 @@ export interface CustomerFile {
   user_id?: string;
   created_at: string;
   source?: string;
+}
+
+// Update Customer interface to include group booking fields
+export interface Customer {
+  id: string;
+  title: string;
+  user_surname?: string;
+  user_number?: string;
+  user_id?: string;
+  type?: string;
+  start_date?: string;
+  end_date?: string;
+  event_notes?: string;
+  social_network_link?: string;
+  payment_amount?: number;
+  payment_status?: string;
+  created_at: string;
+  deleted_at?: string;
+  create_event?: boolean;
+  // New group booking fields
+  parent_group_id?: string;
+  is_group_member?: boolean;
 }
