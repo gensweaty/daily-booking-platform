@@ -66,11 +66,17 @@ const isBusinessPath = (path: string) => {
   return path.startsWith('/business/') || path === '/business';
 };
 
+// Helper to check if the current path is an admin panel path
+const isAdminPath = (path: string) => {
+  // Check if the path starts with /admin-panel
+  return path.startsWith('/admin-panel');
+};
+
 // Helper to check if the current path is public
 const isPublicPath = (path: string) => {
-  // Check if the path is one of the public paths, starts with a public path, or is a business path
+  // Check if the path is one of the public paths, starts with a public path, or is a business/admin path
   return PUBLIC_PATHS.some(publicPath => path === publicPath || path.startsWith(publicPath + '/')) || 
-         isBusinessPath(path);
+         isBusinessPath(path) || isAdminPath(path);
 };
 
 // Helper to check if we're accessing from the production domain
@@ -121,9 +127,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     
-    // Don't show session expired error on public paths or business pages
-    if (isPublicPath(location.pathname) || isBusinessPath(location.pathname) || isAccessingBusinessPage) {
-      console.log("Public path or business page detected, not showing session expired error");
+    // Don't show session expired error on public paths, business pages, or admin pages
+    if (isPublicPath(location.pathname) || isBusinessPath(location.pathname) || isAccessingBusinessPage || isAdminPath(location.pathname)) {
+      console.log("Public path, business page, or admin page detected, not showing session expired error");
       return;
     }
     
@@ -137,14 +143,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshSession = useCallback(async () => {
     try {
-      // Don't refresh session for business pages to avoid auth redirects
-      if (isBusinessPath(location.pathname) || isAccessingBusinessPage) {
-        console.log("Business page detected, skipping session refresh");
+      // Don't refresh session for business pages or admin pages to avoid auth redirects
+      if (isBusinessPath(location.pathname) || isAccessingBusinessPage || isAdminPath(location.pathname)) {
+        console.log("Business page or admin page detected, skipping session refresh");
         setLoading(false);
         return;
       }
       
-      // If we have recovery parameters, don't refresh session as we're in password reset flow
+      // ... keep existing code (recovery parameters handling)
       if (hasRecoveryParams() || searchParams.has('code')) {
         console.log("Recovery parameters detected, skipping session refresh");
         setLoading(false);
@@ -169,9 +175,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (!currentSession) {
-        // Special handling for business pages - don't redirect to login
-        if (isBusinessPath(location.pathname) || isAccessingBusinessPage) {
-          console.log("Business page with no session, continuing without redirect");
+        // Special handling for business pages and admin pages - don't redirect to login
+        if (isBusinessPath(location.pathname) || isAccessingBusinessPage || isAdminPath(location.pathname)) {
+          console.log("Business page or admin page with no session, continuing without redirect");
           setSession(null);
           setUser(null);
           setLoading(false);
@@ -194,9 +200,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       console.error('Session refresh error:', error);
       
-      // Special handling for business pages - don't redirect on errors
-      if (isBusinessPath(location.pathname) || isAccessingBusinessPage) {
-        console.log("Error on business page, continuing without redirect");
+      // Special handling for business pages and admin pages - don't redirect on errors
+      if (isBusinessPath(location.pathname) || isAccessingBusinessPage || isAdminPath(location.pathname)) {
+        console.log("Error on business page or admin page, continuing without redirect");
         setSession(null);
         setUser(null);
         setLoading(false);
@@ -212,25 +218,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const initSession = async () => {
       try {
-        // Check for early business page detection
-        if (isBusinessPath(location.pathname) || isAccessingBusinessPage) {
-          console.log("Business page detected in initSession, skipping auth redirects");
+        // Check for early business page or admin page detection
+        if (isBusinessPath(location.pathname) || isAccessingBusinessPage || isAdminPath(location.pathname)) {
+          console.log("Business page or admin page detected in initSession, skipping auth redirects");
           setLoading(false);
           
-          // Still get the session if available, but don't redirect based on it
-          try {
-            const { data } = await supabase.auth.getSession();
-            if (data.session) {
-              setSession(data.session);
-              setUser(data.session.user);
-            } else {
+          // Still get the session if available for business pages, but don't redirect based on it
+          // For admin pages, completely skip session handling
+          if (!isAdminPath(location.pathname)) {
+            try {
+              const { data } = await supabase.auth.getSession();
+              if (data.session) {
+                setSession(data.session);
+                setUser(data.session.user);
+              } else {
+                setSession(null);
+                setUser(null);
+              }
+            } catch (e) {
+              console.error("Error getting session for business page:", e);
               setSession(null);
               setUser(null);
             }
-          } catch (e) {
-            console.error("Error getting session for business page:", e);
-            setSession(null);
-            setUser(null);
           }
           
           // Make sure visibility is restored in case it was hidden
@@ -238,7 +247,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
         
-        // Handle dashboard with code parameter (email confirmation)
+        // ... keep existing code (dashboard with code parameter handling)
         if (location.pathname === '/dashboard' && searchParams.has('code')) {
           console.log("Found code parameter on dashboard route, handling email confirmation");
           setLoading(false);
@@ -279,7 +288,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
         
-        // First check for email confirmation links
+        // ... keep existing code (email confirmation and password reset handling)
         if (hasEmailConfirmParams()) {
           console.log("Email confirmation link detected in initSession", {
             search: location.search,
@@ -350,8 +359,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } catch (error) {
         console.error('Session initialization error:', error);
         
-        // Don't treat session errors as fatal on public paths or business pages
-        if (!isPublicPath(location.pathname) && !isBusinessPath(location.pathname) && !isAccessingBusinessPage) {
+        // Don't treat session errors as fatal on public paths, business pages, or admin pages
+        if (!isPublicPath(location.pathname) && !isBusinessPath(location.pathname) && !isAccessingBusinessPage && !isAdminPath(location.pathname)) {
           await handleTokenError();
         } else {
           setLoading(false);
@@ -367,8 +376,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Set up periodic session refresh (every 4 minutes)
     const refreshInterval = setInterval(() => {
-      // Don't refresh if on business page to avoid auth redirects
-      if (!isBusinessPath(location.pathname) && !isAccessingBusinessPage) {
+      // Don't refresh if on business page or admin page to avoid auth redirects
+      if (!isBusinessPath(location.pathname) && !isAccessingBusinessPage && !isAdminPath(location.pathname)) {
         refreshSession();
       }
     }, 4 * 60 * 1000);
@@ -376,8 +385,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up visibility change handler
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        // Skip refresh for business pages
-        if (!isBusinessPath(location.pathname) && !isAccessingBusinessPage) {
+        // Skip refresh for business pages and admin pages
+        if (!isBusinessPath(location.pathname) && !isAccessingBusinessPage && !isAdminPath(location.pathname)) {
           refreshSession();
         }
       }
@@ -387,8 +396,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up online/offline handlers
     const handleOnline = () => {
       console.log('Network is online - refreshing session');
-      // Skip refresh for business pages
-      if (!isBusinessPath(location.pathname) && !isAccessingBusinessPage) {
+      // Skip refresh for business pages and admin pages
+      if (!isBusinessPath(location.pathname) && !isAccessingBusinessPage && !isAdminPath(location.pathname)) {
         refreshSession();
       }
     };
@@ -397,17 +406,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event, newSession ? 'Session exists' : 'No session');
       
-      // Special handling for business pages - never redirect regardless of auth state
-      if (isBusinessPath(location.pathname) || isAccessingBusinessPage) {
-        console.log("Auth state changed on business page, not redirecting");
-        if (newSession) {
+      // Special handling for business pages and admin pages - never redirect regardless of auth state
+      if (isBusinessPath(location.pathname) || isAccessingBusinessPage || isAdminPath(location.pathname)) {
+        console.log("Auth state changed on business page or admin page, not redirecting");
+        if (newSession && !isAdminPath(location.pathname)) {
           setSession(newSession);
           setUser(newSession.user);
         }
         return;
       }
       
-      // Handle dashboard with code parameter (email confirmation)
+      // ... keep existing code (dashboard with code parameter handling)
       if (location.pathname === '/dashboard' && searchParams.has('code')) {
         console.log("Code parameter detected on dashboard route during auth state change");
         
@@ -437,7 +446,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
       
-      // Handle email confirmation specifically
+      // ... keep existing code (email confirmation, password recovery, and auth state event handling)
       if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && hasEmailConfirmParams()) {
         console.log("Email confirmation completed", {
           event,
@@ -483,8 +492,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         localStorage.removeItem('app-auth-token');
         localStorage.removeItem('supabase.auth.token');
         
-        // Don't navigate away if already on public routes or business pages
-        if (!isPublicPath(location.pathname) && !isBusinessPath(location.pathname)) {
+        // Don't navigate away if already on public routes, business pages, or admin pages
+        if (!isPublicPath(location.pathname) && !isBusinessPath(location.pathname) && !isAdminPath(location.pathname)) {
           navigate('/login');
         }
       } else if (event === 'TOKEN_REFRESHED') {
@@ -519,9 +528,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
       
-      // Don't sign out if we're on a business page
-      if (isBusinessPath(location.pathname) || isAccessingBusinessPage) {
-        console.log('Skipping sign out on business page');
+      // Don't sign out if we're on a business page or admin page
+      if (isBusinessPath(location.pathname) || isAccessingBusinessPage || isAdminPath(location.pathname)) {
+        console.log('Skipping sign out on business page or admin page');
         return;
       }
       

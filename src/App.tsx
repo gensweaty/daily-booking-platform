@@ -1,4 +1,3 @@
-
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
@@ -16,6 +15,9 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SEOManager } from '@/components/SEOManager';
+import AdminPanel from "@/pages/AdminPanel";
+import { AdminRoute } from "@/components/admin/AdminRoute";
+import AdminPanelDashboard from "@/pages/AdminPanelDashboard";
 
 // Create a client for React Query with improved retry logic
 const queryClient = new QueryClient({
@@ -264,6 +266,16 @@ const AppContent = () => {
               <Route path="/business" element={<PublicBusinessPage />} />
               <Route path="/login" element={<Index />} />
               <Route path="/signup" element={<Index />} />
+              {/* Admin Panel Routes */}
+              <Route path="/admin-panel" element={<AdminPanel />} />
+              <Route 
+                path="/admin-panel/dashboard" 
+                element={
+                  <AdminRoute>
+                    <AdminPanelDashboard />
+                  </AdminRoute>
+                } 
+              />
               <Route path="*" element={<Landing />} />
             </Routes>
             <Toaster />
