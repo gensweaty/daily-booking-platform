@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -110,28 +109,9 @@ export const Calendar = ({
     handleUpdateEvent,
     handleDeleteEvent,
   } = useEventDialog({
-    createEvent: async (data) => {
-      if (createEvent) {
-        await createEvent(data);
-      }
-    },
-    updateEvent: async (data) => {
-      if (!selectedEvent) throw new Error("No event selected");
-      console.log("Calendar passing to updateEvent:", { data, id: selectedEvent.id, type: selectedEvent.type });
-      
-      if (updateEvent) {
-        await updateEvent({
-          ...data,
-          id: selectedEvent.id,
-          type: selectedEvent.type  // Make sure to pass the type from the selected event
-        });
-      }
-    },
-    deleteEvent: async (id) => {
-      if (deleteEvent) {
-        await deleteEvent(id);
-      }
-    }
+    createEvent,
+    updateEvent,
+    deleteEvent
   });
 
   if (!isExternalCalendar && !user && !window.location.pathname.includes('/business/')) {
