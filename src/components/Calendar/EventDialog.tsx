@@ -28,7 +28,7 @@ export const EventDialog = ({
   const { toast } = useToast();
   const [eventData, setEventData] = useState<CalendarEventType>({
     id: '',
-    full_name: '',
+    title: '',
     start_date: '',
     end_date: '',
     type: '',
@@ -48,7 +48,7 @@ export const EventDialog = ({
       const dateStr = selectedDate.toISOString().slice(0,16);
       setEventData({
         id: '',
-        full_name: '',
+        title: '',
         start_date: `${dateStr}`,
         end_date: `${dateStr}`,
         type: '',
@@ -79,7 +79,7 @@ export const EventDialog = ({
       });
       return;
     }
-    if (!eventData.is_group_event && !eventData.full_name) {
+    if (!eventData.is_group_event && !eventData.title) {
       toast({
         title: "Error",
         description: "Please enter the full name",
@@ -123,6 +123,7 @@ export const EventDialog = ({
       group_name: eventData.group_name,
       start_date: eventData.start_date,
       end_date: eventData.end_date,
+      title: '', // Blank title for group entries (required by type)
       type: '',
       user_id: userId,
       is_group_event: true,
@@ -135,8 +136,7 @@ export const EventDialog = ({
       .select()
       .single();
     if (groupError) throw groupError;
-    // Save group members (could be extended - currently just a stub)
-    // ...
+    // Group members saving would go here
     onSave(groupEvent);
   };
 
@@ -144,7 +144,7 @@ export const EventDialog = ({
   const handleIndividualEventSave = async (userId: string) => {
     const eventToSave = {
       ...eventData,
-      title: eventData.full_name,
+      title: eventData.title,
       user_id: userId,
       id: event?.id || undefined
     };

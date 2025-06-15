@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -36,7 +35,7 @@ export const EventDialogFields = ({
       is_group_event: checked,
       ...(checked ? {
         // group mode: clear full name
-        full_name: '',
+        title: '',
       } : {
         group_name: '',
       })
@@ -93,8 +92,8 @@ export const EventDialogFields = ({
             </Label>
             <Input
               id="full-name"
-              value={event.full_name || ''}
-              onChange={e => onUpdate({ full_name: e.target.value })}
+              value={event.title || ''}
+              onChange={e => onUpdate({ title: e.target.value })}
               placeholder="Full name"
             />
           </div>
