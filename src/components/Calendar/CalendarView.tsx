@@ -118,19 +118,23 @@ export function CalendarView({
     });
   }, [events, filteredEvents, isExternalCalendar, theme, resolvedTheme, currentTheme]);
 
-  const formattedSelectedDate = formatDate(selectedDate, "yyyy-MM-dd");
+  const getDaysInMonth = (date: Date) => {
+    const monthStart = startOfMonth(date);
+    const monthEnd = endOfMonth(date);
+    const calendarStart = startOfWeek(monthStart);
+    const calendarEnd = endOfWeek(monthEnd);
+    
+    return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+  };
 
   return (
     <div className="h-full">
       <CalendarGrid
-        days={daysToRender}
-        events={filteredEvents} // Use the filtered events
-        formattedSelectedDate={formattedSelectedDate}
-        view={view}
-        onDayClick={onDayClick}
-        onEventClick={onEventClick}
-        isExternalCalendar={isExternalCalendar}
-        theme={currentTheme}
+        currentDate={selectedDate}
+        events={filteredEvents}
+        onDateClick={onDayClick || (() => {})}
+        onEventClick={onEventClick || (() => {})}
+        getDaysInMonth={getDaysInMonth}
       />
     </div>
   );

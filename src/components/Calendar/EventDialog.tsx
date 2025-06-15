@@ -269,11 +269,9 @@ export const EventDialog = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarIcon className="w-5 h-5" />
-            <LanguageText 
-              en={event ? "Edit Event" : "Create New Event"}
-              ka={event ? "ღონისძიების რედაქტირება" : "ახალი ღონისძიების შექმნა"}
-              es={event ? "Editar Evento" : "Crear Nuevo Evento"}
-            />
+            <LanguageText>
+              {event ? "Edit Event" : "Create New Event"}
+            </LanguageText>
           </DialogTitle>
         </DialogHeader>
 
@@ -283,11 +281,7 @@ export const EventDialog = ({
             <div>
               <Label htmlFor="start-date" className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />
-                <LanguageText 
-                  en="Start Date & Time" 
-                  ka="დაწყების თარიღი და დრო" 
-                  es="Fecha y Hora de Inicio" 
-                />
+                <LanguageText>Start Date & Time</LanguageText>
               </Label>
               <Input
                 id="start-date"
@@ -301,11 +295,7 @@ export const EventDialog = ({
             <div>
               <Label htmlFor="end-date" className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />
-                <LanguageText 
-                  en="End Date & Time" 
-                  ka="დასრულების თარიღი და დრო" 
-                  es="Fecha y Hora de Fin" 
-                />
+                <LanguageText>End Date & Time</LanguageText>
               </Label>
               <Input
                 id="end-date"
@@ -328,17 +318,15 @@ export const EventDialog = ({
           {/* Action Buttons */}
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={onClose}>
-              <LanguageText en="Cancel" ka="გაუქმება" es="Cancelar" />
+              <LanguageText>Cancel</LanguageText>
             </Button>
             <Button onClick={handleSave} disabled={isLoading}>
               {isLoading ? (
-                <LanguageText en="Saving..." ka="შენახვა..." es="Guardando..." />
+                <LanguageText>Saving...</LanguageText>
               ) : (
-                <LanguageText 
-                  en={event ? "Update Event" : "Create Event"}
-                  ka={event ? "ღონისძიების განახლება" : "ღონისძიების შექმნა"}
-                  es={event ? "Actualizar Evento" : "Crear Evento"}
-                />
+                <LanguageText>
+                  {event ? "Update Event" : "Create Event"}
+                </LanguageText>
               )}
             </Button>
           </div>

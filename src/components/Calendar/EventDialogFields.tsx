@@ -71,7 +71,9 @@ export const EventDialogFields = ({
         <div className="flex items-center gap-2">
           {isGroupEvent ? <Users className="w-4 h-4" /> : <User className="w-4 h-4" />}
           <Label htmlFor="group-event" className="font-medium">
-            {isGroupEvent ? 'Group Event' : 'Individual Event'}
+            <LanguageText>
+              {isGroupEvent ? 'Group Event' : 'Individual Event'}
+            </LanguageText>
           </Label>
         </div>
       </div>
@@ -79,11 +81,7 @@ export const EventDialogFields = ({
       {/* Event Type */}
       <div>
         <Label htmlFor="event-type">
-          <LanguageText 
-            en="Event Type" 
-            ka="ღონისძიების ტიპი" 
-            es="Tipo de Evento" 
-          />
+          <LanguageText>Event Type</LanguageText>
         </Label>
         <Select value={event.type} onValueChange={(value) => onUpdate({ type: value })}>
           <SelectTrigger>
@@ -91,19 +89,19 @@ export const EventDialogFields = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="birthday">
-              <LanguageText en="Birthday" ka="დაბადების დღე" es="Cumpleaños" />
+              <LanguageText>Birthday</LanguageText>
             </SelectItem>
             <SelectItem value="private_party">
-              <LanguageText en="Private Party" ka="კერძო წვეულება" es="Fiesta Privada" />
+              <LanguageText>Private Party</LanguageText>
             </SelectItem>
             <SelectItem value="wedding">
-              <LanguageText en="Wedding" ka="ქორწილი" es="Boda" />
+              <LanguageText>Wedding</LanguageText>
             </SelectItem>
             <SelectItem value="corporate">
-              <LanguageText en="Corporate Event" ka="კორპორატიული ღონისძიება" es="Evento Corporativo" />
+              <LanguageText>Corporate Event</LanguageText>
             </SelectItem>
             <SelectItem value="other">
-              <LanguageText en="Other" ka="სხვა" es="Otro" />
+              <LanguageText>Other</LanguageText>
             </SelectItem>
           </SelectContent>
         </Select>
@@ -113,11 +111,7 @@ export const EventDialogFields = ({
       {isGroupEvent && (
         <div>
           <Label htmlFor="group-name">
-            <LanguageText 
-              en="Group Name" 
-              ka="ჯგუფის სახელი" 
-              es="Nombre del Grupo" 
-            />
+            <LanguageText>Group Name</LanguageText>
           </Label>
           <Input
             id="group-name"
@@ -133,11 +127,7 @@ export const EventDialogFields = ({
         <>
           <div>
             <Label htmlFor="event-title">
-              <LanguageText 
-                en="Customer Name" 
-                ka="კლიენტის სახელი" 
-                es="Nombre del Cliente" 
-              />
+              <LanguageText>Customer Name</LanguageText>
             </Label>
             <Input
               id="event-title"
@@ -149,11 +139,7 @@ export const EventDialogFields = ({
 
           <div>
             <Label htmlFor="user-surname">
-              <LanguageText 
-                en="Customer Surname" 
-                ka="კლიენტის გვარი" 
-                es="Apellido del Cliente" 
-              />
+              <LanguageText>Customer Surname</LanguageText>
             </Label>
             <Input
               id="user-surname"
@@ -165,11 +151,7 @@ export const EventDialogFields = ({
 
           <div>
             <Label htmlFor="user-number">
-              <LanguageText 
-                en="Phone Number" 
-                ka="ტელეფონის ნომერი" 
-                es="Número de Teléfono" 
-              />
+              <LanguageText>Phone Number</LanguageText>
             </Label>
             <Input
               id="user-number"
@@ -181,11 +163,7 @@ export const EventDialogFields = ({
 
           <div>
             <Label htmlFor="requester-email">
-              <LanguageText 
-                en="Email" 
-                ka="ელ. ფოსტა" 
-                es="Correo Electrónico" 
-              />
+              <LanguageText>Email</LanguageText>
             </Label>
             <Input
               id="requester-email"
@@ -209,11 +187,7 @@ export const EventDialogFields = ({
       {/* Common Fields */}
       <div>
         <Label htmlFor="social-link">
-          <LanguageText 
-            en="Social Network Link" 
-            ka="სოციალური ქსელის ლინკი" 
-            es="Enlace de Red Social" 
-          />
+          <LanguageText>Social Network Link</LanguageText>
         </Label>
         <Input
           id="social-link"
@@ -225,11 +199,7 @@ export const EventDialogFields = ({
 
       <div>
         <Label htmlFor="event-notes">
-          <LanguageText 
-            en="Event Notes" 
-            ka="ღონისძიების ჩანაწერები" 
-            es="Notas del Evento" 
-          />
+          <LanguageText>Event Notes</LanguageText>
         </Label>
         <Textarea
           id="event-notes"
@@ -243,11 +213,7 @@ export const EventDialogFields = ({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="payment-amount">
-            <LanguageText 
-              en="Payment Amount" 
-              ka="გადასახდელი თანხა" 
-              es="Monto de Pago" 
-            />
+            <LanguageText>Payment Amount</LanguageText>
           </Label>
           <Input
             id="payment-amount"
@@ -260,11 +226,7 @@ export const EventDialogFields = ({
 
         <div>
           <Label htmlFor="payment-status">
-            <LanguageText 
-              en="Payment Status" 
-              ka="გადახდის სტატუსი" 
-              es="Estado de Pago" 
-            />
+            <LanguageText>Payment Status</LanguageText>
           </Label>
           <Select 
             value={event.payment_status || 'not_paid'} 
@@ -275,13 +237,13 @@ export const EventDialogFields = ({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="not_paid">
-                <LanguageText en="Not Paid" ka="არ არის გადახდილი" es="No Pagado" />
+                <LanguageText>Not Paid</LanguageText>
               </SelectItem>
               <SelectItem value="paid">
-                <LanguageText en="Paid" ka="გადახდილი" es="Pagado" />
+                <LanguageText>Paid</LanguageText>
               </SelectItem>
               <SelectItem value="partial">
-                <LanguageText en="Partial" ka="ნაწილობრივ" es="Parcial" />
+                <LanguageText>Partial</LanguageText>
               </SelectItem>
             </SelectContent>
           </Select>
@@ -292,11 +254,7 @@ export const EventDialogFields = ({
       {onFileSelect && (
         <div>
           <Label>
-            <LanguageText 
-              en="Attach File" 
-              ka="ფაილის მიმაგრება" 
-              es="Adjuntar Archivo" 
-            />
+            <LanguageText>Attach File</LanguageText>
           </Label>
           <FileUploadField onFileSelect={onFileSelect} />
         </div>

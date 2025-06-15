@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -305,21 +306,20 @@ export const Calendar = ({
         <>
           <EventDialog
             key={dialogSelectedDate?.getTime()}
-            open={isNewEventDialogOpen}
-            onOpenChange={setIsNewEventDialogOpen}
+            isOpen={isNewEventDialogOpen}
+            onClose={() => setIsNewEventDialogOpen(false)}
+            onSave={handleCreateEvent}
             selectedDate={dialogSelectedDate}
-            onSubmit={handleCreateEvent}
           />
 
           {selectedEvent && (
             <EventDialog
               key={selectedEvent.id}
-              open={!!selectedEvent}
-              onOpenChange={() => setSelectedEvent(null)}
-              selectedDate={new Date(selectedEvent.start_date)}
+              isOpen={!!selectedEvent}
+              onClose={() => setSelectedEvent(null)}
+              onSave={handleUpdateEvent}
               event={selectedEvent}
-              onSubmit={handleUpdateEvent}
-              onDelete={handleDeleteEvent}
+              selectedDate={new Date(selectedEvent.start_date)}
             />
           )}
         </>
