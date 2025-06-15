@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -110,22 +111,26 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      const result = await createEvent?.(data);
-      // Don't return the result to match Promise<void>
+      if (createEvent) {
+        await createEvent(data);
+      }
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
       console.log("Calendar passing to updateEvent:", { data, id: selectedEvent.id, type: selectedEvent.type });
       
-      const result = await updateEvent?.({
-        ...data,
-        id: selectedEvent.id,
-        type: selectedEvent.type  // Make sure to pass the type from the selected event
-      });
-      // Don't return the result to match Promise<void>
+      if (updateEvent) {
+        await updateEvent({
+          ...data,
+          id: selectedEvent.id,
+          type: selectedEvent.type  // Make sure to pass the type from the selected event
+        });
+      }
     },
     deleteEvent: async (id) => {
-      await deleteEvent?.(id);
+      if (deleteEvent) {
+        await deleteEvent(id);
+      }
     }
   });
 
