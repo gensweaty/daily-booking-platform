@@ -1,4 +1,5 @@
 
+// Classic minimal calendar grid: plain cells, minimal styling, no extra icons or group badges
 import { CalendarEventType } from '@/lib/types/calendar';
 import { format, isToday, isSameDay } from 'date-fns';
 
@@ -27,64 +28,49 @@ export const CalendarGrid = ({
     });
   };
 
-  const renderEventBadge = (event: CalendarEventType) => {
-    return (
-      <div
-        key={event.id}
-        onClick={(e) => {
-          e.stopPropagation();
-          onEventClick(event);
-        }}
-        className="p-1 text-xs rounded cursor-pointer hover:opacity-80 transition-opacity bg-blue-100 text-blue-800"
-      >
-        <div className="truncate">
-          {event.is_group_event ? event.group_name : event.title}
-        </div>
-        <div className="text-xs opacity-75">
-          {format(new Date(event.start_date), 'HH:mm')}
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="grid grid-cols-7 gap-1 p-4">
-      {/* Week days header */}
-      {weekDays.map((day) => (
-        <div key={day} className="p-2 text-center font-semibold text-gray-600 border-b">
-          {day}
-        </div>
-      ))}
-
-      {/* Calendar days */}
-      {daysInMonth.map((date, index) => {
-        const dayEvents = getEventsForDate(date);
-        const isCurrentDay = isToday(date);
-        const isCurrentMonth = date.getMonth() === currentDate.getMonth();
-
-        return (
-          <div
-            key={index}
-            onClick={() => onDateClick(date)}
-            className={`min-h-[100px] p-1 border cursor-pointer hover:bg-gray-50 transition-colors ${
-              isCurrentDay ? 'bg-blue-50 border-blue-200' : ''
-            } ${!isCurrentMonth ? 'text-gray-400 bg-gray-50' : ''}`}
-          >
-            <div className={`text-sm font-medium mb-1 ${isCurrentDay ? 'text-blue-600' : ''}`}>
-              {format(date, 'd')}
-            </div>
-            
-            <div className="space-y-1">
-              {dayEvents.slice(0, 3).map(renderEventBadge)}
-              {dayEvents.length > 3 && (
-                <div className="text-xs text-gray-500 text-center">
-                  +{dayEvents.length - 3} more
-                </div>
-              )}
-            </div>
+    <div className="w-full max-w-3xl mx-auto p-2">
+      <div className="grid grid-cols-7 border bg-white rounded overflow-hidden shadow">
+        {/* Week Header */}
+        {weekDays.map(day => (
+          <div key={day} className="text-xs font-semibold py-2 text-center bg-gray-50 border-b">
+            {day}
           </div>
-        );
-      })}
+        ))}
+        {/* Days */}
+        {daysInMonth.map((date, idx) => {
+          const isCurrentMonth = date.getMonth() === currentDate.getMonth();
+          const today = isToday(date);
+          const dayEvents = getEventsForDate(date);
+          return (
+            <div
+              key={idx}
+              onClick={() => onDateClick(date)}
+              className={`
+                cursor-pointer min-h-[70px] border-b border-r last:border-r-0 p-1
+                ${!isCurrentMonth ? 'bg-gray-100 text-gray-400' : ''}
+                ${today ? 'bg-blue-100' : ''}
+                relative hover:bg-blue-50 transition
+              `}
+            >
+              <div className={`text-sm font-medium ${today ? 'text-blue-700' : ''}`}>{format(date, 'd')}</div>
+              {/* Show up to 2 events */}
+              <div className="space-y-1 pt-1">
+                {dayEvents.slice(0,2).map(ev => (
+                  <div
+                    key={ev.id}
+                    className="text-xs bg-blue-200 rounded px-1 py-0.5 truncate cursor-pointer hover:bg-blue-300"
+                    onClick={e => { e.stopPropagation(); onEventClick(ev); }}
+                  >
+                    {ev.is_group_event ? ev.group_name : ev.title}
+                  </div>
+                ))}
+                {dayEvents.length > 2 && <div className="text-[10px] text-gray-500 font-medium">+{dayEvents.length-2} more</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

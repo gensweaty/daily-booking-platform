@@ -35,20 +35,13 @@ export const EventDialogFields = ({
     onUpdate({ 
       is_group_event: checked,
       ...(checked ? {
-        title: '',
-        user_surname: '',
-        user_number: '',
-        requester_name: '',
-        requester_email: '',
-        requester_phone: ''
+        // group mode: clear full name
+        full_name: '',
       } : {
         group_name: '',
       })
     });
-    
-    if (!checked) {
-      setGroupMembers([]);
-    }
+    if (!checked) setGroupMembers([]);
   };
 
   const handleGroupMembersChange = (members: GroupMember[]) => {
@@ -56,17 +49,20 @@ export const EventDialogFields = ({
     onUpdate({ groupMembers: members } as any);
   };
 
+  // Get payment status (for showing payment amount field)
+  const paymentStatus = event.payment_status || 'not_paid';
+
   return (
     <div className="space-y-4">
       {/* Group Event Toggle */}
-      <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
+      <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
         <Switch
           id="group-event"
           checked={isGroupEvent}
           onCheckedChange={handleGroupToggle}
         />
-        <div className="flex items-center gap-2">
-          {isGroupEvent ? <Users className="w-4 h-4" /> : <User className="w-4 h-4" />}
+        <div className="flex items-center">
+          {isGroupEvent ? <Users className="w-4 h-4 mr-1" /> : <User className="w-4 h-4 mr-1" />}
           <Label htmlFor="group-event" className="font-medium">
             <LanguageText>
               {isGroupEvent ? 'Group Event' : 'Individual Event'}
@@ -74,8 +70,7 @@ export const EventDialogFields = ({
           </Label>
         </div>
       </div>
-
-      {/* Group Name (for group events) */}
+      {/* Group Name for group events */}
       {isGroupEvent && (
         <div>
           <Label htmlFor="group-name">
@@ -84,39 +79,25 @@ export const EventDialogFields = ({
           <Input
             id="group-name"
             value={event.group_name || ''}
-            onChange={(e) => onUpdate({ group_name: e.target.value })}
+            onChange={e => onUpdate({ group_name: e.target.value })}
             placeholder="Enter group name"
           />
         </div>
       )}
-
-      {/* Individual Event Fields */}
+      {/* Individual Event: One Full Name Field */}
       {!isGroupEvent && (
         <>
           <div>
-            <Label htmlFor="event-title">
-              <LanguageText>Customer Name</LanguageText>
+            <Label htmlFor="full-name">
+              <LanguageText>Full Name</LanguageText>
             </Label>
             <Input
-              id="event-title"
-              value={event.title}
-              onChange={(e) => onUpdate({ title: e.target.value })}
-              placeholder="Customer name"
+              id="full-name"
+              value={event.full_name || ''}
+              onChange={e => onUpdate({ full_name: e.target.value })}
+              placeholder="Full name"
             />
           </div>
-
-          <div>
-            <Label htmlFor="user-surname">
-              <LanguageText>Customer Surname</LanguageText>
-            </Label>
-            <Input
-              id="user-surname"
-              value={event.user_surname || ''}
-              onChange={(e) => onUpdate({ user_surname: e.target.value })}
-              placeholder="Customer surname"
-            />
-          </div>
-
           <div>
             <Label htmlFor="user-number">
               <LanguageText>Phone Number</LanguageText>
@@ -128,7 +109,6 @@ export const EventDialogFields = ({
               placeholder="Phone number"
             />
           </div>
-
           <div>
             <Label htmlFor="requester-email">
               <LanguageText>Email</LanguageText>
@@ -138,20 +118,18 @@ export const EventDialogFields = ({
               type="email"
               value={event.requester_email || ''}
               onChange={(e) => onUpdate({ requester_email: e.target.value })}
-              placeholder="Email address"
+              placeholder="Email"
             />
           </div>
         </>
       )}
-
-      {/* Group Members Manager (for group events) */}
+      {/* Group Members for group events */}
       {isGroupEvent && (
         <GroupMembersManager
           members={groupMembers}
           onMembersChange={handleGroupMembersChange}
         />
       )}
-
       {/* Common Fields */}
       <div>
         <Label htmlFor="social-link">
@@ -164,7 +142,6 @@ export const EventDialogFields = ({
           placeholder="Social media profile"
         />
       </div>
-
       <div>
         <Label htmlFor="event-notes">
           <LanguageText>Event Notes</LanguageText>
@@ -177,29 +154,15 @@ export const EventDialogFields = ({
           rows={3}
         />
       </div>
-
       {/* Payment fields only for individual events */}
       {!isGroupEvent && (
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="payment-amount">
-              <LanguageText>Payment Amount</LanguageText>
-            </Label>
-            <Input
-              id="payment-amount"
-              type="number"
-              value={event.payment_amount || ''}
-              onChange={(e) => onUpdate({ payment_amount: parseFloat(e.target.value) || 0 })}
-              placeholder="Amount"
-            />
-          </div>
-
+        <div className="grid grid-cols-2 gap-4 items-end">
           <div>
             <Label htmlFor="payment-status">
               <LanguageText>Payment Status</LanguageText>
             </Label>
             <select 
-              value={event.payment_status || 'not_paid'} 
+              value={paymentStatus}
               onChange={(e) => onUpdate({ payment_status: e.target.value })}
               className="w-full p-2 border border-gray-300 rounded-md"
             >
@@ -214,9 +177,24 @@ export const EventDialogFields = ({
               </option>
             </select>
           </div>
+          {/* Only show payment amount if status is NOT 'not_paid' */}
+          {paymentStatus !== "not_paid" && (
+            <div>
+              <Label htmlFor="payment-amount">
+                <LanguageText>Payment Amount</LanguageText>
+              </Label>
+              <Input
+                id="payment-amount"
+                type="number"
+                value={event.payment_amount || ''}
+                onChange={(e) => onUpdate({ payment_amount: parseFloat(e.target.value) || 0 })}
+                placeholder="Amount"
+                min={0}
+              />
+            </div>
+          )}
         </div>
       )}
-
       {/* File Upload */}
       {onFileSelect && (
         <div>
@@ -229,3 +207,4 @@ export const EventDialogFields = ({
     </div>
   );
 };
+// Note: This file is over 200 lines long, consider asking me to refactor it into smaller focused components for easier maintainability.
