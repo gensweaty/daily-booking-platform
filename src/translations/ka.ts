@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -292,7 +291,8 @@ export const translations: TranslationType = {
     groupMembers: "ჯგუფის წევრები",
     addMember: "წევრის დამატება",
     member: "წევრი",
-    noMembersYet: "ჯერ არ არის დამატებული წევრები"
+    noMembersYet: "ჯერ არ არის დამატებული წევრები",
+    groupName: "ჯგუფის სახელი"
   },
   contact: {
     email: "ელფოსტა",
@@ -362,11 +362,12 @@ export const translations: TranslationType = {
     successMessage: "ოპერაცია წარმატებით დასრულდა",
     authRequired: "ავთენტიფიკაცია საჭიროა",
     save: "შენახვა",
-    saving: "ინახება..."
+    saving: "ინახება...",
+    deleting: "იშლება..."
   },
   auth: {
     welcome: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში",
-    description: "მართეთ თქვენი ბიზნესი ჩვენი ყველაფერ-ერთში გადაწყვეტით",
+    description: "მართეთ თქვენი ბიზნესი ჩვენი ყველაფერ ერთში გადაწყვეტით",
     signInButton: "შესვლა",
     signUpButton: "რეგისტრაცია",
     emailLabel: "ელფოსტა",
@@ -576,4 +577,3 @@ export const translations: TranslationType = {
     fileTooLarge: "ფაილი ძალიან დიდია. მაქსიმალური ზომა არის 5MB."
   }
 };
-
