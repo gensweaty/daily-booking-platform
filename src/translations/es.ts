@@ -292,7 +292,8 @@ export const translations: TranslationType = {
     groupMembers: "Miembros del Grupo",
     addMember: "Agregar Miembro",
     member: "Miembro",
-    noMembersYet: "Aún no se han agregado miembros"
+    noMembersYet: "Aún no se han agregado miembros",
+    groupName: "Nombre del Grupo"
   },
   contact: {
     email: "Correo electrónico",
@@ -362,7 +363,8 @@ export const translations: TranslationType = {
     successMessage: "Operación completada con éxito",
     authRequired: "Autenticación requerida",
     save: "Guardar",
-    saving: "Guardando..."
+    saving: "Guardando...",
+    deleting: "Eliminando..."
   },
   auth: {
     welcome: "Bienvenido a SmartBookly",
