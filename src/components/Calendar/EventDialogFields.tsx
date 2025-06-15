@@ -1,209 +1,340 @@
-import { useState, useEffect } from 'react';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { CalendarEventType, GroupMember } from '@/lib/types/calendar';
-import { FileUploadField } from '@/components/shared/FileUploadField';
-import { LanguageText } from '@/components/shared/LanguageText';
-import { GroupMembersManager } from './GroupMembersManager';
-import { Users, User } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileUploadField } from "@/components/shared/FileUploadField";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { FileDisplay } from "@/components/shared/FileDisplay";
+import { cn } from "@/lib/utils";
+import { FileRecord } from "@/types/files";
+import { LanguageText } from "@/components/shared/LanguageText";
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { getCurrencySymbol } from "@/lib/currency";
+import { useState, useEffect, useMemo } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface EventDialogFieldsProps {
-  event: CalendarEventType;
-  onUpdate: (updates: Partial<CalendarEventType>) => void;
-  onFileSelect?: (file: File | null) => void;
-  isEditing?: boolean;
+  title: string;
+  setTitle: (value: string) => void;
+  userSurname: string;
+  setUserSurname: (value: string) => void;
+  userNumber: string;
+  setUserNumber: (value: string) => void;
+  socialNetworkLink: string;
+  setSocialNetworkLink: (value: string) => void;
+  eventNotes: string;
+  setEventNotes: (value: string) => void;
+  startDate: string;
+  setStartDate: (value: string) => void;
+  endDate: string;
+  setEndDate: (value: string) => void;
+  paymentStatus: string;
+  setPaymentStatus: (value: string) => void;
+  paymentAmount: string;
+  setPaymentAmount: (value: string) => void;
+  selectedFile: File | null;
+  setSelectedFile: (file: File | null) => void;
+  fileError: string;
+  setFileError: (error: string) => void;
+  eventId?: string;
+  displayedFiles: FileRecord[];
+  onFileDeleted: (fileId: string) => void;
+  isBookingRequest?: boolean;
 }
 
 export const EventDialogFields = ({
-  event,
-  onUpdate,
-  onFileSelect,
-  isEditing = false
+  title,
+  setTitle,
+  userSurname,
+  setUserSurname,
+  userNumber,
+  setUserNumber,
+  socialNetworkLink,
+  setSocialNetworkLink,
+  eventNotes,
+  setEventNotes,
+  startDate,
+  setStartDate,
+  endDate,
+  setEndDate,
+  paymentStatus,
+  setPaymentStatus,
+  paymentAmount,
+  setPaymentAmount,
+  selectedFile,
+  setSelectedFile,
+  fileError,
+  setFileError,
+  eventId,
+  displayedFiles,
+  onFileDeleted,
+  isBookingRequest = false
 }: EventDialogFieldsProps) => {
-  const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
-  const [isGroupEvent, setIsGroupEvent] = useState(event.is_group_event || false);
-
-  useEffect(() => {
-    setIsGroupEvent(event.is_group_event || false);
-  }, [event.is_group_event]);
-
-  const handleGroupToggle = (checked: boolean) => {
-    setIsGroupEvent(checked);
-    onUpdate({ 
-      is_group_event: checked,
-      ...(checked ? {
-        // group mode: clear full name
-        title: '',
-      } : {
-        group_name: '',
-      })
-    });
-    if (!checked) setGroupMembers([]);
+  const {
+    t,
+    language
+  } = useLanguage();
+  const [loading, setLoading] = useState(false);
+  const isGeorgian = language === 'ka';
+  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
+  const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
+  const currencySymbol = getCurrencySymbol(language);
+  
+  // Process files to remove duplicates by comparing path and name
+  const processedFiles = useMemo(() => {
+    if (!displayedFiles.length) return [];
+    
+    // Return the displayed files directly since deduplication is now handled in FileDisplay component
+    return displayedFiles;
+  }, [displayedFiles]);
+  
+  const georgianStyle = isGeorgian ? {
+    fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+    letterSpacing: '-0.2px',
+    WebkitFontSmoothing: 'antialiased',
+    MozOsxFontSmoothing: 'grayscale'
+  } : undefined;
+  
+  // Helper function for Georgian label text
+  const renderGeorgianLabel = (text: string) => {
+    if (isGeorgian) {
+      if (text === "events.fullName") return <GeorgianAuthText letterSpacing="-0.05px">სრული სახელი</GeorgianAuthText>;
+      if (text === "events.phoneNumber") return <GeorgianAuthText letterSpacing="-0.05px">ტელეფონის ნომერი</GeorgianAuthText>;
+      if (text === "events.socialLinkEmail") return <GeorgianAuthText letterSpacing="-0.05px">ელფოსტა</GeorgianAuthText>; 
+      if (text === "events.eventNotes") return <GeorgianAuthText letterSpacing="-0.05px">შენიშვნები</GeorgianAuthText>;
+    }
+    return <LanguageText>{t(text)}</LanguageText>;
   };
-
-  const handleGroupMembersChange = (members: GroupMember[]) => {
-    setGroupMembers(members);
-    onUpdate({ groupMembers: members } as any);
+  
+  // Fixed Georgian placeholder for event notes
+  const getEventNotesPlaceholder = () => {
+    if (isGeorgian) {
+      return "დაამატეთ შენიშვნები თქვენი ჯავშნის შესახებ";
+    }
+    return t("events.addEventNotes");
   };
-
-  // Get payment status (for showing payment amount field)
-  const paymentStatus = event.payment_status || 'not_paid';
-
-  return (
-    <div className="space-y-4">
-      {/* Group Event Toggle */}
-      <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
-        <Switch
-          id="group-event"
-          checked={isGroupEvent}
-          onCheckedChange={handleGroupToggle}
-        />
-        <div className="flex items-center">
-          {isGroupEvent ? <Users className="w-4 h-4 mr-1" /> : <User className="w-4 h-4 mr-1" />}
-          <Label htmlFor="group-event" className="font-medium">
-            <LanguageText>
-              {isGroupEvent ? 'Group Event' : 'Individual Event'}
-            </LanguageText>
-          </Label>
-        </div>
-      </div>
-      {/* Group Name for group events */}
-      {isGroupEvent && (
-        <div>
-          <Label htmlFor="group-name">
-            <LanguageText>Group Name</LanguageText>
-          </Label>
-          <Input
-            id="group-name"
-            value={event.group_name || ''}
-            onChange={e => onUpdate({ group_name: e.target.value })}
-            placeholder="Enter group name"
-          />
-        </div>
-      )}
-      {/* Individual Event: One Full Name Field */}
-      {!isGroupEvent && (
-        <>
-          <div>
-            <Label htmlFor="full-name">
-              <LanguageText>Full Name</LanguageText>
-            </Label>
-            <Input
-              id="full-name"
-              value={event.title || ''}
-              onChange={e => onUpdate({ title: e.target.value })}
-              placeholder="Full name"
-            />
-          </div>
-          <div>
-            <Label htmlFor="user-number">
-              <LanguageText>Phone Number</LanguageText>
-            </Label>
-            <Input
-              id="user-number"
-              value={event.user_number || ''}
-              onChange={(e) => onUpdate({ user_number: e.target.value })}
-              placeholder="Phone number"
-            />
-          </div>
-          <div>
-            <Label htmlFor="requester-email">
-              <LanguageText>Email</LanguageText>
-            </Label>
-            <Input
-              id="requester-email"
-              type="email"
-              value={event.requester_email || ''}
-              onChange={(e) => onUpdate({ requester_email: e.target.value })}
-              placeholder="Email"
-            />
-          </div>
-        </>
-      )}
-      {/* Group Members for group events */}
-      {isGroupEvent && (
-        <GroupMembersManager
-          members={groupMembers}
-          onMembersChange={handleGroupMembersChange}
-        />
-      )}
-      {/* Common Fields */}
+  
+  return <>
       <div>
-        <Label htmlFor="social-link">
-          <LanguageText>Social Network Link</LanguageText>
+        <Label 
+          htmlFor="userSurname" 
+          className={cn(isGeorgian ? "font-georgian" : "")}
+          style={isGeorgian ? {
+            fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+            letterSpacing: '-0.2px',
+            WebkitFontSmoothing: 'antialiased',
+            MozOsxFontSmoothing: 'grayscale'
+          } : undefined}
+        >
+          {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">სრული სახელი</GeorgianAuthText> : <LanguageText>{t("events.fullName")}</LanguageText>}
         </Label>
-        <Input
-          id="social-link"
-          value={event.social_network_link || ''}
-          onChange={(e) => onUpdate({ social_network_link: e.target.value })}
-          placeholder="Social media profile"
+        <Input 
+          id="userSurname" 
+          value={userSurname} 
+          onChange={e => {
+            setUserSurname(e.target.value);
+            setTitle(e.target.value); // Set title to same as userSurname
+          }} 
+          placeholder={isGeorgian ? "სრული სახელი" : t("events.fullName")} 
+          required 
+          className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
+          style={isGeorgian ? {
+            fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+            letterSpacing: '-0.2px',
+            WebkitFontSmoothing: 'antialiased',
+            MozOsxFontSmoothing: 'grayscale'
+          } : undefined} 
         />
       </div>
       <div>
-        <Label htmlFor="event-notes">
-          <LanguageText>Event Notes</LanguageText>
+        <Label 
+          htmlFor="userNumber" 
+          className={cn(isGeorgian ? "font-georgian" : "")}
+          style={georgianStyle}
+        >
+          {renderGeorgianLabel("events.phoneNumber")}
         </Label>
-        <Textarea
-          id="event-notes"
-          value={event.event_notes || ''}
-          onChange={(e) => onUpdate({ event_notes: e.target.value })}
-          placeholder={isGroupEvent ? "General notes for the group event" : "Event notes"}
-          rows={3}
+        <Input 
+          id="userNumber" 
+          value={userNumber} 
+          onChange={e => setUserNumber(e.target.value)} 
+          placeholder={isGeorgian ? "ტელეფონის ნომერი" : t("events.phoneNumber")} 
+          className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}  
+          style={georgianStyle} 
         />
       </div>
-      {/* Payment fields only for individual events */}
-      {!isGroupEvent && (
-        <div className="grid grid-cols-2 gap-4 items-end">
+      <div>
+        <Label 
+          htmlFor="socialNetworkLink" 
+          className={cn(isGeorgian ? "font-georgian" : "")}
+          style={georgianStyle}
+        >
+          {renderGeorgianLabel("events.socialLinkEmail")}
+        </Label>
+        <Input 
+          id="socialNetworkLink" 
+          value={socialNetworkLink} 
+          onChange={e => setSocialNetworkLink(e.target.value)} 
+          placeholder="email@example.com" 
+          type="email" 
+          style={isGeorgian ? { ...georgianStyle } : undefined}
+        />
+      </div>
+      <div>
+        <Label 
+          htmlFor="dateTime" 
+          className={cn(isGeorgian ? "font-georgian" : "")}
+          style={georgianStyle}
+        >
+          <LanguageText>{t("events.dateAndTime")}</LanguageText>
+        </Label>
+        <div className="grid grid-cols-2 gap-2">
           <div>
-            <Label htmlFor="payment-status">
-              <LanguageText>Payment Status</LanguageText>
-            </Label>
-            <select 
-              value={paymentStatus}
-              onChange={(e) => onUpdate({ payment_status: e.target.value })}
-              className="w-full p-2 border border-gray-300 rounded-md"
+            <Label 
+              htmlFor="startDate" 
+              className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}
+              style={georgianStyle}
             >
-              <option value="not_paid">
-                <LanguageText>Not Paid</LanguageText>
-              </option>
-              <option value="paid">
-                <LanguageText>Paid</LanguageText>
-              </option>
-              <option value="partial">
-                <LanguageText>Partial</LanguageText>
-              </option>
-            </select>
-          </div>
-          {/* Only show payment amount if status is NOT 'not_paid' */}
-          {paymentStatus !== "not_paid" && (
-            <div>
-              <Label htmlFor="payment-amount">
-                <LanguageText>Payment Amount</LanguageText>
-              </Label>
-              <Input
-                id="payment-amount"
-                type="number"
-                value={event.payment_amount || ''}
-                onChange={(e) => onUpdate({ payment_amount: parseFloat(e.target.value) || 0 })}
-                placeholder="Amount"
-                min={0}
+              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">დაწყება</GeorgianAuthText> : <LanguageText>{t("events.start")}</LanguageText>}
+            </Label>
+            <div className="relative">
+              <Input 
+                id="startDate" 
+                type="datetime-local" 
+                value={startDate} 
+                onChange={e => setStartDate(e.target.value)} 
+                required 
+                className="w-full dark:text-white dark:[color-scheme:dark]" 
+                style={{ colorScheme: 'auto' }} 
               />
             </div>
-          )}
+          </div>
+          <div>
+            <Label 
+              htmlFor="endDate" 
+              className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}
+              style={georgianStyle}
+            >
+              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">დასრულება</GeorgianAuthText> : <LanguageText>{t("events.end")}</LanguageText>}
+            </Label>
+            <div className="relative">
+              <Input 
+                id="endDate" 
+                type="datetime-local" 
+                value={endDate} 
+                onChange={e => setEndDate(e.target.value)} 
+                required 
+                className="w-full dark:text-white dark:[color-scheme:dark]" 
+                style={{ colorScheme: 'auto' }} 
+              />
+            </div>
+          </div>
         </div>
-      )}
-      {/* File Upload */}
-      {onFileSelect && (
-        <div>
-          <Label>
-            <LanguageText>Attach File</LanguageText>
-          </Label>
-          <FileUploadField onFileSelect={onFileSelect} />
-        </div>
-      )}
-    </div>
-  );
+      </div>
+      
+      {!isBookingRequest && <>
+          <div>
+            <Label 
+              htmlFor="paymentStatus" 
+              className={cn(isGeorgian ? "font-georgian" : "")}
+              style={georgianStyle}
+            >
+              <LanguageText>{t("events.paymentStatus")}</LanguageText>
+            </Label>
+            <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+              <SelectTrigger id="paymentStatus" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+                <SelectValue placeholder={t("events.selectPaymentStatus")} />
+              </SelectTrigger>
+              <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
+                <SelectItem value="not_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+                  <LanguageText>{t("crm.notPaid")}</LanguageText>
+                </SelectItem>
+                <SelectItem value="partly_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+                  <LanguageText>{t("crm.paidPartly")}</LanguageText>
+                </SelectItem>
+                <SelectItem value="fully_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+                  <LanguageText>{t("crm.paidFully")}</LanguageText>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {showPaymentAmount && <div>
+              <Label 
+                htmlFor="paymentAmount" 
+                className={cn(isGeorgian ? "font-georgian" : "")}
+                style={georgianStyle}
+              >
+                <LanguageText>{t("events.paymentAmount")}</LanguageText>
+              </Label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <span className="text-gray-500">{currencySymbol}</span>
+                </div>
+                <Input 
+                  id="paymentAmount" 
+                  value={paymentAmount} 
+                  onChange={e => {
+                    const value = e.target.value;
+                    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                      setPaymentAmount(value);
+                    }
+                  }} 
+                  className="pl-7" 
+                  placeholder="0.00" 
+                  type="text" 
+                  inputMode="decimal" 
+                />
+              </div>
+            </div>}
+        </>}
+      
+      <div>
+        <Label 
+          htmlFor="eventNotes" 
+          className={cn(isGeorgian ? "font-georgian" : "")}
+          style={georgianStyle}
+        >
+          {renderGeorgianLabel("events.eventNotes")}
+        </Label>
+        <Textarea 
+          id="eventNotes" 
+          value={eventNotes} 
+          onChange={e => setEventNotes(e.target.value)} 
+          placeholder={getEventNotesPlaceholder()}
+          className={cn("min-h-[100px] resize-none", isGeorgian ? "placeholder:font-georgian font-georgian" : "")} 
+          style={georgianStyle}
+        />
+      </div>
+      
+      <div>
+        <Label 
+          htmlFor="file" 
+          className={cn(isGeorgian ? "font-georgian" : "")}
+          style={georgianStyle}
+        >
+          <LanguageText>{t("common.attachments")}</LanguageText>
+        </Label>
+        <FileUploadField 
+          onChange={setSelectedFile} 
+          fileError={fileError} 
+          setFileError={setFileError} 
+          acceptedFileTypes={acceptedFormats} 
+          selectedFile={selectedFile} 
+          hideLabel={true} 
+        />
+      </div>
+      
+      {processedFiles.length > 0 && <div className="flex flex-col gap-2">
+          <FileDisplay 
+            files={processedFiles} 
+            bucketName="event_attachments" 
+            allowDelete={true} 
+            onFileDeleted={onFileDeleted} 
+            parentType="event" 
+            parentId={eventId}
+            fallbackBuckets={["customer_attachments", "booking_attachments"]} 
+          />
+        </div>}
+    </>;
 };
-// Note: This file is over 200 lines long, consider asking me to refactor it into smaller focused components for easier maintainability.

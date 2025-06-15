@@ -27,11 +27,7 @@ export interface CalendarEventType {
   size?: number;
   checkAvailability?: boolean;
   language?: string;
-  customer_id?: string;
-  // New group booking fields
-  is_group_event?: boolean;
-  group_name?: string;
-  parent_group_id?: string;
+  customer_id?: string; // Properly typed as optional string
   files?: Array<{
     id: string;
     event_id: string;
@@ -40,16 +36,4 @@ export interface CalendarEventType {
     content_type?: string;
     size?: number;
   }>;
-}
-
-export interface GroupMember {
-  id?: string;
-  name: string;
-  surname?: string;
-  phone?: string;
-  email?: string;
-  notes?: string;
-  social_network_link?: string;
-  payment_amount?: number;
-  payment_status?: string;
 }
