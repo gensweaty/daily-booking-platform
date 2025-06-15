@@ -267,7 +267,7 @@ export const translations: TranslationType = {
     eventNotes: "Notas",
     addEventNotes: "Añade notas sobre tu solicitud de reserva",
     editEvent: "Editar Evento",
-    addNewEvent: "Añadir Nuevo Evento",
+    addNewEvent: "Agregar Nuevo Evento",
     updateEvent: "Actualizar Evento",
     createEvent: "Crear Evento",
     deleteEvent: "Eliminar Evento",
@@ -286,7 +286,13 @@ export const translations: TranslationType = {
     eventDetails: "Detalles del Evento",
     title: "Título del Evento",
     bookAppointment: "Reservar Cita",
-    submitRequest: "Enviar Solicitud"
+    submitRequest: "Enviar Solicitud",
+    groupEvent: "Evento Grupal",
+    eventName: "Nombre del Evento",
+    groupMembers: "Miembros del Grupo",
+    addMember: "Agregar Miembro",
+    member: "Miembro",
+    noMembersYet: "Aún no se han agregado miembros"
   },
   contact: {
     email: "Correo electrónico",

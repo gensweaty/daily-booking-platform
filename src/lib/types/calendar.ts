@@ -1,6 +1,16 @@
 
 export type CalendarViewType = 'month' | 'week' | 'day';
 
+export interface GroupMember {
+  id: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  paymentStatus: string;
+  paymentAmount: string;
+  notes: string;
+}
+
 export interface CalendarEventType {
   id: string;
   title: string;
@@ -10,7 +20,7 @@ export interface CalendarEventType {
   event_notes?: string;
   start_date: string;
   end_date: string;
-  type: 'birthday' | 'private_party' | 'booking_request' | string;
+  type: 'birthday' | 'private_party' | 'booking_request' | 'group_event' | string;
   payment_status?: string;
   payment_amount?: number;
   created_at: string;
@@ -27,7 +37,7 @@ export interface CalendarEventType {
   size?: number;
   checkAvailability?: boolean;
   language?: string;
-  customer_id?: string; // Properly typed as optional string
+  customer_id?: string;
   files?: Array<{
     id: string;
     event_id: string;
@@ -36,4 +46,8 @@ export interface CalendarEventType {
     content_type?: string;
     size?: number;
   }>;
+  // Group event fields
+  is_group_event?: boolean;
+  group_name?: string;
+  group_members?: GroupMember[];
 }

@@ -1,3 +1,4 @@
+
 export interface Task {
   id: string;
   title: string;
@@ -104,4 +105,54 @@ export interface CustomerFile {
   user_id?: string;
   created_at: string;
   source?: string;
+}
+
+// Add Customer interface to match customers table
+export interface Customer {
+  id: string;
+  title: string;
+  user_surname?: string;
+  user_number?: string;
+  social_network_link?: string;
+  event_notes?: string;
+  start_date?: string;
+  end_date?: string;
+  payment_status?: string;
+  payment_amount?: number | null;
+  type?: string;
+  user_id?: string;
+  created_at?: string;
+  deleted_at?: string;
+  create_event?: boolean;
+  parent_group_id?: string; // Reference to parent group event
+  is_group_member?: boolean; // Whether this customer is part of a group
+}
+
+// Add Event interface to match events table
+export interface Event {
+  id: string;
+  title: string;
+  user_surname?: string;
+  user_number?: string;
+  social_network_link?: string;
+  event_notes?: string;
+  start_date: string;
+  end_date: string;
+  type?: string;
+  payment_status?: string;
+  payment_amount?: number | null;
+  user_id?: string;
+  created_at?: string;
+  deleted_at?: string;
+  language?: string;
+  file_path?: string;
+  filename?: string;
+  content_type?: string;
+  size?: number;
+  booking_request_id?: string;
+  original_booking_id?: string;
+  // Group event fields
+  is_group_event?: boolean;
+  group_name?: string;
+  parent_group_id?: string;
 }

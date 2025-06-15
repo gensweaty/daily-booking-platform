@@ -285,7 +285,14 @@ export const translations: TranslationType = {
     eventDetails: "Event Details",
     title: "Event Title",
     bookAppointment: "Book Appointment",
-    submitRequest: "Submit Request"
+    submitRequest: "Submit Request",
+    // New group event translations
+    groupEvent: "Group Event",
+    eventName: "Event Name",
+    groupMembers: "Group Members",
+    addMember: "Add Member",
+    member: "Member",
+    noMembersYet: "No members added yet"
   },
   contact: {
     email: "Email",
