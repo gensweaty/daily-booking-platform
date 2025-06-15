@@ -267,7 +267,7 @@ export const translations: TranslationType = {
     eventNotes: "Notas",
     addEventNotes: "Añade notas sobre tu solicitud de reserva",
     editEvent: "Editar Evento",
-    addNewEvent: "Agregar Nuevo Evento",
+    addNewEvent: "Añadir Nuevo Evento",
     updateEvent: "Actualizar Evento",
     createEvent: "Crear Evento",
     deleteEvent: "Eliminar Evento",
@@ -286,14 +286,7 @@ export const translations: TranslationType = {
     eventDetails: "Detalles del Evento",
     title: "Título del Evento",
     bookAppointment: "Reservar Cita",
-    submitRequest: "Enviar Solicitud",
-    groupEvent: "Evento Grupal",
-    eventName: "Nombre del Evento",
-    groupMembers: "Miembros del Grupo",
-    addMember: "Agregar Miembro",
-    member: "Miembro",
-    noMembersYet: "Aún no se han agregado miembros",
-    groupName: "Nombre del Grupo"
+    submitRequest: "Enviar Solicitud"
   },
   contact: {
     email: "Correo electrónico",
@@ -363,8 +356,7 @@ export const translations: TranslationType = {
     successMessage: "Operación completada con éxito",
     authRequired: "Autenticación requerida",
     save: "Guardar",
-    saving: "Guardando...",
-    deleting: "Eliminando..."
+    saving: "Guardando..."
   },
   auth: {
     welcome: "Bienvenido a SmartBookly",

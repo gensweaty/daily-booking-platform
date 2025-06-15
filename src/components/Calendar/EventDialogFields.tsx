@@ -2,7 +2,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { FileDisplay } from "@/components/shared/FileDisplay";
@@ -41,10 +40,6 @@ interface EventDialogFieldsProps {
   displayedFiles: FileRecord[];
   onFileDeleted: (fileId: string) => void;
   isBookingRequest?: boolean;
-  isGroupEvent?: boolean;
-  setIsGroupEvent?: (value: boolean) => void;
-  groupName?: string;
-  setGroupName?: (value: string) => void;
 }
 
 export const EventDialogFields = ({
@@ -73,11 +68,7 @@ export const EventDialogFields = ({
   eventId,
   displayedFiles,
   onFileDeleted,
-  isBookingRequest = false,
-  isGroupEvent = false,
-  setIsGroupEvent,
-  groupName = "",
-  setGroupName
+  isBookingRequest = false
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -111,8 +102,6 @@ export const EventDialogFields = ({
       if (text === "events.phoneNumber") return <GeorgianAuthText letterSpacing="-0.05px">ტელეფონის ნომერი</GeorgianAuthText>;
       if (text === "events.socialLinkEmail") return <GeorgianAuthText letterSpacing="-0.05px">ელფოსტა</GeorgianAuthText>; 
       if (text === "events.eventNotes") return <GeorgianAuthText letterSpacing="-0.05px">შენიშვნები</GeorgianAuthText>;
-      if (text === "events.groupEvent") return <GeorgianAuthText letterSpacing="-0.05px">ჯგუფური ღონისძიება</GeorgianAuthText>;
-      if (text === "events.groupName") return <GeorgianAuthText letterSpacing="-0.05px">ჯგუფის სახელი</GeorgianAuthText>;
     }
     return <LanguageText>{t(text)}</LanguageText>;
   };
@@ -126,44 +115,6 @@ export const EventDialogFields = ({
   };
   
   return <>
-      {!isBookingRequest && setIsGroupEvent && (
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="groupEvent"
-            checked={isGroupEvent}
-            onCheckedChange={setIsGroupEvent}
-          />
-          <Label 
-            htmlFor="groupEvent" 
-            className={cn(isGeorgian ? "font-georgian" : "")}
-            style={georgianStyle}
-          >
-            {renderGeorgianLabel("events.groupEvent")}
-          </Label>
-        </div>
-      )}
-
-      {isGroupEvent && setGroupName && (
-        <div>
-          <Label 
-            htmlFor="groupName" 
-            className={cn(isGeorgian ? "font-georgian" : "")}
-            style={georgianStyle}
-          >
-            {renderGeorgianLabel("events.groupName")}
-          </Label>
-          <Input 
-            id="groupName" 
-            value={groupName} 
-            onChange={e => setGroupName(e.target.value)} 
-            placeholder={isGeorgian ? "ჯგუფის სახელი" : t("events.groupName")} 
-            required={isGroupEvent}
-            className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
-            style={georgianStyle}
-          />
-        </div>
-      )}
-
       <div>
         <Label 
           htmlFor="userSurname" 
@@ -182,9 +133,7 @@ export const EventDialogFields = ({
           value={userSurname} 
           onChange={e => {
             setUserSurname(e.target.value);
-            if (!isGroupEvent) {
-              setTitle(e.target.value); // Set title to same as userSurname only for regular events
-            }
+            setTitle(e.target.value); // Set title to same as userSurname
           }} 
           placeholder={isGeorgian ? "სრული სახელი" : t("events.fullName")} 
           required 

@@ -285,14 +285,7 @@ export const translations: TranslationType = {
     eventDetails: "Event Details",
     title: "Event Title",
     bookAppointment: "Book Appointment",
-    submitRequest: "Submit Request",
-    groupEvent: "Group Event",
-    eventName: "Event Name",
-    groupMembers: "Group Members",
-    addMember: "Add Member",
-    member: "Member",
-    noMembersYet: "No members added yet",
-    groupName: "Group Name"
+    submitRequest: "Submit Request"
   },
   contact: {
     email: "Email",
@@ -362,8 +355,7 @@ export const translations: TranslationType = {
     successMessage: "Operation completed successfully",
     authRequired: "Authentication required",
     save: "Save",
-    saving: "Saving...",
-    deleting: "Deleting..."
+    saving: "Saving..."
   },
   auth: {
     welcome: "Welcome to SmartBookly",

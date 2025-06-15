@@ -150,6 +150,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
       
+      // ... keep existing code (recovery parameters handling)
       if (hasRecoveryParams() || searchParams.has('code')) {
         console.log("Recovery parameters detected, skipping session refresh");
         setLoading(false);
@@ -246,6 +247,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
         
+        // ... keep existing code (dashboard with code parameter handling)
         if (location.pathname === '/dashboard' && searchParams.has('code')) {
           console.log("Found code parameter on dashboard route, handling email confirmation");
           setLoading(false);
@@ -286,6 +288,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
         
+        // ... keep existing code (email confirmation and password reset handling)
         if (hasEmailConfirmParams()) {
           console.log("Email confirmation link detected in initSession", {
             search: location.search,
@@ -413,6 +416,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
       
+      // ... keep existing code (dashboard with code parameter handling)
       if (location.pathname === '/dashboard' && searchParams.has('code')) {
         console.log("Code parameter detected on dashboard route during auth state change");
         
@@ -442,6 +446,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
       
+      // ... keep existing code (email confirmation, password recovery, and auth state event handling)
       if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && hasEmailConfirmParams()) {
         console.log("Email confirmation completed", {
           event,

@@ -1,11 +1,5 @@
 export type Language = 'en' | 'es' | 'ka';
 
-export interface LanguageContextType {
-  language: Language;
-  setLanguage: (language: Language) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
-}
-
 export interface TranslationType {
   nav: {
     signin: string;
@@ -292,13 +286,6 @@ export interface TranslationType {
     title: string;
     bookAppointment: string;
     submitRequest: string;
-    groupEvent: string;
-    eventName: string;
-    groupMembers: string;
-    addMember: string;
-    member: string;
-    noMembersYet: string;
-    groupName: string;
   };
   contact: {
     email: string;
@@ -369,7 +356,6 @@ export interface TranslationType {
     authRequired: string;
     save: string;
     saving: string;
-    deleting: string;
   };
   auth: {
     welcome: string;
@@ -578,4 +564,10 @@ export interface TranslationType {
     invalidFileType: string;
     fileTooLarge: string;
   };
+}
+
+export interface LanguageContextType {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }

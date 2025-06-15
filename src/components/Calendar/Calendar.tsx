@@ -109,9 +109,24 @@ export const Calendar = ({
     handleUpdateEvent,
     handleDeleteEvent,
   } = useEventDialog({
-    createEvent,
-    updateEvent,
-    deleteEvent
+    createEvent: async (data) => {
+      const result = await createEvent?.(data);
+      return result;
+    },
+    updateEvent: async (data) => {
+      if (!selectedEvent) throw new Error("No event selected");
+      console.log("Calendar passing to updateEvent:", { data, id: selectedEvent.id, type: selectedEvent.type });
+      
+      const result = await updateEvent?.({
+        ...data,
+        id: selectedEvent.id,
+        type: selectedEvent.type  // Make sure to pass the type from the selected event
+      });
+      return result;
+    },
+    deleteEvent: async (id) => {
+      await deleteEvent?.(id);
+    }
   });
 
   if (!isExternalCalendar && !user && !window.location.pathname.includes('/business/')) {
