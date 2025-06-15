@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { EventDialogFields } from "./EventDialogFields";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { format } from "date-fns";
+import { FileRecord } from "@/types/files";
 
 interface EventDialogProps {
   open: boolean;
@@ -26,10 +28,92 @@ export const EventDialog = ({
   const { t } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Form state
+  const [title, setTitle] = useState("");
+  const [userSurname, setUserSurname] = useState("");
+  const [userNumber, setUserNumber] = useState("");
+  const [socialNetworkLink, setSocialNetworkLink] = useState("");
+  const [eventNotes, setEventNotes] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("not_paid");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
+  const [displayedFiles, setDisplayedFiles] = useState<FileRecord[]>([]);
 
-  const handleSubmit = async (eventData: Partial<CalendarEventType>) => {
+  // Initialize form with event data or default values
+  useEffect(() => {
+    if (event) {
+      setTitle(event.title || "");
+      setUserSurname(event.user_surname || "");
+      setUserNumber(event.user_number || "");
+      setSocialNetworkLink(event.social_network_link || "");
+      setEventNotes(event.event_notes || "");
+      setStartDate(format(new Date(event.start_date), "yyyy-MM-dd'T'HH:mm"));
+      setEndDate(format(new Date(event.end_date), "yyyy-MM-dd'T'HH:mm"));
+      setPaymentStatus(event.payment_status || "not_paid");
+      setPaymentAmount(event.payment_amount?.toString() || "");
+      
+      // Handle files
+      if (event.files) {
+        const files: FileRecord[] = event.files.map(file => ({
+          id: file.id,
+          filename: file.filename,
+          file_path: file.file_path,
+          content_type: file.content_type,
+          size: file.size,
+          user_id: event.user_id,
+          created_at: new Date().toISOString(),
+          source: 'event_attachments'
+        }));
+        setDisplayedFiles(files);
+      } else {
+        setDisplayedFiles([]);
+      }
+    } else if (selectedDate) {
+      // Reset form for new event
+      setTitle("");
+      setUserSurname("");
+      setUserNumber("");
+      setSocialNetworkLink("");
+      setEventNotes("");
+      setStartDate(format(selectedDate, "yyyy-MM-dd'T'HH:mm"));
+      
+      const endDateTime = new Date(selectedDate);
+      endDateTime.setHours(selectedDate.getHours() + 1);
+      setEndDate(format(endDateTime, "yyyy-MM-dd'T'HH:mm"));
+      
+      setPaymentStatus("not_paid");
+      setPaymentAmount("");
+      setDisplayedFiles([]);
+    }
+    
+    setSelectedFile(null);
+    setFileError("");
+  }, [event, selectedDate, open]);
+
+  const handleFormSubmit = async () => {
     setIsSubmitting(true);
     try {
+      const eventData: Partial<CalendarEventType> = {
+        title,
+        user_surname: userSurname,
+        user_number: userNumber,
+        social_network_link: socialNetworkLink,
+        event_notes: eventNotes,
+        start_date: startDate,
+        end_date: endDate,
+        payment_status: paymentStatus,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : undefined,
+        file: selectedFile || undefined,
+      };
+
+      if (event) {
+        eventData.id = event.id;
+      }
+
       await onSubmit(eventData);
       onOpenChange(false);
     } catch (error) {
@@ -53,6 +137,10 @@ export const EventDialog = ({
     }
   };
 
+  const handleFileDeleted = (fileId: string) => {
+    setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -62,13 +150,51 @@ export const EventDialog = ({
           </DialogTitle>
         </DialogHeader>
 
-        <EventDialogFields
-          selectedDate={selectedDate}
-          event={event}
-          onSubmit={handleSubmit}
-          onCancel={() => onOpenChange(false)}
-          isSubmitting={isSubmitting}
-        />
+        <form onSubmit={(e) => { e.preventDefault(); handleFormSubmit(); }} className="space-y-4">
+          <EventDialogFields
+            title={title}
+            setTitle={setTitle}
+            userSurname={userSurname}
+            setUserSurname={setUserSurname}
+            userNumber={userNumber}
+            setUserNumber={setUserNumber}
+            socialNetworkLink={socialNetworkLink}
+            setSocialNetworkLink={setSocialNetworkLink}
+            eventNotes={eventNotes}
+            setEventNotes={setEventNotes}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
+            paymentStatus={paymentStatus}
+            setPaymentStatus={setPaymentStatus}
+            paymentAmount={paymentAmount}
+            setPaymentAmount={setPaymentAmount}
+            selectedFile={selectedFile}
+            setSelectedFile={setSelectedFile}
+            fileError={fileError}
+            setFileError={setFileError}
+            eventId={event?.id}
+            displayedFiles={displayedFiles}
+            onFileDeleted={handleFileDeleted}
+          />
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? t("common.saving") : (event ? t("common.save") : t("common.create"))}
+            </Button>
+          </div>
+        </form>
 
         {event && onDelete && (
           <div className="flex justify-end pt-4 border-t">
