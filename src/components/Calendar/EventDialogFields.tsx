@@ -4,7 +4,6 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarEventType, GroupMember } from '@/lib/types/calendar';
 import { FileUploadField } from '@/components/shared/FileUploadField';
 import { LanguageText } from '@/components/shared/LanguageText';
@@ -35,7 +34,6 @@ export const EventDialogFields = ({
     setIsGroupEvent(checked);
     onUpdate({ 
       is_group_event: checked,
-      // Clear individual fields when switching to group mode
       ...(checked ? {
         title: '',
         user_surname: '',
@@ -55,7 +53,6 @@ export const EventDialogFields = ({
 
   const handleGroupMembersChange = (members: GroupMember[]) => {
     setGroupMembers(members);
-    // Store group members data in a way that can be processed later
     onUpdate({ groupMembers: members } as any);
   };
 
@@ -76,35 +73,6 @@ export const EventDialogFields = ({
             </LanguageText>
           </Label>
         </div>
-      </div>
-
-      {/* Event Type */}
-      <div>
-        <Label htmlFor="event-type">
-          <LanguageText>Event Type</LanguageText>
-        </Label>
-        <Select value={event.type} onValueChange={(value) => onUpdate({ type: value })}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select event type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="birthday">
-              <LanguageText>Birthday</LanguageText>
-            </SelectItem>
-            <SelectItem value="private_party">
-              <LanguageText>Private Party</LanguageText>
-            </SelectItem>
-            <SelectItem value="wedding">
-              <LanguageText>Wedding</LanguageText>
-            </SelectItem>
-            <SelectItem value="corporate">
-              <LanguageText>Corporate Event</LanguageText>
-            </SelectItem>
-            <SelectItem value="other">
-              <LanguageText>Other</LanguageText>
-            </SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Group Name (for group events) */}
@@ -210,45 +178,44 @@ export const EventDialogFields = ({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="payment-amount">
-            <LanguageText>Payment Amount</LanguageText>
-          </Label>
-          <Input
-            id="payment-amount"
-            type="number"
-            value={event.payment_amount || ''}
-            onChange={(e) => onUpdate({ payment_amount: parseFloat(e.target.value) || 0 })}
-            placeholder={isGroupEvent ? "Total amount" : "Amount"}
-          />
-        </div>
+      {/* Payment fields only for individual events */}
+      {!isGroupEvent && (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="payment-amount">
+              <LanguageText>Payment Amount</LanguageText>
+            </Label>
+            <Input
+              id="payment-amount"
+              type="number"
+              value={event.payment_amount || ''}
+              onChange={(e) => onUpdate({ payment_amount: parseFloat(e.target.value) || 0 })}
+              placeholder="Amount"
+            />
+          </div>
 
-        <div>
-          <Label htmlFor="payment-status">
-            <LanguageText>Payment Status</LanguageText>
-          </Label>
-          <Select 
-            value={event.payment_status || 'not_paid'} 
-            onValueChange={(value) => onUpdate({ payment_status: value })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Payment status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="not_paid">
+          <div>
+            <Label htmlFor="payment-status">
+              <LanguageText>Payment Status</LanguageText>
+            </Label>
+            <select 
+              value={event.payment_status || 'not_paid'} 
+              onChange={(e) => onUpdate({ payment_status: e.target.value })}
+              className="w-full p-2 border border-gray-300 rounded-md"
+            >
+              <option value="not_paid">
                 <LanguageText>Not Paid</LanguageText>
-              </SelectItem>
-              <SelectItem value="paid">
+              </option>
+              <option value="paid">
                 <LanguageText>Paid</LanguageText>
-              </SelectItem>
-              <SelectItem value="partial">
+              </option>
+              <option value="partial">
                 <LanguageText>Partial</LanguageText>
-              </SelectItem>
-            </SelectContent>
-          </Select>
+              </option>
+            </select>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* File Upload */}
       {onFileSelect && (

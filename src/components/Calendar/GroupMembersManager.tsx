@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trash2, Plus, User } from 'lucide-react';
 import { GroupMember } from '@/lib/types/calendar';
+import { LanguageText } from '@/components/shared/LanguageText';
 
 interface GroupMembersManagerProps {
   members: GroupMember[];
@@ -56,7 +58,9 @@ export const GroupMembersManager = ({ members, onMembersChange }: GroupMembersMa
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-4">
         <User className="w-4 h-4" />
-        <h3 className="text-lg font-semibold">Group Members ({members.length})</h3>
+        <h3 className="text-lg font-semibold">
+          <LanguageText>Group Members</LanguageText> ({members.length})
+        </h3>
       </div>
 
       {/* Existing Members */}
@@ -64,7 +68,9 @@ export const GroupMembersManager = ({ members, onMembersChange }: GroupMembersMa
         <Card key={member.id || index} className="border-l-4 border-l-blue-500">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm">Member {index + 1}</CardTitle>
+              <CardTitle className="text-sm">
+                <LanguageText>Member</LanguageText> {index + 1}
+              </CardTitle>
               <Button
                 variant="ghost"
                 size="sm"
@@ -77,7 +83,9 @@ export const GroupMembersManager = ({ members, onMembersChange }: GroupMembersMa
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor={`member-name-${index}`}>Name *</Label>
+              <Label htmlFor={`member-name-${index}`}>
+                <LanguageText>Name</LanguageText> *
+              </Label>
               <Input
                 id={`member-name-${index}`}
                 value={member.name}
@@ -86,7 +94,9 @@ export const GroupMembersManager = ({ members, onMembersChange }: GroupMembersMa
               />
             </div>
             <div>
-              <Label htmlFor={`member-surname-${index}`}>Surname</Label>
+              <Label htmlFor={`member-surname-${index}`}>
+                <LanguageText>Surname</LanguageText>
+              </Label>
               <Input
                 id={`member-surname-${index}`}
                 value={member.surname || ''}
@@ -95,7 +105,9 @@ export const GroupMembersManager = ({ members, onMembersChange }: GroupMembersMa
               />
             </div>
             <div>
-              <Label htmlFor={`member-phone-${index}`}>Phone</Label>
+              <Label htmlFor={`member-phone-${index}`}>
+                <LanguageText>Phone</LanguageText>
+              </Label>
               <Input
                 id={`member-phone-${index}`}
                 value={member.phone || ''}
@@ -104,7 +116,9 @@ export const GroupMembersManager = ({ members, onMembersChange }: GroupMembersMa
               />
             </div>
             <div>
-              <Label htmlFor={`member-email-${index}`}>Email</Label>
+              <Label htmlFor={`member-email-${index}`}>
+                <LanguageText>Email</LanguageText>
+              </Label>
               <Input
                 id={`member-email-${index}`}
                 type="email"
@@ -113,8 +127,43 @@ export const GroupMembersManager = ({ members, onMembersChange }: GroupMembersMa
                 placeholder="Email address"
               />
             </div>
+            <div>
+              <Label htmlFor={`member-payment-amount-${index}`}>
+                <LanguageText>Payment Amount</LanguageText>
+              </Label>
+              <Input
+                id={`member-payment-amount-${index}`}
+                type="number"
+                value={member.payment_amount || ''}
+                onChange={(e) => updateMember(index, 'payment_amount', parseFloat(e.target.value) || 0)}
+                placeholder="Amount"
+              />
+            </div>
+            <div>
+              <Label htmlFor={`member-payment-status-${index}`}>
+                <LanguageText>Payment Status</LanguageText>
+              </Label>
+              <select
+                id={`member-payment-status-${index}`}
+                value={member.payment_status || 'not_paid'}
+                onChange={(e) => updateMember(index, 'payment_status', e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md"
+              >
+                <option value="not_paid">
+                  <LanguageText>Not Paid</LanguageText>
+                </option>
+                <option value="paid">
+                  <LanguageText>Paid</LanguageText>
+                </option>
+                <option value="partial">
+                  <LanguageText>Partial</LanguageText>
+                </option>
+              </select>
+            </div>
             <div className="col-span-2">
-              <Label htmlFor={`member-notes-${index}`}>Notes</Label>
+              <Label htmlFor={`member-notes-${index}`}>
+                <LanguageText>Notes</LanguageText>
+              </Label>
               <Textarea
                 id={`member-notes-${index}`}
                 value={member.notes || ''}
@@ -130,11 +179,15 @@ export const GroupMembersManager = ({ members, onMembersChange }: GroupMembersMa
       {/* Add New Member Form */}
       <Card className="border-2 border-dashed border-gray-300">
         <CardHeader>
-          <CardTitle className="text-sm text-gray-600">Add New Member</CardTitle>
+          <CardTitle className="text-sm text-gray-600">
+            <LanguageText>Add New Member</LanguageText>
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-3">
           <div>
-            <Label htmlFor="new-member-name">Name *</Label>
+            <Label htmlFor="new-member-name">
+              <LanguageText>Name</LanguageText> *
+            </Label>
             <Input
               id="new-member-name"
               value={newMember.name}
@@ -143,7 +196,9 @@ export const GroupMembersManager = ({ members, onMembersChange }: GroupMembersMa
             />
           </div>
           <div>
-            <Label htmlFor="new-member-surname">Surname</Label>
+            <Label htmlFor="new-member-surname">
+              <LanguageText>Surname</LanguageText>
+            </Label>
             <Input
               id="new-member-surname"
               value={newMember.surname}
@@ -152,7 +207,9 @@ export const GroupMembersManager = ({ members, onMembersChange }: GroupMembersMa
             />
           </div>
           <div>
-            <Label htmlFor="new-member-phone">Phone</Label>
+            <Label htmlFor="new-member-phone">
+              <LanguageText>Phone</LanguageText>
+            </Label>
             <Input
               id="new-member-phone"
               value={newMember.phone}
@@ -161,7 +218,9 @@ export const GroupMembersManager = ({ members, onMembersChange }: GroupMembersMa
             />
           </div>
           <div>
-            <Label htmlFor="new-member-email">Email</Label>
+            <Label htmlFor="new-member-email">
+              <LanguageText>Email</LanguageText>
+            </Label>
             <Input
               id="new-member-email"
               type="email"
@@ -170,8 +229,43 @@ export const GroupMembersManager = ({ members, onMembersChange }: GroupMembersMa
               placeholder="Email address"
             />
           </div>
+          <div>
+            <Label htmlFor="new-member-payment-amount">
+              <LanguageText>Payment Amount</LanguageText>
+            </Label>
+            <Input
+              id="new-member-payment-amount"
+              type="number"
+              value={newMember.payment_amount}
+              onChange={(e) => setNewMember({ ...newMember, payment_amount: parseFloat(e.target.value) || 0 })}
+              placeholder="Amount"
+            />
+          </div>
+          <div>
+            <Label htmlFor="new-member-payment-status">
+              <LanguageText>Payment Status</LanguageText>
+            </Label>
+            <select
+              id="new-member-payment-status"
+              value={newMember.payment_status}
+              onChange={(e) => setNewMember({ ...newMember, payment_status: e.target.value })}
+              className="w-full p-2 border border-gray-300 rounded-md"
+            >
+              <option value="not_paid">
+                <LanguageText>Not Paid</LanguageText>
+              </option>
+              <option value="paid">
+                <LanguageText>Paid</LanguageText>
+              </option>
+              <option value="partial">
+                <LanguageText>Partial</LanguageText>
+              </option>
+            </select>
+          </div>
           <div className="col-span-2">
-            <Label htmlFor="new-member-notes">Notes</Label>
+            <Label htmlFor="new-member-notes">
+              <LanguageText>Notes</LanguageText>
+            </Label>
             <Textarea
               id="new-member-notes"
               value={newMember.notes}
@@ -187,7 +281,7 @@ export const GroupMembersManager = ({ members, onMembersChange }: GroupMembersMa
               className="w-full"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Add Member
+              <LanguageText>Add Member</LanguageText>
             </Button>
           </div>
         </CardContent>

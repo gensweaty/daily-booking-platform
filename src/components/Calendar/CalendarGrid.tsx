@@ -1,8 +1,6 @@
 
 import { CalendarEventType } from '@/lib/types/calendar';
 import { format, isToday, isSameDay } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
-import { Users, User } from 'lucide-react';
 
 interface CalendarGridProps {
   currentDate: Date;
@@ -30,9 +28,6 @@ export const CalendarGrid = ({
   };
 
   const renderEventBadge = (event: CalendarEventType) => {
-    const isGroup = event.is_group_event;
-    const memberCount = event.parent_group_id ? undefined : events.filter(e => e.parent_group_id === event.id).length;
-    
     return (
       <div
         key={event.id}
@@ -40,22 +35,10 @@ export const CalendarGrid = ({
           e.stopPropagation();
           onEventClick(event);
         }}
-        className={`p-1 text-xs rounded cursor-pointer hover:opacity-80 transition-opacity ${
-          isGroup 
-            ? 'bg-blue-100 text-blue-800 border-l-2 border-blue-500' 
-            : 'bg-green-100 text-green-800'
-        }`}
+        className="p-1 text-xs rounded cursor-pointer hover:opacity-80 transition-opacity bg-blue-100 text-blue-800"
       >
-        <div className="flex items-center gap-1">
-          {isGroup ? <Users className="w-3 h-3" /> : <User className="w-3 h-3" />}
-          <span className="truncate flex-1">
-            {isGroup ? event.group_name : event.title}
-          </span>
-          {isGroup && memberCount > 0 && (
-            <Badge variant="secondary" className="text-xs px-1">
-              {memberCount}
-            </Badge>
-          )}
+        <div className="truncate">
+          {event.is_group_event ? event.group_name : event.title}
         </div>
         <div className="text-xs opacity-75">
           {format(new Date(event.start_date), 'HH:mm')}

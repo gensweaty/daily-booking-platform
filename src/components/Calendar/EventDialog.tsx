@@ -139,8 +139,6 @@ export const EventDialog = ({
       is_group_event: true,
       group_name: eventData.group_name,
       event_notes: eventData.event_notes,
-      payment_amount: eventData.payment_amount,
-      payment_status: eventData.payment_status,
       social_network_link: eventData.social_network_link
     };
 
