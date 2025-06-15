@@ -298,6 +298,7 @@ export interface TranslationType {
     addMember: string;
     member: string;
     noMembersYet: string;
+    groupName: string;
   };
   contact: {
     email: string;
@@ -368,6 +369,7 @@ export interface TranslationType {
     authRequired: string;
     save: string;
     saving: string;
+    deleting: string;
   };
   auth: {
     welcome: string;

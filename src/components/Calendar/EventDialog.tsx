@@ -42,6 +42,10 @@ export const EventDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<FileRecord[]>([]);
+  
+  // Group event state
+  const [isGroupEvent, setIsGroupEvent] = useState(false);
+  const [groupName, setGroupName] = useState("");
 
   // Initialize form with event data or default values
   useEffect(() => {
@@ -55,6 +59,8 @@ export const EventDialog = ({
       setEndDate(format(new Date(event.end_date), "yyyy-MM-dd'T'HH:mm"));
       setPaymentStatus(event.payment_status || "not_paid");
       setPaymentAmount(event.payment_amount?.toString() || "");
+      setIsGroupEvent(event.is_group_event || false);
+      setGroupName(event.group_name || "");
       
       // Handle files
       if (event.files) {
@@ -87,6 +93,8 @@ export const EventDialog = ({
       
       setPaymentStatus("not_paid");
       setPaymentAmount("");
+      setIsGroupEvent(false);
+      setGroupName("");
       setDisplayedFiles([]);
     }
     
@@ -94,11 +102,20 @@ export const EventDialog = ({
     setFileError("");
   }, [event, selectedDate, open]);
 
+  // Update title when group name or user surname changes
+  useEffect(() => {
+    if (isGroupEvent && groupName) {
+      setTitle(groupName);
+    } else if (!isGroupEvent && userSurname) {
+      setTitle(userSurname);
+    }
+  }, [isGroupEvent, groupName, userSurname]);
+
   const handleFormSubmit = async () => {
     setIsSubmitting(true);
     try {
       const eventData: Partial<CalendarEventType> = {
-        title,
+        title: isGroupEvent ? groupName : userSurname,
         user_surname: userSurname,
         user_number: userNumber,
         social_network_link: socialNetworkLink,
@@ -108,6 +125,8 @@ export const EventDialog = ({
         payment_status: paymentStatus,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : undefined,
         file: selectedFile || undefined,
+        is_group_event: isGroupEvent,
+        group_name: isGroupEvent ? groupName : undefined,
       };
 
       if (event) {
@@ -177,6 +196,10 @@ export const EventDialog = ({
             eventId={event?.id}
             displayedFiles={displayedFiles}
             onFileDeleted={handleFileDeleted}
+            isGroupEvent={isGroupEvent}
+            setIsGroupEvent={setIsGroupEvent}
+            groupName={groupName}
+            setGroupName={setGroupName}
           />
 
           <div className="flex justify-end gap-2 pt-4">
