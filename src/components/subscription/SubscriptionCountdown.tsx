@@ -62,12 +62,16 @@ export const SubscriptionCountdown = ({
       const target = targetDate.getTime();
       const difference = target - now;
       
-      console.log('[SubscriptionCountdown] Time calculation:', {
-        now: new Date(now).toISOString(),
-        target: targetDate.toISOString(),
-        difference: difference,
-        differenceInDays: Math.floor(difference / (1000 * 60 * 60 * 24))
-      });
+      // OPTIMIZATION: Only log calculation details once per hour to reduce console spam
+      const shouldLog = Math.floor(Date.now() / (1000 * 60 * 60)) % 1 === 0;
+      if (shouldLog) {
+        console.log('[SubscriptionCountdown] Time calculation:', {
+          now: new Date(now).toISOString(),
+          target: targetDate.toISOString(),
+          difference: difference,
+          differenceInDays: Math.floor(difference / (1000 * 60 * 60 * 24))
+        });
+      }
       
       if (difference > 0) {
         const days = Math.floor(difference / (1000 * 60 * 60 * 24));
@@ -84,7 +88,8 @@ export const SubscriptionCountdown = ({
     // Calculate immediately
     calculateTimeLeft();
     
-    // Update every second
+    // CRITICAL OPTIMIZATION: This is now PURE CLIENT-SIDE calculation
+    // No more edge function calls - just local timer updates
     const timer = setInterval(calculateTimeLeft, 1000);
     
     return () => clearInterval(timer);

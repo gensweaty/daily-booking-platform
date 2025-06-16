@@ -9,9 +9,10 @@ import {
 import { SubscriptionPlanSelect } from "./subscription/SubscriptionPlanSelect";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { checkSubscriptionStatus, createCheckoutSession, verifySession, manualSyncSubscription } from "@/utils/stripeUtils";
+import { checkSubscriptionStatus, createCheckoutSession, verifySession, manualSyncSubscription } from "@/utils/optimizedStripeUtils";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle } from "lucide-react";
+import { subscriptionCache } from "@/utils/subscriptionCache";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
@@ -21,7 +22,7 @@ export const TrialExpiredDialog = () => {
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [lastSyncAttempt, setLastSyncAttempt] = useState<Date | null>(null);
+  const [lastSyncInfo, setLastSyncInfo] = useState<{ minutesAgo: number; reason?: string } | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -37,43 +38,54 @@ export const TrialExpiredDialog = () => {
       url.searchParams.delete('session_id');
       window.history.replaceState({}, document.title, url.toString());
     } else {
-      checkUserSubscription();
+      // CRITICAL FIX: Only check once on mount, then rely on cache
+      checkUserSubscription('component_mount');
     }
     
-    const checkInterval = sessionId ? 2000 : 10000;
-    const intervalId = setInterval(checkUserSubscription, checkInterval);
-    
-    return () => clearInterval(intervalId);
+    // REMOVED: Aggressive interval polling - now only manual refresh
   }, [user]);
 
-  const checkUserSubscription = async () => {
+  // Update last sync info when component mounts
+  useEffect(() => {
+    const syncInfo = subscriptionCache.getLastSyncInfo();
+    setLastSyncInfo(syncInfo);
+  }, []);
+
+  const checkUserSubscription = async (reason: string) => {
     if (!user) return;
     
     try {
-      console.log('Checking subscription status...');
-      const data = await checkSubscriptionStatus();
-      console.log('Subscription status result:', data);
+      console.log(`[TRIAL_DIALOG] Checking subscription status for reason: ${reason}`);
+      const data = await checkSubscriptionStatus(reason);
+      console.log('[TRIAL_DIALOG] Subscription status result:', data);
       
       const status = data.status;
       setSubscriptionStatus(status);
       
       if (status === 'active') {
-        console.log('Subscription is active, closing dialog');
+        console.log('[TRIAL_DIALOG] Subscription is active, closing dialog');
         setOpen(false);
         setSyncError(null);
       } else if (status === 'trial_expired') {
-        console.log('Trial expired, showing dialog');
+        console.log('[TRIAL_DIALOG] Trial expired, showing dialog');
         setOpen(true);
       } else if (status === 'trial') {
-        console.log('Trial is active');
+        console.log('[TRIAL_DIALOG] Trial is active');
         setOpen(false);
         setSyncError(null);
+      } else if (status === 'throttled') {
+        console.log('[TRIAL_DIALOG] Request was throttled, using cached data');
+        setSyncError(null);
       } else {
-        console.log('Status is not active or trial_expired:', status);
+        console.log('[TRIAL_DIALOG] Status is not active or trial_expired:', status);
         setOpen(false);
       }
+      
+      // Update last sync info
+      const syncInfo = subscriptionCache.getLastSyncInfo();
+      setLastSyncInfo(syncInfo);
     } catch (error) {
-      console.error('Error checking subscription status:', error);
+      console.error('[TRIAL_DIALOG] Error checking subscription status:', error);
     }
   };
 
@@ -118,16 +130,16 @@ export const TrialExpiredDialog = () => {
     setSyncError(null);
     
     try {
-      console.log('Verifying session:', sessionId);
+      console.log('[TRIAL_DIALOG] Verifying session:', sessionId);
       const response = await verifySession(sessionId);
       
-      console.log('Session verification response:', response);
+      console.log('[TRIAL_DIALOG] Session verification response:', response);
       
       if (response && (response.success || response.status === 'active')) {
         handleVerificationSuccess();
-        await checkUserSubscription();
+        await checkUserSubscription('post_payment_verification');
       } else {
-        console.error('Session verification failed:', response);
+        console.error('[TRIAL_DIALOG] Session verification failed:', response);
         setSyncError(response?.error || "There was a problem verifying your payment");
         toast({
           title: "Verification Issue",
@@ -136,7 +148,7 @@ export const TrialExpiredDialog = () => {
         });
       }
     } catch (error) {
-      console.error('Error verifying session:', error);
+      console.error('[TRIAL_DIALOG] Error verifying session:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       setSyncError(errorMessage);
       toast({
@@ -144,7 +156,7 @@ export const TrialExpiredDialog = () => {
         description: "There was a problem verifying your payment",
         variant: "destructive",
       });
-      await checkUserSubscription();
+      await checkUserSubscription('verification_error_fallback');
     } finally {
       setIsVerifying(false);
     }
@@ -163,22 +175,14 @@ export const TrialExpiredDialog = () => {
   const handleManualSync = async () => {
     if (!user || isSyncing) return;
     
-    if (lastSyncAttempt && Date.now() - lastSyncAttempt.getTime() < 5000) {
-      toast({
-        title: "Please Wait",
-        description: "Please wait a moment before trying again.",
-      });
-      return;
-    }
-    
+    // OPTIMIZED: Allow manual sync but still respect basic rate limiting
     setIsSyncing(true);
     setSyncError(null);
-    setLastSyncAttempt(new Date());
     
     try {
-      console.log('Starting manual sync for user:', user.email);
+      console.log('[TRIAL_DIALOG] Starting manual sync for user:', user.email);
       const result = await manualSyncSubscription();
-      console.log('Manual sync result:', result);
+      console.log('[TRIAL_DIALOG] Manual sync result:', result);
       
       if (result && result.success && result.status === 'active') {
         setSubscriptionStatus('active');
@@ -202,8 +206,12 @@ export const TrialExpiredDialog = () => {
           variant: "destructive",
         });
       }
+      
+      // Update last sync info
+      const syncInfo = subscriptionCache.getLastSyncInfo();
+      setLastSyncInfo(syncInfo);
     } catch (error) {
-      console.error('Error syncing subscription:', error);
+      console.error('[TRIAL_DIALOG] Error syncing subscription:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       setSyncError(errorMessage);
       toast({
@@ -261,7 +269,7 @@ export const TrialExpiredDialog = () => {
               size="sm"
               onClick={handleManualSync}
               disabled={isSyncing || isVerifying}
-              className="mb-4"
+              className="mb-2"
             >
               {isSyncing ? (
                 <span className="flex items-center gap-2">
@@ -275,9 +283,10 @@ export const TrialExpiredDialog = () => {
                 </span>
               )}
             </Button>
-            {lastSyncAttempt && (
+            {lastSyncInfo && (
               <p className="text-xs text-muted-foreground">
-                Last checked: {lastSyncAttempt.toLocaleTimeString()}
+                Last checked: {lastSyncInfo.minutesAgo} minutes ago
+                {lastSyncInfo.reason && ` (${lastSyncInfo.reason})`}
               </p>
             )}
           </div>
