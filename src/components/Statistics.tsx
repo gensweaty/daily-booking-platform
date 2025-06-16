@@ -1,3 +1,4 @@
+
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { useState, useCallback, useMemo, useEffect } from "react";
@@ -8,7 +9,6 @@ import { StatsCards } from "./Statistics/StatsCards";
 import { useOptimizedStatistics } from "@/hooks/useOptimizedStatistics";
 import { useOptimizedCRMData } from "@/hooks/useOptimizedCRMData";
 import { useExcelExport } from "./Statistics/ExcelExport";
-import { useCRMData } from "@/hooks/useCRMData";
 import { Skeleton } from "./ui/skeleton";
 import { LanguageText } from "./shared/LanguageText";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -46,7 +46,7 @@ export const Statistics = () => {
     const withoutBooking = total - withBooking;
     
     return { total, withBooking, withoutBooking };
-  }, [combinedData, dateRange]);
+  }, [combinedData]);
 
   // Add effect to validate eventStats and totalIncome specifically
   useEffect(() => {
@@ -66,9 +66,9 @@ export const Statistics = () => {
     // Function to refresh data
     const refreshData = () => {
       console.log("Refreshing statistics data");
-      queryClient.invalidateQueries({ queryKey: ['taskStats'] });
-      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] }); // Also refresh customer data
+      queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['optimized-event-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['optimized-customers'] });
     };
 
     // Set up periodic refresh every minute
@@ -103,7 +103,9 @@ export const Statistics = () => {
     total: 0, 
     partlyPaid: 0, 
     fullyPaid: 0, 
-    totalIncome: 0 
+    totalIncome: 0,
+    monthlyIncome: [],
+    dailyStats: []
   }), []);
 
   // Default customer stats
@@ -165,16 +167,10 @@ export const Statistics = () => {
         </div>
       ) : (
         <>
-          {/* Log right before passing to StatsCards */}
-          {console.log("Before rendering StatsCards - currentEventStats:", {
-            totalIncome: eventStats.totalIncome,
-            type: typeof eventStats.totalIncome
-          })}
-          
           <StatsCards 
-            taskStats={taskStats} 
-            eventStats={eventStats}
-            customerStats={customerStats}
+            taskStats={currentTaskStats} 
+            eventStats={currentEventStats}
+            customerStats={currentCustomerStats}
           />
 
           <div className="grid gap-4 md:grid-cols-2">

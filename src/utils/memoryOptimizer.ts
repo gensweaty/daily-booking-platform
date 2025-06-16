@@ -1,4 +1,6 @@
 
+import { useState, useEffect } from 'react';
+
 // Memory optimization utilities
 class MemoryOptimizer {
   private static instance: MemoryOptimizer;
@@ -97,7 +99,7 @@ class MemoryOptimizer {
     
     keepFields.forEach(field => {
       if (field in data) {
-        optimized[field] = data[field];
+        (optimized as any)[field] = data[field];
       }
     });
     

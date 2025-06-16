@@ -1047,6 +1047,15 @@ export type Database = {
           user_surname: string | null
         }[]
       }
+      get_task_stats: {
+        Args: { user_id_param: string }
+        Returns: {
+          total: number
+          completed: number
+          in_progress: number
+          todo: number
+        }[]
+      }
       validate_and_use_redeem_code: {
         Args: { p_code: string; p_user_id: string }
         Returns: boolean
