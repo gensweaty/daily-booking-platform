@@ -1,4 +1,3 @@
-
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { useState, useCallback, useMemo, useEffect } from "react";
@@ -6,7 +5,8 @@ import { BookingChart } from "./Statistics/BookingChart";
 import { IncomeChart } from "./Statistics/IncomeChart";
 import { StatsHeader } from "./Statistics/StatsHeader";
 import { StatsCards } from "./Statistics/StatsCards";
-import { useStatistics } from "./Statistics/useStatistics";
+import { useOptimizedStatistics } from "@/hooks/useOptimizedStatistics";
+import { useOptimizedCRMData } from "@/hooks/useOptimizedCRMData";
 import { useExcelExport } from "./Statistics/ExcelExport";
 import { useCRMData } from "@/hooks/useCRMData";
 import { Skeleton } from "./ui/skeleton";
@@ -29,12 +29,12 @@ export const Statistics = () => {
   // Memoize userId for stable reference in dependencies
   const userId = useMemo(() => user?.id, [user?.id]);
   
-  // Optimized hook usage with proper dependencies
-  const { taskStats, eventStats, isLoading } = useStatistics(userId, dateRange);
-  const { combinedData, isLoading: isLoadingCRM } = useCRMData(userId, dateRange);
+  // Use optimized hooks instead of original ones
+  const { taskStats, eventStats, isLoading } = useOptimizedStatistics(userId, dateRange);
+  const { combinedData, isLoading: isLoadingCRM } = useOptimizedCRMData(userId, dateRange);
   const { exportToExcel } = useExcelExport();
 
-  // Calculate customer statistics - now respects date range from useCRMData
+  // Calculate customer statistics from optimized data
   const customerStats = useMemo(() => {
     if (!combinedData) return { total: 0, withBooking: 0, withoutBooking: 0 };
     
@@ -44,14 +44,6 @@ export const Statistics = () => {
       (item.start_date && item.end_date)
     ).length;
     const withoutBooking = total - withBooking;
-    
-    console.log("Customer Stats for date range:", { 
-      start: dateRange.start.toISOString().split('T')[0], 
-      end: dateRange.end.toISOString().split('T')[0],
-      totalCustomers: total, 
-      withBooking, 
-      withoutBooking 
-    });
     
     return { total, withBooking, withoutBooking };
   }, [combinedData, dateRange]);
