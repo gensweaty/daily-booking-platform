@@ -340,6 +340,8 @@ export type Database = {
           end_date: string | null
           event_notes: string | null
           id: string
+          is_group_member: boolean | null
+          parent_group_id: string | null
           payment_amount: number | null
           payment_status: string | null
           social_network_link: string | null
@@ -357,6 +359,8 @@ export type Database = {
           end_date?: string | null
           event_notes?: string | null
           id?: string
+          is_group_member?: boolean | null
+          parent_group_id?: string | null
           payment_amount?: number | null
           payment_status?: string | null
           social_network_link?: string | null
@@ -374,6 +378,8 @@ export type Database = {
           end_date?: string | null
           event_notes?: string | null
           id?: string
+          is_group_member?: boolean | null
+          parent_group_id?: string | null
           payment_amount?: number | null
           payment_status?: string | null
           social_network_link?: string | null
@@ -492,9 +498,12 @@ export type Database = {
           file_path: string | null
           file_size: number | null
           filename: string | null
+          group_name: string | null
           id: string
+          is_group_event: boolean | null
           language: string | null
           original_booking_id: string | null
+          parent_group_id: string | null
           payment_amount: number | null
           payment_status: string | null
           size: number | null
@@ -516,9 +525,12 @@ export type Database = {
           file_path?: string | null
           file_size?: number | null
           filename?: string | null
+          group_name?: string | null
           id?: string
+          is_group_event?: boolean | null
           language?: string | null
           original_booking_id?: string | null
+          parent_group_id?: string | null
           payment_amount?: number | null
           payment_status?: string | null
           size?: number | null
@@ -540,9 +552,12 @@ export type Database = {
           file_path?: string | null
           file_size?: number | null
           filename?: string | null
+          group_name?: string | null
           id?: string
+          is_group_event?: boolean | null
           language?: string | null
           original_booking_id?: string | null
+          parent_group_id?: string | null
           payment_amount?: number | null
           payment_status?: string | null
           size?: number | null
@@ -554,7 +569,15 @@ export type Database = {
           user_number?: string | null
           user_surname?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "events_parent_group_id_fkey"
+            columns: ["parent_group_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       files: {
         Row: {
@@ -1006,9 +1029,12 @@ export type Database = {
           file_path: string | null
           file_size: number | null
           filename: string | null
+          group_name: string | null
           id: string
+          is_group_event: boolean | null
           language: string | null
           original_booking_id: string | null
+          parent_group_id: string | null
           payment_amount: number | null
           payment_status: string | null
           size: number | null
@@ -1019,6 +1045,15 @@ export type Database = {
           user_id: string | null
           user_number: string | null
           user_surname: string | null
+        }[]
+      }
+      get_task_stats: {
+        Args: { user_id_param: string }
+        Returns: {
+          total: number
+          completed: number
+          in_progress: number
+          todo: number
         }[]
       }
       validate_and_use_redeem_code: {

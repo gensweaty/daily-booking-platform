@@ -286,7 +286,12 @@ const AppContent = () => {
   );
 };
 
+import { useMemoryOptimization } from "@/utils/memoryOptimizer";
+
 function App() {
+  // Initialize memory optimization
+  useMemoryOptimization();
+
   // Enable Supabase realtime functionality
   useEffect(() => {
     // Enable Supabase realtime for the required tables

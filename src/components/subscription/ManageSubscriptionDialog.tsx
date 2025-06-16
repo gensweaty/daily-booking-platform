@@ -10,7 +10,7 @@ import { SubscriptionPlanSelect } from "./SubscriptionPlanSelect";
 import { RedeemCodeDialog } from "./RedeemCodeDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { createCheckoutSession } from "@/utils/stripeUtils";
+import { createCheckoutSession } from "@/utils/optimizedStripeUtils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 

@@ -11,7 +11,7 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
-import { checkSubscriptionStatus } from "@/utils/stripeUtils"
+import { checkSubscriptionStatus } from "@/utils/optimizedStripeUtils"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -138,8 +138,10 @@ const Index = () => {
             setUsername(data.username)
           }
 
-          // Only check subscription status once on login, not continuously
-          await checkSubscriptionStatus();
+          // CRITICAL OPTIMIZATION: Only check subscription status once on login
+          // This was previously causing excessive edge function calls
+          console.log('[INDEX] Checking subscription status on login...');
+          await checkSubscriptionStatus('user_login');
           
         } catch (error: any) {
           console.error('Profile fetch error:', error)

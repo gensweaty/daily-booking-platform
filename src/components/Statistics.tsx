@@ -6,9 +6,9 @@ import { BookingChart } from "./Statistics/BookingChart";
 import { IncomeChart } from "./Statistics/IncomeChart";
 import { StatsHeader } from "./Statistics/StatsHeader";
 import { StatsCards } from "./Statistics/StatsCards";
-import { useStatistics } from "./Statistics/useStatistics";
+import { useOptimizedStatistics } from "@/hooks/useOptimizedStatistics";
+import { useOptimizedCRMData } from "@/hooks/useOptimizedCRMData";
 import { useExcelExport } from "./Statistics/ExcelExport";
-import { useCRMData } from "@/hooks/useCRMData";
 import { Skeleton } from "./ui/skeleton";
 import { LanguageText } from "./shared/LanguageText";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -29,12 +29,12 @@ export const Statistics = () => {
   // Memoize userId for stable reference in dependencies
   const userId = useMemo(() => user?.id, [user?.id]);
   
-  // Optimized hook usage with proper dependencies
-  const { taskStats, eventStats, isLoading } = useStatistics(userId, dateRange);
-  const { combinedData, isLoading: isLoadingCRM } = useCRMData(userId, dateRange);
+  // Use optimized hooks instead of original ones
+  const { taskStats, eventStats, isLoading } = useOptimizedStatistics(userId, dateRange);
+  const { combinedData, isLoading: isLoadingCRM } = useOptimizedCRMData(userId, dateRange);
   const { exportToExcel } = useExcelExport();
 
-  // Calculate customer statistics - now respects date range from useCRMData
+  // Calculate customer statistics from optimized data
   const customerStats = useMemo(() => {
     if (!combinedData) return { total: 0, withBooking: 0, withoutBooking: 0 };
     
@@ -45,16 +45,8 @@ export const Statistics = () => {
     ).length;
     const withoutBooking = total - withBooking;
     
-    console.log("Customer Stats for date range:", { 
-      start: dateRange.start.toISOString().split('T')[0], 
-      end: dateRange.end.toISOString().split('T')[0],
-      totalCustomers: total, 
-      withBooking, 
-      withoutBooking 
-    });
-    
     return { total, withBooking, withoutBooking };
-  }, [combinedData, dateRange]);
+  }, [combinedData]);
 
   // Add effect to validate eventStats and totalIncome specifically
   useEffect(() => {
@@ -74,9 +66,9 @@ export const Statistics = () => {
     // Function to refresh data
     const refreshData = () => {
       console.log("Refreshing statistics data");
-      queryClient.invalidateQueries({ queryKey: ['taskStats'] });
-      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] }); // Also refresh customer data
+      queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['optimized-event-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['optimized-customers'] });
     };
 
     // Set up periodic refresh every minute
@@ -111,7 +103,9 @@ export const Statistics = () => {
     total: 0, 
     partlyPaid: 0, 
     fullyPaid: 0, 
-    totalIncome: 0 
+    totalIncome: 0,
+    monthlyIncome: [],
+    dailyStats: []
   }), []);
 
   // Default customer stats
@@ -173,16 +167,10 @@ export const Statistics = () => {
         </div>
       ) : (
         <>
-          {/* Log right before passing to StatsCards */}
-          {console.log("Before rendering StatsCards - currentEventStats:", {
-            totalIncome: eventStats.totalIncome,
-            type: typeof eventStats.totalIncome
-          })}
-          
           <StatsCards 
-            taskStats={taskStats} 
-            eventStats={eventStats}
-            customerStats={customerStats}
+            taskStats={currentTaskStats} 
+            eventStats={currentEventStats}
+            customerStats={currentCustomerStats}
           />
 
           <div className="grid gap-4 md:grid-cols-2">
