@@ -269,6 +269,10 @@ export const EventDialog = ({
       payment_status: normalizedPaymentStatus, // Use normalized payment status
       payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
       language: event?.language || language, // Preserve original language or use current UI language
+      // Group event fields
+      is_group_event: isGroupEvent,
+      group_name: isGroupEvent ? groupName : null,
+      group_members: isGroupEvent ? groupMembers : null,
     };
 
     if (event?.id) {
@@ -518,7 +522,7 @@ export const EventDialog = ({
                         End
                       </Label>
                       <Input
-                        i  d="endDate"
+                        id="endDate"
                         type="datetime-local"
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
