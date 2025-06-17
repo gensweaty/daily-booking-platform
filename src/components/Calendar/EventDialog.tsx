@@ -61,8 +61,8 @@ export const EventDialog = ({
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
   
   // Group booking state
-  const [isGroupEvent, setIsGroupEvent] = useState(event?.is_group_event || false);
-  const [groupName, setGroupName] = useState(event?.group_name || "");
+  const [isGroupEvent, setIsGroupEvent] = useState(false);
+  const [groupName, setGroupName] = useState("");
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   
   const { user } = useAuth();
@@ -123,15 +123,31 @@ export const EventDialog = ({
       
       console.log("Loading event data:", event);
       
-      // Set both title and userSurname to the user_surname value for consistency
-      // If user_surname is missing, fall back to title
-      const fullName = event.user_surname || event.title || "";
-      setTitle(fullName);
-      setUserSurname(fullName);
+      // Check if this is a group event and set the toggle accordingly
+      const eventIsGroupEvent = event.is_group_event || false;
+      console.log("Event is group event:", eventIsGroupEvent);
+      setIsGroupEvent(eventIsGroupEvent);
       
-      setUserNumber(event.user_number || event.requester_phone || "");
-      setSocialNetworkLink(event.social_network_link || event.requester_email || "");
-      setEventNotes(event.event_notes || event.description || "");
+      if (eventIsGroupEvent) {
+        // For group events, use group_name as title
+        setGroupName(event.group_name || "");
+        setTitle(event.group_name || event.title || "");
+        // Clear individual fields for group events
+        setUserSurname("");
+        setUserNumber("");
+        setSocialNetworkLink("");
+        setEventNotes("");
+      } else {
+        // For individual events, use user_surname
+        const fullName = event.user_surname || event.title || "";
+        setTitle(fullName);
+        setUserSurname(fullName);
+        setUserNumber(event.user_number || event.requester_phone || "");
+        setSocialNetworkLink(event.social_network_link || event.requester_email || "");
+        setEventNotes(event.event_notes || event.description || "");
+        // Clear group fields for individual events
+        setGroupName("");
+      }
       
       // Normalize payment status to handle different formats
       let normalizedStatus = event.payment_status || "not_paid";
@@ -153,17 +169,15 @@ export const EventDialog = ({
       
       setIsBookingEvent(event.type === 'booking_request');
       
-      // Load group event data
-      setIsGroupEvent(event.is_group_event || false);
-      setGroupName(event.group_name || "");
-      
       // Load group members if this is a group event
-      if (event.is_group_event && event.id) {
+      if (eventIsGroupEvent && event.id) {
+        console.log("Loading group members for group event:", event.id);
         loadGroupMembers(event.id).then(members => {
           console.log("Setting group members:", members);
           setGroupMembers(members);
         });
       } else {
+        console.log("Not a group event, clearing group members");
         setGroupMembers([]);
       }
       
