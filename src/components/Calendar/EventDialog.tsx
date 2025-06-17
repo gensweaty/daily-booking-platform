@@ -1,10 +1,14 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
-import { CalendarEventType } from "@/lib/types/calendar";
+import { CalendarEventType, GroupMember } from "@/lib/types/calendar";
 import { Trash2, AlertCircle } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
+import { GroupParticipants } from "./GroupParticipants";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -58,14 +62,19 @@ export const EventDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  
+  // Group event state
+  const [isGroupEvent, setIsGroupEvent] = useState(event?.is_group_event || false);
+  const [groupName, setGroupName] = useState(event?.group_name || "");
+  const [groupMembers, setGroupMembers] = useState<GroupMember[]>(event?.group_members || []);
+
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
   const [isBookingEvent, setIsBookingEvent] = useState(false);
   const isGeorgian = language === 'ka';
-  // Add state for delete confirmation dialog
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   // Synchronize fields when event data changes or when dialog opens
   useEffect(() => {
@@ -105,6 +114,11 @@ export const EventDialog = ({
       
       setIsBookingEvent(event.type === 'booking_request');
       
+      // Set group event fields
+      setIsGroupEvent(event.is_group_event || false);
+      setGroupName(event.group_name || "");
+      setGroupMembers(event.group_members || []);
+      
       console.log("EventDialog - Loaded event with type:", event.type);
       console.log("EventDialog - Loaded payment status:", normalizedStatus);
     } else if (selectedDate) {
@@ -128,6 +142,11 @@ export const EventDialog = ({
       setSocialNetworkLink("");
       setEventNotes("");
       setPaymentAmount("");
+      
+      // Reset group event fields
+      setIsGroupEvent(false);
+      setGroupName("");
+      setGroupMembers([]);
     }
   }, [selectedDate, event, open]);
 
@@ -213,8 +232,8 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Always use userSurname for consistent naming across the app
-    const finalTitle = userSurname;
+    // Use group name as title if it's a group event, otherwise use userSurname
+    const finalTitle = isGroupEvent ? groupName : userSurname;
     
     const startDateTime = new Date(startDate);
     const endDateTime = new Date(endDate);
@@ -241,9 +260,9 @@ export const EventDialog = ({
     // Ensure we preserve the original event language if available
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
-      user_surname: userSurname, // Use userSurname for consistent naming
-      user_number: userNumber,
-      social_network_link: socialNetworkLink,
+      user_surname: isGroupEvent ? "" : userSurname, // Clear individual fields for group events
+      user_number: isGroupEvent ? "" : userNumber,
+      social_network_link: isGroupEvent ? "" : socialNetworkLink,
       event_notes: eventNotes,
       start_date: startDateTime.toISOString(),
       end_date: endDateTime.toISOString(),
@@ -333,10 +352,10 @@ export const EventDialog = ({
               const { error: updateError } = await supabase
                 .from('booking_requests')
                 .update({
-                  title,
-                  requester_name: userSurname,
-                  requester_phone: userNumber,
-                  requester_email: socialNetworkLink,
+                  title: finalTitle,
+                  requester_name: isGroupEvent ? groupName : userSurname,
+                  requester_phone: isGroupEvent ? "" : userNumber,
+                  requester_email: isGroupEvent ? "" : socialNetworkLink,
                   description: eventNotes,
                   start_date: startDateTime.toISOString(),
                   end_date: endDateTime.toISOString(),
@@ -397,39 +416,135 @@ export const EventDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")}>
             {event ? t("events.editEvent") : t("events.addNewEvent")}
           </DialogTitle>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-            <EventDialogFields
-              title={title}
-              setTitle={setTitle}
-              userSurname={userSurname}
-              setUserSurname={setUserSurname}
-              userNumber={userNumber}
-              setUserNumber={setUserNumber}
-              socialNetworkLink={socialNetworkLink}
-              setSocialNetworkLink={setSocialNetworkLink}
-              eventNotes={eventNotes}
-              setEventNotes={setEventNotes}
-              startDate={startDate}
-              setStartDate={setStartDate}
-              endDate={endDate}
-              setEndDate={setEndDate}
-              paymentStatus={paymentStatus}
-              setPaymentStatus={setPaymentStatus}
-              paymentAmount={paymentAmount}
-              setPaymentAmount={setPaymentAmount}
-              selectedFile={selectedFile}
-              setSelectedFile={setSelectedFile}
-              fileError={fileError}
-              setFileError={setFileError}
-              eventId={event?.id}
-              onFileDeleted={handleFileDeleted}
-              displayedFiles={displayedFiles}
-              isBookingRequest={isBookingRequest}
-            />
+            {/* Group Event Toggle */}
+            <div className="flex items-center space-x-2 p-4 bg-muted/50 rounded-lg">
+              <Switch
+                id="group-event"
+                checked={isGroupEvent}
+                onCheckedChange={setIsGroupEvent}
+              />
+              <Label htmlFor="group-event" className={cn("text-sm font-medium", isGeorgian ? "font-georgian" : "")}>
+                Group Event
+              </Label>
+            </div>
+
+            {/* Group Name Field (shown only for group events) */}
+            {isGroupEvent && (
+              <div>
+                <Label htmlFor="group-name" className={cn(isGeorgian ? "font-georgian" : "")}>
+                  Group Name *
+                </Label>
+                <Input
+                  id="group-name"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  placeholder="Enter group name"
+                  required
+                  className={cn(isGeorgian ? "font-georgian" : "")}
+                />
+              </div>
+            )}
+
+            {/* Group Members (shown only for group events) */}
+            {isGroupEvent && (
+              <GroupParticipants
+                members={groupMembers}
+                onMembersChange={setGroupMembers}
+              />
+            )}
+
+            {/* Regular Event Fields (hidden for group events) */}
+            {!isGroupEvent && (
+              <EventDialogFields
+                title={title}
+                setTitle={setTitle}
+                userSurname={userSurname}
+                setUserSurname={setUserSurname}
+                userNumber={userNumber}
+                setUserNumber={setUserNumber}
+                socialNetworkLink={socialNetworkLink}
+                setSocialNetworkLink={setSocialNetworkLink}
+                eventNotes={eventNotes}
+                setEventNotes={setEventNotes}
+                startDate={startDate}
+                setStartDate={setStartDate}
+                endDate={endDate}
+                setEndDate={setEndDate}
+                paymentStatus={paymentStatus}
+                setPaymentStatus={setPaymentStatus}
+                paymentAmount={paymentAmount}
+                setPaymentAmount={setPaymentAmount}
+                selectedFile={selectedFile}
+                setSelectedFile={setSelectedFile}
+                fileError={fileError}
+                setFileError={setFileError}
+                eventId={event?.id}
+                onFileDeleted={handleFileDeleted}
+                displayedFiles={displayedFiles}
+                isBookingRequest={isBookingRequest}
+              />
+            )}
+
+            {/* Common fields for both group and individual events */}
+            {isGroupEvent && (
+              <>
+                {/* Date and Time fields */}
+                <div>
+                  <Label htmlFor="dateTime" className={cn(isGeorgian ? "font-georgian" : "")}>
+                    Date and Time
+                  </Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="startDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
+                        Start
+                      </Label>
+                      <Input
+                        id="startDate"
+                        type="datetime-local"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        required
+                        className="w-full dark:text-white dark:[color-scheme:dark]"
+                        style={{ colorScheme: 'auto' }}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="endDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}>
+                        End
+                      </Label>
+                      <Input
+                        i  d="endDate"
+                        type="datetime-local"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        required
+                        className="w-full dark:text-white dark:[color-scheme:dark]"
+                        style={{ colorScheme: 'auto' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Event Notes */}
+                <div>
+                  <Label htmlFor="eventNotes" className={cn(isGeorgian ? "font-georgian" : "")}>
+                    Event Notes
+                  </Label>
+                  <textarea
+                    id="eventNotes"
+                    value={eventNotes}
+                    onChange={(e) => setEventNotes(e.target.value)}
+                    placeholder="Add notes about your event"
+                    className={cn("min-h-[100px] resize-none w-full p-3 border border-input rounded-md", isGeorgian ? "placeholder:font-georgian font-georgian" : "")}
+                  />
+                </div>
+              </>
+            )}
             
             <div className="flex justify-between gap-4">
               <Button type="submit" className="flex-1">
