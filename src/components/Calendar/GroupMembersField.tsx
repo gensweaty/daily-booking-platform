@@ -84,9 +84,9 @@ export const GroupMembersField = ({
       )}
 
       {groupMembers.map((member, index) => (
-        <div key={member.id} className="border rounded-lg p-4 space-y-3">
+        <div key={member.id} className="border rounded-lg p-4 space-y-3 bg-gray-50/50">
           <div className="flex items-center justify-between">
-            <h4 className={cn("font-medium", isGeorgian ? "font-georgian" : "")}>
+            <h4 className={cn("font-medium text-gray-900", isGeorgian ? "font-georgian" : "")}>
               {t("events.member")} {index + 1}
             </h4>
             <Button
@@ -95,28 +95,30 @@ export const GroupMembersField = ({
               size="sm"
               onClick={() => removeGroupMember(member.id)}
               disabled={disabled}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor={`member-name-${member.id}`} className={cn(isGeorgian ? "font-georgian" : "")}>
-                {t("events.fullName")}
+              <Label htmlFor={`member-name-${member.id}`} className={cn("text-sm font-medium", isGeorgian ? "font-georgian" : "")}>
+                {t("events.fullName")} *
               </Label>
               <Input
                 id={`member-name-${member.id}`}
                 value={member.user_surname}
                 onChange={(e) => updateGroupMember(member.id, 'user_surname', e.target.value)}
                 disabled={disabled}
-                className={cn(isGeorgian ? "font-georgian" : "")}
+                className={cn("mt-1", isGeorgian ? "font-georgian" : "")}
                 placeholder={isGeorgian ? "სრული სახელი" : t("events.fullName")}
+                required
               />
             </div>
 
             <div>
-              <Label htmlFor={`member-phone-${member.id}`} className={cn(isGeorgian ? "font-georgian" : "")}>
+              <Label htmlFor={`member-phone-${member.id}`} className={cn("text-sm font-medium", isGeorgian ? "font-georgian" : "")}>
                 {t("events.phoneNumber")}
               </Label>
               <Input
@@ -124,14 +126,15 @@ export const GroupMembersField = ({
                 value={member.user_number}
                 onChange={(e) => updateGroupMember(member.id, 'user_number', e.target.value)}
                 disabled={disabled}
-                className={cn(isGeorgian ? "font-georgian" : "")}
+                className={cn("mt-1", isGeorgian ? "font-georgian" : "")}
                 placeholder={isGeorgian ? "ტელეფონის ნომერი" : t("events.phoneNumber")}
               />
             </div>
 
+            {/* Email field - using social_network_link as email storage */}
             <div>
-              <Label htmlFor={`member-email-${member.id}`} className={cn(isGeorgian ? "font-georgian" : "")}>
-                {t("events.socialLinkEmail")}
+              <Label htmlFor={`member-email-${member.id}`} className={cn("text-sm font-medium", isGeorgian ? "font-georgian" : "")}>
+                {isGeorgian ? "ელ-ფოსტა" : "Email"}
               </Label>
               <Input
                 id={`member-email-${member.id}`}
@@ -139,13 +142,13 @@ export const GroupMembersField = ({
                 value={member.social_network_link}
                 onChange={(e) => updateGroupMember(member.id, 'social_network_link', e.target.value)}
                 disabled={disabled}
-                className={cn(isGeorgian ? "font-georgian" : "")}
+                className={cn("mt-1", isGeorgian ? "font-georgian" : "")}
                 placeholder="email@example.com"
               />
             </div>
 
             <div>
-              <Label htmlFor={`member-payment-${member.id}`} className={cn(isGeorgian ? "font-georgian" : "")}>
+              <Label htmlFor={`member-payment-${member.id}`} className={cn("text-sm font-medium", isGeorgian ? "font-georgian" : "")}>
                 {t("events.paymentStatus")}
               </Label>
               <Select
@@ -153,7 +156,7 @@ export const GroupMembersField = ({
                 onValueChange={(value) => updateGroupMember(member.id, 'payment_status', value)}
                 disabled={disabled}
               >
-                <SelectTrigger>
+                <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -167,12 +170,12 @@ export const GroupMembersField = ({
             {/* Payment Amount - only show when payment status is partly_paid or fully_paid */}
             {(member.payment_status === "partly_paid" || member.payment_status === "fully_paid") && (
               <div className="md:col-span-2">
-                <Label htmlFor={`member-amount-${member.id}`} className={cn(isGeorgian ? "font-georgian" : "")}>
+                <Label htmlFor={`member-amount-${member.id}`} className={cn("text-sm font-medium", isGeorgian ? "font-georgian" : "")}>
                   {t("events.paymentAmount")}
                 </Label>
-                <div className="relative">
+                <div className="relative mt-1">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                    <span className="text-gray-500">{currencySymbol}</span>
+                    <span className="text-gray-500 text-sm">{currencySymbol}</span>
                   </div>
                   <Input
                     id={`member-amount-${member.id}`}
@@ -186,7 +189,7 @@ export const GroupMembersField = ({
                       }
                     }}
                     disabled={disabled}
-                    className={cn("pl-7", isGeorgian ? "font-georgian" : "")}
+                    className={cn("pl-8", isGeorgian ? "font-georgian" : "")}
                     placeholder="0.00"
                   />
                 </div>
@@ -194,7 +197,7 @@ export const GroupMembersField = ({
             )}
 
             <div className="md:col-span-2">
-              <Label htmlFor={`member-notes-${member.id}`} className={cn(isGeorgian ? "font-georgian" : "")}>
+              <Label htmlFor={`member-notes-${member.id}`} className={cn("text-sm font-medium", isGeorgian ? "font-georgian" : "")}>
                 {t("events.eventNotes")}
               </Label>
               <Textarea
@@ -202,7 +205,7 @@ export const GroupMembersField = ({
                 value={member.event_notes}
                 onChange={(e) => updateGroupMember(member.id, 'event_notes', e.target.value)}
                 disabled={disabled}
-                className={cn(isGeorgian ? "font-georgian" : "")}
+                className={cn("mt-1", isGeorgian ? "font-georgian" : "")}
                 rows={2}
                 placeholder={isGeorgian ? "დაამატეთ შენიშვნები ამ წევრის შესახებ" : "Add notes about this member"}
               />

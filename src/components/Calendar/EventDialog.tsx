@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -60,7 +61,7 @@ export const EventDialog = ({
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
   
-  // Group booking state
+  // Group booking state - Initialize based on event data
   const [isGroupEvent, setIsGroupEvent] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
@@ -74,8 +75,8 @@ export const EventDialog = ({
   // Add state for delete confirmation dialog
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
-  // Load group members from database
-  const loadGroupMembers = async (eventId: string) => {
+  // Improved group members loading with better error handling and field mapping
+  const loadGroupMembers = async (eventId: string): Promise<GroupMember[]> => {
     try {
       console.log("Loading group members for event:", eventId);
       
@@ -84,7 +85,8 @@ export const EventDialog = ({
         .from('customers')
         .select('*')
         .eq('parent_group_id', eventId)
-        .eq('is_group_member', true);
+        .eq('is_group_member', true)
+        .order('created_at', { ascending: true });
 
       if (error) {
         console.error("Error loading group members:", error);
@@ -94,20 +96,22 @@ export const EventDialog = ({
       if (groupMemberCustomers && groupMemberCustomers.length > 0) {
         console.log("Loaded group members from customers:", groupMemberCustomers);
         
-        // Convert customer records to GroupMember format
+        // Convert customer records to GroupMember format with proper field mapping
         const members: GroupMember[] = groupMemberCustomers.map(customer => ({
           id: customer.id,
           user_surname: customer.user_surname || customer.title || "",
           user_number: customer.user_number || "",
-          social_network_link: customer.social_network_link || "",
+          social_network_link: customer.social_network_link || "", // This will be treated as email
           event_notes: customer.event_notes || "",
           payment_status: customer.payment_status || "not_paid",
           payment_amount: customer.payment_amount?.toString() || ""
         }));
 
+        console.log("Mapped group members:", members);
         return members;
       }
 
+      console.log("No group members found for event:", eventId);
       return [];
     } catch (error) {
       console.error("Exception loading group members:", error);
@@ -117,98 +121,111 @@ export const EventDialog = ({
 
   // Synchronize fields when event data changes or when dialog opens
   useEffect(() => {
-    if (event) {
-      const start = new Date(event.start_date);
-      const end = new Date(event.end_date);
-      
-      console.log("Loading event data:", event);
-      
-      // Check if this is a group event and set the toggle accordingly
-      const eventIsGroupEvent = event.is_group_event || false;
-      console.log("Event is group event:", eventIsGroupEvent);
-      setIsGroupEvent(eventIsGroupEvent);
-      
-      if (eventIsGroupEvent) {
-        // For group events, use group_name as title
-        setGroupName(event.group_name || "");
-        setTitle(event.group_name || event.title || "");
-        // Clear individual fields for group events
+    const initializeEventData = async () => {
+      if (event) {
+        const start = new Date(event.start_date);
+        const end = new Date(event.end_date);
+        
+        console.log("Initializing event data:", event);
+        
+        // Check if this is a group event FIRST and set the toggle accordingly
+        const eventIsGroupEvent = Boolean(event.is_group_event);
+        console.log("Event is group event:", eventIsGroupEvent);
+        
+        // Set group event state IMMEDIATELY
+        setIsGroupEvent(eventIsGroupEvent);
+        
+        if (eventIsGroupEvent) {
+          // For group events, use group_name as title
+          const groupEventName = event.group_name || event.title || "";
+          console.log("Setting group event name:", groupEventName);
+          setGroupName(groupEventName);
+          setTitle(groupEventName);
+          // Clear individual fields for group events
+          setUserSurname("");
+          setUserNumber("");
+          setSocialNetworkLink("");
+          setEventNotes("");
+          
+          // Load group members immediately
+          if (event.id) {
+            console.log("Loading group members for group event:", event.id);
+            try {
+              const members = await loadGroupMembers(event.id);
+              console.log("Loaded group members:", members);
+              setGroupMembers(members);
+            } catch (error) {
+              console.error("Failed to load group members:", error);
+              setGroupMembers([]);
+            }
+          }
+        } else {
+          // For individual events, use user_surname
+          const fullName = event.user_surname || event.title || "";
+          setTitle(fullName);
+          setUserSurname(fullName);
+          setUserNumber(event.user_number || event.requester_phone || "");
+          setSocialNetworkLink(event.social_network_link || event.requester_email || "");
+          setEventNotes(event.event_notes || event.description || "");
+          // Clear group fields for individual events
+          setGroupName("");
+          setGroupMembers([]);
+        }
+        
+        // Normalize payment status to handle different formats
+        let normalizedStatus = event.payment_status || "not_paid";
+        if (normalizedStatus.includes('partly')) normalizedStatus = 'partly_paid';
+        else if (normalizedStatus.includes('fully')) normalizedStatus = 'fully_paid';
+        else if (normalizedStatus.includes('not')) normalizedStatus = 'not_paid';
+        
+        console.log("Setting normalized payment status:", normalizedStatus);
+        setPaymentStatus(normalizedStatus);
+        setPaymentAmount(event.payment_amount?.toString() || "");
+        
+        const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
+        const formattedEnd = format(end, "yyyy-MM-dd'T'HH:mm");
+        
+        setStartDate(formattedStart);
+        setEndDate(formattedEnd);
+        setOriginalStartDate(formattedStart);
+        setOriginalEndDate(formattedEnd);
+        
+        setIsBookingEvent(event.type === 'booking_request');
+        
+        console.log("EventDialog - Loaded event with type:", event.type);
+        console.log("EventDialog - Loaded payment status:", normalizedStatus);
+      } else if (selectedDate) {
+        // Reset everything for new events
+        const start = new Date(selectedDate.getTime());
+        const end = new Date(selectedDate.getTime());
+        
+        end.setHours(end.getHours() + 1);
+        
+        const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
+        const formattedEnd = format(end, "yyyy-MM-dd'T'HH:mm");
+        
+        setStartDate(formattedStart);
+        setEndDate(formattedEnd);
+        setOriginalStartDate(formattedStart);
+        setOriginalEndDate(formattedEnd);
+        setPaymentStatus("not_paid");
+        
+        setTitle("");
         setUserSurname("");
         setUserNumber("");
         setSocialNetworkLink("");
         setEventNotes("");
-      } else {
-        // For individual events, use user_surname
-        const fullName = event.user_surname || event.title || "";
-        setTitle(fullName);
-        setUserSurname(fullName);
-        setUserNumber(event.user_number || event.requester_phone || "");
-        setSocialNetworkLink(event.social_network_link || event.requester_email || "");
-        setEventNotes(event.event_notes || event.description || "");
-        // Clear group fields for individual events
+        setPaymentAmount("");
+        
+        // Reset group event state for new events
+        setIsGroupEvent(false);
         setGroupName("");
-      }
-      
-      // Normalize payment status to handle different formats
-      let normalizedStatus = event.payment_status || "not_paid";
-      if (normalizedStatus.includes('partly')) normalizedStatus = 'partly_paid';
-      else if (normalizedStatus.includes('fully')) normalizedStatus = 'fully_paid';
-      else if (normalizedStatus.includes('not')) normalizedStatus = 'not_paid';
-      
-      console.log("Setting normalized payment status:", normalizedStatus);
-      setPaymentStatus(normalizedStatus);
-      setPaymentAmount(event.payment_amount?.toString() || "");
-      
-      const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
-      const formattedEnd = format(end, "yyyy-MM-dd'T'HH:mm");
-      
-      setStartDate(formattedStart);
-      setEndDate(formattedEnd);
-      setOriginalStartDate(formattedStart);
-      setOriginalEndDate(formattedEnd);
-      
-      setIsBookingEvent(event.type === 'booking_request');
-      
-      // Load group members if this is a group event
-      if (eventIsGroupEvent && event.id) {
-        console.log("Loading group members for group event:", event.id);
-        loadGroupMembers(event.id).then(members => {
-          console.log("Setting group members:", members);
-          setGroupMembers(members);
-        });
-      } else {
-        console.log("Not a group event, clearing group members");
         setGroupMembers([]);
       }
-      
-      console.log("EventDialog - Loaded event with type:", event.type);
-      console.log("EventDialog - Loaded payment status:", normalizedStatus);
-    } else if (selectedDate) {
-      const start = new Date(selectedDate.getTime());
-      const end = new Date(selectedDate.getTime());
-      
-      end.setHours(end.getHours() + 1);
-      
-      const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
-      const formattedEnd = format(end, "yyyy-MM-dd'T'HH:mm");
-      
-      setStartDate(formattedStart);
-      setEndDate(formattedEnd);
-      setOriginalStartDate(formattedStart);
-      setOriginalEndDate(formattedEnd);
-      setPaymentStatus("not_paid");
-      
-      setTitle("");
-      setUserSurname("");
-      setUserNumber("");
-      setSocialNetworkLink("");
-      setEventNotes("");
-      setPaymentAmount("");
-      
-      // Reset group event state for new events
-      setIsGroupEvent(false);
-      setGroupName("");
-      setGroupMembers([]);
+    };
+
+    if (open) {
+      initializeEventData();
     }
   }, [selectedDate, event, open]);
 
@@ -378,7 +395,7 @@ export const EventDialog = ({
               title: member.user_surname,
               user_surname: member.user_surname,
               user_number: member.user_number,
-              social_network_link: member.social_network_link,
+              social_network_link: member.social_network_link, // This contains the email
               event_notes: member.event_notes,
               payment_status: member.payment_status,
               payment_amount: member.payment_amount ? parseFloat(member.payment_amount) : null,
@@ -534,7 +551,11 @@ export const EventDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className={cn(
+          "max-h-[90vh] overflow-y-auto",
+          // Make dialog wider for group events to accommodate member cards
+          isGroupEvent ? "max-w-4xl w-[95vw]" : "max-w-2xl w-[90vw]"
+        )}>
           <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")}>
             {event ? t("events.editEvent") : t("events.addNewEvent")}
           </DialogTitle>
@@ -612,7 +633,7 @@ export const EventDialog = ({
               {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+        </AlertDialogFooter>
       </AlertDialog>
     </>
   );
