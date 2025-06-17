@@ -88,8 +88,8 @@ export const EventDialogFields = ({
   const isGeorgian = language === 'ka';
   const currencySymbol = getCurrencySymbol(language);
 
-  const handleGroupEventToggle = (checked: boolean) => {
-    console.log("Group event toggle:", checked);
+  const handleGroupEventChange = (checked: boolean) => {
+    console.log("Group event toggle clicked:", checked);
     setIsGroupEvent(checked);
     
     // Clear individual fields when switching to group
@@ -114,8 +114,7 @@ export const EventDialogFields = ({
         <Switch
           id="group-event-toggle"
           checked={isGroupEvent}
-          onCheckedChange={handleGroupEventToggle}
-          className="data-[state=checked]:bg-primary"
+          onCheckedChange={handleGroupEventChange}
         />
         <Label 
           htmlFor="group-event-toggle" 
