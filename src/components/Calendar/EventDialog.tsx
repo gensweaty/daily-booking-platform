@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -554,7 +553,7 @@ export const EventDialog = ({
         <DialogContent className={cn(
           "max-h-[90vh] overflow-y-auto",
           // Make dialog wider for group events to accommodate member cards
-          isGroupEvent ? "max-w-4xl w-[95vw]" : "max-w-2xl w-[90vw]"
+          isGroupEvent ? "max-w-5xl w-[95vw]" : "max-w-2xl w-[90vw]"
         )}>
           <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")}>
             {event ? t("events.editEvent") : t("events.addNewEvent")}
@@ -633,7 +632,7 @@ export const EventDialog = ({
               {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogFooter>
+        </AlertDialogContent>
       </AlertDialog>
     </>
   );
