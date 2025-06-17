@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface TranslationType {
@@ -286,6 +287,14 @@ export interface TranslationType {
     title: string;
     bookAppointment: string;
     submitRequest: string;
+    groupEvent: string;
+    groupName: string;
+    addMember: string;
+    member: string;
+    noMembersYet: string;
+    groupEventCreated: string;
+    groupEventUpdated: string;
+    groupMembers: string;
   };
   contact: {
     email: string;
