@@ -303,7 +303,9 @@ export const translations: TranslationType = {
     memberCount: "Miembros: {{count}}",
     partlyPaid: "Parcialmente Pagado",
     fullyPaid: "Totalmente Pagado",
-    notPaid: "No Pagado"
+    notPaid: "No Pagado",
+    startDate: "Fecha de Inicio",
+    endDate: "Fecha de Fin"
   },
   contact: {
     email: "Correo electrónico",
