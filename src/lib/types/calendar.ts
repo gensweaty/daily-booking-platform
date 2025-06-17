@@ -36,4 +36,9 @@ export interface CalendarEventType {
     content_type?: string;
     size?: number;
   }>;
+  // Group booking fields
+  is_group_event?: boolean;
+  group_name?: string;
+  parent_group_id?: string;
+  group_member_count?: number;
 }
