@@ -1,4 +1,3 @@
-
 export interface Task {
   id: string;
   title: string;
@@ -46,14 +45,14 @@ export interface BusinessProfile {
 export interface BookingRequest {
   id: string;
   business_id: string;
-  user_id: string | null;
+  user_id: string | null; // Make user_id nullable for public booking requests
   requester_name: string;
   requester_email: string;
   requester_phone?: string;
   title: string;
   description?: string;
-  start_date: string;
-  end_date: string;
+  start_date: string; // ISO format date string
+  end_date: string;   // ISO format date string
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
@@ -64,11 +63,13 @@ export interface BookingRequest {
   event_notes?: string;
   payment_status?: string;
   payment_amount?: number | null;
-  language?: string;
+  language?: string; // Add language field to BookingRequest interface
+  // File fields explicitly defined
   file_path?: string;
   filename?: string;
   content_type?: string;
   size?: number;
+  // Add the files property for multiple file attachments
   files?: Array<{
     id: string;
     event_id: string;
@@ -79,6 +80,7 @@ export interface BookingRequest {
   }>;
 }
 
+// Add EventFile interface to match event_files table
 export interface EventFile {
   id: string;
   event_id: string;
@@ -91,6 +93,7 @@ export interface EventFile {
   source?: string;
 }
 
+// Add CustomerFile interface to match customer_files_new table
 export interface CustomerFile {
   id: string;
   customer_id: string;
@@ -101,14 +104,4 @@ export interface CustomerFile {
   user_id?: string;
   created_at: string;
   source?: string;
-}
-
-// Add group member interface for type safety
-export interface GroupMember {
-  id?: string;
-  full_name: string;
-  email: string;
-  phone?: string;
-  payment_status?: string;
-  notes?: string;
 }

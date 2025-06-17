@@ -1,15 +1,6 @@
 
 export type CalendarViewType = 'month' | 'week' | 'day';
 
-export interface GroupMember {
-  id?: string;
-  full_name: string;
-  email: string;
-  phone?: string;
-  payment_status?: string;
-  notes?: string;
-}
-
 export interface CalendarEventType {
   id: string;
   title: string;
@@ -36,11 +27,7 @@ export interface CalendarEventType {
   size?: number;
   checkAvailability?: boolean;
   language?: string;
-  customer_id?: string;
-  is_group_event?: boolean;
-  group_name?: string;
-  parent_group_id?: string;
-  group_members?: GroupMember[];
+  customer_id?: string; // Properly typed as optional string
   files?: Array<{
     id: string;
     event_id: string;
