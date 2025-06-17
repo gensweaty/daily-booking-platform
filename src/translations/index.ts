@@ -5,7 +5,7 @@ import { translations as ka } from './ka';
 import { Language, TranslationType } from './types';
 
 export const translations: Record<Language, TranslationType> = {
-  en: en as TranslationType,
+  en: en as unknown as TranslationType,
   es,
   ka,
 };
