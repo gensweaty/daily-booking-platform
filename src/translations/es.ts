@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -287,8 +288,6 @@ export const translations: TranslationType = {
     title: "Título del Evento",
     bookAppointment: "Reservar Cita",
     submitRequest: "Enviar Solicitud",
-    
-    // Group booking translations
     groupEvent: "Evento Grupal",
     groupName: "Nombre del Grupo",
     addMember: "Añadir Miembro",
@@ -454,7 +453,6 @@ export const translations: TranslationType = {
     requestSubmitted: "Solicitud de reserva enviada",
     requestSubmittedDescription: "Tu solicitud de reserva ha sido enviada y está pendiente de aprobación."
   },
-  
   notes: {
     title: "Título",
     titlePlaceholder: "Título de la nota",
@@ -467,7 +465,6 @@ export const translations: TranslationType = {
     noteUpdated: "Nota actualizada con éxito",
     noteDeleted: "Nota eliminada con éxito"
   },
-  
   reminders: {
     reminderCreated: "Recordatorio creado con éxito"
   },

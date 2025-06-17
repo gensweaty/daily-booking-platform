@@ -1,3 +1,4 @@
+
 export const translations = {
   common: {
     loading: "Loading...",
@@ -87,6 +88,9 @@ export const translations = {
     feature3: "Personalized communication",
     feature4: "Customer feedback tracking",
     feature5: "Loyalty program management",
+    notPaid: "Not Paid",
+    paidPartly: "Paid Partly",
+    paidFully: "Paid Fully",
   },
   tasks: {
     title: "Kanban Task Management",
@@ -285,8 +289,6 @@ export const translations = {
     notPaid: "Not Paid",
     eventCreated: "Event created successfully",
     eventUpdated: "Event updated successfully",
-
-    // Group booking translations
     groupEvent: "Group Event",
     groupName: "Group Name",
     addMember: "Add Member",
@@ -295,10 +297,5 @@ export const translations = {
     groupEventCreated: "Group event created successfully",
     groupEventUpdated: "Group event updated successfully",
     groupMembers: "Group Members",
-  },
-  crm: {
-    notPaid: "Not Paid",
-    paidPartly: "Paid Partly",
-    paidFully: "Paid Fully",
   },
 };
