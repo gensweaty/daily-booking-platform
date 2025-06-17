@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { GroupMember } from "./GroupMembersField";
 
 interface EventDialogProps {
   open: boolean;
@@ -58,6 +60,12 @@ export const EventDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
+  
+  // Group booking state
+  const [isGroupEvent, setIsGroupEvent] = useState(event?.is_group_event || false);
+  const [groupName, setGroupName] = useState(event?.group_name || "");
+  const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
+  
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -105,6 +113,10 @@ export const EventDialog = ({
       
       setIsBookingEvent(event.type === 'booking_request');
       
+      // Load group event data
+      setIsGroupEvent(event.is_group_event || false);
+      setGroupName(event.group_name || "");
+      
       console.log("EventDialog - Loaded event with type:", event.type);
       console.log("EventDialog - Loaded payment status:", normalizedStatus);
     } else if (selectedDate) {
@@ -128,6 +140,11 @@ export const EventDialog = ({
       setSocialNetworkLink("");
       setEventNotes("");
       setPaymentAmount("");
+      
+      // Reset group event state for new events
+      setIsGroupEvent(false);
+      setGroupName("");
+      setGroupMembers([]);
     }
   }, [selectedDate, event, open]);
 
@@ -213,8 +230,8 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Always use userSurname for consistent naming across the app
-    const finalTitle = userSurname;
+    // For group events, use group name as title, otherwise use userSurname
+    const finalTitle = isGroupEvent ? groupName : userSurname;
     
     const startDateTime = new Date(startDate);
     const endDateTime = new Date(endDate);
@@ -241,15 +258,20 @@ export const EventDialog = ({
     // Ensure we preserve the original event language if available
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
-      user_surname: userSurname, // Use userSurname for consistent naming
-      user_number: userNumber,
-      social_network_link: socialNetworkLink,
-      event_notes: eventNotes,
+      user_surname: isGroupEvent ? "" : userSurname, // Clear individual data for group events
+      user_number: isGroupEvent ? "" : userNumber,
+      social_network_link: isGroupEvent ? "" : socialNetworkLink,
+      event_notes: isGroupEvent ? "" : eventNotes,
       start_date: startDateTime.toISOString(),
       end_date: endDateTime.toISOString(),
-      payment_status: normalizedPaymentStatus, // Use normalized payment status
-      payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-      language: event?.language || language, // Preserve original language or use current UI language
+      payment_status: isGroupEvent ? "not_paid" : normalizedPaymentStatus, // Group events handle payment per member
+      payment_amount: isGroupEvent ? null : (paymentAmount ? parseFloat(paymentAmount) : null),
+      language: event?.language || language,
+      // Group event fields
+      is_group_event: isGroupEvent,
+      group_name: isGroupEvent ? groupName : null,
+      group_member_count: isGroupEvent ? groupMembers.length : 1,
+      parent_group_id: isGroupEvent ? (event?.id || null) : null
     };
 
     if (event?.id) {
@@ -269,6 +291,42 @@ export const EventDialog = ({
       console.log("EventDialog - Submitting event data:", eventData);
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
+      
+      // Handle group members if this is a group event
+      if (isGroupEvent && groupMembers.length > 0 && createdEvent?.id && user) {
+        try {
+          // Create individual customer records for each group member
+          for (const member of groupMembers) {
+            const customerData = {
+              title: member.user_surname,
+              user_surname: member.user_surname,
+              user_number: member.user_number,
+              social_network_link: member.social_network_link,
+              event_notes: member.event_notes,
+              payment_status: member.payment_status,
+              payment_amount: member.payment_amount ? parseFloat(member.payment_amount) : null,
+              user_id: user.id,
+              type: 'group_member',
+              start_date: startDateTime.toISOString(),
+              end_date: endDateTime.toISOString(),
+              parent_group_id: createdEvent.id,
+              is_group_member: true
+            };
+
+            const { error: customerError } = await supabase
+              .from('customers')
+              .insert(customerData);
+
+            if (customerError) {
+              console.error('Error creating group member customer:', customerError);
+            } else {
+              console.log('Created customer for group member:', member.user_surname);
+            }
+          }
+        } catch (groupError) {
+          console.error("Error handling group members:", groupError);
+        }
+      }
       
       // Handle file upload to event_files for the current event
       if (selectedFile && createdEvent?.id && user) {
@@ -317,7 +375,9 @@ export const EventDialog = ({
         toast({
           translateKeys: {
             titleKey: "common.success",
-            descriptionKey: event?.id ? "events.eventUpdated" : "events.eventCreated"
+            descriptionKey: isGroupEvent 
+              ? (event?.id ? "events.groupEventUpdated" : "events.groupEventCreated")
+              : (event?.id ? "events.eventUpdated" : "events.eventCreated")
           }
         });
       } else {
@@ -333,11 +393,11 @@ export const EventDialog = ({
               const { error: updateError } = await supabase
                 .from('booking_requests')
                 .update({
-                  title,
-                  requester_name: userSurname,
-                  requester_phone: userNumber,
-                  requester_email: socialNetworkLink,
-                  description: eventNotes,
+                  title: finalTitle,
+                  requester_name: isGroupEvent ? groupName : userSurname,
+                  requester_phone: isGroupEvent ? "" : userNumber,
+                  requester_email: isGroupEvent ? "" : socialNetworkLink,
+                  description: isGroupEvent ? `Group booking: ${groupName}` : eventNotes,
                   start_date: startDateTime.toISOString(),
                   end_date: endDateTime.toISOString(),
                 })
@@ -397,7 +457,7 @@ export const EventDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")}>
             {event ? t("events.editEvent") : t("events.addNewEvent")}
           </DialogTitle>
@@ -429,6 +489,13 @@ export const EventDialog = ({
               onFileDeleted={handleFileDeleted}
               displayedFiles={displayedFiles}
               isBookingRequest={isBookingRequest}
+              // Group booking props
+              isGroupEvent={isGroupEvent}
+              setIsGroupEvent={setIsGroupEvent}
+              groupName={groupName}
+              setGroupName={setGroupName}
+              groupMembers={groupMembers}
+              setGroupMembers={setGroupMembers}
             />
             
             <div className="flex justify-between gap-4">
@@ -468,7 +535,7 @@ export const EventDialog = ({
               {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+        </AlertDialogFooter>
       </AlertDialog>
     </>
   );

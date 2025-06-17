@@ -286,7 +286,17 @@ export const translations: TranslationType = {
     eventDetails: "Detalles del Evento",
     title: "Título del Evento",
     bookAppointment: "Reservar Cita",
-    submitRequest: "Enviar Solicitud"
+    submitRequest: "Enviar Solicitud",
+    
+    // Group booking translations
+    groupEvent: "Evento Grupal",
+    groupName: "Nombre del Grupo",
+    addMember: "Añadir Miembro",
+    member: "Miembro",
+    noMembersYet: "Aún no se han añadido miembros al grupo",
+    groupEventCreated: "Evento grupal creado con éxito",
+    groupEventUpdated: "Evento grupal actualizado con éxito",
+    groupMembers: "Miembros del Grupo"
   },
   contact: {
     email: "Correo electrónico",
