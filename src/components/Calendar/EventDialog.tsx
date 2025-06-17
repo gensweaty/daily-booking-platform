@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -75,6 +74,47 @@ export const EventDialog = ({
   // Add state for delete confirmation dialog
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
+  // Load group members from database
+  const loadGroupMembers = async (eventId: string) => {
+    try {
+      console.log("Loading group members for event:", eventId);
+      
+      // Load group members from customers table
+      const { data: groupMemberCustomers, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('parent_group_id', eventId)
+        .eq('is_group_member', true);
+
+      if (error) {
+        console.error("Error loading group members:", error);
+        return [];
+      }
+
+      if (groupMemberCustomers && groupMemberCustomers.length > 0) {
+        console.log("Loaded group members from customers:", groupMemberCustomers);
+        
+        // Convert customer records to GroupMember format
+        const members: GroupMember[] = groupMemberCustomers.map(customer => ({
+          id: customer.id,
+          user_surname: customer.user_surname || customer.title || "",
+          user_number: customer.user_number || "",
+          social_network_link: customer.social_network_link || "",
+          event_notes: customer.event_notes || "",
+          payment_status: customer.payment_status || "not_paid",
+          payment_amount: customer.payment_amount?.toString() || ""
+        }));
+
+        return members;
+      }
+
+      return [];
+    } catch (error) {
+      console.error("Exception loading group members:", error);
+      return [];
+    }
+  };
+
   // Synchronize fields when event data changes or when dialog opens
   useEffect(() => {
     if (event) {
@@ -116,6 +156,16 @@ export const EventDialog = ({
       // Load group event data
       setIsGroupEvent(event.is_group_event || false);
       setGroupName(event.group_name || "");
+      
+      // Load group members if this is a group event
+      if (event.is_group_event && event.id) {
+        loadGroupMembers(event.id).then(members => {
+          console.log("Setting group members:", members);
+          setGroupMembers(members);
+        });
+      } else {
+        setGroupMembers([]);
+      }
       
       console.log("EventDialog - Loaded event with type:", event.type);
       console.log("EventDialog - Loaded payment status:", normalizedStatus);
@@ -295,6 +345,19 @@ export const EventDialog = ({
       // Handle group members if this is a group event
       if (isGroupEvent && groupMembers.length > 0 && createdEvent?.id && user) {
         try {
+          // First, delete existing group members if updating
+          if (event?.id) {
+            const { error: deleteError } = await supabase
+              .from('customers')
+              .delete()
+              .eq('parent_group_id', event.id)
+              .eq('is_group_member', true);
+              
+            if (deleteError) {
+              console.error('Error deleting existing group members:', deleteError);
+            }
+          }
+
           // Create individual customer records for each group member
           for (const member of groupMembers) {
             const customerData = {
