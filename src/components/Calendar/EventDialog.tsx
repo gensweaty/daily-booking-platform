@@ -276,10 +276,10 @@ export const EventDialog = ({
         const parentEvent = await onSubmit(groupEventData);
         console.log('Created/Updated parent group event:', parentEvent);
 
-        // Create individual events for each participant
+        // Create individual events for each participant using direct Supabase calls
         for (const participant of participants) {
           if (participant.user_surname.trim()) { // Only create if name is provided
-            const participantEventData: Partial<CalendarEventType> = {
+            const participantEventData = {
               title: participant.user_surname,
               user_surname: participant.user_surname,
               user_number: participant.user_number,
@@ -292,9 +292,20 @@ export const EventDialog = ({
               type: 'event',
               parent_group_id: parentEvent.id,
               language: event?.language || language,
+              user_id: user?.id,
             };
 
-            await onSubmit(participantEventData);
+            // Create participant event directly with Supabase
+            const { data: participantEvent, error } = await supabase
+              .from('events')
+              .insert([participantEventData])
+              .select()
+              .single();
+
+            if (error) {
+              console.error('Error creating participant event:', error);
+              throw error;
+            }
             
             // Create customer record for CRM
             if (user?.id) {
