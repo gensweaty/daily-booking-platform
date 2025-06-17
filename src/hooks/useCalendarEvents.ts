@@ -301,7 +301,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         return { available: false, conflictDetails: "Error checking schedule" };
       }
       
-      // If we're editing an existing event, filter out the current event from conflicts
+      // FIXED: If we're editing an existing event, filter out the current event from conflicts
       const conflicts = eventId 
         ? existingEvents?.filter(e => e.id !== eventId)
         : existingEvents;
@@ -502,9 +502,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     const startDateTime = new Date(event.start_date as string);
     const endDateTime = new Date(event.end_date as string);
     
-    // OPTIMIZATION: Only check availability if requested by adding a flag
-    // This makes normal event creation faster but still allows for checking when needed
-    if (event.checkAvailability) {
+    // FIXED: Only check availability for regular events, not for group events to prevent conflicts
+    if (event.checkAvailability && !event.is_group_event) {
       const { available, conflictDetails } = await checkTimeSlotAvailability(
         startDateTime,
         endDateTime
@@ -539,7 +538,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       event_notes: event.event_notes,
       payment_status: event.payment_status || 'not_paid',
       payment_amount: event.payment_amount,
-      language: event.language || language || 'en' // Use provided language, current language, or default to 'en'
+      language: event.language || language || 'en',
+      // Group event fields
+      is_group_event: event.is_group_event || false,
+      group_name: event.group_name
     };
     
     const { data, error } = await supabase
@@ -571,7 +573,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         event.end_date as string,
         event.payment_status || 'not_paid',
         event.payment_amount || null,
-        event.language || language || 'en', // Use event language, current language, or default to 'en'
+        event.language || language || 'en', // Use provided language, current language, or default to 'en'
         event.event_notes // Pass the event notes
       );
     }
@@ -598,7 +600,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       const startDateTime = new Date(event.start_date as string);
       const endDateTime = new Date(event.end_date as string);
       
-      // Only check availability if times have changed
+      // FIXED: Only check availability if times have changed AND it's not a group event
       const timesChanged = haveTimesChanged(
         existingEvent.start_date,
         existingEvent.end_date,
@@ -606,7 +608,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         event.end_date as string
       );
       
-      if (timesChanged) {
+      if (timesChanged && !event.is_group_event) {
         const { available, conflictDetails } = await checkTimeSlotAvailability(
           startDateTime,
           endDateTime,

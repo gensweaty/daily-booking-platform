@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -63,7 +62,8 @@ export const Calendar = ({
     !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
   );
   
-  const events = directEvents || fetchedEvents;
+  // Fix: Use only one source of events to prevent duplication
+  const events = directEvents || fetchedEvents || [];
   const isLoading = !directEvents && isLoadingFromHook;
   
   const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
@@ -95,7 +95,7 @@ export const Calendar = ({
     
     if (events?.length > 0) {
       console.log("[Calendar] First event:", events[0]);
-      console.log("[Calendar] All events:", events); // Log all events to debug
+      console.log("[Calendar] All events:", events);
     }
   }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
 
@@ -121,7 +121,7 @@ export const Calendar = ({
       const result = await updateEvent?.({
         ...data,
         id: selectedEvent.id,
-        type: selectedEvent.type  // Make sure to pass the type from the selected event
+        type: selectedEvent.type
       });
       return result;
     },
@@ -250,7 +250,10 @@ export const Calendar = ({
     setIsBookingFormOpen(false);
     queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
     
-    toast.event.bookingSubmitted();
+    toast({
+      title: "Booking submitted",
+      description: "Your booking request has been submitted successfully.",
+    });
   };
 
   if (error && !directEvents) {
@@ -292,7 +295,7 @@ export const Calendar = ({
         <div className={`flex-1 ${gridBgClass} ${textClass}`}>
           <CalendarView
             days={getDaysForView()}
-            events={events || []}
+            events={events}
             selectedDate={selectedDate}
             view={view}
             onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}
