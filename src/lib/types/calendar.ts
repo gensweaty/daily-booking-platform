@@ -1,4 +1,5 @@
 
+
 export type CalendarViewType = 'month' | 'week' | 'day';
 
 export interface CalendarEventType {
@@ -36,4 +37,19 @@ export interface CalendarEventType {
     content_type?: string;
     size?: number;
   }>;
+  // Group booking fields
+  is_group_event?: boolean;
+  group_name?: string;
+  parent_group_id?: string;
+}
+
+// Interface for group participants
+export interface GroupParticipant {
+  id?: string;
+  user_surname: string;
+  user_number: string;
+  social_network_link: string;
+  event_notes: string;
+  payment_status: string;
+  payment_amount?: number;
 }
