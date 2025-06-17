@@ -1,4 +1,3 @@
-
 export const translations = {
   nav: {
     signin: "Sign In",
@@ -292,7 +291,13 @@ export const translations = {
     noMembersYet: "No group members added yet",
     groupEventCreated: "Group event created successfully",
     groupEventUpdated: "Group event updated successfully",
-    groupMembers: "Group Members"
+    groupMembers: "Group Members",
+    memberSaved: "Member saved successfully",
+    memberDeleted: "Member deleted successfully",
+    confirmDeleteMember: "Are you sure you want to delete this member?",
+    saveMember: "Save Member",
+    deleteMember: "Delete Member",
+    memberCount: "Members: {{count}}"
   },
   contact: {
     email: "Email",

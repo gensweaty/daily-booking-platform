@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -280,6 +279,12 @@ export const translations: TranslationType = {
     groupEventCreated: "ჯგუფური ღონისძიება წარმატებით შეიქმნა",
     groupEventUpdated: "ჯგუფური ღონისძიება წარმატებით განახლდა",
     groupMembers: "ჯგუფის წევრები",
+    memberSaved: "წევრი წარმატებით შეინახა",
+    memberDeleted: "წევრი წარმატებით წაიშალა",
+    confirmDeleteMember: "დარწმუნებული ხართ, რომ გსურთ ამ წევრის წაშლა?",
+    saveMember: "წევრის შენახვა",
+    deleteMember: "წევრის წაშლა",
+    memberCount: "წევრები: {{count}}",
   },
   contact: {
     email: "ელ-ფოსტა",

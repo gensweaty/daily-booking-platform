@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -234,8 +233,8 @@ export const translations: TranslationType = {
     inProgress: "En Progreso",
     todo: "Por Hacer",
     totalEvents: "Total de Eventos",
-    partlyPaid: "Pagado Parcialmente",
-    fullyPaid: "Pagado Completamente",
+    partlyPaid: "Parcialmente Pagado",
+    fullyPaid: "Totalmente Pagado",
     totalIncome: "Ingresos Totales",
     fromAllEvents: "De todos los eventos",
     exportSuccessful: "Exportación Exitosa",
@@ -293,9 +292,18 @@ export const translations: TranslationType = {
     addMember: "Añadir Miembro",
     member: "Miembro",
     noMembersYet: "Aún no se han añadido miembros al grupo",
-    groupEventCreated: "Evento grupal creado con éxito",
-    groupEventUpdated: "Evento grupal actualizado con éxito",
-    groupMembers: "Miembros del Grupo"
+    groupEventCreated: "Evento grupal creado exitosamente",
+    groupEventUpdated: "Evento grupal actualizado exitosamente",
+    groupMembers: "Miembros del Grupo",
+    memberSaved: "Miembro guardado exitosamente",
+    memberDeleted: "Miembro eliminado exitosamente",
+    confirmDeleteMember: "¿Estás seguro de que quieres eliminar este miembro?",
+    saveMember: "Guardar Miembro",
+    deleteMember: "Eliminar Miembro",
+    memberCount: "Miembros: {{count}}",
+    partlyPaid: "Parcialmente Pagado",
+    fullyPaid: "Totalmente Pagado",
+    notPaid: "No Pagado"
   },
   contact: {
     email: "Correo electrónico",
