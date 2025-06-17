@@ -28,6 +28,7 @@ import { BookingRequestForm } from "../business/BookingRequestForm";
 import { useToast } from "@/hooks/use-toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -56,14 +57,15 @@ export const Calendar = ({
   const [view, setView] = useState<CalendarViewType>(defaultView);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
+  const { t } = useLanguage();
   
   const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
     !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
   );
   
-  // Fix: Use only one source of events to prevent duplication
-  const events = directEvents || fetchedEvents || [];
+  // Fix: Use only one source of events to prevent duplication - prioritize directEvents if available
+  const events = directEvents?.length ? directEvents : fetchedEvents || [];
   const isLoading = !directEvents && isLoadingFromHook;
   
   const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
@@ -240,8 +242,8 @@ export const Calendar = ({
       setSelectedEvent(event);
     } else if (isExternalCalendar && allowBookingRequests) {
       toast({
-        title: "Time slot not available",
-        description: "This time slot is already booked. Please select a different time.",
+        title: t('common.warning'),
+        description: t('booking.timeSlotNotAvailable'),
       });
     }
   };
@@ -251,14 +253,14 @@ export const Calendar = ({
     queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
     
     toast({
-      title: "Booking submitted",
-      description: "Your booking request has been submitted successfully.",
+      title: t('booking.requestSubmitted'),
+      description: t('booking.requestSubmittedDescription'),
     });
   };
 
   if (error && !directEvents) {
     console.error("Calendar error:", error);
-    return <div className="text-red-500">Error loading calendar: {error.message}</div>;
+    return <div className="text-red-500">{t('common.errorOccurred')}: {error.message}</div>;
   }
 
   if (isLoading && !directEvents) {

@@ -1,3 +1,4 @@
+
 export const en = {
   common: {
     loading: "Loading...",
@@ -16,6 +17,11 @@ export const en = {
     next: "Next",
     back: "Back",
     submit: "Submit",
+    success: "Success",
+    error: "Error",
+    warning: "Warning",
+    authRequired: "Authentication required",
+    errorOccurred: "An error occurred. Please try again.",
   },
   auth: {
     signIn: "Sign In",
@@ -115,6 +121,12 @@ export const en = {
     reject: "Reject",
     bookingDetails: "Booking Details",
   },
+  booking: {
+    requestSubmitted: "Booking request submitted",
+    requestSubmittedDescription: "Your booking request has been submitted and is pending approval.",
+    timeSlotNotAvailable: "This time slot is already booked. Please select a different time.",
+    timeSlotConflict: "Time slot conflicts with existing event: {title} from {start} to {end}",
+  },
   crm: {
     customers: "Customers",
     newCustomer: "New Customer",
@@ -172,6 +184,9 @@ export const en = {
     participantNumber: "Participant #{number}",
     email: "Email",
     participantNotes: "Notes about this participant",
+    eventCreated: "Event created successfully!",
+    eventUpdated: "Event updated successfully!",
+    eventDeleted: "Event deleted successfully!",
   },
   files: {
     uploadFile: "Upload File",
