@@ -285,6 +285,11 @@ export const translations: TranslationType = {
     saveMember: "წევრის შენახვა",
     deleteMember: "წევრის წაშლა",
     memberCount: "წევრები: {{count}}",
+    partlyPaid: "ნაწილობრივ გადახდილი",
+    fullyPaid: "სრულად გადახდილი",
+    notPaid: "არ არის გადახდილი",
+    startDate: "დაწყების თარიღი",
+    endDate: "დასრულების თარიღი"
   },
   contact: {
     email: "ელ-ფოსტა",
