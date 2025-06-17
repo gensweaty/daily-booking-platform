@@ -1,5 +1,6 @@
 
-import { translations as en } from './en';
+
+import { en } from './en';
 import { translations as es } from './es';
 import { translations as ka } from './ka';
 import { Language, TranslationType } from './types';
@@ -11,3 +12,4 @@ export const translations: Record<Language, TranslationType> = {
 };
 
 export * from './types';
+
