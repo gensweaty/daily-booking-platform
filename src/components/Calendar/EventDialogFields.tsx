@@ -88,16 +88,39 @@ export const EventDialogFields = ({
   const isGeorgian = language === 'ka';
   const currencySymbol = getCurrencySymbol(language);
 
+  const handleGroupEventToggle = (checked: boolean) => {
+    console.log("Group event toggle:", checked);
+    setIsGroupEvent(checked);
+    
+    // Clear individual fields when switching to group
+    if (checked) {
+      setUserSurname("");
+      setUserNumber("");
+      setSocialNetworkLink("");
+      setEventNotes("");
+      setPaymentStatus("not_paid");
+      setPaymentAmount("");
+    } else {
+      // Clear group fields when switching to individual
+      setGroupName("");
+      setGroupMembers([]);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Group Event Toggle */}
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
         <Switch
-          id="group-event"
+          id="group-event-toggle"
           checked={isGroupEvent}
-          onCheckedChange={setIsGroupEvent}
+          onCheckedChange={handleGroupEventToggle}
+          className="data-[state=checked]:bg-primary"
         />
-        <Label htmlFor="group-event" className={cn(isGeorgian ? "font-georgian" : "")}>
+        <Label 
+          htmlFor="group-event-toggle" 
+          className={cn("cursor-pointer font-medium", isGeorgian ? "font-georgian" : "")}
+        >
           {t("events.groupEvent")}
         </Label>
       </div>
@@ -106,7 +129,7 @@ export const EventDialogFields = ({
       {isGroupEvent ? (
         <div>
           <Label htmlFor="group-name" className={cn(isGeorgian ? "font-georgian" : "")}>
-            {t("events.groupName")}
+            {t("events.groupName")} *
           </Label>
           <Input
             id="group-name"
@@ -120,7 +143,7 @@ export const EventDialogFields = ({
       ) : (
         <div>
           <Label htmlFor="full-name" className={cn(isGeorgian ? "font-georgian" : "")}>
-            {t("events.fullName")}
+            {t("events.fullName")} *
           </Label>
           <Input
             id="full-name"
@@ -140,7 +163,7 @@ export const EventDialogFields = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="start-date" className={cn(isGeorgian ? "font-georgian" : "")}>
-            {t("events.startDate")}
+            {t("events.startDate")} *
           </Label>
           <Input
             id="start-date"
@@ -152,7 +175,7 @@ export const EventDialogFields = ({
         </div>
         <div>
           <Label htmlFor="end-date" className={cn(isGeorgian ? "font-georgian" : "")}>
-            {t("events.endDate")}
+            {t("events.endDate")} *
           </Label>
           <Input
             id="end-date"
