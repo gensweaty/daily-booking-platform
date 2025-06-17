@@ -80,6 +80,47 @@ export interface BookingRequest {
   }>;
 }
 
+// Add Event interface for group booking support
+export interface Event {
+  id: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  user_surname?: string;
+  user_number?: string;
+  social_network_link?: string;
+  event_notes?: string;
+  payment_status?: string;
+  payment_amount?: number | null;
+  user_id?: string;
+  created_at: string;
+  deleted_at?: string;
+  // Group booking fields
+  is_group_event?: boolean;
+  group_name?: string;
+}
+
+// Add Customer interface for group booking support
+export interface Customer {
+  id: string;
+  title: string;
+  user_surname?: string;
+  user_number?: string;
+  social_network_link?: string;
+  event_notes?: string;
+  payment_status?: string;
+  payment_amount?: number | null;
+  start_date?: string;
+  end_date?: string;
+  create_event?: boolean;
+  user_id?: string;
+  created_at: string;
+  deleted_at?: string;
+  // Group booking fields
+  parent_group_id?: string;
+  is_group_member?: boolean;
+}
+
 // Add EventFile interface to match event_files table
 export interface EventFile {
   id: string;
