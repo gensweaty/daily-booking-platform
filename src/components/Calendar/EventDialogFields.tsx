@@ -193,7 +193,7 @@ export const EventDialogFields = ({
       {/* File Upload */}
       <FileUploadField
         selectedFile={selectedFile}
-        setSelectedFile={setSelectedFile}
+        onFileChange={setSelectedFile}
         fileError={fileError}
         setFileError={setFileError}
       />
@@ -202,8 +202,12 @@ export const EventDialogFields = ({
       {displayedFiles.length > 0 && (
         <FileDisplay 
           files={displayedFiles}
+          bucketName="event_attachments"
+          allowDelete={true}
           onFileDeleted={onFileDeleted}
-          eventId={eventId}
+          parentId={eventId}
+          parentType="event"
+          fallbackBuckets={["customer_attachments", "booking_attachments"]}
         />
       )}
     </div>
