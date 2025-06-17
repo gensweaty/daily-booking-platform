@@ -113,18 +113,30 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
+      // Ensure required fields are present
+      if (!data.title || !data.start_date || !data.end_date) {
+        throw new Error(t('events.fillAllFields'));
+      }
+      
       const result = await createEvent?.(data);
       return result;
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
-      console.log("Calendar passing to updateEvent:", { data, id: selectedEvent.id, type: selectedEvent.type });
       
-      const result = await updateEvent?.({
+      // Ensure required fields are present, using existing event data as fallback
+      const updateData = {
         ...data,
         id: selectedEvent.id,
-        type: selectedEvent.type
-      });
+        type: selectedEvent.type,
+        title: data.title || selectedEvent.title || '',
+        start_date: data.start_date || selectedEvent.start_date,
+        end_date: data.end_date || selectedEvent.end_date,
+      };
+      
+      console.log("Calendar passing to updateEvent:", updateData);
+      
+      const result = await updateEvent?.(updateData);
       return result;
     },
     deleteEvent: async (id) => {
