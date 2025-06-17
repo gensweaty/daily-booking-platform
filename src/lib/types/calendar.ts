@@ -28,14 +28,6 @@ export interface CalendarEventType {
   checkAvailability?: boolean;
   language?: string;
   customer_id?: string; // Properly typed as optional string
-  // Group event fields
-  is_group_event?: boolean;
-  group_name?: string;
-  participants?: Array<{
-    name: string;
-    email: string;
-    notes?: string;
-  }>;
   files?: Array<{
     id: string;
     event_id: string;

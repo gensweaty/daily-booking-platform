@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +12,6 @@ import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { getCurrencySymbol } from "@/lib/currency";
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { GroupBookingFields, GroupParticipant } from './GroupBookingFields';
 
 interface EventDialogFieldsProps {
   title: string;
@@ -42,13 +40,6 @@ interface EventDialogFieldsProps {
   displayedFiles: FileRecord[];
   onFileDeleted: (fileId: string) => void;
   isBookingRequest?: boolean;
-  // Group booking props
-  isGroupBooking?: boolean;
-  setIsGroupBooking?: (value: boolean) => void;
-  groupName?: string;
-  setGroupName?: (value: string) => void;
-  participants?: GroupParticipant[];
-  setParticipants?: (participants: GroupParticipant[]) => void;
 }
 
 export const EventDialogFields = ({
@@ -77,14 +68,7 @@ export const EventDialogFields = ({
   eventId,
   displayedFiles,
   onFileDeleted,
-  isBookingRequest = false,
-  // Group booking props
-  isGroupBooking = false,
-  setIsGroupBooking,
-  groupName = '',
-  setGroupName,
-  participants = [],
-  setParticipants,
+  isBookingRequest = false
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -131,93 +115,71 @@ export const EventDialogFields = ({
   };
   
   return <>
-      {/* Group Booking Fields - only show for new events, not booking requests */}
-      {!isBookingRequest && setIsGroupBooking && setGroupName && setParticipants && (
-        <GroupBookingFields
-          isGroupBooking={isGroupBooking}
-          setIsGroupBooking={setIsGroupBooking}
-          groupName={groupName}
-          setGroupName={setGroupName}
-          participants={participants}
-          setParticipants={setParticipants}
+      <div>
+        <Label 
+          htmlFor="userSurname" 
+          className={cn(isGeorgian ? "font-georgian" : "")}
+          style={isGeorgian ? {
+            fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+            letterSpacing: '-0.2px',
+            WebkitFontSmoothing: 'antialiased',
+            MozOsxFontSmoothing: 'grayscale'
+          } : undefined}
+        >
+          {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">სრული სახელი</GeorgianAuthText> : <LanguageText>{t("events.fullName")}</LanguageText>}
+        </Label>
+        <Input 
+          id="userSurname" 
+          value={userSurname} 
+          onChange={e => {
+            setUserSurname(e.target.value);
+            setTitle(e.target.value); // Set title to same as userSurname
+          }} 
+          placeholder={isGeorgian ? "სრული სახელი" : t("events.fullName")} 
+          required 
+          className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
+          style={isGeorgian ? {
+            fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+            letterSpacing: '-0.2px',
+            WebkitFontSmoothing: 'antialiased',
+            MozOsxFontSmoothing: 'grayscale'
+          } : undefined} 
         />
-      )}
-
-      {/* Only show individual fields when NOT in group booking mode */}
-      {!isGroupBooking && (
-        <div>
-          <Label 
-            htmlFor="userSurname" 
-            className={cn(isGeorgian ? "font-georgian" : "")}
-            style={isGeorgian ? {
-              fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-              letterSpacing: '-0.2px',
-              WebkitFontSmoothing: 'antialiased',
-              MozOsxFontSmoothing: 'grayscale'
-            } : undefined}
-          >
-            {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">სრული სახელი</GeorgianAuthText> : <LanguageText>{t("events.fullName")}</LanguageText>}
-          </Label>
-          <Input 
-            id="userSurname" 
-            value={userSurname} 
-            onChange={e => {
-              setUserSurname(e.target.value);
-              setTitle(e.target.value); // Set title to same as userSurname
-            }} 
-            placeholder={isGeorgian ? "სრული სახელი" : t("events.fullName")} 
-            required 
-            className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
-            style={isGeorgian ? {
-              fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-              letterSpacing: '-0.2px',
-              WebkitFontSmoothing: 'antialiased',
-              MozOsxFontSmoothing: 'grayscale'
-            } : undefined} 
-          />
-        </div>
-      )}
-
-      {/* Only show individual contact fields when NOT in group booking mode */}
-      {!isGroupBooking && (
-        <>
-          <div>
-            <Label 
-              htmlFor="userNumber" 
-              className={cn(isGeorgian ? "font-georgian" : "")}
-              style={georgianStyle}
-            >
-              {renderGeorgianLabel("events.phoneNumber")}
-            </Label>
-            <Input 
-              id="userNumber" 
-              value={userNumber} 
-              onChange={e => setUserNumber(e.target.value)} 
-              placeholder={isGeorgian ? "ტელეფონის ნომერი" : t("events.phoneNumber")} 
-              className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}  
-              style={georgianStyle} 
-            />
-          </div>
-          <div>
-            <Label 
-              htmlFor="socialNetworkLink" 
-              className={cn(isGeorgian ? "font-georgian" : "")}
-              style={georgianStyle}
-            >
-              {renderGeorgianLabel("events.socialLinkEmail")}
-            </Label>
-            <Input 
-              id="socialNetworkLink" 
-              value={socialNetworkLink} 
-              onChange={e => setSocialNetworkLink(e.target.value)} 
-              placeholder="email@example.com" 
-              type="email" 
-              style={isGeorgian ? { ...georgianStyle } : undefined}
-            />
-          </div>
-        </>
-      )}
-
+      </div>
+      <div>
+        <Label 
+          htmlFor="userNumber" 
+          className={cn(isGeorgian ? "font-georgian" : "")}
+          style={georgianStyle}
+        >
+          {renderGeorgianLabel("events.phoneNumber")}
+        </Label>
+        <Input 
+          id="userNumber" 
+          value={userNumber} 
+          onChange={e => setUserNumber(e.target.value)} 
+          placeholder={isGeorgian ? "ტელეფონის ნომერი" : t("events.phoneNumber")} 
+          className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}  
+          style={georgianStyle} 
+        />
+      </div>
+      <div>
+        <Label 
+          htmlFor="socialNetworkLink" 
+          className={cn(isGeorgian ? "font-georgian" : "")}
+          style={georgianStyle}
+        >
+          {renderGeorgianLabel("events.socialLinkEmail")}
+        </Label>
+        <Input 
+          id="socialNetworkLink" 
+          value={socialNetworkLink} 
+          onChange={e => setSocialNetworkLink(e.target.value)} 
+          placeholder="email@example.com" 
+          type="email" 
+          style={isGeorgian ? { ...georgianStyle } : undefined}
+        />
+      </div>
       <div>
         <Label 
           htmlFor="dateTime" 
@@ -270,8 +232,7 @@ export const EventDialogFields = ({
         </div>
       </div>
       
-      {/* Only show payment fields for individual bookings or booking requests */}
-      {!isBookingRequest && !isGroupBooking && <>
+      {!isBookingRequest && <>
           <div>
             <Label 
               htmlFor="paymentStatus" 

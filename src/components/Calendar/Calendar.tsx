@@ -28,7 +28,6 @@ import { BookingRequestForm } from "../business/BookingRequestForm";
 import { useToast } from "@/hooks/use-toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
-import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -57,15 +56,13 @@ export const Calendar = ({
   const [view, setView] = useState<CalendarViewType>(defaultView);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
-  const { t } = useLanguage();
   
   const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
     !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
   );
   
-  // Fix: Use only one source of events to prevent duplication - prioritize directEvents if available
-  const events = directEvents?.length ? directEvents : fetchedEvents || [];
+  const events = directEvents || fetchedEvents;
   const isLoading = !directEvents && isLoadingFromHook;
   
   const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
@@ -97,7 +94,7 @@ export const Calendar = ({
     
     if (events?.length > 0) {
       console.log("[Calendar] First event:", events[0]);
-      console.log("[Calendar] All events:", events);
+      console.log("[Calendar] All events:", events); // Log all events to debug
     }
   }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
 
@@ -113,61 +110,18 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      // Ensure required fields are present by casting to proper type
-      const eventData = {
-        title: data.title || '',
-        start_date: data.start_date || '',
-        end_date: data.end_date || '',
-        type: data.type,
-        user_surname: data.user_surname,
-        user_number: data.user_number,
-        social_network_link: data.social_network_link,
-        event_notes: data.event_notes,
-        payment_status: data.payment_status,
-        payment_amount: data.payment_amount,
-        file: data.file,
-        checkAvailability: data.checkAvailability,
-        language: data.language,
-        is_group_event: data.is_group_event,
-        group_name: data.group_name,
-        participants: data.participants || [],
-      };
-
-      // Validate required fields
-      if (!eventData.title || !eventData.start_date || !eventData.end_date) {
-        throw new Error(t('events.fillAllFields'));
-      }
-      
-      const result = await createEvent?.(eventData);
+      const result = await createEvent?.(data);
       return result;
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
+      console.log("Calendar passing to updateEvent:", { data, id: selectedEvent.id, type: selectedEvent.type });
       
-      // Ensure required fields are present, using existing event data as fallback
-      const updateData = {
+      const result = await updateEvent?.({
+        ...data,
         id: selectedEvent.id,
-        type: selectedEvent.type,
-        title: data.title || selectedEvent.title || '',
-        start_date: data.start_date || selectedEvent.start_date,
-        end_date: data.end_date || selectedEvent.end_date,
-        user_surname: data.user_surname,
-        user_number: data.user_number,
-        social_network_link: data.social_network_link,
-        event_notes: data.event_notes,
-        payment_status: data.payment_status,
-        payment_amount: data.payment_amount,
-        file: data.file,
-        checkAvailability: data.checkAvailability,
-        language: data.language,
-        is_group_event: data.is_group_event,
-        group_name: data.group_name,
-        participants: data.participants || [],
-      };
-      
-      console.log("Calendar passing to updateEvent:", updateData);
-      
-      const result = await updateEvent?.(updateData);
+        type: selectedEvent.type  // Make sure to pass the type from the selected event
+      });
       return result;
     },
     deleteEvent: async (id) => {
@@ -285,8 +239,8 @@ export const Calendar = ({
       setSelectedEvent(event);
     } else if (isExternalCalendar && allowBookingRequests) {
       toast({
-        title: t('common.warning'),
-        description: t('booking.timeSlotNotAvailable'),
+        title: "Time slot not available",
+        description: "This time slot is already booked. Please select a different time.",
       });
     }
   };
@@ -295,15 +249,12 @@ export const Calendar = ({
     setIsBookingFormOpen(false);
     queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
     
-    toast({
-      title: t('booking.requestSubmitted'),
-      description: t('booking.requestSubmittedDescription'),
-    });
+    toast.event.bookingSubmitted();
   };
 
   if (error && !directEvents) {
     console.error("Calendar error:", error);
-    return <div className="text-red-500">{t('common.errorOccurred')}: {error.message}</div>;
+    return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
 
   if (isLoading && !directEvents) {
@@ -340,7 +291,7 @@ export const Calendar = ({
         <div className={`flex-1 ${gridBgClass} ${textClass}`}>
           <CalendarView
             days={getDaysForView()}
-            events={events}
+            events={events || []}
             selectedDate={selectedDate}
             view={view}
             onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}
@@ -353,21 +304,22 @@ export const Calendar = ({
       {!isExternalCalendar && (
         <>
           <EventDialog
-            event={null}
-            isOpen={isNewEventDialogOpen}
-            onClose={() => setIsNewEventDialogOpen(false)}
+            key={dialogSelectedDate?.getTime()}
+            open={isNewEventDialogOpen}
+            onOpenChange={setIsNewEventDialogOpen}
             selectedDate={dialogSelectedDate}
-            onEventCreated={handleCreateEvent}
+            onSubmit={handleCreateEvent}
           />
 
           {selectedEvent && (
             <EventDialog
-              event={selectedEvent}
-              isOpen={!!selectedEvent}
-              onClose={() => setSelectedEvent(null)}
+              key={selectedEvent.id}
+              open={!!selectedEvent}
+              onOpenChange={() => setSelectedEvent(null)}
               selectedDate={new Date(selectedEvent.start_date)}
-              onEventUpdated={handleUpdateEvent}
-              onEventDeleted={handleDeleteEvent}
+              event={selectedEvent}
+              onSubmit={handleUpdateEvent}
+              onDelete={handleDeleteEvent}
             />
           )}
         </>
