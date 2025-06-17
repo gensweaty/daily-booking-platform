@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -271,6 +272,14 @@ export const translations: TranslationType = {
     title: "სათაური",
     bookAppointment: "შეხვედრის დაჯავშნა",
     submitRequest: "მოთხოვნის გაგზავნა",
+    groupEvent: "ჯგუფური ღონისძიება",
+    groupName: "ჯგუფის სახელი",
+    addMember: "წევრის დამატება",
+    member: "წევრი",
+    noMembersYet: "ჯერ არ არის დამატებული ჯგუფის წევრები",
+    groupEventCreated: "ჯგუფური ღონისძიება წარმატებით შეიქმნა",
+    groupEventUpdated: "ჯგუფური ღონისძიება წარმატებით განახლდა",
+    groupMembers: "ჯგუფის წევრები",
   },
   contact: {
     email: "ელ-ფოსტა",
@@ -568,16 +577,4 @@ export const translations: TranslationType = {
     termsAndPrivacy: "წესები & კონფიდენციალურობა",
     rights: "ყველა უფლება დაცულია",
   },
-  
-  events: {
-    groupEvent: "ჯგუფური ღონისძიება",
-    groupName: "ჯგუფის სახელი",
-    addMember: "წევრის დამატება",
-    member: "წევრი",
-    noMembersYet: "ჯერ არ არის დამატებული ჯგუფის წევრები",
-    groupEventCreated: "ჯგუფური ღონისძიება წარმატებით შეიქმნა",
-    groupEventUpdated: "ჯგუფური ღონისძიება წარმატებით განახლდა",
-    groupMembers: "ჯგუფის წევრები",
-  },
-  
 };
