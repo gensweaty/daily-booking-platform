@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,94 +46,79 @@ interface AvailabilityResult {
   conflictDetails?: ConflictDetails;
 }
 
+// Helper function to associate booking files with a new event
+export const associateBookingFilesWithEvent = async (
+  bookingRequestId: string,
+  newEventId: string,
+  userId: string
+) => {
+  try {
+    console.log(`Copying files from booking ${bookingRequestId} to event ${newEventId}`);
+    
+    // Fetch all files associated with the booking request
+    const { data: bookingFiles, error: fetchError } = await supabase
+      .from('booking_files')
+      .select('*')
+      .eq('booking_request_id', bookingRequestId);
+      
+    if (fetchError) {
+      console.error("Error fetching booking files:", fetchError);
+      throw fetchError;
+    }
+    
+    if (!bookingFiles || bookingFiles.length === 0) {
+      console.log("No files found for booking request:", bookingRequestId);
+      return null;
+    }
+    
+    console.log(`Found ${bookingFiles.length} files to copy`);
+    
+    // Copy each file to the event_files table
+    const copiedFiles = [];
+    for (const file of bookingFiles) {
+      const { filename, file_path, content_type, size } = file;
+      
+      // Insert the file record into event_files
+      const { data: newFile, error: copyError } = await supabase
+        .from('event_files')
+        .insert({
+          event_id: newEventId,
+          filename,
+          file_path,
+          content_type,
+          size,
+          user_id: userId,
+        })
+        .select()
+        .single();
+        
+      if (copyError) {
+        console.error("Error copying file to event_files:", copyError);
+        continue; // Skip to the next file
+      }
+      
+      copiedFiles.push(newFile);
+      console.log(`Copied file ${filename} to event ${newEventId}`);
+    }
+    
+    if (copiedFiles.length === 0) {
+      console.log("No files were successfully copied to the event");
+      return null;
+    }
+    
+    // Return the first copied file (or adjust as needed)
+    return copiedFiles[0];
+  } catch (error) {
+    console.error("Error associating booking files with event:", error);
+    return null;
+  }
+};
+
 export const useCalendarEvents = (businessId?: string, businessUserId?: string) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { t } = useLanguage();
   const queryClient = useQueryClient();
-
-  // Helper function to associate booking files with a new event
-  const associateBookingFilesWithEvent = async (
-    bookingRequestId: string,
-    newEventId: string,
-    userId: string
-  ) => {
-    try {
-      console.log(`Copying files from booking ${bookingRequestId} to event ${newEventId}`);
-      
-      // Fetch all files associated with the booking request
-      const { data: bookingFiles, error: fetchError } = await supabase
-        .from('booking_files')
-        .select('*')
-        .eq('booking_request_id', bookingRequestId);
-        
-      if (fetchError) {
-        console.error("Error fetching booking files:", fetchError);
-        throw fetchError;
-      }
-      
-      if (!bookingFiles || bookingFiles.length === 0) {
-        console.log("No files found for booking request:", bookingRequestId);
-        return null;
-      }
-      
-      console.log(`Found ${bookingFiles.length} files to copy`);
-      
-      // Copy each file to the event_files table
-      const copiedFiles = [];
-      for (const file of bookingFiles) {
-        const { filename, file_path, content_type, size } = file;
-        
-        // Insert the file record into event_files
-        const { data: newFile, error: copyError } = await supabase
-          .from('event_files')
-          .insert({
-            event_id: newEventId,
-            filename,
-            file_path,
-            content_type,
-            size,
-            user_id: userId,
-          })
-          .select()
-          .single();
-          
-        if (copyError) {
-          console.error("Error copying file to event_files:", copyError);
-          continue; // Skip to the next file
-        }
-        
-        copiedFiles.push(newFile);
-        console.log(`Copied file ${filename} to event ${newEventId}`);
-      }
-      
-      if (copiedFiles.length === 0) {
-        console.log("No files were successfully copied to the event");
-        return null;
-      }
-      
-      // Return the first copied file (or adjust as needed)
-      return copiedFiles[0];
-    } catch (error) {
-      console.error("Error associating booking files with event:", error);
-      return null;
-    }
-  };
-
-  // Helper to determine if times have changed between original and new dates
-  const haveTimesChanged = (
-    originalStartDate: string,
-    originalEndDate: string,
-    newStartDate: string,
-    newEndDate: string
-  ): boolean => {
-    const originalStart = new Date(originalStartDate).getTime();
-    const originalEnd = new Date(originalEndDate).getTime();
-    const newStart = new Date(newStartDate).getTime();
-    const newEnd = new Date(newEndDate).getTime();
-    
-    return originalStart !== newStart || originalEnd !== newEnd;
-  };
 
   // Normalize timestamp for proper comparison - fix for false conflict warnings
   const normalizeTimestamp = (dateStr: string): string => {
@@ -495,6 +481,3 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     checkTimeSlotAvailability,
   };
 };
-
-// Export the associateBookingFilesWithEvent function for external use
-export { associateBookingFilesWithEvent };

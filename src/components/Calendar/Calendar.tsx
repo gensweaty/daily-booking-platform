@@ -113,12 +113,32 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      // Ensure required fields are present
-      if (!data.title || !data.start_date || !data.end_date) {
+      // Ensure required fields are present by casting to proper type
+      const eventData = {
+        title: data.title || '',
+        start_date: data.start_date || '',
+        end_date: data.end_date || '',
+        type: data.type,
+        user_surname: data.user_surname,
+        user_number: data.user_number,
+        social_network_link: data.social_network_link,
+        event_notes: data.event_notes,
+        payment_status: data.payment_status,
+        payment_amount: data.payment_amount,
+        file: data.file,
+        checkAvailability: data.checkAvailability,
+        language: data.language,
+        is_group_event: data.is_group_event,
+        group_name: data.group_name,
+        participants: data.participants,
+      };
+
+      // Validate required fields
+      if (!eventData.title || !eventData.start_date || !eventData.end_date) {
         throw new Error(t('events.fillAllFields'));
       }
       
-      const result = await createEvent?.(data);
+      const result = await createEvent?.(eventData);
       return result;
     },
     updateEvent: async (data) => {
@@ -126,12 +146,23 @@ export const Calendar = ({
       
       // Ensure required fields are present, using existing event data as fallback
       const updateData = {
-        ...data,
         id: selectedEvent.id,
         type: selectedEvent.type,
         title: data.title || selectedEvent.title || '',
         start_date: data.start_date || selectedEvent.start_date,
         end_date: data.end_date || selectedEvent.end_date,
+        user_surname: data.user_surname,
+        user_number: data.user_number,
+        social_network_link: data.social_network_link,
+        event_notes: data.event_notes,
+        payment_status: data.payment_status,
+        payment_amount: data.payment_amount,
+        file: data.file,
+        checkAvailability: data.checkAvailability,
+        language: data.language,
+        is_group_event: data.is_group_event,
+        group_name: data.group_name,
+        participants: data.participants,
       };
       
       console.log("Calendar passing to updateEvent:", updateData);
