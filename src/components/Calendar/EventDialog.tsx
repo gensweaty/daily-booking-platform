@@ -2,15 +2,19 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { CalendarEventType } from "@/lib/types/calendar";
-import { Trash2, AlertCircle } from "lucide-react";
+import { CalendarEventType, GroupMember } from "@/lib/types/calendar";
+import { Trash2, AlertCircle, Users, Plus } from "lucide-react";
 import { EventDialogFields } from "./EventDialogFields";
+import { GroupParticipants } from "./GroupParticipants";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,6 +62,13 @@ export const EventDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
+  
+  // Group booking states
+  const [isGroupEvent, setIsGroupEvent] = useState(event?.is_group_event || false);
+  const [groupName, setGroupName] = useState(event?.group_name || "");
+  const [groupMembers, setGroupMembers] = useState<GroupMember[]>(event?.group_members || []);
+  const [showGroupParticipants, setShowGroupParticipants] = useState(false);
+  
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -105,6 +116,11 @@ export const EventDialog = ({
       
       setIsBookingEvent(event.type === 'booking_request');
       
+      // Set group event data
+      setIsGroupEvent(event.is_group_event || false);
+      setGroupName(event.group_name || "");
+      setGroupMembers(event.group_members || []);
+      
       console.log("EventDialog - Loaded event with type:", event.type);
       console.log("EventDialog - Loaded payment status:", normalizedStatus);
     } else if (selectedDate) {
@@ -128,6 +144,11 @@ export const EventDialog = ({
       setSocialNetworkLink("");
       setEventNotes("");
       setPaymentAmount("");
+      
+      // Reset group states
+      setIsGroupEvent(false);
+      setGroupName("");
+      setGroupMembers([]);
     }
   }, [selectedDate, event, open]);
 
@@ -210,11 +231,100 @@ export const EventDialog = ({
     }
   }, [event, open]);
 
+  const createGroupEvents = async (parentEventId: string, members: GroupMember[]) => {
+    if (!user) return [];
+    
+    const memberEvents = [];
+    
+    for (const member of members) {
+      try {
+        // Create individual event for each group member
+        const memberEventData = {
+          title: member.full_name,
+          user_surname: member.full_name,
+          user_number: member.phone || '',
+          social_network_link: member.email,
+          event_notes: member.notes || '',
+          start_date: startDate,
+          end_date: endDate,
+          payment_status: member.payment_status || 'not_paid',
+          payment_amount: null,
+          type: 'event',
+          user_id: user.id,
+          is_group_event: false,
+          parent_group_id: parentEventId,
+          language: language
+        };
+        
+        const { data: memberEvent, error } = await supabase
+          .from('events')
+          .insert(memberEventData)
+          .select()
+          .single();
+          
+        if (error) {
+          console.error('Error creating member event:', error);
+          continue;
+        }
+        
+        // Create customer record
+        const customerData = {
+          title: member.full_name,
+          user_surname: member.full_name,
+          user_number: member.phone || '',
+          social_network_link: member.email,
+          event_notes: member.notes || '',
+          start_date: startDate,
+          end_date: endDate,
+          payment_status: member.payment_status || 'not_paid',
+          payment_amount: null,
+          type: 'event',
+          user_id: user.id
+        };
+        
+        const { error: customerError } = await supabase
+          .from('customers')
+          .insert(customerData);
+          
+        if (customerError) {
+          console.error('Error creating customer record:', customerError);
+        }
+        
+        memberEvents.push(memberEvent);
+        
+      } catch (error) {
+        console.error('Error processing group member:', member.full_name, error);
+      }
+    }
+    
+    return memberEvents;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Always use userSurname for consistent naming across the app
-    const finalTitle = userSurname;
+    // Validation for group events
+    if (isGroupEvent) {
+      if (!groupName.trim()) {
+        toast({
+          translateKeys: {
+            titleKey: "common.error",
+            descriptionKey: "events.groupNameRequired"
+          }
+        });
+        return;
+      }
+      
+      if (groupMembers.length === 0) {
+        toast({
+          translateKeys: {
+            titleKey: "common.error", 
+            descriptionKey: "events.groupMembersRequired"
+          }
+        });
+        return;
+      }
+    }
     
     const startDateTime = new Date(startDate);
     const endDateTime = new Date(endDate);
@@ -238,10 +348,12 @@ export const EventDialog = ({
     
     console.log("Submitting with payment status:", normalizedPaymentStatus);
     
-    // Ensure we preserve the original event language if available
+    // Use group name as title for group events, otherwise use userSurname
+    const finalTitle = isGroupEvent ? groupName : userSurname;
+    
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
-      user_surname: userSurname, // Use userSurname for consistent naming
+      user_surname: isGroupEvent ? groupName : userSurname, // Use userSurname for consistent naming
       user_number: userNumber,
       social_network_link: socialNetworkLink,
       event_notes: eventNotes,
@@ -250,6 +362,9 @@ export const EventDialog = ({
       payment_status: normalizedPaymentStatus, // Use normalized payment status
       payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
       language: event?.language || language, // Preserve original language or use current UI language
+      is_group_event: isGroupEvent,
+      group_name: isGroupEvent ? groupName : null,
+      group_members: isGroupEvent ? groupMembers : null,
     };
 
     if (event?.id) {
@@ -269,6 +384,11 @@ export const EventDialog = ({
       console.log("EventDialog - Submitting event data:", eventData);
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
+      
+      // Create individual events for group members
+      if (isGroupEvent && groupMembers.length > 0 && createdEvent?.id) {
+        await createGroupEvents(createdEvent.id, groupMembers);
+      }
       
       // Handle file upload to event_files for the current event
       if (selectedFile && createdEvent?.id && user) {
@@ -397,11 +517,71 @@ export const EventDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")}>
             {event ? t("events.editEvent") : t("events.addNewEvent")}
           </DialogTitle>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+            {/* Group Event Toggle */}
+            {!isBookingRequest && (
+              <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
+                <Switch
+                  id="group-event"
+                  checked={isGroupEvent}
+                  onCheckedChange={setIsGroupEvent}
+                />
+                <Label htmlFor="group-event" className={cn("text-sm font-medium", isGeorgian ? "font-georgian" : "")}>
+                  {t("events.groupEvent")}
+                </Label>
+              </div>
+            )}
+            
+            {/* Group Name Field (only for group events) */}
+            {isGroupEvent && (
+              <div>
+                <Label htmlFor="group-name">{t("events.groupName")} *</Label>
+                <Input
+                  id="group-name"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  placeholder={t("events.enterGroupName")}
+                  required={isGroupEvent}
+                />
+              </div>
+            )}
+            
+            {/* Group Members Section (only for group events) */}
+            {isGroupEvent && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className={cn("text-sm font-medium", isGeorgian ? "font-georgian" : "")}>
+                    {t("events.groupMembers")} ({groupMembers.length})
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowGroupParticipants(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("events.addMembers")}
+                  </Button>
+                </div>
+                
+                {groupMembers.length > 0 && (
+                  <div className="max-h-32 overflow-y-auto border rounded-md p-2 bg-gray-50">
+                    {groupMembers.map((member, index) => (
+                      <div key={member.id || index} className="text-sm py-1">
+                        <span className="font-medium">{member.full_name}</span>
+                        <span className="text-gray-600 ml-2">({member.email})</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Regular event fields (hidden for group events or adjusted) */}
             <EventDialogFields
               title={title}
               setTitle={setTitle}
@@ -429,6 +609,7 @@ export const EventDialog = ({
               onFileDeleted={handleFileDeleted}
               displayedFiles={displayedFiles}
               isBookingRequest={isBookingRequest}
+              hideCustomerFields={isGroupEvent}
             />
             
             <div className="flex justify-between gap-4">
@@ -450,7 +631,15 @@ export const EventDialog = ({
         </DialogContent>
       </Dialog>
 
-      {/* Add deletion confirmation dialog */}
+      {/* Group Participants Modal */}
+      <GroupParticipants
+        open={showGroupParticipants}
+        onOpenChange={setShowGroupParticipants}
+        members={groupMembers}
+        onMembersChange={setGroupMembers}
+      />
+
+      {/* Delete confirmation dialog */}
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
