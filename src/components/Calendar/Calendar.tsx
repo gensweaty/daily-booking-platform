@@ -130,7 +130,7 @@ export const Calendar = ({
         language: data.language,
         is_group_event: data.is_group_event,
         group_name: data.group_name,
-        participants: data.participants,
+        participants: data.participants || [],
       };
 
       // Validate required fields
@@ -162,7 +162,7 @@ export const Calendar = ({
         language: data.language,
         is_group_event: data.is_group_event,
         group_name: data.group_name,
-        participants: data.participants,
+        participants: data.participants || [],
       };
       
       console.log("Calendar passing to updateEvent:", updateData);
