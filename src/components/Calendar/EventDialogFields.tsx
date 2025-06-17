@@ -269,11 +269,11 @@ export const EventDialogFields = ({
       {/* File Upload */}
       <FileUploadField
         selectedFile={selectedFile}
-        setSelectedFile={setSelectedFile}
+        onFileChange={setSelectedFile}
         fileError={fileError}
         setFileError={setFileError}
-        acceptedTypes=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
-        maxSize={10 * 1024 * 1024} // 10MB
+        acceptedFileTypes=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+        maxSizeMB={10}
       />
 
       {/* Display Files */}

@@ -295,6 +295,17 @@ export interface TranslationType {
     groupEventCreated: string;
     groupEventUpdated: string;
     groupMembers: string;
+    memberSaved: string;
+    memberDeleted: string;
+    confirmDeleteMember: string;
+    saveMember: string;
+    deleteMember: string;
+    memberCount: string;
+    partlyPaid: string;
+    fullyPaid: string;
+    notPaid: string;
+    startDate: string;
+    endDate: string;
   };
   contact: {
     email: string;
@@ -573,10 +584,4 @@ export interface TranslationType {
     invalidFileType: string;
     fileTooLarge: string;
   };
-}
-
-export interface LanguageContextType {
-  language: Language;
-  setLanguage: (language: Language) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
 }
