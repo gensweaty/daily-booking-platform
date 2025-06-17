@@ -17,6 +17,8 @@ interface OptimizedEventStats {
   totalIncome: number;
   monthlyIncome: Array<{ month: string; income: number }>;
   dailyStats: Array<{ day: string; date: Date; month: string; bookings: number }>;
+  // Add events property for compatibility with export function
+  events: Array<any>;
 }
 
 export const useOptimizedStatistics = (userId: string | undefined, dateRange: { start: Date; end: Date }) => {
@@ -58,7 +60,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         fullyPaid: 0,
         totalIncome: 0,
         monthlyIncome: [],
-        dailyStats: []
+        dailyStats: [],
+        events: []
       };
 
       const startDateStr = dateRange.start.toISOString();
@@ -67,7 +70,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       // Single query for all events with minimal fields
       const { data: events, error } = await supabase
         .from('events')
-        .select('start_date, payment_status, payment_amount')
+        .select('start_date, payment_status, payment_amount, title, id')
         .eq('user_id', userId)
         .gte('start_date', startDateStr)
         .lte('start_date', endDateStr)
@@ -81,7 +84,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       // Single query for CRM events
       const { data: crmEvents, error: crmError } = await supabase
         .from('customers')
-        .select('start_date, payment_status, payment_amount')
+        .select('start_date, payment_status, payment_amount, title, id')
         .eq('user_id', userId)
         .eq('create_event', true)
         .gte('start_date', startDateStr)
@@ -148,7 +151,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         fullyPaid,
         totalIncome,
         monthlyIncome,
-        dailyStats
+        dailyStats,
+        events: allEvents // Include events for export compatibility
       };
     },
     enabled: !!userId,
