@@ -297,7 +297,12 @@ export const translations = {
     confirmDeleteMember: "Are you sure you want to delete this member?",
     saveMember: "Save Member",
     deleteMember: "Delete Member",
-    memberCount: "Members: {{count}}"
+    memberCount: "Members: {{count}}",
+    partlyPaid: "Partly Paid",
+    fullyPaid: "Fully Paid",
+    notPaid: "Not Paid",
+    startDate: "Start Date",
+    endDate: "End Date"
   },
   contact: {
     email: "Email",
