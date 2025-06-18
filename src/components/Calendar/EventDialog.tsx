@@ -99,22 +99,29 @@ export const EventDialog = ({
         const start = new Date(event.start_date);
         const end = new Date(event.end_date);
         
-        // Check if this is a group event first
-        const isGroupEventType = event.is_group_event || !!event.group_name;
+        // Improved group event detection - check multiple indicators
+        const isGroupEventType = Boolean(
+          event.is_group_event || 
+          event.group_name || 
+          (event.type === 'group_event')
+        );
+        
         console.log("Event group detection:", { 
           is_group_event: event.is_group_event, 
           group_name: event.group_name,
+          event_type: event.type,
           final_is_group: isGroupEventType 
         });
         
         setIsGroupEvent(isGroupEventType);
         
         if (isGroupEventType) {
-          // For group events, clear individual fields and set group fields
-          setTitle(event.group_name || event.title || "");
-          setGroupName(event.group_name || event.title || "");
+          // For group events, ONLY set group fields and clear individual fields
+          const eventGroupName = event.group_name || event.title || "";
+          setTitle(eventGroupName);
+          setGroupName(eventGroupName);
           
-          // Clear individual fields for group events
+          // Explicitly clear ALL individual fields for group events
           setUserSurname("");
           setUserNumber("");
           setSocialNetworkLink("");
@@ -122,7 +129,22 @@ export const EventDialog = ({
           setPaymentStatus("not_paid");
           setPaymentAmount("");
           
-          console.log("Setting up group event with name:", event.group_name || event.title);
+          console.log("Group event loaded - cleared individual fields, set group name:", eventGroupName);
+          
+          // Load group members for existing group events
+          if (event.id) {
+            setIsLoadingMembers(true);
+            try {
+              const members = await loadGroupMembers(event.id);
+              console.log("Loaded group members for editing:", members);
+              setGroupMembers(members);
+            } catch (error) {
+              console.error("Error loading group members:", error);
+              setGroupMembers([]);
+            } finally {
+              setIsLoadingMembers(false);
+            }
+          }
         } else {
           // For individual events, set individual fields and clear group fields
           const fullName = event.user_surname || event.title || "";
@@ -144,6 +166,8 @@ export const EventDialog = ({
           // Clear group fields for individual events
           setGroupName("");
           setGroupMembers([]);
+          
+          console.log("Individual event loaded - populated individual fields");
         }
         
         // Set date fields (common for both types)
@@ -156,19 +180,6 @@ export const EventDialog = ({
         
         setIsBookingEvent(event.type === 'booking_request');
         
-        // Load group members if this is a group event
-        if (isGroupEventType && event.id) {
-          setIsLoadingMembers(true);
-          try {
-            const members = await loadGroupMembers(event.id);
-            console.log("Loaded group members for editing:", members);
-            setGroupMembers(members);
-          } catch (error) {
-            console.error("Error loading group members:", error);
-          } finally {
-            setIsLoadingMembers(false);
-          }
-        }
       } else if (selectedDate && !dialogInitializedRef.current) {
         // Only reset for new event creation if not already initialized
         const start = new Date(selectedDate.getTime());
@@ -194,6 +205,8 @@ export const EventDialog = ({
         setIsGroupEvent(false);
         setGroupName("");
         setGroupMembers([]);
+        
+        console.log("New event initialized - all fields cleared");
       }
       
       // Mark as initialized
@@ -305,10 +318,12 @@ export const EventDialog = ({
     else if (normalizedPaymentStatus.includes('not')) normalizedPaymentStatus = 'not_paid';
     
     console.log("Submitting with payment status:", normalizedPaymentStatus);
+    console.log("Is group event submission:", isGroupEvent);
     
     // Ensure we preserve the original event language if available
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
+      // For group events, clear individual fields in the main event record
       user_surname: isGroupEvent ? "" : userSurname,
       user_number: isGroupEvent ? "" : userNumber,
       social_network_link: isGroupEvent ? "" : socialNetworkLink,
@@ -335,7 +350,7 @@ export const EventDialog = ({
     } else if (event?.type) {
       eventData.type = event.type;
     } else {
-      eventData.type = 'event';
+      eventData.type = isGroupEvent ? 'group_event' : 'event';
     }
 
     try {
@@ -356,6 +371,8 @@ export const EventDialog = ({
               
             if (deleteError) {
               console.error('Error deleting existing group members:', deleteError);
+            } else {
+              console.log('Deleted existing group members for update');
             }
           }
 
@@ -581,7 +598,6 @@ export const EventDialog = ({
         </DialogContent>
       </Dialog>
 
-      {/* Add deletion confirmation dialog */}
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
@@ -599,8 +615,8 @@ export const EventDialog = ({
               {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogFooter>
-      </Dialog>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
