@@ -100,41 +100,39 @@ export const EventDialog = ({
     setGroupMembers([]);
   };
 
-  // FIXED: Event loading with proper reinitialization for new events
+  // FIXED: Simplified event initialization logic
   useEffect(() => {
     const initializeEventData = async () => {
       console.log("EventDialog initializing with event:", event, "open:", open);
-      
+
       if (!open) {
         dialogInitializedRef.current = false;
         return;
       }
 
-      // FIXED: Allow re-initialization when forceInitKey changes or when we have a new event
-      const shouldInitialize = !dialogInitializedRef.current || (event?.id && dialogInitializedRef.current);
-      
-      if (!shouldInitialize && !event?.id) {
+      // ✅ Always initialize if dialog just opened or forceInitKey changed
+      if (dialogInitializedRef.current) {
+        console.log("Skipping reinitialization - already initialized.");
         return;
       }
 
       console.log("Proceeding with initialization for event:", event?.id);
-      
+
       if (event) {
+        // Load event data
         const start = new Date(event.start_date);
         const end = new Date(event.end_date);
-        
-        // SIMPLIFIED: Only check is_group_event flag
         const isGroupEventType = event.is_group_event === true;
-        
+
         console.log("Event type detection:", { 
           is_group_event: event.is_group_event,
           group_name: event.group_name,
           user_surname: event.user_surname,
           final_decision: isGroupEventType 
         });
-        
+
         setIsGroupEvent(isGroupEventType);
-        
+
         if (isGroupEventType) {
           // GROUP EVENT: Use group_name and clear individual fields
           const eventGroupName = event.group_name || event.title || "";
@@ -221,7 +219,7 @@ export const EventDialog = ({
     };
 
     initializeEventData();
-  }, [selectedDate, event?.id, open, loadGroupMembers, forceInitKey]); // FIXED: track forceInitKey
+  }, [selectedDate, event, open, loadGroupMembers, forceInitKey]); // ✅ Notice: event instead of event?.id
 
   // Handle group event toggle with proper field management
   const handleGroupEventToggle = (checked: boolean) => {
