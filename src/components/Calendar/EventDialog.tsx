@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -76,9 +77,6 @@ export const EventDialog = ({
   const isGeorgian = language === 'ka';
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const { loadGroupMembers } = useGroupMembers();
-  
-  // Remove the dialogInitializedRef since it's causing the blocking issue
-  const lastInitializedEvent = useRef<string | null>(null);
 
   // Clear all individual fields
   const clearIndividualFields = () => {
@@ -96,89 +94,134 @@ export const EventDialog = ({
     setGroupMembers([]);
   };
 
-  // FIXED: Simplified event initialization - always run when props change
+  // FIXED: Data validation function to detect and fix corrupted data
+  const validateAndSanitizeEventData = (eventData: CalendarEventType) => {
+    const isGroup = eventData.is_group_event === true;
+    
+    // Log potential data corruption
+    if (isGroup && eventData.user_surname) {
+      console.warn("⚠️  Corrupted data detected: Group event has individual fields", {
+        id: eventData.id,
+        is_group_event: eventData.is_group_event,
+        user_surname: eventData.user_surname,
+        group_name: eventData.group_name
+      });
+    }
+    
+    if (!isGroup && eventData.group_name) {
+      console.warn("⚠️  Corrupted data detected: Individual event has group fields", {
+        id: eventData.id,
+        is_group_event: eventData.is_group_event,
+        user_surname: eventData.user_surname,
+        group_name: eventData.group_name
+      });
+    }
+    
+    return {
+      ...eventData,
+      // Sanitize based on event type
+      user_surname: isGroup ? null : eventData.user_surname,
+      user_number: isGroup ? null : eventData.user_number,
+      social_network_link: isGroup ? null : eventData.social_network_link,
+      event_notes: isGroup ? null : eventData.event_notes,
+      payment_status: isGroup ? null : eventData.payment_status,
+      payment_amount: isGroup ? null : eventData.payment_amount,
+      group_name: isGroup ? eventData.group_name : null
+    };
+  };
+
+  // FIXED: Completely rewritten initialization logic - always run when dialog opens or event changes
   useEffect(() => {
     const initializeEventData = async () => {
-      console.log("EventDialog initializing with event:", event, "open:", open);
+      console.log("🔄 EventDialog initializing", { 
+        open, 
+        eventId: event?.id, 
+        selectedDate: selectedDate?.toISOString(),
+        forceInitKey 
+      });
 
       if (!open) {
-        lastInitializedEvent.current = null;
+        console.log("❌ Dialog not open, clearing all fields");
+        // Reset all fields when dialog closes
+        setTitle("");
+        clearIndividualFields();
+        clearGroupFields();
+        setIsGroupEvent(false);
+        setDisplayedFiles([]);
+        setSelectedFile(null);
+        setFileError("");
+        setIsLoadingMembers(false);
         return;
       }
-
-      // Check if we already initialized this exact same event
-      const currentEventKey = event?.id || `new-${selectedDate?.getTime()}`;
-      if (lastInitializedEvent.current === currentEventKey) {
-        console.log("Skipping reinitialization - same event already initialized:", currentEventKey);
-        return;
-      }
-
-      console.log("Proceeding with initialization for:", currentEventKey);
 
       if (event) {
-        // Load event data
-        const start = new Date(event.start_date);
-        const end = new Date(event.end_date);
+        console.log("📝 Loading existing event", { id: event.id, is_group_event: event.is_group_event });
         
-        // CRITICAL: Check is_group_event boolean flag to determine event type
-        const isGroupEventType = event.is_group_event === true;
-
-        console.log("Event type detection:", { 
-          is_group_event: event.is_group_event,
-          group_name: event.group_name,
-          user_surname: event.user_surname,
-          final_decision: isGroupEventType 
+        // CRITICAL: Validate and sanitize the event data first
+        const sanitizedEvent = validateAndSanitizeEventData(event);
+        
+        const start = new Date(sanitizedEvent.start_date);
+        const end = new Date(sanitizedEvent.end_date);
+        
+        // DETERMINE EVENT TYPE: Use is_group_event flag as the SINGLE source of truth
+        const isGroupEventType = sanitizedEvent.is_group_event === true;
+        
+        console.log("✅ Event type determined", { 
+          is_group_event: sanitizedEvent.is_group_event,
+          final_decision: isGroupEventType,
+          user_surname: sanitizedEvent.user_surname,
+          group_name: sanitizedEvent.group_name
         });
 
         setIsGroupEvent(isGroupEventType);
 
         if (isGroupEventType) {
-          // GROUP EVENT: Use group_name and clear individual fields
-          const eventGroupName = event.group_name || event.title || "";
+          // GROUP EVENT: Only use group fields
+          const eventGroupName = sanitizedEvent.group_name || sanitizedEvent.title || "";
           setTitle(eventGroupName);
           setGroupName(eventGroupName);
           
-          // Clear ALL individual fields for group events
+          // Ensure individual fields are cleared
           clearIndividualFields();
           
-          console.log("Loading GROUP event - group name:", eventGroupName);
+          console.log("🏢 Loading GROUP event", { groupName: eventGroupName });
           
           // Load group members
-          if (event.id) {
+          if (sanitizedEvent.id) {
             setIsLoadingMembers(true);
             try {
-              const members = await loadGroupMembers(event.id);
-              console.log("Loaded group members:", members);
+              const members = await loadGroupMembers(sanitizedEvent.id);
+              console.log("👥 Loaded group members", { count: members.length });
               setGroupMembers(members);
             } catch (error) {
-              console.error("Error loading group members:", error);
+              console.error("❌ Error loading group members:", error);
               setGroupMembers([]);
             } finally {
               setIsLoadingMembers(false);
             }
           }
         } else {
-          // INDIVIDUAL EVENT: Use user_surname and clear group fields
-          const fullName = event.user_surname || event.title || "";
+          // INDIVIDUAL EVENT: Only use individual fields
+          const fullName = sanitizedEvent.user_surname || sanitizedEvent.title || "";
           setTitle(fullName);
           setUserSurname(fullName);
-          setUserNumber(event.user_number || "");
-          setSocialNetworkLink(event.social_network_link || "");
-          setEventNotes(event.event_notes || "");
+          setUserNumber(sanitizedEvent.user_number || "");
+          setSocialNetworkLink(sanitizedEvent.social_network_link || "");
+          setEventNotes(sanitizedEvent.event_notes || "");
           
-          // Handle payment status
-          let normalizedStatus = event.payment_status || "not_paid";
+          // Handle payment status normalization
+          let normalizedStatus = sanitizedEvent.payment_status || "not_paid";
           if (normalizedStatus.includes('partly')) normalizedStatus = 'partly_paid';
           else if (normalizedStatus.includes('fully')) normalizedStatus = 'fully_paid';
           else if (normalizedStatus.includes('not')) normalizedStatus = 'not_paid';
           
           setPaymentStatus(normalizedStatus);
-          setPaymentAmount(event.payment_amount?.toString() || "");
+          setPaymentAmount(sanitizedEvent.payment_amount?.toString() || "");
           
-          // Clear group fields for individual events
+          // Ensure group fields are cleared
           clearGroupFields();
           
-          console.log("Loading INDIVIDUAL event - user surname:", fullName);
+          console.log("👤 Loading INDIVIDUAL event", { userSurname: fullName });
         }
         
         // Set common date fields
@@ -189,9 +232,10 @@ export const EventDialog = ({
         setOriginalStartDate(formattedStart);
         setOriginalEndDate(formattedEnd);
         
-        setIsBookingEvent(event.type === 'booking_request');
+        setIsBookingEvent(sanitizedEvent.type === 'booking_request');
         
       } else if (selectedDate) {
+        console.log("🆕 Creating new event");
         // New event creation
         const start = new Date(selectedDate.getTime());
         const end = new Date(selectedDate.getTime());
@@ -210,35 +254,32 @@ export const EventDialog = ({
         clearIndividualFields();
         clearGroupFields();
         setIsGroupEvent(false);
-        
-        console.log("New event initialized");
+        setIsBookingEvent(false);
       }
-      
-      lastInitializedEvent.current = currentEventKey;
     };
 
     initializeEventData();
-  }, [selectedDate, event?.id, open, loadGroupMembers, forceInitKey]);
+  }, [open, event?.id, event?.is_group_event, selectedDate, forceInitKey, loadGroupMembers]);
 
-  // Handle group event toggle with proper field management
+  // FIXED: Improved group event toggle with comprehensive field management
   const handleGroupEventToggle = (checked: boolean) => {
-    console.log("Toggling group event to:", checked);
+    console.log("🔄 Toggling event type", { from: isGroupEvent, to: checked });
     setIsGroupEvent(checked);
     
     if (checked) {
-      // Switching to group event: clear individual fields
+      // Switching TO group event: clear individual fields, preserve title as group name
       clearIndividualFields();
-      // If we have a title, use it as group name
-      if (title) {
+      if (title && !groupName) {
         setGroupName(title);
       }
+      console.log("🏢 Switched to GROUP event");
     } else {
-      // Switching to individual event: clear group fields
+      // Switching TO individual event: clear group fields, preserve title as user surname
       clearGroupFields();
-      // If we have a title, use it as user surname
-      if (title) {
+      if (title && !userSurname) {
         setUserSurname(title);
       }
+      console.log("👤 Switched to INDIVIDUAL event");
     }
   };
 
@@ -251,7 +292,7 @@ export const EventDialog = ({
       }
       
       try {
-        console.log("Loading files for event:", event.id);
+        console.log("📁 Loading files for event:", event.id);
         
         const { data: eventFiles, error: eventFilesError } = await supabase
           .from('event_files')
@@ -259,13 +300,13 @@ export const EventDialog = ({
           .eq('event_id', event.id);
             
         if (eventFilesError) {
-          console.error("Error loading event files:", eventFilesError);
+          console.error("❌ Error loading event files:", eventFilesError);
         }
         
         let allFiles = [];
         
         if (eventFiles && eventFiles.length > 0) {
-          console.log("Loaded files from event_files:", eventFiles.length);
+          console.log("📎 Loaded event files:", eventFiles.length);
           const filesWithSource = eventFiles.map(file => ({
             ...file,
             parentType: 'event'
@@ -274,7 +315,7 @@ export const EventDialog = ({
         }
         
         if (event.customer_id) {
-          console.log("Event has customer_id:", event.customer_id, "- loading customer files");
+          console.log("🔗 Loading customer files for customer_id:", event.customer_id);
           
           const { data: customerFiles, error: customerFilesError } = await supabase
             .from('customer_files_new')
@@ -282,9 +323,9 @@ export const EventDialog = ({
             .eq('customer_id', event.customer_id);
             
           if (customerFilesError) {
-            console.error("Error loading customer files:", customerFilesError);
+            console.error("❌ Error loading customer files:", customerFilesError);
           } else if (customerFiles && customerFiles.length > 0) {
-            console.log("Loaded files from customer_files_new:", customerFiles.length);
+            console.log("📎 Loaded customer files:", customerFiles.length);
             
             const customerFilesWithSource = customerFiles.map(file => ({
               ...file,
@@ -296,11 +337,11 @@ export const EventDialog = ({
           }
         }
         
-        console.log("Total files to display:", allFiles.length);
+        console.log("📂 Total files loaded:", allFiles.length);
         setDisplayedFiles(allFiles);
         
       } catch (err) {
-        console.error("Exception loading event files:", err);
+        console.error("💥 Exception loading event files:", err);
         setDisplayedFiles([]);
       }
     };
@@ -322,12 +363,12 @@ export const EventDialog = ({
     const endDateTime = new Date(endDate);
     
     const timesChanged = startDate !== originalStartDate || endDate !== originalEndDate;
-    console.log("Time changed during edit?", timesChanged);
+    console.log("⏰ Time changed during edit?", timesChanged);
 
     const wasBookingRequest = event?.type === 'booking_request';
     const isApprovingBookingRequest = wasBookingRequest && !isBookingEvent;
     
-    // CRITICAL FIX: Prepare event data with EXPLICIT NULL setting for unused fields
+    // CRITICAL: Prepare event data with STRICT field separation and validation
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
       start_date: startDateTime.toISOString(),
@@ -347,7 +388,7 @@ export const EventDialog = ({
       eventData.payment_status = null;
       eventData.payment_amount = null;
       
-      console.log("Saving GROUP event with NULL individual fields");
+      console.log("💾 Saving GROUP event with NULL individual fields");
     } else {
       // FOR INDIVIDUAL EVENTS: Set individual fields, EXPLICITLY NULL group fields
       eventData.user_surname = userSurname;
@@ -358,7 +399,7 @@ export const EventDialog = ({
       eventData.payment_amount = paymentAmount ? parseFloat(paymentAmount) : null;
       eventData.group_name = null;
       
-      console.log("Saving INDIVIDUAL event with NULL group fields");
+      console.log("💾 Saving INDIVIDUAL event with NULL group fields");
     }
 
     if (event?.id) {
@@ -374,9 +415,9 @@ export const EventDialog = ({
     }
 
     try {
-      console.log("EventDialog - Submitting event data:", eventData);
+      console.log("💾 Submitting event data:", eventData);
       const createdEvent = await onSubmit(eventData);
-      console.log('Created/Updated event:', createdEvent);
+      console.log('✅ Event saved successfully:', createdEvent);
       
       // Handle group members if this is a group event
       if (isGroupEvent && groupMembers.length > 0 && createdEvent?.id && user) {
@@ -389,9 +430,9 @@ export const EventDialog = ({
             .eq('is_group_member', true);
           
           if (deleteError) {
-            console.error('Error deleting existing group members:', deleteError);
+            console.error('❌ Error deleting existing group members:', deleteError);
           } else {
-            console.log('Deleted existing group members for update');
+            console.log('🗑️  Deleted existing group members for update');
           }
         }
 
@@ -418,9 +459,9 @@ export const EventDialog = ({
             .insert(customerData);
 
           if (customerError) {
-            console.error('Error creating group member customer:', customerError);
+            console.error('❌ Error creating group member customer:', customerError);
           } else {
-            console.log('Created customer for group member:', member.user_surname);
+            console.log('✅ Created customer for group member:', member.user_surname);
           }
         }
       }
@@ -431,14 +472,14 @@ export const EventDialog = ({
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${createdEvent.id}/${crypto.randomUUID()}.${fileExt}`;
           
-          console.log('Uploading file:', filePath);
+          console.log('📤 Uploading file:', filePath);
           
           const { error: uploadError } = await supabase.storage
             .from('event_attachments')
             .upload(filePath, selectedFile);
 
           if (uploadError) {
-            console.error('Error uploading file:', uploadError);
+            console.error('❌ Error uploading file:', uploadError);
             throw uploadError;
           }
 
@@ -456,13 +497,13 @@ export const EventDialog = ({
             .insert(fileData);
             
           if (fileRecordError) {
-            console.error('Error creating file record:', fileRecordError);
+            console.error('❌ Error creating file record:', fileRecordError);
             throw fileRecordError;
           }
 
-          console.log('File record created successfully in event_files');
+          console.log('✅ File uploaded and recorded successfully');
         } catch (fileError) {
-          console.error("Error handling file upload:", fileError);
+          console.error("❌ Error handling file upload:", fileError);
         }
       }
 
@@ -475,39 +516,6 @@ export const EventDialog = ({
               : (event?.id ? "events.eventUpdated" : "events.eventCreated")
           }
         });
-      } else {
-        if (event?.id) {
-          try {
-            const { data: bookingRequest, error: findError } = await supabase
-              .from('booking_requests')
-              .select('*')
-              .eq('id', event.id)
-              .maybeSingle();
-              
-            if (!findError && bookingRequest) {
-              const { error: updateError } = await supabase
-                .from('booking_requests')
-                .update({
-                  title: finalTitle,
-                  requester_name: isGroupEvent ? groupName : userSurname,
-                  requester_phone: isGroupEvent ? "" : userNumber,
-                  requester_email: isGroupEvent ? "" : socialNetworkLink,
-                  description: isGroupEvent ? `Group booking: ${groupName}` : eventNotes,
-                  start_date: startDateTime.toISOString(),
-                  end_date: endDateTime.toISOString(),
-                })
-                .eq('id', event.id);
-                
-              if (updateError) {
-                console.error('Error updating booking request:', updateError);
-              } else {
-                console.log('Updated booking request successfully');
-              }
-            }
-          } catch (bookingError) {
-            console.error("Error updating booking request:", bookingError);
-          }
-        }
       }
 
       // Query invalidation for all event types
@@ -518,11 +526,11 @@ export const EventDialog = ({
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
 
-      // FIXED: Always close dialog after successful submission
+      // ALWAYS close dialog after successful submission
       onOpenChange(false);
       
     } catch (error: any) {
-      console.error('Error handling event submission:', error);
+      console.error('❌ Error handling event submission:', error);
       toast({
         translateKeys: {
           titleKey: "common.error",
@@ -630,7 +638,7 @@ export const EventDialog = ({
               {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+        </AlertDialogFooter>
       </AlertDialog>
     </>
   );

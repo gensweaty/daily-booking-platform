@@ -110,21 +110,19 @@ export const Calendar = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
+      console.log("🔄 Calendar creating event:", data);
       const result = await createEvent?.(data);
-      
-      // FIXED: Remove auto-reopening logic - let dialog close normally
-      console.log("Event created successfully:", result);
-      
+      console.log("✅ Event created successfully:", result);
       return result;
     },
     updateEvent: async (data) => {
       if (!selectedEvent) throw new Error("No event selected");
-      console.log("Calendar passing to updateEvent:", { data, id: selectedEvent.id, type: selectedEvent.type });
+      console.log("🔄 Calendar updating event:", { data, id: selectedEvent.id, type: selectedEvent.type });
       
       const result = await updateEvent?.({
         ...data,
         id: selectedEvent.id,
-        type: selectedEvent.type  // Make sure to pass the type from the selected event
+        type: selectedEvent.type
       });
       return result;
     },
@@ -210,10 +208,11 @@ export const Calendar = ({
       
       setIsBookingFormOpen(true);
     } else if (!isExternalCalendar) {
-      // FIXED: Clear selected event when creating new event
+      // FIXED: Clear selected event and ensure clean state for new events
+      console.log("📅 Creating new event for date:", clickedDate);
       setSelectedEvent(null);
       setDialogSelectedDate(clickedDate);
-      setTimeout(() => setIsNewEventDialogOpen(true), 0);
+      setIsNewEventDialogOpen(true);
     }
   };
 
@@ -235,16 +234,19 @@ export const Calendar = ({
       const now = new Date();
       now.setHours(9, 0, 0, 0);
       
-      // FIXED: Clear selected event when creating new event
+      // FIXED: Clear selected event and ensure clean state for new events
+      console.log("➕ Adding new event");
       setSelectedEvent(null);
       setDialogSelectedDate(now);
-      setTimeout(() => setIsNewEventDialogOpen(true), 0);
+      setIsNewEventDialogOpen(true);
     }
   };
 
   const handleEventClick = (event: CalendarEventType) => {
     if (!isExternalCalendar) {
+      console.log("📝 Editing event:", { id: event.id, is_group_event: event.is_group_event });
       setSelectedEvent(event);
+      setIsNewEventDialogOpen(false); // Ensure new event dialog is closed
     } else if (isExternalCalendar && allowBookingRequests) {
       toast({
         title: "Time slot not available",
@@ -260,17 +262,17 @@ export const Calendar = ({
     toast.event.bookingSubmitted();
   };
 
-  // FIXED: Custom handler to properly close dialog and clear selected event
+  // FIXED: Simplified dialog handlers
   const handleNewEventDialogOpenChange = (open: boolean) => {
+    console.log("🔄 New event dialog state:", open);
+    setIsNewEventDialogOpen(open);
     if (!open) {
-      // Clear selected event when closing new event dialog
       setSelectedEvent(null);
     }
-    setIsNewEventDialogOpen(open);
   };
 
-  // FIXED: Custom handler for editing events
   const handleEditEventDialogOpenChange = (open: boolean) => {
+    console.log("🔄 Edit event dialog state:", open);
     if (!open) {
       setSelectedEvent(null);
     }
@@ -327,21 +329,23 @@ export const Calendar = ({
 
       {!isExternalCalendar && (
         <>
-          {/* FIXED: New event dialog - simple logic without auto-reopening */}
-          <EventDialog
-            key={selectedEvent ? `edit-${selectedEvent.id}` : `new-${dialogSelectedDate?.getTime()}`}
-            open={isNewEventDialogOpen}
-            onOpenChange={handleNewEventDialogOpenChange}
-            selectedDate={dialogSelectedDate}
-            event={selectedEvent} // Pass selected event if it exists
-            onSubmit={handleCreateEvent}
-            forceInitKey={selectedEvent?.id || dialogSelectedDate?.getTime()}
-          />
+          {/* NEW EVENT DIALOG - Only for creating new events */}
+          {isNewEventDialogOpen && !selectedEvent && (
+            <EventDialog
+              key={`new-${dialogSelectedDate?.getTime()}`}
+              open={isNewEventDialogOpen}
+              onOpenChange={handleNewEventDialogOpenChange}
+              selectedDate={dialogSelectedDate}
+              event={undefined} // Explicitly undefined for new events
+              onSubmit={handleCreateEvent}
+              forceInitKey={`new-${dialogSelectedDate?.getTime()}`}
+            />
+          )}
 
-          {/* FIXED: Edit event dialog - only show when we have a selected event and not creating new */}
+          {/* EDIT EVENT DIALOG - Only for editing existing events */}
           {selectedEvent && !isNewEventDialogOpen && (
             <EventDialog
-              key={`edit-existing-${selectedEvent.id}`}
+              key={`edit-${selectedEvent.id}`}
               open={!!selectedEvent}
               onOpenChange={handleEditEventDialogOpenChange}
               selectedDate={new Date(selectedEvent.start_date)}
