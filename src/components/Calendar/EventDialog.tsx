@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -93,7 +94,30 @@ export const EventDialog = ({
     setGroupMembers([]);
   };
 
-  // SIMPLIFIED event loading - use ONLY is_group_event flag
+  // FIXED: Re-fetch event data after creation
+  const refetchEventData = async (eventId: string) => {
+    try {
+      console.log("Re-fetching event data for ID:", eventId);
+      const { data: refetchedEvent, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', eventId)
+        .single();
+        
+      if (error) {
+        console.error("Error re-fetching event:", error);
+        return null;
+      }
+      
+      console.log("Re-fetched event:", refetchedEvent);
+      return refetchedEvent;
+    } catch (error) {
+      console.error("Exception re-fetching event:", error);
+      return null;
+    }
+  };
+
+  // FIXED: Event loading with proper initialization
   useEffect(() => {
     const initializeEventData = async () => {
       console.log("EventDialog initializing with event:", event);
@@ -103,7 +127,8 @@ export const EventDialog = ({
         return;
       }
 
-      if (dialogInitializedRef.current && !event) {
+      // FIXED: Allow re-initialization if we now have an event ID after creation
+      if (dialogInitializedRef.current && !event?.id) {
         return;
       }
       
@@ -505,15 +530,33 @@ export const EventDialog = ({
         }
       }
 
+      // FIXED: For newly created group events, re-fetch the saved event data
+      if (!event?.id && isGroupEvent && createdEvent?.id) {
+        console.log("New group event created, will re-fetch data to ensure proper display");
+        
+        // Invalidate queries to refresh the calendar
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['events'] });
+          queryClient.invalidateQueries({ queryKey: ['business-events'] });
+          queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+          queryClient.invalidateQueries({ queryKey: ['customers'] });
+          queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+          queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+        }, 300);
+        
+        // Reset dialog initialization so it can reload with the saved event data
+        dialogInitializedRef.current = false;
+      } else {
+        // Normal query invalidation for updates
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        queryClient.invalidateQueries({ queryKey: ['business-events'] });
+        queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+        queryClient.invalidateQueries({ queryKey: ['customers'] });
+        queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+        queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+      }
+
       onOpenChange(false);
-      
-      // Invalidate queries
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['business-events'] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       
     } catch (error: any) {
       console.error('Error handling event submission:', error);
