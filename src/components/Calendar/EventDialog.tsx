@@ -77,12 +77,8 @@ export const EventDialog = ({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const { loadGroupMembers } = useGroupMembers();
   
-  const dialogInitializedRef = useRef(false);
-
-  // Force reinitialization when forceInitKey changes
-  useEffect(() => {
-    dialogInitializedRef.current = false;
-  }, [forceInitKey]);
+  // Remove the dialogInitializedRef since it's causing the blocking issue
+  const lastInitializedEvent = useRef<string | null>(null);
 
   // Clear all individual fields
   const clearIndividualFields = () => {
@@ -100,23 +96,24 @@ export const EventDialog = ({
     setGroupMembers([]);
   };
 
-  // FIXED: Event initialization with proper dependency tracking
+  // FIXED: Simplified event initialization - always run when props change
   useEffect(() => {
     const initializeEventData = async () => {
       console.log("EventDialog initializing with event:", event, "open:", open);
 
       if (!open) {
-        dialogInitializedRef.current = false;
+        lastInitializedEvent.current = null;
         return;
       }
 
-      // Only initialize if dialog hasn't been initialized yet
-      if (dialogInitializedRef.current) {
-        console.log("Skipping reinitialization - already initialized.");
+      // Check if we already initialized this exact same event
+      const currentEventKey = event?.id || `new-${selectedDate?.getTime()}`;
+      if (lastInitializedEvent.current === currentEventKey) {
+        console.log("Skipping reinitialization - same event already initialized:", currentEventKey);
         return;
       }
 
-      console.log("Proceeding with initialization for event:", event?.id);
+      console.log("Proceeding with initialization for:", currentEventKey);
 
       if (event) {
         // Load event data
@@ -217,7 +214,7 @@ export const EventDialog = ({
         console.log("New event initialized");
       }
       
-      dialogInitializedRef.current = true;
+      lastInitializedEvent.current = currentEventKey;
     };
 
     initializeEventData();
@@ -521,14 +518,8 @@ export const EventDialog = ({
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
 
-      // FIXED: Don't immediately close for new group events - let parent handle it
-      if (!event?.id && isGroupEvent) {
-        console.log("New group event created, parent will handle dialog state");
-        // Don't close immediately - parent will handle the reopening with the created event
-      } else {
-        // For individual events and existing event updates, close normally
-        onOpenChange(false);
-      }
+      // FIXED: Always close dialog after successful submission
+      onOpenChange(false);
       
     } catch (error: any) {
       console.error('Error handling event submission:', error);

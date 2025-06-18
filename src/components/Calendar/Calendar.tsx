@@ -112,16 +112,8 @@ export const Calendar = ({
     createEvent: async (data) => {
       const result = await createEvent?.(data);
       
-      // FIXED: After creating a new event, pass it back to the dialog for proper initialization
-      if (result && data.is_group_event) {
-        console.log("New group event created, reopening with saved event:", result);
-        setSelectedEvent(result);
-        setTimeout(() => {
-          setIsNewEventDialogOpen(false);
-          // Small delay to ensure state is updated, then reopen with the created event
-          setTimeout(() => setIsNewEventDialogOpen(true), 100);
-        }, 200);
-      }
+      // FIXED: Remove auto-reopening logic - let dialog close normally
+      console.log("Event created successfully:", result);
       
       return result;
     },
@@ -268,7 +260,7 @@ export const Calendar = ({
     toast.event.bookingSubmitted();
   };
 
-  // FIXED: Custom handler to avoid immediate dialog close for new group events
+  // FIXED: Custom handler to properly close dialog and clear selected event
   const handleNewEventDialogOpenChange = (open: boolean) => {
     if (!open) {
       // Clear selected event when closing new event dialog
@@ -335,13 +327,13 @@ export const Calendar = ({
 
       {!isExternalCalendar && (
         <>
-          {/* FIXED: New event dialog - handle both new events and reopened group events */}
+          {/* FIXED: New event dialog - simple logic without auto-reopening */}
           <EventDialog
             key={selectedEvent ? `edit-${selectedEvent.id}` : `new-${dialogSelectedDate?.getTime()}`}
             open={isNewEventDialogOpen}
             onOpenChange={handleNewEventDialogOpenChange}
             selectedDate={dialogSelectedDate}
-            event={selectedEvent} // FIXED: Pass the selected event if it exists (for reopened group events)
+            event={selectedEvent} // Pass selected event if it exists
             onSubmit={handleCreateEvent}
             forceInitKey={selectedEvent?.id || dialogSelectedDate?.getTime()}
           />
