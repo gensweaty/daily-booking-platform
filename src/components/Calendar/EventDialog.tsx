@@ -100,7 +100,7 @@ export const EventDialog = ({
     setGroupMembers([]);
   };
 
-  // FIXED: Simplified event initialization logic
+  // FIXED: Event initialization with proper dependency tracking
   useEffect(() => {
     const initializeEventData = async () => {
       console.log("EventDialog initializing with event:", event, "open:", open);
@@ -110,7 +110,7 @@ export const EventDialog = ({
         return;
       }
 
-      // ✅ Always initialize if dialog just opened or forceInitKey changed
+      // Only initialize if dialog hasn't been initialized yet
       if (dialogInitializedRef.current) {
         console.log("Skipping reinitialization - already initialized.");
         return;
@@ -122,6 +122,8 @@ export const EventDialog = ({
         // Load event data
         const start = new Date(event.start_date);
         const end = new Date(event.end_date);
+        
+        // CRITICAL: Check is_group_event boolean flag to determine event type
         const isGroupEventType = event.is_group_event === true;
 
         console.log("Event type detection:", { 
@@ -219,7 +221,7 @@ export const EventDialog = ({
     };
 
     initializeEventData();
-  }, [selectedDate, event, open, loadGroupMembers, forceInitKey]); // ✅ Notice: event instead of event?.id
+  }, [selectedDate, event?.id, open, loadGroupMembers, forceInitKey]);
 
   // Handle group event toggle with proper field management
   const handleGroupEventToggle = (checked: boolean) => {
