@@ -111,6 +111,18 @@ export const Calendar = ({
   } = useEventDialog({
     createEvent: async (data) => {
       const result = await createEvent?.(data);
+      
+      // FIXED: After creating a new event, pass it back to the dialog for proper initialization
+      if (result && data.is_group_event) {
+        console.log("New group event created, reopening with saved event:", result);
+        setSelectedEvent(result);
+        setTimeout(() => {
+          setIsNewEventDialogOpen(false);
+          // Small delay to ensure state is updated, then reopen with the created event
+          setTimeout(() => setIsNewEventDialogOpen(true), 100);
+        }, 200);
+      }
+      
       return result;
     },
     updateEvent: async (data) => {
@@ -206,6 +218,8 @@ export const Calendar = ({
       
       setIsBookingFormOpen(true);
     } else if (!isExternalCalendar) {
+      // FIXED: Clear selected event when creating new event
+      setSelectedEvent(null);
       setDialogSelectedDate(clickedDate);
       setTimeout(() => setIsNewEventDialogOpen(true), 0);
     }
@@ -229,6 +243,8 @@ export const Calendar = ({
       const now = new Date();
       now.setHours(9, 0, 0, 0);
       
+      // FIXED: Clear selected event when creating new event
+      setSelectedEvent(null);
       setDialogSelectedDate(now);
       setTimeout(() => setIsNewEventDialogOpen(true), 0);
     }
@@ -250,6 +266,22 @@ export const Calendar = ({
     queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
     
     toast.event.bookingSubmitted();
+  };
+
+  // FIXED: Custom handler to avoid immediate dialog close for new group events
+  const handleNewEventDialogOpenChange = (open: boolean) => {
+    if (!open) {
+      // Clear selected event when closing new event dialog
+      setSelectedEvent(null);
+    }
+    setIsNewEventDialogOpen(open);
+  };
+
+  // FIXED: Custom handler for editing events
+  const handleEditEventDialogOpenChange = (open: boolean) => {
+    if (!open) {
+      setSelectedEvent(null);
+    }
   };
 
   if (error && !directEvents) {
@@ -303,19 +335,22 @@ export const Calendar = ({
 
       {!isExternalCalendar && (
         <>
+          {/* FIXED: New event dialog - handle both new events and reopened group events */}
           <EventDialog
-            key={dialogSelectedDate?.getTime()}
+            key={selectedEvent ? `edit-${selectedEvent.id}` : `new-${dialogSelectedDate?.getTime()}`}
             open={isNewEventDialogOpen}
-            onOpenChange={setIsNewEventDialogOpen}
+            onOpenChange={handleNewEventDialogOpenChange}
             selectedDate={dialogSelectedDate}
+            event={selectedEvent} // FIXED: Pass the selected event if it exists (for reopened group events)
             onSubmit={handleCreateEvent}
           />
 
-          {selectedEvent && (
+          {/* FIXED: Edit event dialog - only show when we have a selected event and not creating new */}
+          {selectedEvent && !isNewEventDialogOpen && (
             <EventDialog
-              key={selectedEvent.id}
+              key={`edit-existing-${selectedEvent.id}`}
               open={!!selectedEvent}
-              onOpenChange={() => setSelectedEvent(null)}
+              onOpenChange={handleEditEventDialogOpenChange}
               selectedDate={new Date(selectedEvent.start_date)}
               event={selectedEvent}
               onSubmit={handleUpdateEvent}

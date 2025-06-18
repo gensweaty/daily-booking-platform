@@ -377,52 +377,48 @@ export const EventDialog = ({
       
       // Handle group members if this is a group event
       if (isGroupEvent && groupMembers.length > 0 && createdEvent?.id && user) {
-        try {
-          // Delete existing group members if updating
-          if (event?.id) {
-            const { error: deleteError } = await supabase
-              .from('customers')
-              .delete()
-              .eq('parent_group_id', event.id)
-              .eq('is_group_member', true);
-              
-            if (deleteError) {
-              console.error('Error deleting existing group members:', deleteError);
-            } else {
-              console.log('Deleted existing group members for update');
-            }
+        // Delete existing group members if updating
+        if (event?.id) {
+          const { error: deleteError } = await supabase
+            .from('customers')
+            .delete()
+            .eq('parent_group_id', event.id)
+            .eq('is_group_member', true);
+          
+          if (deleteError) {
+            console.error('Error deleting existing group members:', deleteError);
+          } else {
+            console.log('Deleted existing group members for update');
           }
+        }
 
-          // Create individual customer records for each group member
-          for (const member of groupMembers) {
-            const customerData = {
-              title: member.user_surname,
-              user_surname: member.user_surname,
-              user_number: member.user_number,
-              social_network_link: member.social_network_link,
-              event_notes: member.event_notes,
-              payment_status: member.payment_status,
-              payment_amount: member.payment_amount ? parseFloat(member.payment_amount) : null,
-              user_id: user.id,
-              type: 'group_member',
-              start_date: startDateTime.toISOString(),
-              end_date: endDateTime.toISOString(),
-              parent_group_id: createdEvent.id,
-              is_group_member: true
-            };
+        // Create individual customer records for each group member
+        for (const member of groupMembers) {
+          const customerData = {
+            title: member.user_surname,
+            user_surname: member.user_surname,
+            user_number: member.user_number,
+            social_network_link: member.social_network_link,
+            event_notes: member.event_notes,
+            payment_status: member.payment_status,
+            payment_amount: member.payment_amount ? parseFloat(member.payment_amount) : null,
+            user_id: user.id,
+            type: 'group_member',
+            start_date: startDateTime.toISOString(),
+            end_date: endDateTime.toISOString(),
+            parent_group_id: createdEvent.id,
+            is_group_member: true
+          };
 
-            const { error: customerError } = await supabase
-              .from('customers')
-              .insert(customerData);
+          const { error: customerError } = await supabase
+            .from('customers')
+            .insert(customerData);
 
-            if (customerError) {
-              console.error('Error creating group member customer:', customerError);
-            } else {
-              console.log('Created customer for group member:', member.user_surname);
-            }
+          if (customerError) {
+            console.error('Error creating group member customer:', customerError);
+          } else {
+            console.log('Created customer for group member:', member.user_surname);
           }
-        } catch (groupError) {
-          console.error("Error handling group members:", groupError);
         }
       }
       
@@ -519,7 +515,14 @@ export const EventDialog = ({
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
 
-      onOpenChange(false);
+      // FIXED: Don't immediately close for new group events - let parent handle it
+      if (!event?.id && isGroupEvent) {
+        console.log("New group event created, parent will handle dialog state");
+        // Don't close immediately - parent will handle the reopening with the created event
+      } else {
+        // For individual events and existing event updates, close normally
+        onOpenChange(false);
+      }
       
     } catch (error: any) {
       console.error('Error handling event submission:', error);
