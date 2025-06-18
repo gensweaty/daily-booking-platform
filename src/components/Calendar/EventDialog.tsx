@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -93,32 +94,38 @@ export const EventDialog = ({
     setGroupMembers([]);
   };
 
+  // Reset all fields to initial state
+  const resetAllFields = () => {
+    setTitle("");
+    setIsGroupEvent(false);
+    clearIndividualFields();
+    clearGroupFields();
+    setSelectedFile(null);
+    setFileError("");
+    setDisplayedFiles([]);
+    dialogInitializedRef.current = false;
+  };
+
   // IMPROVED event loading - allows re-initialization when switching modes
   useEffect(() => {
     const initializeEventData = async () => {
-      console.log("EventDialog initializing with event:", event);
+      console.log("EventDialog initializing with event:", event, "open:", open);
       
       if (!open) {
-        dialogInitializedRef.current = false;
+        resetAllFields();
         return;
       }
 
-      // REMOVED the blocking condition for new events to allow mode switching
-      // This was: if (dialogInitializedRef.current && !event) return;
-      
+      // For existing events, always initialize properly
       if (event) {
+        console.log("Loading existing event:", event.id, "is_group_event:", event.is_group_event);
+        
         const start = new Date(event.start_date);
         const end = new Date(event.end_date);
         
-        // SIMPLIFIED: Only check is_group_event flag
+        // CRITICAL: Check is_group_event flag first
         const isGroupEventType = event.is_group_event === true;
-        
-        console.log("Event type detection:", { 
-          is_group_event: event.is_group_event,
-          group_name: event.group_name,
-          user_surname: event.user_surname,
-          final_decision: isGroupEventType 
-        });
+        console.log("Event type detection - is_group_event:", event.is_group_event, "final decision:", isGroupEventType);
         
         setIsGroupEvent(isGroupEventType);
         
@@ -181,8 +188,9 @@ export const EventDialog = ({
         
         setIsBookingEvent(event.type === 'booking_request');
         
-      } else if (selectedDate) {
-        // New event creation - always initialize for new events OR when switching modes
+      } else if (selectedDate && !dialogInitializedRef.current) {
+        // New event creation - only initialize once
+        console.log("Initializing new event");
         const start = new Date(selectedDate.getTime());
         const end = new Date(selectedDate.getTime());
         end.setHours(end.getHours() + 1);
@@ -190,27 +198,25 @@ export const EventDialog = ({
         const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
         const formattedEnd = format(end, "yyyy-MM-dd'T'HH:mm");
         
-        // Only set dates if they haven't been set yet
-        if (!startDate) {
-          setStartDate(formattedStart);
-          setEndDate(formattedEnd);
-          setOriginalStartDate(formattedStart);
-          setOriginalEndDate(formattedEnd);
-        }
+        setStartDate(formattedStart);
+        setEndDate(formattedEnd);
+        setOriginalStartDate(formattedStart);
+        setOriginalEndDate(formattedEnd);
         
-        // For new events, don't reset title when switching modes if it already has a value
-        if (!title) {
-          setTitle("");
-        }
+        // Reset to individual event for new events
+        setIsGroupEvent(false);
+        setTitle("");
+        clearIndividualFields();
+        clearGroupFields();
         
-        console.log("New event initialized or mode switched");
+        console.log("New event initialized");
       }
       
       dialogInitializedRef.current = true;
     };
 
     initializeEventData();
-  }, [selectedDate, event, open, loadGroupMembers]); // Removed isGroupEvent from dependencies
+  }, [selectedDate, event, open, loadGroupMembers]);
 
   // FIXED group event toggle - simplified to just change the state
   const handleGroupEventToggle = (checked: boolean) => {
@@ -321,13 +327,13 @@ export const EventDialog = ({
     const wasBookingRequest = event?.type === 'booking_request';
     const isApprovingBookingRequest = wasBookingRequest && !isBookingEvent;
     
-    // CRITICAL FIX: Prepare event data with EXPLICIT NULL setting for unused fields
+    // CRITICAL FIX: Prepare event data with EXPLICIT values
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
       start_date: startDateTime.toISOString(),
       end_date: endDateTime.toISOString(),
       language: event?.language || language,
-      is_group_event: isGroupEvent,
+      is_group_event: isGroupEvent, // CRITICAL: Always set this explicitly
       group_member_count: isGroupEvent ? groupMembers.length : 1,
     };
 
@@ -341,7 +347,7 @@ export const EventDialog = ({
       eventData.payment_status = null;
       eventData.payment_amount = null;
       
-      console.log("Saving GROUP event with NULL individual fields");
+      console.log("Saving GROUP event with is_group_event=true and NULL individual fields");
     } else {
       // FOR INDIVIDUAL EVENTS: Set individual fields, EXPLICITLY NULL group fields
       eventData.user_surname = userSurname;
@@ -352,7 +358,7 @@ export const EventDialog = ({
       eventData.payment_amount = paymentAmount ? parseFloat(paymentAmount) : null;
       eventData.group_name = null;
       
-      console.log("Saving INDIVIDUAL event with NULL group fields");
+      console.log("Saving INDIVIDUAL event with is_group_event=false and NULL group fields");
     }
 
     if (event?.id) {
