@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -110,15 +111,14 @@ export const EventDialog = ({
         return;
       }
 
-      // FIXED: Allow re-initialization when a new event with ID is passed
-      if (dialogInitializedRef.current && event?.id === undefined) {
+      // FIXED: Allow re-initialization when forceInitKey changes or when we have a new event
+      const shouldInitialize = !dialogInitializedRef.current || (event?.id && dialogInitializedRef.current);
+      
+      if (!shouldInitialize && !event?.id) {
         return;
       }
 
-      // ✅ Ensure event is re-initialized properly after creation
-      if (event?.id && !dialogInitializedRef.current) {
-        console.log("🔁 Re-initializing newly created event:", event);
-      }
+      console.log("Proceeding with initialization for event:", event?.id);
       
       if (event) {
         const start = new Date(event.start_date);
@@ -195,7 +195,7 @@ export const EventDialog = ({
         
         setIsBookingEvent(event.type === 'booking_request');
         
-      } else if (selectedDate && !dialogInitializedRef.current) {
+      } else if (selectedDate) {
         // New event creation
         const start = new Date(selectedDate.getTime());
         const end = new Date(selectedDate.getTime());
@@ -641,7 +641,7 @@ export const EventDialog = ({
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </Dialog>
     </>
   );
 };
