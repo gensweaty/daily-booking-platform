@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -93,7 +94,7 @@ export const EventDialog = ({
     setGroupMembers([]);
   };
 
-  // Enhanced event loading with simplified group detection
+  // SIMPLIFIED event loading - use ONLY is_group_event flag
   useEffect(() => {
     const initializeEventData = async () => {
       console.log("EventDialog initializing with event:", event);
@@ -111,26 +112,28 @@ export const EventDialog = ({
         const start = new Date(event.start_date);
         const end = new Date(event.end_date);
         
-        // SIMPLIFIED GROUP DETECTION: Use is_group_event as single source of truth
+        // SIMPLIFIED: Only check is_group_event flag
         const isGroupEventType = event.is_group_event === true;
         
-        console.log("Group event detection:", { 
-          is_group_event: event.is_group_event, 
+        console.log("Event type detection:", { 
+          is_group_event: event.is_group_event,
+          group_name: event.group_name,
+          user_surname: event.user_surname,
           final_decision: isGroupEventType 
         });
         
         setIsGroupEvent(isGroupEventType);
         
         if (isGroupEventType) {
-          // FOR GROUP EVENTS: Only set group fields, clear individual fields
+          // GROUP EVENT: Use group_name and clear individual fields
           const eventGroupName = event.group_name || event.title || "";
           setTitle(eventGroupName);
           setGroupName(eventGroupName);
           
-          // Explicitly clear ALL individual fields
+          // Clear ALL individual fields for group events
           clearIndividualFields();
           
-          console.log("Group event loaded - set group name:", eventGroupName);
+          console.log("Loading GROUP event - group name:", eventGroupName);
           
           // Load group members
           if (event.id) {
@@ -147,7 +150,7 @@ export const EventDialog = ({
             }
           }
         } else {
-          // FOR INDIVIDUAL EVENTS: Only set individual fields, clear group fields
+          // INDIVIDUAL EVENT: Use user_surname and clear group fields
           const fullName = event.user_surname || event.title || "";
           setTitle(fullName);
           setUserSurname(fullName);
@@ -164,13 +167,13 @@ export const EventDialog = ({
           setPaymentStatus(normalizedStatus);
           setPaymentAmount(event.payment_amount?.toString() || "");
           
-          // Clear group fields
+          // Clear group fields for individual events
           clearGroupFields();
           
-          console.log("Individual event loaded");
+          console.log("Loading INDIVIDUAL event - user surname:", fullName);
         }
         
-        // Set date fields (common for both types)
+        // Set common date fields
         const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
         const formattedEnd = format(end, "yyyy-MM-dd'T'HH:mm");
         setStartDate(formattedStart);
@@ -209,7 +212,7 @@ export const EventDialog = ({
     initializeEventData();
   }, [selectedDate, event, open, loadGroupMembers]);
 
-  // Handle group event toggle with immediate field clearing
+  // Handle group event toggle with proper field management
   const handleGroupEventToggle = (checked: boolean) => {
     console.log("Toggling group event to:", checked);
     setIsGroupEvent(checked);
@@ -316,7 +319,7 @@ export const EventDialog = ({
     const wasBookingRequest = event?.type === 'booking_request';
     const isApprovingBookingRequest = wasBookingRequest && !isBookingEvent;
     
-    // Prepare event data with EXPLICIT field separation
+    // CRITICAL FIX: Prepare event data with EXPLICIT NULL setting for unused fields
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
       start_date: startDateTime.toISOString(),
@@ -327,16 +330,18 @@ export const EventDialog = ({
     };
 
     if (isGroupEvent) {
-      // FOR GROUP EVENTS: Set group fields, NULL individual fields
+      // FOR GROUP EVENTS: Set group fields, EXPLICITLY NULL individual fields
       eventData.group_name = groupName;
       eventData.user_surname = null;
       eventData.user_number = null;
       eventData.social_network_link = null;
       eventData.event_notes = null;
-      eventData.payment_status = "not_paid";
+      eventData.payment_status = null;
       eventData.payment_amount = null;
+      
+      console.log("Saving GROUP event with NULL individual fields");
     } else {
-      // FOR INDIVIDUAL EVENTS: Set individual fields, NULL group fields
+      // FOR INDIVIDUAL EVENTS: Set individual fields, EXPLICITLY NULL group fields
       eventData.user_surname = userSurname;
       eventData.user_number = userNumber;
       eventData.social_network_link = socialNetworkLink;
@@ -344,6 +349,8 @@ export const EventDialog = ({
       eventData.payment_status = paymentStatus;
       eventData.payment_amount = paymentAmount ? parseFloat(paymentAmount) : null;
       eventData.group_name = null;
+      
+      console.log("Saving INDIVIDUAL event with NULL group fields");
     }
 
     if (event?.id) {
@@ -618,8 +625,8 @@ export const EventDialog = ({
               {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        </AlertDialogFooter>
+      </Dialog>
     </>
   );
 };
