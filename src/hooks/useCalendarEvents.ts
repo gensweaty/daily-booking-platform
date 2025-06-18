@@ -525,22 +525,42 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       event.title = "Untitled Event"; // Default title if none provided
     }
     
-    // Create the event - Ensure required fields are included
-    const eventPayload = {
+    // STEP 1 FIX: Properly handle group event fields during creation
+    const eventPayload: any = {
       title: event.title,
       start_date: event.start_date as string,
       end_date: event.end_date as string,
       user_id: user.id,
       type: event.type,
-      // Add other optional fields
-      user_surname: event.user_surname,
-      user_number: event.user_number,
-      social_network_link: event.social_network_link,
-      event_notes: event.event_notes,
-      payment_status: event.payment_status || 'not_paid',
-      payment_amount: event.payment_amount,
-      language: event.language || language || 'en' // Use provided language, current language, or default to 'en'
+      language: event.language || language || 'en',
+      // CRITICAL: Always explicitly set is_group_event
+      is_group_event: event.is_group_event || false,
+      group_member_count: event.is_group_event ? (event.group_member_count || 1) : 1,
     };
+
+    if (event.is_group_event) {
+      // FOR GROUP EVENTS: Set group fields, NULL individual fields
+      eventPayload.group_name = event.group_name || event.title;
+      eventPayload.user_surname = null;
+      eventPayload.user_number = null;
+      eventPayload.social_network_link = null;
+      eventPayload.event_notes = null;
+      eventPayload.payment_status = null;
+      eventPayload.payment_amount = null;
+      
+      console.log("Creating GROUP event with payload:", eventPayload);
+    } else {
+      // FOR INDIVIDUAL EVENTS: Set individual fields, NULL group fields
+      eventPayload.user_surname = event.user_surname || event.title;
+      eventPayload.user_number = event.user_number;
+      eventPayload.social_network_link = event.social_network_link;
+      eventPayload.event_notes = event.event_notes;
+      eventPayload.payment_status = event.payment_status || 'not_paid';
+      eventPayload.payment_amount = event.payment_amount;
+      eventPayload.group_name = null;
+      
+      console.log("Creating INDIVIDUAL event with payload:", eventPayload);
+    }
     
     const { data, error } = await supabase
       .from('events')
@@ -553,10 +573,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       throw error;
     }
     
-    // Send confirmation email in background only if we have a valid recipient email
-    // and this is a new event (not from a booking request conversion)
+    console.log("Event created successfully:", data);
+    
+    // Send confirmation email only for individual events with valid email
     const recipientEmail = event.social_network_link;
     if (
+      !event.is_group_event &&
       recipientEmail && 
       isValidEmail(recipientEmail) && 
       !event.id && // Check if this is a new event, not an existing one
@@ -586,7 +608,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     try {
       const { data: existingEvent, error: fetchError } = await supabase
         .from('events')
-        .select('id, start_date, end_date, type, social_network_link, language')
+        .select('id, start_date, end_date, type, social_network_link, language, is_group_event')
         .eq('id', event.id)
         .single();
         
@@ -663,49 +685,42 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         const eventLanguage = bookingLanguage || event.language || existingEvent.language || language || 'en';
         console.log("Event language for approval (prioritizing original booking):", eventLanguage);
         
-        // Create a new event without direct file fields
-        // We need to ensure we have all required fields for the events table
-        const eventPayload: {
-          title: string;
-          start_date: string;
-          end_date: string;
-          user_id: string;
-          type: string;
-          user_surname?: string;
-          user_number?: string;
-          social_network_link?: string;
-          event_notes?: string;
-          payment_status?: string;
-          payment_amount?: number | null;
-          booking_request_id?: string;
-          language?: string;
-          source_url?: string;
-        } = {
-          // Required fields
-          title: event.title || "Untitled Event", // Ensure title is never undefined
+        // STEP 2 FIX: Handle group event conversion properly
+        const eventPayload: any = {
+          title: event.title || "Untitled Event",
           start_date: event.start_date as string,
           end_date: event.end_date as string,
           user_id: user.id,
           type: event.type || 'event',
-          
-          // Optional fields
-          user_surname: event.user_surname,
-          user_number: event.user_number,
-          social_network_link: event.social_network_link,
-          event_notes: event.event_notes,
-          payment_status: event.payment_status || originalBooking?.payment_status || 'not_paid',
-          payment_amount: paymentAmount,
           booking_request_id: bookingRequestId,
-          language: eventLanguage, // Use the determined language with priority to original booking
-        };
-        
-        console.log("Creating new event with payload:", {
           language: eventLanguage,
-          payment_status: eventPayload.payment_status,
-          payment_amount: paymentAmount
-        });
+          // CRITICAL: Always explicitly set is_group_event
+          is_group_event: event.is_group_event || false,
+          group_member_count: event.is_group_event ? (event.group_member_count || 1) : 1,
+        };
+
+        if (event.is_group_event) {
+          // FOR GROUP EVENTS: Set group fields, NULL individual fields
+          eventPayload.group_name = event.group_name || event.title;
+          eventPayload.user_surname = null;
+          eventPayload.user_number = null;
+          eventPayload.social_network_link = null;
+          eventPayload.event_notes = null;
+          eventPayload.payment_status = null;
+          eventPayload.payment_amount = null;
+        } else {
+          // FOR INDIVIDUAL EVENTS: Set individual fields, NULL group fields
+          eventPayload.user_surname = event.user_surname || event.title;
+          eventPayload.user_number = event.user_number;
+          eventPayload.social_network_link = event.social_network_link;
+          eventPayload.event_notes = event.event_notes;
+          eventPayload.payment_status = event.payment_status || originalBooking?.payment_status || 'not_paid';
+          eventPayload.payment_amount = paymentAmount;
+          eventPayload.group_name = null;
+        }
         
-        // Create the new event
+        console.log("Creating new event with payload:", eventPayload);
+        
         const { data: newEvent, error: createError } = await supabase
           .from('events')
           .insert(eventPayload)
@@ -835,9 +850,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         return newEvent;
       }
       
-      // Regular update for non-booking events or when not changing type
-      
-      // Process payment amount to ensure it's a valid number
+      // STEP 2 FIX: Regular update with proper group event handling
       if (event.payment_amount !== undefined) {
         const numericAmount = parseFloat(String(event.payment_amount));
         if (!isNaN(numericAmount)) {
@@ -845,14 +858,44 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         }
       }
       
-      // Make sure we preserve or update the language
       if (!event.language) {
         event.language = existingEvent.language || language || 'en';
       }
       
+      // CRITICAL: Prepare update payload with explicit group event handling
+      const updatePayload: any = {
+        ...event,
+        // CRITICAL: Always explicitly set is_group_event
+        is_group_event: event.is_group_event !== undefined ? event.is_group_event : false,
+        group_member_count: event.is_group_event ? (event.group_member_count || 1) : 1,
+      };
+
+      if (event.is_group_event) {
+        // FOR GROUP EVENTS: Ensure group fields are set, individual fields are NULL
+        updatePayload.group_name = event.group_name || event.title;
+        updatePayload.user_surname = null;
+        updatePayload.user_number = null;
+        updatePayload.social_network_link = null;
+        updatePayload.event_notes = null;
+        updatePayload.payment_status = null;
+        updatePayload.payment_amount = null;
+        
+        console.log("Updating to GROUP event with explicit NULLs");
+      } else {
+        // FOR INDIVIDUAL EVENTS: Ensure individual fields are set, group fields are NULL
+        updatePayload.group_name = null;
+        if (!updatePayload.user_surname && event.title) {
+          updatePayload.user_surname = event.title;
+        }
+        
+        console.log("Updating to INDIVIDUAL event with explicit NULLs");
+      }
+      
+      console.log("Update payload:", updatePayload);
+      
       const { data, error } = await supabase
         .from('events')
-        .update(event)
+        .update(updatePayload)
         .eq('id', event.id)
         .select()
         .single();
@@ -862,20 +905,19 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         throw error;
       }
       
-      // Send email if email address has changed
-      const emailChanged = event.social_network_link && 
+      // Send email if email address has changed for individual events
+      const emailChanged = !event.is_group_event && 
+                          event.social_network_link && 
                           event.social_network_link !== existingEvent.social_network_link;
       
       if (emailChanged && isValidEmail(event.social_network_link as string)) {
         try {
-          // Make sure payment amount is properly formatted
           let paymentAmount = null;
           if (event.payment_amount !== undefined && event.payment_amount !== null) {
             paymentAmount = parseFloat(String(event.payment_amount));
             if (isNaN(paymentAmount)) paymentAmount = null;
           }
           
-          // Use the event language, existing language, current app language, or default to 'en'
           const emailLanguage = event.language || existingEvent.language || language || 'en';
           
           console.log("Sending updated booking email with payment info:", {
