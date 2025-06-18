@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -75,11 +74,25 @@ export const EventDialog = ({
   const isGeorgian = language === 'ka';
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const { loadGroupMembers } = useGroupMembers();
+  
+  // Add a ref to track if dialog has been initialized to prevent unnecessary resets
+  const dialogInitializedRef = useRef(false);
 
   // Enhanced group event loading with proper async handling
   useEffect(() => {
     const initializeEventData = async () => {
       console.log("EventDialog initializing with event:", event);
+      
+      // Only initialize if dialog is open
+      if (!open) {
+        dialogInitializedRef.current = false;
+        return;
+      }
+
+      // Skip if already initialized and no event change
+      if (dialogInitializedRef.current && !event) {
+        return;
+      }
       
       if (event) {
         const start = new Date(event.start_date);
@@ -138,8 +151,8 @@ export const EventDialog = ({
         } else {
           setGroupMembers([]);
         }
-      } else if (selectedDate) {
-        // Reset for new event
+      } else if (selectedDate && !dialogInitializedRef.current) {
+        // Only reset for new event creation if not already initialized
         const start = new Date(selectedDate.getTime());
         const end = new Date(selectedDate.getTime());
         end.setHours(end.getHours() + 1);
@@ -153,7 +166,7 @@ export const EventDialog = ({
         setOriginalEndDate(formattedEnd);
         setPaymentStatus("not_paid");
         
-        // Reset all fields
+        // Reset all fields only for new events
         setTitle("");
         setUserSurname("");
         setUserNumber("");
@@ -164,12 +177,13 @@ export const EventDialog = ({
         setGroupName("");
         setGroupMembers([]);
       }
+      
+      // Mark as initialized
+      dialogInitializedRef.current = true;
     };
 
-    if (open) {
-      initializeEventData();
-    }
-  }, [selectedDate, event, open, loadGroupMembers]);
+    initializeEventData();
+  }, [selectedDate, event, open]); // Removed loadGroupMembers from dependencies
 
   // Load files for this event with improved customer file handling
   useEffect(() => {

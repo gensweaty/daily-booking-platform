@@ -1,12 +1,12 @@
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GroupMember } from "../GroupMembersField";
 
 export const useGroupMembers = () => {
   const [isLoading, setIsLoading] = useState(false);
 
-  const loadGroupMembers = async (eventId: string): Promise<GroupMember[]> => {
+  const loadGroupMembers = useCallback(async (eventId: string): Promise<GroupMember[]> => {
     setIsLoading(true);
     try {
       console.log("Loading group members for event:", eventId);
@@ -39,7 +39,7 @@ export const useGroupMembers = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   return {
     loadGroupMembers,
