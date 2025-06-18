@@ -93,7 +93,7 @@ export const EventDialog = ({
     setGroupMembers([]);
   };
 
-  // SIMPLIFIED event loading - use ONLY is_group_event flag
+  // IMPROVED event loading - allows re-initialization when switching modes
   useEffect(() => {
     const initializeEventData = async () => {
       console.log("EventDialog initializing with event:", event);
@@ -103,9 +103,8 @@ export const EventDialog = ({
         return;
       }
 
-      if (dialogInitializedRef.current && !event) {
-        return;
-      }
+      // REMOVED the blocking condition for new events to allow mode switching
+      // This was: if (dialogInitializedRef.current && !event) return;
       
       if (event) {
         const start = new Date(event.start_date);
@@ -182,8 +181,8 @@ export const EventDialog = ({
         
         setIsBookingEvent(event.type === 'booking_request');
         
-      } else if (selectedDate && !dialogInitializedRef.current) {
-        // New event creation
+      } else if (selectedDate) {
+        // New event creation - always initialize for new events OR when switching modes
         const start = new Date(selectedDate.getTime());
         const end = new Date(selectedDate.getTime());
         end.setHours(end.getHours() + 1);
@@ -191,43 +190,53 @@ export const EventDialog = ({
         const formattedStart = format(start, "yyyy-MM-dd'T'HH:mm");
         const formattedEnd = format(end, "yyyy-MM-dd'T'HH:mm");
         
-        setStartDate(formattedStart);
-        setEndDate(formattedEnd);
-        setOriginalStartDate(formattedStart);
-        setOriginalEndDate(formattedEnd);
+        // Only set dates if they haven't been set yet
+        if (!startDate) {
+          setStartDate(formattedStart);
+          setEndDate(formattedEnd);
+          setOriginalStartDate(formattedStart);
+          setOriginalEndDate(formattedEnd);
+        }
         
-        // Reset all fields for new events
-        setTitle("");
-        clearIndividualFields();
-        clearGroupFields();
-        setIsGroupEvent(false);
+        // For new events, don't reset title when switching modes if it already has a value
+        if (!title) {
+          setTitle("");
+        }
         
-        console.log("New event initialized");
+        console.log("New event initialized or mode switched");
       }
       
       dialogInitializedRef.current = true;
     };
 
     initializeEventData();
-  }, [selectedDate, event, open, loadGroupMembers]);
+  }, [selectedDate, event, open, isGroupEvent, loadGroupMembers]); // Added isGroupEvent as dependency
 
-  // Handle group event toggle with proper field management
+  // IMPROVED group event toggle with better field management
   const handleGroupEventToggle = (checked: boolean) => {
     console.log("Toggling group event to:", checked);
     setIsGroupEvent(checked);
     
     if (checked) {
-      // Switching to group event: clear individual fields
+      // Switching to group event: clear individual fields and sync title
       clearIndividualFields();
-      // If we have a title, use it as group name
-      if (title) {
+      
+      // If we have a user surname, use it as group name
+      if (userSurname && !groupName) {
+        setGroupName(userSurname);
+        setTitle(userSurname);
+      } else if (title && !groupName) {
         setGroupName(title);
       }
     } else {
-      // Switching to individual event: clear group fields
+      // Switching to individual event: clear group fields and sync title
       clearGroupFields();
-      // If we have a title, use it as user surname
-      if (title) {
+      
+      // If we have a group name, use it as user surname
+      if (groupName && !userSurname) {
+        setUserSurname(groupName);
+        setTitle(groupName);
+      } else if (title && !userSurname) {
         setUserSurname(title);
       }
     }
