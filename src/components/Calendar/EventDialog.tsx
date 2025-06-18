@@ -33,6 +33,7 @@ interface EventDialogProps {
   onDelete?: () => void;
   event?: CalendarEventType;
   isBookingRequest?: boolean;
+  forceInitKey?: string | number;
 }
 
 export const EventDialog = ({
@@ -42,7 +43,8 @@ export const EventDialog = ({
   onSubmit,
   onDelete,
   event,
-  isBookingRequest = false
+  isBookingRequest = false,
+  forceInitKey
 }: EventDialogProps) => {
   // Individual event fields
   const [title, setTitle] = useState("");
@@ -76,6 +78,11 @@ export const EventDialog = ({
   const { loadGroupMembers } = useGroupMembers();
   
   const dialogInitializedRef = useRef(false);
+
+  // Force reinitialization when forceInitKey changes
+  useEffect(() => {
+    dialogInitializedRef.current = false;
+  }, [forceInitKey]);
 
   // Clear all individual fields
   const clearIndividualFields = () => {
@@ -215,7 +222,7 @@ export const EventDialog = ({
     };
 
     initializeEventData();
-  }, [selectedDate, event?.id, open, loadGroupMembers]); // FIXED: track event?.id
+  }, [selectedDate, event?.id, open, loadGroupMembers, forceInitKey]); // FIXED: track forceInitKey
 
   // Handle group event toggle with proper field management
   const handleGroupEventToggle = (checked: boolean) => {

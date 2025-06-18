@@ -343,6 +343,7 @@ export const Calendar = ({
             selectedDate={dialogSelectedDate}
             event={selectedEvent} // FIXED: Pass the selected event if it exists (for reopened group events)
             onSubmit={handleCreateEvent}
+            forceInitKey={selectedEvent?.id || dialogSelectedDate?.getTime()}
           />
 
           {/* FIXED: Edit event dialog - only show when we have a selected event and not creating new */}
@@ -355,6 +356,7 @@ export const Calendar = ({
               event={selectedEvent}
               onSubmit={handleUpdateEvent}
               onDelete={handleDeleteEvent}
+              forceInitKey={selectedEvent.id}
             />
           )}
         </>
