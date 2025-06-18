@@ -210,35 +210,29 @@ export const EventDialog = ({
     };
 
     initializeEventData();
-  }, [selectedDate, event, open, isGroupEvent, loadGroupMembers]); // Added isGroupEvent as dependency
+  }, [selectedDate, event, open, loadGroupMembers]); // Removed isGroupEvent from dependencies
 
-  // IMPROVED group event toggle with better field management
+  // FIXED group event toggle - simplified to just change the state
   const handleGroupEventToggle = (checked: boolean) => {
     console.log("Toggling group event to:", checked);
     setIsGroupEvent(checked);
     
     if (checked) {
-      // Switching to group event: clear individual fields and sync title
+      // Switching to group event: move title/userSurname to groupName
+      const currentTitle = title || userSurname;
+      if (currentTitle) {
+        setGroupName(currentTitle);
+        setTitle(currentTitle);
+      }
       clearIndividualFields();
-      
-      // If we have a user surname, use it as group name
-      if (userSurname && !groupName) {
-        setGroupName(userSurname);
-        setTitle(userSurname);
-      } else if (title && !groupName) {
-        setGroupName(title);
-      }
     } else {
-      // Switching to individual event: clear group fields and sync title
-      clearGroupFields();
-      
-      // If we have a group name, use it as user surname
-      if (groupName && !userSurname) {
-        setUserSurname(groupName);
-        setTitle(groupName);
-      } else if (title && !userSurname) {
-        setUserSurname(title);
+      // Switching to individual event: move title/groupName to userSurname
+      const currentTitle = title || groupName;
+      if (currentTitle) {
+        setUserSurname(currentTitle);
+        setTitle(currentTitle);
       }
+      clearGroupFields();
     }
   };
 
