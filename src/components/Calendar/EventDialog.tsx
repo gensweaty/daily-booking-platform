@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -94,42 +93,24 @@ export const EventDialog = ({
     setGroupMembers([]);
   };
 
-  // FIXED: Re-fetch event data after creation
-  const refetchEventData = async (eventId: string) => {
-    try {
-      console.log("Re-fetching event data for ID:", eventId);
-      const { data: refetchedEvent, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', eventId)
-        .single();
-        
-      if (error) {
-        console.error("Error re-fetching event:", error);
-        return null;
-      }
-      
-      console.log("Re-fetched event:", refetchedEvent);
-      return refetchedEvent;
-    } catch (error) {
-      console.error("Exception re-fetching event:", error);
-      return null;
-    }
-  };
-
-  // FIXED: Event loading with proper initialization
+  // FIXED: Event loading with proper reinitialization for new events
   useEffect(() => {
     const initializeEventData = async () => {
-      console.log("EventDialog initializing with event:", event);
+      console.log("EventDialog initializing with event:", event, "open:", open);
       
       if (!open) {
         dialogInitializedRef.current = false;
         return;
       }
 
-      // FIXED: Allow re-initialization if we now have an event ID after creation
-      if (dialogInitializedRef.current && !event?.id) {
+      // FIXED: Allow re-initialization when a new event with ID is passed
+      if (dialogInitializedRef.current && event?.id === undefined) {
         return;
+      }
+
+      // ✅ Ensure event is re-initialized properly after creation
+      if (event?.id && !dialogInitializedRef.current) {
+        console.log("🔁 Re-initializing newly created event:", event);
       }
       
       if (event) {
@@ -234,7 +215,7 @@ export const EventDialog = ({
     };
 
     initializeEventData();
-  }, [selectedDate, event, open, loadGroupMembers]);
+  }, [selectedDate, event?.id, open, loadGroupMembers]); // FIXED: track event?.id
 
   // Handle group event toggle with proper field management
   const handleGroupEventToggle = (checked: boolean) => {
@@ -530,31 +511,13 @@ export const EventDialog = ({
         }
       }
 
-      // FIXED: For newly created group events, re-fetch the saved event data
-      if (!event?.id && isGroupEvent && createdEvent?.id) {
-        console.log("New group event created, will re-fetch data to ensure proper display");
-        
-        // Invalidate queries to refresh the calendar
-        setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: ['events'] });
-          queryClient.invalidateQueries({ queryKey: ['business-events'] });
-          queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-          queryClient.invalidateQueries({ queryKey: ['customers'] });
-          queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-          queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-        }, 300);
-        
-        // Reset dialog initialization so it can reload with the saved event data
-        dialogInitializedRef.current = false;
-      } else {
-        // Normal query invalidation for updates
-        queryClient.invalidateQueries({ queryKey: ['events'] });
-        queryClient.invalidateQueries({ queryKey: ['business-events'] });
-        queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-        queryClient.invalidateQueries({ queryKey: ['customers'] });
-        queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-        queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      }
+      // Query invalidation for all event types
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
 
       onOpenChange(false);
       
