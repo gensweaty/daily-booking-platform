@@ -46,6 +46,9 @@ export const EventDialog = ({
   isBookingRequest = false,
   forceInitKey
 }: EventDialogProps) => {
+  // FIXED: Add initialization tracking
+  const dialogInitializedRef = useRef(false);
+  
   // Individual event fields
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
@@ -76,6 +79,11 @@ export const EventDialog = ({
   const isGeorgian = language === 'ka';
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const { loadGroupMembers } = useGroupMembers();
+
+  // FIXED: Add debugging for forceInitKey
+  useEffect(() => {
+    console.log("🧪 forceInitKey:", forceInitKey, "Event ID:", event?.id, "Open:", open);
+  }, [forceInitKey, event?.id, open]);
 
   // Clear all individual fields
   const clearIndividualFields = () => {
@@ -129,18 +137,20 @@ export const EventDialog = ({
     };
   };
 
-  // FIXED: Completely rewritten initialization logic - always run when dialog opens or event changes
+  // FIXED: Improved initialization with proper tracking
   useEffect(() => {
     const initializeEventData = async () => {
       console.log("🔄 EventDialog initializing", { 
         open, 
         eventId: event?.id, 
         selectedDate: selectedDate?.toISOString(),
-        forceInitKey 
+        forceInitKey,
+        initialized: dialogInitializedRef.current
       });
 
       if (!open) {
         console.log("❌ Dialog not open, clearing all fields");
+        dialogInitializedRef.current = false;
         // Reset all fields when dialog closes
         setTitle("");
         clearIndividualFields();
@@ -152,6 +162,18 @@ export const EventDialog = ({
         setIsLoadingMembers(false);
         return;
       }
+
+      // FIXED: Reset initialization tracking when forceInitKey changes
+      if (dialogInitializedRef.current && forceInitKey) {
+        dialogInitializedRef.current = false;
+      }
+
+      if (dialogInitializedRef.current) {
+        console.log("🔄 Dialog already initialized, skipping");
+        return;
+      }
+      
+      dialogInitializedRef.current = true;
 
       if (event) {
         console.log("📝 Loading existing event", { id: event.id, is_group_event: event.is_group_event });

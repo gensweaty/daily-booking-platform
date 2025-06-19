@@ -94,7 +94,7 @@ export const Calendar = ({
     
     if (events?.length > 0) {
       console.log("[Calendar] First event:", events[0]);
-      console.log("[Calendar] All events:", events); // Log all events to debug
+      console.log("[Calendar] All events:", events);
     }
   }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
 
@@ -113,6 +113,22 @@ export const Calendar = ({
       console.log("🔄 Calendar creating event:", data);
       const result = await createEvent?.(data);
       console.log("✅ Event created successfully:", result);
+
+      // FIXED: Proper dialog reopening for group events
+      if (result && data.is_group_event) {
+        console.log("🎯 New group event created, reopening with result:", result);
+
+        // Wait for state to update before reopening
+        setSelectedEvent(result);
+        setIsNewEventDialogOpen(false);
+
+        // Wait a tick, then reopen with a new forceInitKey
+        setTimeout(() => {
+          setDialogSelectedDate(new Date(result.start_date));
+          setIsNewEventDialogOpen(true);
+        }, 100);
+      }
+
       return result;
     },
     updateEvent: async (data) => {
@@ -208,7 +224,6 @@ export const Calendar = ({
       
       setIsBookingFormOpen(true);
     } else if (!isExternalCalendar) {
-      // FIXED: Clear selected event and ensure clean state for new events
       console.log("📅 Creating new event for date:", clickedDate);
       setSelectedEvent(null);
       setDialogSelectedDate(clickedDate);
@@ -234,7 +249,6 @@ export const Calendar = ({
       const now = new Date();
       now.setHours(9, 0, 0, 0);
       
-      // FIXED: Clear selected event and ensure clean state for new events
       console.log("➕ Adding new event");
       setSelectedEvent(null);
       setDialogSelectedDate(now);
@@ -246,7 +260,7 @@ export const Calendar = ({
     if (!isExternalCalendar) {
       console.log("📝 Editing event:", { id: event.id, is_group_event: event.is_group_event });
       setSelectedEvent(event);
-      setIsNewEventDialogOpen(false); // Ensure new event dialog is closed
+      setIsNewEventDialogOpen(false);
     } else if (isExternalCalendar && allowBookingRequests) {
       toast({
         title: "Time slot not available",
@@ -262,7 +276,6 @@ export const Calendar = ({
     toast.event.bookingSubmitted();
   };
 
-  // FIXED: Simplified dialog handlers
   const handleNewEventDialogOpenChange = (open: boolean) => {
     console.log("🔄 New event dialog state:", open);
     setIsNewEventDialogOpen(open);
@@ -329,20 +342,20 @@ export const Calendar = ({
 
       {!isExternalCalendar && (
         <>
-          {/* NEW EVENT DIALOG - Only for creating new events */}
-          {isNewEventDialogOpen && !selectedEvent && (
+          {/* FIXED: Updated dialog rendering with proper key and event handling */}
+          {isNewEventDialogOpen && (
             <EventDialog
-              key={`new-${dialogSelectedDate?.getTime()}`}
+              key={selectedEvent?.id ? `edit-${selectedEvent.id}` : `new-${dialogSelectedDate?.getTime()}`}
               open={isNewEventDialogOpen}
               onOpenChange={handleNewEventDialogOpenChange}
               selectedDate={dialogSelectedDate}
-              event={undefined} // Explicitly undefined for new events
+              event={selectedEvent}
               onSubmit={handleCreateEvent}
-              forceInitKey={`new-${dialogSelectedDate?.getTime()}`}
+              forceInitKey={selectedEvent?.id || dialogSelectedDate?.getTime()}
             />
           )}
 
-          {/* EDIT EVENT DIALOG - Only for editing existing events */}
+          {/* EDIT EVENT DIALOG - Only for editing existing events without new dialog open */}
           {selectedEvent && !isNewEventDialogOpen && (
             <EventDialog
               key={`edit-${selectedEvent.id}`}
