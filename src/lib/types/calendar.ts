@@ -41,4 +41,14 @@ export interface CalendarEventType {
   group_name?: string;
   parent_group_id?: string;
   group_member_count?: number;
+  // For passing group members during creation/update
+  groupMembers?: Array<{
+    id?: string;
+    user_surname: string;
+    user_number: string;
+    social_network_link: string;
+    event_notes: string;
+    payment_status: string;
+    payment_amount: string;
+  }>;
 }

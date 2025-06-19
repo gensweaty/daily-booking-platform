@@ -28,6 +28,7 @@ import { BookingRequestForm } from "../business/BookingRequestForm";
 import { useToast } from "@/hooks/use-toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
+import { useGroupMembers } from "./hooks/useGroupMembers";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -45,6 +46,7 @@ interface DialogInstance {
   key: string;
   event: CalendarEventType | null;
   date: Date | null;
+  isProcessingGroupMembers?: boolean;
 }
 
 export const Calendar = ({ 
@@ -80,6 +82,7 @@ export const Calendar = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { saveGroupMembers } = useGroupMembers();
 
   useEffect(() => {
     if (currentView) {
@@ -116,17 +119,62 @@ export const Calendar = ({
       const result = await createEvent?.(data);
       console.log("✅ Event created successfully:", result);
 
-      // For group events, add a new dialog to the queue for editing
-      if (result && data.is_group_event) {
-        console.log("🎯 New group event created, adding edit dialog to queue:", result);
+      // For group events, save members BEFORE opening edit dialog
+      if (result && data.is_group_event && data.groupMembers && data.groupMembers.length > 0 && user) {
+        console.log("🎯 Saving group members before opening edit dialog");
+        
+        // Mark the dialog as processing
+        const processingDialogKey = `group-processing-${result.id}-${Date.now()}`;
         setDialogs((prev) => [
           ...prev,
           {
-            key: `group-edit-${result.id}-${Date.now()}`,
+            key: processingDialogKey,
             event: result,
             date: new Date(result.start_date),
+            isProcessingGroupMembers: true,
           },
         ]);
+
+        try {
+          const saveSuccess = await saveGroupMembers(
+            result.id,
+            data.groupMembers,
+            user.id,
+            result.start_date,
+            result.end_date
+          );
+
+          // Remove processing dialog
+          setDialogs((prev) => prev.filter((d) => d.key !== processingDialogKey));
+
+          if (saveSuccess) {
+            console.log("✅ Group members saved, opening edit dialog");
+            // Add edit dialog after successful save
+            setDialogs((prev) => [
+              ...prev,
+              {
+                key: `group-edit-${result.id}-${Date.now()}`,
+                event: result,
+                date: new Date(result.start_date),
+                isProcessingGroupMembers: false,
+              },
+            ]);
+          } else {
+            console.error("❌ Failed to save group members");
+            toast({
+              title: "Warning",
+              description: "Group event created but failed to save some member details",
+            });
+          }
+        } catch (error) {
+          console.error("❌ Error saving group members:", error);
+          // Remove processing dialog on error
+          setDialogs((prev) => prev.filter((d) => d.key !== processingDialogKey));
+          toast({
+            title: "Error",
+            description: "Failed to save group member details",
+          });
+        }
       }
 
       return result;
@@ -342,7 +390,7 @@ export const Calendar = ({
       {!isExternalCalendar && (
         <>
           {/* Dialog Queue: Each dialog gets a fresh instance */}
-          {dialogs.map(({ key, event, date }) => (
+          {dialogs.map(({ key, event, date, isProcessingGroupMembers }) => (
             <EventDialog
               key={key}
               open={true}
@@ -355,6 +403,7 @@ export const Calendar = ({
               event={event}
               onSubmit={event ? handleUpdateEvent : baseHandleCreateEvent}
               onDelete={event ? handleDeleteEvent : undefined}
+              isProcessingGroupMembers={isProcessingGroupMembers}
             />
           ))}
         </>
