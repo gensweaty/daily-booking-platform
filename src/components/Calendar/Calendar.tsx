@@ -114,21 +114,12 @@ export const Calendar = ({
       const result = await createEvent?.(data);
       console.log("✅ Event created successfully:", result);
 
-      // FIXED: Proper dialog reopening for group events with full state reset
+      // FIXED: Simple and direct approach for group events
       if (result && data.is_group_event) {
-        console.log("🎯 New group event created, reopening with result:", result);
-
-        // CRITICAL: Reset dialog state completely before reopening
-        setSelectedEvent(null);
+        console.log("🎯 New group event created, opening editor:", result);
+        setDialogSelectedDate(new Date(result.start_date));
+        setSelectedEvent(result);
         setIsNewEventDialogOpen(false);
-
-        // Give time for unmount and reset - this ensures dialogInitializedRef.current resets
-        setTimeout(() => {
-          console.log("🔄 Reopening dialog with fresh state for group event:", result.id);
-          setSelectedEvent(result);
-          setDialogSelectedDate(new Date(result.start_date));
-          setIsNewEventDialogOpen(true);
-        }, 150); // Slightly longer timeout to ensure unmount
       }
 
       return result;
@@ -278,18 +269,11 @@ export const Calendar = ({
     toast.event.bookingSubmitted();
   };
 
-  const handleNewEventDialogOpenChange = (open: boolean) => {
-    console.log("🔄 New event dialog state:", open);
-    setIsNewEventDialogOpen(open);
+  const handleDialogOpenChange = (open: boolean) => {
+    console.log("🔄 Dialog state changing to:", open);
     if (!open) {
       setSelectedEvent(null);
-    }
-  };
-
-  const handleEditEventDialogOpenChange = (open: boolean) => {
-    console.log("🔄 Edit event dialog state:", open);
-    if (!open) {
-      setSelectedEvent(null);
+      setIsNewEventDialogOpen(false);
     }
   };
 
@@ -344,30 +328,16 @@ export const Calendar = ({
 
       {!isExternalCalendar && (
         <>
-          {/* FIXED: Enhanced dialog rendering with better key management for group events */}
-          {isNewEventDialogOpen && (
+          {/* FIXED: Single unified EventDialog */}
+          {(isNewEventDialogOpen || selectedEvent) && (
             <EventDialog
-              key={selectedEvent?.id ? `edit-${selectedEvent.id}-${Date.now()}` : `new-${dialogSelectedDate?.getTime()}`}
-              open={isNewEventDialogOpen}
-              onOpenChange={handleNewEventDialogOpenChange}
+              key={selectedEvent?.id || `new-${dialogSelectedDate?.getTime()}`}
+              open={true}
+              onOpenChange={handleDialogOpenChange}
               selectedDate={dialogSelectedDate}
               event={selectedEvent}
-              onSubmit={handleCreateEvent}
-              forceInitKey={selectedEvent?.id ? `${selectedEvent.id}-${Date.now()}` : dialogSelectedDate?.getTime()}
-            />
-          )}
-
-          {/* EDIT EVENT DIALOG - Only for editing existing events without new dialog open */}
-          {selectedEvent && !isNewEventDialogOpen && (
-            <EventDialog
-              key={`edit-${selectedEvent.id}-standalone`}
-              open={!!selectedEvent}
-              onOpenChange={handleEditEventDialogOpenChange}
-              selectedDate={new Date(selectedEvent.start_date)}
-              event={selectedEvent}
-              onSubmit={handleUpdateEvent}
-              onDelete={handleDeleteEvent}
-              forceInitKey={`${selectedEvent.id}-standalone`}
+              onSubmit={selectedEvent ? handleUpdateEvent : handleCreateEvent}
+              onDelete={selectedEvent ? handleDeleteEvent : undefined}
             />
           )}
         </>

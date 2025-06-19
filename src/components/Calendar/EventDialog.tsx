@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -33,7 +33,6 @@ interface EventDialogProps {
   onDelete?: () => void;
   event?: CalendarEventType;
   isBookingRequest?: boolean;
-  forceInitKey?: string | number;
 }
 
 export const EventDialog = ({
@@ -44,12 +43,7 @@ export const EventDialog = ({
   onDelete,
   event,
   isBookingRequest = false,
-  forceInitKey
 }: EventDialogProps) => {
-  // FIXED: Add initialization tracking with proper reset mechanism
-  const dialogInitializedRef = useRef(false);
-  const lastForceInitKeyRef = useRef<string | number | undefined>(undefined);
-  
   // Individual event fields
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
@@ -81,17 +75,6 @@ export const EventDialog = ({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const { loadGroupMembers } = useGroupMembers();
 
-  // FIXED: Add debugging for forceInitKey changes
-  useEffect(() => {
-    console.log("🧪 forceInitKey changed:", { 
-      forceInitKey, 
-      lastKey: lastForceInitKeyRef.current,
-      eventId: event?.id, 
-      open,
-      initialized: dialogInitializedRef.current 
-    });
-  }, [forceInitKey, event?.id, open]);
-
   // Clear all individual fields
   const clearIndividualFields = () => {
     setUserSurname("");
@@ -108,7 +91,7 @@ export const EventDialog = ({
     setGroupMembers([]);
   };
 
-  // FIXED: Data validation function to detect and fix corrupted data
+  // Data validation function to detect and fix corrupted data
   const validateAndSanitizeEventData = (eventData: CalendarEventType) => {
     const isGroup = eventData.is_group_event === true;
     
@@ -144,22 +127,17 @@ export const EventDialog = ({
     };
   };
 
-  // FIXED: Enhanced initialization with proper forceInitKey handling
+  // Simplified initialization - no ref tracking needed
   useEffect(() => {
     const initializeEventData = async () => {
       console.log("🔄 EventDialog initializing", { 
         open, 
         eventId: event?.id, 
-        selectedDate: selectedDate?.toISOString(),
-        forceInitKey,
-        lastForceInitKey: lastForceInitKeyRef.current,
-        initialized: dialogInitializedRef.current
+        selectedDate: selectedDate?.toISOString()
       });
 
       if (!open) {
         console.log("❌ Dialog not open, clearing all fields");
-        dialogInitializedRef.current = false;
-        lastForceInitKeyRef.current = undefined;
         // Reset all fields when dialog closes
         setTitle("");
         clearIndividualFields();
@@ -172,33 +150,16 @@ export const EventDialog = ({
         return;
       }
 
-      // CRITICAL: Reset initialization if forceInitKey has changed
-      if (forceInitKey !== lastForceInitKeyRef.current) {
-        console.log("🔄 ForceInitKey changed, resetting initialization", {
-          old: lastForceInitKeyRef.current,
-          new: forceInitKey
-        });
-        dialogInitializedRef.current = false;
-        lastForceInitKeyRef.current = forceInitKey;
-      }
-
-      if (dialogInitializedRef.current) {
-        console.log("🔄 Dialog already initialized, skipping");
-        return;
-      }
-      
-      dialogInitializedRef.current = true;
-
       if (event) {
         console.log("📝 Loading existing event", { id: event.id, is_group_event: event.is_group_event });
         
-        // CRITICAL: Validate and sanitize the event data first
+        // Validate and sanitize the event data first
         const sanitizedEvent = validateAndSanitizeEventData(event);
         
         const start = new Date(sanitizedEvent.start_date);
         const end = new Date(sanitizedEvent.end_date);
         
-        // DETERMINE EVENT TYPE: Use is_group_event flag as the SINGLE source of truth
+        // Use is_group_event flag as the SINGLE source of truth
         const isGroupEventType = sanitizedEvent.is_group_event === true;
         
         console.log("✅ Event type determined", { 
@@ -294,9 +255,9 @@ export const EventDialog = ({
     };
 
     initializeEventData();
-  }, [open, event?.id, event?.is_group_event, selectedDate, forceInitKey, loadGroupMembers]);
+  }, [open, event, selectedDate, loadGroupMembers]);
 
-  // FIXED: Improved group event toggle with comprehensive field management
+  // Improved group event toggle with comprehensive field management
   const handleGroupEventToggle = (checked: boolean) => {
     console.log("🔄 Toggling event type", { from: isGroupEvent, to: checked });
     setIsGroupEvent(checked);
@@ -403,7 +364,7 @@ export const EventDialog = ({
     const wasBookingRequest = event?.type === 'booking_request';
     const isApprovingBookingRequest = wasBookingRequest && !isBookingEvent;
     
-    // CRITICAL: Prepare event data with STRICT field separation and validation
+    // Prepare event data with STRICT field separation and validation
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
       start_date: startDateTime.toISOString(),
