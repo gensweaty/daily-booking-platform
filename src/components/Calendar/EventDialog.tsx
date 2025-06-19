@@ -127,10 +127,10 @@ export const EventDialog = ({
     };
   };
 
-  // Simplified initialization - no ref tracking needed
+  // Initialize dialog data fresh every time
   useEffect(() => {
     const initializeEventData = async () => {
-      console.log("🔄 EventDialog initializing", { 
+      console.log("🔄 EventDialog fresh initialization", { 
         open, 
         eventId: event?.id, 
         selectedDate: selectedDate?.toISOString()
@@ -522,7 +522,7 @@ export const EventDialog = ({
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
 
-      // ALWAYS close dialog after successful submission
+      // Close dialog after successful submission
       onOpenChange(false);
       
     } catch (error: any) {

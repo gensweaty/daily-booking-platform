@@ -41,6 +41,12 @@ interface CalendarProps {
   directEvents?: CalendarEventType[];
 }
 
+interface DialogInstance {
+  key: string;
+  event: CalendarEventType | null;
+  date: Date | null;
+}
+
 export const Calendar = ({ 
   defaultView = "week", 
   currentView,
@@ -54,6 +60,7 @@ export const Calendar = ({
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
+  const [dialogs, setDialogs] = useState<DialogInstance[]>([]);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
   
@@ -89,23 +96,18 @@ export const Calendar = ({
       directEvents: directEvents?.length || 0,
       fetchedEvents: fetchedEvents?.length || 0,
       eventsCount: events?.length || 0,
-      view
+      view,
+      dialogsCount: dialogs.length
     });
     
     if (events?.length > 0) {
       console.log("[Calendar] First event:", events[0]);
       console.log("[Calendar] All events:", events);
     }
-  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
+  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents, dialogs]);
 
   const {
-    selectedEvent,
-    setSelectedEvent,
-    isNewEventDialogOpen,
-    setIsNewEventDialogOpen,
-    selectedDate: dialogSelectedDate,
-    setSelectedDate: setDialogSelectedDate,
-    handleCreateEvent,
+    handleCreateEvent: baseHandleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
   } = useEventDialog({
@@ -114,25 +116,23 @@ export const Calendar = ({
       const result = await createEvent?.(data);
       console.log("✅ Event created successfully:", result);
 
-      // FIXED: Simple and direct approach for group events
+      // For group events, add a new dialog to the queue for editing
       if (result && data.is_group_event) {
-        console.log("🎯 New group event created, opening editor:", result);
-        setDialogSelectedDate(new Date(result.start_date));
-        setSelectedEvent(result);
-        setIsNewEventDialogOpen(false);
+        console.log("🎯 New group event created, adding edit dialog to queue:", result);
+        setDialogs((prev) => [
+          ...prev,
+          {
+            key: `group-edit-${result.id}-${Date.now()}`,
+            event: result,
+            date: new Date(result.start_date),
+          },
+        ]);
       }
 
       return result;
     },
     updateEvent: async (data) => {
-      if (!selectedEvent) throw new Error("No event selected");
-      console.log("🔄 Calendar updating event:", { data, id: selectedEvent.id, type: selectedEvent.type });
-      
-      const result = await updateEvent?.({
-        ...data,
-        id: selectedEvent.id,
-        type: selectedEvent.type
-      });
+      const result = await updateEvent?.(data);
       return result;
     },
     deleteEvent: async (id) => {
@@ -218,9 +218,14 @@ export const Calendar = ({
       setIsBookingFormOpen(true);
     } else if (!isExternalCalendar) {
       console.log("📅 Creating new event for date:", clickedDate);
-      setSelectedEvent(null);
-      setDialogSelectedDate(clickedDate);
-      setIsNewEventDialogOpen(true);
+      setDialogs((prev) => [
+        ...prev,
+        {
+          key: `new-${Date.now()}`,
+          event: null,
+          date: clickedDate,
+        },
+      ]);
     }
   };
 
@@ -242,18 +247,29 @@ export const Calendar = ({
       const now = new Date();
       now.setHours(9, 0, 0, 0);
       
-      console.log("➕ Adding new event");
-      setSelectedEvent(null);
-      setDialogSelectedDate(now);
-      setIsNewEventDialogOpen(true);
+      console.log("➕ Adding new event dialog to queue");
+      setDialogs((prev) => [
+        ...prev,
+        {
+          key: `new-${Date.now()}`,
+          event: null,
+          date: now,
+        },
+      ]);
     }
   };
 
   const handleEventClick = (event: CalendarEventType) => {
     if (!isExternalCalendar) {
-      console.log("📝 Editing event:", { id: event.id, is_group_event: event.is_group_event });
-      setSelectedEvent(event);
-      setIsNewEventDialogOpen(false);
+      console.log("📝 Adding edit event dialog to queue:", { id: event.id, is_group_event: event.is_group_event });
+      setDialogs((prev) => [
+        ...prev,
+        {
+          key: `edit-${event.id}-${Date.now()}`,
+          event: event,
+          date: new Date(event.start_date),
+        },
+      ]);
     } else if (isExternalCalendar && allowBookingRequests) {
       toast({
         title: "Time slot not available",
@@ -269,12 +285,9 @@ export const Calendar = ({
     toast.event.bookingSubmitted();
   };
 
-  const handleDialogOpenChange = (open: boolean) => {
-    console.log("🔄 Dialog state changing to:", open);
-    if (!open) {
-      setSelectedEvent(null);
-      setIsNewEventDialogOpen(false);
-    }
+  const handleDialogClose = (dialogKey: string) => {
+    console.log("🔄 Removing dialog from queue:", dialogKey);
+    setDialogs((prev) => prev.filter((d) => d.key !== dialogKey));
   };
 
   if (error && !directEvents) {
@@ -328,18 +341,22 @@ export const Calendar = ({
 
       {!isExternalCalendar && (
         <>
-          {/* FIXED: Single unified EventDialog */}
-          {(isNewEventDialogOpen || selectedEvent) && (
+          {/* Dialog Queue: Each dialog gets a fresh instance */}
+          {dialogs.map(({ key, event, date }) => (
             <EventDialog
-              key={selectedEvent?.id || `new-${dialogSelectedDate?.getTime()}`}
+              key={key}
               open={true}
-              onOpenChange={handleDialogOpenChange}
-              selectedDate={dialogSelectedDate}
-              event={selectedEvent}
-              onSubmit={selectedEvent ? handleUpdateEvent : handleCreateEvent}
-              onDelete={selectedEvent ? handleDeleteEvent : undefined}
+              onOpenChange={(open) => {
+                if (!open) {
+                  handleDialogClose(key);
+                }
+              }}
+              selectedDate={date}
+              event={event}
+              onSubmit={event ? handleUpdateEvent : baseHandleCreateEvent}
+              onDelete={event ? handleDeleteEvent : undefined}
             />
-          )}
+          ))}
         </>
       )}
 
