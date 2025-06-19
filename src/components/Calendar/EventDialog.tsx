@@ -77,6 +77,21 @@ export const EventDialog = ({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const { loadGroupMembers, saveGroupMembers } = useGroupMembers();
 
+  // Helper functions to clear field sets
+  const clearIndividualFields = () => {
+    setUserSurname("");
+    setUserNumber("");
+    setSocialNetworkLink("");
+    setEventNotes("");
+    setPaymentStatus("not_paid");
+    setPaymentAmount("");
+  };
+
+  const clearGroupFields = () => {
+    setGroupName("");
+    setGroupMembers([]);
+  };
+
   // Simplified initialization - runs every time dialog opens or event changes
   useEffect(() => {
     if (!open) {
@@ -138,12 +153,7 @@ export const EventDialog = ({
           setGroupName(eventGroupName);
           
           // Clear individual fields
-          setUserSurname("");
-          setUserNumber("");
-          setSocialNetworkLink("");
-          setEventNotes("");
-          setPaymentStatus("not_paid");
-          setPaymentAmount("");
+          clearIndividualFields();
           
           console.log("🏢 Loading GROUP event with members");
           
@@ -180,8 +190,7 @@ export const EventDialog = ({
           setPaymentAmount(event.payment_amount?.toString() || "");
           
           // Clear group fields
-          setGroupName("");
-          setGroupMembers([]);
+          clearGroupFields();
           
           console.log("👤 Loading INDIVIDUAL event", { userSurname: fullName });
         }
@@ -203,14 +212,8 @@ export const EventDialog = ({
         
         // Reset all fields for new events
         setTitle("");
-        setUserSurname("");
-        setUserNumber("");
-        setSocialNetworkLink("");
-        setEventNotes("");
-        setPaymentStatus("not_paid");
-        setPaymentAmount("");
-        setGroupName("");
-        setGroupMembers([]);
+        clearIndividualFields();
+        clearGroupFields();
         setIsGroupEvent(false);
         setIsBookingEvent(false);
       }
