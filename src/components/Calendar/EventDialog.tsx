@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -98,14 +99,8 @@ export const EventDialog = ({
       // Reset all fields when dialog closes
       console.log("❌ Dialog closed, resetting all fields");
       setTitle("");
-      setUserSurname("");
-      setUserNumber("");
-      setSocialNetworkLink("");
-      setEventNotes("");
-      setPaymentStatus("not_paid");
-      setPaymentAmount("");
-      setGroupName("");
-      setGroupMembers([]);
+      clearIndividualFields();
+      clearGroupFields();
       setIsGroupEvent(false);
       setDisplayedFiles([]);
       setSelectedFile(null);
@@ -142,8 +137,8 @@ export const EventDialog = ({
         setOriginalEndDate(formattedEnd);
         setIsBookingEvent(event.type === 'booking_request');
 
-        // Determine if this is a group event
-        const isGroup = event.is_group_event === true;
+        // Determine if this is a group event - check both field and group_name
+        const isGroup = event.is_group_event === true || !!event.group_name;
         setIsGroupEvent(isGroup);
 
         if (isGroup) {
@@ -164,6 +159,20 @@ export const EventDialog = ({
               const members = await loadGroupMembers(event.id);
               console.log("👥 Loaded group members", { count: members.length });
               setGroupMembers(members);
+              
+              // If no members found, create a default member from event data
+              if (members.length === 0 && event.user_surname) {
+                console.log("📝 Creating default member from event data");
+                const defaultMember: GroupMember = {
+                  user_surname: event.user_surname,
+                  user_number: event.user_number || "",
+                  social_network_link: event.social_network_link || "",
+                  event_notes: event.event_notes || "",
+                  payment_status: event.payment_status || "not_paid",
+                  payment_amount: event.payment_amount?.toString() || "",
+                };
+                setGroupMembers([defaultMember]);
+              }
             } catch (error) {
               console.error("❌ Error loading group members:", error);
               setGroupMembers([]);
@@ -317,8 +326,21 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (isLoadingMembers) {
+      console.log("⏸️ Still loading members, preventing submit");
+      return;
+    }
+    
     // Use appropriate title based on event type
     const finalTitle = isGroupEvent ? groupName : userSurname;
+    
+    if (!finalTitle.trim()) {
+      toast({
+        title: "Error",
+        description: isGroupEvent ? "Group name is required" : "Full name is required",
+      });
+      return;
+    }
     
     const startDateTime = new Date(startDate);
     const endDateTime = new Date(endDate);
@@ -351,7 +373,7 @@ export const EventDialog = ({
       // Pass group members for processing
       eventData.groupMembers = groupMembers;
       
-      console.log("💾 Saving GROUP event with members");
+      console.log("💾 Saving GROUP event with members", { membersCount: groupMembers.length });
     } else {
       // FOR INDIVIDUAL EVENTS: Set individual fields, NULL group fields
       eventData.user_surname = userSurname;
@@ -598,7 +620,7 @@ export const EventDialog = ({
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </Dialog>
     </>
   );
 };
