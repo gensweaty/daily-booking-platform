@@ -114,19 +114,21 @@ export const Calendar = ({
       const result = await createEvent?.(data);
       console.log("✅ Event created successfully:", result);
 
-      // FIXED: Proper dialog reopening for group events
+      // FIXED: Proper dialog reopening for group events with full state reset
       if (result && data.is_group_event) {
         console.log("🎯 New group event created, reopening with result:", result);
 
-        // Wait for state to update before reopening
-        setSelectedEvent(result);
+        // CRITICAL: Reset dialog state completely before reopening
+        setSelectedEvent(null);
         setIsNewEventDialogOpen(false);
 
-        // Wait a tick, then reopen with a new forceInitKey
+        // Give time for unmount and reset - this ensures dialogInitializedRef.current resets
         setTimeout(() => {
+          console.log("🔄 Reopening dialog with fresh state for group event:", result.id);
+          setSelectedEvent(result);
           setDialogSelectedDate(new Date(result.start_date));
           setIsNewEventDialogOpen(true);
-        }, 100);
+        }, 150); // Slightly longer timeout to ensure unmount
       }
 
       return result;
@@ -342,30 +344,30 @@ export const Calendar = ({
 
       {!isExternalCalendar && (
         <>
-          {/* FIXED: Updated dialog rendering with proper key and event handling */}
+          {/* FIXED: Enhanced dialog rendering with better key management for group events */}
           {isNewEventDialogOpen && (
             <EventDialog
-              key={selectedEvent?.id ? `edit-${selectedEvent.id}` : `new-${dialogSelectedDate?.getTime()}`}
+              key={selectedEvent?.id ? `edit-${selectedEvent.id}-${Date.now()}` : `new-${dialogSelectedDate?.getTime()}`}
               open={isNewEventDialogOpen}
               onOpenChange={handleNewEventDialogOpenChange}
               selectedDate={dialogSelectedDate}
               event={selectedEvent}
               onSubmit={handleCreateEvent}
-              forceInitKey={selectedEvent?.id || dialogSelectedDate?.getTime()}
+              forceInitKey={selectedEvent?.id ? `${selectedEvent.id}-${Date.now()}` : dialogSelectedDate?.getTime()}
             />
           )}
 
           {/* EDIT EVENT DIALOG - Only for editing existing events without new dialog open */}
           {selectedEvent && !isNewEventDialogOpen && (
             <EventDialog
-              key={`edit-${selectedEvent.id}`}
+              key={`edit-${selectedEvent.id}-standalone`}
               open={!!selectedEvent}
               onOpenChange={handleEditEventDialogOpenChange}
               selectedDate={new Date(selectedEvent.start_date)}
               event={selectedEvent}
               onSubmit={handleUpdateEvent}
               onDelete={handleDeleteEvent}
-              forceInitKey={selectedEvent.id}
+              forceInitKey={`${selectedEvent.id}-standalone`}
             />
           )}
         </>

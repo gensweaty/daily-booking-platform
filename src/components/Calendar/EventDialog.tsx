@@ -46,8 +46,9 @@ export const EventDialog = ({
   isBookingRequest = false,
   forceInitKey
 }: EventDialogProps) => {
-  // FIXED: Add initialization tracking
+  // FIXED: Add initialization tracking with proper reset mechanism
   const dialogInitializedRef = useRef(false);
+  const lastForceInitKeyRef = useRef<string | number | undefined>(undefined);
   
   // Individual event fields
   const [title, setTitle] = useState("");
@@ -80,9 +81,15 @@ export const EventDialog = ({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const { loadGroupMembers } = useGroupMembers();
 
-  // FIXED: Add debugging for forceInitKey
+  // FIXED: Add debugging for forceInitKey changes
   useEffect(() => {
-    console.log("🧪 forceInitKey:", forceInitKey, "Event ID:", event?.id, "Open:", open);
+    console.log("🧪 forceInitKey changed:", { 
+      forceInitKey, 
+      lastKey: lastForceInitKeyRef.current,
+      eventId: event?.id, 
+      open,
+      initialized: dialogInitializedRef.current 
+    });
   }, [forceInitKey, event?.id, open]);
 
   // Clear all individual fields
@@ -137,7 +144,7 @@ export const EventDialog = ({
     };
   };
 
-  // FIXED: Improved initialization with proper tracking
+  // FIXED: Enhanced initialization with proper forceInitKey handling
   useEffect(() => {
     const initializeEventData = async () => {
       console.log("🔄 EventDialog initializing", { 
@@ -145,12 +152,14 @@ export const EventDialog = ({
         eventId: event?.id, 
         selectedDate: selectedDate?.toISOString(),
         forceInitKey,
+        lastForceInitKey: lastForceInitKeyRef.current,
         initialized: dialogInitializedRef.current
       });
 
       if (!open) {
         console.log("❌ Dialog not open, clearing all fields");
         dialogInitializedRef.current = false;
+        lastForceInitKeyRef.current = undefined;
         // Reset all fields when dialog closes
         setTitle("");
         clearIndividualFields();
@@ -163,9 +172,14 @@ export const EventDialog = ({
         return;
       }
 
-      // FIXED: Reset initialization tracking when forceInitKey changes
-      if (dialogInitializedRef.current && forceInitKey) {
+      // CRITICAL: Reset initialization if forceInitKey has changed
+      if (forceInitKey !== lastForceInitKeyRef.current) {
+        console.log("🔄 ForceInitKey changed, resetting initialization", {
+          old: lastForceInitKeyRef.current,
+          new: forceInitKey
+        });
         dialogInitializedRef.current = false;
+        lastForceInitKeyRef.current = forceInitKey;
       }
 
       if (dialogInitializedRef.current) {
