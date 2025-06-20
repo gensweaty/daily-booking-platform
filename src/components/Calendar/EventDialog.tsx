@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -23,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { GroupMember } from "./GroupMembersField";
+import { useGroupMembers } from "./hooks/useGroupMembers";
 
 interface EventDialogProps {
   open: boolean;
@@ -33,6 +33,66 @@ interface EventDialogProps {
   onDelete?: () => void;
   event?: CalendarEventType;
   isBookingRequest?: boolean;
+}
+
+// Standalone file upload function
+async function uploadFileToEvent(file: File, eventId: string, userId: string) {
+  console.log("📤 Starting file upload for event:", eventId);
+  
+  const fileExt = file.name.split('.').pop();
+  const filePath = `${eventId}/${crypto.randomUUID()}.${fileExt}`;
+
+  // Upload to storage
+  const { error: uploadError } = await supabase.storage
+    .from('event_attachments')
+    .upload(filePath, file);
+
+  if (uploadError) {
+    console.error("❌ Storage upload failed:", uploadError);
+    throw uploadError;
+  }
+
+  // Create database record
+  const fileData = {
+    filename: file.name,
+    file_path: filePath,
+    content_type: file.type,
+    size: file.size,
+    user_id: userId,
+    event_id: eventId,
+  };
+
+  const { data, error: insertError } = await supabase
+    .from('event_files')
+    .insert(fileData)
+    .select()
+    .single();
+
+  if (insertError) {
+    console.error("❌ Database insert failed:", insertError);
+    throw insertError;
+  }
+
+  console.log("✅ File upload completed:", data);
+  return data;
+}
+
+// Function to fetch fresh files for an event
+async function fetchEventFiles(eventId: string) {
+  console.log("🔄 Fetching fresh files for event:", eventId);
+  
+  const { data, error } = await supabase
+    .from('event_files')
+    .select('*')
+    .eq('event_id', eventId);
+    
+  if (error) {
+    console.error("❌ Error fetching files:", error);
+    return [];
+  }
+  
+  console.log("📁 Fetched files:", data?.length || 0);
+  return data || [];
 }
 
 export const EventDialog = ({
@@ -65,6 +125,8 @@ export const EventDialog = ({
   const [groupName, setGroupName] = useState("");
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // New state for save process
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -72,7 +134,7 @@ export const EventDialog = ({
   const { t, language } = useLanguage();
   const [isBookingEvent, setIsBookingEvent] = useState(false);
   const isGeorgian = language === 'ka';
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const { loadGroupMembers, saveGroupMembers } = useGroupMembers();
 
   // Helper functions to clear field sets
   const clearIndividualFields = () => {
@@ -141,28 +203,8 @@ export const EventDialog = ({
       // For group events, load members
       console.log("👥 Loading group members for group event:", eventToLoad.id);
       
-      const { data: members, error } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('parent_group_id', eventToLoad.id)
-        .eq('is_group_member', true);
-        
-      if (error) {
-        console.error("❌ Error loading group members:", error);
-        return { isGroup, members: [] };
-      }
-      
-      const groupMembers: GroupMember[] = (members || []).map(member => ({
-        id: member.id,
-        user_surname: member.user_surname || '',
-        user_number: member.user_number || '',
-        social_network_link: member.social_network_link || '',
-        event_notes: member.event_notes || '',
-        payment_status: member.payment_status || 'not_paid',
-        payment_amount: member.payment_amount?.toString() || '',
-      }));
+      const groupMembers = await loadGroupMembers(eventToLoad.id);
 
-      // If no members found but it's a group event, create default member from event data
       if (groupMembers.length === 0 && (eventToLoad.user_surname || eventToLoad.title)) {
         console.log("📝 Creating default member from event data");
         const defaultMember: GroupMember = {
@@ -198,6 +240,7 @@ export const EventDialog = ({
       setSelectedFile(null);
       setFileError("");
       setIsLoading(false);
+      setIsSaving(false);
       return;
     }
 
@@ -296,7 +339,7 @@ export const EventDialog = ({
     };
 
     initializeDialog();
-  }, [open, event, selectedDate, toast]);
+  }, [open, event, selectedDate, toast, loadGroupMembers]);
 
   // Improved group event toggle with comprehensive field management
   const handleGroupEventToggle = (checked: boolean) => {
@@ -406,46 +449,17 @@ export const EventDialog = ({
         throw new Error("Failed to save main event");
       }
 
-      // Step 2: Save group members
-      console.log("👥 Saving group members for event:", savedEvent.id);
-      
-      // Delete existing group members first
-      const { error: deleteError } = await supabase
-        .from('customers')
-        .delete()
-        .eq('parent_group_id', savedEvent.id)
-        .eq('is_group_member', true);
-      
-      if (deleteError) {
-        console.error('❌ Error deleting existing group members:', deleteError);
-        throw deleteError;
-      }
-
-      // Create new group members
-      for (const member of eventData.groupMembers) {
-        const customerData = {
-          title: member.user_surname,
-          user_surname: member.user_surname,
-          user_number: member.user_number,
-          social_network_link: member.social_network_link,
-          event_notes: member.event_notes,
-          payment_status: member.payment_status,
-          payment_amount: member.payment_amount ? parseFloat(member.payment_amount) : null,
-          user_id: user.id,
-          type: 'group_member',
-          start_date: savedEvent.start_date,
-          end_date: savedEvent.end_date,
-          parent_group_id: savedEvent.id,
-          is_group_member: true
-        };
-
-        const { error: customerError } = await supabase
-          .from('customers')
-          .insert(customerData);
-
-        if (customerError) {
-          console.error('❌ Error creating group member customer:', customerError);
-          throw customerError;
+      if (user && eventData.groupMembers) {
+        const success = await saveGroupMembers(
+          savedEvent.id, 
+          eventData.groupMembers, 
+          user.id,
+          savedEvent.start_date,
+          savedEvent.end_date
+        );
+        
+        if (!success) {
+          throw new Error("Failed to save group members");
         }
       }
       
@@ -461,8 +475,8 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isLoading) {
-      console.log("⏸️ Still loading, preventing submit");
+    if (isLoading || isSaving) {
+      console.log("⏸️ Still loading or saving, preventing submit");
       return;
     }
     
@@ -477,145 +491,152 @@ export const EventDialog = ({
       return;
     }
     
-    const startDateTime = new Date(startDate);
-    const endDateTime = new Date(endDate);
-    
-    const timesChanged = startDate !== originalStartDate || endDate !== originalEndDate;
-    console.log("⏰ Time changed during edit?", timesChanged);
-
-    const wasBookingRequest = event?.type === 'booking_request';
+    setIsSaving(true);
+    console.log("💾 Starting save process");
     
     try {
-      // Prepare event data with STRICT field separation
-      const eventData: Partial<CalendarEventType> = {
-        title: finalTitle,
-        start_date: startDateTime.toISOString(),
-        end_date: endDateTime.toISOString(),
-        language: event?.language || language,
-        is_group_event: isGroupEvent,
-        group_member_count: isGroupEvent ? groupMembers.length : 1,
-      };
+      const startDateTime = new Date(startDate);
+      const endDateTime = new Date(endDate);
+      
+      const timesChanged = startDate !== originalStartDate || endDate !== originalEndDate;
+      console.log("⏰ Time changed during edit?", timesChanged);
 
-      if (isGroupEvent) {
-        // FOR GROUP EVENTS: Set group fields, NULL individual fields
-        eventData.group_name = groupName;
-        eventData.user_surname = null;
-        eventData.user_number = null;
-        eventData.social_network_link = null;
-        eventData.event_notes = null;
-        eventData.payment_status = null;
-        eventData.payment_amount = null;
-        
-        // Pass group members for atomic processing
-        eventData.groupMembers = groupMembers;
-        
-        console.log("💾 Saving GROUP event with members", { membersCount: groupMembers.length });
-        
-        // Use atomic save for group events
-        const createdEvent = await saveGroupEventAtomically(eventData);
-        
-      } else {
-        // FOR INDIVIDUAL EVENTS: Set individual fields, NULL group fields
-        eventData.user_surname = userSurname;
-        eventData.user_number = userNumber;
-        eventData.social_network_link = socialNetworkLink;
-        eventData.event_notes = eventNotes;
-        eventData.payment_status = paymentStatus;
-        eventData.payment_amount = paymentAmount ? parseFloat(paymentAmount) : null;
-        eventData.group_name = null;
-        
-        console.log("💾 Saving INDIVIDUAL event");
-        
-        // Regular save for individual events
-        await onSubmit(eventData);
-      }
+      const wasBookingRequest = event?.type === 'booking_request';
+      
+      try {
+        // Prepare event data with STRICT field separation
+        const eventData: Partial<CalendarEventType> = {
+          title: finalTitle,
+          start_date: startDateTime.toISOString(),
+          end_date: endDateTime.toISOString(),
+          language: event?.language || language,
+          is_group_event: isGroupEvent,
+          group_member_count: isGroupEvent ? groupMembers.length : 1,
+        };
 
-      if (event?.id) {
-        eventData.id = event.id;
-      }
+        if (isGroupEvent) {
+          // FOR GROUP EVENTS: Set group fields, NULL individual fields
+          eventData.group_name = groupName;
+          eventData.user_surname = null;
+          eventData.user_number = null;
+          eventData.social_network_link = null;
+          eventData.event_notes = null;
+          eventData.payment_status = null;
+          eventData.payment_amount = null;
+          
+          // Pass group members for atomic processing
+          eventData.groupMembers = groupMembers;
+          
+          console.log("💾 Saving GROUP event with members", { membersCount: groupMembers.length });
+          
+          // Use atomic save for group events
+          const createdEvent = await saveGroupEventAtomically(eventData);
+          
+        } else {
+          // FOR INDIVIDUAL EVENTS: Set individual fields, NULL group fields
+          eventData.user_surname = userSurname;
+          eventData.user_number = userNumber;
+          eventData.social_network_link = socialNetworkLink;
+          eventData.event_notes = eventNotes;
+          eventData.payment_status = paymentStatus;
+          eventData.payment_amount = paymentAmount ? parseFloat(paymentAmount) : null;
+          eventData.group_name = null;
+          
+          console.log("💾 Saving INDIVIDUAL event");
+          
+          // Regular save for individual events
+          await onSubmit(eventData);
+        }
 
-      if (wasBookingRequest) {
-        eventData.type = 'event';
-      } else if (event?.type) {
-        eventData.type = event.type;
-      } else {
-        eventData.type = isGroupEvent ? 'group_event' : 'event';
-      }
+        if (event?.id) {
+          eventData.id = event.id;
+        }
 
-      // Handle file upload
-      if (selectedFile && user) {
-        const eventId = event?.id || eventData.id;
-        if (eventId) {
-          try {
-            const fileExt = selectedFile.name.split('.').pop();
-            const filePath = `${eventId}/${crypto.randomUUID()}.${fileExt}`;
-            
-            console.log('📤 Uploading file:', filePath);
-            
-            const { error: uploadError } = await supabase.storage
-              .from('event_attachments')
-              .upload(filePath, selectedFile);
+        if (wasBookingRequest) {
+          eventData.type = 'event';
+        } else if (event?.type) {
+          eventData.type = event.type;
+        } else {
+          eventData.type = isGroupEvent ? 'group_event' : 'event';
+        }
 
-            if (uploadError) {
-              console.error('❌ Error uploading file:', uploadError);
-              throw uploadError;
-            }
-
-            const fileData = {
-              filename: selectedFile.name,
-              file_path: filePath,
-              content_type: selectedFile.type,
-              size: selectedFile.size,
-              user_id: user.id,
-              event_id: eventId
-            };
-
-            const { error: fileRecordError } = await supabase
-              .from('event_files')
-              .insert(fileData);
+        // Handle file upload
+        if (selectedFile && user) {
+          const eventId = event?.id || eventData.id;
+          if (eventId) {
+            try {
+              const fileExt = selectedFile.name.split('.').pop();
+              const filePath = `${eventId}/${crypto.randomUUID()}.${fileExt}`;
               
-            if (fileRecordError) {
-              console.error('❌ Error creating file record:', fileRecordError);
-              throw fileRecordError;
-            }
+              console.log('📤 Uploading file:', filePath);
+              
+              const { error: uploadError } = await supabase.storage
+                .from('event_attachments')
+                .upload(filePath, selectedFile);
 
-            console.log('✅ File uploaded and recorded successfully');
-          } catch (fileError) {
-            console.error("❌ Error handling file upload:", fileError);
+              if (uploadError) {
+                console.error('❌ Error uploading file:', uploadError);
+                throw uploadError;
+              }
+
+              const fileData = {
+                filename: selectedFile.name,
+                file_path: filePath,
+                content_type: selectedFile.type,
+                size: selectedFile.size,
+                user_id: user.id,
+                event_id: eventId
+              };
+
+              const { error: fileRecordError } = await supabase
+                .from('event_files')
+                .insert(fileData);
+                
+              if (fileRecordError) {
+                console.error('❌ Error creating file record:', fileRecordError);
+                throw fileRecordError;
+              }
+
+              console.log('✅ File uploaded and recorded successfully');
+            } catch (fileError) {
+              console.error("❌ Error handling file upload:", fileError);
+            }
           }
         }
-      }
 
-      if (!isBookingEvent) {
+        if (!isBookingEvent) {
+          toast({
+            translateKeys: {
+              titleKey: "common.success",
+              descriptionKey: isGroupEvent 
+                ? (event?.id ? "events.groupEventUpdated" : "events.groupEventCreated")
+                : (event?.id ? "events.eventUpdated" : "events.eventCreated")
+            }
+          });
+        }
+
+        // Query invalidation for all event types
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        queryClient.invalidateQueries({ queryKey: ['business-events'] });
+        queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
+        queryClient.invalidateQueries({ queryKey: ['customers'] });
+        queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+        queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+
+        // Close dialog after successful submission
+        onOpenChange(false);
+        
+      } catch (error: any) {
+        console.error('❌ Error handling event submission:', error);
         toast({
           translateKeys: {
-            titleKey: "common.success",
-            descriptionKey: isGroupEvent 
-              ? (event?.id ? "events.groupEventUpdated" : "events.groupEventCreated")
-              : (event?.id ? "events.eventUpdated" : "events.eventCreated")
+            titleKey: "common.error",
+            descriptionKey: "common.errorOccurred"
           }
         });
       }
-
-      // Query invalidation for all event types
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['business-events'] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-
-      // Close dialog after successful submission
-      onOpenChange(false);
-      
-    } catch (error: any) {
-      console.error('❌ Error handling event submission:', error);
-      toast({
-        translateKeys: {
-          titleKey: "common.error",
-          descriptionKey: "common.errorOccurred"
-        }
-      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -698,8 +719,8 @@ export const EventDialog = ({
             />
             
             <div className="flex justify-between gap-4">
-              <Button type="submit" className="flex-1" disabled={isLoading}>
-                {isLoading ? (
+              <Button type="submit" className="flex-1" disabled={isLoading || isSaving}>
+                {isSaving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Saving...
@@ -714,6 +735,7 @@ export const EventDialog = ({
                   variant="destructive"
                   size="icon"
                   onClick={handleDeleteClick}
+                  disabled={isSaving}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
