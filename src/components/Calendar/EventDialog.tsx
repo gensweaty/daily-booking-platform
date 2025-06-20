@@ -756,7 +756,7 @@ export const EventDialog = ({
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </Dialog>
+      </AlertDialog>
     </>
   );
 };
