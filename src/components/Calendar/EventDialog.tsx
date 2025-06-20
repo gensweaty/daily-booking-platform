@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -126,7 +127,7 @@ export const EventDialog = ({
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false); // New state for save process
+  const [isSaving, setIsSaving] = useState(false);
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -433,10 +434,13 @@ export const EventDialog = ({
     }
   }, [event, open]);
 
-  // Atomic save operation for group events
-  const saveGroupEventAtomically = async (eventData: Partial<CalendarEventType>) => {
-    if (!user || !eventData.groupMembers) {
-      throw new Error("Missing user or group members data");
+  // FIXED: Atomic save operation for group events with explicit groupMembers parameter
+  const saveGroupEventAtomically = async (
+    eventData: Partial<CalendarEventType>,
+    groupMembers: GroupMember[]
+  ) => {
+    if (!user) {
+      throw new Error("Missing user");
     }
 
     console.log("🔒 Starting atomic group event save");
@@ -449,18 +453,17 @@ export const EventDialog = ({
         throw new Error("Failed to save main event");
       }
 
-      if (user && eventData.groupMembers) {
-        const success = await saveGroupMembers(
-          savedEvent.id, 
-          eventData.groupMembers, 
-          user.id,
-          savedEvent.start_date,
-          savedEvent.end_date
-        );
-        
-        if (!success) {
-          throw new Error("Failed to save group members");
-        }
+      // Step 2: Save group members using explicit parameter
+      const success = await saveGroupMembers(
+        savedEvent.id, 
+        groupMembers, 
+        user.id,
+        savedEvent.start_date,
+        savedEvent.end_date
+      );
+      
+      if (!success) {
+        throw new Error("Failed to save group members");
       }
       
       console.log("✅ Atomic group event save completed successfully");
@@ -514,6 +517,20 @@ export const EventDialog = ({
           group_member_count: isGroupEvent ? groupMembers.length : 1,
         };
 
+        if (event?.id) {
+          eventData.id = event.id;
+        }
+
+        if (wasBookingRequest) {
+          eventData.type = 'event';
+        } else if (event?.type) {
+          eventData.type = event.type;
+        } else {
+          eventData.type = isGroupEvent ? 'group_event' : 'event';
+        }
+
+        let createdEvent: CalendarEventType;
+
         if (isGroupEvent) {
           // FOR GROUP EVENTS: Set group fields, NULL individual fields
           eventData.group_name = groupName;
@@ -524,13 +541,10 @@ export const EventDialog = ({
           eventData.payment_status = null;
           eventData.payment_amount = null;
           
-          // Pass group members for atomic processing
-          eventData.groupMembers = groupMembers;
-          
           console.log("💾 Saving GROUP event with members", { membersCount: groupMembers.length });
           
-          // Use atomic save for group events
-          const createdEvent = await saveGroupEventAtomically(eventData);
+          // FIXED: Use atomic save for group events with explicit groupMembers parameter
+          createdEvent = await saveGroupEventAtomically(eventData, groupMembers);
           
         } else {
           // FOR INDIVIDUAL EVENTS: Set individual fields, NULL group fields
@@ -545,61 +559,37 @@ export const EventDialog = ({
           console.log("💾 Saving INDIVIDUAL event");
           
           // Regular save for individual events
-          await onSubmit(eventData);
+          createdEvent = await onSubmit(eventData);
         }
 
-        if (event?.id) {
-          eventData.id = event.id;
-        }
+        // FIXED: Assign eventData.id = createdEvent.id for file upload
+        eventData.id = createdEvent.id;
 
-        if (wasBookingRequest) {
-          eventData.type = 'event';
-        } else if (event?.type) {
-          eventData.type = event.type;
-        } else {
-          eventData.type = isGroupEvent ? 'group_event' : 'event';
-        }
-
-        // Handle file upload
+        // Handle file upload with proper timing
         if (selectedFile && user) {
-          const eventId = event?.id || eventData.id;
+          const eventId = createdEvent.id;
           if (eventId) {
             try {
-              const fileExt = selectedFile.name.split('.').pop();
-              const filePath = `${eventId}/${crypto.randomUUID()}.${fileExt}`;
+              console.log('📤 Uploading file for event:', eventId);
               
-              console.log('📤 Uploading file:', filePath);
+              const uploadedFile = await uploadFileToEvent(selectedFile, eventId, user.id);
               
-              const { error: uploadError } = await supabase.storage
-                .from('event_attachments')
-                .upload(filePath, selectedFile);
-
-              if (uploadError) {
-                console.error('❌ Error uploading file:', uploadError);
-                throw uploadError;
-              }
-
-              const fileData = {
-                filename: selectedFile.name,
-                file_path: filePath,
-                content_type: selectedFile.type,
-                size: selectedFile.size,
-                user_id: user.id,
-                event_id: eventId
-              };
-
-              const { error: fileRecordError } = await supabase
-                .from('event_files')
-                .insert(fileData);
-                
-              if (fileRecordError) {
-                console.error('❌ Error creating file record:', fileRecordError);
-                throw fileRecordError;
-              }
-
-              console.log('✅ File uploaded and recorded successfully');
+              console.log('✅ File uploaded successfully:', uploadedFile);
+              
+              // Wait for Supabase propagation
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              
+              // Fetch fresh files and update state
+              const freshFiles = await fetchEventFiles(eventId);
+              setDisplayedFiles(freshFiles);
+              
+              console.log('📁 Fresh files loaded after upload:', freshFiles.length);
             } catch (fileError) {
               console.error("❌ Error handling file upload:", fileError);
+              toast({
+                title: "File Upload Error",
+                description: "The event was saved but file upload failed. Please try uploading the file again.",
+              });
             }
           }
         }
@@ -622,6 +612,9 @@ export const EventDialog = ({
         queryClient.invalidateQueries({ queryKey: ['customers'] });
         queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
         queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+
+        // Debug final state before closing
+        console.log("🧾 Final state of displayed files:", displayedFiles);
 
         // Close dialog after successful submission
         onOpenChange(false);
@@ -763,7 +756,7 @@ export const EventDialog = ({
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </Dialog>
     </>
   );
 };
