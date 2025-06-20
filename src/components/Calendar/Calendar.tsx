@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -28,7 +29,6 @@ import { BookingRequestForm } from "../business/BookingRequestForm";
 import { useToast } from "@/hooks/use-toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
-import { useGroupMembers } from "./hooks/useGroupMembers";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -40,13 +40,6 @@ interface CalendarProps {
   showAllEvents?: boolean;
   allowBookingRequests?: boolean;
   directEvents?: CalendarEventType[];
-}
-
-interface DialogInstance {
-  key: string;
-  event: CalendarEventType | null;
-  date: Date | null;
-  isProcessingGroupMembers?: boolean;
 }
 
 export const Calendar = ({ 
@@ -62,7 +55,20 @@ export const Calendar = ({
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
-  const [dialogs, setDialogs] = useState<DialogInstance[]>([]);
+  
+  // Simplified dialog state - single dialog instance
+  const [dialogState, setDialogState] = useState<{
+    open: boolean;
+    event: CalendarEventType | null;
+    selectedDate: Date | null;
+    key: string; // For forcing re-render
+  }>({
+    open: false,
+    event: null,
+    selectedDate: null,
+    key: "",
+  });
+  
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
   
@@ -82,7 +88,6 @@ export const Calendar = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { saveGroupMembers } = useGroupMembers();
 
   useEffect(() => {
     if (currentView) {
@@ -100,14 +105,13 @@ export const Calendar = ({
       fetchedEvents: fetchedEvents?.length || 0,
       eventsCount: events?.length || 0,
       view,
-      dialogsCount: dialogs.length
+      dialogOpen: dialogState.open
     });
     
     if (events?.length > 0) {
       console.log("[Calendar] First event:", events[0]);
-      console.log("[Calendar] All events:", events);
     }
-  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents, dialogs]);
+  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents, dialogState]);
 
   const {
     handleCreateEvent: baseHandleCreateEvent,
@@ -118,65 +122,6 @@ export const Calendar = ({
       console.log("🔄 Calendar creating event:", data);
       const result = await createEvent?.(data);
       console.log("✅ Event created successfully:", result);
-
-      // For group events, save members BEFORE opening edit dialog
-      if (result && data.is_group_event && data.groupMembers && data.groupMembers.length > 0 && user) {
-        console.log("🎯 Saving group members before opening edit dialog");
-        
-        // Mark the dialog as processing
-        const processingDialogKey = `group-processing-${result.id}-${Date.now()}`;
-        setDialogs((prev) => [
-          ...prev,
-          {
-            key: processingDialogKey,
-            event: result,
-            date: new Date(result.start_date),
-            isProcessingGroupMembers: true,
-          },
-        ]);
-
-        try {
-          const saveSuccess = await saveGroupMembers(
-            result.id,
-            data.groupMembers,
-            user.id,
-            result.start_date,
-            result.end_date
-          );
-
-          // Remove processing dialog
-          setDialogs((prev) => prev.filter((d) => d.key !== processingDialogKey));
-
-          if (saveSuccess) {
-            console.log("✅ Group members saved, opening edit dialog");
-            // Add edit dialog after successful save
-            setDialogs((prev) => [
-              ...prev,
-              {
-                key: `group-edit-${result.id}-${Date.now()}`,
-                event: result,
-                date: new Date(result.start_date),
-                isProcessingGroupMembers: false,
-              },
-            ]);
-          } else {
-            console.error("❌ Failed to save group members");
-            toast({
-              title: "Warning",
-              description: "Group event created but failed to save some member details",
-            });
-          }
-        } catch (error) {
-          console.error("❌ Error saving group members:", error);
-          // Remove processing dialog on error
-          setDialogs((prev) => prev.filter((d) => d.key !== processingDialogKey));
-          toast({
-            title: "Error",
-            description: "Failed to save group member details",
-          });
-        }
-      }
-
       return result;
     },
     updateEvent: async (data) => {
@@ -265,15 +210,13 @@ export const Calendar = ({
       
       setIsBookingFormOpen(true);
     } else if (!isExternalCalendar) {
-      console.log("📅 Creating new event for date:", clickedDate);
-      setDialogs((prev) => [
-        ...prev,
-        {
-          key: `new-${Date.now()}`,
-          event: null,
-          date: clickedDate,
-        },
-      ]);
+      console.log("📅 Opening dialog for new event");
+      setDialogState({
+        open: true,
+        event: null,
+        selectedDate: clickedDate,
+        key: `new-${Date.now()}`,
+      });
     }
   };
 
@@ -295,29 +238,25 @@ export const Calendar = ({
       const now = new Date();
       now.setHours(9, 0, 0, 0);
       
-      console.log("➕ Adding new event dialog to queue");
-      setDialogs((prev) => [
-        ...prev,
-        {
-          key: `new-${Date.now()}`,
-          event: null,
-          date: now,
-        },
-      ]);
+      console.log("➕ Opening dialog for new event");
+      setDialogState({
+        open: true,
+        event: null,
+        selectedDate: now,
+        key: `new-${Date.now()}`,
+      });
     }
   };
 
   const handleEventClick = (event: CalendarEventType) => {
     if (!isExternalCalendar) {
-      console.log("📝 Adding edit event dialog to queue:", { id: event.id, is_group_event: event.is_group_event });
-      setDialogs((prev) => [
-        ...prev,
-        {
-          key: `edit-${event.id}-${Date.now()}`,
-          event: event,
-          date: new Date(event.start_date),
-        },
-      ]);
+      console.log("📝 Opening dialog for event edit:", { id: event.id, is_group_event: event.is_group_event });
+      setDialogState({
+        open: true,
+        event: event,
+        selectedDate: new Date(event.start_date),
+        key: `edit-${event.id}-${Date.now()}`,
+      });
     } else if (isExternalCalendar && allowBookingRequests) {
       toast({
         title: "Time slot not available",
@@ -333,9 +272,14 @@ export const Calendar = ({
     toast.event.bookingSubmitted();
   };
 
-  const handleDialogClose = (dialogKey: string) => {
-    console.log("🔄 Removing dialog from queue:", dialogKey);
-    setDialogs((prev) => prev.filter((d) => d.key !== dialogKey));
+  const handleDialogClose = () => {
+    console.log("🔄 Closing dialog");
+    setDialogState({
+      open: false,
+      event: null,
+      selectedDate: null,
+      key: "",
+    });
   };
 
   if (error && !directEvents) {
@@ -388,25 +332,19 @@ export const Calendar = ({
       </div>
 
       {!isExternalCalendar && (
-        <>
-          {/* Dialog Queue: Each dialog gets a fresh instance */}
-          {dialogs.map(({ key, event, date, isProcessingGroupMembers }) => (
-            <EventDialog
-              key={key}
-              open={true}
-              onOpenChange={(open) => {
-                if (!open) {
-                  handleDialogClose(key);
-                }
-              }}
-              selectedDate={date}
-              event={event}
-              onSubmit={event ? handleUpdateEvent : baseHandleCreateEvent}
-              onDelete={event ? handleDeleteEvent : undefined}
-              isProcessingGroupMembers={isProcessingGroupMembers}
-            />
-          ))}
-        </>
+        <EventDialog
+          key={dialogState.key} // Force re-render when key changes
+          open={dialogState.open}
+          onOpenChange={(open) => {
+            if (!open) {
+              handleDialogClose();
+            }
+          }}
+          selectedDate={dialogState.selectedDate}
+          event={dialogState.event}
+          onSubmit={dialogState.event ? handleUpdateEvent : baseHandleCreateEvent}
+          onDelete={dialogState.event ? handleDeleteEvent : undefined}
+        />
       )}
 
       {isExternalCalendar && allowBookingRequests && businessId && (
