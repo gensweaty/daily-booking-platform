@@ -13,6 +13,19 @@ import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { getCurrencySymbol } from "@/lib/currency";
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Button } from "@/components/ui/button";
+import { Plus, Trash2 } from "lucide-react";
+
+// Define interface for person data
+interface PersonData {
+  id: string;
+  userSurname: string;
+  userNumber: string;
+  socialNetworkLink: string;
+  eventNotes: string;
+  paymentStatus: string;
+  paymentAmount: string;
+}
 
 interface EventDialogFieldsProps {
   title: string;
@@ -81,6 +94,9 @@ export const EventDialogFields = ({
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
   const currencySymbol = getCurrencySymbol(language);
   
+  // State for additional persons
+  const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
+  
   // Process files to remove duplicates by comparing path and name
   const processedFiles = useMemo(() => {
     if (!displayedFiles.length) return [];
@@ -114,6 +130,257 @@ export const EventDialogFields = ({
     }
     return t("events.addEventNotes");
   };
+
+  // Function to add a new person
+  const addPerson = () => {
+    if (additionalPersons.length >= 49) { // 49 + main person = 50 total
+      return;
+    }
+    
+    const newPerson: PersonData = {
+      id: crypto.randomUUID(),
+      userSurname: '',
+      userNumber: '',
+      socialNetworkLink: '',
+      eventNotes: '',
+      paymentStatus: 'not_paid',
+      paymentAmount: ''
+    };
+    
+    setAdditionalPersons(prev => [...prev, newPerson]);
+  };
+
+  // Function to remove a person
+  const removePerson = (personId: string) => {
+    setAdditionalPersons(prev => prev.filter(person => person.id !== personId));
+  };
+
+  // Function to update person data
+  const updatePerson = (personId: string, field: keyof PersonData, value: string) => {
+    setAdditionalPersons(prev => 
+      prev.map(person => 
+        person.id === personId ? { ...person, [field]: value } : person
+      )
+    );
+  };
+
+  // Function to render person data section
+  const renderPersonSection = (
+    person?: PersonData, 
+    index?: number, 
+    isMain: boolean = false
+  ) => {
+    const sectionUserSurname = isMain ? userSurname : (person?.userSurname || '');
+    const sectionUserNumber = isMain ? userNumber : (person?.userNumber || '');
+    const sectionSocialNetworkLink = isMain ? socialNetworkLink : (person?.socialNetworkLink || '');
+    const sectionEventNotes = isMain ? eventNotes : (person?.eventNotes || '');
+    const sectionPaymentStatus = isMain ? paymentStatus : (person?.paymentStatus || 'not_paid');
+    const sectionPaymentAmount = isMain ? paymentAmount : (person?.paymentAmount || '');
+    const sectionShowPaymentAmount = sectionPaymentStatus === "partly_paid" || sectionPaymentStatus === "fully_paid";
+
+    const handleFieldChange = (field: string, value: string) => {
+      if (isMain) {
+        switch (field) {
+          case 'userSurname':
+            setUserSurname(value);
+            setTitle(value);
+            break;
+          case 'userNumber':
+            setUserNumber(value);
+            break;
+          case 'socialNetworkLink':
+            setSocialNetworkLink(value);
+            break;
+          case 'eventNotes':
+            setEventNotes(value);
+            break;
+          case 'paymentStatus':
+            setPaymentStatus(value);
+            break;
+          case 'paymentAmount':
+            setPaymentAmount(value);
+            break;
+        }
+      } else if (person) {
+        updatePerson(person.id, field as keyof PersonData, value);
+      }
+    };
+
+    return (
+      <div key={isMain ? 'main' : person?.id} className="border rounded-lg p-4 space-y-4 bg-muted/20">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className={cn("text-sm font-medium text-muted-foreground", isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+            {isGeorgian ? (
+              <GeorgianAuthText letterSpacing="-0.05px">
+                {isMain ? "პირადი მონაცემები" : `პირი ${index! + 1}`}
+              </GeorgianAuthText>
+            ) : (
+              isMain ? "Person Data" : `Person ${index! + 1}`
+            )}
+          </h3>
+          {!isMain && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => removePerson(person!.id)}
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        
+        <div>
+          <Label 
+            htmlFor={`userSurname-${isMain ? 'main' : person?.id}`}
+            className={cn(isGeorgian ? "font-georgian" : "")}
+            style={isGeorgian ? {
+              fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+              letterSpacing: '-0.2px',
+              WebkitFontSmoothing: 'antialiased',
+              MozOsxFontSmoothing: 'grayscale'
+            } : undefined}
+          >
+            {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">სრული სახელი</GeorgianAuthText> : <LanguageText>{t("events.fullName")}</LanguageText>}
+          </Label>
+          <Input 
+            id={`userSurname-${isMain ? 'main' : person?.id}`}
+            value={sectionUserSurname} 
+            onChange={e => handleFieldChange('userSurname', e.target.value)} 
+            placeholder={isGeorgian ? "სრული სახელი" : t("events.fullName")} 
+            required={isMain}
+            className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
+            style={isGeorgian ? {
+              fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+              letterSpacing: '-0.2px',
+              WebkitFontSmoothing: 'antialiased',
+              MozOsxFontSmoothing: 'grayscale'
+            } : undefined} 
+          />
+        </div>
+        
+        <div>
+          <Label 
+            htmlFor={`userNumber-${isMain ? 'main' : person?.id}`}
+            className={cn(isGeorgian ? "font-georgian" : "")}
+            style={georgianStyle}
+          >
+            {renderGeorgianLabel("events.phoneNumber")}
+          </Label>
+          <Input 
+            id={`userNumber-${isMain ? 'main' : person?.id}`}
+            value={sectionUserNumber} 
+            onChange={e => handleFieldChange('userNumber', e.target.value)} 
+            placeholder={isGeorgian ? "ტელეფონის ნომერი" : t("events.phoneNumber")} 
+            className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}  
+            style={georgianStyle} 
+          />
+        </div>
+        
+        <div>
+          <Label 
+            htmlFor={`socialNetworkLink-${isMain ? 'main' : person?.id}`}
+            className={cn(isGeorgian ? "font-georgian" : "")}
+            style={georgianStyle}
+          >
+            {renderGeorgianLabel("events.socialLinkEmail")}
+          </Label>
+          <Input 
+            id={`socialNetworkLink-${isMain ? 'main' : person?.id}`}
+            value={sectionSocialNetworkLink} 
+            onChange={e => handleFieldChange('socialNetworkLink', e.target.value)} 
+            placeholder="email@example.com" 
+            type="email" 
+            style={isGeorgian ? { ...georgianStyle } : undefined}
+          />
+        </div>
+        
+        {!isBookingRequest && (
+          <div>
+            <Label 
+              htmlFor={`paymentStatus-${isMain ? 'main' : person?.id}`}
+              className={cn(isGeorgian ? "font-georgian" : "")}
+              style={georgianStyle}
+            >
+              <LanguageText>{t("events.paymentStatus")}</LanguageText>
+            </Label>
+            <Select value={sectionPaymentStatus} onValueChange={value => handleFieldChange('paymentStatus', value)}>
+              <SelectTrigger id={`paymentStatus-${isMain ? 'main' : person?.id}`} className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+                <SelectValue placeholder={t("events.selectPaymentStatus")} />
+              </SelectTrigger>
+              <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
+                <SelectItem value="not_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+                  <LanguageText>{t("crm.notPaid")}</LanguageText>
+                </SelectItem>
+                <SelectItem value="partly_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+                  <LanguageText>{t("crm.paidPartly")}</LanguageText>
+                </SelectItem>
+                <SelectItem value="fully_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+                  <LanguageText>{t("crm.paidFully")}</LanguageText>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        
+        {!isBookingRequest && sectionShowPaymentAmount && (
+          <div>
+            <Label 
+              htmlFor={`paymentAmount-${isMain ? 'main' : person?.id}`}
+              className={cn(isGeorgian ? "font-georgian" : "")}
+              style={georgianStyle}
+            >
+              <LanguageText>{t("events.paymentAmount")}</LanguageText>
+            </Label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <span className="text-gray-500">{currencySymbol}</span>
+              </div>
+              <Input 
+                id={`paymentAmount-${isMain ? 'main' : person?.id}`}
+                value={sectionPaymentAmount} 
+                onChange={e => {
+                  const value = e.target.value;
+                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                    handleFieldChange('paymentAmount', value);
+                  }
+                }} 
+                className="pl-7" 
+                placeholder="0.00" 
+                type="text" 
+                inputMode="decimal" 
+              />
+            </div>
+          </div>
+        )}
+        
+        <div>
+          <Label 
+            htmlFor={`eventNotes-${isMain ? 'main' : person?.id}`}
+            className={cn(isGeorgian ? "font-georgian" : "")}
+            style={georgianStyle}
+          >
+            {renderGeorgianLabel("events.eventNotes")}
+          </Label>
+          <Textarea 
+            id={`eventNotes-${isMain ? 'main' : person?.id}`}
+            value={sectionEventNotes} 
+            onChange={e => handleFieldChange('eventNotes', e.target.value)} 
+            placeholder={getEventNotesPlaceholder()}
+            className={cn("min-h-[100px] resize-none", isGeorgian ? "placeholder:font-georgian font-georgian" : "")} 
+            style={georgianStyle}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  // Expose additional persons data to parent component via a hidden field or callback
+  useEffect(() => {
+    // Store additional persons data in a way that can be accessed by parent
+    (window as any).additionalPersonsData = additionalPersons;
+  }, [additionalPersons]);
   
   return <>
       {/* Date and Time - Moved to top */}
@@ -169,159 +436,32 @@ export const EventDialogFields = ({
         </div>
       </div>
 
-      {/* Person Data Section with Border */}
-      <div className="border rounded-lg p-4 space-y-4 bg-muted/20">
-        <div className="mb-3">
-          <h3 className={cn("text-sm font-medium text-muted-foreground", isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-            {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">პირადი მონაცემები</GeorgianAuthText> : "Person Data"}
-          </h3>
-        </div>
-        
-        <div>
-          <Label 
-            htmlFor="userSurname" 
-            className={cn(isGeorgian ? "font-georgian" : "")}
-            style={isGeorgian ? {
-              fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-              letterSpacing: '-0.2px',
-              WebkitFontSmoothing: 'antialiased',
-              MozOsxFontSmoothing: 'grayscale'
-            } : undefined}
+      {/* Main Person Data Section */}
+      {renderPersonSection(undefined, undefined, true)}
+
+      {/* Additional Persons */}
+      {additionalPersons.map((person, index) => 
+        renderPersonSection(person, index, false)
+      )}
+
+      {/* Add Person Button */}
+      {additionalPersons.length < 49 && (
+        <div className="flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addPerson}
+            className="flex items-center gap-2"
           >
-            {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">სრული სახელი</GeorgianAuthText> : <LanguageText>{t("events.fullName")}</LanguageText>}
-          </Label>
-          <Input 
-            id="userSurname" 
-            value={userSurname} 
-            onChange={e => {
-              setUserSurname(e.target.value);
-              setTitle(e.target.value); // Set title to same as userSurname
-            }} 
-            placeholder={isGeorgian ? "სრული სახელი" : t("events.fullName")} 
-            required 
-            className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
-            style={isGeorgian ? {
-              fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-              letterSpacing: '-0.2px',
-              WebkitFontSmoothing: 'antialiased',
-              MozOsxFontSmoothing: 'grayscale'
-            } : undefined} 
-          />
+            <Plus className="h-4 w-4" />
+            {isGeorgian ? (
+              <GeorgianAuthText>პირის დამატება</GeorgianAuthText>
+            ) : (
+              <LanguageText>Add Person</LanguageText>
+            )}
+          </Button>
         </div>
-        
-        <div>
-          <Label 
-            htmlFor="userNumber" 
-            className={cn(isGeorgian ? "font-georgian" : "")}
-            style={georgianStyle}
-          >
-            {renderGeorgianLabel("events.phoneNumber")}
-          </Label>
-          <Input 
-            id="userNumber" 
-            value={userNumber} 
-            onChange={e => setUserNumber(e.target.value)} 
-            placeholder={isGeorgian ? "ტელეფონის ნომერი" : t("events.phoneNumber")} 
-            className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}  
-            style={georgianStyle} 
-          />
-        </div>
-        
-        <div>
-          <Label 
-            htmlFor="socialNetworkLink" 
-            className={cn(isGeorgian ? "font-georgian" : "")}
-            style={georgianStyle}
-          >
-            {renderGeorgianLabel("events.socialLinkEmail")}
-          </Label>
-          <Input 
-            id="socialNetworkLink" 
-            value={socialNetworkLink} 
-            onChange={e => setSocialNetworkLink(e.target.value)} 
-            placeholder="email@example.com" 
-            type="email" 
-            style={isGeorgian ? { ...georgianStyle } : undefined}
-          />
-        </div>
-        
-        {!isBookingRequest && (
-          <div>
-            <Label 
-              htmlFor="paymentStatus" 
-              className={cn(isGeorgian ? "font-georgian" : "")}
-              style={georgianStyle}
-            >
-              <LanguageText>{t("events.paymentStatus")}</LanguageText>
-            </Label>
-            <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-              <SelectTrigger id="paymentStatus" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                <SelectValue placeholder={t("events.selectPaymentStatus")} />
-              </SelectTrigger>
-              <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
-                <SelectItem value="not_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  <LanguageText>{t("crm.notPaid")}</LanguageText>
-                </SelectItem>
-                <SelectItem value="partly_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  <LanguageText>{t("crm.paidPartly")}</LanguageText>
-                </SelectItem>
-                <SelectItem value="fully_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  <LanguageText>{t("crm.paidFully")}</LanguageText>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-        
-        {!isBookingRequest && showPaymentAmount && (
-          <div>
-            <Label 
-              htmlFor="paymentAmount" 
-              className={cn(isGeorgian ? "font-georgian" : "")}
-              style={georgianStyle}
-            >
-              <LanguageText>{t("events.paymentAmount")}</LanguageText>
-            </Label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <span className="text-gray-500">{currencySymbol}</span>
-              </div>
-              <Input 
-                id="paymentAmount" 
-                value={paymentAmount} 
-                onChange={e => {
-                  const value = e.target.value;
-                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                    setPaymentAmount(value);
-                  }
-                }} 
-                className="pl-7" 
-                placeholder="0.00" 
-                type="text" 
-                inputMode="decimal" 
-              />
-            </div>
-          </div>
-        )}
-        
-        <div>
-          <Label 
-            htmlFor="eventNotes" 
-            className={cn(isGeorgian ? "font-georgian" : "")}
-            style={georgianStyle}
-          >
-            {renderGeorgianLabel("events.eventNotes")}
-          </Label>
-          <Textarea 
-            id="eventNotes" 
-            value={eventNotes} 
-            onChange={e => setEventNotes(e.target.value)} 
-            placeholder={getEventNotesPlaceholder()}
-            className={cn("min-h-[100px] resize-none", isGeorgian ? "placeholder:font-georgian font-georgian" : "")} 
-            style={georgianStyle}
-          />
-        </div>
-      </div>
+      )}
       
       <div>
         <Label 

@@ -312,6 +312,39 @@ export const EventDialog = ({
         }
       }
 
+      // Handle additional customers
+      const additionalPersons = (window as any).additionalPersonsData || [];
+      if (additionalPersons.length > 0 && createdEvent?.id && user) {
+        try {
+          const customersData = additionalPersons.map((person: any) => ({
+            title: person.userSurname,
+            user_surname: person.userSurname,
+            user_number: person.userNumber,
+            social_network_link: person.socialNetworkLink,
+            event_notes: person.eventNotes,
+            payment_status: person.paymentStatus,
+            payment_amount: person.paymentAmount ? parseFloat(person.paymentAmount) : null,
+            start_date: startDateTime.toISOString(),
+            end_date: endDateTime.toISOString(),
+            type: 'customer',
+            user_id: user.id,
+            create_event: false
+          }));
+
+          const { error: customersError } = await supabase
+            .from('customers')
+            .insert(customersData);
+
+          if (customersError) {
+            console.error('Error creating additional customers:', customersError);
+          } else {
+            console.log('Additional customers created successfully:', customersData.length);
+          }
+        } catch (customerError) {
+          console.error("Error handling additional customers:", customerError);
+        }
+      }
+
       if (!isBookingEvent) {
         // Replace hardcoded toast messages with translation keys
         toast({
@@ -356,6 +389,9 @@ export const EventDialog = ({
       }
 
       onOpenChange(false);
+      
+      // Clear additional persons data
+      (window as any).additionalPersonsData = [];
       
       // Invalidate all queries to ensure data is refreshed
       queryClient.invalidateQueries({ queryKey: ['events'] });
