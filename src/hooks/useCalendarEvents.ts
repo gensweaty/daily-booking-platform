@@ -5,6 +5,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 
+// Define interface for person data with email information
+interface PersonWithEmail {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  notes?: string;
+  paymentStatus?: string;
+  paymentAmount?: number | null;
+}
+
 // Helper function to associate booking files with a new event
 const associateBookingFilesWithEvent = async (
   bookingRequestId: string,
@@ -92,6 +103,67 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     const newEnd = new Date(newEndDate).getTime();
     
     return originalStart !== newStart || originalEnd !== newEnd;
+  };
+
+  // Helper function to collect all persons (main + additional) for an event
+  const collectEventPersons = async (eventId: string, mainEventData: any): Promise<PersonWithEmail[]> => {
+    const persons: PersonWithEmail[] = [];
+    
+    // Add main person if they have an email
+    if (mainEventData.social_network_link && isValidEmail(mainEventData.social_network_link)) {
+      persons.push({
+        id: 'main',
+        name: mainEventData.user_surname || mainEventData.title || 'Main Person',
+        email: mainEventData.social_network_link,
+        phone: mainEventData.user_number,
+        notes: mainEventData.event_notes,
+        paymentStatus: mainEventData.payment_status,
+        paymentAmount: mainEventData.payment_amount
+      });
+    }
+    
+    // Get additional persons from customers table
+    try {
+      const { data: event, error: eventError } = await supabase
+        .from('events')
+        .select('start_date, end_date, user_id')
+        .eq('id', eventId)
+        .single();
+        
+      if (!eventError && event) {
+        const { data: customers, error: customersError } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('user_id', event.user_id)
+          .eq('start_date', event.start_date)
+          .eq('end_date', event.end_date)
+          .eq('type', 'customer');
+          
+        if (!customersError && customers) {
+          for (const customer of customers) {
+            if (customer.social_network_link && isValidEmail(customer.social_network_link)) {
+              // Check if this email is already in the list (avoid duplicates)
+              const existingPerson = persons.find(p => p.email === customer.social_network_link);
+              if (!existingPerson) {
+                persons.push({
+                  id: customer.id,
+                  name: customer.user_surname || customer.title || 'Customer',
+                  email: customer.social_network_link,
+                  phone: customer.user_number,
+                  notes: customer.event_notes,
+                  paymentStatus: customer.payment_status,
+                  paymentAmount: customer.payment_amount
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error collecting additional persons:", error);
+    }
+    
+    return persons;
   };
 
   const getEvents = async () => {
@@ -376,7 +448,126 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     return emailRegex.test(email);
   };
 
-  // IMPROVED: Function to send confirmation email with better error handling and deduplication
+  // Enhanced function to send confirmation emails to multiple recipients
+  const sendBookingConfirmationEmails = async (
+    eventId: string,
+    eventData: any,
+    language: string = 'en'
+  ) => {
+    console.log(`Starting multi-recipient email sending for event ${eventId} with language: ${language}`);
+    
+    try {
+      // Get business address and name
+      const { data: businessProfile, error: profileError } = await supabase
+        .from('business_profiles')
+        .select('contact_address, business_name')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+        
+      if (profileError) {
+        console.error('Error fetching business profile for email:', profileError);
+        return false;
+      }
+      
+      // IMPORTANT: We require a business address to send confirmation emails
+      if (!businessProfile?.contact_address) {
+        console.warn("No business address found. Cannot send confirmation emails.");
+        return false;
+      }
+      
+      // Collect all persons for this event
+      const persons = await collectEventPersons(eventId, eventData);
+      
+      if (persons.length === 0) {
+        console.log("No valid email addresses found for this event");
+        return false;
+      }
+      
+      console.log(`Found ${persons.length} persons to send emails to:`, persons.map(p => ({ name: p.name, email: p.email })));
+      
+      const supabaseApiUrl = "https://mrueqpffzauvdxmuwhfa.supabase.co";
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
+      if (!accessToken) {
+        console.error("No access token available for authenticated request");
+        return false;
+      }
+      
+      // Send emails to all persons
+      const emailPromises = persons.map(async (person) => {
+        try {
+          console.log(`Sending email to ${person.name} (${person.email})`);
+          
+          const response = await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({
+              recipientEmail: person.email.trim(),
+              fullName: person.name,
+              businessName: businessProfile?.business_name || '',
+              startDate: eventData.start_date,
+              endDate: eventData.end_date,
+              paymentStatus: person.paymentStatus || 'not_paid',
+              paymentAmount: person.paymentAmount !== null ? parseFloat(String(person.paymentAmount)) : null,
+              businessAddress: businessProfile?.contact_address || '',
+              eventId: eventId,
+              source: 'useCalendarEvents-multi',
+              language: language,
+              eventNotes: person.notes || eventData.event_notes
+            })
+          });
+          
+          const responseText = await response.text();
+          let responseData;
+          
+          try {
+            responseData = responseText ? JSON.parse(responseText) : {};
+          } catch (jsonError) {
+            console.error(`Failed to parse email API response for ${person.email}:`, jsonError);
+            responseData = { textResponse: responseText };
+          }
+          
+          if (!response.ok) {
+            console.error(`Failed to send email to ${person.email}:`, responseData?.error || response.statusText);
+            return { success: false, email: person.email, error: responseData?.error || response.statusText };
+          }
+          
+          if (responseData.isDuplicate) {
+            console.log(`Email to ${person.email} was identified as duplicate and not sent`);
+          } else if (responseData.skipped) {
+            console.log(`Email to ${person.email} was skipped:`, responseData.reason);
+          } else {
+            console.log(`Email sent successfully to ${person.email}`);
+          }
+          
+          return { success: true, email: person.email };
+        } catch (error) {
+          console.error(`Error sending email to ${person.email}:`, error);
+          return { success: false, email: person.email, error: error.message };
+        }
+      });
+      
+      // Wait for all emails to complete
+      const results = await Promise.allSettled(emailPromises);
+      
+      // Log results
+      const successful = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)).length;
+      
+      console.log(`Email sending completed: ${successful} successful, ${failed} failed out of ${persons.length} total`);
+      
+      return successful > 0; // Return true if at least one email was sent successfully
+    } catch (error) {
+      console.error('Error in sendBookingConfirmationEmails:', error);
+      return false;
+    }
+  };
+
+  // IMPROVED: Function to send confirmation email with better error handling and deduplication (legacy single-email function)
   const sendBookingConfirmationEmail = async (
     eventId: string,
     title: string, 
@@ -385,115 +576,22 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
     endDate: string,
     paymentStatus: string,
     paymentAmount: number | null,
-    language: string = 'en', // Added language parameter with default value
-    eventNotes?: string // Added event notes parameter
+    language: string = 'en',
+    eventNotes?: string
   ) => {
-    // Optimization: Skip email sending during event creation for faster response
-    // Email will be sent asynchronously after the event is created
+    // For backward compatibility, create a simple event data object and use the new multi-email function
+    const eventData = {
+      title,
+      start_date: startDate,
+      end_date: endDate,
+      user_surname: title,
+      social_network_link: email,
+      payment_status: paymentStatus,
+      payment_amount: paymentAmount,
+      event_notes: eventNotes
+    };
     
-    // Start email sending as a background task
-    setTimeout(async () => {
-      try {
-        console.log(`Starting background email sending for event ${eventId} to ${email} with language: ${language}`);
-        
-        // Get business address and name before anything else
-        const { data: businessProfile, error: profileError } = await supabase
-          .from('business_profiles')
-          .select('contact_address, business_name')
-          .eq('user_id', user?.id)
-          .maybeSingle();
-            
-        if (profileError) {
-          console.error('Error fetching business profile for email:', profileError);
-          return false;
-        }
-        
-        // IMPORTANT: We require a business address to send a confirmation email
-        if (!businessProfile?.contact_address) {
-          console.warn("No business address found. Cannot send confirmation email.");
-          return false;
-        }
-        
-        console.log('Sending booking confirmation email with info:');
-        console.log(`- Address: ${businessProfile?.contact_address}`);
-        console.log(`- Business name: ${businessProfile?.business_name || 'None'}`);
-        console.log(`- Event ID: ${eventId}`);
-        console.log(`- Recipient: ${email}`);
-        console.log(`- Language: ${language}`);
-        console.log(`- Payment status: ${paymentStatus}`);
-        console.log(`- Payment amount: ${paymentAmount}`);
-        console.log(`- Event notes: ${eventNotes || 'None'}`);
-        
-        const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData.session?.access_token;
-        
-        if (!accessToken) {
-          console.error("No access token available for authenticated request");
-          return false;
-        }
-        
-        // Always include the source as "useCalendarEvents" to ensure we only use this function
-        // for sending emails, avoiding duplicates from other sources
-        const response = await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            recipientEmail: email.trim(),
-            fullName: title || '',
-            businessName: businessProfile?.business_name || '',
-            startDate: startDate,
-            endDate: endDate,
-            paymentStatus: paymentStatus || 'not_paid',
-            paymentAmount: paymentAmount !== null ? parseFloat(String(paymentAmount)) : null, // Ensure proper number formatting
-            businessAddress: businessProfile?.contact_address || '',
-            eventId: eventId,
-            source: 'useCalendarEvents', // Updated source to ensure consistent tracking
-            language: language, // Explicitly send language parameter
-            eventNotes: eventNotes // Include event notes in the request
-          })
-        });
-        
-        console.log("Email API response status:", response.status);
-        
-        const responseText = await response.text();
-        console.log("Email API response text:", responseText);
-        
-        let responseData;
-        try {
-          responseData = responseText ? JSON.parse(responseText) : {};
-          console.log("Email API parsed response:", responseData);
-        } catch (jsonError) {
-          console.error("Failed to parse email API response as JSON:", jsonError);
-          responseData = { textResponse: responseText };
-        }
-        
-        if (!response.ok) {
-          console.error("Failed to send email notification:", responseData?.error || response.statusText);
-          return false;
-        }
-        
-        if (responseData.isDuplicate) {
-          console.log("Email was identified as duplicate and not sent");
-          return true; // Still return success
-        } else if (responseData.skipped) {
-          console.log("Email was skipped:", responseData.reason);
-          return false;
-        }
-        
-        console.log("Email notification sent successfully with currency based on language:", language);
-        return true;
-      } catch (error) {
-        console.error('Error sending booking confirmation email in background:', error);
-        return false;
-      }
-    }, 100); // Small delay to ensure we return the event data first
-    
-    // Return true immediately, as we're handling the email in the background
-    return true;
+    return await sendBookingConfirmationEmails(eventId, eventData, language);
   };
 
   const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
@@ -553,27 +651,21 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
       throw error;
     }
     
-    // Send confirmation email in background only if we have a valid recipient email
-    // and this is a new event (not from a booking request conversion)
-    const recipientEmail = event.social_network_link;
-    if (
-      recipientEmail && 
-      isValidEmail(recipientEmail) && 
-      !event.id && // Check if this is a new event, not an existing one
-      data
-    ) {
-      // Don't await this call anymore - make it run in the background
-      sendBookingConfirmationEmail(
-        data.id,
-        event.title || event.user_surname || '',
-        recipientEmail,
-        event.start_date as string,
-        event.end_date as string,
-        event.payment_status || 'not_paid',
-        event.payment_amount || null,
-        event.language || language || 'en', // Use event language, current language, or default to 'en'
-        event.event_notes // Pass the event notes
-      );
+    // Send confirmation emails to all persons in the event (main + additional)
+    // Only if this is a new event (not from a booking request conversion)
+    if (!event.id && data) {
+      // Use the new multi-email function
+      setTimeout(async () => {
+        try {
+          await sendBookingConfirmationEmails(
+            data.id,
+            eventPayload,
+            event.language || language || 'en'
+          );
+        } catch (emailError) {
+          console.error('Error sending confirmation emails in background:', emailError);
+        }
+      }, 100); // Small delay to ensure we return the event data first
     }
     
     return data;
@@ -790,29 +882,27 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           console.error("Error handling customer creation:", customerError);
         }
         
-        // Send approval email to customer with business address - this is the ONLY place we send emails
-        if (event.requester_email && isValidEmail(event.requester_email)) {
-          try {
-            console.log("Sending approval email with language and payment info:", {
-              status: eventPayload.payment_status,
-              amount: paymentAmount,
-              language: eventLanguage
-            });
-            
-            await sendBookingConfirmationEmail(
-              newEvent.id,
-              event.requester_name || event.title || '',
-              event.requester_email,
-              event.start_date as string,
-              event.end_date as string,
-              eventPayload.payment_status || 'not_paid',
-              paymentAmount, // Use our properly formatted amount
-              eventLanguage, // Use the original booking language as priority
-              event.event_notes || event.description // Pass event notes or description as notes
-            );
-          } catch (emailError) {
-            console.error('Error sending booking approval email:', emailError);
-          }
+        // Send approval emails to ALL persons (main requester + any additional)
+        try {
+          console.log("Sending approval emails with language and payment info:", {
+            status: eventPayload.payment_status,
+            amount: paymentAmount,
+            language: eventLanguage
+          });
+          
+          // Use the new multi-email function for booking approvals
+          await sendBookingConfirmationEmails(
+            newEvent.id,
+            {
+              ...eventPayload,
+              requester_name: event.requester_name,
+              requester_email: event.requester_email,
+              description: event.description
+            },
+            eventLanguage
+          );
+        } catch (emailError) {
+          console.error('Error sending booking approval emails:', emailError);
         }
         
         // Soft-delete or update the original booking request
@@ -862,11 +952,14 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
         throw error;
       }
       
-      // Send email if email address has changed
+      // Send email if email address has changed or if we're updating a multi-person event
       const emailChanged = event.social_network_link && 
                           event.social_network_link !== existingEvent.social_network_link;
       
-      if (emailChanged && isValidEmail(event.social_network_link as string)) {
+      // Check if this event might have multiple persons
+      const shouldSendMultiEmails = emailChanged || (event.social_network_link && isValidEmail(event.social_network_link as string));
+      
+      if (shouldSendMultiEmails) {
         try {
           // Make sure payment amount is properly formatted
           let paymentAmount = null;
@@ -878,25 +971,20 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string |
           // Use the event language, existing language, current app language, or default to 'en'
           const emailLanguage = event.language || existingEvent.language || language || 'en';
           
-          console.log("Sending updated booking email with payment info:", {
+          console.log("Sending updated booking emails to all persons with payment info:", {
             status: event.payment_status,
             amount: paymentAmount,
             language: emailLanguage
           });
           
-          await sendBookingConfirmationEmail(
+          // Use the new multi-email function for event updates
+          await sendBookingConfirmationEmails(
             data.id,
-            event.title || event.user_surname || '',
-            event.social_network_link as string,
-            event.start_date as string,
-            event.end_date as string,
-            event.payment_status || 'not_paid',
-            paymentAmount,
-            emailLanguage, // Use determined language
-            event.event_notes // Pass the event notes
+            data,
+            emailLanguage
           );
         } catch (emailError) {
-          console.error('Error sending updated booking email:', emailError);
+          console.error('Error sending updated booking emails:', emailError);
         }
       }
       
