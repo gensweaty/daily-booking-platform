@@ -54,8 +54,6 @@ interface EventDialogFieldsProps {
   displayedFiles: FileRecord[];
   onFileDeleted: (fileId: string) => void;
   isBookingRequest?: boolean;
-  eventName: string;
-  setEventName: (value: string) => void;
 }
 
 export const EventDialogFields = ({
@@ -84,9 +82,7 @@ export const EventDialogFields = ({
   eventId,
   displayedFiles,
   onFileDeleted,
-  isBookingRequest = false,
-  eventName,
-  setEventName
+  isBookingRequest = false
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -100,9 +96,6 @@ export const EventDialogFields = ({
   
   // State for additional persons
   const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
-  
-  // Determine if we should show the event name field (only for multi-person events)
-  const showEventNameField = additionalPersons.length > 0;
   
   // Load additional persons when eventId changes - only load for specific events
   useEffect(() => {
@@ -197,7 +190,6 @@ export const EventDialogFields = ({
       if (text === "events.phoneNumber") return <GeorgianAuthText letterSpacing="-0.05px">ტელეფონის ნომერი</GeorgianAuthText>;
       if (text === "events.socialLinkEmail") return <GeorgianAuthText letterSpacing="-0.05px">ელფოსტა</GeorgianAuthText>; 
       if (text === "events.eventNotes") return <GeorgianAuthText letterSpacing="-0.05px">შენიშვნები</GeorgianAuthText>;
-      if (text === "events.eventName") return <GeorgianAuthText letterSpacing="-0.05px">ღონისძიების სახელი</GeorgianAuthText>;
     }
     return <LanguageText>{t(text)}</LanguageText>;
   };
@@ -462,28 +454,7 @@ export const EventDialogFields = ({
   }, [additionalPersons]);
   
   return <>
-      {/* Event Name - Only show for multi-person events */}
-      {showEventNameField && (
-        <div>
-          <Label 
-            htmlFor="eventName" 
-            className={cn(isGeorgian ? "font-georgian" : "")}
-            style={georgianStyle}
-          >
-            {renderGeorgianLabel("events.eventName")}
-          </Label>
-          <Input 
-            id="eventName" 
-            value={eventName} 
-            onChange={e => setEventName(e.target.value)} 
-            placeholder={isGeorgian ? "ღონისძიების სახელი" : "Event Name"} 
-            className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
-            style={georgianStyle} 
-          />
-        </div>
-      )}
-
-      {/* Date and Time */}
+      {/* Date and Time - Moved to top */}
       <div>
         <Label 
           htmlFor="dateTime" 

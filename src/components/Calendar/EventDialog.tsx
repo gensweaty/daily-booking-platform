@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,6 @@ export const EventDialog = ({
   const [userNumber, setUserNumber] = useState(event?.user_number || "");
   const [socialNetworkLink, setSocialNetworkLink] = useState(event?.social_network_link || "");
   const [eventNotes, setEventNotes] = useState(event?.event_notes || "");
-  const [eventName, setEventName] = useState(event?.event_name || "");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [originalStartDate, setOriginalStartDate] = useState("");
@@ -86,7 +86,6 @@ export const EventDialog = ({
       setUserNumber(event.user_number || event.requester_phone || "");
       setSocialNetworkLink(event.social_network_link || event.requester_email || "");
       setEventNotes(event.event_notes || event.description || "");
-      setEventName(event.event_name || "");
       
       // Normalize payment status to handle different formats
       let normalizedStatus = event.payment_status || "not_paid";
@@ -130,7 +129,6 @@ export const EventDialog = ({
       setUserNumber("");
       setSocialNetworkLink("");
       setEventNotes("");
-      setEventName("");
       setPaymentAmount("");
     }
   }, [selectedDate, event, open]);
@@ -242,10 +240,6 @@ export const EventDialog = ({
     
     console.log("Submitting with payment status:", normalizedPaymentStatus);
     
-    // Check if this is a multi-person event
-    const additionalPersons = (window as any).additionalPersonsData || [];
-    const isMultiPersonEvent = additionalPersons.length > 0;
-    
     // Ensure we preserve the original event language if available
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
@@ -259,11 +253,6 @@ export const EventDialog = ({
       payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
       language: event?.language || language, // Preserve original language or use current UI language
     };
-
-    // Only include event_name if this is a multi-person event
-    if (isMultiPersonEvent) {
-      eventData.event_name = eventName.trim();
-    }
 
     if (event?.id) {
       eventData.id = event.id;
@@ -326,6 +315,7 @@ export const EventDialog = ({
       }
 
       // Handle additional customers - updated to save them properly with the event relationship
+      const additionalPersons = (window as any).additionalPersonsData || [];
       if (additionalPersons.length > 0 && createdEvent?.id && user) {
         try {
           // Delete existing additional customers for this specific event if updating
@@ -549,8 +539,6 @@ export const EventDialog = ({
               onFileDeleted={handleFileDeleted}
               displayedFiles={displayedFiles}
               isBookingRequest={isBookingRequest}
-              eventName={eventName}
-              setEventName={setEventName}
             />
             
             <div className="flex justify-between gap-4">

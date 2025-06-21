@@ -27,8 +27,7 @@ export interface CalendarEventType {
   size?: number;
   checkAvailability?: boolean;
   language?: string;
-  customer_id?: string;
-  event_name?: string; // New field for multi-person event names
+  customer_id?: string; // Properly typed as optional string
   files?: Array<{
     id: string;
     event_id: string;
