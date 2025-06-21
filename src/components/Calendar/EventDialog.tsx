@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -317,7 +316,7 @@ export const EventDialog = ({
       const additionalPersons = (window as any).additionalPersonsData || [];
       if (additionalPersons.length > 0 && createdEvent?.id && user) {
         try {
-          // Delete existing additional customers for this event if updating
+          // Delete existing additional customers for this specific event if updating
           if (event?.id) {
             const { error: deleteError } = await supabase
               .from('customers')

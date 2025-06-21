@@ -97,7 +97,7 @@ export const EventDialogFields = ({
   // State for additional persons
   const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
   
-  // Load additional persons when eventId changes
+  // Load additional persons when eventId changes - only load for specific events
   useEffect(() => {
     const loadAdditionalPersons = async () => {
       if (!eventId) {
@@ -106,14 +106,29 @@ export const EventDialogFields = ({
       }
       
       try {
-        console.log("Loading additional persons for event:", eventId);
+        console.log("Loading additional persons for specific event:", eventId);
         
-        // Query customers table for additional persons linked to this event
+        // Query customers table for additional persons linked to this specific event
+        // We'll match by start_date, end_date, and user_id to find customers created for this event
+        const { data: event, error: eventError } = await supabase
+          .from('events')
+          .select('start_date, end_date, user_id')
+          .eq('id', eventId)
+          .single();
+          
+        if (eventError || !event) {
+          console.error("Error loading event data:", eventError);
+          setAdditionalPersons([]);
+          return;
+        }
+        
+        // Find customers that were created for this specific event time slot
         const { data: customers, error } = await supabase
           .from('customers')
           .select('*')
-          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours
+          .eq('user_id', event.user_id)
+          .eq('start_date', event.start_date)
+          .eq('end_date', event.end_date)
           .eq('type', 'customer')
           .order('created_at', { ascending: true });
           
@@ -134,16 +149,22 @@ export const EventDialogFields = ({
             paymentAmount: customer.payment_amount?.toString() || ''
           }));
           
-          console.log("Loaded additional persons:", personsData.length);
+          console.log("Loaded additional persons for this event:", personsData.length);
           setAdditionalPersons(personsData);
+        } else {
+          setAdditionalPersons([]);
         }
       } catch (err) {
         console.error("Exception loading additional persons:", err);
+        setAdditionalPersons([]);
       }
     };
     
     if (eventId) {
       loadAdditionalPersons();
+    } else {
+      // Clear additional persons when creating a new event
+      setAdditionalPersons([]);
     }
   }, [eventId]);
   
