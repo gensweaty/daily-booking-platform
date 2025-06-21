@@ -613,7 +613,7 @@ export const EventDialog = ({
               {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogFooter>
+        </AlertDialogContent>
       </AlertDialog>
     </>
   );
