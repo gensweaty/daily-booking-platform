@@ -100,8 +100,8 @@ export const EventDialogFields = ({
   // State for additional persons
   const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
   
-  // Always show the event name field - remove the condition that required multiple persons
-  const shouldShowEventNameField = true;
+  // Show event name field only when there are multiple persons (additionalPersons.length > 0)
+  const shouldShowEventNameField = additionalPersons.length > 0;
 
   // Load additional persons when eventId changes - only load for specific events
   useEffect(() => {
@@ -455,7 +455,7 @@ export const EventDialogFields = ({
   }, [additionalPersons]);
   
   return <>
-      {/* Event Name Field - Always show, moved to top */}
+      {/* Event Name Field - Only show when there are multiple persons */}
       {shouldShowEventNameField && (
         <div>
           <Label 
@@ -474,7 +474,7 @@ export const EventDialogFields = ({
             id="eventName"
             value={eventName} 
             onChange={e => setEventName(e.target.value)} 
-            placeholder={isGeorgian ? "ღონისძიების სახელი (არასავალდებულო)" : "Event Name (optional)"} 
+            placeholder={isGeorgian ? "ღონისძიების სახელი" : "Event Name"} 
             className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
             style={isGeorgian ? {
               fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",

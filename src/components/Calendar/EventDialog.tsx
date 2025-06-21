@@ -242,7 +242,7 @@ export const EventDialog = ({
     
     console.log("Submitting with payment status:", normalizedPaymentStatus);
     
-    // Get additional persons data to check if we should save event_name
+    // Get additional persons data
     const additionalPersons = (window as any).additionalPersonsData || [];
     
     // Ensure we preserve the original event language if available
@@ -259,9 +259,10 @@ export const EventDialog = ({
       language: event?.language || language, // Preserve original language or use current UI language
     };
 
-    // Always save event_name if it has content - remove the multiple persons requirement
-    if (eventName.trim()) {
+    // Always save event_name if it has content and there are multiple persons
+    if (eventName.trim() && additionalPersons.length > 0) {
       eventData.event_name = eventName.trim();
+      console.log("Saving event_name:", eventData.event_name);
     }
 
     if (event?.id) {
