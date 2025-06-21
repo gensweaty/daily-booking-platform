@@ -76,6 +76,7 @@ export const EventDialog = ({
       const end = new Date(event.end_date);
       
       console.log("Loading event data:", event);
+      console.log("Event event_name from database:", event.event_name);
       
       // Set both title and userSurname to the user_surname value for consistency
       // If user_surname is missing, fall back to title
@@ -83,6 +84,7 @@ export const EventDialog = ({
       setTitle(fullName);
       setUserSurname(fullName);
       setEventName(event.event_name || ""); // Load event_name
+      console.log("Setting eventName state to:", event.event_name || "");
       
       setUserNumber(event.user_number || event.requester_phone || "");
       setSocialNetworkLink(event.social_network_link || event.requester_email || "");
@@ -244,6 +246,8 @@ export const EventDialog = ({
     
     // Get additional persons data
     const additionalPersons = (window as any).additionalPersonsData || [];
+    console.log("Additional persons count:", additionalPersons.length);
+    console.log("Event name value:", eventName);
     
     // Ensure we preserve the original event language if available
     const eventData: Partial<CalendarEventType> = {
@@ -262,7 +266,9 @@ export const EventDialog = ({
     // Always save event_name if it has content and there are multiple persons
     if (eventName.trim() && additionalPersons.length > 0) {
       eventData.event_name = eventName.trim();
-      console.log("Saving event_name:", eventData.event_name);
+      console.log("SAVING event_name to database:", eventData.event_name);
+    } else {
+      console.log("NOT saving event_name. eventName:", eventName, "additionalPersons:", additionalPersons.length);
     }
 
     if (event?.id) {
@@ -281,7 +287,23 @@ export const EventDialog = ({
     try {
       console.log("EventDialog - Submitting event data:", eventData);
       const createdEvent = await onSubmit(eventData);
-      console.log('Created/Updated event:', createdEvent);
+      console.log('Created/Updated event response:', createdEvent);
+      
+      // Verify the event_name was saved by checking the database directly
+      if (createdEvent?.id && eventData.event_name) {
+        console.log("Verifying event_name was saved...");
+        const { data: verifyEvent, error: verifyError } = await supabase
+          .from('events')
+          .select('event_name')
+          .eq('id', createdEvent.id)
+          .single();
+          
+        if (verifyError) {
+          console.error("Error verifying event_name:", verifyError);
+        } else {
+          console.log("Verification - event_name in database:", verifyEvent?.event_name);
+        }
+      }
       
       // Handle file upload to event_files for the current event
       if (selectedFile && createdEvent?.id && user) {
@@ -591,7 +613,7 @@ export const EventDialog = ({
               {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+        </AlertDialogFooter>
       </AlertDialog>
     </>
   );

@@ -1,3 +1,4 @@
+
 import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfMonth, isBefore, isAfter } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -95,7 +96,11 @@ export const CalendarGrid = ({
     }
     
     // For internal (dashboard) calendar - use event_name if available, otherwise fall back to person name
+    // Add debug logging to see what we're getting
+    console.log("Calendar rendering event:", event.id, "event_name:", event.event_name, "title:", event.title, "user_surname:", event.user_surname);
+    
     const displayTitle = event.event_name || event.requester_name || event.user_surname || event.title || "";
+    console.log("Calendar display title chosen:", displayTitle);
     
     // Display vertically on mobile for internal calendar with improved spacing
     if (isMobile) {
