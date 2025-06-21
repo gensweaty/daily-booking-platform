@@ -30,6 +30,8 @@ interface PersonData {
 interface EventDialogFieldsProps {
   title: string;
   setTitle: (value: string) => void;
+  eventName: string;
+  setEventName: (value: string) => void;
   userSurname: string;
   setUserSurname: (value: string) => void;
   userNumber: string;
@@ -59,6 +61,8 @@ interface EventDialogFieldsProps {
 export const EventDialogFields = ({
   title,
   setTitle,
+  eventName,
+  setEventName,
   userSurname,
   setUserSurname,
   userNumber,
@@ -96,6 +100,9 @@ export const EventDialogFields = ({
   
   // State for additional persons
   const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
+  
+  // Check if we should show event name field (when there are additional persons)
+  const shouldShowEventName = additionalPersons.length > 0;
   
   // Load additional persons when eventId changes - only load for specific events
   useEffect(() => {
@@ -506,6 +513,32 @@ export const EventDialogFields = ({
           </div>
         </div>
       </div>
+
+      {/* Event Name Field - Only show when there are additional persons */}
+      {shouldShowEventName && (
+        <div>
+          <Label 
+            htmlFor="eventName"
+            className={cn(isGeorgian ? "font-georgian" : "")}
+            style={georgianStyle}
+          >
+            {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">ღონისძიების სახელი</GeorgianAuthText> : <LanguageText>Event Name</LanguageText>}
+          </Label>
+          <Input 
+            id="eventName"
+            value={eventName} 
+            onChange={e => setEventName(e.target.value)} 
+            placeholder={isGeorgian ? "ღონისძიების სახელი" : "Event Name"} 
+            className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
+            style={isGeorgian ? {
+              fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+              letterSpacing: '-0.2px',
+              WebkitFontSmoothing: 'antialiased',
+              MozOsxFontSmoothing: 'grayscale'
+            } : undefined} 
+          />
+        </div>
+      )}
 
       {/* Main Person Data Section */}
       {renderPersonSection(undefined, undefined, true)}

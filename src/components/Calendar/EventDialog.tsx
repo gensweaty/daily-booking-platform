@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -47,6 +46,7 @@ export const EventDialog = ({
   // Always initialize with user_surname as the primary name field
   // This ensures we're using the correct field for full name
   const [title, setTitle] = useState(event?.user_surname || event?.title || "");
+  const [eventName, setEventName] = useState(event?.event_name || "");
   const [userSurname, setUserSurname] = useState(event?.user_surname || event?.title || "");
   const [userNumber, setUserNumber] = useState(event?.user_number || "");
   const [socialNetworkLink, setSocialNetworkLink] = useState(event?.social_network_link || "");
@@ -69,6 +69,11 @@ export const EventDialog = ({
   // Add state for delete confirmation dialog
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
+  // Get additional persons count from window object
+  const getAdditionalPersonsCount = () => {
+    return ((window as any).additionalPersonsData || []).length;
+  };
+
   // Synchronize fields when event data changes or when dialog opens
   useEffect(() => {
     if (event) {
@@ -82,6 +87,7 @@ export const EventDialog = ({
       const fullName = event.user_surname || event.title || "";
       setTitle(fullName);
       setUserSurname(fullName);
+      setEventName(event.event_name || "");
       
       setUserNumber(event.user_number || event.requester_phone || "");
       setSocialNetworkLink(event.social_network_link || event.requester_email || "");
@@ -126,6 +132,7 @@ export const EventDialog = ({
       
       setTitle("");
       setUserSurname("");
+      setEventName("");
       setUserNumber("");
       setSocialNetworkLink("");
       setEventNotes("");
@@ -215,8 +222,17 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Always use userSurname for consistent naming across the app
-    const finalTitle = userSurname;
+    const additionalPersonsCount = getAdditionalPersonsCount();
+    
+    // Determine the final title based on whether we have multiple persons
+    let finalTitle: string;
+    if (additionalPersonsCount > 0 && eventName.trim()) {
+      // Multiple persons and event name provided - use event name as title
+      finalTitle = eventName.trim();
+    } else {
+      // Single person or no event name - use full name as title
+      finalTitle = userSurname;
+    }
     
     const startDateTime = new Date(startDate);
     const endDateTime = new Date(endDate);
@@ -243,6 +259,7 @@ export const EventDialog = ({
     // Ensure we preserve the original event language if available
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
+      event_name: additionalPersonsCount > 0 ? eventName : null, // Only save event_name if multiple persons
       user_surname: userSurname, // Use userSurname for consistent naming
       user_number: userNumber,
       social_network_link: socialNetworkLink,
@@ -515,6 +532,8 @@ export const EventDialog = ({
             <EventDialogFields
               title={title}
               setTitle={setTitle}
+              eventName={eventName}
+              setEventName={setEventName}
               userSurname={userSurname}
               setUserSurname={setUserSurname}
               userNumber={userNumber}
