@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
+import { testEmailSending } from "@/lib/api";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -358,6 +360,62 @@ export const EventDialog = ({
           }
         } catch (customerError) {
           console.error("Error handling additional customers:", customerError);
+        }
+      }
+
+      // Send confirmation emails to all persons (main person + additional persons)
+      if (isApprovingBookingRequest && createdEvent?.id) {
+        try {
+          // Get business profile for address and business name
+          const { data: businessProfile } = await supabase
+            .from('business_profiles')
+            .select('business_name, contact_address')
+            .eq('user_id', user?.id)
+            .single();
+
+          const businessName = businessProfile?.business_name || 'SmartBookly';
+          const businessAddress = businessProfile?.contact_address || '';
+
+          // Send email to main person
+          if (socialNetworkLink && socialNetworkLink.includes('@')) {
+            console.log("Sending confirmation email to main person:", socialNetworkLink);
+            await testEmailSending(
+              socialNetworkLink,
+              userSurname,
+              businessName,
+              startDateTime.toISOString(),
+              endDateTime.toISOString(),
+              normalizedPaymentStatus,
+              paymentAmount ? parseFloat(paymentAmount) : null,
+              businessAddress,
+              createdEvent.id,
+              language,
+              eventNotes
+            );
+          }
+
+          // Send emails to all additional persons
+          const additionalPersonsForEmail = (window as any).additionalPersonsData || [];
+          for (const person of additionalPersonsForEmail) {
+            if (person.socialNetworkLink && person.socialNetworkLink.includes('@')) {
+              console.log("Sending confirmation email to additional person:", person.socialNetworkLink);
+              await testEmailSending(
+                person.socialNetworkLink,
+                person.userSurname,
+                businessName,
+                startDateTime.toISOString(),
+                endDateTime.toISOString(),
+                person.paymentStatus,
+                person.paymentAmount ? parseFloat(person.paymentAmount) : null,
+                businessAddress,
+                createdEvent.id,
+                language,
+                person.eventNotes
+              );
+            }
+          }
+        } catch (emailError) {
+          console.error("Error sending confirmation emails:", emailError);
         }
       }
 
