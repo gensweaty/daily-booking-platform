@@ -1,3 +1,4 @@
+
 export interface Task {
   id: string;
   title: string;
@@ -50,6 +51,7 @@ export interface BookingRequest {
   requester_email: string;
   requester_phone?: string;
   title: string;
+  event_name?: string; // Add event_name to BookingRequest as well
   description?: string;
   start_date: string; // ISO format date string
   end_date: string;   // ISO format date string
