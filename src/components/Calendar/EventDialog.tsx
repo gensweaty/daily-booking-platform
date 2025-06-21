@@ -233,12 +233,11 @@ export const EventDialog = ({
       console.log("EventDialog - Additional persons count:", additionalPersonsCount);
       console.log("EventDialog - Event has existing event_name:", event?.event_name);
       
-      // Simple logic: if eventName has content, use it, otherwise use userSurname
+      // Determine the display title: use event name if present, otherwise use user surname
       const finalTitle = eventName.trim() ? eventName.trim() : userSurname;
-      const finalEventName = eventName.trim() ? eventName.trim() : null;
       
       console.log("EventDialog - Final title:", finalTitle);
-      console.log("EventDialog - Final event_name:", finalEventName);
+      console.log("EventDialog - Event name to save:", eventName.trim());
       
       const startDateTime = new Date(startDate);
       const endDateTime = new Date(endDate);
@@ -265,21 +264,18 @@ export const EventDialog = ({
       // Create event data object with proper error handling
       const eventData: Partial<CalendarEventType> = {
         title: finalTitle,
-        user_surname: userSurname, // Use userSurname for consistent naming
+        user_surname: userSurname,
         user_number: userNumber,
         social_network_link: socialNetworkLink,
         event_notes: eventNotes,
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
-        payment_status: normalizedPaymentStatus, // Use normalized payment status
+        payment_status: normalizedPaymentStatus,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-        language: event?.language || language, // Preserve original language or use current UI language
+        language: event?.language || language,
+        // ALWAYS include event_name, even if empty - this prevents it from disappearing
+        event_name: eventName.trim()
       };
-
-      // Only add event_name if it exists to avoid potential database issues
-      if (finalEventName) {
-        eventData.event_name = finalEventName;
-      }
 
       if (event?.id) {
         eventData.id = event.id;
@@ -291,7 +287,7 @@ export const EventDialog = ({
       } else if (event?.type) {
         eventData.type = event.type;
       } else {
-        eventData.type = 'event'; // Default type if not set
+        eventData.type = 'event';
       }
 
       console.log("EventDialog - Submitting event data:", eventData);

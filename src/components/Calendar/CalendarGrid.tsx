@@ -1,4 +1,3 @@
-
 import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfMonth, isBefore, isAfter } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -95,9 +94,9 @@ export const CalendarGrid = ({
       );
     }
     
-    // For internal (dashboard) calendar
-    // Use event_name if it exists, otherwise fall back to requester_name or title
-    const displayName = event.event_name || event.requester_name || event.title || "";
+    // For internal (dashboard) calendar - use proper display logic
+    // Use event_name if it exists and is not empty, otherwise fall back to user_surname or title
+    const displayName = event.event_name || event.user_surname || event.title || "";
     
     // Display vertically on mobile for internal calendar with improved spacing
     if (isMobile) {
