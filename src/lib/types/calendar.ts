@@ -4,7 +4,6 @@ export type CalendarViewType = 'month' | 'week' | 'day';
 export interface CalendarEventType {
   id: string;
   title: string;
-  event_name?: string; // Add the missing event_name property
   user_surname?: string;
   user_number?: string;
   social_network_link?: string;

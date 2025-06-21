@@ -1,3 +1,4 @@
+
 import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfMonth, isBefore, isAfter } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -94,9 +95,8 @@ export const CalendarGrid = ({
       );
     }
     
-    // For internal (dashboard) calendar - use proper display logic
-    // Use event_name if it exists and is not empty, otherwise fall back to user_surname or title
-    const displayName = event.event_name || event.user_surname || event.title || "";
+    // For internal (dashboard) calendar
+    const name = event.requester_name || event.title || "";
     
     // Display vertically on mobile for internal calendar with improved spacing
     if (isMobile) {
@@ -104,7 +104,7 @@ export const CalendarGrid = ({
         <div className="w-full flex flex-col items-center text-center justify-center space-y-0.5">
           {/* Don't include icon here, it will be added at the container level */}
           <span className="block font-medium text-[0.7rem] leading-tight truncate max-w-[90%]">
-            {displayName}
+            {name}
           </span>
           <span className="block text-[0.65rem] opacity-80 leading-tight truncate max-w-[90%]">
             {bookingHours}
@@ -117,7 +117,7 @@ export const CalendarGrid = ({
     return (
       <div className={`${includeIcon ? 'flex-1' : 'w-full'} min-w-0`}>
         <span className="block font-medium text-xs sm:text-sm truncate">
-          {displayName}
+          {name}
         </span>
         <span className="block text-xs sm:text-sm opacity-80 truncate">
           {bookingHours}

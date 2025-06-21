@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,6 @@ export const EventDialog = ({
   // Always initialize with user_surname as the primary name field
   // This ensures we're using the correct field for full name
   const [title, setTitle] = useState(event?.user_surname || event?.title || "");
-  const [eventName, setEventName] = useState(event?.event_name || "");
   const [userSurname, setUserSurname] = useState(event?.user_surname || event?.title || "");
   const [userNumber, setUserNumber] = useState(event?.user_number || "");
   const [socialNetworkLink, setSocialNetworkLink] = useState(event?.social_network_link || "");
@@ -69,11 +69,6 @@ export const EventDialog = ({
   // Add state for delete confirmation dialog
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
-  // Get additional persons count from window object
-  const getAdditionalPersonsCount = () => {
-    return ((window as any).additionalPersonsData || []).length;
-  };
-
   // Synchronize fields when event data changes or when dialog opens
   useEffect(() => {
     if (event) {
@@ -81,16 +76,12 @@ export const EventDialog = ({
       const end = new Date(event.end_date);
       
       console.log("Loading event data:", event);
-      console.log("Loading event_name:", event.event_name);
       
       // Set both title and userSurname to the user_surname value for consistency
       // If user_surname is missing, fall back to title
       const fullName = event.user_surname || event.title || "";
       setTitle(fullName);
       setUserSurname(fullName);
-      
-      // Always set the event name from the database, even if empty
-      setEventName(event.event_name || "");
       
       setUserNumber(event.user_number || event.requester_phone || "");
       setSocialNetworkLink(event.social_network_link || event.requester_email || "");
@@ -118,7 +109,6 @@ export const EventDialog = ({
       
       console.log("EventDialog - Loaded event with type:", event.type);
       console.log("EventDialog - Loaded payment status:", normalizedStatus);
-      console.log("EventDialog - Loaded event_name:", event.event_name);
     } else if (selectedDate) {
       const start = new Date(selectedDate.getTime());
       const end = new Date(selectedDate.getTime());
@@ -136,7 +126,6 @@ export const EventDialog = ({
       
       setTitle("");
       setUserSurname("");
-      setEventName("");
       setUserNumber("");
       setSocialNetworkLink("");
       setEventNotes("");
@@ -226,70 +215,59 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Always use userSurname for consistent naming across the app
+    const finalTitle = userSurname;
+    
+    const startDateTime = new Date(startDate);
+    const endDateTime = new Date(endDate);
+    
+    const timesChanged = startDate !== originalStartDate || endDate !== originalEndDate;
+    console.log("Time changed during edit?", timesChanged, {
+      originalStart: originalStartDate,
+      currentStart: startDate,
+      originalEnd: originalEndDate,
+      currentEnd: endDate
+    });
+
+    const wasBookingRequest = event?.type === 'booking_request';
+    const isApprovingBookingRequest = wasBookingRequest && !isBookingEvent;
+    
+    // Ensure payment status is properly normalized before submission
+    let normalizedPaymentStatus = paymentStatus;
+    if (normalizedPaymentStatus.includes('partly')) normalizedPaymentStatus = 'partly_paid';
+    else if (normalizedPaymentStatus.includes('fully')) normalizedPaymentStatus = 'fully_paid';
+    else if (normalizedPaymentStatus.includes('not')) normalizedPaymentStatus = 'not_paid';
+    
+    console.log("Submitting with payment status:", normalizedPaymentStatus);
+    
+    // Ensure we preserve the original event language if available
+    const eventData: Partial<CalendarEventType> = {
+      title: finalTitle,
+      user_surname: userSurname, // Use userSurname for consistent naming
+      user_number: userNumber,
+      social_network_link: socialNetworkLink,
+      event_notes: eventNotes,
+      start_date: startDateTime.toISOString(),
+      end_date: endDateTime.toISOString(),
+      payment_status: normalizedPaymentStatus, // Use normalized payment status
+      payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+      language: event?.language || language, // Preserve original language or use current UI language
+    };
+
+    if (event?.id) {
+      eventData.id = event.id;
+    }
+
+    if (wasBookingRequest) {
+      eventData.type = 'event';
+      console.log("Converting booking request to event:", { wasBookingRequest, isApprovingBookingRequest });
+    } else if (event?.type) {
+      eventData.type = event.type;
+    } else {
+      eventData.type = 'event'; // Default type if not set
+    }
+
     try {
-      const additionalPersonsCount = getAdditionalPersonsCount();
-      
-      console.log("EventDialog - Submitting with eventName:", eventName);
-      console.log("EventDialog - Additional persons count:", additionalPersonsCount);
-      console.log("EventDialog - Event has existing event_name:", event?.event_name);
-      
-      // Determine the display title: use event name if present, otherwise use user surname
-      const finalTitle = eventName.trim() ? eventName.trim() : userSurname;
-      
-      console.log("EventDialog - Final title:", finalTitle);
-      console.log("EventDialog - Event name to save:", eventName.trim());
-      
-      const startDateTime = new Date(startDate);
-      const endDateTime = new Date(endDate);
-      
-      const timesChanged = startDate !== originalStartDate || endDate !== originalEndDate;
-      console.log("Time changed during edit?", timesChanged, {
-        originalStart: originalStartDate,
-        currentStart: startDate,
-        originalEnd: originalEndDate,
-        currentEnd: endDate
-      });
-
-      const wasBookingRequest = event?.type === 'booking_request';
-      const isApprovingBookingRequest = wasBookingRequest && !isBookingEvent;
-      
-      // Ensure payment status is properly normalized before submission
-      let normalizedPaymentStatus = paymentStatus;
-      if (normalizedPaymentStatus.includes('partly')) normalizedPaymentStatus = 'partly_paid';
-      else if (normalizedPaymentStatus.includes('fully')) normalizedPaymentStatus = 'fully_paid';
-      else if (normalizedPaymentStatus.includes('not')) normalizedPaymentStatus = 'not_paid';
-      
-      console.log("Submitting with payment status:", normalizedPaymentStatus);
-      
-      // Create event data object with proper error handling
-      const eventData: Partial<CalendarEventType> = {
-        title: finalTitle,
-        user_surname: userSurname,
-        user_number: userNumber,
-        social_network_link: socialNetworkLink,
-        event_notes: eventNotes,
-        start_date: startDateTime.toISOString(),
-        end_date: endDateTime.toISOString(),
-        payment_status: normalizedPaymentStatus,
-        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-        language: event?.language || language,
-        // ALWAYS include event_name, even if empty - this prevents it from disappearing
-        event_name: eventName.trim()
-      };
-
-      if (event?.id) {
-        eventData.id = event.id;
-      }
-
-      if (wasBookingRequest) {
-        eventData.type = 'event';
-        console.log("Converting booking request to event:", { wasBookingRequest, isApprovingBookingRequest });
-      } else if (event?.type) {
-        eventData.type = event.type;
-      } else {
-        eventData.type = 'event';
-      }
-
       console.log("EventDialog - Submitting event data:", eventData);
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
@@ -499,7 +477,6 @@ export const EventDialog = ({
       
     } catch (error: any) {
       console.error('Error handling event submission:', error);
-      console.error('Error details:', error.message, error.details);
       toast({
         translateKeys: {
           titleKey: "common.error",
@@ -538,8 +515,6 @@ export const EventDialog = ({
             <EventDialogFields
               title={title}
               setTitle={setTitle}
-              eventName={eventName}
-              setEventName={setEventName}
               userSurname={userSurname}
               setUserSurname={setUserSurname}
               userNumber={userNumber}
