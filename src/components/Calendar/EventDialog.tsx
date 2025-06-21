@@ -247,7 +247,7 @@ export const EventDialog = ({
     // Get additional persons data
     const additionalPersons = (window as any).additionalPersonsData || [];
     console.log("Additional persons count:", additionalPersons.length);
-    console.log("Event name value:", eventName);
+    console.log("Event name value before submission:", eventName);
     
     // Ensure we preserve the original event language if available
     const eventData: Partial<CalendarEventType> = {
@@ -263,12 +263,13 @@ export const EventDialog = ({
       language: event?.language || language, // Preserve original language or use current UI language
     };
 
-    // Always save event_name if it has content and there are multiple persons
+    // CRITICAL FIX: Always save event_name if it has content and there are multiple persons
+    // This should work for both creation and editing
     if (eventName.trim() && additionalPersons.length > 0) {
       eventData.event_name = eventName.trim();
-      console.log("SAVING event_name to database:", eventData.event_name);
+      console.log("CRITICAL: Setting event_name in eventData:", eventData.event_name);
     } else {
-      console.log("NOT saving event_name. eventName:", eventName, "additionalPersons:", additionalPersons.length);
+      console.log("NOT setting event_name. eventName:", eventName, "additionalPersons:", additionalPersons.length);
     }
 
     if (event?.id) {
@@ -286,8 +287,28 @@ export const EventDialog = ({
 
     try {
       console.log("EventDialog - Submitting event data:", eventData);
+      console.log("BEFORE SUBMISSION - event_name in payload:", eventData.event_name);
+      
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event response:', createdEvent);
+      
+      // CRITICAL FIX: For new events, force an additional database update to ensure event_name is saved
+      if (!event?.id && createdEvent?.id && eventData.event_name) {
+        console.log("CRITICAL: New event created, force-updating event_name in database");
+        
+        const { data: updateResult, error: updateError } = await supabase
+          .from('events')
+          .update({ event_name: eventData.event_name })
+          .eq('id', createdEvent.id)
+          .select('event_name')
+          .single();
+          
+        if (updateError) {
+          console.error("CRITICAL: Error force-updating event_name:", updateError);
+        } else {
+          console.log("CRITICAL: Force-update successful, event_name in DB:", updateResult?.event_name);
+        }
+      }
       
       // Verify the event_name was saved by checking the database directly
       if (createdEvent?.id && eventData.event_name) {
@@ -301,7 +322,7 @@ export const EventDialog = ({
         if (verifyError) {
           console.error("Error verifying event_name:", verifyError);
         } else {
-          console.log("Verification - event_name in database:", verifyEvent?.event_name);
+          console.log("VERIFICATION - event_name in database:", verifyEvent?.event_name);
         }
       }
       
