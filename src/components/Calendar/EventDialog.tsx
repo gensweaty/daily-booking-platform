@@ -226,86 +226,74 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const additionalPersonsCount = getAdditionalPersonsCount();
-    
-    console.log("EventDialog - Submitting with eventName:", eventName);
-    console.log("EventDialog - Additional persons count:", additionalPersonsCount);
-    console.log("EventDialog - Event has existing event_name:", event?.event_name);
-    
-    // Determine the final title based on whether we have multiple persons or existing event name
-    let finalTitle: string;
-    let finalEventName: string | null;
-    
-    if (additionalPersonsCount > 0 || (event?.event_name && event.event_name.trim() !== '')) {
-      // Multiple persons or existing event name - use event name as title if provided
-      if (eventName.trim()) {
-        finalTitle = eventName.trim();
-        finalEventName = eventName.trim();
-      } else {
-        // Fall back to full name if no event name provided
-        finalTitle = userSurname;
-        finalEventName = event?.event_name || null; // Preserve existing event_name if any
-      }
-    } else {
-      // Single person and no existing event name - use full name as title
-      finalTitle = userSurname;
-      finalEventName = null;
-    }
-    
-    console.log("EventDialog - Final title:", finalTitle);
-    console.log("EventDialog - Final event_name:", finalEventName);
-    
-    const startDateTime = new Date(startDate);
-    const endDateTime = new Date(endDate);
-    
-    const timesChanged = startDate !== originalStartDate || endDate !== originalEndDate;
-    console.log("Time changed during edit?", timesChanged, {
-      originalStart: originalStartDate,
-      currentStart: startDate,
-      originalEnd: originalEndDate,
-      currentEnd: endDate
-    });
-
-    const wasBookingRequest = event?.type === 'booking_request';
-    const isApprovingBookingRequest = wasBookingRequest && !isBookingEvent;
-    
-    // Ensure payment status is properly normalized before submission
-    let normalizedPaymentStatus = paymentStatus;
-    if (normalizedPaymentStatus.includes('partly')) normalizedPaymentStatus = 'partly_paid';
-    else if (normalizedPaymentStatus.includes('fully')) normalizedPaymentStatus = 'fully_paid';
-    else if (normalizedPaymentStatus.includes('not')) normalizedPaymentStatus = 'not_paid';
-    
-    console.log("Submitting with payment status:", normalizedPaymentStatus);
-    
-    // Ensure we preserve the original event language if available
-    const eventData: Partial<CalendarEventType> = {
-      title: finalTitle,
-      event_name: finalEventName, // Always include event_name field
-      user_surname: userSurname, // Use userSurname for consistent naming
-      user_number: userNumber,
-      social_network_link: socialNetworkLink,
-      event_notes: eventNotes,
-      start_date: startDateTime.toISOString(),
-      end_date: endDateTime.toISOString(),
-      payment_status: normalizedPaymentStatus, // Use normalized payment status
-      payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-      language: event?.language || language, // Preserve original language or use current UI language
-    };
-
-    if (event?.id) {
-      eventData.id = event.id;
-    }
-
-    if (wasBookingRequest) {
-      eventData.type = 'event';
-      console.log("Converting booking request to event:", { wasBookingRequest, isApprovingBookingRequest });
-    } else if (event?.type) {
-      eventData.type = event.type;
-    } else {
-      eventData.type = 'event'; // Default type if not set
-    }
-
     try {
+      const additionalPersonsCount = getAdditionalPersonsCount();
+      
+      console.log("EventDialog - Submitting with eventName:", eventName);
+      console.log("EventDialog - Additional persons count:", additionalPersonsCount);
+      console.log("EventDialog - Event has existing event_name:", event?.event_name);
+      
+      // Simple logic: if eventName has content, use it, otherwise use userSurname
+      const finalTitle = eventName.trim() ? eventName.trim() : userSurname;
+      const finalEventName = eventName.trim() ? eventName.trim() : null;
+      
+      console.log("EventDialog - Final title:", finalTitle);
+      console.log("EventDialog - Final event_name:", finalEventName);
+      
+      const startDateTime = new Date(startDate);
+      const endDateTime = new Date(endDate);
+      
+      const timesChanged = startDate !== originalStartDate || endDate !== originalEndDate;
+      console.log("Time changed during edit?", timesChanged, {
+        originalStart: originalStartDate,
+        currentStart: startDate,
+        originalEnd: originalEndDate,
+        currentEnd: endDate
+      });
+
+      const wasBookingRequest = event?.type === 'booking_request';
+      const isApprovingBookingRequest = wasBookingRequest && !isBookingEvent;
+      
+      // Ensure payment status is properly normalized before submission
+      let normalizedPaymentStatus = paymentStatus;
+      if (normalizedPaymentStatus.includes('partly')) normalizedPaymentStatus = 'partly_paid';
+      else if (normalizedPaymentStatus.includes('fully')) normalizedPaymentStatus = 'fully_paid';
+      else if (normalizedPaymentStatus.includes('not')) normalizedPaymentStatus = 'not_paid';
+      
+      console.log("Submitting with payment status:", normalizedPaymentStatus);
+      
+      // Create event data object with proper error handling
+      const eventData: Partial<CalendarEventType> = {
+        title: finalTitle,
+        user_surname: userSurname, // Use userSurname for consistent naming
+        user_number: userNumber,
+        social_network_link: socialNetworkLink,
+        event_notes: eventNotes,
+        start_date: startDateTime.toISOString(),
+        end_date: endDateTime.toISOString(),
+        payment_status: normalizedPaymentStatus, // Use normalized payment status
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+        language: event?.language || language, // Preserve original language or use current UI language
+      };
+
+      // Only add event_name if it exists to avoid potential database issues
+      if (finalEventName) {
+        eventData.event_name = finalEventName;
+      }
+
+      if (event?.id) {
+        eventData.id = event.id;
+      }
+
+      if (wasBookingRequest) {
+        eventData.type = 'event';
+        console.log("Converting booking request to event:", { wasBookingRequest, isApprovingBookingRequest });
+      } else if (event?.type) {
+        eventData.type = event.type;
+      } else {
+        eventData.type = 'event'; // Default type if not set
+      }
+
       console.log("EventDialog - Submitting event data:", eventData);
       const createdEvent = await onSubmit(eventData);
       console.log('Created/Updated event:', createdEvent);
@@ -515,6 +503,7 @@ export const EventDialog = ({
       
     } catch (error: any) {
       console.error('Error handling event submission:', error);
+      console.error('Error details:', error.message, error.details);
       toast({
         translateKeys: {
           titleKey: "common.error",
