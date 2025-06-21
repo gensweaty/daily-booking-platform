@@ -494,6 +494,7 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           end_date: string
+          event_name: string | null
           event_notes: string | null
           file_path: string | null
           file_size: number | null
@@ -522,6 +523,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           end_date: string
+          event_name?: string | null
           event_notes?: string | null
           file_path?: string | null
           file_size?: number | null
@@ -550,6 +552,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           end_date?: string
+          event_name?: string | null
           event_notes?: string | null
           file_path?: string | null
           file_size?: number | null
@@ -1028,6 +1031,7 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           end_date: string
+          event_name: string | null
           event_notes: string | null
           file_path: string | null
           file_size: number | null
