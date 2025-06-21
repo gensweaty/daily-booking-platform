@@ -27,7 +27,8 @@ export interface CalendarEventType {
   size?: number;
   checkAvailability?: boolean;
   language?: string;
-  customer_id?: string; // Properly typed as optional string
+  customer_id?: string;
+  event_name?: string; // Add the optional event_name field
   files?: Array<{
     id: string;
     event_id: string;

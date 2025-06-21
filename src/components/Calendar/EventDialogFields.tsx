@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,6 +37,8 @@ interface EventDialogFieldsProps {
   setSocialNetworkLink: (value: string) => void;
   eventNotes: string;
   setEventNotes: (value: string) => void;
+  eventName: string;
+  setEventName: (value: string) => void;
   startDate: string;
   setStartDate: (value: string) => void;
   endDate: string;
@@ -67,6 +68,8 @@ export const EventDialogFields = ({
   setSocialNetworkLink,
   eventNotes,
   setEventNotes,
+  eventName,
+  setEventName,
   startDate,
   setStartDate,
   endDate,
@@ -96,6 +99,9 @@ export const EventDialogFields = ({
   
   // State for additional persons
   const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
+  
+  // Check if we should show the event name field (when there are multiple persons)
+  const shouldShowEventNameField = additionalPersons.length > 0;
   
   // Load additional persons when eventId changes - only load for specific events
   useEffect(() => {
@@ -306,12 +312,7 @@ export const EventDialogFields = ({
           <Label 
             htmlFor={`userSurname-${isMain ? 'main' : person?.id}`}
             className={cn(isGeorgian ? "font-georgian" : "")}
-            style={isGeorgian ? {
-              fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-              letterSpacing: '-0.2px',
-              WebkitFontSmoothing: 'antialiased',
-              MozOsxFontSmoothing: 'grayscale'
-            } : undefined}
+            style={georgianStyle}
           >
             {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">სრული სახელი</GeorgianAuthText> : <LanguageText>{t("events.fullName")}</LanguageText>}
           </Label>
@@ -454,6 +455,37 @@ export const EventDialogFields = ({
   }, [additionalPersons]);
   
   return <>
+      {/* Conditional Event Name Field - Only show when there are multiple persons */}
+      {shouldShowEventNameField && (
+        <div>
+          <Label 
+            htmlFor="eventName"
+            className={cn(isGeorgian ? "font-georgian" : "")}
+            style={isGeorgian ? {
+              fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+              letterSpacing: '-0.2px',
+              WebkitFontSmoothing: 'antialiased',
+              MozOsxFontSmoothing: 'grayscale'
+            } : undefined}
+          >
+            {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">ღონისძიების სახელი</GeorgianAuthText> : <LanguageText>Event Name</LanguageText>}
+          </Label>
+          <Input 
+            id="eventName"
+            value={eventName} 
+            onChange={e => setEventName(e.target.value)} 
+            placeholder={isGeorgian ? "ღონისძიების სახელი (არასავალდებულო)" : "Event Name (optional)"} 
+            className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
+            style={isGeorgian ? {
+              fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+              letterSpacing: '-0.2px',
+              WebkitFontSmoothing: 'antialiased',
+              MozOsxFontSmoothing: 'grayscale'
+            } : undefined} 
+          />
+        </div>
+      )}
+
       {/* Date and Time - Moved to top */}
       <div>
         <Label 

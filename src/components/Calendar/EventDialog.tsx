@@ -51,6 +51,7 @@ export const EventDialog = ({
   const [userNumber, setUserNumber] = useState(event?.user_number || "");
   const [socialNetworkLink, setSocialNetworkLink] = useState(event?.social_network_link || "");
   const [eventNotes, setEventNotes] = useState(event?.event_notes || "");
+  const [eventName, setEventName] = useState(event?.event_name || ""); // Add event_name state
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [originalStartDate, setOriginalStartDate] = useState("");
@@ -82,6 +83,7 @@ export const EventDialog = ({
       const fullName = event.user_surname || event.title || "";
       setTitle(fullName);
       setUserSurname(fullName);
+      setEventName(event.event_name || ""); // Load event_name
       
       setUserNumber(event.user_number || event.requester_phone || "");
       setSocialNetworkLink(event.social_network_link || event.requester_email || "");
@@ -126,6 +128,7 @@ export const EventDialog = ({
       
       setTitle("");
       setUserSurname("");
+      setEventName(""); // Reset event_name for new events
       setUserNumber("");
       setSocialNetworkLink("");
       setEventNotes("");
@@ -240,6 +243,10 @@ export const EventDialog = ({
     
     console.log("Submitting with payment status:", normalizedPaymentStatus);
     
+    // Get additional persons data to check if we should save event_name
+    const additionalPersons = (window as any).additionalPersonsData || [];
+    const hasMultiplePersons = additionalPersons.length > 0;
+    
     // Ensure we preserve the original event language if available
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
@@ -253,6 +260,11 @@ export const EventDialog = ({
       payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
       language: event?.language || language, // Preserve original language or use current UI language
     };
+
+    // Only save event_name if there are multiple persons
+    if (hasMultiplePersons && eventName.trim()) {
+      eventData.event_name = eventName.trim();
+    }
 
     if (event?.id) {
       eventData.id = event.id;
@@ -523,6 +535,8 @@ export const EventDialog = ({
               setSocialNetworkLink={setSocialNetworkLink}
               eventNotes={eventNotes}
               setEventNotes={setEventNotes}
+              eventName={eventName}
+              setEventName={setEventName}
               startDate={startDate}
               setStartDate={setStartDate}
               endDate={endDate}
