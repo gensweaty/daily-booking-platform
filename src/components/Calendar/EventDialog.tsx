@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -245,7 +244,6 @@ export const EventDialog = ({
     
     // Get additional persons data to check if we should save event_name
     const additionalPersons = (window as any).additionalPersonsData || [];
-    const hasMultiplePersons = additionalPersons.length > 0;
     
     // Ensure we preserve the original event language if available
     const eventData: Partial<CalendarEventType> = {
@@ -261,8 +259,8 @@ export const EventDialog = ({
       language: event?.language || language, // Preserve original language or use current UI language
     };
 
-    // Only save event_name if there are multiple persons
-    if (hasMultiplePersons && eventName.trim()) {
+    // Always save event_name if it has content - remove the multiple persons requirement
+    if (eventName.trim()) {
       eventData.event_name = eventName.trim();
     }
 
