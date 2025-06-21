@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -363,8 +362,8 @@ export const EventDialog = ({
         }
       }
 
-      // Send confirmation emails to all persons (main person + additional persons)
-      if (isApprovingBookingRequest && createdEvent?.id) {
+      // Send confirmation emails to all persons for any event creation/update
+      if (createdEvent?.id && user) {
         try {
           // Get business profile for address and business name
           const { data: businessProfile } = await supabase
@@ -376,43 +375,48 @@ export const EventDialog = ({
           const businessName = businessProfile?.business_name || 'SmartBookly';
           const businessAddress = businessProfile?.contact_address || '';
 
-          // Send email to main person
-          if (socialNetworkLink && socialNetworkLink.includes('@')) {
-            console.log("Sending confirmation email to main person:", socialNetworkLink);
-            await testEmailSending(
-              socialNetworkLink,
-              userSurname,
-              businessName,
-              startDateTime.toISOString(),
-              endDateTime.toISOString(),
-              normalizedPaymentStatus,
-              paymentAmount ? parseFloat(paymentAmount) : null,
-              businessAddress,
-              createdEvent.id,
-              language,
-              eventNotes
-            );
-          }
-
-          // Send emails to all additional persons
-          const additionalPersonsForEmail = (window as any).additionalPersonsData || [];
-          for (const person of additionalPersonsForEmail) {
-            if (person.socialNetworkLink && person.socialNetworkLink.includes('@')) {
-              console.log("Sending confirmation email to additional person:", person.socialNetworkLink);
+          // Only proceed if we have a business address
+          if (businessAddress && businessAddress.trim() !== '') {
+            // Send email to main person
+            if (socialNetworkLink && socialNetworkLink.includes('@')) {
+              console.log("Sending confirmation email to main person:", socialNetworkLink);
               await testEmailSending(
-                person.socialNetworkLink,
-                person.userSurname,
+                socialNetworkLink,
+                userSurname,
                 businessName,
                 startDateTime.toISOString(),
                 endDateTime.toISOString(),
-                person.paymentStatus,
-                person.paymentAmount ? parseFloat(person.paymentAmount) : null,
+                normalizedPaymentStatus,
+                paymentAmount ? parseFloat(paymentAmount) : null,
                 businessAddress,
                 createdEvent.id,
                 language,
-                person.eventNotes
+                eventNotes
               );
             }
+
+            // Send emails to all additional persons
+            const additionalPersonsForEmail = (window as any).additionalPersonsData || [];
+            for (const person of additionalPersonsForEmail) {
+              if (person.socialNetworkLink && person.socialNetworkLink.includes('@')) {
+                console.log("Sending confirmation email to additional person:", person.socialNetworkLink);
+                await testEmailSending(
+                  person.socialNetworkLink,
+                  person.userSurname,
+                  businessName,
+                  startDateTime.toISOString(),
+                  endDateTime.toISOString(),
+                  person.paymentStatus,
+                  person.paymentAmount ? parseFloat(person.paymentAmount) : null,
+                  businessAddress,
+                  createdEvent.id,
+                  language,
+                  person.eventNotes
+                );
+              }
+            }
+          } else {
+            console.log("No business address found, skipping email sending");
           }
         } catch (emailError) {
           console.error("Error sending confirmation emails:", emailError);
