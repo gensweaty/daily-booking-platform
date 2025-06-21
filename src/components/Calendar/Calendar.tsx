@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -55,20 +54,6 @@ export const Calendar = ({
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
-  
-  // Simplified dialog state - single dialog instance
-  const [dialogState, setDialogState] = useState<{
-    open: boolean;
-    event: CalendarEventType | null;
-    selectedDate: Date | null;
-    key: string; // For forcing re-render
-  }>({
-    open: false,
-    event: null,
-    selectedDate: null,
-    key: "",
-  });
-  
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
   
@@ -104,28 +89,39 @@ export const Calendar = ({
       directEvents: directEvents?.length || 0,
       fetchedEvents: fetchedEvents?.length || 0,
       eventsCount: events?.length || 0,
-      view,
-      dialogOpen: dialogState.open
+      view
     });
     
     if (events?.length > 0) {
       console.log("[Calendar] First event:", events[0]);
+      console.log("[Calendar] All events:", events); // Log all events to debug
     }
-  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents, dialogState]);
+  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
 
   const {
-    handleCreateEvent: baseHandleCreateEvent,
+    selectedEvent,
+    setSelectedEvent,
+    isNewEventDialogOpen,
+    setIsNewEventDialogOpen,
+    selectedDate: dialogSelectedDate,
+    setSelectedDate: setDialogSelectedDate,
+    handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (data) => {
-      console.log("🔄 Calendar creating event:", data);
       const result = await createEvent?.(data);
-      console.log("✅ Event created successfully:", result);
       return result;
     },
     updateEvent: async (data) => {
-      const result = await updateEvent?.(data);
+      if (!selectedEvent) throw new Error("No event selected");
+      console.log("Calendar passing to updateEvent:", { data, id: selectedEvent.id, type: selectedEvent.type });
+      
+      const result = await updateEvent?.({
+        ...data,
+        id: selectedEvent.id,
+        type: selectedEvent.type  // Make sure to pass the type from the selected event
+      });
       return result;
     },
     deleteEvent: async (id) => {
@@ -210,13 +206,8 @@ export const Calendar = ({
       
       setIsBookingFormOpen(true);
     } else if (!isExternalCalendar) {
-      console.log("📅 Opening dialog for new event");
-      setDialogState({
-        open: true,
-        event: null,
-        selectedDate: clickedDate,
-        key: `new-${Date.now()}`,
-      });
+      setDialogSelectedDate(clickedDate);
+      setTimeout(() => setIsNewEventDialogOpen(true), 0);
     }
   };
 
@@ -238,25 +229,14 @@ export const Calendar = ({
       const now = new Date();
       now.setHours(9, 0, 0, 0);
       
-      console.log("➕ Opening dialog for new event");
-      setDialogState({
-        open: true,
-        event: null,
-        selectedDate: now,
-        key: `new-${Date.now()}`,
-      });
+      setDialogSelectedDate(now);
+      setTimeout(() => setIsNewEventDialogOpen(true), 0);
     }
   };
 
   const handleEventClick = (event: CalendarEventType) => {
     if (!isExternalCalendar) {
-      console.log("📝 Opening dialog for event edit:", { id: event.id, is_group_event: event.is_group_event });
-      setDialogState({
-        open: true,
-        event: event,
-        selectedDate: new Date(event.start_date),
-        key: `edit-${event.id}-${Date.now()}`,
-      });
+      setSelectedEvent(event);
     } else if (isExternalCalendar && allowBookingRequests) {
       toast({
         title: "Time slot not available",
@@ -270,16 +250,6 @@ export const Calendar = ({
     queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
     
     toast.event.bookingSubmitted();
-  };
-
-  const handleDialogClose = () => {
-    console.log("🔄 Closing dialog");
-    setDialogState({
-      open: false,
-      event: null,
-      selectedDate: null,
-      key: "",
-    });
   };
 
   if (error && !directEvents) {
@@ -332,19 +302,27 @@ export const Calendar = ({
       </div>
 
       {!isExternalCalendar && (
-        <EventDialog
-          key={dialogState.key} // Force re-render when key changes
-          open={dialogState.open}
-          onOpenChange={(open) => {
-            if (!open) {
-              handleDialogClose();
-            }
-          }}
-          selectedDate={dialogState.selectedDate}
-          event={dialogState.event}
-          onSubmit={dialogState.event ? handleUpdateEvent : baseHandleCreateEvent}
-          onDelete={dialogState.event ? handleDeleteEvent : undefined}
-        />
+        <>
+          <EventDialog
+            key={dialogSelectedDate?.getTime()}
+            open={isNewEventDialogOpen}
+            onOpenChange={setIsNewEventDialogOpen}
+            selectedDate={dialogSelectedDate}
+            onSubmit={handleCreateEvent}
+          />
+
+          {selectedEvent && (
+            <EventDialog
+              key={selectedEvent.id}
+              open={!!selectedEvent}
+              onOpenChange={() => setSelectedEvent(null)}
+              selectedDate={new Date(selectedEvent.start_date)}
+              event={selectedEvent}
+              onSubmit={handleUpdateEvent}
+              onDelete={handleDeleteEvent}
+            />
+          )}
+        </>
       )}
 
       {isExternalCalendar && allowBookingRequests && businessId && (

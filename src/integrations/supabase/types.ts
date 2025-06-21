@@ -498,7 +498,6 @@ export type Database = {
           file_path: string | null
           file_size: number | null
           filename: string | null
-          group_member_count: number | null
           group_name: string | null
           id: string
           is_group_event: boolean | null
@@ -526,7 +525,6 @@ export type Database = {
           file_path?: string | null
           file_size?: number | null
           filename?: string | null
-          group_member_count?: number | null
           group_name?: string | null
           id?: string
           is_group_event?: boolean | null
@@ -554,7 +552,6 @@ export type Database = {
           file_path?: string | null
           file_size?: number | null
           filename?: string | null
-          group_member_count?: number | null
           group_name?: string | null
           id?: string
           is_group_event?: boolean | null
@@ -1032,7 +1029,6 @@ export type Database = {
           file_path: string | null
           file_size: number | null
           filename: string | null
-          group_member_count: number | null
           group_name: string | null
           id: string
           is_group_event: boolean | null
