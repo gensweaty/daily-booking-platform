@@ -81,12 +81,15 @@ export const EventDialog = ({
       const end = new Date(event.end_date);
       
       console.log("Loading event data:", event);
+      console.log("Loading event_name:", event.event_name);
       
       // Set both title and userSurname to the user_surname value for consistency
       // If user_surname is missing, fall back to title
       const fullName = event.user_surname || event.title || "";
       setTitle(fullName);
       setUserSurname(fullName);
+      
+      // Always set the event name from the database, even if empty
       setEventName(event.event_name || "");
       
       setUserNumber(event.user_number || event.requester_phone || "");
@@ -115,6 +118,7 @@ export const EventDialog = ({
       
       console.log("EventDialog - Loaded event with type:", event.type);
       console.log("EventDialog - Loaded payment status:", normalizedStatus);
+      console.log("EventDialog - Loaded event_name:", event.event_name);
     } else if (selectedDate) {
       const start = new Date(selectedDate.getTime());
       const end = new Date(selectedDate.getTime());
@@ -224,15 +228,32 @@ export const EventDialog = ({
     
     const additionalPersonsCount = getAdditionalPersonsCount();
     
-    // Determine the final title based on whether we have multiple persons
+    console.log("EventDialog - Submitting with eventName:", eventName);
+    console.log("EventDialog - Additional persons count:", additionalPersonsCount);
+    console.log("EventDialog - Event has existing event_name:", event?.event_name);
+    
+    // Determine the final title based on whether we have multiple persons or existing event name
     let finalTitle: string;
-    if (additionalPersonsCount > 0 && eventName.trim()) {
-      // Multiple persons and event name provided - use event name as title
-      finalTitle = eventName.trim();
+    let finalEventName: string | null;
+    
+    if (additionalPersonsCount > 0 || (event?.event_name && event.event_name.trim() !== '')) {
+      // Multiple persons or existing event name - use event name as title if provided
+      if (eventName.trim()) {
+        finalTitle = eventName.trim();
+        finalEventName = eventName.trim();
+      } else {
+        // Fall back to full name if no event name provided
+        finalTitle = userSurname;
+        finalEventName = event?.event_name || null; // Preserve existing event_name if any
+      }
     } else {
-      // Single person or no event name - use full name as title
+      // Single person and no existing event name - use full name as title
       finalTitle = userSurname;
+      finalEventName = null;
     }
+    
+    console.log("EventDialog - Final title:", finalTitle);
+    console.log("EventDialog - Final event_name:", finalEventName);
     
     const startDateTime = new Date(startDate);
     const endDateTime = new Date(endDate);
@@ -259,7 +280,7 @@ export const EventDialog = ({
     // Ensure we preserve the original event language if available
     const eventData: Partial<CalendarEventType> = {
       title: finalTitle,
-      event_name: additionalPersonsCount > 0 ? eventName : null, // Only save event_name if multiple persons
+      event_name: finalEventName, // Always include event_name field
       user_surname: userSurname, // Use userSurname for consistent naming
       user_number: userNumber,
       social_network_link: socialNetworkLink,

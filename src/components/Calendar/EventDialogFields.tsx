@@ -101,8 +101,9 @@ export const EventDialogFields = ({
   // State for additional persons
   const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
   
-  // Check if we should show event name field (when there are additional persons)
-  const shouldShowEventName = additionalPersons.length > 0;
+  // Check if we should show event name field
+  // Show if there are additional persons OR if event name already exists (for editing)
+  const shouldShowEventName = additionalPersons.length > 0 || (eventName && eventName.trim() !== '');
   
   // Load additional persons when eventId changes - only load for specific events
   useEffect(() => {
@@ -514,7 +515,7 @@ export const EventDialogFields = ({
         </div>
       </div>
 
-      {/* Event Name Field - Only show when there are additional persons */}
+      {/* Event Name Field - Show if there are additional persons OR if event name already exists */}
       {shouldShowEventName && (
         <div>
           <Label 
