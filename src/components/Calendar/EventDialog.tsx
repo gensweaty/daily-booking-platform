@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -312,10 +313,25 @@ export const EventDialog = ({
         }
       }
 
-      // Handle additional customers
+      // Handle additional customers - updated to save them properly with the event relationship
       const additionalPersons = (window as any).additionalPersonsData || [];
       if (additionalPersons.length > 0 && createdEvent?.id && user) {
         try {
+          // Delete existing additional customers for this event if updating
+          if (event?.id) {
+            const { error: deleteError } = await supabase
+              .from('customers')
+              .delete()
+              .eq('type', 'customer')
+              .eq('user_id', user.id)
+              .eq('start_date', startDateTime.toISOString())
+              .eq('end_date', endDateTime.toISOString());
+              
+            if (deleteError) {
+              console.error('Error deleting existing additional customers:', deleteError);
+            }
+          }
+          
           const customersData = additionalPersons.map((person: any) => ({
             title: person.userSurname,
             user_surname: person.userSurname,
@@ -331,14 +347,15 @@ export const EventDialog = ({
             create_event: false
           }));
 
-          const { error: customersError } = await supabase
+          const { data: insertedCustomers, error: customersError } = await supabase
             .from('customers')
-            .insert(customersData);
+            .insert(customersData)
+            .select('*');
 
           if (customersError) {
             console.error('Error creating additional customers:', customersError);
           } else {
-            console.log('Additional customers created successfully:', customersData.length);
+            console.log('Additional customers created successfully:', insertedCustomers?.length || 0);
           }
         } catch (customerError) {
           console.error("Error handling additional customers:", customerError);

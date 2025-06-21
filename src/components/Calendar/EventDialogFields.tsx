@@ -97,6 +97,56 @@ export const EventDialogFields = ({
   // State for additional persons
   const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
   
+  // Load additional persons when eventId changes
+  useEffect(() => {
+    const loadAdditionalPersons = async () => {
+      if (!eventId) {
+        setAdditionalPersons([]);
+        return;
+      }
+      
+      try {
+        console.log("Loading additional persons for event:", eventId);
+        
+        // Query customers table for additional persons linked to this event
+        const { data: customers, error } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours
+          .eq('type', 'customer')
+          .order('created_at', { ascending: true });
+          
+        if (error) {
+          console.error("Error loading additional persons:", error);
+          return;
+        }
+        
+        if (customers && customers.length > 0) {
+          // Convert customers to PersonData format
+          const personsData: PersonData[] = customers.map(customer => ({
+            id: customer.id,
+            userSurname: customer.user_surname || '',
+            userNumber: customer.user_number || '',
+            socialNetworkLink: customer.social_network_link || '',
+            eventNotes: customer.event_notes || '',
+            paymentStatus: customer.payment_status || 'not_paid',
+            paymentAmount: customer.payment_amount?.toString() || ''
+          }));
+          
+          console.log("Loaded additional persons:", personsData.length);
+          setAdditionalPersons(personsData);
+        }
+      } catch (err) {
+        console.error("Exception loading additional persons:", err);
+      }
+    };
+    
+    if (eventId) {
+      loadAdditionalPersons();
+    }
+  }, [eventId]);
+  
   // Process files to remove duplicates by comparing path and name
   const processedFiles = useMemo(() => {
     if (!displayedFiles.length) return [];
@@ -212,10 +262,10 @@ export const EventDialogFields = ({
           <h3 className={cn("text-sm font-medium text-muted-foreground", isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
             {isGeorgian ? (
               <GeorgianAuthText letterSpacing="-0.05px">
-                {isMain ? "პირადი მონაცემები" : `პირი ${index! + 1}`}
+                {isMain ? "პირადი მონაცემები" : `პირი ${index! + 2}`}
               </GeorgianAuthText>
             ) : (
-              isMain ? "Person Data" : `Person ${index! + 1}`
+              isMain ? "Person Data" : `Person ${index! + 2}`
             )}
           </h3>
           {!isMain && (
