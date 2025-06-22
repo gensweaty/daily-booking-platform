@@ -76,7 +76,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
     }
   };
 
-  // Optimize events stats query with more efficient date handling and include CRM events
+  // Optimize events stats query with improved multi-person income calculation
   const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
     queryKey: eventStatsQueryKey,
     queryFn: async () => {
@@ -94,36 +94,52 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       const startDateStr = dateRange.start.toISOString();
       const endDateStr = endOfDay(dateRange.end).toISOString();
       
-      // Get all calendar events - IMPORTANT: Now explicitly filtering out deleted events
-      const { data: calendarEvents, error: calendarError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('user_id', userId)
-        .gte('start_date', startDateStr)
-        .lte('start_date', endDateStr)
-        .is('deleted_at', null); // This ensures we only count non-deleted events
+      // Get all calendar events, CRM events, and customers concurrently
+      const [calendarEventsResult, crmEventsResult, customersResult] = await Promise.all([
+        supabase
+          .from('events')
+          .select('*')
+          .eq('user_id', userId)
+          .gte('start_date', startDateStr)
+          .lte('start_date', endDateStr)
+          .is('deleted_at', null),
 
-      if (calendarError) {
-        console.error('Error fetching calendar event stats:', calendarError);
-        throw calendarError;
+        supabase
+          .from('customers')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('create_event', true)
+          .gte('start_date', startDateStr)
+          .lte('start_date', endDateStr)
+          .is('deleted_at', null),
+
+        // Get all customers to find additional persons for events
+        supabase
+          .from('customers')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('type', 'customer')
+          .gte('start_date', startDateStr)
+          .lte('start_date', endDateStr)
+          .is('deleted_at', null)
+      ]);
+
+      if (calendarEventsResult.error) {
+        console.error('Error fetching calendar events:', calendarEventsResult.error);
+        throw calendarEventsResult.error;
       }
       
-      // Get all customers with create_event=true (events created from CRM)
-      const { data: crmEvents, error: crmError } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('create_event', true)
-        .gte('start_date', startDateStr)
-        .lte('start_date', endDateStr)
-        .is('deleted_at', null); // Also ensure we only count non-deleted CRM events
-        
-      if (crmError) {
-        console.error('Error fetching CRM event stats:', crmError);
-        throw crmError;
+      if (crmEventsResult.error) {
+        console.error('Error fetching CRM events:', crmEventsResult.error);
+        throw crmEventsResult.error;
+      }
+
+      if (customersResult.error) {
+        console.error('Error fetching customers:', customersResult.error);
+        throw customersResult.error;
       }
       
-      console.log(`Statistics - Found ${calendarEvents?.length || 0} calendar events and ${crmEvents?.length || 0} CRM events`);
+      console.log(`Statistics - Found ${calendarEventsResult.data?.length || 0} calendar events, ${crmEventsResult.data?.length || 0} CRM events, and ${customersResult.data?.length || 0} additional customers`);
       
       // Normalize payment status values
       const normalizePaymentStatus = (status: string | null | undefined) => {
@@ -134,65 +150,131 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         return status;
       };
       
-      // Combine all events, ensuring CRM events aren't duplicated
-      // Use a Map to prevent duplications by start_date and end_date
-      const eventsMap = new Map();
+      // Group events by their date/time to identify multi-person events
+      const eventGroups = new Map<string, any[]>();
       
-      // First add calendar events
-      calendarEvents?.forEach(event => {
-        const key = `${event.start_date}-${event.end_date}-${event.title}`;
-        eventsMap.set(key, {
+      // Process main events (calendar + CRM)
+      const allMainEvents = [
+        ...(calendarEventsResult.data || []), 
+        ...(crmEventsResult.data || [])
+      ];
+
+      // Group events by start_date and end_date
+      allMainEvents.forEach(event => {
+        const key = `${event.start_date}-${event.end_date}`;
+        if (!eventGroups.has(key)) {
+          eventGroups.set(key, []);
+        }
+        eventGroups.get(key)?.push({
           ...event,
-          payment_status: normalizePaymentStatus(event.payment_status)
+          payment_status: normalizePaymentStatus(event.payment_status),
+          source: 'main_event'
         });
       });
-      
-      // Then add CRM events if they don't already exist
-      crmEvents?.forEach(event => {
-        const key = `${event.start_date}-${event.end_date}-${event.title}`;
-        if (!eventsMap.has(key)) {
-          eventsMap.set(key, {
-            id: event.id,
-            title: event.title,
-            user_surname: event.user_surname || event.title,
-            start_date: event.start_date,
-            end_date: event.end_date,
-            payment_status: normalizePaymentStatus(event.payment_status),
-            payment_amount: event.payment_amount,
-            type: event.type || 'event',
-            created_at: event.created_at,
-            user_id: event.user_id,
-            // Other fields can be null or defaults
-          });
-        }
-      });
-      
-      // Convert Map back to array
-      const allEvents = Array.from(eventsMap.values());
-      console.log(`Statistics - Combined into ${allEvents.length} total unique events`);
-      
-      // Log detailed payment information for each event with payment data
-      console.log('Event payment data:');
-      allEvents.forEach((event, index) => {
-        if (event.payment_amount !== undefined && event.payment_amount !== null) {
-          console.log(`Event ${index + 1} (${event.id}):`, {
-            title: event.title,
-            raw_payment_amount: event.payment_amount,
-            type_of: typeof event.payment_amount,
-            payment_status: event.payment_status,
-            parsed_amount: parsePaymentAmount(event.payment_amount)
+
+      // Add customers to their corresponding event groups
+      (customersResult.data || []).forEach(customer => {
+        const key = `${customer.start_date}-${customer.end_date}`;
+        if (eventGroups.has(key)) {
+          eventGroups.get(key)?.push({
+            ...customer,
+            payment_status: normalizePaymentStatus(customer.payment_status),
+            source: 'additional_person'
           });
         }
       });
 
-      // Get payment status counts using normalized values
-      const partlyPaid = allEvents.filter(e => 
-        normalizePaymentStatus(e.payment_status) === 'partly_paid'
-      ).length || 0;
+      console.log(`Statistics - Combined into ${eventGroups.size} unique event groups`);
       
-      const fullyPaid = allEvents.filter(e => 
-        normalizePaymentStatus(e.payment_status) === 'fully_paid'
-      ).length || 0;
+      // Process statistics with multi-person income calculation
+      let total = eventGroups.size; // Count unique events, not individual persons
+      let partlyPaid = 0;
+      let fullyPaid = 0;
+      let totalIncome = 0;
+
+      const dailyBookings = new Map<string, number>();
+      const monthlyIncomeMap = new Map<string, number>();
+      const processedEvents: any[] = [];
+
+      for (const [timeKey, eventGroup] of eventGroups) {
+        // Calculate combined payment status and income for this event group
+        let groupIncome = 0;
+        let hasPartlyPaid = false;
+        let hasFullyPaid = false;
+        let hasAnyPayment = false;
+
+        // Find the main event for display purposes
+        const mainEvent = eventGroup.find(e => e.source === 'main_event') || eventGroup[0];
+
+        // Log detailed payment information for each person in the group
+        console.log(`Event group ${timeKey} payment data:`);
+        eventGroup.forEach((person, index) => {
+          if (person.payment_amount !== undefined && person.payment_amount !== null) {
+            console.log(`Person ${index + 1} (${person.id}):`, {
+              title: person.title,
+              raw_payment_amount: person.payment_amount,
+              type_of: typeof person.payment_amount,
+              payment_status: person.payment_status,
+              parsed_amount: parsePaymentAmount(person.payment_amount)
+            });
+          }
+        });
+
+        // Sum up all payments from all persons in this event group
+        eventGroup.forEach(person => {
+          const status = normalizePaymentStatus(person.payment_status);
+          
+          if (status === 'partly_paid') {
+            hasPartlyPaid = true;
+            hasAnyPayment = true;
+          }
+          if (status === 'fully_paid') {
+            hasFullyPaid = true;
+            hasAnyPayment = true;
+          }
+
+          // Income calculation - sum from all persons in the event
+          if ((status === 'partly_paid' || status === 'fully_paid') && person.payment_amount) {
+            const parsedAmount = parsePaymentAmount(person.payment_amount);
+            if (parsedAmount > 0) {
+              groupIncome += parsedAmount;
+              console.log(`Adding ${parsedAmount} from person ${person.id} in event group ${timeKey}`);
+            }
+          }
+        });
+
+        // Count payment status for the event (not per person)
+        if (hasPartlyPaid && !hasFullyPaid) partlyPaid++;
+        if (hasFullyPaid) fullyPaid++;
+
+        // Add group income to total
+        totalIncome += groupIncome;
+
+        // Daily and monthly stats (count as one event, not per person)
+        if (mainEvent.start_date) {
+          try {
+            const eventDate = parseISO(mainEvent.start_date);
+            const day = format(eventDate, 'yyyy-MM-dd');
+            dailyBookings.set(day, (dailyBookings.get(day) || 0) + 1);
+
+            // Monthly income aggregation (use group income)
+            if (hasAnyPayment && groupIncome > 0) {
+              const month = format(eventDate, 'MMM yyyy');
+              monthlyIncomeMap.set(month, (monthlyIncomeMap.get(month) || 0) + groupIncome);
+            }
+          } catch (dateError) {
+            console.warn('Invalid date in event:', mainEvent.start_date);
+          }
+        }
+
+        // Create a combined event entry for export compatibility
+        processedEvents.push({
+          ...mainEvent,
+          combined_payment_amount: groupIncome,
+          person_count: eventGroup.length,
+          all_persons: eventGroup
+        });
+      }
 
       // Get all days in the selected range for daily bookings
       const daysInRange = eachDayOfInterval({
@@ -200,18 +282,13 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         end: dateRange.end
       });
 
-      const dailyBookings = daysInRange.map(day => {
-        const dayEvents = allEvents.filter(event => {
-          if (!event.start_date) return false;
-          const eventDate = parseISO(event.start_date);
-          return format(eventDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
-        });
-
+      const dailyBookingsArray = daysInRange.map(day => {
+        const dayKey = format(day, 'yyyy-MM-dd');
         return {
           day: format(day, 'dd'),
           date: day,
           month: format(day, 'MMM yyyy'),
-          bookings: dayEvents?.length || 0,
+          bookings: dailyBookings.get(dayKey) || 0,
         };
       });
 
@@ -222,62 +299,97 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         format(dateRange.start, 'yyyy-MM-dd') === format(startOfMonth(currentDate), 'yyyy-MM-dd') &&
         format(dateRange.end, 'yyyy-MM-dd') === format(endOfMonth(currentDate), 'yyyy-MM-dd');
 
-      // For monthly income, we need to fetch events from a wider range to get 3 months of data
       const incomeRangeStart = addMonths(startOfMonth(currentDate), -2);
       const incomeRangeEnd = endOfDay(endOfMonth(currentDate));
       
-      // Fetch additional events for income calculation if needed
-      let allEventsForIncome = allEvents;
+      let allEventsForIncome = processedEvents;
       
       if (isDefaultDateRange) {
         // We need to fetch events from the wider range for income calculation
-        const { data: additionalCalendarEvents } = await supabase
-          .from('events')
-          .select('*')
-          .eq('user_id', userId)
-          .gte('start_date', incomeRangeStart.toISOString())
-          .lte('start_date', incomeRangeEnd.toISOString())
-          .is('deleted_at', null);
+        const [additionalCalendarEvents, additionalCrmEvents, additionalCustomers] = await Promise.all([
+          supabase
+            .from('events')
+            .select('*')
+            .eq('user_id', userId)
+            .gte('start_date', incomeRangeStart.toISOString())
+            .lte('start_date', incomeRangeEnd.toISOString())
+            .is('deleted_at', null),
 
-        const { data: additionalCrmEvents } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('create_event', true)
-          .gte('start_date', incomeRangeStart.toISOString())
-          .lte('start_date', incomeRangeEnd.toISOString())
-          .is('deleted_at', null);
+          supabase
+            .from('customers')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('create_event', true)
+            .gte('start_date', incomeRangeStart.toISOString())
+            .lte('start_date', incomeRangeEnd.toISOString())
+            .is('deleted_at', null),
 
-        // Combine additional events for income calculation
-        const additionalEventsMap = new Map();
+          supabase
+            .from('customers')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('type', 'customer')
+            .gte('start_date', incomeRangeStart.toISOString())
+            .lte('start_date', incomeRangeEnd.toISOString())
+            .is('deleted_at', null)
+        ]);
+
+        // Process additional events with the same grouping logic
+        const additionalEventGroups = new Map<string, any[]>();
         
-        additionalCalendarEvents?.forEach(event => {
-          const key = `${event.start_date}-${event.end_date}-${event.title}`;
-          additionalEventsMap.set(key, {
+        const allAdditionalMainEvents = [
+          ...(additionalCalendarEvents.data || []), 
+          ...(additionalCrmEvents.data || [])
+        ];
+
+        allAdditionalMainEvents.forEach(event => {
+          const key = `${event.start_date}-${event.end_date}`;
+          if (!additionalEventGroups.has(key)) {
+            additionalEventGroups.set(key, []);
+          }
+          additionalEventGroups.get(key)?.push({
             ...event,
-            payment_status: normalizePaymentStatus(event.payment_status)
+            payment_status: normalizePaymentStatus(event.payment_status),
+            source: 'main_event'
           });
         });
-        
-        additionalCrmEvents?.forEach(event => {
-          const key = `${event.start_date}-${event.end_date}-${event.title}`;
-          if (!additionalEventsMap.has(key)) {
-            additionalEventsMap.set(key, {
-              id: event.id,
-              title: event.title,
-              user_surname: event.user_surname || event.title,
-              start_date: event.start_date,
-              end_date: event.end_date,
-              payment_status: normalizePaymentStatus(event.payment_status),
-              payment_amount: event.payment_amount,
-              type: event.type || 'event',
-              created_at: event.created_at,
-              user_id: event.user_id,
+
+        (additionalCustomers.data || []).forEach(customer => {
+          const key = `${customer.start_date}-${customer.end_date}`;
+          if (additionalEventGroups.has(key)) {
+            additionalEventGroups.get(key)?.push({
+              ...customer,
+              payment_status: normalizePaymentStatus(customer.payment_status),
+              source: 'additional_person'
             });
           }
         });
+
+        // Process additional events
+        const additionalProcessedEvents: any[] = [];
+        for (const [timeKey, eventGroup] of additionalEventGroups) {
+          let groupIncome = 0;
+          const mainEvent = eventGroup.find(e => e.source === 'main_event') || eventGroup[0];
+
+          eventGroup.forEach(person => {
+            const status = normalizePaymentStatus(person.payment_status);
+            if ((status === 'partly_paid' || status === 'fully_paid') && person.payment_amount) {
+              const parsedAmount = parsePaymentAmount(person.payment_amount);
+              if (parsedAmount > 0) {
+                groupIncome += parsedAmount;
+              }
+            }
+          });
+
+          additionalProcessedEvents.push({
+            ...mainEvent,
+            combined_payment_amount: groupIncome,
+            person_count: eventGroup.length,
+            all_persons: eventGroup
+          });
+        }
         
-        allEventsForIncome = Array.from(additionalEventsMap.values());
+        allEventsForIncome = additionalProcessedEvents;
       }
 
       // Calculate monthly income - always show 3 months for the chart
@@ -298,17 +410,13 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           return eventDate >= monthStart && eventDate <= monthEnd;
         });
         
-        // Calculate income from events with valid payment status
+        // Calculate income from events using combined payment amounts
         let income = 0;
         
         monthEvents.forEach(event => {
-          const status = normalizePaymentStatus(event.payment_status);
-          const isPaid = status === 'fully_paid' || status === 'partly_paid';
-          
-          if (isPaid && (event.payment_amount !== undefined && event.payment_amount !== null)) {
-            const parsedAmount = parsePaymentAmount(event.payment_amount);
-            income += parsedAmount;
-            console.log(`Month ${format(month, 'MMM yyyy')} - Added ${parsedAmount} from event ${event.id}`);
+          if (event.combined_payment_amount && event.combined_payment_amount > 0) {
+            income += event.combined_payment_amount;
+            console.log(`Month ${format(month, 'MMM yyyy')} - Added ${event.combined_payment_amount} from event ${event.id}`);
           }
         });
         
@@ -319,59 +427,32 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       });
       
       // Debug: Monthly income data
-      console.log('Monthly income data:', monthlyIncome);
+      console.log('Monthly income data with multi-person calculation:', monthlyIncome);
 
-      // Calculate total income directly from all events with consistent parsing
-      let totalIncome = 0;
-      let validPaymentCount = 0;
-      
-      allEvents.forEach(event => {
-        const status = normalizePaymentStatus(event.payment_status);
-        const isPaid = status === 'fully_paid' || status === 'partly_paid';
-                       
-        if (isPaid && (event.payment_amount !== undefined && event.payment_amount !== null)) {
-          const parsedAmount = parsePaymentAmount(event.payment_amount);
-          
-          if (parsedAmount > 0) {
-            validPaymentCount++;
-            console.log(`Total income: Adding ${parsedAmount} from event ${event.id} (${event.title})`);
-            totalIncome += parsedAmount;
-          }
-        }
-      });
-      
-      // Double check by calculating total from current month only (for totalIncome display)
-      const currentMonthEvents = allEvents.filter(event => {
-        if (!event.start_date) return false;
-        const eventDate = parseISO(event.start_date);
-        const currentMonthStart = startOfMonth(currentDate);
-        const currentMonthEnd = endOfDay(endOfMonth(currentDate));
-        return eventDate >= currentMonthStart && eventDate <= currentMonthEnd;
-      });
-      
-      let currentMonthIncome = 0;
-      currentMonthEvents.forEach(event => {
-        const status = normalizePaymentStatus(event.payment_status);
-        const isPaid = status === 'fully_paid' || status === 'partly_paid';
-                       
-        if (isPaid && (event.payment_amount !== undefined && event.payment_amount !== null)) {
-          const parsedAmount = parsePaymentAmount(event.payment_amount);
-          if (parsedAmount > 0) {
-            currentMonthIncome += parsedAmount;
-          }
-        }
-      });
-      
       // Use current month income for totalIncome display if we're in default view
       if (isDefaultDateRange) {
+        const currentMonthEvents = processedEvents.filter(event => {
+          if (!event.start_date) return false;
+          const eventDate = parseISO(event.start_date);
+          const currentMonthStart = startOfMonth(currentDate);
+          const currentMonthEnd = endOfDay(endOfMonth(currentDate));
+          return eventDate >= currentMonthStart && eventDate <= currentMonthEnd;
+        });
+        
+        let currentMonthIncome = 0;
+        currentMonthEvents.forEach(event => {
+          if (event.combined_payment_amount && event.combined_payment_amount > 0) {
+            currentMonthIncome += event.combined_payment_amount;
+          }
+        });
+        
         totalIncome = currentMonthIncome;
       }
       
-      console.log('Income calculation summary:', {
+      console.log('Income calculation summary with multi-person support:', {
         totalDirectCalculation: totalIncome,
-        currentMonthIncome,
-        eventsWithValidPayment: validPaymentCount,
-        totalEventCount: allEvents.length,
+        eventGroupCount: eventGroups.size,
+        processedEventCount: processedEvents.length,
         isDefaultView: isDefaultDateRange
       });
 
@@ -381,16 +462,16 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         totalIncome = 0;
       }
 
-      console.log(`Final totalIncome value: ${totalIncome}`);
+      console.log(`Final totalIncome value with multi-person calculation: ${totalIncome}`);
 
       return {
-        total: allEvents.length || 0,
+        total,
         partlyPaid,
         fullyPaid,
-        dailyStats: dailyBookings,
+        dailyStats: dailyBookingsArray,
         monthlyIncome,
         totalIncome,
-        events: allEvents || [],
+        events: processedEvents || [],
       };
     },
     enabled: !!userId,
