@@ -32,7 +32,7 @@ interface EventDialogProps {
   selectedDate: Date | null;
   defaultEndDate?: Date | null;
   onSubmit: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  onDelete?: (eventId: string, deleteChoice?: 'this' | 'series') => Promise<void>;
+  onDelete?: (eventId: string, deleteChoice?: 'this' | 'series') => Promise<{ success: boolean }>;
   event?: CalendarEventType;
   isBookingRequest?: boolean;
 }
@@ -609,10 +609,11 @@ export const EventDialog = ({
 
   // Handle delete click for recurring events
   const handleDeleteClick = () => {
-    console.log("Delete button clicked for event:", event?.id);
-    console.log("Event details:", { isRecurringParent, isRecurringInstance, isVirtualInstance, onDelete: !!onDelete });
+    console.log("=== DELETE BUTTON CLICKED ===");
+    console.log("Event ID:", event?.id);
+    console.log("Event details:", { isRecurringParent, isRecurringInstance, isVirtualInstance });
+    console.log("onDelete function available:", !!onDelete);
     
-    // Check if onDelete function is available
     if (!onDelete) {
       console.warn("Delete failed: onDelete function not available");
       toast({
@@ -623,7 +624,6 @@ export const EventDialog = ({
       return;
     }
 
-    // Check if event ID exists
     if (!event?.id) {
       console.warn("Delete failed: no event ID");
       toast({
@@ -634,37 +634,27 @@ export const EventDialog = ({
       return;
     }
 
-    // Handle virtual instances - show info message
-    if (isVirtualInstance) {
-      console.log("This is a virtual recurring instance");
-      toast({
-        title: "Info",
-        description: "This is a generated recurring instance. To delete it, choose 'Delete this event only' or modify the series.",
-        variant: "default",
-      });
-      setShowDeleteRecurringDialog(true);
-      return;
-    }
-
-    // Handle recurring events (both parent and real instances)
+    // For recurring events, show the choice dialog
     if (isRecurringParent || isRecurringInstance) {
-      console.log("Opening recurring delete dialog");
+      console.log("Showing recurring delete dialog");
       setShowDeleteRecurringDialog(true);
     } else {
-      // Handle regular events
-      console.log("Opening simple delete confirmation");
+      console.log("Showing simple delete confirmation");
       setIsDeleteConfirmOpen(true);
     }
   };
 
   // Handle recurring event delete choice
   const handleDeleteChoice = async (choice: 'this' | 'series') => {
-    console.log("Delete choice made:", choice, "for event:", event?.id);
+    console.log("=== DELETE CHOICE MADE ===");
+    console.log("Choice:", choice);
+    console.log("Event ID:", event?.id);
+    
     setDeleteChoice(choice);
     setShowDeleteRecurringDialog(false);
     
     if (!onDelete || !event?.id) {
-      console.error("onDelete function not available or no event ID");
+      console.error("Cannot delete: missing onDelete function or event ID");
       toast({
         title: "Error",
         description: "Cannot delete event: missing required data",
@@ -674,33 +664,28 @@ export const EventDialog = ({
     }
 
     try {
-      console.log("Calling onDelete with eventId:", event.id, "and choice:", choice);
+      console.log("Calling onDelete function...");
+      const result = await onDelete(event.id, choice);
       
-      // Handle virtual instances for 'this' choice
-      if (isVirtualInstance && choice === 'this') {
-        console.log("Virtual instance deletion - triggering UI refresh only");
-        // For virtual instances, we just refresh the UI
-        queryClient.invalidateQueries({ queryKey: ['events'] });
-        queryClient.invalidateQueries({ queryKey: ['business-events'] });
-        toast({
-          title: "Success",
-          description: "Recurring instance removed from view",
-          variant: "default",
-        });
+      console.log("Delete result:", result);
+      
+      if (result?.success) {
+        console.log("Delete successful, closing dialog");
         onOpenChange(false);
-        return;
+        
+        // Force a complete refresh
+        await queryClient.invalidateQueries({ queryKey: ['events'] });
+        await queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      } else {
+        console.error("Delete failed - no success indication");
+        toast({
+          title: "Error",
+          description: "Failed to delete event",
+          variant: "destructive",
+        });
       }
-      
-      await onDelete(event.id, choice);
-      console.log("Delete completed successfully");
-      
-      // Always refresh queries after deletion
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['business-events'] });
-      
-      onOpenChange(false);
     } catch (error) {
-      console.error("Delete failed:", error);
+      console.error("Delete failed with error:", error);
       toast({
         title: "Error",
         description: "Failed to delete event",
@@ -711,10 +696,11 @@ export const EventDialog = ({
 
   // Handle confirmed deletion for non-recurring events
   const handleConfirmDelete = async () => {
-    console.log("Confirming delete for non-recurring event:", event?.id);
+    console.log("=== CONFIRM DELETE CLICKED ===");
+    console.log("Event ID:", event?.id);
     
     if (!onDelete || !event?.id) {
-      console.error("onDelete function not available or no event ID for simple delete");
+      console.error("Cannot delete: missing onDelete function or event ID");
       toast({
         title: "Error",
         description: "Cannot delete event: missing required data",
@@ -725,24 +711,30 @@ export const EventDialog = ({
     }
 
     try {
-      console.log("Calling onDelete for simple event deletion");
-      await onDelete(event.id);
-      console.log("Simple delete completed successfully");
+      console.log("Calling onDelete for simple event...");
+      const result = await onDelete(event.id);
       
-      // Always refresh queries after deletion
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      console.log("Simple delete result:", result);
       
-      setIsDeleteConfirmOpen(false);
-      onOpenChange(false);
-      
-      toast({
-        title: "Success",
-        description: "Event deleted successfully",
-        variant: "default",
-      });
+      if (result?.success) {
+        console.log("Delete successful, closing dialogs");
+        setIsDeleteConfirmOpen(false);
+        onOpenChange(false);
+        
+        // Force a complete refresh
+        await queryClient.invalidateQueries({ queryKey: ['events'] });
+        await queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      } else {
+        console.error("Delete failed - no success indication");
+        setIsDeleteConfirmOpen(false);
+        toast({
+          title: "Error",
+          description: "Failed to delete event",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
-      console.error("Simple delete failed:", error);
+      console.error("Simple delete failed with error:", error);
       setIsDeleteConfirmOpen(false);
       toast({
         title: "Error",

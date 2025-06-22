@@ -46,8 +46,8 @@ export const useEventDialog = ({
       console.log("Event created successfully:", createdEvent);
       
       // Refresh queries after creation
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
+      await queryClient.invalidateQueries({ queryKey: ['business-events'] });
       
       return createdEvent;
     } catch (error: any) {
@@ -87,8 +87,8 @@ export const useEventDialog = ({
       console.log("Event updated successfully:", updatedEvent);
       
       // Refresh queries after update
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
+      await queryClient.invalidateQueries({ queryKey: ['business-events'] });
       
       return updatedEvent;
     } catch (error: any) {
@@ -102,54 +102,51 @@ export const useEventDialog = ({
     }
   };
 
-  // Updated delete handler to properly accept and pass parameters
-  const handleDeleteEvent = async (eventId: string, deleteChoice?: 'this' | 'series') => {
+  // Fixed delete handler that properly executes deletion
+  const handleDeleteEvent = async (eventId: string, deleteChoice?: 'this' | 'series'): Promise<{ success: boolean }> => {
     try {
       if (!deleteEvent) {
         throw new Error("Delete event function not provided");
       }
       
-      console.log("useEventDialog: handleDeleteEvent called with:", { eventId, deleteChoice });
-      
-      // Handle virtual instances for 'this' choice
-      if (eventId.includes('-') && deleteChoice === 'this') {
-        console.log("Virtual instance deletion - triggering UI refresh only");
-        queryClient.invalidateQueries({ queryKey: ['events'] });
-        queryClient.invalidateQueries({ queryKey: ['business-events'] });
-        
-        toast({
-          title: "Success",
-          description: "Recurring instance removed from view",
-          variant: "default",
-        });
-        
-        setSelectedEvent(null);
-        return;
+      if (!eventId) {
+        throw new Error("No event ID provided");
       }
       
-      // Call the actual delete function with proper parameters
+      console.log("=== USEVENTDIALOG DELETE START ===");
+      console.log("Event ID:", eventId);
+      console.log("Delete choice:", deleteChoice);
+      
+      // Call the actual delete function
       await deleteEvent(eventId, deleteChoice);
       
-      setSelectedEvent(null);
-      console.log("Event deleted successfully:", eventId);
+      console.log("Delete function completed successfully");
       
-      // Always refresh queries after deletion
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      // Clear selected event
+      setSelectedEvent(null);
+      
+      // Force refresh to ensure UI updates
+      console.log("Forcing query refresh after delete...");
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
+      await queryClient.invalidateQueries({ queryKey: ['business-events'] });
       
       toast({
         title: "Success",
         description: "Event deleted successfully",
         variant: "default",
       });
+      
+      console.log("=== USEVENTDIALOG DELETE COMPLETED ===");
+      return { success: true };
+      
     } catch (error: any) {
-      console.error("Failed to delete event:", error);
+      console.error("=== USEVENTDIALOG DELETE FAILED ===", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete event",
         variant: "destructive",
       });
-      throw error;
+      return { success: false };
     }
   };
 
