@@ -210,7 +210,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     return data;
   };
 
-  // Simplified delete function - restored to original working state
+  // Fixed delete function to match expected signature
   const deleteEvent = async (eventId: string, deleteChoice?: 'this' | 'series'): Promise<{ success: boolean }> => {
     if (!user) {
       throw new Error("User not authenticated.");
