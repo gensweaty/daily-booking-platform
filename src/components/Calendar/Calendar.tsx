@@ -250,6 +250,27 @@ export const Calendar = ({
     toast.event.bookingSubmitted();
   };
 
+  // Functions to handle event operations and refresh calendar
+  const refreshCalendar = () => {
+    const queryKey = businessId ? ['business-events', businessId] : ['events', user?.id];
+    queryClient.invalidateQueries({ queryKey });
+  };
+
+  const handleEventCreated = () => {
+    console.log("Event created, refreshing calendar...");
+    refreshCalendar();
+  };
+
+  const handleEventUpdated = () => {
+    console.log("Event updated, refreshing calendar...");
+    refreshCalendar();
+  };
+
+  const handleEventDeleted = () => {
+    console.log("Event deleted, refreshing calendar...");
+    refreshCalendar();
+  };
+
   if (error && !directEvents) {
     console.error("Calendar error:", error);
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
@@ -306,10 +327,7 @@ export const Calendar = ({
             isOpen={isNewEventDialogOpen}
             onClose={() => setIsNewEventDialogOpen(false)}
             selectedDate={dialogSelectedDate}
-            onEventCreated={() => {
-              // This callback is called after the event is successfully created
-              // The EventDialog handles the actual creation internally
-            }}
+            onEventCreated={handleEventCreated}
           />
 
           {selectedEvent && (
@@ -319,14 +337,8 @@ export const Calendar = ({
               onClose={() => setSelectedEvent(null)}
               selectedDate={new Date(selectedEvent.start_date)}
               event={selectedEvent}
-              onEventUpdated={() => {
-                // This callback is called after the event is successfully updated
-                // The EventDialog handles the actual update internally
-              }}
-              onEventDeleted={() => {
-                // This callback is called after the event is successfully deleted
-                // The EventDialog handles the actual deletion internally
-              }}
+              onEventUpdated={handleEventUpdated}
+              onEventDeleted={handleEventDeleted}
             />
           )}
         </>

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { format, addYears, endOfYear } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,7 +17,8 @@ import { FileRecord } from "@/types/files";
 import { EventDialogFields } from "./EventDialogFields";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
-import { generateRecurringInstances } from "@/lib/recurringEvents";
+import { generateRecurringInstances, isVirtualInstance } from "@/lib/recurringEvents";
+import { Trash } from "lucide-react";
 
 interface EventDialogProps {
   isOpen: boolean;
@@ -66,11 +68,15 @@ export const EventDialog = ({
   const [displayedFiles, setDisplayedFiles] = useState<FileRecord[]>([]);
   const [repeatPattern, setRepeatPattern] = useState("none");
   const [repeatUntil, setRepeatUntil] = useState<Date | undefined>(undefined);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   const { toast } = useToast();
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
   const isNewEvent = !event;
+
+  // Check if this is a recurring event that needs delete confirmation
+  const isRecurringEvent = event && (event.is_recurring || isVirtualInstance(event.id));
 
   // Initialize form when dialog opens
   useEffect(() => {
@@ -112,6 +118,7 @@ export const EventDialog = ({
       setSelectedFile(null);
       setFileError("");
       setDisplayedFiles([]);
+      setShowDeleteConfirmation(false);
     }
   }, [isOpen, event, selectedDate]);
 
@@ -309,23 +316,99 @@ export const EventDialog = ({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDeleteClick = () => {
+    if (isRecurringEvent) {
+      setShowDeleteConfirmation(true);
+    } else {
+      handleDelete();
+    }
+  };
+
+  const handleDelete = async (deleteChoice?: "this" | "series") => {
     if (!event) return;
     
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', event.id);
+      if (isRecurringEvent && deleteChoice) {
+        // Handle recurring event deletion with choice
+        if (isVirtualInstance(event.id)) {
+          const parentId = event.id.split("-").slice(0, -3).join("-");
+          const instanceDate = event.id.split("-").slice(-3).join("-");
+          
+          if (deleteChoice === "this") {
+            // Create deletion exception for this instance
+            const exceptionData = {
+              user_id: event.user_id,
+              title: `DELETED_EXCEPTION_${instanceDate}`,
+              start_date: instanceDate + 'T00:00:00.000Z',
+              end_date: instanceDate + 'T23:59:59.999Z',
+              type: 'deleted_exception',
+              parent_event_id: parentId,
+              event_notes: `Exception for recurring event on ${instanceDate}`,
+              is_recurring: false
+            };
+            
+            const { error } = await supabase
+              .from('events')
+              .insert(exceptionData);
+              
+            if (error) throw error;
+          } else if (deleteChoice === "series") {
+            // Delete the parent event
+            const { error } = await supabase
+              .from('events')
+              .update({ deleted_at: new Date().toISOString() })
+              .eq('id', parentId);
+              
+            if (error) throw error;
+          }
+        } else {
+          // This is the base event of a recurring series
+          if (deleteChoice === "this") {
+            // Create exception for first occurrence
+            const firstDate = new Date(event.start_date).toISOString().split('T')[0];
+            const exceptionData = {
+              user_id: event.user_id,
+              title: `DELETED_EXCEPTION_${firstDate}`,
+              start_date: firstDate + 'T00:00:00.000Z',
+              end_date: firstDate + 'T23:59:59.999Z',
+              type: 'deleted_exception',
+              parent_event_id: event.id,
+              event_notes: `Exception for recurring event on ${firstDate}`,
+              is_recurring: false
+            };
+            
+            const { error } = await supabase
+              .from('events')
+              .insert(exceptionData);
+              
+            if (error) throw error;
+          } else {
+            // Delete entire series
+            const { error } = await supabase
+              .from('events')
+              .update({ deleted_at: new Date().toISOString() })
+              .eq('id', event.id);
 
-      if (error) throw error;
+            if (error) throw error;
+          }
+        }
+      } else {
+        // Regular event deletion
+        const { error } = await supabase
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', event.id);
+
+        if (error) throw error;
+      }
 
       toast({
         title: isGeorgian ? "წარმატება" : "Success",
         description: isGeorgian ? "ღონისძიება წაიშალა" : "Event deleted successfully",
       });
 
+      setShowDeleteConfirmation(false);
       onEventDeleted?.();
       onClose();
     } catch (error) {
@@ -348,100 +431,137 @@ export const EventDialog = ({
   } : undefined;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-            {event 
-              ? (isGeorgian ? <GeorgianAuthText>ღონისძიების რედაქტირება</GeorgianAuthText> : <LanguageText>{t("events.editEvent")}</LanguageText>)
-              : (isBookingRequest 
-                ? (isGeorgian ? <GeorgianAuthText>ჯავშნის მოთხოვნა</GeorgianAuthText> : <LanguageText>{t("booking.bookingRequest")}</LanguageText>)
-                : (isGeorgian ? <GeorgianAuthText>ახალი ღონისძიება</GeorgianAuthText> : <LanguageText>{t("events.newEvent")}</LanguageText>)
-              )
-            }
-          </DialogTitle>
-        </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <EventDialogFields
-            title={title}
-            setTitle={setTitle}
-            userSurname={userSurname}
-            setUserSurname={setUserSurname}
-            userNumber={userNumber}
-            setUserNumber={setUserNumber}
-            socialNetworkLink={socialNetworkLink}
-            setSocialNetworkLink={setSocialNetworkLink}
-            eventNotes={eventNotes}
-            setEventNotes={setEventNotes}
-            eventName={eventName}
-            setEventName={setEventName}
-            startDate={startDate}
-            setStartDate={setStartDate}
-            endDate={endDate}
-            setEndDate={setEndDate}
-            paymentStatus={paymentStatus}
-            setPaymentStatus={setPaymentStatus}
-            paymentAmount={paymentAmount}
-            setPaymentAmount={setPaymentAmount}
-            selectedFile={selectedFile}
-            setSelectedFile={setSelectedFile}
-            fileError={fileError}
-            setFileError={setFileError}
-            eventId={event?.id}
-            displayedFiles={displayedFiles}
-            onFileDeleted={handleFileDeleted}
-            isBookingRequest={isBookingRequest}
-            repeatPattern={repeatPattern}
-            setRepeatPattern={setRepeatPattern}
-            repeatUntil={repeatUntil}
-            setRepeatUntil={setRepeatUntil}
-            isNewEvent={isNewEvent}
-          />
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+              {event 
+                ? (isGeorgian ? <GeorgianAuthText>ღონისძიების რედაქტირება</GeorgianAuthText> : <LanguageText>{t("events.editEvent")}</LanguageText>)
+                : (isBookingRequest 
+                  ? (isGeorgian ? <GeorgianAuthText>ჯავშნის მოთხოვნა</GeorgianAuthText> : <LanguageText>{t("booking.bookingRequest")}</LanguageText>)
+                  : (isGeorgian ? <GeorgianAuthText>ახალი ღონისძიება</GeorgianAuthText> : <LanguageText>{t("events.newEvent")}</LanguageText>)
+                )
+              }
+            </DialogTitle>
+          </DialogHeader>
           
-          <div className="flex justify-between pt-4">
-            <div>
-              {event && !isBookingRequest && (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <EventDialogFields
+              title={title}
+              setTitle={setTitle}
+              userSurname={userSurname}
+              setUserSurname={setUserSurname}
+              userNumber={userNumber}
+              setUserNumber={setUserNumber}
+              socialNetworkLink={socialNetworkLink}
+              setSocialNetworkLink={setSocialNetworkLink}
+              eventNotes={eventNotes}
+              setEventNotes={setEventNotes}
+              eventName={eventName}
+              setEventName={setEventName}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              paymentStatus={paymentStatus}
+              setPaymentStatus={setPaymentStatus}
+              paymentAmount={paymentAmount}
+              setPaymentAmount={setPaymentAmount}
+              selectedFile={selectedFile}
+              setSelectedFile={setSelectedFile}
+              fileError={fileError}
+              setFileError={setFileError}
+              eventId={event?.id}
+              displayedFiles={displayedFiles}
+              onFileDeleted={handleFileDeleted}
+              isBookingRequest={isBookingRequest}
+              repeatPattern={repeatPattern}
+              setRepeatPattern={setRepeatPattern}
+              repeatUntil={repeatUntil}
+              setRepeatUntil={setRepeatUntil}
+              isNewEvent={isNewEvent}
+            />
+            
+            <div className="flex justify-between pt-4">
+              <div>
+                {event && !isBookingRequest && (
+                  <Button 
+                    type="button" 
+                    variant="destructive" 
+                    onClick={handleDeleteClick}
+                    disabled={loading}
+                    className={cn(isGeorgian ? "font-georgian" : "")}
+                    style={georgianStyle}
+                  >
+                    <Trash className="h-4 w-4 mr-2" />
+                    {isGeorgian ? <GeorgianAuthText>წაშლა</GeorgianAuthText> : <LanguageText>{t("common.delete")}</LanguageText>}
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2">
                 <Button 
                   type="button" 
-                  variant="destructive" 
-                  onClick={handleDelete}
+                  variant="outline" 
+                  onClick={onClose}
+                  className={cn(isGeorgian ? "font-georgian" : "")}
+                  style={georgianStyle}
+                >
+                  {isGeorgian ? <GeorgianAuthText>გაუქმება</GeorgianAuthText> : <LanguageText>{t("common.cancel")}</LanguageText>}
+                </Button>
+                <Button 
+                  type="submit" 
                   disabled={loading}
                   className={cn(isGeorgian ? "font-georgian" : "")}
                   style={georgianStyle}
                 >
-                  {isGeorgian ? <GeorgianAuthText>წაშლა</GeorgianAuthText> : <LanguageText>{t("common.delete")}</LanguageText>}
+                  {loading 
+                    ? (isGeorgian ? <GeorgianAuthText>მუშავდება...</GeorgianAuthText> : <LanguageText>{t("common.saving")}</LanguageText>)
+                    : (event 
+                      ? (isGeorgian ? <GeorgianAuthText>განახლება</GeorgianAuthText> : <LanguageText>{t("common.update")}</LanguageText>)
+                      : (isGeorgian ? <GeorgianAuthText>შენახვა</GeorgianAuthText> : <LanguageText>{t("common.save")}</LanguageText>)
+                    )
+                  }
                 </Button>
-              )}
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={onClose}
-                className={cn(isGeorgian ? "font-georgian" : "")}
-                style={georgianStyle}
-              >
-                {isGeorgian ? <GeorgianAuthText>გაუქმება</GeorgianAuthText> : <LanguageText>{t("common.cancel")}</LanguageText>}
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={loading}
-                className={cn(isGeorgian ? "font-georgian" : "")}
-                style={georgianStyle}
-              >
-                {loading 
-                  ? (isGeorgian ? <GeorgianAuthText>მუშავდება...</GeorgianAuthText> : <LanguageText>{t("common.saving")}</LanguageText>)
-                  : (event 
-                    ? (isGeorgian ? <GeorgianAuthText>განახლება</GeorgianAuthText> : <LanguageText>{t("common.update")}</LanguageText>)
-                    : (isGeorgian ? <GeorgianAuthText>შენახვა</GeorgianAuthText> : <LanguageText>{t("common.save")}</LanguageText>)
-                  )
-                }
-              </Button>
-            </div>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog for Recurring Events */}
+      <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {isGeorgian ? "განმეორადი ღონისძიების წაშლა" : "Delete Recurring Event"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isGeorgian 
+                ? "ეს ღონისძიება განმეორადია. რას გსურთ?" 
+                : "This is a recurring event. What would you like to do?"
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDeleteConfirmation(false)}>
+              {isGeorgian ? "გაუქმება" : "Cancel"}
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => handleDelete("this")}
+              variant="outline"
+            >
+              {isGeorgian ? "მხოლოდ ეს ღონისძიება" : "Delete this event only"}
+            </AlertDialogAction>
+            <AlertDialogAction 
+              onClick={() => handleDelete("series")}
+              variant="destructive"
+            >
+              {isGeorgian ? "მთელი სერია" : "Delete entire series"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
