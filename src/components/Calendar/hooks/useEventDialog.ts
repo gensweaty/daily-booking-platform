@@ -8,7 +8,7 @@ import { isVirtualInstance } from "@/lib/recurringEvents";
 interface UseEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
   updateEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  deleteEvent?: (id: string, deleteChoice?: "this" | "series") => Promise<{ success: boolean; }>;
+  deleteEvent?: ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => Promise<{ success: boolean; }>;
 }
 
 export const useEventDialog = ({
@@ -113,7 +113,7 @@ export const useEventDialog = ({
         return { success: false }; // Don't close dialog yet
       }
       
-      const result = await deleteEvent(selectedEvent.id, deleteChoice);
+      const result = await deleteEvent({ id: selectedEvent.id, deleteChoice });
       
       setSelectedEvent(null);
       setShowDeleteChoiceDialog(false);

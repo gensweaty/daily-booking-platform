@@ -124,10 +124,7 @@ export const Calendar = ({
       });
       return result;
     },
-    deleteEvent: async (id, deleteChoice) => {
-      const result = await deleteEvent?.(id, deleteChoice);
-      return result;
-    }
+    deleteEvent: deleteEvent
   });
 
   if (!isExternalCalendar && !user && !window.location.pathname.includes('/business/')) {

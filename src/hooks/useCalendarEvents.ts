@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -149,7 +150,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
   });
 
   const deleteEventMutation = useMutation({
-    mutationFn: async (id: string, deleteChoice?: "this" | "series") => {
+    mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
       console.log("Deleting event:", id, "choice:", deleteChoice);
       
       // Handle virtual instance deletion
