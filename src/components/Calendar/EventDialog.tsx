@@ -22,9 +22,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { RecurringEventEditDialog } from './RecurringEventEditDialog';
-import { RecurringEventDeleteDialog } from './RecurringEventDeleteDialog';
-import { parseRecurringPattern } from '@/lib/recurringEvents';
 
 interface EventDialogProps {
   open: boolean;
@@ -32,7 +29,7 @@ interface EventDialogProps {
   selectedDate: Date | null;
   defaultEndDate?: Date | null;
   onSubmit: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  onDelete?: (eventId: string, deleteChoice?: 'this' | 'series') => Promise<{ success: boolean }>;
+  onDelete?: () => void;
   event?: CalendarEventType;
   isBookingRequest?: boolean;
 }
@@ -63,12 +60,6 @@ export const EventDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
-  const [repeatPattern, setRepeatPattern] = useState(event?.repeat_pattern || "");
-  const [repeatUntil, setRepeatUntil] = useState(event?.repeat_until || "");
-  const [showEditRecurringDialog, setShowEditRecurringDialog] = useState(false);
-  const [showDeleteRecurringDialog, setShowDeleteRecurringDialog] = useState(false);
-  const [editChoice, setEditChoice] = useState<'this' | 'series' | null>(null);
-  const [deleteChoice, setDeleteChoice] = useState<'this' | 'series' | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -77,13 +68,6 @@ export const EventDialog = ({
   const isGeorgian = language === 'ka';
   // Add state for delete confirmation dialog
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-
-  // Check if this is a recurring parent or instance
-  const isRecurringParent = event?.is_recurring === true;
-  const isRecurringInstance = event?.isRecurringInstance === true || !!event?.parent_event_id;
-
-  // Check if this is a virtual/frontend-generated instance
-  const isVirtualInstance = event?.id?.includes('-') && isRecurringInstance;
 
   // Synchronize fields when event data changes or when dialog opens
   useEffect(() => {
@@ -128,10 +112,6 @@ export const EventDialog = ({
       
       console.log("EventDialog - Loaded event with type:", event.type);
       console.log("EventDialog - Loaded payment status:", normalizedStatus);
-      
-      // Set recurring fields
-      setRepeatPattern(event.repeat_pattern || "");
-      setRepeatUntil(event.repeat_until || "");
     } else if (selectedDate) {
       const start = new Date(selectedDate.getTime());
       const end = new Date(selectedDate.getTime());
@@ -239,12 +219,6 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Check if editing recurring event and show dialog
-    if ((isRecurringParent || isRecurringInstance) && event?.id && !editChoice) {
-      setShowEditRecurringDialog(true);
-      return;
-    }
-    
     // Always use userSurname for consistent naming across the app
     const finalTitle = userSurname;
     
@@ -298,27 +272,7 @@ export const EventDialog = ({
       console.log("NOT setting event_name. eventName:", eventName, "additionalPersons:", additionalPersons.length);
     }
 
-    // Handle recurring event fields
-    if (repeatPattern && repeatPattern !== '""' && repeatPattern !== 'null') {
-      eventData.repeat_pattern = repeatPattern;
-      eventData.repeat_until = repeatUntil;
-      eventData.is_recurring = true;
-    }
-
-    // Handle editing recurring instances
-    if (editChoice === 'this' && isRecurringInstance) {
-      // Create new standalone event from this instance
-      delete eventData.id;
-      delete eventData.parent_event_id;
-      delete eventData.repeat_pattern;
-      delete eventData.repeat_until;
-      delete eventData.is_recurring;
-      eventData.recurrence_instance_date = event?.instanceDate || null;
-    } else if (editChoice === 'series' && (isRecurringParent || isRecurringInstance)) {
-      // Edit the parent event
-      const parentId = isRecurringInstance ? event?.parent_event_id || event?.parentEventId : event?.id;
-      eventData.id = parentId;
-    } else if (event?.id) {
+    if (event?.id) {
       eventData.id = event.id;
     }
 
@@ -567,10 +521,6 @@ export const EventDialog = ({
       // Clear additional persons data
       (window as any).additionalPersonsData = [];
       
-      // Reset edit/delete choices
-      setEditChoice(null);
-      setDeleteChoice(null);
-      
       // Invalidate all queries to ensure data is refreshed
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['business-events'] });
@@ -594,153 +544,17 @@ export const EventDialog = ({
     setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
   };
 
-  // Handle recurring event edit choice
-  const handleEditChoice = (choice: 'this' | 'series') => {
-    setEditChoice(choice);
-    setShowEditRecurringDialog(false);
-    // Trigger form submission with the choice
-    setTimeout(() => {
-      const form = document.querySelector('form');
-      if (form) {
-        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-      }
-    }, 0);
-  };
-
-  // Handle delete click for recurring events
+  // Add function to handle delete button click
   const handleDeleteClick = () => {
-    console.log("=== DELETE BUTTON CLICKED ===");
-    console.log("Event ID:", event?.id);
-    console.log("Event details:", { isRecurringParent, isRecurringInstance, isVirtualInstance });
-    console.log("onDelete function available:", !!onDelete);
-    
-    if (!onDelete) {
-      console.warn("Delete failed: onDelete function not available");
-      toast({
-        title: "Error",
-        description: "Delete function not available",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!event?.id) {
-      console.warn("Delete failed: no event ID");
-      toast({
-        title: "Error", 
-        description: "No event ID available for deletion",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // For recurring events, show the choice dialog
-    if (isRecurringParent || isRecurringInstance) {
-      console.log("Showing recurring delete dialog");
-      setShowDeleteRecurringDialog(true);
-    } else {
-      console.log("Showing simple delete confirmation");
-      setIsDeleteConfirmOpen(true);
-    }
+    // Open confirmation dialog instead of deleting immediately
+    setIsDeleteConfirmOpen(true);
   };
 
-  // Handle recurring event delete choice
-  const handleDeleteChoice = async (choice: 'this' | 'series') => {
-    console.log("=== DELETE CHOICE MADE ===");
-    console.log("Choice:", choice);
-    console.log("Event ID:", event?.id);
-    
-    setDeleteChoice(choice);
-    setShowDeleteRecurringDialog(false);
-    
-    if (!onDelete || !event?.id) {
-      console.error("Cannot delete: missing onDelete function or event ID");
-      toast({
-        title: "Error",
-        description: "Cannot delete event: missing required data",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      console.log("Calling onDelete function...");
-      const result = await onDelete(event.id, choice);
-      
-      console.log("Delete result:", result);
-      
-      if (result?.success) {
-        console.log("Delete successful, closing dialog");
-        onOpenChange(false);
-        
-        // Force a complete refresh
-        await queryClient.invalidateQueries({ queryKey: ['events'] });
-        await queryClient.invalidateQueries({ queryKey: ['business-events'] });
-      } else {
-        console.error("Delete failed - no success indication");
-        toast({
-          title: "Error",
-          description: "Failed to delete event",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Delete failed with error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete event",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Handle confirmed deletion for non-recurring events
-  const handleConfirmDelete = async () => {
-    console.log("=== CONFIRM DELETE CLICKED ===");
-    console.log("Event ID:", event?.id);
-    
-    if (!onDelete || !event?.id) {
-      console.error("Cannot delete: missing onDelete function or event ID");
-      toast({
-        title: "Error",
-        description: "Cannot delete event: missing required data",
-        variant: "destructive",
-      });
+  // Add function to handle confirmed deletion
+  const handleConfirmDelete = () => {
+    if (onDelete) {
+      onDelete();
       setIsDeleteConfirmOpen(false);
-      return;
-    }
-
-    try {
-      console.log("Calling onDelete for simple event...");
-      const result = await onDelete(event.id);
-      
-      console.log("Simple delete result:", result);
-      
-      if (result?.success) {
-        console.log("Delete successful, closing dialogs");
-        setIsDeleteConfirmOpen(false);
-        onOpenChange(false);
-        
-        // Force a complete refresh
-        await queryClient.invalidateQueries({ queryKey: ['events'] });
-        await queryClient.invalidateQueries({ queryKey: ['business-events'] });
-      } else {
-        console.error("Delete failed - no success indication");
-        setIsDeleteConfirmOpen(false);
-        toast({
-          title: "Error",
-          description: "Failed to delete event",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Simple delete failed with error:", error);
-      setIsDeleteConfirmOpen(false);
-      toast({
-        title: "Error",
-        description: "Failed to delete event",
-        variant: "destructive",
-      });
     }
   };
 
@@ -750,11 +564,6 @@ export const EventDialog = ({
         <DialogContent>
           <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")}>
             {event ? t("events.editEvent") : t("events.addNewEvent")}
-            {isRecurringInstance && (
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                (Recurring Event{isVirtualInstance ? " - Generated Instance" : ""})
-              </span>
-            )}
           </DialogTitle>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <EventDialogFields
@@ -786,11 +595,6 @@ export const EventDialog = ({
               onFileDeleted={handleFileDeleted}
               displayedFiles={displayedFiles}
               isBookingRequest={isBookingRequest}
-              repeatPattern={repeatPattern}
-              setRepeatPattern={setRepeatPattern}
-              repeatUntil={repeatUntil}
-              setRepeatUntil={setRepeatUntil}
-              isRecurringInstance={isRecurringInstance}
             />
             
             <div className="flex justify-between gap-4">
@@ -803,7 +607,6 @@ export const EventDialog = ({
                   variant="destructive"
                   size="icon"
                   onClick={handleDeleteClick}
-                  title={isVirtualInstance ? "Delete recurring instance" : "Delete event"}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -812,22 +615,6 @@ export const EventDialog = ({
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Recurring event edit dialog */}
-      <RecurringEventEditDialog
-        open={showEditRecurringDialog}
-        onOpenChange={setShowEditRecurringDialog}
-        onEditChoice={handleEditChoice}
-        eventTitle={title}
-      />
-
-      {/* Recurring event delete dialog */}
-      <RecurringEventDeleteDialog
-        open={showDeleteRecurringDialog}
-        onOpenChange={setShowDeleteRecurringDialog}
-        onDeleteChoice={handleDeleteChoice}
-        eventTitle={title}
-      />
 
       {/* Add deletion confirmation dialog */}
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>

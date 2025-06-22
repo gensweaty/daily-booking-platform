@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +15,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
-import { RecurringEventFields } from './RecurringEventFields';
 
 // Define interface for person data
 interface PersonData {
@@ -56,11 +56,6 @@ interface EventDialogFieldsProps {
   displayedFiles: FileRecord[];
   onFileDeleted: (fileId: string) => void;
   isBookingRequest?: boolean;
-  repeatPattern?: string;
-  setRepeatPattern?: (pattern: string) => void;
-  repeatUntil?: string;
-  setRepeatUntil?: (until: string) => void;
-  isRecurringInstance?: boolean;
 }
 
 export const EventDialogFields = ({
@@ -91,12 +86,7 @@ export const EventDialogFields = ({
   eventId,
   displayedFiles,
   onFileDeleted,
-  isBookingRequest = false,
-  repeatPattern = '',
-  setRepeatPattern = () => {},
-  repeatUntil = '',
-  setRepeatUntil = () => {},
-  isRecurringInstance = false
+  isBookingRequest = false
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -465,13 +455,7 @@ export const EventDialogFields = ({
     (window as any).additionalPersonsData = additionalPersons;
   }, [additionalPersons]);
   
-  const handleRepeatChange = (pattern: string, until: string) => {
-    setRepeatPattern(pattern);
-    setRepeatUntil(until);
-  };
-
-  return (
-    <div className="space-y-4">
+  return <>
       {/* Date and Time - Moved to top */}
       <div>
         <Label 
@@ -614,24 +598,5 @@ export const EventDialogFields = ({
           />
         </div>
       )}
-      
-      {/* Add recurring event fields for non-recurring instances */}
-      {!isRecurringInstance && (
-        <RecurringEventFields
-          startDate={startDate}
-          repeatPattern={repeatPattern}
-          repeatUntil={repeatUntil}
-          onRepeatPatternChange={handleRepeatChange}
-        />
-      )}
-      
-      {isRecurringInstance && (
-        <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
-          <p className="text-sm text-blue-800">
-            This is part of a recurring event series. Changes to this instance will make it a standalone event.
-          </p>
-        </div>
-      )}
-    </div>
-  );
+    </>;
 };

@@ -2,13 +2,12 @@
 import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { useQueryClient } from "@tanstack/react-query";
+import { useLanguage } from "@/contexts/LanguageContext"; // Import language context
 
 interface UseEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
   updateEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  deleteEvent?: (id: string, deleteChoice?: 'this' | 'series') => Promise<{ success: boolean }>;
+  deleteEvent?: (id: string) => Promise<void>;
 }
 
 export const useEventDialog = ({
@@ -20,18 +19,22 @@ export const useEventDialog = ({
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
-  const { language } = useLanguage();
-  const queryClient = useQueryClient();
+  const { language } = useLanguage(); // Get current language
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
+      // Ensure type is set to 'event'
       const eventData = {
         ...data,
         type: 'event',
+        // Make sure title and user_surname match for consistency
         title: data.user_surname || data.title,
         user_surname: data.user_surname || data.title,
+        // Ensure payment_status is properly set and normalized
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
+        // Don't check availability by default for faster creation
         checkAvailability: false,
+        // Add language to event data - use provided language or current app language
         language: data.language || language || 'en'
       };
       
@@ -44,10 +47,6 @@ export const useEventDialog = ({
       
       setIsNewEventDialogOpen(false);
       console.log("Event created successfully:", createdEvent);
-      
-      // Refresh queries after creation
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-      await queryClient.invalidateQueries({ queryKey: ['business-events'] });
       
       return createdEvent;
     } catch (error: any) {
@@ -67,28 +66,34 @@ export const useEventDialog = ({
         throw new Error("Update event function not provided or no event selected");
       }
       
+      // Make sure to preserve the type field and ensure title and user_surname match
       const eventData = {
         ...data,
         type: selectedEvent.type || 'event',
         title: data.user_surname || data.title || selectedEvent.title,
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
+        // Ensure payment_status is properly normalized and preserved
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
+        // Preserve language or set it if not already present
         language: data.language || selectedEvent.language || language || 'en'
       };
       
       console.log("Updating event with language:", eventData.language);
       
+      // Set checkAvailability flag in memory, but remove it before sending to the database
+      // to prevent the "column not found" error
+      const shouldCheckAvailability = true;
       console.log("Updating event with data:", eventData);
       
+      // Create a new object without the checkAvailability property to send to the database
       const { checkAvailability, ...dataToSend } = eventData as any;
-      const updatedEvent = await updateEvent(dataToSend);
+      const updatedEvent = await updateEvent({
+        ...dataToSend,
+        // We'll handle the availability check in the useCalendarEvents hook
+      });
       
       setSelectedEvent(null);
       console.log("Event updated successfully:", updatedEvent);
-      
-      // Refresh queries after update
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-      await queryClient.invalidateQueries({ queryKey: ['business-events'] });
       
       return updatedEvent;
     } catch (error: any) {
@@ -102,47 +107,22 @@ export const useEventDialog = ({
     }
   };
 
-  // Simplified delete handler that properly propagates errors
-  const handleDeleteEvent = async (eventId: string, deleteChoice?: 'this' | 'series'): Promise<{ success: boolean }> => {
+  const handleDeleteEvent = async () => {
     try {
-      if (!deleteEvent) {
-        throw new Error("Delete event function not provided");
-      }
+      if (!deleteEvent || !selectedEvent) throw new Error("Delete event function not provided or no event selected");
       
-      if (!eventId) {
-        throw new Error("No event ID provided");
-      }
+      await deleteEvent(selectedEvent.id);
       
-      console.log("=== USEVENTDIALOG DELETE START ===");
-      console.log("Event ID:", eventId);
-      console.log("Delete choice:", deleteChoice);
-      
-      // Call the delete function and wait for result
-      const result = await deleteEvent(eventId, deleteChoice);
-      
-      console.log("Delete result:", result);
-      
-      // Clear selected event
       setSelectedEvent(null);
-      
-      // Show success message
-      toast({
-        title: "Success",
-        description: "Event deleted successfully",
-        variant: "default",
-      });
-      
-      console.log("=== USEVENTDIALOG DELETE COMPLETED ===");
-      return { success: true };
-      
+      console.log("Event deleted successfully:", selectedEvent.id);
     } catch (error: any) {
-      console.error("=== USEVENTDIALOG DELETE FAILED ===", error);
+      console.error("Failed to delete event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete event",
         variant: "destructive",
       });
-      return { success: false };
+      throw error;
     }
   };
 
@@ -150,10 +130,16 @@ export const useEventDialog = ({
   const normalizePaymentStatus = (status: string | undefined): string | undefined => {
     if (!status) return undefined;
     
+    // Log the incoming status for debugging
     console.log("Normalizing payment status:", status);
     
+    // Normalize partly paid variants
     if (status.includes('partly')) return 'partly_paid';
+    
+    // Normalize fully paid variants
     if (status.includes('fully')) return 'fully_paid';
+    
+    // Normalize not paid variants
     if (status.includes('not_paid') || status === 'not paid') return 'not_paid';
     
     return status;

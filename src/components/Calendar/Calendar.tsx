@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -122,25 +120,12 @@ export const Calendar = ({
       const result = await updateEvent?.({
         ...data,
         id: selectedEvent.id,
-        type: selectedEvent.type
+        type: selectedEvent.type  // Make sure to pass the type from the selected event
       });
       return result;
     },
-    deleteEvent: async (id, deleteChoice) => {
-      try {
-        if (!deleteEvent) {
-          throw new Error("Delete function not available");
-        }
-        
-        console.log("Calendar: Calling deleteEvent with:", { id, deleteChoice });
-        const result = await deleteEvent(id, deleteChoice);
-        console.log("Calendar: Delete result:", result);
-        
-        return { success: true };
-      } catch (error) {
-        console.error("Calendar: Delete error:", error);
-        throw error; // Re-throw to let useEventDialog handle the error display
-      }
+    deleteEvent: async (id) => {
+      await deleteEvent?.(id);
     }
   });
 
