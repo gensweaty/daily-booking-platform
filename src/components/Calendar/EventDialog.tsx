@@ -549,13 +549,13 @@ export const EventDialog = ({
             </AlertDialogCancel>
             <AlertDialogAction 
               onClick={() => handleDelete("this")}
-              variant="outline"
+              className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
             >
               {isGeorgian ? "მხოლოდ ეს ღონისძიება" : "Delete this event only"}
             </AlertDialogAction>
             <AlertDialogAction 
               onClick={() => handleDelete("series")}
-              variant="destructive"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isGeorgian ? "მთელი სერია" : "Delete entire series"}
             </AlertDialogAction>
