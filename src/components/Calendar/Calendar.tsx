@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -124,8 +125,9 @@ export const Calendar = ({
       });
       return result;
     },
-    deleteEvent: async (id) => {
-      await deleteEvent?.(id);
+    deleteEvent: async (id, deleteChoice) => {
+      const result = await deleteEvent?.(id, deleteChoice);
+      return result || { success: false };
     }
   });
 
