@@ -30,7 +30,7 @@ interface EventDialogProps {
   selectedDate: Date | null;
   defaultEndDate?: Date | null;
   onSubmit: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  onDelete?: () => void;
+  onDelete?: (deleteChoice?: "this" | "series") => void;
   event?: CalendarEventType;
   isBookingRequest?: boolean;
 }
@@ -72,6 +72,8 @@ export const EventDialog = ({
   const isGeorgian = language === 'ka';
   // Add state for delete confirmation dialog
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  // Add state for recurring delete choice dialog
+  const [showDeleteChoiceDialog, setShowDeleteChoiceDialog] = useState(false);
 
   // Synchronize fields when event data changes or when dialog opens
   useEffect(() => {
@@ -133,7 +135,7 @@ export const EventDialog = ({
       
       setTitle("");
       setUserSurname("");
-      setEventName(""); // Reset event_name for new events
+      setEventName("");
       setUserNumber("");
       setSocialNetworkLink("");
       setEventNotes("");
@@ -403,10 +405,9 @@ export const EventDialog = ({
       }
 
       // Handle additional customers - updated to save them properly with the event relationship
-      const additionalPersons = (window as any).additionalPersonsData || [];
-      if (additionalPersons.length > 0 && createdEvent?.id && user) {
+      const additionalPersonsForSubmit = (window as any).additionalPersonsData || [];
+      if (additionalPersonsForSubmit.length > 0 && createdEvent?.id && user) {
         try {
-          // Delete existing additional customers for this specific event if updating
           if (event?.id) {
             const { error: deleteError } = await supabase
               .from('customers')
@@ -421,7 +422,7 @@ export const EventDialog = ({
             }
           }
           
-          const customersData = additionalPersons.map((person: any) => ({
+          const customersData = additionalPersonsForSubmit.map((person: any) => ({
             title: person.userSurname,
             user_surname: person.userSurname,
             user_number: person.userNumber,
@@ -451,10 +452,8 @@ export const EventDialog = ({
         }
       }
 
-      // Send confirmation emails to all persons (main person + additional persons)
       if (isApprovingBookingRequest && createdEvent?.id) {
         try {
-          // Get business profile for address and business name
           const { data: businessProfile } = await supabase
             .from('business_profiles')
             .select('business_name, contact_address')
@@ -464,7 +463,6 @@ export const EventDialog = ({
           const businessName = businessProfile?.business_name || 'SmartBookly';
           const businessAddress = businessProfile?.contact_address || '';
 
-          // Send email to main person
           if (socialNetworkLink && socialNetworkLink.includes('@')) {
             console.log("Sending confirmation email to main person:", socialNetworkLink);
             await testEmailSending(
@@ -482,7 +480,6 @@ export const EventDialog = ({
             );
           }
 
-          // Send emails to all additional persons
           const additionalPersonsForEmail = (window as any).additionalPersonsData || [];
           for (const person of additionalPersonsForEmail) {
             if (person.socialNetworkLink && person.socialNetworkLink.includes('@')) {
@@ -580,13 +577,18 @@ export const EventDialog = ({
     setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
   };
 
-  // Add function to handle delete button click
+  // Modified function to handle delete button click
   const handleDeleteClick = () => {
-    // Open confirmation dialog instead of deleting immediately
-    setIsDeleteConfirmOpen(true);
+    // If it's a virtual instance (part of recurring series), show choice dialog
+    if (isVirtual) {
+      setShowDeleteChoiceDialog(true);
+    } else {
+      // For regular events, show simple confirmation dialog
+      setIsDeleteConfirmOpen(true);
+    }
   };
 
-  // Add function to handle confirmed deletion
+  // Add function to handle confirmed deletion for regular events
   const handleConfirmDelete = () => {
     if (onDelete) {
       onDelete();
@@ -594,11 +596,18 @@ export const EventDialog = ({
     }
   };
 
+  // Add function to handle recurring delete choice
+  const handleRecurringDeleteChoice = (choice: "this" | "series") => {
+    if (onDelete) {
+      onDelete(choice);
+      setShowDeleteChoiceDialog(false);
+    }
+  };
+
   // Add function to handle recurring event edit choice
   const handleRecurringEditChoice = (choice: "this" | "series") => {
     setEditChoice(choice);
     setShowRecurringEditDialog(false);
-    // Trigger form submission with the choice
     setTimeout(() => {
       const form = document.querySelector('form');
       if (form) {
@@ -694,7 +703,40 @@ export const EventDialog = ({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Add deletion confirmation dialog */}
+      {/* Recurring Event Delete Choice Dialog */}
+      <AlertDialog open={showDeleteChoiceDialog} onOpenChange={setShowDeleteChoiceDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              {isGeorgian ? "განმეორებადი ღონისძიების წაშლა" : "Delete Recurring Event"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isGeorgian 
+                ? "თქვენ შლით განმეორებადი ღონისძიების ერთ ინსტანციას. რას გსურთ?" 
+                : "You're deleting an instance of a recurring event. What would you like to do?"
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2">
+            <AlertDialogAction 
+              onClick={() => handleRecurringDeleteChoice("this")} 
+              className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isGeorgian ? "მხოლოდ ეს ღონისძიება" : "Delete this event only"}
+            </AlertDialogAction>
+            <AlertDialogAction 
+              onClick={() => handleRecurringDeleteChoice("series")} 
+              className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isGeorgian ? "მთელი სერია" : "Delete entire series"}
+            </AlertDialogAction>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Regular Event Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>

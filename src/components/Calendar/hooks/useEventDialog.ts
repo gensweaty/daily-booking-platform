@@ -19,24 +19,18 @@ export const useEventDialog = ({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [showDeleteChoiceDialog, setShowDeleteChoiceDialog] = useState(false);
   const { toast } = useToast();
   const { language } = useLanguage();
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
-      // Ensure type is set to 'event'
       const eventData = {
         ...data,
         type: 'event',
-        // Make sure title and user_surname match for consistency
         title: data.user_surname || data.title,
         user_surname: data.user_surname || data.title,
-        // Ensure payment_status is properly set and normalized
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
-        // Don't check availability by default for faster creation
         checkAvailability: false,
-        // Add language to event data - use provided language or current app language
         language: data.language || language || 'en'
       };
       
@@ -68,15 +62,12 @@ export const useEventDialog = ({
         throw new Error("Update event function not provided or no event selected");
       }
       
-      // Make sure to preserve the type field and ensure title and user_surname match
       const eventData = {
         ...data,
         type: selectedEvent.type || 'event',
         title: data.user_surname || data.title || selectedEvent.title,
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
-        // Ensure payment_status is properly normalized and preserved
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
-        // Preserve language or set it if not already present
         language: data.language || selectedEvent.language || language || 'en'
       };
       
@@ -107,16 +98,9 @@ export const useEventDialog = ({
     try {
       if (!deleteEvent || !selectedEvent) throw new Error("Delete event function not provided or no event selected");
       
-      // If it's a virtual instance and no choice provided, show choice dialog
-      if (isVirtualInstance(selectedEvent.id) && !deleteChoice) {
-        setShowDeleteChoiceDialog(true);
-        return { success: false }; // Don't close dialog yet
-      }
-      
       const result = await deleteEvent({ id: selectedEvent.id, deleteChoice });
       
       setSelectedEvent(null);
-      setShowDeleteChoiceDialog(false);
       console.log("Event deleted successfully:", selectedEvent.id);
       
       return result;
@@ -135,16 +119,10 @@ export const useEventDialog = ({
   const normalizePaymentStatus = (status: string | undefined): string | undefined => {
     if (!status) return undefined;
     
-    // Log the incoming status for debugging
     console.log("Normalizing payment status:", status);
     
-    // Normalize partly paid variants
     if (status.includes('partly')) return 'partly_paid';
-    
-    // Normalize fully paid variants
     if (status.includes('fully')) return 'fully_paid';
-    
-    // Normalize not paid variants
     if (status.includes('not_paid') || status === 'not paid') return 'not_paid';
     
     return status;
@@ -157,8 +135,6 @@ export const useEventDialog = ({
     setIsNewEventDialogOpen,
     selectedDate,
     setSelectedDate,
-    showDeleteChoiceDialog,
-    setShowDeleteChoiceDialog,
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
