@@ -86,10 +86,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     const yearEnd = endOfYear(new Date(currentYear, 11, 31));
 
     rawEvents.forEach((event: CalendarEventType) => {
-      // Add the original event
       allEvents.push(event);
 
-      // Generate recurring instances if this is a recurring parent event
       if (event.is_recurring && event.repeat_pattern) {
         try {
           const pattern = parseRecurringPattern(event.repeat_pattern);
@@ -97,7 +95,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           
           const recurringInstances = generateRecurringInstances(event, pattern, repeatUntil);
           
-          // Convert recurring instances to CalendarEventType and add to events
           recurringInstances.forEach(instance => {
             allEvents.push({
               ...event,
@@ -127,7 +124,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       throw new Error("User not authenticated.");
     }
 
-    // Ensure required fields are present and create a clean object with only database columns
     const dbEventData = {
       title: eventData.title || '',
       user_surname: eventData.user_surname || '',
@@ -160,7 +156,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       throw error;
     }
 
-    // Invalidate the cache to refetch events
     queryClient.invalidateQueries({ queryKey: ['events'] });
     queryClient.invalidateQueries({ queryKey: ['business-events'] });
 
@@ -172,17 +167,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       throw new Error("User not authenticated.");
     }
 
-    // Handle recurring instance updates
     if (eventData.isRecurringInstance && !eventData.id?.includes('-')) {
-      // This is a frontend-generated recurring instance being converted to standalone
-      delete eventData.id; // Remove the generated ID
-      return createEvent(eventData); // Create as new event
+      delete eventData.id;
+      return createEvent(eventData);
     }
 
-    // Clean the data for update - only include database columns
     const updateData: any = {};
     
-    // Only include fields that exist and are not undefined
     if (eventData.title !== undefined) updateData.title = eventData.title;
     if (eventData.user_surname !== undefined) updateData.user_surname = eventData.user_surname;
     if (eventData.user_number !== undefined) updateData.user_number = eventData.user_number;
@@ -213,7 +204,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       throw error;
     }
 
-    // Invalidate the cache to refetch events
     queryClient.invalidateQueries({ queryKey: ['events'] });
     queryClient.invalidateQueries({ queryKey: ['business-events'] });
 
@@ -225,91 +215,82 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       throw new Error("User not authenticated.");
     }
 
-    console.log("Deleting event with ID:", id, "Delete choice:", deleteChoice);
+    console.log("deleteEvent called with:", { id, deleteChoice });
 
-    // Handle deletion based on the choice made in the dialog
-    if (deleteChoice === 'this') {
-      // Delete only this instance
+    try {
+      // Handle frontend-generated recurring instance IDs (contain '-')
       if (id.includes('-')) {
-        // This is a frontend-generated recurring instance ID, just refresh to remove from view
-        console.log("Deleting frontend-generated recurring instance:", id);
-        queryClient.invalidateQueries({ queryKey: ['events'] });
-        queryClient.invalidateQueries({ queryKey: ['business-events'] });
-        return;
-      } else {
-        // This is a real database event, delete it normally
-        console.log("Deleting single database event:", id);
-        const { error } = await supabase
-          .from('events')
-          .delete()
-          .eq('id', id);
-
-        if (error) {
-          console.error("Error deleting single event:", error);
-          throw error;
-        }
-      }
-    } else if (deleteChoice === 'series') {
-      // Delete entire series - find and delete the parent event
-      let parentId = id;
-      
-      if (id.includes('-')) {
-        // Extract parent ID from frontend-generated instance ID
-        parentId = id.split('-')[0];
-        console.log("Extracted parent ID from recurring instance:", parentId);
-      } else {
-        // Check if this event has a parent_event_id (it's a child instance)
-        const { data: eventData } = await supabase
-          .from('events')
-          .select('parent_event_id, is_recurring')
-          .eq('id', id)
-          .single();
+        if (deleteChoice === 'series') {
+          // Extract parent ID and delete the entire series
+          const parentId = id.split('-')[0];
+          console.log("Deleting series for frontend instance, parent ID:", parentId);
           
-        if (eventData?.parent_event_id) {
-          parentId = eventData.parent_event_id;
-          console.log("Found parent ID from child event:", parentId);
+          const { error } = await supabase
+            .from('events')
+            .delete()
+            .eq('id', parentId);
+
+          if (error) {
+            console.error("Error deleting series via parent ID:", error);
+            throw error;
+          }
+        } else {
+          // For 'this' choice on frontend instances, just refresh (they don't exist in DB)
+          console.log("Removing frontend-generated instance from view");
+        }
+      } else {
+        // Handle real database event IDs
+        if (deleteChoice === 'series') {
+          // First check if this event has a parent_event_id
+          const { data: eventData, error: fetchError } = await supabase
+            .from('events')
+            .select('parent_event_id, is_recurring')
+            .eq('id', id)
+            .single();
+
+          if (fetchError) {
+            console.error("Error fetching event data:", fetchError);
+            throw fetchError;
+          }
+
+          const parentId = eventData?.parent_event_id || id;
+          console.log("Deleting entire series, parent ID:", parentId);
+          
+          const { error } = await supabase
+            .from('events')
+            .delete()
+            .eq('id', parentId);
+
+          if (error) {
+            console.error("Error deleting event series:", error);
+            throw error;
+          }
+        } else {
+          // Delete only this specific event (deleteChoice === 'this' or no choice for non-recurring)
+          console.log("Deleting single event:", id);
+          
+          const { error } = await supabase
+            .from('events')
+            .delete()
+            .eq('id', id);
+
+          if (error) {
+            console.error("Error deleting single event:", error);
+            throw error;
+          }
         }
       }
 
-      console.log("Deleting entire series with parent ID:", parentId);
+      // Always invalidate queries after any deletion operation
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
       
-      // Delete the parent event (this will cascade to delete all child instances due to foreign key constraint)
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', parentId);
-
-      if (error) {
-        console.error("Error deleting event series:", error);
-        throw error;
-      }
-    } else {
-      // No choice specified - this is for non-recurring events or fallback
-      console.log("Deleting event without choice (non-recurring):", id);
+      console.log("Event deletion completed successfully");
       
-      if (id.includes('-')) {
-        // Frontend-generated ID, just refresh
-        queryClient.invalidateQueries({ queryKey: ['events'] });
-        queryClient.invalidateQueries({ queryKey: ['business-events'] });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        console.error("Error deleting event:", error);
-        throw error;
-      }
+    } catch (error) {
+      console.error("Error in deleteEvent:", error);
+      throw error;
     }
-
-    // Invalidate the cache to refetch events
-    queryClient.invalidateQueries({ queryKey: ['events'] });
-    queryClient.invalidateQueries({ queryKey: ['business-events'] });
-    
-    console.log("Event deletion completed successfully");
   };
 
   return {
