@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -59,10 +58,18 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       
       console.log("Creating event with data:", data);
       
+      // Ensure required fields are present
+      if (!data.start_date || !data.end_date) {
+        throw new Error("Start date and end date are required");
+      }
+      
       const eventData = {
         ...data,
         user_id: userId,
         type: data.type || 'event',
+        start_date: data.start_date,
+        end_date: data.end_date,
+        title: data.title || data.user_surname || '',
       };
 
       const { data: newEvent, error } = await supabase

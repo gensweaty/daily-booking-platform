@@ -28,7 +28,12 @@ export interface CalendarEventType {
   checkAvailability?: boolean;
   language?: string;
   customer_id?: string;
-  event_name?: string; // Add the optional event_name field
+  event_name?: string;
+  // Recurring event properties
+  is_recurring?: boolean;
+  repeat_pattern?: string;
+  repeat_until?: string;
+  parent_event_id?: string;
   files?: Array<{
     id: string;
     event_id: string;

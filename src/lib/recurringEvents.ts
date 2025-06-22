@@ -103,7 +103,8 @@ export const generateRecurringInstances = (baseEvent: CalendarEventType): Calend
 };
 
 export const isVirtualInstance = (eventId: string): boolean => {
-  return eventId.includes("-") && eventId.match(/\d{4}-\d{2}-\d{2}$/);
+  const match = eventId.match(/\d{4}-\d{2}-\d{2}$/);
+  return match !== null;
 };
 
 export const getParentEventId = (eventId: string): string => {

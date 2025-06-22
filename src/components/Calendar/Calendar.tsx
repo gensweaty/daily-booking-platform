@@ -124,8 +124,9 @@ export const Calendar = ({
       });
       return result;
     },
-    deleteEvent: async (id) => {
-      await deleteEvent?.(id);
+    deleteEvent: async (id, deleteChoice) => {
+      const result = await deleteEvent?.(id, deleteChoice);
+      return result;
     }
   });
 
