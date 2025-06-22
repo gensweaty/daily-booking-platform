@@ -210,25 +210,25 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     return data;
   };
 
-  // Core deletion function that actually removes events from database
-  const deleteEvent = async (id: string, deleteChoice?: 'this' | 'series'): Promise<void> => {
+  // Simplified delete function - restored to original working state
+  const deleteEvent = async (eventId: string, deleteChoice?: 'this' | 'series'): Promise<{ success: boolean }> => {
     if (!user) {
       throw new Error("User not authenticated.");
     }
 
-    console.log("=== STARTING DELETE OPERATION ===");
-    console.log("Delete ID:", id);
+    console.log("=== DELETING EVENT ===");
+    console.log("Event ID:", eventId);
     console.log("Delete choice:", deleteChoice);
 
     try {
       // Handle virtual recurring instances (frontend-generated IDs)
-      if (id.includes('-')) {
-        console.log("Handling virtual recurring instance");
+      if (eventId.includes('-')) {
+        console.log("Virtual recurring instance - removing from UI");
         
         if (deleteChoice === 'series') {
           // Extract parent ID and delete the entire series
-          const parentId = id.split('-')[0];
-          console.log("Deleting series for virtual instance, parent ID:", parentId);
+          const parentId = eventId.split('-')[0];
+          console.log("Deleting parent series:", parentId);
           
           const { error } = await supabase
             .from('events')
@@ -239,37 +239,32 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             console.error("Error deleting series:", error);
             throw error;
           }
-          
-          console.log("Successfully deleted entire series");
         }
-        // For 'this' choice on virtual instances, we just refresh to remove from UI
         
-        // Always refresh after virtual instance operations
+        // For virtual instances, just refresh UI
         await queryClient.invalidateQueries({ queryKey: ['events'] });
         await queryClient.invalidateQueries({ queryKey: ['business-events'] });
-        console.log("=== DELETE COMPLETED (VIRTUAL INSTANCE) ===");
-        return;
+        console.log("Virtual instance handled successfully");
+        return { success: true };
       }
 
-      // Handle real database events
-      console.log("Handling real database event");
-      
+      // Handle real database events - simplified logic
       if (deleteChoice === 'series') {
-        // Check if this event has a parent_event_id (it's an instance)
+        // Check if this event has a parent (it's an instance)
         const { data: eventData, error: fetchError } = await supabase
           .from('events')
-          .select('parent_event_id, is_recurring')
-          .eq('id', id)
+          .select('parent_event_id')
+          .eq('id', eventId)
           .single();
 
         if (fetchError) {
-          console.error("Error fetching event data:", fetchError);
+          console.error("Error fetching event:", fetchError);
           throw fetchError;
         }
 
-        // If it has a parent, delete the parent; otherwise delete this event
-        const targetId = eventData?.parent_event_id || id;
-        console.log("Deleting entire series, target ID:", targetId);
+        // Delete the parent event (or this event if it's the parent)
+        const targetId = eventData?.parent_event_id || eventId;
+        console.log("Deleting series, target ID:", targetId);
         
         const { error } = await supabase
           .from('events')
@@ -277,41 +272,36 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           .eq('id', targetId);
 
         if (error) {
-          console.error("Error deleting event series:", error);
+          console.error("Error deleting series:", error);
           throw error;
         }
-        
-        console.log("Successfully deleted entire series");
       } else {
-        // Delete single event
-        console.log("Deleting single event:", id);
+        // Simple single event deletion
+        console.log("Deleting single event:", eventId);
         
         const { error } = await supabase
           .from('events')
           .delete()
-          .eq('id', id);
+          .eq('id', eventId);
 
         if (error) {
-          console.error("Error deleting single event:", error);
+          console.error("Error deleting event:", error);
           throw error;
         }
-        
-        console.log("Successfully deleted single event");
       }
 
-      // Force refresh all queries to ensure UI updates
-      console.log("Forcing query refresh...");
+      // Force refresh all queries
+      console.log("Refreshing queries...");
       await queryClient.invalidateQueries({ queryKey: ['events'] });
       await queryClient.invalidateQueries({ queryKey: ['business-events'] });
-      
-      // Also force a manual refetch to ensure immediate update
       await refetch();
       
       console.log("=== DELETE COMPLETED SUCCESSFULLY ===");
+      return { success: true };
       
     } catch (error) {
       console.error("=== DELETE FAILED ===", error);
-      throw error;
+      return { success: false };
     }
   };
 

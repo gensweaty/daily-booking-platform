@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 interface UseEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
   updateEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  deleteEvent?: (id: string, deleteChoice?: 'this' | 'series') => Promise<void>;
+  deleteEvent?: (id: string, deleteChoice?: 'this' | 'series') => Promise<{ success: boolean }>;
 }
 
 export const useEventDialog = ({
@@ -102,7 +102,7 @@ export const useEventDialog = ({
     }
   };
 
-  // Fixed delete handler that properly executes deletion
+  // Simplified delete handler - directly calls the delete function
   const handleDeleteEvent = async (eventId: string, deleteChoice?: 'this' | 'series'): Promise<{ success: boolean }> => {
     try {
       if (!deleteEvent) {
@@ -117,27 +117,27 @@ export const useEventDialog = ({
       console.log("Event ID:", eventId);
       console.log("Delete choice:", deleteChoice);
       
-      // Call the actual delete function
-      await deleteEvent(eventId, deleteChoice);
+      // Direct call to deleteEvent function
+      const result = await deleteEvent(eventId, deleteChoice);
       
-      console.log("Delete function completed successfully");
-      
-      // Clear selected event
-      setSelectedEvent(null);
-      
-      // Force refresh to ensure UI updates
-      console.log("Forcing query refresh after delete...");
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-      await queryClient.invalidateQueries({ queryKey: ['business-events'] });
-      
-      toast({
-        title: "Success",
-        description: "Event deleted successfully",
-        variant: "default",
-      });
-      
-      console.log("=== USEVENTDIALOG DELETE COMPLETED ===");
-      return { success: true };
+      if (result.success) {
+        console.log("Delete completed successfully");
+        
+        // Clear selected event
+        setSelectedEvent(null);
+        
+        // Show success message
+        toast({
+          title: "Success",
+          description: "Event deleted successfully",
+          variant: "default",
+        });
+        
+        console.log("=== USEVENTDIALOG DELETE COMPLETED ===");
+        return { success: true };
+      } else {
+        throw new Error("Delete operation failed");
+      }
       
     } catch (error: any) {
       console.error("=== USEVENTDIALOG DELETE FAILED ===", error);
