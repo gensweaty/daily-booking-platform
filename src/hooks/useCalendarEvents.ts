@@ -64,13 +64,27 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         throw new Error("Start date and end date are required");
       }
       
+      // Clean the data to match database schema
       const eventData = {
-        ...data,
         user_id: userId,
-        type: data.type || 'event',
+        title: data.title || data.user_surname || '',
+        user_surname: data.user_surname,
+        user_number: data.user_number,
+        social_network_link: data.social_network_link,
+        event_notes: data.event_notes,
         start_date: data.start_date,
         end_date: data.end_date,
-        title: data.title || data.user_surname || '',
+        type: data.type || 'event',
+        payment_status: data.payment_status,
+        payment_amount: data.payment_amount,
+        language: data.language,
+        customer_id: data.customer_id,
+        event_name: data.event_name,
+        // Recurring event fields
+        is_recurring: data.is_recurring || false,
+        repeat_pattern: data.repeat_pattern,
+        repeat_until: data.repeat_until,
+        parent_event_id: data.parent_event_id,
       };
 
       const { data: newEvent, error } = await supabase
@@ -118,9 +132,31 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       
       const { id, ...updateData } = data;
       
+      // Clean the update data to match database schema
+      const cleanUpdateData = {
+        title: updateData.title,
+        user_surname: updateData.user_surname,
+        user_number: updateData.user_number,
+        social_network_link: updateData.social_network_link,
+        event_notes: updateData.event_notes,
+        start_date: updateData.start_date,
+        end_date: updateData.end_date,
+        type: updateData.type,
+        payment_status: updateData.payment_status,
+        payment_amount: updateData.payment_amount,
+        language: updateData.language,
+        customer_id: updateData.customer_id,
+        event_name: updateData.event_name,
+        // Recurring event fields
+        is_recurring: updateData.is_recurring,
+        repeat_pattern: updateData.repeat_pattern,
+        repeat_until: updateData.repeat_until,
+        parent_event_id: updateData.parent_event_id,
+      };
+      
       const { data: updatedEvent, error } = await supabase
         .from('events')
-        .update(updateData)
+        .update(cleanUpdateData)
         .eq('id', id)
         .select()
         .single();
