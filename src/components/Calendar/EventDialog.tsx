@@ -143,8 +143,10 @@ export const EventDialog = ({
     }
   }, [selectedDate, event, open]);
 
-  // Check if this is a virtual instance
+  // Check if this is a virtual instance OR if it's a parent event that has recurring properties
   const isVirtual = event ? isVirtualInstance(event.id) : false;
+  const isRecurringParent = event ? (event.is_recurring || event.repeat_pattern) : false;
+  const isPartOfRecurringSeries = isVirtual || isRecurringParent;
   const isNewEvent = !event;
 
   // Load files for this event with improved customer file handling
@@ -579,8 +581,8 @@ export const EventDialog = ({
 
   // Modified function to handle delete button click
   const handleDeleteClick = () => {
-    // If it's a virtual instance (part of recurring series), show choice dialog
-    if (isVirtual) {
+    // Check if event is part of a recurring series (either virtual instance or parent with recurring properties)
+    if (isPartOfRecurringSeries) {
       setShowDeleteChoiceDialog(true);
     } else {
       // For regular events, show simple confirmation dialog
@@ -719,18 +721,20 @@ export const EventDialog = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2">
-            <AlertDialogAction 
+            <Button 
               onClick={() => handleRecurringDeleteChoice("this")} 
-              className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="w-full"
+              variant="destructive"
             >
-              {isGeorgian ? "მხოლოდ ეს ღონისძიება" : "Delete this event only"}
-            </AlertDialogAction>
-            <AlertDialogAction 
+              {isGeorgian ? "მხოლოდ ეს ღონისძიება" : "Delete this event"}
+            </Button>
+            <Button 
               onClick={() => handleRecurringDeleteChoice("series")} 
-              className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="w-full"
+              variant="destructive"
             >
               {isGeorgian ? "მთელი სერია" : "Delete entire series"}
-            </AlertDialogAction>
+            </Button>
             <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>

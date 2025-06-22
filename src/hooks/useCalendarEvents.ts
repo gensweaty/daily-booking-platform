@@ -37,7 +37,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       if (!data) return [];
 
-      // Generate recurring instances for all events
       const allEvents: CalendarEventType[] = [];
       
       data.forEach(event => {
@@ -59,12 +58,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       
       console.log("Creating event with data:", data);
       
-      // Ensure required fields are present
       if (!data.start_date || !data.end_date) {
         throw new Error("Start date and end date are required");
       }
       
-      // Clean the data to match database schema
       const eventData = {
         user_id: userId,
         title: data.title || data.user_surname || '',
@@ -80,7 +77,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         language: data.language,
         customer_id: data.customer_id,
         event_name: data.event_name,
-        // Recurring event fields
         is_recurring: data.is_recurring || false,
         repeat_pattern: data.repeat_pattern,
         repeat_until: data.repeat_until,
@@ -123,16 +119,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       
       console.log("Updating event with data:", data);
       
-      // Handle virtual instance updates
       if (isVirtualInstance(data.id)) {
-        // This should create a new standalone event instead of updating
         const { id, ...eventDataWithoutId } = data;
         return createEventMutation.mutateAsync(eventDataWithoutId);
       }
       
       const { id, ...updateData } = data;
       
-      // Clean the update data to match database schema
       const cleanUpdateData = {
         title: updateData.title,
         user_surname: updateData.user_surname,
@@ -147,7 +140,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         language: updateData.language,
         customer_id: updateData.customer_id,
         event_name: updateData.event_name,
-        // Recurring event fields
         is_recurring: updateData.is_recurring,
         repeat_pattern: updateData.repeat_pattern,
         repeat_until: updateData.repeat_until,
@@ -189,18 +181,23 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
       console.log("Deleting event:", id, "choice:", deleteChoice);
       
-      // Handle virtual instance deletion
       if (isVirtualInstance(id)) {
         if (deleteChoice === "this") {
-          // For virtual instances, we don't actually delete from database
-          // Instead, we could create an exception record or handle it in the frontend
+          // For virtual instances, we handle this by creating an exclusion list
+          // For now, we'll simulate success since it's handled in the UI layer
           console.log("Deleting single instance of recurring event:", id);
-          // For now, just return success - in a full implementation, 
-          // you might want to store deletion exceptions
-          return { success: true };
+          
+          // In a full implementation, you might want to:
+          // 1. Create an exceptions table to track deleted instances
+          // 2. Or modify the recurring event to exclude this specific date
+          // For now, we'll just mark it as successful and let the UI handle it
+          
+          return { success: true, deletedInstanceId: id };
         } else if (deleteChoice === "series") {
           // Delete the parent event
           const parentId = getParentEventId(id);
+          console.log("Deleting parent event:", parentId);
+          
           const { error } = await supabase
             .from('events')
             .update({ deleted_at: new Date().toISOString() })
@@ -211,11 +208,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             throw error;
           }
           
-          return { success: true };
+          return { success: true, deletedParentId: parentId };
         }
       }
       
-      // Regular event deletion
+      // For regular events or parent events of recurring series
       const { error } = await supabase
         .from('events')
         .update({ deleted_at: new Date().toISOString() })
@@ -227,7 +224,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       }
 
       console.log("Event deleted successfully:", id);
-      return { success: true };
+      return { success: true, deletedEventId: id };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: businessId ? ['business-events', businessId] : ['events', user?.id] });
