@@ -22,6 +22,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { RecurringEventEditDialog } from './RecurringEventEditDialog';
+import { RecurringEventDeleteDialog } from './RecurringEventDeleteDialog';
+import { parseRecurringPattern } from '@/lib/recurringEvents';
 
 interface EventDialogProps {
   open: boolean;
@@ -60,6 +63,12 @@ export const EventDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
+  const [repeatPattern, setRepeatPattern] = useState(event?.repeat_pattern || "");
+  const [repeatUntil, setRepeatUntil] = useState(event?.repeat_until || "");
+  const [showEditRecurringDialog, setShowEditRecurringDialog] = useState(false);
+  const [showDeleteRecurringDialog, setShowDeleteRecurringDialog] = useState(false);
+  const [editChoice, setEditChoice] = useState<'this' | 'series' | null>(null);
+  const [deleteChoice, setDeleteChoice] = useState<'this' | 'series' | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -112,6 +121,10 @@ export const EventDialog = ({
       
       console.log("EventDialog - Loaded event with type:", event.type);
       console.log("EventDialog - Loaded payment status:", normalizedStatus);
+      
+      // Set recurring fields
+      setRepeatPattern(event.repeat_pattern || "");
+      setRepeatUntil(event.repeat_until || "");
     } else if (selectedDate) {
       const start = new Date(selectedDate.getTime());
       const end = new Date(selectedDate.getTime());
@@ -218,6 +231,12 @@ export const EventDialog = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if editing recurring event and show dialog
+    if ((isRecurringParent || isRecurringInstance) && event?.id && !editChoice) {
+      setShowEditRecurringDialog(true);
+      return;
+    }
     
     // Always use userSurname for consistent naming across the app
     const finalTitle = userSurname;
@@ -558,12 +577,61 @@ export const EventDialog = ({
     }
   };
 
+  // Handle recurring event edit choice
+  const handleEditChoice = (choice: 'this' | 'series') => {
+    setEditChoice(choice);
+    setShowEditRecurringDialog(false);
+    // Trigger form submission with the choice
+    setTimeout(() => {
+      const form = document.querySelector('form');
+      if (form) {
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      }
+    }, 0);
+  };
+
+  // Handle delete click for recurring events
+  const handleDeleteClick = () => {
+    if (isRecurringParent || isRecurringInstance) {
+      setShowDeleteRecurringDialog(true);
+    } else {
+      setIsDeleteConfirmOpen(true);
+    }
+  };
+
+  // Handle recurring event delete choice
+  const handleDeleteChoice = (choice: 'this' | 'series') => {
+    setDeleteChoice(choice);
+    setShowDeleteRecurringDialog(false);
+    
+    if (choice === 'series' && (isRecurringParent || isRecurringInstance)) {
+      // Delete entire series - call onDelete with parent event ID
+      const eventIdToDelete = isRecurringInstance ? event?.parent_event_id || event?.parentEventId : event?.id;
+      if (onDelete && eventIdToDelete) {
+        onDelete(eventIdToDelete);
+      }
+    } else if (choice === 'this') {
+      // Delete just this instance
+      if (isRecurringInstance && !event?.id) {
+        // This is a frontend-generated instance, just close dialog
+        onOpenChange(false);
+      } else if (onDelete && event?.id) {
+        onDelete(event.id);
+      }
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent>
           <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")}>
             {event ? t("events.editEvent") : t("events.addNewEvent")}
+            {isRecurringInstance && (
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                (Recurring Event)
+              </span>
+            )}
           </DialogTitle>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <EventDialogFields
@@ -595,6 +663,11 @@ export const EventDialog = ({
               onFileDeleted={handleFileDeleted}
               displayedFiles={displayedFiles}
               isBookingRequest={isBookingRequest}
+              repeatPattern={repeatPattern}
+              setRepeatPattern={setRepeatPattern}
+              repeatUntil={repeatUntil}
+              setRepeatUntil={setRepeatUntil}
+              isRecurringInstance={isRecurringInstance}
             />
             
             <div className="flex justify-between gap-4">
@@ -615,6 +688,22 @@ export const EventDialog = ({
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Recurring event edit dialog */}
+      <RecurringEventEditDialog
+        open={showEditRecurringDialog}
+        onOpenChange={setShowEditRecurringDialog}
+        onEditChoice={handleEditChoice}
+        eventTitle={title}
+      />
+
+      {/* Recurring event delete dialog */}
+      <RecurringEventDeleteDialog
+        open={showDeleteRecurringDialog}
+        onOpenChange={setShowDeleteRecurringDialog}
+        onDeleteChoice={handleDeleteChoice}
+        eventTitle={title}
+      />
 
       {/* Add deletion confirmation dialog */}
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>

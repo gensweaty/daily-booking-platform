@@ -28,7 +28,17 @@ export interface CalendarEventType {
   checkAvailability?: boolean;
   language?: string;
   customer_id?: string;
-  event_name?: string; // Add the optional event_name field
+  event_name?: string;
+  // Recurring event fields
+  repeat_pattern?: string;
+  repeat_until?: string;
+  is_recurring?: boolean;
+  parent_event_id?: string;
+  recurrence_instance_date?: string;
+  // For frontend-generated recurring instances
+  isRecurringInstance?: boolean;
+  parentEventId?: string;
+  instanceDate?: string;
   files?: Array<{
     id: string;
     event_id: string;
