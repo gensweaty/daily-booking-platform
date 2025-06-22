@@ -67,7 +67,7 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete }: TaskFullViewPr
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="bg-background border-border text-foreground max-w-[600px]">
+        <DialogContent className="bg-background border-border text-foreground max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold">{task.title}</DialogTitle>
           </DialogHeader>
@@ -133,7 +133,7 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete }: TaskFullViewPr
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </Dialog>
     </>
   );
 };

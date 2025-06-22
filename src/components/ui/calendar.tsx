@@ -77,61 +77,72 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("p-3 pointer-events-auto", isGeorgian ? "font-georgian" : "", className)}
+      className={cn(
+        "p-3 pointer-events-auto",
+        isDarkTheme 
+          ? "bg-gray-800 border border-gray-600 rounded-lg shadow-lg" 
+          : "bg-white border border-gray-200 rounded-lg shadow-lg",
+        isGeorgian ? "font-georgian" : "", 
+        className
+      )}
       locale={language === 'es' ? es : undefined}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
         caption: "flex justify-center pt-1 relative items-center",
-        caption_label: cn("text-sm font-medium", isDarkTheme ? "text-white" : ""),
+        caption_label: cn("text-sm font-medium", isDarkTheme ? "text-white" : "text-gray-900"),
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
           "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
-          isDarkTheme ? "border-gray-700 hover:bg-gray-800" : ""
+          isDarkTheme ? "border-gray-600 hover:bg-gray-700 text-white" : "border-gray-300 hover:bg-gray-100"
         ),
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full border-collapse space-y-1",
         head_row: "flex",
         head_cell: cn(
-          "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
-          isDarkTheme ? "text-gray-400" : ""
+          "rounded-md w-9 font-normal text-[0.8rem]",
+          isDarkTheme ? "text-gray-300" : "text-gray-600"
         ),
         row: "flex w-full mt-2",
         cell: cn(
           "relative p-0 text-center text-sm focus-within:relative focus-within:z-20",
-          isDarkTheme ? "text-gray-300" : "",
+          isDarkTheme ? "text-gray-200" : "text-gray-900",
           props.mode === "range"
             ? "[&:has(>.day-range-end)]:rounded-r-md [&:has(>.day-range-start)]:rounded-l-md first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md"
             : "[&:has([aria-selected])]:rounded-md",
-          isDarkTheme ? "[&:has([aria-selected])]:bg-gray-800" : "[&:has([aria-selected])]:bg-accent"
+          isDarkTheme ? "[&:has([aria-selected])]:bg-gray-700" : "[&:has([aria-selected])]:bg-blue-50"
         ),
         day: cn(
           buttonVariants({ variant: "ghost" }),
           "h-9 w-9 p-0 font-normal aria-selected:opacity-100",
           isDarkTheme 
-            ? "hover:bg-gray-800 hover:text-white text-gray-300" 
-            : "hover:bg-accent hover:text-accent-foreground"
+            ? "hover:bg-gray-700 hover:text-white text-gray-200" 
+            : "hover:bg-gray-100 hover:text-gray-900 text-gray-900"
         ),
         day_range_start: "day-range-start",
         day_range_end: "day-range-end",
         day_selected: cn(
           isDarkTheme 
-            ? "bg-indigo-600 text-white hover:bg-indigo-700 hover:text-white focus:bg-indigo-700 focus:text-white" 
-            : "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground"
+            ? "bg-blue-600 text-white hover:bg-blue-700 hover:text-white focus:bg-blue-700 focus:text-white" 
+            : "bg-blue-600 text-white hover:bg-blue-700 hover:text-white focus:bg-blue-700 focus:text-white"
         ),
         day_today: cn(
           isDarkTheme 
-            ? "bg-gray-800 text-white" 
-            : "bg-accent text-accent-foreground"
+            ? "bg-gray-700 text-white border border-gray-500" 
+            : "bg-gray-100 text-gray-900 border border-gray-300"
         ),
-        day_outside: "text-muted-foreground opacity-50",
-        day_disabled: "text-muted-foreground opacity-50",
+        day_outside: cn(
+          isDarkTheme ? "text-gray-500 opacity-50" : "text-gray-400 opacity-50"
+        ),
+        day_disabled: cn(
+          isDarkTheme ? "text-gray-600 opacity-50" : "text-gray-300 opacity-50"
+        ),
         day_range_middle: cn(
           isDarkTheme 
-            ? "aria-selected:bg-gray-800 aria-selected:text-white" 
-            : "aria-selected:bg-accent aria-selected:text-accent-foreground"
+            ? "aria-selected:bg-gray-700 aria-selected:text-white" 
+            : "aria-selected:bg-blue-50 aria-selected:text-gray-900"
         ),
         day_hidden: "invisible",
         ...classNames,
