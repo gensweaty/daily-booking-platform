@@ -128,17 +128,31 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       throw new Error("User not authenticated.");
     }
 
+    // Ensure required fields are present and create a clean object with only database columns
+    const dbEventData = {
+      title: eventData.title || '',
+      user_surname: eventData.user_surname || '',
+      user_number: eventData.user_number || '',
+      social_network_link: eventData.social_network_link || '',
+      event_notes: eventData.event_notes || '',
+      start_date: eventData.start_date || new Date().toISOString(),
+      end_date: eventData.end_date || new Date().toISOString(),
+      type: eventData.type || 'event',
+      payment_status: eventData.payment_status || 'not_paid',
+      payment_amount: eventData.payment_amount || null,
+      user_id: user.id,
+      repeat_pattern: eventData.repeat_pattern || null,
+      repeat_until: eventData.repeat_until || null,
+      is_recurring: eventData.is_recurring || false,
+      parent_event_id: eventData.parent_event_id || null,
+      recurrence_instance_date: eventData.recurrence_instance_date || null,
+      event_name: eventData.event_name || null,
+      language: eventData.language || 'en'
+    };
+
     const { data, error } = await supabase
       .from('events')
-      .insert({
-        ...eventData,
-        user_id: user.id,
-        repeat_pattern: eventData.repeat_pattern || null,
-        repeat_until: eventData.repeat_until || null,
-        is_recurring: eventData.is_recurring || false,
-        parent_event_id: eventData.parent_event_id || null,
-        recurrence_instance_date: eventData.recurrence_instance_date || null,
-      })
+      .insert(dbEventData)
       .select('*')
       .single();
 
@@ -166,16 +180,31 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       return createEvent(eventData); // Create as new event
     }
 
+    // Clean the data for update - only include database columns
+    const updateData: any = {};
+    
+    // Only include fields that exist and are not undefined
+    if (eventData.title !== undefined) updateData.title = eventData.title;
+    if (eventData.user_surname !== undefined) updateData.user_surname = eventData.user_surname;
+    if (eventData.user_number !== undefined) updateData.user_number = eventData.user_number;
+    if (eventData.social_network_link !== undefined) updateData.social_network_link = eventData.social_network_link;
+    if (eventData.event_notes !== undefined) updateData.event_notes = eventData.event_notes;
+    if (eventData.start_date !== undefined) updateData.start_date = eventData.start_date;
+    if (eventData.end_date !== undefined) updateData.end_date = eventData.end_date;
+    if (eventData.type !== undefined) updateData.type = eventData.type;
+    if (eventData.payment_status !== undefined) updateData.payment_status = eventData.payment_status;
+    if (eventData.payment_amount !== undefined) updateData.payment_amount = eventData.payment_amount;
+    if (eventData.repeat_pattern !== undefined) updateData.repeat_pattern = eventData.repeat_pattern;
+    if (eventData.repeat_until !== undefined) updateData.repeat_until = eventData.repeat_until;
+    if (eventData.is_recurring !== undefined) updateData.is_recurring = eventData.is_recurring;
+    if (eventData.parent_event_id !== undefined) updateData.parent_event_id = eventData.parent_event_id;
+    if (eventData.recurrence_instance_date !== undefined) updateData.recurrence_instance_date = eventData.recurrence_instance_date;
+    if (eventData.event_name !== undefined) updateData.event_name = eventData.event_name;
+    if (eventData.language !== undefined) updateData.language = eventData.language;
+
     const { data, error } = await supabase
       .from('events')
-      .update({
-        ...eventData,
-        repeat_pattern: eventData.repeat_pattern,
-        repeat_until: eventData.repeat_until,
-        is_recurring: eventData.is_recurring,
-        parent_event_id: eventData.parent_event_id,
-        recurrence_instance_date: eventData.recurrence_instance_date,
-      })
+      .update(updateData)
       .eq('id', eventData.id)
       .select('*')
       .single();
