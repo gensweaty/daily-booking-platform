@@ -82,6 +82,9 @@ export const EventDialog = ({
   const isRecurringParent = event?.is_recurring === true;
   const isRecurringInstance = event?.isRecurringInstance === true || !!event?.parent_event_id;
 
+  // Check if this is a virtual/frontend-generated instance
+  const isVirtualInstance = event?.id?.includes('-') && isRecurringInstance;
+
   // Synchronize fields when event data changes or when dialog opens
   useEffect(() => {
     if (event) {
@@ -607,56 +610,145 @@ export const EventDialog = ({
   // Handle delete click for recurring events
   const handleDeleteClick = () => {
     console.log("Delete button clicked for event:", event?.id);
+    console.log("Event details:", { isRecurringParent, isRecurringInstance, isVirtualInstance, onDelete: !!onDelete });
     
+    // Check if onDelete function is available
+    if (!onDelete) {
+      console.warn("Delete failed: onDelete function not available");
+      toast({
+        title: "Error",
+        description: "Delete function not available",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if event ID exists
+    if (!event?.id) {
+      console.warn("Delete failed: no event ID");
+      toast({
+        title: "Error", 
+        description: "No event ID available for deletion",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Handle virtual instances - show info message
+    if (isVirtualInstance) {
+      console.log("This is a virtual recurring instance");
+      toast({
+        title: "Info",
+        description: "This is a generated recurring instance. To delete it, choose 'Delete this event only' or modify the series.",
+        variant: "default",
+      });
+      setShowDeleteRecurringDialog(true);
+      return;
+    }
+
+    // Handle recurring events (both parent and real instances)
     if (isRecurringParent || isRecurringInstance) {
       console.log("Opening recurring delete dialog");
       setShowDeleteRecurringDialog(true);
     } else {
+      // Handle regular events
       console.log("Opening simple delete confirmation");
       setIsDeleteConfirmOpen(true);
     }
   };
 
   // Handle recurring event delete choice
-  const handleDeleteChoice = (choice: 'this' | 'series') => {
+  const handleDeleteChoice = async (choice: 'this' | 'series') => {
     console.log("Delete choice made:", choice, "for event:", event?.id);
     setDeleteChoice(choice);
     setShowDeleteRecurringDialog(false);
     
-    if (onDelete && event?.id) {
-      console.log("Calling onDelete with eventId:", event.id, "and choice:", choice);
-      onDelete(event.id, choice)
-        .then(() => {
-          console.log("Delete completed successfully");
-          onOpenChange(false);
-        })
-        .catch((error) => {
-          console.error("Delete failed:", error);
-        });
-    } else {
+    if (!onDelete || !event?.id) {
       console.error("onDelete function not available or no event ID");
+      toast({
+        title: "Error",
+        description: "Cannot delete event: missing required data",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      console.log("Calling onDelete with eventId:", event.id, "and choice:", choice);
+      
+      // Handle virtual instances for 'this' choice
+      if (isVirtualInstance && choice === 'this') {
+        console.log("Virtual instance deletion - triggering UI refresh only");
+        // For virtual instances, we just refresh the UI
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        queryClient.invalidateQueries({ queryKey: ['business-events'] });
+        toast({
+          title: "Success",
+          description: "Recurring instance removed from view",
+          variant: "default",
+        });
+        onOpenChange(false);
+        return;
+      }
+      
+      await onDelete(event.id, choice);
+      console.log("Delete completed successfully");
+      
+      // Always refresh queries after deletion
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Delete failed:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete event",
+        variant: "destructive",
+      });
     }
   };
 
   // Handle confirmed deletion for non-recurring events
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     console.log("Confirming delete for non-recurring event:", event?.id);
     
-    if (onDelete && event?.id) {
-      console.log("Calling onDelete for simple event deletion");
-      onDelete(event.id)
-        .then(() => {
-          console.log("Simple delete completed successfully");
-          setIsDeleteConfirmOpen(false);
-          onOpenChange(false);
-        })
-        .catch((error) => {
-          console.error("Simple delete failed:", error);
-          setIsDeleteConfirmOpen(false);
-        });
-    } else {
+    if (!onDelete || !event?.id) {
       console.error("onDelete function not available or no event ID for simple delete");
+      toast({
+        title: "Error",
+        description: "Cannot delete event: missing required data",
+        variant: "destructive",
+      });
       setIsDeleteConfirmOpen(false);
+      return;
+    }
+
+    try {
+      console.log("Calling onDelete for simple event deletion");
+      await onDelete(event.id);
+      console.log("Simple delete completed successfully");
+      
+      // Always refresh queries after deletion
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      
+      setIsDeleteConfirmOpen(false);
+      onOpenChange(false);
+      
+      toast({
+        title: "Success",
+        description: "Event deleted successfully",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Simple delete failed:", error);
+      setIsDeleteConfirmOpen(false);
+      toast({
+        title: "Error",
+        description: "Failed to delete event",
+        variant: "destructive",
+      });
     }
   };
 
@@ -668,7 +760,7 @@ export const EventDialog = ({
             {event ? t("events.editEvent") : t("events.addNewEvent")}
             {isRecurringInstance && (
               <span className="text-sm font-normal text-muted-foreground ml-2">
-                (Recurring Event)
+                (Recurring Event{isVirtualInstance ? " - Generated Instance" : ""})
               </span>
             )}
           </DialogTitle>
@@ -719,6 +811,7 @@ export const EventDialog = ({
                   variant="destructive"
                   size="icon"
                   onClick={handleDeleteClick}
+                  title={isVirtualInstance ? "Delete recurring instance" : "Delete event"}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

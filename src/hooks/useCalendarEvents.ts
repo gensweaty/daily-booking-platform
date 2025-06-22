@@ -16,7 +16,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       : ['events', user?.id],
     queryFn: async () => {
       if (businessId) {
-        // For business events, we need to query by user_id since there's no business_id column
         const { data: businessProfile, error: profileError } = await supabase
           .from('business_profiles')
           .select('user_id')
@@ -210,12 +209,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     return data;
   };
 
+  // Updated deleteEvent with comprehensive handling
   const deleteEvent = async (id: string, deleteChoice?: 'this' | 'series'): Promise<void> => {
     if (!user) {
       throw new Error("User not authenticated.");
     }
 
-    console.log("deleteEvent called with:", { id, deleteChoice });
+    console.log("useCalendarEvents: deleteEvent called with:", { id, deleteChoice });
 
     try {
       // Handle frontend-generated recurring instance IDs (contain '-')
@@ -238,10 +238,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           }
           
           console.log("Successfully deleted entire series");
-        } else {
+        } else if (deleteChoice === 'this') {
           // For 'this' choice on frontend instances, just refresh the queries
-          // since these instances don't exist in the database
           console.log("Removing frontend-generated instance from view - refreshing queries");
+          queryClient.invalidateQueries({ queryKey: ['events'] });
+          queryClient.invalidateQueries({ queryKey: ['business-events'] });
+          return;
         }
       } else {
         // Handle real database event IDs
@@ -276,7 +278,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           
           console.log("Successfully deleted entire series");
         } else {
-          // Delete only this specific event
+          // Delete only this specific event (default behavior for regular events)
           console.log("Deleting single event:", id);
           
           const { error } = await supabase
