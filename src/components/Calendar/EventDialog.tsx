@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -33,7 +32,7 @@ interface EventDialogProps {
   selectedDate: Date | null;
   defaultEndDate?: Date | null;
   onSubmit: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  onDelete?: (eventId?: string) => void;
+  onDelete?: (eventId?: string, deleteChoice?: 'this' | 'series') => void;
   event?: CalendarEventType;
   isBookingRequest?: boolean;
 }
@@ -619,27 +618,20 @@ export const EventDialog = ({
     setDeleteChoice(choice);
     setShowDeleteRecurringDialog(false);
     
-    if (choice === 'series' && (isRecurringParent || isRecurringInstance)) {
-      // Delete entire series - call onDelete with parent event ID
-      const eventIdToDelete = isRecurringInstance ? event?.parent_event_id || event?.parentEventId : event?.id;
-      if (onDelete && eventIdToDelete) {
-        onDelete(eventIdToDelete);
-      }
-    } else if (choice === 'this') {
-      // Delete just this instance
-      if (isRecurringInstance && !event?.id) {
-        // This is a frontend-generated instance, just close dialog
-        onOpenChange(false);
-      } else if (onDelete && event?.id) {
-        onDelete(event.id);
-      }
+    console.log("Delete choice made:", choice, "for event:", event?.id);
+    
+    if (onDelete && event?.id) {
+      // Pass the delete choice to the onDelete function
+      onDelete(event.id, choice);
     }
+    
+    onOpenChange(false);
   };
 
   // Handle confirmed deletion for non-recurring events
   const handleConfirmDelete = () => {
-    if (onDelete) {
-      onDelete();
+    if (onDelete && event?.id) {
+      onDelete(event.id);
       setIsDeleteConfirmOpen(false);
     }
   };
