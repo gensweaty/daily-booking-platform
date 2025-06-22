@@ -102,7 +102,7 @@ export const useEventDialog = ({
     }
   };
 
-  // Simplified delete handler - directly calls the delete function
+  // Simplified delete handler that properly propagates errors
   const handleDeleteEvent = async (eventId: string, deleteChoice?: 'this' | 'series'): Promise<{ success: boolean }> => {
     try {
       if (!deleteEvent) {
@@ -117,27 +117,23 @@ export const useEventDialog = ({
       console.log("Event ID:", eventId);
       console.log("Delete choice:", deleteChoice);
       
-      // Direct call to deleteEvent function
+      // Call the delete function and wait for result
       const result = await deleteEvent(eventId, deleteChoice);
       
-      if (result.success) {
-        console.log("Delete completed successfully");
-        
-        // Clear selected event
-        setSelectedEvent(null);
-        
-        // Show success message
-        toast({
-          title: "Success",
-          description: "Event deleted successfully",
-          variant: "default",
-        });
-        
-        console.log("=== USEVENTDIALOG DELETE COMPLETED ===");
-        return { success: true };
-      } else {
-        throw new Error("Delete operation failed");
-      }
+      console.log("Delete result:", result);
+      
+      // Clear selected event
+      setSelectedEvent(null);
+      
+      // Show success message
+      toast({
+        title: "Success",
+        description: "Event deleted successfully",
+        variant: "default",
+      });
+      
+      console.log("=== USEVENTDIALOG DELETE COMPLETED ===");
+      return { success: true };
       
     } catch (error: any) {
       console.error("=== USEVENTDIALOG DELETE FAILED ===", error);
