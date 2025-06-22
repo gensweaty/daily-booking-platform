@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { testEmailSending } from "@/lib/api";
+import { isVirtualInstance, getParentEventId } from "@/lib/recurringEvents";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,6 +61,9 @@ export const EventDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
+  const [repeatPattern, setRepeatPattern] = useState("none");
+  const [showRecurringEditDialog, setShowRecurringEditDialog] = useState(false);
+  const [editChoice, setEditChoice] = useState<"this" | "series" | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -136,6 +140,10 @@ export const EventDialog = ({
       setPaymentAmount("");
     }
   }, [selectedDate, event, open]);
+
+  // Check if this is a virtual instance
+  const isVirtual = event ? isVirtualInstance(event.id) : false;
+  const isNewEvent = !event;
 
   // Load files for this event with improved customer file handling
   useEffect(() => {
@@ -219,6 +227,12 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // If editing a virtual instance, ask user what they want to do
+    if (isVirtual && !editChoice) {
+      setShowRecurringEditDialog(true);
+      return;
+    }
+    
     // Always use userSurname for consistent naming across the app
     const finalTitle = userSurname;
     
@@ -262,6 +276,26 @@ export const EventDialog = ({
       payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
       language: event?.language || language, // Preserve original language or use current UI language
     };
+
+    // Handle recurring event data
+    if (isNewEvent && repeatPattern !== "none") {
+      eventData.is_recurring = true;
+      eventData.repeat_pattern = repeatPattern;
+      eventData.repeat_until = format(new Date(new Date().getFullYear(), 11, 31), "yyyy-MM-dd"); // End of current year
+    }
+
+    // Handle virtual instance editing
+    if (isVirtual && editChoice === "this") {
+      // Create new standalone event for this instance
+      eventData.id = undefined; // Remove ID to create new event
+      eventData.is_recurring = false;
+      eventData.repeat_pattern = null;
+      eventData.repeat_until = null;
+      eventData.parent_event_id = null;
+    } else if (isVirtual && editChoice === "series") {
+      // Edit the parent event
+      eventData.id = getParentEventId(event!.id);
+    }
 
     // CRITICAL FIX: Always save event_name if it has content and there are multiple persons
     // This should work for both creation and editing
@@ -518,8 +552,10 @@ export const EventDialog = ({
 
       onOpenChange(false);
       
-      // Clear additional persons data
+      // Clear additional persons data and reset repeat pattern
       (window as any).additionalPersonsData = [];
+      setRepeatPattern("none");
+      setEditChoice(null);
       
       // Invalidate all queries to ensure data is refreshed
       queryClient.invalidateQueries({ queryKey: ['events'] });
@@ -556,6 +592,19 @@ export const EventDialog = ({
       onDelete();
       setIsDeleteConfirmOpen(false);
     }
+  };
+
+  // Add function to handle recurring event edit choice
+  const handleRecurringEditChoice = (choice: "this" | "series") => {
+    setEditChoice(choice);
+    setShowRecurringEditDialog(false);
+    // Trigger form submission with the choice
+    setTimeout(() => {
+      const form = document.querySelector('form');
+      if (form) {
+        form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+      }
+    }, 0);
   };
 
   return (
@@ -595,6 +644,9 @@ export const EventDialog = ({
               onFileDeleted={handleFileDeleted}
               displayedFiles={displayedFiles}
               isBookingRequest={isBookingRequest}
+              repeatPattern={repeatPattern}
+              setRepeatPattern={setRepeatPattern}
+              isNewEvent={isNewEvent}
             />
             
             <div className="flex justify-between gap-4">
@@ -615,6 +667,32 @@ export const EventDialog = ({
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Recurring Event Edit Choice Dialog */}
+      <AlertDialog open={showRecurringEditDialog} onOpenChange={setShowRecurringEditDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {isGeorgian ? "განმეორებადი ღონისძიების რედაქტირება" : "Edit Recurring Event"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isGeorgian 
+                ? "თქვენ რედაქტირებთ განმეორებადი ღონისძიების ერთ ინსტანციას. რას გსურთ?" 
+                : "You're editing an instance of a recurring event. What would you like to do?"
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2">
+            <AlertDialogAction onClick={() => handleRecurringEditChoice("this")} className="w-full">
+              {isGeorgian ? "მხოლოდ ეს ღონისძიება" : "Edit this event only"}
+            </AlertDialogAction>
+            <AlertDialogAction onClick={() => handleRecurringEditChoice("series")} className="w-full">
+              {isGeorgian ? "მთელი სერია" : "Edit entire series"}
+            </AlertDialogAction>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Add deletion confirmation dialog */}
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>

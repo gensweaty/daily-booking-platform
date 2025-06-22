@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +13,8 @@ import { getCurrencySymbol } from "@/lib/currency";
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Repeat } from "lucide-react";
+import { getRepeatOptions } from "@/lib/recurringEvents";
 
 // Define interface for person data
 interface PersonData {
@@ -56,6 +56,10 @@ interface EventDialogFieldsProps {
   displayedFiles: FileRecord[];
   onFileDeleted: (fileId: string) => void;
   isBookingRequest?: boolean;
+  // Add repeat props
+  repeatPattern: string;
+  setRepeatPattern: (value: string) => void;
+  isNewEvent?: boolean;
 }
 
 export const EventDialogFields = ({
@@ -86,7 +90,10 @@ export const EventDialogFields = ({
   eventId,
   displayedFiles,
   onFileDeleted,
-  isBookingRequest = false
+  isBookingRequest = false,
+  repeatPattern,
+  setRepeatPattern,
+  isNewEvent = false
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -103,6 +110,12 @@ export const EventDialogFields = ({
   
   // Show event name field only when there are multiple persons (additionalPersons.length > 0)
   const shouldShowEventNameField = additionalPersons.length > 0;
+
+  // Generate repeat options based on selected date
+  const repeatOptions = useMemo(() => {
+    const selectedDateTime = startDate ? new Date(startDate) : undefined;
+    return getRepeatOptions(selectedDateTime);
+  }, [startDate]);
 
   // Load additional persons when eventId changes - only load for specific events
   useEffect(() => {
@@ -508,6 +521,32 @@ export const EventDialogFields = ({
           </div>
         </div>
       </div>
+
+      {/* Repeat Options - Only show for new events */}
+      {isNewEvent && (
+        <div>
+          <Label 
+            htmlFor="repeatPattern" 
+            className={cn("flex items-center gap-2", isGeorgian ? "font-georgian" : "")}
+            style={georgianStyle}
+          >
+            <Repeat className="h-4 w-4" />
+            {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორება</GeorgianAuthText> : <LanguageText>Repeat</LanguageText>}
+          </Label>
+          <Select value={repeatPattern} onValueChange={setRepeatPattern}>
+            <SelectTrigger id="repeatPattern" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+              <SelectValue placeholder={isGeorgian ? "განმეორების რეჟიმი" : "Select repeat option"} />
+            </SelectTrigger>
+            <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
+              {repeatOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value} className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {/* Main Person Data Section */}
       {renderPersonSection(undefined, undefined, true)}

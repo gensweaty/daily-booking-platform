@@ -503,11 +503,16 @@ export type Database = {
           group_name: string | null
           id: string
           is_group_event: boolean | null
+          is_recurring: boolean | null
           language: string | null
           original_booking_id: string | null
+          parent_event_id: string | null
           parent_group_id: string | null
           payment_amount: number | null
           payment_status: string | null
+          recurrence_instance_date: string | null
+          repeat_pattern: string | null
+          repeat_until: string | null
           size: number | null
           social_network_link: string | null
           start_date: string
@@ -532,11 +537,16 @@ export type Database = {
           group_name?: string | null
           id?: string
           is_group_event?: boolean | null
+          is_recurring?: boolean | null
           language?: string | null
           original_booking_id?: string | null
+          parent_event_id?: string | null
           parent_group_id?: string | null
           payment_amount?: number | null
           payment_status?: string | null
+          recurrence_instance_date?: string | null
+          repeat_pattern?: string | null
+          repeat_until?: string | null
           size?: number | null
           social_network_link?: string | null
           start_date: string
@@ -561,11 +571,16 @@ export type Database = {
           group_name?: string | null
           id?: string
           is_group_event?: boolean | null
+          is_recurring?: boolean | null
           language?: string | null
           original_booking_id?: string | null
+          parent_event_id?: string | null
           parent_group_id?: string | null
           payment_amount?: number | null
           payment_status?: string | null
+          recurrence_instance_date?: string | null
+          repeat_pattern?: string | null
+          repeat_until?: string | null
           size?: number | null
           social_network_link?: string | null
           start_date?: string
@@ -576,6 +591,13 @@ export type Database = {
           user_surname?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "events_parent_event_id_fkey"
+            columns: ["parent_event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "events_parent_group_id_fkey"
             columns: ["parent_group_id"]
@@ -1040,11 +1062,16 @@ export type Database = {
           group_name: string | null
           id: string
           is_group_event: boolean | null
+          is_recurring: boolean | null
           language: string | null
           original_booking_id: string | null
+          parent_event_id: string | null
           parent_group_id: string | null
           payment_amount: number | null
           payment_status: string | null
+          recurrence_instance_date: string | null
+          repeat_pattern: string | null
+          repeat_until: string | null
           size: number | null
           social_network_link: string | null
           start_date: string

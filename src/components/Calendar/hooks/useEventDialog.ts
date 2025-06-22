@@ -2,12 +2,13 @@
 import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
-import { useLanguage } from "@/contexts/LanguageContext"; // Import language context
+import { useLanguage } from "@/contexts/LanguageContext";
+import { isVirtualInstance } from "@/lib/recurringEvents";
 
 interface UseEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
   updateEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  deleteEvent?: (id: string) => Promise<void>;
+  deleteEvent?: (id: string, deleteChoice?: "this" | "series") => Promise<{ success: boolean; }>;
 }
 
 export const useEventDialog = ({
@@ -18,8 +19,9 @@ export const useEventDialog = ({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [showDeleteChoiceDialog, setShowDeleteChoiceDialog] = useState(false);
   const { toast } = useToast();
-  const { language } = useLanguage(); // Get current language
+  const { language } = useLanguage();
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
@@ -79,17 +81,11 @@ export const useEventDialog = ({
       };
       
       console.log("Updating event with language:", eventData.language);
-      
-      // Set checkAvailability flag in memory, but remove it before sending to the database
-      // to prevent the "column not found" error
-      const shouldCheckAvailability = true;
       console.log("Updating event with data:", eventData);
       
-      // Create a new object without the checkAvailability property to send to the database
-      const { checkAvailability, ...dataToSend } = eventData as any;
       const updatedEvent = await updateEvent({
-        ...dataToSend,
-        // We'll handle the availability check in the useCalendarEvents hook
+        ...eventData,
+        id: selectedEvent.id,
       });
       
       setSelectedEvent(null);
@@ -107,14 +103,23 @@ export const useEventDialog = ({
     }
   };
 
-  const handleDeleteEvent = async () => {
+  const handleDeleteEvent = async (deleteChoice?: "this" | "series") => {
     try {
       if (!deleteEvent || !selectedEvent) throw new Error("Delete event function not provided or no event selected");
       
-      await deleteEvent(selectedEvent.id);
+      // If it's a virtual instance and no choice provided, show choice dialog
+      if (isVirtualInstance(selectedEvent.id) && !deleteChoice) {
+        setShowDeleteChoiceDialog(true);
+        return { success: false }; // Don't close dialog yet
+      }
+      
+      const result = await deleteEvent(selectedEvent.id, deleteChoice);
       
       setSelectedEvent(null);
+      setShowDeleteChoiceDialog(false);
       console.log("Event deleted successfully:", selectedEvent.id);
+      
+      return result;
     } catch (error: any) {
       console.error("Failed to delete event:", error);
       toast({
@@ -152,6 +157,8 @@ export const useEventDialog = ({
     setIsNewEventDialogOpen,
     selectedDate,
     setSelectedDate,
+    showDeleteChoiceDialog,
+    setShowDeleteChoiceDialog,
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
