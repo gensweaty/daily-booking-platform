@@ -61,23 +61,53 @@ export const Statistics = () => {
     }
   }, [eventStats]);
 
-  // Add effect for real-time updates of statistics when relevant data changes
+  // Enhanced effect for automatic data refresh when component mounts or becomes visible
   useEffect(() => {
-    // Function to refresh data
-    const refreshData = () => {
-      console.log("Refreshing statistics data");
+    const refreshAllStatistics = () => {
+      console.log("Refreshing all statistics data automatically");
+      
+      // Invalidate all statistics-related queries to force fresh data
       queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] });
       queryClient.invalidateQueries({ queryKey: ['optimized-event-stats'] });
       queryClient.invalidateQueries({ queryKey: ['optimized-customers'] });
+      
+      // Also invalidate legacy query keys for compatibility
+      queryClient.invalidateQueries({ queryKey: ['taskStats'] });
+      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['crm'] });
     };
 
-    // Set up periodic refresh every minute
-    const intervalId = setInterval(refreshData, 60000); // 1 minute
+    // Refresh data immediately when component mounts
+    refreshAllStatistics();
+
+    // Set up periodic refresh every 30 seconds for real-time updates
+    const intervalId = setInterval(refreshAllStatistics, 30000);
+
+    // Listen for page visibility changes to refresh when user returns to tab
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log("Page became visible - refreshing statistics");
+        refreshAllStatistics();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Listen for focus events to refresh when user returns to window
+    const handleFocus = () => {
+      console.log("Window focused - refreshing statistics");
+      refreshAllStatistics();
+    };
+
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
     };
-  }, [queryClient]);
+  }, [queryClient, userId]); // Include userId to refresh when user changes
 
   const handleExport = useCallback(() => {
     if (taskStats && eventStats) {
@@ -89,7 +119,11 @@ export const Statistics = () => {
   const handleDateChange = useCallback((start: Date, end: Date | null) => {
     console.log("Date range changed to:", { start, end: end || start });
     setDateRange({ start, end: end || start });
-  }, []);
+    
+    // Immediately refresh data when date range changes
+    queryClient.invalidateQueries({ queryKey: ['optimized-event-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['optimized-customers'] });
+  }, [queryClient]);
 
   // Default task stats
   const defaultTaskStats = useMemo(() => ({ 

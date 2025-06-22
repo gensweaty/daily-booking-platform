@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -15,10 +16,11 @@ import { useBusinessProfile } from "@/hooks/useBusinessProfile"
 import { useBookingRequests } from "@/hooks/useBookingRequests"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { LanguageText } from "@/components/shared/LanguageText"
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText"
 import { cn } from "@/lib/utils"
+import { useQueryClient } from "@tanstack/react-query"
 
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
@@ -55,6 +57,8 @@ export const DashboardContent = ({
   const { t, language } = useLanguage()
   const { pendingRequests } = useBookingRequests()
   const { toast } = useToast()
+  const queryClient = useQueryClient()
+  const [activeTab, setActiveTab] = useState("calendar")
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
 
@@ -65,8 +69,45 @@ export const DashboardContent = ({
     }
   }, [pendingCount, toast])
 
+  // Handle tab changes and refresh data for statistics
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    
+    // If switching to statistics tab, force refresh all statistics data
+    if (value === "statistics") {
+      console.log("Switching to statistics tab - refreshing data")
+      queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['optimized-event-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['optimized-customers'] })
+      queryClient.invalidateQueries({ queryKey: ['taskStats'] })
+      queryClient.invalidateQueries({ queryKey: ['eventStats'] })
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
+      queryClient.invalidateQueries({ queryKey: ['crm'] })
+    }
+    
+    // Refresh calendar data when switching to calendar tab
+    if (value === "calendar") {
+      console.log("Switching to calendar tab - refreshing events")
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] })
+    }
+    
+    // Refresh tasks when switching to tasks tab  
+    if (value === "tasks") {
+      console.log("Switching to tasks tab - refreshing tasks")
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+    }
+    
+    // Refresh CRM data when switching to CRM tab
+    if (value === "crm") {
+      console.log("Switching to CRM tab - refreshing customers")
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
+      queryClient.invalidateQueries({ queryKey: ['crm'] })
+    }
+  }
+
   return (
-    <Tabs defaultValue="calendar" className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
       <TabsList className="grid w-full grid-cols-5 mb-2">
         <TabsTrigger 
           value="calendar" 
