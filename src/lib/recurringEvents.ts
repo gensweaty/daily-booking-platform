@@ -1,4 +1,3 @@
-
 import { CalendarEventType } from "@/lib/types/calendar";
 import { addDays, addWeeks, addMonths, addYears, endOfYear, isBefore, format, getDay, startOfDay } from "date-fns";
 
@@ -100,6 +99,19 @@ export const generateRecurringInstances = (baseEvent: CalendarEventType): Calend
   }
 
   return instances;
+};
+
+export const filterDeletedInstances = (instances: CalendarEventType[], deletionExceptions: CalendarEventType[]): CalendarEventType[] => {
+  const deletedDates = new Set(
+    deletionExceptions
+      .filter(exception => exception.type === 'deleted_exception')
+      .map(exception => exception.start_date.split('T')[0])
+  );
+  
+  return instances.filter(instance => {
+    const instanceDate = instance.start_date.split('T')[0];
+    return !deletedDates.has(instanceDate);
+  });
 };
 
 export const isVirtualInstance = (eventId: string): boolean => {

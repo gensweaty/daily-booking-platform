@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { generateRecurringInstances, isVirtualInstance, getParentEventId } from "@/lib/recurringEvents";
+import { generateRecurringInstances, isVirtualInstance, getParentEventId, filterDeletedInstances } from "@/lib/recurringEvents";
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string) => {
   const { user } = useAuth();
@@ -36,14 +36,20 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       if (!data) return [];
 
+      // Separate regular events from deletion exceptions
+      const regularEvents = data.filter(event => event.type !== 'deleted_exception');
+      const deletionExceptions = data.filter(event => event.type === 'deleted_exception');
+      
       const allEvents: CalendarEventType[] = [];
       
-      data.forEach(event => {
+      regularEvents.forEach(event => {
         const instances = generateRecurringInstances(event);
-        allEvents.push(...instances);
+        // Filter out instances that have deletion exceptions
+        const filteredInstances = filterDeletedInstances(instances, deletionExceptions);
+        allEvents.push(...filteredInstances);
       });
 
-      console.log(`Loaded ${data.length} base events, generated ${allEvents.length} total instances`);
+      console.log(`Loaded ${regularEvents.length} base events, generated ${allEvents.length} total instances after filtering exceptions`);
       return allEvents;
     },
     enabled: !!user || (!!businessId && !!businessUserId),
@@ -182,20 +188,37 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       
       // Handle virtual instances (non-first events in recurring series)
       if (isVirtualInstance(id)) {
+        const parentId = getParentEventId(id);
+        const instanceDate = id.split("-").slice(-3).join("-"); // Extract date from virtual ID
+        
         if (deleteChoice === "this") {
-          // For virtual instances, we create an exception by creating a new standalone event
-          // that marks this specific date as deleted/excluded
-          const parentId = getParentEventId(id);
-          const instanceDate = id.split("-").slice(-3).join("-"); // Extract date from virtual ID
-          
           console.log("Creating exception for virtual instance:", id, "on date:", instanceDate);
           
-          // In a complete implementation, you would create an exceptions table or modify the recurring pattern
-          // For now, we'll just mark it as successful in the UI layer
+          // Create an exception event that marks this specific date as deleted
+          const exceptionData = {
+            user_id: businessUserId || user!.id,
+            title: `DELETED_EXCEPTION_${instanceDate}`,
+            start_date: instanceDate + 'T00:00:00.000Z',
+            end_date: instanceDate + 'T23:59:59.999Z',
+            type: 'deleted_exception',
+            parent_event_id: parentId,
+            event_notes: `Exception for recurring event on ${instanceDate}`,
+            is_recurring: false
+          };
+          
+          const { error } = await supabase
+            .from('events')
+            .insert(exceptionData);
+            
+          if (error) {
+            console.error('Error creating deletion exception:', error);
+            throw error;
+          }
+          
+          console.log("Created deletion exception for:", instanceDate);
           return { success: true, deletedInstanceId: id, isVirtualDelete: true };
         } else if (deleteChoice === "series") {
           // Delete the parent event to remove entire series
-          const parentId = getParentEventId(id);
           console.log("Deleting parent event for series:", parentId);
           
           const { error } = await supabase
@@ -227,16 +250,31 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         }
         
         if (eventData && eventData.is_recurring) {
-          // This is the first event in a recurring series - we need to handle it specially
+          // This is the first event in a recurring series
           console.log("Deleting first instance of recurring series");
           
-          // Option 1: Modify the recurring pattern to start from the next occurrence
-          // For now, we'll create an exception for this specific date
-          // In a full implementation, you might want to:
-          // 1. Create an exceptions table to track deleted instances
-          // 2. Or modify the start_date to the next occurrence
+          // Create an exception for the first occurrence and keep the series
+          const firstDate = new Date(eventData.start_date).toISOString().split('T')[0];
+          const exceptionData = {
+            user_id: businessUserId || user!.id,
+            title: `DELETED_EXCEPTION_${firstDate}`,
+            start_date: firstDate + 'T00:00:00.000Z',
+            end_date: firstDate + 'T23:59:59.999Z',
+            type: 'deleted_exception',
+            parent_event_id: id,
+            event_notes: `Exception for recurring event on ${firstDate}`,
+            is_recurring: false
+          };
           
-          // For simplicity, we'll mark this as a special case
+          const { error: exceptionError } = await supabase
+            .from('events')
+            .insert(exceptionData);
+            
+          if (exceptionError) {
+            console.error('Error creating first instance exception:', exceptionError);
+            throw exceptionError;
+          }
+          
           return { success: true, deletedFirstInstance: id, isFirstInstanceDelete: true };
         }
       }
@@ -255,41 +293,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       console.log("Event deleted successfully:", id);
       return { success: true, deletedEventId: id };
     },
-    onSuccess: (result) => {
+    onSuccess: () => {
+      // Simply invalidate queries and let them refetch
+      // The exception events will prevent deleted instances from being generated
       queryClient.invalidateQueries({ queryKey: businessId ? ['business-events', businessId] : ['events', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
-      
-      // Handle special UI updates for virtual deletes
-      if (result.isVirtualDelete || result.isFirstInstanceDelete) {
-        // For virtual instances and first instance deletes, we need to update the UI
-        // by modifying the cached query data to remove the specific instance
-        queryClient.setQueryData(
-          businessId ? ['business-events', businessId] : ['events', user?.id],
-          (oldData: CalendarEventType[] | undefined) => {
-            if (!oldData) return oldData;
-            
-            if (result.isVirtualDelete) {
-              // Remove the virtual instance from the cached data
-              return oldData.filter(event => event.id !== result.deletedInstanceId);
-            }
-            
-            if (result.isFirstInstanceDelete) {
-              // Remove only the first instance, keep other instances
-              const parentEvent = oldData.find(event => event.id === result.deletedFirstInstance);
-              if (parentEvent && parentEvent.is_recurring) {
-                // Remove the first instance but keep others
-                return oldData.filter(event => {
-                  if (event.id === result.deletedFirstInstance) return false;
-                  return true;
-                });
-              }
-            }
-            
-            return oldData;
-          }
-        );
-      }
       
       toast({
         translateKeys: {
