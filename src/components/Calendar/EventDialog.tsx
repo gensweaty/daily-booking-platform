@@ -32,7 +32,7 @@ interface EventDialogProps {
   selectedDate: Date | null;
   defaultEndDate?: Date | null;
   onSubmit: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  onDelete?: (eventId?: string, deleteChoice?: 'this' | 'series') => void;
+  onDelete?: (eventId: string, deleteChoice?: 'this' | 'series') => Promise<void>;
   event?: CalendarEventType;
   isBookingRequest?: boolean;
 }
@@ -606,32 +606,56 @@ export const EventDialog = ({
 
   // Handle delete click for recurring events
   const handleDeleteClick = () => {
+    console.log("Delete button clicked for event:", event?.id);
+    
     if (isRecurringParent || isRecurringInstance) {
+      console.log("Opening recurring delete dialog");
       setShowDeleteRecurringDialog(true);
     } else {
+      console.log("Opening simple delete confirmation");
       setIsDeleteConfirmOpen(true);
     }
   };
 
   // Handle recurring event delete choice
   const handleDeleteChoice = (choice: 'this' | 'series') => {
+    console.log("Delete choice made:", choice, "for event:", event?.id);
     setDeleteChoice(choice);
     setShowDeleteRecurringDialog(false);
     
-    console.log("Delete choice made:", choice, "for event:", event?.id);
-    
     if (onDelete && event?.id) {
-      // Pass the delete choice to the onDelete function
-      onDelete(event.id, choice);
+      console.log("Calling onDelete with eventId:", event.id, "and choice:", choice);
+      onDelete(event.id, choice)
+        .then(() => {
+          console.log("Delete completed successfully");
+          onOpenChange(false);
+        })
+        .catch((error) => {
+          console.error("Delete failed:", error);
+        });
+    } else {
+      console.error("onDelete function not available or no event ID");
     }
-    
-    onOpenChange(false);
   };
 
   // Handle confirmed deletion for non-recurring events
   const handleConfirmDelete = () => {
+    console.log("Confirming delete for non-recurring event:", event?.id);
+    
     if (onDelete && event?.id) {
-      onDelete(event.id);
+      console.log("Calling onDelete for simple event deletion");
+      onDelete(event.id)
+        .then(() => {
+          console.log("Simple delete completed successfully");
+          setIsDeleteConfirmOpen(false);
+          onOpenChange(false);
+        })
+        .catch((error) => {
+          console.error("Simple delete failed:", error);
+          setIsDeleteConfirmOpen(false);
+        });
+    } else {
+      console.error("onDelete function not available or no event ID for simple delete");
       setIsDeleteConfirmOpen(false);
     }
   };

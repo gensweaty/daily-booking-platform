@@ -2,12 +2,12 @@
 import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
-import { useLanguage } from "@/contexts/LanguageContext"; // Import language context
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface UseEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
   updateEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  deleteEvent?: (id: string) => Promise<void>;
+  deleteEvent?: (id: string, deleteChoice?: 'this' | 'series') => Promise<void>;
 }
 
 export const useEventDialog = ({
@@ -19,7 +19,7 @@ export const useEventDialog = ({
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
-  const { language } = useLanguage(); // Get current language
+  const { language } = useLanguage();
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
@@ -107,14 +107,30 @@ export const useEventDialog = ({
     }
   };
 
-  const handleDeleteEvent = async () => {
+  const handleDeleteEvent = async (eventId?: string, deleteChoice?: 'this' | 'series') => {
     try {
-      if (!deleteEvent || !selectedEvent) throw new Error("Delete event function not provided or no event selected");
+      if (!deleteEvent) {
+        throw new Error("Delete event function not provided");
+      }
       
-      await deleteEvent(selectedEvent.id);
+      // Use provided eventId or fall back to selectedEvent.id
+      const idToDelete = eventId || selectedEvent?.id;
+      if (!idToDelete) {
+        throw new Error("No event ID provided for deletion");
+      }
+      
+      console.log("useEventDialog: Deleting event:", { idToDelete, deleteChoice });
+      
+      await deleteEvent(idToDelete, deleteChoice);
       
       setSelectedEvent(null);
-      console.log("Event deleted successfully:", selectedEvent.id);
+      console.log("Event deleted successfully:", idToDelete);
+      
+      toast({
+        title: "Success",
+        description: "Event deleted successfully",
+        variant: "default",
+      });
     } catch (error: any) {
       console.error("Failed to delete event:", error);
       toast({

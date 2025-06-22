@@ -210,7 +210,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     return data;
   };
 
-  const deleteEvent = async (id: string, deleteChoice?: 'this' | 'series') => {
+  const deleteEvent = async (id: string, deleteChoice?: 'this' | 'series'): Promise<void> => {
     if (!user) {
       throw new Error("User not authenticated.");
     }
@@ -220,6 +220,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     try {
       // Handle frontend-generated recurring instance IDs (contain '-')
       if (id.includes('-')) {
+        console.log("Handling frontend-generated recurring instance ID:", id);
+        
         if (deleteChoice === 'series') {
           // Extract parent ID and delete the entire series
           const parentId = id.split('-')[0];
@@ -234,14 +236,19 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             console.error("Error deleting series via parent ID:", error);
             throw error;
           }
+          
+          console.log("Successfully deleted entire series");
         } else {
-          // For 'this' choice on frontend instances, just refresh (they don't exist in DB)
-          console.log("Removing frontend-generated instance from view");
+          // For 'this' choice on frontend instances, just refresh the queries
+          // since these instances don't exist in the database
+          console.log("Removing frontend-generated instance from view - refreshing queries");
         }
       } else {
         // Handle real database event IDs
+        console.log("Handling database event ID:", id);
+        
         if (deleteChoice === 'series') {
-          // First check if this event has a parent_event_id
+          // First check if this event has a parent_event_id (it's an instance)
           const { data: eventData, error: fetchError } = await supabase
             .from('events')
             .select('parent_event_id, is_recurring')
@@ -253,8 +260,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             throw fetchError;
           }
 
+          // If it has a parent, delete the parent; otherwise delete this event (it's the parent)
           const parentId = eventData?.parent_event_id || id;
-          console.log("Deleting entire series, parent ID:", parentId);
+          console.log("Deleting entire series, target ID:", parentId);
           
           const { error } = await supabase
             .from('events')
@@ -265,8 +273,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             console.error("Error deleting event series:", error);
             throw error;
           }
+          
+          console.log("Successfully deleted entire series");
         } else {
-          // Delete only this specific event (deleteChoice === 'this' or no choice for non-recurring)
+          // Delete only this specific event
           console.log("Deleting single event:", id);
           
           const { error } = await supabase
@@ -278,10 +288,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             console.error("Error deleting single event:", error);
             throw error;
           }
+          
+          console.log("Successfully deleted single event");
         }
       }
 
-      // Always invalidate queries after any deletion operation
+      // Always invalidate queries after any deletion operation to refresh the UI
+      console.log("Invalidating queries to refresh UI");
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['business-events'] });
       
