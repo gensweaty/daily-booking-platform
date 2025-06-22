@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,7 @@ interface EventDialogProps {
   selectedDate: Date | null;
   defaultEndDate?: Date | null;
   onSubmit: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  onDelete?: () => void;
+  onDelete?: (eventId?: string) => void;
   event?: CalendarEventType;
   isBookingRequest?: boolean;
 }
@@ -77,6 +78,10 @@ export const EventDialog = ({
   const isGeorgian = language === 'ka';
   // Add state for delete confirmation dialog
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+  // Check if this is a recurring parent or instance
+  const isRecurringParent = event?.is_recurring === true;
+  const isRecurringInstance = event?.isRecurringInstance === true || !!event?.parent_event_id;
 
   // Synchronize fields when event data changes or when dialog opens
   useEffect(() => {
@@ -291,7 +296,27 @@ export const EventDialog = ({
       console.log("NOT setting event_name. eventName:", eventName, "additionalPersons:", additionalPersons.length);
     }
 
-    if (event?.id) {
+    // Handle recurring event fields
+    if (repeatPattern && repeatPattern !== '""' && repeatPattern !== 'null') {
+      eventData.repeat_pattern = repeatPattern;
+      eventData.repeat_until = repeatUntil;
+      eventData.is_recurring = true;
+    }
+
+    // Handle editing recurring instances
+    if (editChoice === 'this' && isRecurringInstance) {
+      // Create new standalone event from this instance
+      delete eventData.id;
+      delete eventData.parent_event_id;
+      delete eventData.repeat_pattern;
+      delete eventData.repeat_until;
+      delete eventData.is_recurring;
+      eventData.recurrence_instance_date = event?.instanceDate || null;
+    } else if (editChoice === 'series' && (isRecurringParent || isRecurringInstance)) {
+      // Edit the parent event
+      const parentId = isRecurringInstance ? event?.parent_event_id || event?.parentEventId : event?.id;
+      eventData.id = parentId;
+    } else if (event?.id) {
       eventData.id = event.id;
     }
 
@@ -540,6 +565,10 @@ export const EventDialog = ({
       // Clear additional persons data
       (window as any).additionalPersonsData = [];
       
+      // Reset edit/delete choices
+      setEditChoice(null);
+      setDeleteChoice(null);
+      
       // Invalidate all queries to ensure data is refreshed
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['business-events'] });
@@ -561,20 +590,6 @@ export const EventDialog = ({
 
   const handleFileDeleted = (fileId: string) => {
     setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
-  };
-
-  // Add function to handle delete button click
-  const handleDeleteClick = () => {
-    // Open confirmation dialog instead of deleting immediately
-    setIsDeleteConfirmOpen(true);
-  };
-
-  // Add function to handle confirmed deletion
-  const handleConfirmDelete = () => {
-    if (onDelete) {
-      onDelete();
-      setIsDeleteConfirmOpen(false);
-    }
   };
 
   // Handle recurring event edit choice
@@ -618,6 +633,14 @@ export const EventDialog = ({
       } else if (onDelete && event?.id) {
         onDelete(event.id);
       }
+    }
+  };
+
+  // Handle confirmed deletion for non-recurring events
+  const handleConfirmDelete = () => {
+    if (onDelete) {
+      onDelete();
+      setIsDeleteConfirmOpen(false);
     }
   };
 

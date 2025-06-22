@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,10 +17,22 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       : ['events', user?.id],
     queryFn: async () => {
       if (businessId) {
+        // For business events, we need to query by user_id since there's no business_id column
+        const { data: businessProfile, error: profileError } = await supabase
+          .from('business_profiles')
+          .select('user_id')
+          .eq('id', businessId)
+          .single();
+
+        if (profileError || !businessProfile) {
+          console.error("Error fetching business profile:", profileError);
+          return [];
+        }
+
         const { data, error } = await supabase
           .from('events')
           .select('*')
-          .eq('business_id', businessId)
+          .eq('user_id', businessProfile.user_id)
           .is('deleted_at', null)
           .order('start_date', { ascending: true });
 
@@ -120,7 +133,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       .insert({
         ...eventData,
         user_id: user.id,
-        business_id: businessId || null,
         repeat_pattern: eventData.repeat_pattern || null,
         repeat_until: eventData.repeat_until || null,
         is_recurring: eventData.is_recurring || false,
