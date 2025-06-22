@@ -13,8 +13,11 @@ import { getCurrencySymbol } from "@/lib/currency";
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Repeat } from "lucide-react";
+import { Plus, Trash2, Repeat, Calendar as CalendarIcon } from "lucide-react";
 import { getRepeatOptions } from "@/lib/recurringEvents";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
 
 // Define interface for person data
 interface PersonData {
@@ -59,6 +62,8 @@ interface EventDialogFieldsProps {
   // Add repeat props
   repeatPattern: string;
   setRepeatPattern: (value: string) => void;
+  repeatUntil: Date | undefined;
+  setRepeatUntil: (date: Date | undefined) => void;
   isNewEvent?: boolean;
 }
 
@@ -93,6 +98,8 @@ export const EventDialogFields = ({
   isBookingRequest = false,
   repeatPattern,
   setRepeatPattern,
+  repeatUntil,
+  setRepeatUntil,
   isNewEvent = false
 }: EventDialogFieldsProps) => {
   const {
@@ -100,6 +107,7 @@ export const EventDialogFields = ({
     language
   } = useLanguage();
   const [loading, setLoading] = useState(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const isGeorgian = language === 'ka';
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
@@ -527,24 +535,77 @@ export const EventDialogFields = ({
         <div>
           <Label 
             htmlFor="repeatPattern" 
-            className={cn("flex items-center gap-2", isGeorgian ? "font-georgian" : "")}
+            className={cn("flex items-center gap-2 mb-2", isGeorgian ? "font-georgian" : "")}
             style={georgianStyle}
           >
             <Repeat className="h-4 w-4" />
             {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორება</GeorgianAuthText> : <LanguageText>Repeat</LanguageText>}
           </Label>
-          <Select value={repeatPattern} onValueChange={setRepeatPattern}>
-            <SelectTrigger id="repeatPattern" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-              <SelectValue placeholder={isGeorgian ? "განმეორების რეჟიმი" : "Select repeat option"} />
-            </SelectTrigger>
-            <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
-              {repeatOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value} className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Select value={repeatPattern} onValueChange={setRepeatPattern}>
+                <SelectTrigger id="repeatPattern" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+                  <SelectValue placeholder={isGeorgian ? "განმეორების რეჟიმი" : "Select repeat option"} />
+                </SelectTrigger>
+                <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
+                  {repeatOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value} className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {repeatPattern !== "none" && (
+              <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "flex-1 justify-start text-left font-normal",
+                      !repeatUntil && "text-muted-foreground",
+                      isGeorgian ? "font-georgian" : ""
+                    )}
+                    style={georgianStyle}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {repeatUntil ? (
+                      format(repeatUntil, "PPP")
+                    ) : (
+                      <span>
+                        {isGeorgian ? (
+                          <GeorgianAuthText letterSpacing="-0.05px">განმეორება მდე</GeorgianAuthText>
+                        ) : (
+                          "Repeat until"
+                        )}
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={repeatUntil}
+                    onSelect={(date) => {
+                      setRepeatUntil(date);
+                      setIsDatePickerOpen(false);
+                    }}
+                    disabled={(date) => {
+                      // Disable dates before the event start date
+                      if (startDate) {
+                        const eventStart = new Date(startDate);
+                        return date < eventStart;
+                      }
+                      return date < new Date();
+                    }}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
         </div>
       )}
 
