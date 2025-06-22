@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -300,11 +301,9 @@ export const EventDialogFields = ({
       {/* File Upload Section */}
       <FileUploadField
         selectedFile={selectedFile}
-        setSelectedFile={setSelectedFile}
+        onFileChange={setSelectedFile}
         fileError={fileError}
         setFileError={setFileError}
-        isGeorgian={isGeorgian}
-        t={t}
       />
 
       {/* Display Uploaded Files */}
@@ -314,15 +313,13 @@ export const EventDialogFields = ({
             {t("events.attachedFiles")}
           </Label>
           <div className="space-y-2 mt-2">
-            {displayedFiles.map((file) => (
-              <FileDisplay
-                key={file.id}
-                file={file}
-                onDelete={onFileDeleted}
-                isGeorgian={isGeorgian}
-                t={t}
-              />
-            ))}
+            <FileDisplay
+              files={displayedFiles}
+              bucketName="event_attachments"
+              allowDelete={true}
+              onFileDeleted={onFileDeleted}
+              parentType="event"
+            />
           </div>
         </div>
       )}
