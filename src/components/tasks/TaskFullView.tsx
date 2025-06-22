@@ -133,7 +133,7 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete }: TaskFullViewPr
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </Dialog>
+      </AlertDialog>
     </>
   );
 };
