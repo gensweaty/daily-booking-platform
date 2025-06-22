@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -307,7 +306,10 @@ export const Calendar = ({
             isOpen={isNewEventDialogOpen}
             onClose={() => setIsNewEventDialogOpen(false)}
             selectedDate={dialogSelectedDate}
-            onEventCreated={handleCreateEvent}
+            onEventCreated={() => {
+              // This callback is called after the event is successfully created
+              // The EventDialog handles the actual creation internally
+            }}
           />
 
           {selectedEvent && (
@@ -317,8 +319,14 @@ export const Calendar = ({
               onClose={() => setSelectedEvent(null)}
               selectedDate={new Date(selectedEvent.start_date)}
               event={selectedEvent}
-              onEventUpdated={handleUpdateEvent}
-              onEventDeleted={handleDeleteEvent}
+              onEventUpdated={() => {
+                // This callback is called after the event is successfully updated
+                // The EventDialog handles the actual update internally
+              }}
+              onEventDeleted={() => {
+                // This callback is called after the event is successfully deleted
+                // The EventDialog handles the actual deletion internally
+              }}
             />
           )}
         </>
