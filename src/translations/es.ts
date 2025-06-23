@@ -1,4 +1,5 @@
-export const es = {
+
+export const translations = {
   common: {
     success: "Éxito",
     error: "Error",

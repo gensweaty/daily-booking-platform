@@ -1,4 +1,5 @@
-export const ka = {
+
+export const translations = {
   common: {
     edit: "რედაქტირება",
     delete: "წაშლა",
@@ -20,7 +21,7 @@ export const ka = {
     loading: "იტვირთება...",
     confirm: "დადასტურება",
     deleteConfirmMessage: "ნამდვილად გსურთ წაშლა?",
-		fileDeleted: "ფაილი წაიშალა",
+    fileDeleted: "ფაილი წაიშალა",
     close: "დახურვა",
     create: "შექმნა",
     update: "განახლება",
