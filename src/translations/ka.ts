@@ -178,7 +178,7 @@ export const translations = {
     fileUploaded: "ფაილი ატვირთულია!",
     fileUpdated: "ფაილი განახლდა!",
     fileError: "ფაილის ატვირთვის შეცდომა!",
-    fileUpdateError: "ფაილის განახლების შეცდომა!",
+    fileUpdateError: "ფაილ ის განახლების შეცდომა!",
     deleteFileConfirmTitle: "ფაილის წაშლა",
     deleteFileConfirmMessage: "ნამდვილად გსურთ ამ ფაილის წაშლა?",
     deleteSuccess: "ფაილი წაიშალა!",
