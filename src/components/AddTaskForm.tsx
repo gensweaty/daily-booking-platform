@@ -22,8 +22,6 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const [description, setDescription] = useState("");
   const [fileError, setFileError] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [deadline, setDeadline] = useState<Date | undefined>();
-  const [reminder, setReminder] = useState<Date | undefined>();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -34,36 +32,16 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       setTitle(editingTask.title);
       const initialDescription = editingTask.description || "";
       setDescription(initialDescription);
-      
-      // Set deadline and reminder if they exist
-      if (editingTask.deadline_at) {
-        setDeadline(new Date(editingTask.deadline_at));
-      }
-      if (editingTask.reminder_at) {
-        setReminder(new Date(editingTask.reminder_at));
-      }
     }
   }, [editingTask]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      toast({
-        title: "Error",
+      toast.error({
         description: language === 'es' 
           ? "Debes iniciar sesión para crear tareas"
-          : "You must be logged in to create tasks",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Validate reminder vs deadline
-    if (reminder && deadline && reminder > deadline) {
-      toast({
-        title: "Error",
-        description: "Reminder must be before deadline",
-        variant: "destructive"
+          : "You must be logged in to create tasks"
       });
       return;
     }
@@ -74,9 +52,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         description,
         status: editingTask ? editingTask.status : ('todo' as const),
         user_id: user.id,
-        position: editingTask?.position || 0,
-        deadline_at: deadline?.toISOString() || null,
-        reminder_at: reminder?.toISOString() || null
+        position: editingTask?.position || 0
       };
 
       let taskResponse;
@@ -114,19 +90,18 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       await queryClient.invalidateQueries({ queryKey: ['tasks'] });
       await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
       
-      toast({
-        title: "Success",
-        description: editingTask ? "Task updated successfully" : "Task created successfully",
-      });
+      if (editingTask) {
+        toast.task.updated();
+      } else {
+        toast.task.created();
+      }
       onClose();
     } catch (error: any) {
       console.error('Task operation error:', error);
-      toast({
-        title: "Error",
+      toast.error({
         description: language === 'es'
           ? `Error al ${editingTask ? 'actualizar' : 'crear'} la tarea. Por favor intenta de nuevo.`
-          : error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Please try again.`,
-        variant: "destructive"
+          : error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Please try again.`
       });
     }
   };
@@ -145,14 +120,10 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           fileError={fileError}
           setFileError={setFileError}
           editingTask={editingTask}
-          deadline={deadline}
-          setDeadline={setDeadline}
-          reminder={reminder}
-          setReminder={setReminder}
         />
         <Button type="submit" className="w-full">
           <LanguageText>
-            {editingTask ? "Update Task" : "Add Task"}
+            {editingTask ? t("tasks.editTask") : t("tasks.addTask")}
           </LanguageText>
         </Button>
       </form>
