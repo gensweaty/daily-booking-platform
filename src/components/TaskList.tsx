@@ -11,7 +11,6 @@ import { useToast } from "./ui/use-toast";
 import { AddTaskForm } from "./AddTaskForm";
 import { TaskFullView } from "./tasks/TaskFullView";
 import { TaskColumn } from "./tasks/TaskColumn";
-import { TaskReminderNotificationManager } from "./tasks/TaskReminderNotifications";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -104,8 +103,6 @@ export const TaskList = () => {
 
   return (
     <>
-      <TaskReminderNotificationManager tasks={tasks} />
-      
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {Object.entries(columns).map(([status, statusTasks]) => (
@@ -122,7 +119,7 @@ export const TaskList = () => {
       </DragDropContext>
 
       <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
-        <DialogContent className="bg-background border-border max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-background border-border">
           <AddTaskForm 
             onClose={() => setEditingTask(null)} 
             editingTask={editingTask}

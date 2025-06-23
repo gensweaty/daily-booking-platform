@@ -7,8 +7,6 @@ export interface Task {
   created_at: string;
   user_id?: string;
   position: number;
-  deadline_at?: string;
-  reminder_at?: string;
 }
 
 export interface Note {
