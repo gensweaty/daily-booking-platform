@@ -1,4 +1,3 @@
-
 export interface Task {
   id: string;
   title: string;
@@ -7,6 +6,8 @@ export interface Task {
   created_at: string;
   user_id?: string;
   position: number;
+  deadline_at?: string | null;
+  reminder_at?: string | null;
 }
 
 export interface Note {

@@ -7,15 +7,17 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { GeorgianAuthText } from "../shared/GeorgianAuthText";
+import { TaskDateInfo } from "./TaskDateInfo";
 
 interface TaskCardProps {
   task: Task;
   index: number;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
+  onView: (task: Task) => void;
 }
 
-export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
+export const TaskCard = ({ task, index, onEdit, onDelete, onView }: TaskCardProps) => {
   const { language } = useLanguage();
   const isGeorgian = language === 'ka';
   
@@ -32,7 +34,7 @@ export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
 
   const getTaskStyle = (status: string) => {
     switch (status) {
-      case 'in-progress':
+      case 'inprogress':
         return 'border-l-4 border-l-amber-500';
       case 'done':
         return 'border-l-4 border-l-green-500';
@@ -73,6 +75,7 @@ export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
                   dangerouslySetInnerHTML={{ __html: task.description }}
                 />
               )}
+              <TaskDateInfo deadline={task.deadline_at} reminder={task.reminder_at} />
             </div>
             <div className="flex gap-0.5">
               <Button
