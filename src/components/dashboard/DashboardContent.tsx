@@ -89,19 +89,19 @@ export const DashboardContent = () => {
 
       <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
         <DialogContent className="bg-background border-border">
-          <AddTaskForm onClose={() => setIsAddTaskOpen(false)} />
+          <AddTaskForm />
         </DialogContent>
       </Dialog>
 
       <Dialog open={isAddNoteOpen} onOpenChange={setIsAddNoteOpen}>
         <DialogContent className="bg-background border-border">
-          <AddNoteForm onClose={() => setIsAddNoteOpen(false)} />
+          <AddNoteForm />
         </DialogContent>
       </Dialog>
 
       <Dialog open={isAddReminderOpen} onOpenChange={setIsAddReminderOpen}>
         <DialogContent className="bg-background border-border">
-          <AddReminderForm onClose={() => setIsAddReminderOpen(false)} />
+          <AddReminderForm />
         </DialogContent>
       </Dialog>
     </div>
