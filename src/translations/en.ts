@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -117,7 +118,14 @@ export const translations: TranslationType = {
     deleteTaskConfirmTitle: "Delete Task?",
     taskUpdated: "Task updated successfully",
     taskDeleted: "Task deleted successfully",
-    taskAdded: "Task added successfully"
+    taskAdded: "Task added successfully",
+    deadline: "Deadline",
+    reminder: "Reminder",
+    selectDeadline: "Select deadline",
+    selectReminder: "Select reminder",
+    reminderMustBeBeforeDeadline: "Reminder must be set before the deadline",
+    overdue: "overdue",
+    reminded: "reminded"
   },
   website: {
     title: "Free Website for your business",
@@ -355,7 +363,9 @@ export const translations: TranslationType = {
     successMessage: "Operation completed successfully",
     authRequired: "Authentication required",
     save: "Save",
-    saving: "Saving..."
+    saving: "Saving...",
+    select: "Select",
+    fileDeleted: "File deleted successfully"
   },
   auth: {
     welcome: "Welcome to SmartBookly",

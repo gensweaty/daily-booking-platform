@@ -932,27 +932,33 @@ export type Database = {
       tasks: {
         Row: {
           created_at: string | null
+          deadline_at: string | null
           description: string | null
           id: string
           position: number | null
+          reminder_at: string | null
           status: string
           title: string
           user_id: string | null
         }
         Insert: {
           created_at?: string | null
+          deadline_at?: string | null
           description?: string | null
           id?: string
           position?: number | null
+          reminder_at?: string | null
           status?: string
           title: string
           user_id?: string | null
         }
         Update: {
           created_at?: string | null
+          deadline_at?: string | null
           description?: string | null
           id?: string
           position?: number | null
+          reminder_at?: string | null
           status?: string
           title?: string
           user_id?: string | null

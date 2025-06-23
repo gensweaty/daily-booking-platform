@@ -1,33 +1,26 @@
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Edit, Trash2, FileText } from "lucide-react";
 import { Task } from "@/lib/types";
 import { FileDisplay } from "../shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { useEffect, useState } from "react";
+import { TaskDateInfo } from "./TaskDateInfo";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useToast } from "@/components/ui/use-toast";
-import { Button } from "../ui/button";
-import { AlertCircle, Trash2 } from "lucide-react";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
 
 interface TaskFullViewProps {
   task: Task;
   isOpen: boolean;
   onClose: () => void;
+  onEdit?: (task: Task) => void;
   onDelete?: (id: string) => void;
 }
 
-export const TaskFullView = ({ task, isOpen, onClose, onDelete }: TaskFullViewProps) => {
+export const TaskFullView = ({ task, isOpen, onClose, onEdit, onDelete }: TaskFullViewProps) => {
   const { t } = useLanguage();
-  const { toast } = useToast();
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   
-  useEffect(() => {
-    console.log("TaskFullView - task received:", task);
-  }, [task]);
-
-  const { data: files, refetch } = useQuery({
+  const { data: files = [] } = useQuery({
     queryKey: ['taskFiles', task.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -36,104 +29,99 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete }: TaskFullViewPr
         .eq('task_id', task.id);
       
       if (error) throw error;
-      console.log("Retrieved task files:", data);
-      return data;
+      return data || [];
     },
     enabled: isOpen && !!task.id,
   });
 
-  const handleFileDeleted = () => {
-    refetch();
-    toast({
-      title: t("common.success"),
-      description: t("common.fileDeleted"),
-    });
-  };
-
-  const handleDeleteClick = () => {
-    if (onDelete) {
-      setIsDeleteConfirmOpen(true);
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'todo': return 'bg-gray-100 text-gray-800';
+      case 'inprogress': return 'bg-blue-100 text-blue-800';
+      case 'done': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const handleConfirmDelete = () => {
-    if (onDelete) {
-      onDelete(task.id);
-      setIsDeleteConfirmOpen(false);
-      onClose();
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'todo': return t("tasks.todo");
+      case 'inprogress': return t("tasks.inProgress");
+      case 'done': return t("tasks.done");
+      default: return status;
     }
   };
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="bg-background border-border text-foreground max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">{task.title}</DialogTitle>
-          </DialogHeader>
-          <div className="mt-6 space-y-6">
-            <div className="prose dark:prose-invert">
-              <div className="p-4 rounded-lg border border-input bg-muted/50">
-                <h3 className="text-sm font-medium mb-2">{t("common.description")}</h3>
-                {task.description ? (
-                  <div 
-                    className="whitespace-pre-wrap text-foreground/80"
-                    dangerouslySetInnerHTML={{ __html: task.description }}
-                  />
-                ) : (
-                  <p className="text-muted-foreground">{t("common.noDescription")}</p>
-                )}
-              </div>
-            </div>
-            {files && files.length > 0 && (
-              <div className="p-4 rounded-lg border border-input bg-muted/50">
-                <FileDisplay 
-                  files={files} 
-                  bucketName="event_attachments" 
-                  allowDelete 
-                  onFileDeleted={handleFileDeleted}
-                  parentId={task.id}
-                  parentType="task"
-                />
-              </div>
-            )}
-
-            {onDelete && (
-              <div className="flex justify-end">
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
-                  onClick={handleDeleteClick}
-                  className="flex items-center gap-1"
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl bg-background border-border">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between">
+            <span className="text-foreground">{task.title}</span>
+            <div className="flex gap-2">
+              {onEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onEdit(task)}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onDelete(task.id)}
                 >
                   <Trash2 className="h-4 w-4" />
-                  <span>{t("common.delete")}</span>
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Status:</span>
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
+              {getStatusText(task.status)}
+            </span>
           </div>
-        </DialogContent>
-      </Dialog>
+          
+          {task.description && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Description</span>
+              </div>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap pl-6">
+                {task.description}
+              </p>
+            </div>
+          )}
 
-      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-        <AlertDialogContent className="max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-destructive" />
-              {t("tasks.deleteTaskConfirmTitle")}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("common.deleteConfirmMessage")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {t("common.delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+          <TaskDateInfo 
+            deadline={task.deadline_at}
+            reminder={task.reminder_at}
+          />
+          
+          {files.length > 0 && (
+            <div>
+              <h4 className="text-sm font-medium mb-2 text-foreground">Attachments</h4>
+              <FileDisplay 
+                files={files} 
+                bucketName="event_attachments"
+                fallbackBuckets={["customer_attachments"]}
+              />
+            </div>
+          )}
+          
+          <div className="text-xs text-muted-foreground">
+            Created: {new Date(task.created_at).toLocaleDateString()}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };

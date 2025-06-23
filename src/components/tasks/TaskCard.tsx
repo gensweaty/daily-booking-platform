@@ -1,101 +1,86 @@
 
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Edit, Trash2, Eye } from "lucide-react";
 import { Task } from "@/lib/types";
 import { Draggable } from "@hello-pangea/dnd";
-import { Pencil, Trash2, Paperclip } from "lucide-react";
-import { Button } from "../ui/button";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { GeorgianAuthText } from "../shared/GeorgianAuthText";
+import { TaskDateInfo } from "./TaskDateInfo";
 
 interface TaskCardProps {
   task: Task;
   index: number;
   onEdit: (task: Task) => void;
+  onView: (task: Task) => void;
   onDelete: (id: string) => void;
 }
 
-export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
-  const { language } = useLanguage();
-  const isGeorgian = language === 'ka';
-  
-  const { data: files } = useQuery({
-    queryKey: ['taskFiles', task.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('files')
-        .select('*')
-        .eq('task_id', task.id);
-      return data || [];
-    },
-  });
-
-  const getTaskStyle = (status: string) => {
-    switch (status) {
-      case 'in-progress':
-        return 'border-l-4 border-l-amber-500';
-      case 'done':
-        return 'border-l-4 border-l-green-500';
-      default:
-        return 'border-l-4 border-l-gray-300 dark:border-l-gray-600';
-    }
-  };
-
+export const TaskCard = ({ task, index, onEdit, onView, onDelete }: TaskCardProps) => {
   return (
-    <Draggable draggableId={String(task.id)} index={index}>
-      {(provided) => (
-        <div
+    <Draggable draggableId={task.id} index={index}>
+      {(provided, snapshot) => (
+        <Card
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`p-4 bg-background dark:bg-gray-800 rounded-lg shadow ${getTaskStyle(task.status)}`}
+          className={`mb-2 cursor-move transition-shadow ${
+            snapshot.isDragging ? "shadow-lg" : ""
+          } bg-card border-border hover:shadow-md`}
         >
-          <div className="flex justify-between items-start">
-            <div className={task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'}>
-              <div className="flex items-center gap-2">
-                {isGeorgian ? (
-                  <h3 className="font-semibold">
-                    <GeorgianAuthText fontWeight="bold">{task.title}</GeorgianAuthText>
-                  </h3>
-                ) : (
-                  <h3 className="font-semibold">{task.title}</h3>
-                )}
-                {files && files.length > 0 && (
-                  <div className="flex items-center text-gray-600">
-                    <Paperclip className="h-4 w-4" />
-                    <span className="text-sm ml-1">{files.length}</span>
-                  </div>
-                )}
+          <CardContent className="p-3">
+            <div className="flex justify-between items-start mb-2">
+              <h4 className="font-medium text-sm text-foreground line-clamp-2">
+                {task.title}
+              </h4>
+              <div className="flex gap-1 ml-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onView(task);
+                  }}
+                >
+                  <Eye className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(task);
+                  }}
+                >
+                  <Edit className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(task.id);
+                  }}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
               </div>
-              {task.description && (
-                <div 
-                  className="prose dark:prose-invert max-w-none mt-2 line-clamp-3"
-                  dangerouslySetInnerHTML={{ __html: task.description }}
-                />
-              )}
             </div>
-            <div className="flex gap-0.5">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onEdit(task)}
-                className="text-foreground hover:text-foreground/80 h-8 w-8"
-                title="Edit task"
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onDelete(task.id)}
-                className="text-foreground hover:text-foreground/80 h-8 w-8"
-                title="Delete task"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+            
+            {task.description && (
+              <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                {task.description}
+              </p>
+            )}
+            
+            <TaskDateInfo 
+              deadline={task.deadline_at}
+              reminder={task.reminder_at}
+              compact
+            />
+          </CardContent>
+        </Card>
       )}
     </Draggable>
   );
