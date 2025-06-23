@@ -116,9 +116,7 @@ export const translations = {
     deleteTaskConfirmTitle: "ამოცანის წაშლა",
     taskUpdated: "ამოცანა განახლდა",
     taskDeleted: "ამოცანა წაიშალა",
-    taskAdded: "ამ
-
-ოცანა დაემატა",
+    taskAdded: "ამოცანა დაემატა",
   },
   website: {
     title: "ვებსაიტის შემქმნელი",
@@ -308,7 +306,7 @@ export const translations = {
     send: "გაგზავნა",
     sending: "იგზავნება",
     messageSent: "შეტყობინება გაიგზავნა",
-    messageSentDesc: "თქვენი შეტყოबინება წარმატებით გაიგზავნა",
+    messageSentDesc: "თქვენი შეტყობინება წარმატებით გაიგზავნა",
     error: "შეცდომა",
     errorDesc: "შეტყობინების გაგზავნა ვერ მოხერხდა",
   },
@@ -560,10 +558,7 @@ export const translations = {
   profile: {
     title: "პროფილი",
     editProfile: "პროფილის რედაქტირება",
-    personalInfo: "პირადი ინფორმაც
-
-
-ია",
+    personalInfo: "პირადი ინფორმაცია",
     accountSettings: "ანგარიშის პარამეტრები",
     subscription: "გამოწერა",
     billing: "ბილინგი",
