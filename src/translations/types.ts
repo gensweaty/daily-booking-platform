@@ -1,4 +1,3 @@
-export type Language = 'en' | 'es' | 'ka';
 
 export interface TranslationType {
   nav: {
@@ -118,6 +117,14 @@ export interface TranslationType {
     taskUpdated: string;
     taskDeleted: string;
     taskAdded: string;
+    deadline: string;
+    reminder: string;
+    selectDeadline: string;
+    selectReminder: string;
+    reminderMustBeBeforeDeadline: string;
+    overdue: string;
+    reminded: string;
+    taskReminder: string;
   };
   website: {
     title: string;
@@ -356,6 +363,8 @@ export interface TranslationType {
     authRequired: string;
     save: string;
     saving: string;
+    select: string;
+    fileDeleted: string;
   };
   auth: {
     welcome: string;
@@ -564,10 +573,4 @@ export interface TranslationType {
     invalidFileType: string;
     fileTooLarge: string;
   };
-}
-
-export interface LanguageContextType {
-  language: Language;
-  setLanguage: (language: Language) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
 }

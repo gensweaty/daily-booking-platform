@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -125,7 +124,8 @@ export const translations: TranslationType = {
     selectReminder: "Select reminder",
     reminderMustBeBeforeDeadline: "Reminder must be set before the deadline",
     overdue: "overdue",
-    reminded: "reminded"
+    reminded: "reminded",
+    taskReminder: "Task reminder"
   },
   website: {
     title: "Free Website for your business",
