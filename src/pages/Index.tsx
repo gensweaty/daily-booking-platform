@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
@@ -33,6 +34,7 @@ const childVariants = {
 }
 
 const Index = () => {
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false)
   const [username, setUsername] = useState("")
   const [processingCode, setProcessingCode] = useState(false)
   const { user } = useAuth()
@@ -176,7 +178,10 @@ const Index = () => {
             <DashboardHeader username={username} />
           </motion.div>
           <motion.div variants={childVariants}>
-            <DashboardContent />
+            <DashboardContent 
+              isTaskDialogOpen={isTaskDialogOpen}
+              setIsTaskDialogOpen={setIsTaskDialogOpen}
+            />
           </motion.div>
         </motion.div>
       ) : (

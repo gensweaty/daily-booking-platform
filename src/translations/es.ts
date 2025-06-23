@@ -117,15 +117,7 @@ export const translations: TranslationType = {
     deleteTaskConfirmTitle: "¿Eliminar Tarea?",
     taskUpdated: "Tarea actualizada con éxito",
     taskDeleted: "Tarea eliminada con éxito",
-    taskAdded: "Tarea agregada con éxito",
-    deadline: "Fecha límite",
-    reminder: "Recordatorio",
-    selectDeadline: "Seleccionar fecha límite",
-    selectReminder: "Seleccionar recordatorio",
-    reminderMustBeBeforeDeadline: "El recordatorio debe ser antes de la fecha límite",
-    overdue: "vencida",
-    reminded: "recordada",
-    taskReminder: "Recordatorio de tarea"
+    taskAdded: "Tarea agregada con éxito" 
   },
   website: {
     title: "Sitio Web Gratuito para tu negocio",
@@ -364,9 +356,7 @@ export const translations: TranslationType = {
     successMessage: "Operación completada con éxito",
     authRequired: "Autenticación requerida",
     save: "Guardar",
-    saving: "Guardando...",
-    select: "Seleccionar",
-    fileDeleted: "Archivo eliminado con éxito"
+    saving: "Guardando..."
   },
   auth: {
     welcome: "Bienvenido a SmartBookly",
@@ -454,6 +444,7 @@ export const translations: TranslationType = {
     requestSubmitted: "Solicitud de reserva enviada",
     requestSubmittedDescription: "Tu solicitud de reserva ha sido enviada y está pendiente de aprobación."
   },
+  
   notes: {
     title: "Título",
     titlePlaceholder: "Título de la nota",
@@ -466,6 +457,7 @@ export const translations: TranslationType = {
     noteUpdated: "Nota actualizada con éxito",
     noteDeleted: "Nota eliminada con éxito"
   },
+  
   reminders: {
     reminderCreated: "Recordatorio creado con éxito"
   },

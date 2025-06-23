@@ -20,8 +20,6 @@ interface AddTaskFormProps {
 export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [deadline, setDeadline] = useState<string | undefined>();
-  const [reminder, setReminder] = useState<string | undefined>();
   const [fileError, setFileError] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const queryClient = useQueryClient();
@@ -34,8 +32,6 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       setTitle(editingTask.title);
       const initialDescription = editingTask.description || "";
       setDescription(initialDescription);
-      setDeadline(editingTask.deadline_at);
-      setReminder(editingTask.reminder_at);
     }
   }, [editingTask]);
 
@@ -56,9 +52,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         description,
         status: editingTask ? editingTask.status : ('todo' as const),
         user_id: user.id,
-        position: editingTask?.position || 0,
-        deadline_at: deadline,
-        reminder_at: reminder,
+        position: editingTask?.position || 0
       };
 
       let taskResponse;
@@ -126,10 +120,6 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           fileError={fileError}
           setFileError={setFileError}
           editingTask={editingTask}
-          deadline={deadline}
-          setDeadline={setDeadline}
-          reminder={reminder}
-          setReminder={setReminder}
         />
         <Button type="submit" className="w-full">
           <LanguageText>
