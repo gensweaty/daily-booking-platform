@@ -22,6 +22,8 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const [description, setDescription] = useState("");
   const [fileError, setFileError] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [deadline, setDeadline] = useState<Date | undefined>();
+  const [reminder, setReminder] = useState<Date | undefined>();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -32,6 +34,13 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       setTitle(editingTask.title);
       const initialDescription = editingTask.description || "";
       setDescription(initialDescription);
+      
+      if (editingTask.deadline_at) {
+        setDeadline(new Date(editingTask.deadline_at));
+      }
+      if (editingTask.reminder_at) {
+        setReminder(new Date(editingTask.reminder_at));
+      }
     }
   }, [editingTask]);
 
@@ -52,7 +61,9 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         description,
         status: editingTask ? editingTask.status : ('todo' as const),
         user_id: user.id,
-        position: editingTask?.position || 0
+        position: editingTask?.position || 0,
+        deadline_at: deadline?.toISOString(),
+        reminder_at: reminder?.toISOString(),
       };
 
       let taskResponse;
@@ -107,7 +118,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   };
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-4xl">
       <TaskFormHeader editingTask={editingTask} />
       <form onSubmit={handleSubmit} className="space-y-4 mt-4">
         <TaskFormFields
@@ -120,6 +131,10 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           fileError={fileError}
           setFileError={setFileError}
           editingTask={editingTask}
+          deadline={deadline}
+          reminder={reminder}
+          onDeadlineChange={setDeadline}
+          onReminderChange={setReminder}
         />
         <Button type="submit" className="w-full">
           <LanguageText>

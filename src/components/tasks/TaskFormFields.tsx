@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { Task } from "@/lib/types";
 import { TaskFormTitle } from "./TaskFormTitle";
 import { TaskFormDescription } from "./TaskFormDescription";
+import { TaskDeadlineReminder } from "./TaskDeadlineReminder";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -19,6 +20,10 @@ interface TaskFormFieldsProps {
   fileError: string;
   setFileError: (error: string) => void;
   editingTask: Task | null;
+  deadline?: Date;
+  reminder?: Date;
+  onDeadlineChange: (date: Date | undefined) => void;
+  onReminderChange: (date: Date | undefined) => void;
 }
 
 export const TaskFormFields = ({
@@ -31,6 +36,10 @@ export const TaskFormFields = ({
   fileError,
   setFileError,
   editingTask,
+  deadline,
+  reminder,
+  onDeadlineChange,
+  onReminderChange,
 }: TaskFormFieldsProps) => {
   const { toast } = useToast();
   const { t, language } = useLanguage();
@@ -65,6 +74,13 @@ export const TaskFormFields = ({
     <div className="space-y-4">
       <TaskFormTitle title={title} setTitle={setTitle} />
       <TaskFormDescription description={description} setDescription={setDescription} />
+      
+      <TaskDeadlineReminder
+        deadline={deadline}
+        reminder={reminder}
+        onDeadlineChange={onDeadlineChange}
+        onReminderChange={onReminderChange}
+      />
       
       {editingTask?.id && existingFiles && existingFiles.length > 0 && (
         <div className="space-y-2">
