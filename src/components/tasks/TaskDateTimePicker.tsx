@@ -1,19 +1,23 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, X } from "lucide-react";
+import { Calendar as CalendarIcon, X, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { getUserTimezone, getCurrentTimeInTimezone } from "@/utils/timezoneUtils";
+import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
+import { useToast } from "@/components/ui/use-toast";
 
 interface TaskDateTimePickerProps {
   label: string;
   value?: string;
   onChange: (value: string | undefined) => void;
   placeholder: string;
-  minDate?: Date;
+  type?: 'deadline' | 'reminder';
+  deadlineValue?: string; // for reminder validation
 }
 
 export const TaskDateTimePicker = ({
@@ -21,8 +25,11 @@ export const TaskDateTimePicker = ({
   value,
   onChange,
   placeholder,
-  minDate
+  type = 'deadline',
+  deadlineValue
 }: TaskDateTimePickerProps) => {
+  const { toast } = useToast();
+  const { validateDateTime, isValidating } = useTimezoneValidation();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     value ? new Date(value) : undefined
@@ -33,12 +40,47 @@ export const TaskDateTimePicker = ({
   const [selectedMinute, setSelectedMinute] = useState<string>(
     value ? format(new Date(value), "mm") : "00"
   );
+  const [currentTime, setCurrentTime] = useState<string>("");
+  const [timezone, setTimezone] = useState<string>("");
 
-  const handleDateTimeChange = () => {
+  useEffect(() => {
+    const tz = getUserTimezone();
+    setTimezone(tz);
+    
+    const updateCurrentTime = () => {
+      const now = getCurrentTimeInTimezone(tz);
+      setCurrentTime(format(now, "MMM dd, yyyy 'at' HH:mm"));
+    };
+    
+    updateCurrentTime();
+    const interval = setInterval(updateCurrentTime, 60000); // Update every minute
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleDateTimeChange = async () => {
     if (selectedDate) {
       const dateTime = new Date(selectedDate);
       dateTime.setHours(parseInt(selectedHour), parseInt(selectedMinute));
-      onChange(dateTime.toISOString());
+      const isoString = dateTime.toISOString();
+      
+      // Validate the selected datetime
+      const validationResult = await validateDateTime(
+        isoString, 
+        type,
+        deadlineValue
+      );
+      
+      if (!validationResult.valid) {
+        toast({
+          title: "Invalid Time",
+          description: validationResult.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      onChange(isoString);
       setIsOpen(false);
     }
   };
@@ -46,6 +88,15 @@ export const TaskDateTimePicker = ({
   const handleRemove = () => {
     onChange(undefined);
     setSelectedDate(undefined);
+  };
+
+  const handleQuickSet = () => {
+    const now = getCurrentTimeInTimezone(timezone);
+    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+    
+    setSelectedDate(oneHourLater);
+    setSelectedHour(format(oneHourLater, "HH"));
+    setSelectedMinute(format(oneHourLater, "mm"));
   };
 
   const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
@@ -63,14 +114,25 @@ export const TaskDateTimePicker = ({
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <div className="p-3">
+              {/* Current time display */}
+              <div className="mb-3 p-2 bg-muted rounded-md">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  <span>Current time: {currentTime}</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Timezone: {timezone}
+                </div>
+              </div>
+              
               <Calendar
                 mode="single"
                 selected={selectedDate}
                 onSelect={setSelectedDate}
-                disabled={(date) => minDate && date < minDate}
                 initialFocus
                 className="pointer-events-auto"
               />
+              
               <div className="flex gap-2 mt-3">
                 <Select value={selectedHour} onValueChange={setSelectedHour}>
                   <SelectTrigger className="w-20">
@@ -96,8 +158,24 @@ export const TaskDateTimePicker = ({
                     ))}
                   </SelectContent>
                 </Select>
-                <Button onClick={handleDateTimeChange} disabled={!selectedDate}>
-                  Set
+                <Button 
+                  onClick={handleDateTimeChange} 
+                  disabled={!selectedDate || isValidating}
+                  size="sm"
+                >
+                  {isValidating ? "Validating..." : "Set"}
+                </Button>
+              </div>
+              
+              {/* Quick set button */}
+              <div className="mt-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleQuickSet}
+                  className="w-full text-xs"
+                >
+                  Set for 1 hour from now
                 </Button>
               </div>
             </div>

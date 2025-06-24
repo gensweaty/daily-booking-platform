@@ -11,6 +11,7 @@ import { TaskFormHeader } from "./tasks/TaskFormHeader";
 import { TaskFormFields } from "./tasks/TaskFormFields";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "./shared/LanguageText";
+import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
 
 interface AddTaskFormProps {
   onClose: () => void;
@@ -24,10 +25,12 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [deadline, setDeadline] = useState<string | undefined>();
   const [reminderAt, setReminderAt] = useState<string | undefined>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
   const { language, t } = useLanguage();
+  const { validateDateTime } = useTimezoneValidation();
 
   useEffect(() => {
     if (editingTask) {
@@ -41,28 +44,51 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      toast.error({
+      toast({
+        title: "Error",
         description: language === 'es' 
           ? "Debes iniciar sesión para crear tareas"
-          : "You must be logged in to create tasks"
+          : "You must be logged in to create tasks",
+        variant: "destructive"
       });
       return;
     }
 
-    // Validate reminder is before deadline
-    if (reminderAt && deadline) {
-      const reminderDate = new Date(reminderAt);
-      const deadlineDate = new Date(deadline);
-      
-      if (reminderDate >= deadlineDate) {
-        toast.error({
-          description: "Reminder must be before deadline"
-        });
-        return;
-      }
-    }
+    setIsSubmitting(true);
 
     try {
+      // Validate deadline if provided
+      if (deadline) {
+        const deadlineValidation = await validateDateTime(deadline, 'deadline');
+        if (!deadlineValidation.valid) {
+          toast({
+            title: "Invalid Deadline",
+            description: deadlineValidation.message,
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // Validate reminder if provided
+      if (reminderAt) {
+        const reminderValidation = await validateDateTime(
+          reminderAt, 
+          'reminder', 
+          deadline
+        );
+        if (!reminderValidation.valid) {
+          toast({
+            title: "Invalid Reminder",
+            description: reminderValidation.message,
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const taskData = {
         title,
         description,
@@ -107,19 +133,23 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       await queryClient.invalidateQueries({ queryKey: ['tasks'] });
       await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
       
-      if (editingTask) {
-        toast.task.updated();
-      } else {
-        toast.task.created();
-      }
+      toast({
+        title: t("common.success"),
+        description: editingTask ? t("tasks.taskUpdated") : t("tasks.taskAdded"),
+      });
+      
       onClose();
     } catch (error: any) {
       console.error('Task operation error:', error);
-      toast.error({
+      toast({
+        title: "Error",
         description: language === 'es'
           ? `Error al ${editingTask ? 'actualizar' : 'crear'} la tarea. Por favor intenta de nuevo.`
-          : error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Please try again.`
+          : error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Please try again.`,
+        variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -142,9 +172,12 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           reminderAt={reminderAt}
           setReminderAt={setReminderAt}
         />
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
           <LanguageText>
-            {editingTask ? t("tasks.editTask") : t("tasks.addTask")}
+            {isSubmitting 
+              ? (language === 'es' ? 'Guardando...' : 'Saving...') 
+              : (editingTask ? t("tasks.editTask") : t("tasks.addTask"))
+            }
           </LanguageText>
         </Button>
       </form>

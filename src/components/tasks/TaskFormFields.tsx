@@ -1,4 +1,3 @@
-
 import { FileUploadField } from "../shared/FileUploadField";
 import { FileDisplay } from "../shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
@@ -9,6 +8,7 @@ import { TaskFormDescription } from "./TaskFormDescription";
 import { TaskDateTimePicker } from "./TaskDateTimePicker";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
 
 interface TaskFormFieldsProps {
   title: string;
@@ -43,6 +43,7 @@ export const TaskFormFields = ({
 }: TaskFormFieldsProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { validateDateTime } = useTimezoneValidation();
   
   const { data: existingFiles = [], refetch } = useQuery({
     queryKey: ['taskFiles', editingTask?.id],
@@ -67,15 +68,18 @@ export const TaskFormFields = ({
     });
   };
 
-  const handleReminderChange = (newReminder: string | undefined) => {
+  const handleReminderChange = async (newReminder: string | undefined) => {
     if (newReminder && deadline) {
-      const reminderDate = new Date(newReminder);
-      const deadlineDate = new Date(deadline);
+      const validationResult = await validateDateTime(
+        newReminder,
+        'reminder',
+        deadline
+      );
       
-      if (reminderDate >= deadlineDate) {
+      if (!validationResult.valid) {
         toast({
           title: t("common.warning"),
-          description: "Reminder must be before deadline",
+          description: validationResult.message || "Reminder must be before deadline",
           variant: "destructive",
         });
         return;
@@ -97,7 +101,7 @@ export const TaskFormFields = ({
           value={deadline}
           onChange={setDeadline}
           placeholder="Set deadline (optional)"
-          minDate={new Date()}
+          type="deadline"
         />
         
         <TaskDateTimePicker
@@ -105,7 +109,8 @@ export const TaskFormFields = ({
           value={reminderAt}
           onChange={handleReminderChange}
           placeholder="Set reminder (optional)"
-          minDate={new Date()}
+          type="reminder"
+          deadlineValue={deadline}
         />
       </div>
       
