@@ -118,6 +118,20 @@ export const translations: TranslationType = {
     taskUpdated: "ამოცანა განახლდა",
     taskDeleted: "ამოცანა წაიშალა",
     taskAdded: "ამოცანა დაემატა",
+    deadline: "ვადა",
+    reminder: "შეხსენება",
+    setDeadline: "ვადის დაყენება",
+    setReminder: "შეხსენების დაყენება",
+    deadlineSet: "ვადა დაყენებულია",
+    reminderSet: "შეხსენება დაყენებულია",
+    reminderBeforeDeadline: "შეხსენება უნდა იყოს ვადამდე",
+    noDeadline: "ვადა არ არის დაყენებული",
+    noReminder: "შეხსენება არ არის დაყენებული",
+    editDeadline: "ვადის რედაქტირება",
+    editReminder: "შეხსენების რედაქტირება",
+    removeDeadline: "ვადის წაშლა",
+    removeReminder: "შეხსენების წაშლა",
+    taskReminder: "ამოცანის შეხსენება"
   },
   website: {
     title: "უფასო ვებგვერდი თქვენი ბიზნესისთვის",
@@ -341,6 +355,8 @@ export const translations: TranslationType = {
     authRequired: "ავტორიზაცია საჭიროა",
     save: "შენახვა",
     saving: "ინახება...",
+    select: "აირჩიეთ",
+    fileDeleted: "ფაილი წაიშალა"
   },
   auth: {
     welcome: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში",
