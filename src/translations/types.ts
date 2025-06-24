@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface TranslationType {
@@ -118,6 +119,20 @@ export interface TranslationType {
     taskUpdated: string;
     taskDeleted: string;
     taskAdded: string;
+    deadline: string;
+    reminder: string;
+    setDeadline: string;
+    setReminder: string;
+    deadlineSet: string;
+    reminderSet: string;
+    reminderBeforeDeadline: string;
+    noDeadline: string;
+    noReminder: string;
+    editDeadline: string;
+    editReminder: string;
+    removeDeadline: string;
+    removeReminder: string;
+    taskReminder: string;
   };
   website: {
     title: string;
@@ -356,6 +371,8 @@ export interface TranslationType {
     authRequired: string;
     save: string;
     saving: string;
+    select: string;
+    fileDeleted: string;
   };
   auth: {
     welcome: string;
