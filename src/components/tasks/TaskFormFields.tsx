@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { Task } from "@/lib/types";
 import { TaskFormTitle } from "./TaskFormTitle";
 import { TaskFormDescription } from "./TaskFormDescription";
+import { TaskDateTimePicker } from "./TaskDateTimePicker";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -19,6 +20,10 @@ interface TaskFormFieldsProps {
   fileError: string;
   setFileError: (error: string) => void;
   editingTask: Task | null;
+  deadline: string | undefined;
+  setDeadline: (deadline: string | undefined) => void;
+  reminderAt: string | undefined;
+  setReminderAt: (reminder: string | undefined) => void;
 }
 
 export const TaskFormFields = ({
@@ -31,10 +36,13 @@ export const TaskFormFields = ({
   fileError,
   setFileError,
   editingTask,
+  deadline,
+  setDeadline,
+  reminderAt,
+  setReminderAt,
 }: TaskFormFieldsProps) => {
   const { toast } = useToast();
-  const { t, language } = useLanguage();
-  const isGeorgian = language === 'ka';
+  const { t } = useLanguage();
   
   const { data: existingFiles = [], refetch } = useQuery({
     queryKey: ['taskFiles', editingTask?.id],
@@ -59,12 +67,47 @@ export const TaskFormFields = ({
     });
   };
 
+  const handleReminderChange = (newReminder: string | undefined) => {
+    if (newReminder && deadline) {
+      const reminderDate = new Date(newReminder);
+      const deadlineDate = new Date(deadline);
+      
+      if (reminderDate >= deadlineDate) {
+        toast({
+          title: t("common.warning"),
+          description: "Reminder must be before deadline",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    setReminderAt(newReminder);
+  };
+
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
 
   return (
     <div className="space-y-4">
       <TaskFormTitle title={title} setTitle={setTitle} />
       <TaskFormDescription description={description} setDescription={setDescription} />
+      
+      <div className="space-y-3">
+        <TaskDateTimePicker
+          label="Deadline"
+          value={deadline}
+          onChange={setDeadline}
+          placeholder="Set deadline (optional)"
+          minDate={new Date()}
+        />
+        
+        <TaskDateTimePicker
+          label="Reminder"
+          value={reminderAt}
+          onChange={handleReminderChange}
+          placeholder="Set reminder (optional)"
+          minDate={new Date()}
+        />
+      </div>
       
       {editingTask?.id && existingFiles && existingFiles.length > 0 && (
         <div className="space-y-2">

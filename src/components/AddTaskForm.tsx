@@ -22,6 +22,8 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const [description, setDescription] = useState("");
   const [fileError, setFileError] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [deadline, setDeadline] = useState<string | undefined>();
+  const [reminderAt, setReminderAt] = useState<string | undefined>();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -30,8 +32,9 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   useEffect(() => {
     if (editingTask) {
       setTitle(editingTask.title);
-      const initialDescription = editingTask.description || "";
-      setDescription(initialDescription);
+      setDescription(editingTask.description || "");
+      setDeadline(editingTask.deadline_at);
+      setReminderAt(editingTask.reminder_at);
     }
   }, [editingTask]);
 
@@ -46,13 +49,28 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       return;
     }
 
+    // Validate reminder is before deadline
+    if (reminderAt && deadline) {
+      const reminderDate = new Date(reminderAt);
+      const deadlineDate = new Date(deadline);
+      
+      if (reminderDate >= deadlineDate) {
+        toast.error({
+          description: "Reminder must be before deadline"
+        });
+        return;
+      }
+    }
+
     try {
       const taskData = {
         title,
         description,
         status: editingTask ? editingTask.status : ('todo' as const),
         user_id: user.id,
-        position: editingTask?.position || 0
+        position: editingTask?.position || 0,
+        deadline_at: deadline,
+        reminder_at: reminderAt
       };
 
       let taskResponse;
@@ -66,7 +84,6 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
-        // Use event_attachments bucket for all files
         const { error: uploadError } = await supabase.storage
           .from('event_attachments')
           .upload(filePath, selectedFile);
@@ -120,6 +137,10 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           fileError={fileError}
           setFileError={setFileError}
           editingTask={editingTask}
+          deadline={deadline}
+          setDeadline={setDeadline}
+          reminderAt={reminderAt}
+          setReminderAt={setReminderAt}
         />
         <Button type="submit" className="w-full">
           <LanguageText>

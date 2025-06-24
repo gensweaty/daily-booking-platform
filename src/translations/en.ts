@@ -117,7 +117,21 @@ export const translations: TranslationType = {
     deleteTaskConfirmTitle: "Delete Task?",
     taskUpdated: "Task updated successfully",
     taskDeleted: "Task deleted successfully",
-    taskAdded: "Task added successfully"
+    taskAdded: "Task added successfully",
+    deadline: "Deadline",
+    reminder: "Reminder",
+    setDeadline: "Set Deadline",
+    setReminder: "Set Reminder",
+    deadlineSet: "Deadline set",
+    reminderSet: "Reminder set",
+    reminderBeforeDeadline: "Reminder must be before deadline",
+    noDeadline: "No deadline set",
+    noReminder: "No reminder set",
+    editDeadline: "Edit Deadline",
+    editReminder: "Edit Reminder",
+    removeDeadline: "Remove Deadline",
+    removeReminder: "Remove Reminder",
+    taskReminder: "Task Reminder"
   },
   website: {
     title: "Free Website for your business",
@@ -355,7 +369,9 @@ export const translations: TranslationType = {
     successMessage: "Operation completed successfully",
     authRequired: "Authentication required",
     save: "Save",
-    saving: "Saving..."
+    saving: "Saving...",
+    select: "Select",
+    fileDeleted: "File deleted successfully"
   },
   auth: {
     welcome: "Welcome to SmartBookly",

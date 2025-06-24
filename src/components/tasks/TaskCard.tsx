@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { GeorgianAuthText } from "../shared/GeorgianAuthText";
+import { TaskDateInfo } from "./TaskDateInfo";
 
 interface TaskCardProps {
   task: Task;
@@ -73,6 +74,13 @@ export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
                   dangerouslySetInnerHTML={{ __html: task.description }}
                 />
               )}
+              <div className="mt-2">
+                <TaskDateInfo 
+                  deadline={task.deadline_at} 
+                  reminderAt={task.reminder_at} 
+                  compact 
+                />
+              </div>
             </div>
             <div className="flex gap-0.5">
               <Button

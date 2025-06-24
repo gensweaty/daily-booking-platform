@@ -2,6 +2,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Task } from "@/lib/types";
 import { FileDisplay } from "../shared/FileDisplay";
+import { TaskDateInfo } from "./TaskDateInfo";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
@@ -85,6 +86,14 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete }: TaskFullViewPr
                 )}
               </div>
             </div>
+
+            {(task.deadline_at || task.reminder_at) && (
+              <div className="p-4 rounded-lg border border-input bg-muted/50">
+                <h3 className="text-sm font-medium mb-3">Schedule</h3>
+                <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
+              </div>
+            )}
+
             {files && files.length > 0 && (
               <div className="p-4 rounded-lg border border-input bg-muted/50">
                 <FileDisplay 
