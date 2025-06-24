@@ -18,9 +18,18 @@ export const getCurrentTimeInTimezone = (timezone: string): Date => {
   try {
     // Get current time in the specified timezone
     const now = new Date();
-    const utc = new Date(now.getTime() + (now.getTimezoneOffset() * 60000));
-    const targetTime = new Date(utc.toLocaleString("en-US", { timeZone: timezone }));
-    return targetTime;
+    
+    // Use proper timezone conversion
+    const timeInTimezone = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
+    
+    console.log('Timezone conversion debug:', {
+      timezone,
+      utcTime: now.toISOString(),
+      localTimeString: now.toLocaleString("en-US", { timeZone: timezone }),
+      convertedTime: timeInTimezone.toISOString()
+    });
+    
+    return timeInTimezone;
   } catch (error) {
     console.warn('Failed to get time in timezone:', timezone, error);
     return new Date();
@@ -34,6 +43,13 @@ export const isDateTimeInFuture = (dateTime: string, timezone: string): boolean 
     
     // Add 1 minute buffer to account for processing time
     const bufferTime = new Date(currentTime.getTime() + 60000);
+    
+    console.log('Future validation debug:', {
+      selectedTime: selectedTime.toISOString(),
+      currentTime: currentTime.toISOString(),
+      bufferTime: bufferTime.toISOString(),
+      isFuture: selectedTime > bufferTime
+    });
     
     return selectedTime > bufferTime;
   } catch (error) {

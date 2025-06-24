@@ -24,25 +24,38 @@ const validateDateTime = (req: ValidationRequest): ValidationResponse => {
   try {
     const { dateTime, timezone, type, deadlineDateTime } = req;
     
-    // Get current time in user's timezone
-    const now = new Date();
-    const currentTimeInUserTz = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
+    console.log('Validation input:', { dateTime, timezone, type });
     
-    // Parse the selected datetime
+    // Get current time in UTC
+    const nowUtc = new Date();
+    
+    // Get current time in user's timezone using proper conversion
+    const currentTimeInUserTz = new Date(nowUtc.toLocaleString("en-US", { timeZone: timezone }));
+    
+    // Parse the selected datetime (this is already in UTC)
     const selectedTime = new Date(dateTime);
     
-    // Convert selected time to user's timezone for comparison
-    const selectedTimeInUserTz = new Date(selectedTime.toLocaleString("en-US", { timeZone: timezone }));
+    // Convert selected time to user's timezone for display
+    const selectedTimeInUserTz = selectedTime.toLocaleString("en-US", { timeZone: timezone });
+    
+    console.log('Time conversion debug:', {
+      nowUtc: nowUtc.toISOString(),
+      currentTimeInUserTz: currentTimeInUserTz.toISOString(),
+      selectedTime: selectedTime.toISOString(),
+      selectedTimeInUserTz,
+      timezone
+    });
     
     // Add 1 minute buffer to account for processing time
     const bufferTime = new Date(currentTimeInUserTz.getTime() + 60000);
     
     // Check if the selected time is in the future
-    if (selectedTimeInUserTz <= bufferTime) {
+    // Compare UTC times to avoid timezone conversion issues
+    if (selectedTime <= bufferTime) {
       return {
         valid: false,
         message: `${type === 'deadline' ? 'Deadline' : 'Reminder'} must be set for a future time. Selected time must be at least 1 minute from now.`,
-        userLocalTime: selectedTimeInUserTz.toLocaleString(),
+        userLocalTime: selectedTimeInUserTz,
         currentTime: currentTimeInUserTz.toLocaleString()
       };
     }
@@ -54,7 +67,7 @@ const validateDateTime = (req: ValidationRequest): ValidationResponse => {
         return {
           valid: false,
           message: 'Reminder must be set before the deadline.',
-          userLocalTime: selectedTimeInUserTz.toLocaleString(),
+          userLocalTime: selectedTimeInUserTz,
           currentTime: currentTimeInUserTz.toLocaleString()
         };
       }
@@ -62,7 +75,7 @@ const validateDateTime = (req: ValidationRequest): ValidationResponse => {
     
     return {
       valid: true,
-      userLocalTime: selectedTimeInUserTz.toLocaleString(),
+      userLocalTime: selectedTimeInUserTz,
       currentTime: currentTimeInUserTz.toLocaleString()
     };
     

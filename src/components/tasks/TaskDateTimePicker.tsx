@@ -7,7 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { getUserTimezone, getCurrentTimeInTimezone } from "@/utils/timezoneUtils";
+import { getUserTimezone } from "@/utils/timezoneUtils";
 import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -48,8 +48,29 @@ export const TaskDateTimePicker = ({
     setTimezone(tz);
     
     const updateCurrentTime = () => {
-      const now = getCurrentTimeInTimezone(tz);
-      setCurrentTime(format(now, "MMM dd, yyyy 'at' HH:mm"));
+      // Get the actual current time in user's timezone
+      const now = new Date();
+      const userLocalTime = new Date(now.toLocaleString("en-US", { timeZone: tz }));
+      
+      // Format the time properly
+      const timeString = userLocalTime.toLocaleString("en-US", {
+        timeZone: tz,
+        month: "short",
+        day: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      });
+      
+      setCurrentTime(timeString);
+      
+      console.log('Current time update:', {
+        timezone: tz,
+        utcTime: now.toISOString(),
+        localTime: userLocalTime.toISOString(),
+        formattedTime: timeString
+      });
     };
     
     updateCurrentTime();
@@ -91,8 +112,10 @@ export const TaskDateTimePicker = ({
   };
 
   const handleQuickSet = () => {
-    const now = getCurrentTimeInTimezone(timezone);
-    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+    // Get current time in user's timezone and add 1 hour
+    const now = new Date();
+    const userNow = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
+    const oneHourLater = new Date(userNow.getTime() + 60 * 60 * 1000);
     
     setSelectedDate(oneHourLater);
     setSelectedHour(format(oneHourLater, "HH"));
