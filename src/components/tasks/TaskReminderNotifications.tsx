@@ -17,13 +17,25 @@ export const TaskReminderNotifications = () => {
   // Request notification permission on component mount
   useEffect(() => {
     if ("Notification" in window) {
+      console.log("Browser supports notifications");
       setNotificationPermission(Notification.permission);
       
       if (Notification.permission === "default") {
+        console.log("Requesting notification permission...");
         Notification.requestPermission().then((permission) => {
+          console.log("Permission result:", permission);
           setNotificationPermission(permission);
+          if (permission === "granted") {
+            console.log("Notification permission granted");
+          } else {
+            console.log("Notification permission denied");
+          }
         });
+      } else {
+        console.log("Current notification permission:", Notification.permission);
       }
+    } else {
+      console.log("Browser does not support notifications");
     }
   }, []);
 
@@ -52,33 +64,60 @@ export const TaskReminderNotifications = () => {
       return data || [];
     },
     enabled: !!user?.id,
-    refetchInterval: 60000, // Check every minute for better accuracy
+    refetchInterval: 30000, // Check every 30 seconds for better accuracy
   });
 
   const showBrowserNotification = (taskTitle: string) => {
+    console.log("Attempting to show browser notification for:", taskTitle);
+    console.log("Notification permission:", notificationPermission);
+    
     if ("Notification" in window && notificationPermission === "granted") {
-      const notification = new Notification("📋 Task Reminder", {
-        body: `Reminder: ${taskTitle}`,
-        icon: "/favicon.ico",
-        badge: "/favicon.ico",
-        tag: `task-reminder-${taskTitle}`, // Prevent duplicate notifications
-        requireInteraction: true, // Keep notification visible until user interacts
+      try {
+        const notification = new Notification("📋 Task Reminder", {
+          body: `Reminder: ${taskTitle}`,
+          icon: "/favicon.ico",
+          badge: "/favicon.ico",
+          tag: `task-reminder-${taskTitle}`, // Prevent duplicate notifications
+          requireInteraction: true, // Keep notification visible until user interacts
+        });
+
+        console.log("Browser notification created successfully");
+
+        // Auto-close after 10 seconds
+        setTimeout(() => {
+          notification.close();
+        }, 10000);
+
+        // Handle notification click
+        notification.onclick = () => {
+          console.log("Notification clicked");
+          window.focus();
+          notification.close();
+        };
+
+        // Handle notification error
+        notification.onerror = (error) => {
+          console.error("Notification error:", error);
+        };
+
+        // Handle notification show
+        notification.onshow = () => {
+          console.log("Notification shown successfully");
+        };
+
+      } catch (error) {
+        console.error("Error creating browser notification:", error);
+      }
+    } else {
+      console.log("Cannot show browser notification:", {
+        hasNotificationAPI: "Notification" in window,
+        permission: notificationPermission
       });
-
-      // Auto-close after 10 seconds
-      setTimeout(() => {
-        notification.close();
-      }, 10000);
-
-      // Handle notification click
-      notification.onclick = () => {
-        window.focus();
-        notification.close();
-      };
     }
   };
 
   const showDashboardNotification = (taskTitle: string) => {
+    console.log("Showing dashboard notification for:", taskTitle);
     toast({
       title: "📋 Task Reminder",
       description: `Reminder: ${taskTitle}`,
@@ -105,6 +144,7 @@ export const TaskReminderNotifications = () => {
           
           if (!processedReminders.has(reminderKey)) {
             console.log('Showing reminder notifications for task:', task.title);
+            console.log('Time difference:', timeDiff, 'ms');
             
             // Show dashboard notification
             showDashboardNotification(task.title);
