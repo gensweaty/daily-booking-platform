@@ -45,7 +45,7 @@ export const TaskReminderNotifications = () => {
       if (!user?.id) return [];
       
       const now = new Date();
-      const twoMinutesFromNow = new Date(now.getTime() + 2 * 60 * 1000); // Check 2 minutes ahead
+      const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000); // Check 5 minutes ahead for better coverage
       
       const { data, error } = await supabase
         .from('tasks')
@@ -53,7 +53,8 @@ export const TaskReminderNotifications = () => {
         .eq('user_id', user.id)
         .not('reminder_at', 'is', null)
         .gte('reminder_at', now.toISOString())
-        .lte('reminder_at', twoMinutesFromNow.toISOString());
+        .lte('reminder_at', fiveMinutesFromNow.toISOString())
+        .order('reminder_at', { ascending: true });
       
       if (error) {
         console.error('Error fetching task reminders:', error);
@@ -138,9 +139,14 @@ export const TaskReminderNotifications = () => {
         const reminderTime = new Date(task.reminder_at);
         const timeDiff = reminderTime.getTime() - now.getTime();
         
-        // Show notification if reminder time is within the next minute and hasn't been processed yet
-        if (timeDiff <= 60000 && timeDiff > -60000) { // 1 minute window
+        // Show notification if reminder time is within the next 2 minutes and hasn't been processed yet
+        // Using 2 minutes window to ensure we don't miss reminders due to timing
+        if (timeDiff <= 2 * 60 * 1000 && timeDiff > -30 * 1000) { // 2 minutes ahead, 30 seconds past
           const reminderKey = `${task.id}-${task.reminder_at}`;
+          
+          console.log('Checking reminder for task:', task.title, 'Time diff:', timeDiff, 'ms');
+          console.log('Processed reminders:', Array.from(processedReminders));
+          console.log('Current reminder key:', reminderKey);
           
           if (!processedReminders.has(reminderKey)) {
             console.log('Showing reminder notifications for task:', task.title);
@@ -153,8 +159,16 @@ export const TaskReminderNotifications = () => {
             showBrowserNotification(task.title);
             
             // Mark this reminder as processed
-            setProcessedReminders(prev => new Set([...prev, reminderKey]));
+            setProcessedReminders(prev => {
+              const newSet = new Set([...prev, reminderKey]);
+              console.log('Updated processed reminders:', Array.from(newSet));
+              return newSet;
+            });
+          } else {
+            console.log('Reminder already processed for task:', task.title);
           }
+        } else {
+          console.log('Reminder not in time window for task:', task.title, 'Time diff:', timeDiff, 'ms');
         }
       });
     }
@@ -163,13 +177,12 @@ export const TaskReminderNotifications = () => {
   // Clean up old processed reminders (older than 1 hour)
   useEffect(() => {
     const cleanup = setInterval(() => {
-      const now = new Date();
-      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      console.log('Running reminder cleanup, current size:', processedReminders.size);
       
-      // This is a simple cleanup - in a real app you might want to store timestamps
-      // For now, we'll just clear the set periodically
-      if (processedReminders.size > 100) {
+      // Clear processed reminders every hour to prevent memory buildup
+      if (processedReminders.size > 0) {
         setProcessedReminders(new Set());
+        console.log('Cleared processed reminders');
       }
     }, 60 * 60 * 1000); // Clean up every hour
 
