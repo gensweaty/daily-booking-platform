@@ -48,12 +48,9 @@ export const TaskDateTimePicker = ({
     setTimezone(tz);
     
     const updateCurrentTime = () => {
-      // Get the actual current time in user's timezone
+      // Get current time and format it properly in user's timezone
       const now = new Date();
-      const userLocalTime = new Date(now.toLocaleString("en-US", { timeZone: tz }));
-      
-      // Format the time properly
-      const timeString = userLocalTime.toLocaleString("en-US", {
+      const timeString = now.toLocaleString("en-US", {
         timeZone: tz,
         month: "short",
         day: "2-digit",
@@ -68,7 +65,6 @@ export const TaskDateTimePicker = ({
       console.log('Current time update:', {
         timezone: tz,
         utcTime: now.toISOString(),
-        localTime: userLocalTime.toISOString(),
         formattedTime: timeString
       });
     };
@@ -112,10 +108,9 @@ export const TaskDateTimePicker = ({
   };
 
   const handleQuickSet = () => {
-    // Get current time in user's timezone and add 1 hour
+    // Get current time and add 1 hour
     const now = new Date();
-    const userNow = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
-    const oneHourLater = new Date(userNow.getTime() + 60 * 60 * 1000);
+    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
     
     setSelectedDate(oneHourLater);
     setSelectedHour(format(oneHourLater, "HH"));

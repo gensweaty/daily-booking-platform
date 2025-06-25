@@ -29,54 +29,74 @@ const validateDateTime = (req: ValidationRequest): ValidationResponse => {
     // Get current time in UTC
     const nowUtc = new Date();
     
-    // Get current time in user's timezone using proper conversion
-    const currentTimeInUserTz = new Date(nowUtc.toLocaleString("en-US", { timeZone: timezone }));
+    // Parse the selected datetime (this is in UTC)
+    const selectedTimeUtc = new Date(dateTime);
     
-    // Parse the selected datetime (this is already in UTC)
-    const selectedTime = new Date(dateTime);
+    // Convert both times to user's timezone for comparison
+    const nowInUserTz = new Date(nowUtc.toLocaleString("en-US", { timeZone: timezone }));
+    const selectedTimeInUserTz = new Date(selectedTimeUtc.toLocaleString("en-US", { timeZone: timezone }));
     
-    // Convert selected time to user's timezone for display
-    const selectedTimeInUserTz = selectedTime.toLocaleString("en-US", { timeZone: timezone });
+    // Format for display
+    const currentTimeDisplay = nowUtc.toLocaleString("en-US", { 
+      timeZone: timezone,
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
     
-    console.log('Time conversion debug:', {
+    const selectedTimeDisplay = selectedTimeUtc.toLocaleString("en-US", { 
+      timeZone: timezone,
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    
+    console.log('Time comparison debug:', {
       nowUtc: nowUtc.toISOString(),
-      currentTimeInUserTz: currentTimeInUserTz.toISOString(),
-      selectedTime: selectedTime.toISOString(),
-      selectedTimeInUserTz,
+      selectedTimeUtc: selectedTimeUtc.toISOString(),
+      nowInUserTz: nowInUserTz.toISOString(),
+      selectedTimeInUserTz: selectedTimeInUserTz.toISOString(),
+      currentTimeDisplay,
+      selectedTimeDisplay,
       timezone
     });
     
     // Add 1 minute buffer to account for processing time
-    const bufferTime = new Date(currentTimeInUserTz.getTime() + 60000);
+    const bufferTime = new Date(nowUtc.getTime() + 60000);
     
-    // Check if the selected time is in the future
-    // Compare UTC times to avoid timezone conversion issues
-    if (selectedTime <= bufferTime) {
+    // Compare UTC times directly to avoid timezone conversion issues
+    if (selectedTimeUtc <= bufferTime) {
       return {
         valid: false,
         message: `${type === 'deadline' ? 'Deadline' : 'Reminder'} must be set for a future time. Selected time must be at least 1 minute from now.`,
-        userLocalTime: selectedTimeInUserTz,
-        currentTime: currentTimeInUserTz.toLocaleString()
+        userLocalTime: selectedTimeDisplay,
+        currentTime: currentTimeDisplay
       };
     }
     
     // Additional validation for reminders - must be before deadline
     if (type === 'reminder' && deadlineDateTime) {
       const deadlineTime = new Date(deadlineDateTime);
-      if (selectedTime >= deadlineTime) {
+      if (selectedTimeUtc >= deadlineTime) {
         return {
           valid: false,
           message: 'Reminder must be set before the deadline.',
-          userLocalTime: selectedTimeInUserTz,
-          currentTime: currentTimeInUserTz.toLocaleString()
+          userLocalTime: selectedTimeDisplay,
+          currentTime: currentTimeDisplay
         };
       }
     }
     
     return {
       valid: true,
-      userLocalTime: selectedTimeInUserTz,
-      currentTime: currentTimeInUserTz.toLocaleString()
+      userLocalTime: selectedTimeDisplay,
+      currentTime: currentTimeDisplay
     };
     
   } catch (error) {
