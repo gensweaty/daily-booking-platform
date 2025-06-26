@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -6,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Bell } from "lucide-react";
+import { ensureNotificationPermission } from "@/utils/notificationUtils";
 
 export const TaskReminderNotifications = () => {
   const { user } = useAuth();
@@ -48,15 +48,7 @@ export const TaskReminderNotifications = () => {
         console.log("Using cached permission:", sessionPermission);
       } else {
         setNotificationPermission(Notification.permission);
-        
-        if (Notification.permission === "default") {
-          console.log("Requesting notification permission...");
-          Notification.requestPermission().then((permission) => {
-            console.log("Permission result:", permission);
-            setNotificationPermission(permission);
-            sessionStorage.setItem("notification_permission", permission);
-          });
-        }
+        console.log("Current notification permission:", Notification.permission);
       }
     } else {
       console.log("Browser does not support notifications");
@@ -89,7 +81,8 @@ export const TaskReminderNotifications = () => {
       return data || [];
     },
     enabled: !!user?.id,
-    refetchInterval: 10000, // Check every 10 seconds for accuracy
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true, // 🔥 This ensures polling happens even on inactive tabs
   });
 
   const playNotificationSound = () => {
@@ -104,11 +97,14 @@ export const TaskReminderNotifications = () => {
     }
   };
 
-  const showBrowserNotification = (taskTitle: string) => {
+  const showBrowserNotification = async (taskTitle: string) => {
     console.log("Attempting to show browser notification for:", taskTitle);
-    console.log("Notification permission:", notificationPermission);
     
-    if ("Notification" in window && notificationPermission === "granted") {
+    // Request permission at the time of showing notification
+    const hasPermission = await ensureNotificationPermission();
+    console.log("Permission check result:", hasPermission);
+    
+    if (hasPermission) {
       try {
         const notification = new Notification("📋 Task Reminder", {
           body: `Reminder: ${taskTitle}`,
@@ -139,7 +135,7 @@ export const TaskReminderNotifications = () => {
         console.error("Error creating browser notification:", error);
       }
     } else {
-      console.log("Cannot show browser notification - permission:", notificationPermission);
+      console.log("Cannot show browser notification - permission not granted");
     }
   };
 
@@ -196,7 +192,7 @@ export const TaskReminderNotifications = () => {
         }
       });
     }
-  }, [tasks, notificationPermission, processedReminders]);
+  }, [tasks, processedReminders]);
 
   // Clean up old processed reminders every hour
   useEffect(() => {

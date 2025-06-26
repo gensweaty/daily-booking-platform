@@ -1,3 +1,4 @@
+
 import { FileUploadField } from "../shared/FileUploadField";
 import { FileDisplay } from "../shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
@@ -9,6 +10,7 @@ import { TaskDateTimePicker } from "./TaskDateTimePicker";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
+import { ensureNotificationPermission } from "@/utils/notificationUtils";
 
 interface TaskFormFieldsProps {
   title: string;
@@ -85,6 +87,12 @@ export const TaskFormFields = ({
         return;
       }
     }
+
+    // Request notification permission when setting a reminder
+    if (newReminder) {
+      await ensureNotificationPermission();
+    }
+
     setReminderAt(newReminder);
   };
 
