@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -68,15 +69,15 @@ export const TaskReminderNotifications = () => {
       if (!user?.id) return [];
       
       const now = new Date();
-      // Look for reminders that are due (past or within next 30 minutes for catch-up)
-      const catchupWindow = new Date(now.getTime() + 30 * 60 * 1000);
+      // Look for reminders that are due (past or within next 3 minutes for catch-up)
+      const futureWindow = new Date(now.getTime() + 3 * 60 * 1000);
       
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
         .eq('user_id', user.id)
         .not('reminder_at', 'is', null)
-        .lte('reminder_at', catchupWindow.toISOString())
+        .lte('reminder_at', futureWindow.toISOString())
         .order('reminder_at', { ascending: true });
       
       if (error) {
@@ -88,7 +89,7 @@ export const TaskReminderNotifications = () => {
       return data || [];
     },
     enabled: !!user?.id,
-    refetchInterval: 10000, // Check every 10 seconds for better accuracy
+    refetchInterval: 10000, // Check every 10 seconds for accuracy
   });
 
   const playNotificationSound = () => {
@@ -165,8 +166,8 @@ export const TaskReminderNotifications = () => {
         const timeDiff = now.getTime() - reminderTime.getTime();
         
         // Show notification if:
-        // - Reminder time has passed (timeDiff >= 0)
-        // - But not more than 30 minutes ago (catch-up window)
+        // - Reminder time has passed (timeDiff >= 0) 
+        // - But not more than 30 minutes ago (catch-up window for missed reminders)
         // - And hasn't been processed yet
         const isDue = timeDiff >= 0 && timeDiff <= 30 * 60 * 1000;
         const reminderKey = `${task.id}-${task.reminder_at}`;
@@ -174,17 +175,15 @@ export const TaskReminderNotifications = () => {
         console.log('Checking reminder for task:', task.title);
         console.log('Reminder time:', reminderTime.toLocaleString());
         console.log('Current time:', now.toLocaleString());
-        console.log('Time difference (seconds):', Math.round(timeDiff / 1000));
+        console.log('Time difference (minutes):', Math.round(timeDiff / 60000));
         console.log('Is due:', isDue);
         console.log('Already processed:', processedReminders.has(reminderKey));
         
         if (isDue && !processedReminders.has(reminderKey)) {
           console.log('🔔 Triggering notifications for task:', task.title);
           
-          // Show dashboard notification
+          // Show both types of notifications
           showDashboardNotification(task.title);
-          
-          // Show browser notification
           showBrowserNotification(task.title);
           
           // Mark this reminder as processed
@@ -207,13 +206,15 @@ export const TaskReminderNotifications = () => {
       const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
       
       setProcessedReminders(prev => {
-        const newSet = new Set();
+        const newSet = new Set<string>();
         prev.forEach(key => {
           // Keep reminders that are less than 1 hour old
           const [, reminderTimeStr] = key.split('-');
-          const reminderTime = new Date(reminderTimeStr);
-          if (reminderTime > oneHourAgo) {
-            newSet.add(key);
+          if (reminderTimeStr) {
+            const reminderTime = new Date(reminderTimeStr);
+            if (reminderTime > oneHourAgo) {
+              newSet.add(key);
+            }
           }
         });
         console.log('Cleaned up processed reminders. Before:', prev.size, 'After:', newSet.size);
