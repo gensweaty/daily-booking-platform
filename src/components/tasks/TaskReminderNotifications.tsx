@@ -25,14 +25,7 @@ export const TaskReminderNotifications = () => {
         Notification.requestPermission().then((permission) => {
           console.log("Permission result:", permission);
           setNotificationPermission(permission);
-          if (permission === "granted") {
-            console.log("Notification permission granted");
-          } else {
-            console.log("Notification permission denied");
-          }
         });
-      } else {
-        console.log("Current notification permission:", Notification.permission);
       }
     } else {
       console.log("Browser does not support notifications");
@@ -45,7 +38,7 @@ export const TaskReminderNotifications = () => {
       if (!user?.id) return [];
       
       const now = new Date();
-      const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000); // Check 5 minutes ahead for better coverage
+      const threeMinutesFromNow = new Date(now.getTime() + 3 * 60 * 1000);
       
       const { data, error } = await supabase
         .from('tasks')
@@ -53,7 +46,7 @@ export const TaskReminderNotifications = () => {
         .eq('user_id', user.id)
         .not('reminder_at', 'is', null)
         .gte('reminder_at', now.toISOString())
-        .lte('reminder_at', fiveMinutesFromNow.toISOString())
+        .lte('reminder_at', threeMinutesFromNow.toISOString())
         .order('reminder_at', { ascending: true });
       
       if (error) {
@@ -65,7 +58,7 @@ export const TaskReminderNotifications = () => {
       return data || [];
     },
     enabled: !!user?.id,
-    refetchInterval: 30000, // Check every 30 seconds for better accuracy
+    refetchInterval: 15000, // Check every 15 seconds for better accuracy
   });
 
   const showBrowserNotification = (taskTitle: string) => {
@@ -77,9 +70,8 @@ export const TaskReminderNotifications = () => {
         const notification = new Notification("📋 Task Reminder", {
           body: `Reminder: ${taskTitle}`,
           icon: "/favicon.ico",
-          badge: "/favicon.ico",
-          tag: `task-reminder-${taskTitle}`, // Prevent duplicate notifications
-          requireInteraction: true, // Keep notification visible until user interacts
+          tag: `task-reminder-${taskTitle}`,
+          requireInteraction: true,
         });
 
         console.log("Browser notification created successfully");
@@ -89,31 +81,21 @@ export const TaskReminderNotifications = () => {
           notification.close();
         }, 10000);
 
-        // Handle notification click
         notification.onclick = () => {
           console.log("Notification clicked");
           window.focus();
           notification.close();
         };
 
-        // Handle notification error
         notification.onerror = (error) => {
           console.error("Notification error:", error);
-        };
-
-        // Handle notification show
-        notification.onshow = () => {
-          console.log("Notification shown successfully");
         };
 
       } catch (error) {
         console.error("Error creating browser notification:", error);
       }
     } else {
-      console.log("Cannot show browser notification:", {
-        hasNotificationAPI: "Notification" in window,
-        permission: notificationPermission
-      });
+      console.log("Cannot show browser notification - permission:", notificationPermission);
     }
   };
 
@@ -122,7 +104,7 @@ export const TaskReminderNotifications = () => {
     toast({
       title: "📋 Task Reminder",
       description: `Reminder: ${taskTitle}`,
-      duration: 10000, // Show for 10 seconds
+      duration: 8000,
       action: (
         <div className="flex items-center">
           <Bell className="h-4 w-4" />
@@ -139,18 +121,17 @@ export const TaskReminderNotifications = () => {
         const reminderTime = new Date(task.reminder_at);
         const timeDiff = reminderTime.getTime() - now.getTime();
         
-        // Show notification if reminder time is within the next 2 minutes and hasn't been processed yet
-        // Using 2 minutes window to ensure we don't miss reminders due to timing
-        if (timeDiff <= 2 * 60 * 1000 && timeDiff > -30 * 1000) { // 2 minutes ahead, 30 seconds past
+        // Show notification if reminder time is within the next 3 minutes or up to 1 minute past
+        if (timeDiff <= 3 * 60 * 1000 && timeDiff >= -60 * 1000) {
           const reminderKey = `${task.id}-${task.reminder_at}`;
           
-          console.log('Checking reminder for task:', task.title, 'Time diff:', timeDiff, 'ms');
-          console.log('Processed reminders:', Array.from(processedReminders));
-          console.log('Current reminder key:', reminderKey);
+          console.log('Checking reminder for task:', task.title);
+          console.log('Time difference:', Math.round(timeDiff / 1000), 'seconds');
+          console.log('Reminder key:', reminderKey);
+          console.log('Already processed:', processedReminders.has(reminderKey));
           
           if (!processedReminders.has(reminderKey)) {
-            console.log('Showing reminder notifications for task:', task.title);
-            console.log('Time difference:', timeDiff, 'ms');
+            console.log('Triggering notifications for task:', task.title);
             
             // Show dashboard notification
             showDashboardNotification(task.title);
@@ -161,33 +142,24 @@ export const TaskReminderNotifications = () => {
             // Mark this reminder as processed
             setProcessedReminders(prev => {
               const newSet = new Set([...prev, reminderKey]);
-              console.log('Updated processed reminders:', Array.from(newSet));
+              console.log('Added to processed reminders:', reminderKey);
               return newSet;
             });
-          } else {
-            console.log('Reminder already processed for task:', task.title);
           }
-        } else {
-          console.log('Reminder not in time window for task:', task.title, 'Time diff:', timeDiff, 'ms');
         }
       });
     }
-  }, [tasks, notificationPermission, processedReminders]);
+  }, [tasks, notificationPermission]);
 
-  // Clean up old processed reminders (older than 1 hour)
+  // Clean up old processed reminders every 30 minutes
   useEffect(() => {
     const cleanup = setInterval(() => {
-      console.log('Running reminder cleanup, current size:', processedReminders.size);
-      
-      // Clear processed reminders every hour to prevent memory buildup
-      if (processedReminders.size > 0) {
-        setProcessedReminders(new Set());
-        console.log('Cleared processed reminders');
-      }
-    }, 60 * 60 * 1000); // Clean up every hour
+      console.log('Cleaning up processed reminders');
+      setProcessedReminders(new Set());
+    }, 30 * 60 * 1000); // Clean up every 30 minutes
 
     return () => clearInterval(cleanup);
-  }, [processedReminders.size]);
+  }, []);
 
   return null; // This component only handles notifications, no UI
 };
