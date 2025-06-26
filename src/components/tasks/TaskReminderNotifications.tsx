@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+
+import { useEffect, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +13,7 @@ export const TaskReminderNotifications = () => {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [processedReminders, setProcessedReminders] = useState<Set<string>>(new Set());
+  const forceRefreshInterval = useRef<NodeJS.Timeout | null>(null);
 
   // Load processed reminders from localStorage on mount
   useEffect(() => {
@@ -36,16 +38,18 @@ export const TaskReminderNotifications = () => {
     }
   }, [processedReminders]);
 
-  // Force real-time sync via setInterval to ensure continuous polling
+  // Force refresh logic even when React doesn't update
   useEffect(() => {
     if (!user?.id) return;
     
-    const interval = setInterval(() => {
+    forceRefreshInterval.current = setInterval(() => {
       console.log("🔄 Force refreshing task reminders");
-      queryClient.invalidateQueries({ queryKey: ['taskReminders', user?.id] });
-    }, 10000); // force refresh every 10s
+      queryClient.invalidateQueries({ queryKey: ['taskReminders', user.id] });
+    }, 10000);
 
-    return () => clearInterval(interval);
+    return () => {
+      if (forceRefreshInterval.current) clearInterval(forceRefreshInterval.current);
+    };
   }, [user?.id, queryClient]);
 
   const { data: tasks } = useQuery({
@@ -75,7 +79,7 @@ export const TaskReminderNotifications = () => {
     },
     enabled: !!user?.id,
     refetchInterval: 10000,
-    refetchIntervalInBackground: true, // 🔥 This ensures polling happens even on inactive tabs
+    refetchIntervalInBackground: true,
   });
 
   const playNotificationSound = () => {
@@ -99,6 +103,39 @@ export const TaskReminderNotifications = () => {
     }
 
     try {
+      // Check if service worker is available for enhanced notifications
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then((reg) => {
+          if (reg) {
+            reg.showNotification("📋 Task Reminder", {
+              body: `Reminder: ${taskTitle}`,
+              icon: "/favicon.ico",
+              requireInteraction: true,
+              tag: `task-${taskTitle}`,
+            });
+            console.log("Service worker notification sent");
+            playNotificationSound();
+          } else {
+            // Fallback to regular notification
+            createRegularNotification(taskTitle);
+          }
+        }).catch(() => {
+          // Fallback to regular notification if service worker fails
+          createRegularNotification(taskTitle);
+        });
+      } else {
+        // Fallback to regular notification
+        createRegularNotification(taskTitle);
+      }
+    } catch (error) {
+      console.error("❌ Error showing browser notification:", error);
+      // Try fallback
+      createRegularNotification(taskTitle);
+    }
+  };
+
+  const createRegularNotification = (taskTitle: string) => {
+    try {
       const notification = new Notification("📋 Task Reminder", {
         body: `Reminder: ${taskTitle}`,
         icon: "/favicon.ico",
@@ -106,7 +143,7 @@ export const TaskReminderNotifications = () => {
         requireInteraction: true,
       });
 
-      console.log("Browser notification created successfully");
+      console.log("Regular browser notification created successfully");
       playNotificationSound();
 
       // Auto-close after 10 seconds
@@ -125,7 +162,7 @@ export const TaskReminderNotifications = () => {
       };
 
     } catch (error) {
-      console.error("❌ Error showing browser notification:", error);
+      console.error("❌ Error creating regular notification:", error);
     }
   };
 
@@ -149,19 +186,14 @@ export const TaskReminderNotifications = () => {
       
       tasks.forEach((task) => {
         const reminderTime = new Date(task.reminder_at);
-        const timeDiff = now.getTime() - reminderTime.getTime();
-        
-        // Show notification if:
-        // - Reminder time has passed (timeDiff >= 0) 
-        // - But not more than 30 minutes ago (catch-up window for missed reminders)
-        // - And hasn't been processed yet
-        const isDue = timeDiff >= 0 && timeDiff <= 30 * 60 * 1000;
         const reminderKey = `${task.id}-${task.reminder_at}`;
+        
+        // Use simpler boolean logic for due check
+        const isDue = now >= reminderTime && now <= new Date(reminderTime.getTime() + 30 * 60 * 1000);
         
         console.log('Checking reminder for task:', task.title);
         console.log('Reminder time:', reminderTime.toLocaleString());
         console.log('Current time:', now.toLocaleString());
-        console.log('Time difference (minutes):', Math.round(timeDiff / 60000));
         console.log('Is due:', isDue);
         console.log('Already processed:', processedReminders.has(reminderKey));
         

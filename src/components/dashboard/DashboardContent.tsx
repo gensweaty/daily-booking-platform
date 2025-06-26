@@ -59,23 +59,34 @@ export const DashboardContent = ({
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState("calendar")
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | null>(null)
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
 
-  // Request notification permission early when user interacts with the app
+  // Check notification permission status
   useEffect(() => {
-    const requestNotificationPermission = async () => {
-      if ("Notification" in window && Notification.permission === "default") {
-        console.log("🔐 Requesting notification permission on app load");
-        const permission = await Notification.requestPermission();
-        sessionStorage.setItem("notification_permission", permission);
-        console.log("🔐 Notification permission result:", permission);
-      }
-    };
+    if ("Notification" in window) {
+      setNotificationPermission(Notification.permission)
+    }
+  }, [])
 
-    // Ask only once when the user loads the dashboard
-    requestNotificationPermission();
-  }, []);
+  const handleNotificationPermissionRequest = async () => {
+    if ("Notification" in window && Notification.permission === "default") {
+      console.log("🔐 Requesting notification permission from user button click");
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      sessionStorage.setItem("notification_permission", permission);
+      console.log("🔐 Permission granted:", permission);
+      
+      if (permission === "granted") {
+        toast({
+          title: "🔔 Notifications Enabled",
+          description: "You'll now receive browser notifications for task reminders",
+          duration: 3000,
+        });
+      }
+    }
+  };
 
   // Handle tab changes and refresh data for statistics
   const handleTabChange = (value: string) => {
@@ -118,6 +129,24 @@ export const DashboardContent = ({
     <>
       {/* Add TaskReminderNotifications component */}
       <TaskReminderNotifications />
+      
+      {/* Notification Permission Banner */}
+      {"Notification" in window && notificationPermission === "default" && (
+        <div className="bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded-md mb-4 text-sm flex justify-between items-center max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
+          <div className="flex items-center gap-2">
+            <Bell className="w-4 h-4" />
+            <span>🔔 Enable browser notifications for task reminders?</span>
+          </div>
+          <Button
+            onClick={handleNotificationPermissionRequest}
+            variant="outline"
+            size="sm"
+            className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            Allow
+          </Button>
+        </div>
+      )}
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
         <TabsList className="grid w-full grid-cols-5 mb-2">
