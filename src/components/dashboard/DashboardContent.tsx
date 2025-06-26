@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -63,12 +62,20 @@ export const DashboardContent = ({
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
 
+  // Request notification permission early when user interacts with the app
   useEffect(() => {
-    if (pendingCount > 0) {
-      // Use the toast helper for booking requests with count parameter
-      toast.event.newBookingRequest(pendingCount);
-    }
-  }, [pendingCount, toast])
+    const requestNotificationPermission = async () => {
+      if ("Notification" in window && Notification.permission === "default") {
+        console.log("🔐 Requesting notification permission on app load");
+        const permission = await Notification.requestPermission();
+        sessionStorage.setItem("notification_permission", permission);
+        console.log("🔐 Notification permission result:", permission);
+      }
+    };
+
+    // Ask only once when the user loads the dashboard
+    requestNotificationPermission();
+  }, []);
 
   // Handle tab changes and refresh data for statistics
   const handleTabChange = (value: string) => {

@@ -1,17 +1,16 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Bell } from "lucide-react";
-import { ensureNotificationPermission } from "@/utils/notificationUtils";
 
 export const TaskReminderNotifications = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useLanguage();
-  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
+  const queryClient = useQueryClient();
   const [processedReminders, setProcessedReminders] = useState<Set<string>>(new Set());
 
   // Load processed reminders from localStorage on mount
@@ -37,23 +36,17 @@ export const TaskReminderNotifications = () => {
     }
   }, [processedReminders]);
 
-  // Handle notification permission on component mount
+  // Force real-time sync via setInterval to ensure continuous polling
   useEffect(() => {
-    if ("Notification" in window) {
-      console.log("Browser supports notifications");
-      const sessionPermission = sessionStorage.getItem("notification_permission");
-      
-      if (sessionPermission) {
-        setNotificationPermission(sessionPermission as NotificationPermission);
-        console.log("Using cached permission:", sessionPermission);
-      } else {
-        setNotificationPermission(Notification.permission);
-        console.log("Current notification permission:", Notification.permission);
-      }
-    } else {
-      console.log("Browser does not support notifications");
-    }
-  }, []);
+    if (!user?.id) return;
+    
+    const interval = setInterval(() => {
+      console.log("🔄 Force refreshing task reminders");
+      queryClient.invalidateQueries({ queryKey: ['taskReminders', user?.id] });
+    }, 10000); // force refresh every 10s
+
+    return () => clearInterval(interval);
+  }, [user?.id, queryClient]);
 
   const { data: tasks } = useQuery({
     queryKey: ['taskReminders', user?.id],
@@ -97,45 +90,42 @@ export const TaskReminderNotifications = () => {
     }
   };
 
-  const showBrowserNotification = async (taskTitle: string) => {
+  const showBrowserNotification = (taskTitle: string) => {
     console.log("Attempting to show browser notification for:", taskTitle);
     
-    // Request permission at the time of showing notification
-    const hasPermission = await ensureNotificationPermission();
-    console.log("Permission check result:", hasPermission);
-    
-    if (hasPermission) {
-      try {
-        const notification = new Notification("📋 Task Reminder", {
-          body: `Reminder: ${taskTitle}`,
-          icon: "/favicon.ico",
-          tag: `task-reminder-${taskTitle}`,
-          requireInteraction: true,
-        });
+    if (Notification.permission !== "granted") {
+      console.warn("⛔ Browser notifications not allowed");
+      return;
+    }
 
-        console.log("Browser notification created successfully");
-        playNotificationSound();
+    try {
+      const notification = new Notification("📋 Task Reminder", {
+        body: `Reminder: ${taskTitle}`,
+        icon: "/favicon.ico",
+        tag: `task-reminder-${taskTitle}`,
+        requireInteraction: true,
+      });
 
-        // Auto-close after 10 seconds
-        setTimeout(() => {
-          notification.close();
-        }, 10000);
+      console.log("Browser notification created successfully");
+      playNotificationSound();
 
-        notification.onclick = () => {
-          console.log("Notification clicked");
-          window.focus();
-          notification.close();
-        };
+      // Auto-close after 10 seconds
+      setTimeout(() => {
+        notification.close();
+      }, 10000);
 
-        notification.onerror = (error) => {
-          console.error("Notification error:", error);
-        };
+      notification.onclick = () => {
+        console.log("Notification clicked");
+        window.focus();
+        notification.close();
+      };
 
-      } catch (error) {
-        console.error("Error creating browser notification:", error);
-      }
-    } else {
-      console.log("Cannot show browser notification - permission not granted");
+      notification.onerror = (error) => {
+        console.error("Notification error:", error);
+      };
+
+    } catch (error) {
+      console.error("❌ Error showing browser notification:", error);
     }
   };
 
