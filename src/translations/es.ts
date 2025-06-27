@@ -131,15 +131,7 @@ export const translations: TranslationType = {
     editReminder: "Editar recordatorio",
     removeDeadline: "Eliminar fecha límite",
     removeReminder: "Eliminar recordatorio",
-    taskReminder: "Recordatorio de tarea",
-    archive: "Archivo",
-    archived: "Archivado",
-    archivedTasks: "Tareas Archivadas",
-    restore: "Restaurar",
-    archiveTask: "Archivar Tarea",
-    restoreTask: "Restaurar Tarea",
-    taskArchived: "Tarea archivada con éxito",
-    taskRestored: "Tarea restaurada con éxito"
+    taskReminder: "Recordatorio de tarea"
   },
   website: {
     title: "Sitio Web Gratuito para tu negocio",

@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface TranslationType {
@@ -132,14 +133,6 @@ export interface TranslationType {
     removeDeadline: string;
     removeReminder: string;
     taskReminder: string;
-    archive: string;
-    archived: string;
-    archivedTasks: string;
-    restore: string;
-    archiveTask: string;
-    restoreTask: string;
-    taskArchived: string;
-    taskRestored: string;
   };
   website: {
     title: string;
