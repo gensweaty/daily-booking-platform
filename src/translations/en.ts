@@ -131,7 +131,15 @@ export const translations: TranslationType = {
     editReminder: "Edit Reminder",
     removeDeadline: "Remove Deadline",
     removeReminder: "Remove Reminder",
-    taskReminder: "Task Reminder"
+    taskReminder: "Task Reminder",
+    archive: "Archive",
+    archived: "Archived",
+    archivedTasks: "Archived Tasks",
+    restore: "Restore",
+    archiveTask: "Archive Task",
+    restoreTask: "Restore Task",
+    taskArchived: "Task archived successfully",
+    taskRestored: "Task restored successfully"
   },
   website: {
     title: "Free Website for your business",
