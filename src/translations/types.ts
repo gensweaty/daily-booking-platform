@@ -133,6 +133,9 @@ export interface TranslationType {
     removeDeadline: string;
     removeReminder: string;
     taskReminder: string;
+    archive: string;
+    archived: string;
+    taskArchived: string;
   };
   website: {
     title: string;

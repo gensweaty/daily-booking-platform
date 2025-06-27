@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { createTask, updateTask } from "@/lib/api";
+import { createTask, updateTask, archiveTask } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +12,8 @@ import { TaskFormFields } from "./tasks/TaskFormFields";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "./shared/LanguageText";
 import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
+import { GeorgianAuthText } from "./shared/GeorgianAuthText";
+import { Archive } from "lucide-react";
 
 interface AddTaskFormProps {
   onClose: () => void;
@@ -26,11 +28,13 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const [deadline, setDeadline] = useState<string | undefined>();
   const [reminderAt, setReminderAt] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
   const { language, t } = useLanguage();
   const { validateDateTime } = useTimezoneValidation();
+  const isGeorgian = language === 'ka';
 
   useEffect(() => {
     if (editingTask) {
@@ -155,6 +159,35 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     }
   };
 
+  const handleArchive = async () => {
+    if (!editingTask || !user) return;
+
+    setIsArchiving(true);
+
+    try {
+      await archiveTask(editingTask.id);
+      await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      
+      toast({
+        title: t("common.success"),
+        description: t("tasks.taskArchived"),
+      });
+      
+      onClose();
+    } catch (error: any) {
+      console.error('Task archive error:', error);
+      toast({
+        title: "Error",
+        description: language === 'es'
+          ? "Error al archivar la tarea. Por favor intenta de nuevo."
+          : error.message || "Failed to archive task. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
   return (
     <div className="w-full space-y-6 p-2">
       <TaskFormHeader editingTask={editingTask} />
@@ -174,14 +207,47 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           reminderAt={reminderAt}
           setReminderAt={setReminderAt}
         />
-        <div className="flex justify-end pt-4 border-t border-muted/20">
+        <div className="flex justify-end gap-2 pt-4 border-t border-muted/20">
+          {editingTask && (
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleArchive}
+              disabled={isArchiving}
+              className="min-w-[120px]"
+            >
+              <Archive className="mr-2 h-4 w-4" />
+              {isGeorgian ? (
+                <GeorgianAuthText fontWeight="bold">
+                  <LanguageText>
+                    {isArchiving ? t("common.saving") : t("tasks.archive")}
+                  </LanguageText>
+                </GeorgianAuthText>
+              ) : (
+                <LanguageText>
+                  {isArchiving ? t("common.saving") : t("tasks.archive")}
+                </LanguageText>
+              )}
+            </Button>
+          )}
           <Button type="submit" className="min-w-[120px]" disabled={isSubmitting}>
-            <LanguageText>
-              {isSubmitting 
-                ? (language === 'es' ? 'Guardando...' : 'Saving...') 
-                : (editingTask ? t("tasks.editTask") : t("tasks.addTask"))
-              }
-            </LanguageText>
+            {isGeorgian ? (
+              <GeorgianAuthText fontWeight="bold">
+                <LanguageText>
+                  {isSubmitting 
+                    ? t("common.saving")
+                    : (editingTask ? t("tasks.editTask") : t("tasks.addTask"))
+                  }
+                </LanguageText>
+              </GeorgianAuthText>
+            ) : (
+              <LanguageText>
+                {isSubmitting 
+                  ? t("common.saving")
+                  : (editingTask ? t("tasks.editTask") : t("tasks.addTask"))
+                }
+              </LanguageText>
+            )}
           </Button>
         </div>
       </form>
