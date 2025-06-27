@@ -9,20 +9,17 @@ import { useEffect, useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "../ui/button";
-import { AlertCircle, Trash2, Edit, FileText, Calendar, Paperclip } from "lucide-react";
+import { AlertCircle, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 
 interface TaskFullViewProps {
   task: Task;
   isOpen: boolean;
   onClose: () => void;
   onDelete?: (id: string) => void;
-  onEdit?: (task: Task) => void;
 }
 
-export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit }: TaskFullViewProps) => {
+export const TaskFullView = ({ task, isOpen, onClose, onDelete }: TaskFullViewProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -60,13 +57,6 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit }: TaskFu
     }
   };
 
-  const handleEditClick = () => {
-    if (onEdit) {
-      onEdit(task);
-      onClose();
-    }
-  };
-
   const handleConfirmDelete = () => {
     if (onDelete) {
       onDelete(task.id);
@@ -76,122 +66,66 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit }: TaskFu
   };
 
   return (
-    <TooltipProvider>
+    <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="bg-background border-border text-foreground sm:max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="pb-4">
-            <DialogTitle className="flex items-center gap-2 text-2xl font-bold">
-              <FileText className="h-6 w-6 text-primary" />
-              {task.title}
-            </DialogTitle>
+        <DialogContent className="bg-background border-border text-foreground max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">{task.title}</DialogTitle>
           </DialogHeader>
-          
-          <div className="space-y-4">
-            {/* Description Section */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                  <Edit className="h-4 w-4 text-muted-foreground" />
-                  {t("common.description")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
+          <div className="mt-6 space-y-6">
+            <div className="prose dark:prose-invert">
+              <div className="p-4 rounded-lg border border-input bg-muted/50">
+                <h3 className="text-sm font-medium mb-2">{t("common.description")}</h3>
                 {task.description ? (
                   <div 
-                    className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed"
+                    className="whitespace-pre-wrap text-foreground/80"
                     dangerouslySetInnerHTML={{ __html: task.description }}
                   />
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">
-                    {t("common.noDescription")}
-                  </p>
+                  <p className="text-muted-foreground">{t("common.noDescription")}</p>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Schedule Section */}
-            {(task.deadline_at || task.reminder_at) && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    Schedule
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Attachments Section */}
-            {files && files.length > 0 && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                    <Paperclip className="h-4 w-4 text-muted-foreground" />
-                    Attachments
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <FileDisplay 
-                    files={files} 
-                    bucketName="event_attachments" 
-                    allowDelete 
-                    onFileDeleted={handleFileDeleted}
-                    parentId={task.id}
-                    parentType="task"
-                  />
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              {onEdit && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="secondary" 
-                      size="sm" 
-                      onClick={handleEditClick}
-                      className="flex items-center gap-2"
-                    >
-                      <Edit className="h-4 w-4" />
-                      {t("common.edit")}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Edit Task</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              
-              {onDelete && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="destructive" 
-                      size="sm" 
-                      onClick={handleDeleteClick}
-                      className="flex items-center gap-2"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      {t("common.delete")}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Delete Task</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
+              </div>
             </div>
+
+            {(task.deadline_at || task.reminder_at) && (
+              <div className="p-4 rounded-lg border border-input bg-muted/50">
+                <h3 className="text-sm font-medium mb-3">Schedule</h3>
+                <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
+              </div>
+            )}
+
+            {files && files.length > 0 && (
+              <div className="p-4 rounded-lg border border-input bg-muted/50">
+                <FileDisplay 
+                  files={files} 
+                  bucketName="event_attachments" 
+                  allowDelete 
+                  onFileDeleted={handleFileDeleted}
+                  parentId={task.id}
+                  parentType="task"
+                />
+              </div>
+            )}
+
+            {onDelete && (
+              <div className="flex justify-end">
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={handleDeleteClick}
+                  className="flex items-center gap-1"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>{t("common.delete")}</span>
+                </Button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
 
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-        <AlertDialogContent className="sm:max-w-md">
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-destructive" />
@@ -209,6 +143,6 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit }: TaskFu
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </TooltipProvider>
+    </>
   );
 };

@@ -82,10 +82,6 @@ export const TaskList = () => {
     }
   };
 
-  const handleEditTask = (task: Task) => {
-    setEditingTask(task);
-  };
-
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks'],
     queryFn: async () => {
@@ -123,7 +119,7 @@ export const TaskList = () => {
       </DragDropContext>
 
       <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
-        <DialogContent className="bg-background border-border sm:max-w-md">
+        <DialogContent className="bg-background border-border">
           <AddTaskForm 
             onClose={() => setEditingTask(null)} 
             editingTask={editingTask}
@@ -137,12 +133,11 @@ export const TaskList = () => {
           isOpen={!!viewingTask}
           onClose={() => setViewingTask(null)}
           onDelete={handleDeleteClick}
-          onEdit={handleEditTask}
         />
       )}
 
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-        <AlertDialogContent className="sm:max-w-md">
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-destructive" />
