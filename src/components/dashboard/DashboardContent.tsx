@@ -60,35 +60,77 @@ export const DashboardContent = ({
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState("calendar")
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | null>(null)
+  const [permissionBannerDismissed, setPermissionBannerDismissed] = useState(false)
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
 
-  // Check notification permission status
+  // Check notification permission status and banner dismissal
   useEffect(() => {
     if ("Notification" in window) {
       setNotificationPermission(Notification.permission)
     }
+    
+    // Check if banner was dismissed
+    const dismissed = sessionStorage.getItem("notification_banner_dismissed");
+    setPermissionBannerDismissed(dismissed === "true");
   }, [])
 
   const handleNotificationPermissionRequest = async () => {
     if ("Notification" in window && Notification.permission === "default") {
       console.log("🔐 Requesting notification permission from user button click");
-      const permission = await Notification.requestPermission();
-      setNotificationPermission(permission);
-      sessionStorage.setItem("notification_permission", permission);
-      console.log("🔐 Permission granted:", permission);
       
-      if (permission === "granted") {
+      try {
+        const permission = await Notification.requestPermission();
+        setNotificationPermission(permission);
+        sessionStorage.setItem("notification_permission", permission);
+        console.log("🔐 Permission result:", permission);
+        
+        if (permission === "granted") {
+          toast({
+            title: "🔔 Notifications Enabled",
+            description: "You'll now receive browser notifications for task reminders",
+            duration: 3000,
+          });
+          
+          // Test notification
+          setTimeout(() => {
+            try {
+              const testNotification = new Notification("📋 Test Notification", {
+                body: "Task reminder notifications are now working!",
+                icon: "/favicon.ico",
+                tag: "test-notification",
+              });
+              
+              setTimeout(() => testNotification.close(), 3000);
+              console.log("✅ Test notification sent successfully");
+            } catch (error) {
+              console.error("❌ Test notification failed:", error);
+            }
+          }, 500);
+        }
+        
+        // Dismiss banner after interaction
+        setPermissionBannerDismissed(true);
+        sessionStorage.setItem("notification_banner_dismissed", "true");
+        
+      } catch (error) {
+        console.error("❌ Error requesting notification permission:", error);
         toast({
-          title: "🔔 Notifications Enabled",
-          description: "You'll now receive browser notifications for task reminders",
+          title: "❌ Permission Error",
+          description: "Could not enable notifications. Please check browser settings.",
+          variant: "destructive",
           duration: 3000,
         });
       }
     }
   };
 
-  // Handle tab changes and refresh data for statistics
+  const dismissNotificationBanner = () => {
+    setPermissionBannerDismissed(true);
+    sessionStorage.setItem("notification_banner_dismissed", "true");
+  };
+
+  // Handle tab changes and refresh data
   const handleTabChange = (value: string) => {
     setActiveTab(value)
     
@@ -130,22 +172,46 @@ export const DashboardContent = ({
       {/* Add TaskReminderNotifications component */}
       <TaskReminderNotifications />
       
-      {/* Notification Permission Banner */}
-      {"Notification" in window && notificationPermission === "default" && (
-        <div className="bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded-md mb-4 text-sm flex justify-between items-center max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
-          <div className="flex items-center gap-2">
-            <Bell className="w-4 h-4" />
-            <span>🔔 Enable browser notifications for task reminders?</span>
+      {/* Enhanced Notification Permission Banner */}
+      {"Notification" in window && 
+       notificationPermission === "default" && 
+       !permissionBannerDismissed && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded-md mb-4 text-sm flex justify-between items-center max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <Bell className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+            </div>
+            <div>
+              <div className="font-medium">🔔 Enable Task Reminder Notifications</div>
+              <div className="text-xs mt-1 opacity-80">
+                Get instant browser notifications when your task reminders are due
+              </div>
+            </div>
           </div>
-          <Button
-            onClick={handleNotificationPermissionRequest}
-            variant="outline"
-            size="sm"
-            className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-          >
-            Allow
-          </Button>
-        </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={dismissNotificationBanner}
+              variant="ghost"
+              size="sm"
+              className="text-yellow-700 dark:text-yellow-300 hover:bg-yellow-100 dark:hover:bg-yellow-800/50 px-2"
+            >
+              Later
+            </Button>
+            <Button
+              onClick={handleNotificationPermissionRequest}
+              variant="outline"
+              size="sm"
+              className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border-yellow-300 dark:border-yellow-600 text-yellow-800 dark:text-yellow-200 font-medium"
+            >
+              Allow Notifications
+            </Button>
+          </div>
+        </motion.div>
       )}
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
