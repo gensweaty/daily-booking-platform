@@ -154,9 +154,9 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   };
 
   return (
-    <div className="max-w-2xl w-full">
+    <div className="max-w-2xl">
       <TaskFormHeader editingTask={editingTask} />
-      <form onSubmit={handleSubmit} className="space-y-6 mt-6">
+      <form onSubmit={handleSubmit} className="space-y-4 mt-4">
         <TaskFormFields
           title={title}
           setTitle={setTitle}
@@ -172,16 +172,14 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           reminderAt={reminderAt}
           setReminderAt={setReminderAt}
         />
-        <div className="pt-4 border-t border-border/50">
-          <Button type="submit" className="w-full h-12 text-base font-medium" disabled={isSubmitting}>
-            <LanguageText>
-              {isSubmitting 
-                ? (language === 'es' ? 'Guardando...' : 'Saving...') 
-                : (editingTask ? t("tasks.editTask") : t("tasks.addTask"))
-              }
-            </LanguageText>
-          </Button>
-        </div>
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <LanguageText>
+            {isSubmitting 
+              ? (language === 'es' ? 'Guardando...' : 'Saving...') 
+              : (editingTask ? t("tasks.editTask") : t("tasks.addTask"))
+            }
+          </LanguageText>
+        </Button>
       </form>
     </div>
   );
