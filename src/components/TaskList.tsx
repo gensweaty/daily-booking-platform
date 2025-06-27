@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { TaskColumn } from "./tasks/TaskColumn";
 import { AddTaskForm } from "./AddTaskForm";
@@ -32,7 +33,8 @@ export const TaskList = () => {
     enabled: !!user?.id,
   });
 
-  const createTaskMutation = useMutation(createTask, {
+  const createTaskMutation = useMutation({
+    mutationFn: createTask,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast({
@@ -42,21 +44,20 @@ export const TaskList = () => {
     },
   });
 
-  const updateTaskMutation = useMutation(
-    (task: { id: string; data: Partial<Task> }) =>
+  const updateTaskMutation = useMutation({
+    mutationFn: (task: { id: string; data: Partial<Task> }) =>
       updateTask(task.id, task.data),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['tasks'] });
-        toast({
-          title: t("common.success"),
-          description: t("tasks.taskUpdated"),
-        });
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast({
+        title: t("common.success"),
+        description: t("tasks.taskUpdated"),
+      });
+    },
+  });
 
-  const deleteTaskMutation = useMutation(deleteTask, {
+  const deleteTaskMutation = useMutation({
+    mutationFn: deleteTask,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast({
@@ -81,7 +82,7 @@ export const TaskList = () => {
     }
 
     const taskId = draggableId;
-    const newStatus = destination.droppableId;
+    const newStatus = destination.droppableId as 'todo' | 'in-progress' | 'done';
     const newPosition = destination.index;
 
     // Optimistically update the task's status and position
@@ -150,7 +151,7 @@ export const TaskList = () => {
               <LanguageText>{t("tasks.addTask")}</LanguageText>
             </Button>
           </SheetTrigger>
-          <SheetContent className="sm:max-w-lg" side="right">
+          <SheetContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto" side="right">
             <AddTaskForm onClose={() => setIsAddFormOpen(false)} editingTask={editingTask} />
           </SheetContent>
         </Sheet>
@@ -225,7 +226,7 @@ export const TaskList = () => {
       )}
 
       <Sheet open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
-        <SheetContent className="sm:max-w-lg" side="right">
+        <SheetContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto" side="right">
           <AddTaskForm
             onClose={() => {
               setIsAddFormOpen(false);
