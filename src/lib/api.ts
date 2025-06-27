@@ -1,3 +1,4 @@
+
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
@@ -174,6 +175,7 @@ export const getTasks = async (): Promise<Task[]> => {
       .from("tasks")
       .select("*")
       .eq("user_id", userData.user.id)
+      .eq("archived", false)
       .order("position", { ascending: true });
       
     if (error) throw error;
@@ -181,6 +183,63 @@ export const getTasks = async (): Promise<Task[]> => {
   } catch (error: any) {
     console.error("Error fetching tasks:", error);
     throw new Error(error.message || "Failed to fetch tasks");
+  }
+};
+
+export const getArchivedTasks = async (): Promise<Task[]> => {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    
+    if (!userData?.user) {
+      throw new Error("User not authenticated");
+    }
+    
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("user_id", userData.user.id)
+      .eq("archived", true)
+      .order("archived_at", { ascending: false });
+      
+    if (error) throw error;
+    return data || [];
+  } catch (error: any) {
+    console.error("Error fetching archived tasks:", error);
+    throw new Error(error.message || "Failed to fetch archived tasks");
+  }
+};
+
+export const archiveTask = async (id: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from("tasks")
+      .update({ 
+        archived: true, 
+        archived_at: new Date().toISOString() 
+      })
+      .eq("id", id);
+      
+    if (error) throw error;
+  } catch (error: any) {
+    console.error("Error archiving task:", error);
+    throw new Error(error.message || "Failed to archive task");
+  }
+};
+
+export const restoreTask = async (id: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from("tasks")
+      .update({ 
+        archived: false, 
+        archived_at: null 
+      })
+      .eq("id", id);
+      
+    if (error) throw error;
+  } catch (error: any) {
+    console.error("Error restoring task:", error);
+    throw new Error(error.message || "Failed to restore task");
   }
 };
 

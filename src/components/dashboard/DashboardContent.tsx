@@ -1,8 +1,7 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
-import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Briefcase, Bell } from "lucide-react"
+import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Briefcase, Bell, Archive } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TaskList } from "@/components/TaskList"
 import { Calendar } from "@/components/Calendar/Calendar"
@@ -11,6 +10,7 @@ import { Statistics } from "@/components/Statistics"
 import { CustomerList } from "@/components/crm/CustomerList"
 import { BusinessPage } from "@/components/business/BusinessPage"
 import { TaskReminderNotifications } from "@/components/tasks/TaskReminderNotifications"
+import { ArchivedTasksPage } from "@/components/tasks/ArchivedTasksPage"
 import { motion, AnimatePresence } from "framer-motion"
 import { useLanguage } from "@/contexts/LanguageContext"
 import { useBusinessProfile } from "@/hooks/useBusinessProfile"
@@ -62,6 +62,7 @@ export const DashboardContent = ({
   const [activeTab, setActiveTab] = useState("calendar")
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | null>(null)
   const [permissionBannerDismissed, setPermissionBannerDismissed] = useState(false)
+  const [showArchive, setShowArchive] = useState(false)
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
 
@@ -134,6 +135,7 @@ export const DashboardContent = ({
   // Handle tab changes and refresh data
   const handleTabChange = (value: string) => {
     setActiveTab(value)
+    setShowArchive(false) // Reset archive view when switching tabs
     
     // If switching to statistics tab, force refresh all statistics data
     if (value === "statistics") {
@@ -158,6 +160,7 @@ export const DashboardContent = ({
     if (value === "tasks") {
       console.log("Switching to tasks tab - refreshing tasks")
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['archivedTasks'] })
     }
     
     // Refresh CRM data when switching to CRM tab
@@ -166,6 +169,12 @@ export const DashboardContent = ({
       queryClient.invalidateQueries({ queryKey: ['customers'] })
       queryClient.invalidateQueries({ queryKey: ['crm'] })
     }
+  }
+
+  const handleArchiveClick = () => {
+    setShowArchive(true)
+    setActiveTab("tasks")
+    queryClient.invalidateQueries({ queryKey: ['archivedTasks'] })
   }
 
   return (
@@ -385,37 +394,70 @@ export const DashboardContent = ({
               <Card className="min-h-[calc(100vh-12rem)]">
                 <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
                   <CardTitle>
-                    {isGeorgian ? (
-                      <GeorgianAuthText>დავალებები</GeorgianAuthText>
+                    {showArchive ? (
+                      "Archived Tasks"
                     ) : (
-                      <LanguageText>{t("dashboard.tasks")}</LanguageText>
+                      isGeorgian ? (
+                        <GeorgianAuthText>დავალებები</GeorgianAuthText>
+                      ) : (
+                        <LanguageText>{t("dashboard.tasks")}</LanguageText>
+                      )
                     )}
                   </CardTitle>
-                  <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        className="flex items-center gap-2 w-full sm:w-auto bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95"
-                      >
-                        <motion.div
-                          whileHover={{ rotate: 180 }}
-                          transition={{ duration: 0.3 }}
+                  <div className="flex items-center gap-2">
+                    {!showArchive && (
+                      <>
+                        <Button
+                          onClick={handleArchiveClick}
+                          variant="outline"
+                          className="flex items-center gap-2"
                         >
-                          <PlusCircle className="w-4 h-4" />
-                        </motion.div>
-                        <LanguageText>{t("tasks.addTask")}</LanguageText>
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
+                          <motion.div
+                            whileHover={{ rotate: 15 }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <Archive className="w-4 h-4" />
+                          </motion.div>
+                          Archive
+                        </Button>
+                        <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button 
+                              className="flex items-center gap-2 w-full sm:w-auto bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95"
+                            >
+                              <motion.div
+                                whileHover={{ rotate: 180 }}
+                                transition={{ duration: 0.3 }}
+                              >
+                                <PlusCircle className="w-4 h-4" />
+                              </motion.div>
+                              <LanguageText>{t("tasks.addTask")}</LanguageText>
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.95 }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              <AddTaskForm onClose={() => setIsTaskDialogOpen(false)} />
+                            </motion.div>
+                          </DialogContent>
+                        </Dialog>
+                      </>
+                    )}
+                    {showArchive && (
+                      <Button
+                        onClick={() => setShowArchive(false)}
+                        variant="outline"
+                        className="flex items-center gap-2"
                       >
-                        <AddTaskForm onClose={() => setIsTaskDialogOpen(false)} />
-                      </motion.div>
-                    </DialogContent>
-                  </Dialog>
+                        <ListTodo className="w-4 h-4" />
+                        Back to Tasks
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <motion.div
@@ -423,7 +465,7 @@ export const DashboardContent = ({
                     initial="hidden"
                     animate="visible"
                   >
-                    <TaskList />
+                    {showArchive ? <ArchivedTasksPage /> : <TaskList />}
                   </motion.div>
                 </CardContent>
               </Card>

@@ -1,0 +1,198 @@
+
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getArchivedTasks, restoreTask } from "@/lib/api";
+import { Task } from "@/lib/types";
+import { Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useToast } from "@/components/ui/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { TaskFullView } from "./TaskFullView";
+import { ArchivedTaskCard } from "./ArchivedTaskCard";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+
+export const ArchivedTasksPage = () => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const tasksPerPage = 50;
+  
+  const { toast } = useToast();
+  const { t } = useLanguage();
+  const queryClient = useQueryClient();
+
+  const { data: archivedTasks = [], isLoading } = useQuery({
+    queryKey: ['archivedTasks'],
+    queryFn: getArchivedTasks,
+  });
+
+  const restoreTaskMutation = useMutation({
+    mutationFn: restoreTask,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['archivedTasks'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast({
+        title: "Success",
+        description: "Task restored successfully",
+      });
+      setSelectedTask(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to restore task",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Filter and sort tasks
+  const filteredTasks = archivedTasks
+    .filter(task => 
+      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    )
+    .sort((a, b) => {
+      const dateA = new Date(a.archived_at || a.created_at).getTime();
+      const dateB = new Date(b.archived_at || b.created_at).getTime();
+      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredTasks.length / tasksPerPage);
+  const startIndex = (currentPage - 1) * tasksPerPage;
+  const endIndex = startIndex + tasksPerPage;
+  const currentTasks = filteredTasks.slice(startIndex, endIndex);
+
+  const handleRestore = (taskId: string) => {
+    restoreTaskMutation.mutate(taskId);
+  };
+
+  const toggleSortOrder = () => {
+    setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+    setCurrentPage(1);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-foreground">Loading archived tasks...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Archived Tasks</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* Search and Sort Controls */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search archived tasks..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="pl-10"
+              />
+            </div>
+            <Button
+              variant="outline"
+              onClick={toggleSortOrder}
+              className="flex items-center gap-2"
+            >
+              {sortOrder === 'desc' ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
+              {sortOrder === 'desc' ? 'Newest First' : 'Oldest First'}
+            </Button>
+          </div>
+
+          {/* Tasks Grid */}
+          {currentTasks.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              {searchTerm ? 'No archived tasks found matching your search.' : 'No archived tasks found.'}
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {currentTasks.map((task) => (
+                <ArchivedTaskCard
+                  key={task.id}
+                  task={task}
+                  onView={setSelectedTask}
+                  onRestore={handleRestore}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-6 flex justify-center">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const page = i + 1;
+                    return (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(page)}
+                          isActive={currentPage === page}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+
+          {/* Task Count */}
+          <div className="mt-4 text-center text-sm text-muted-foreground">
+            Showing {startIndex + 1}-{Math.min(endIndex, filteredTasks.length)} of {filteredTasks.length} archived tasks
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Archive Task View Dialog */}
+      {selectedTask && (
+        <Dialog open={!!selectedTask} onOpenChange={() => setSelectedTask(null)}>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <TaskFullView
+              task={selectedTask}
+              isOpen={!!selectedTask}
+              onClose={() => setSelectedTask(null)}
+              onRestore={() => handleRestore(selectedTask.id)}
+              isArchived={true}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+};

@@ -1,5 +1,6 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getTasks, updateTask, deleteTask } from "@/lib/api";
+import { getTasks, updateTask, deleteTask, archiveTask } from "@/lib/api";
 import { Task } from "@/lib/types";
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { AlertCircle } from "lucide-react";
@@ -29,6 +30,25 @@ export const TaskList = () => {
       toast({
         title: t("common.success"),
         description: t("common.deleteSuccess"),
+      });
+    },
+  });
+
+  const archiveTaskMutation = useMutation({
+    mutationFn: (id: string) => archiveTask(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['archivedTasks'] });
+      toast({
+        title: "Success",
+        description: "Task archived successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to archive task",
+        variant: "destructive",
       });
     },
   });
@@ -71,6 +91,10 @@ export const TaskList = () => {
   const handleDeleteClick = (id: string) => {
     setTaskToDelete(id);
     setIsDeleteConfirmOpen(true);
+  };
+
+  const handleArchiveClick = (id: string) => {
+    archiveTaskMutation.mutate(id);
   };
 
   const handleDeleteConfirm = () => {
@@ -138,6 +162,7 @@ export const TaskList = () => {
           onClose={() => setViewingTask(null)}
           onDelete={handleDeleteClick}
           onEdit={handleEditFromView}
+          onArchive={handleArchiveClick}
         />
       )}
 

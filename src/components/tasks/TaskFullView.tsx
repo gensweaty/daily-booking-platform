@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "../ui/button";
-import { AlertCircle, Trash2, Pen, FileText, Calendar, Paperclip } from "lucide-react";
+import { AlertCircle, Trash2, Pen, FileText, Calendar, Paperclip, Archive, RefreshCw } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { Card, CardContent } from "../ui/card";
@@ -20,12 +20,25 @@ interface TaskFullViewProps {
   onClose: () => void;
   onDelete?: (id: string) => void;
   onEdit?: (task: Task) => void;
+  onArchive?: (id: string) => void;
+  onRestore?: (id: string) => void;
+  isArchived?: boolean;
 }
 
-export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit }: TaskFullViewProps) => {
+export const TaskFullView = ({ 
+  task, 
+  isOpen, 
+  onClose, 
+  onDelete, 
+  onEdit, 
+  onArchive, 
+  onRestore, 
+  isArchived = false 
+}: TaskFullViewProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
   
   useEffect(() => {
     console.log("TaskFullView - task received:", task);
@@ -60,6 +73,12 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit }: TaskFu
     }
   };
 
+  const handleArchiveClick = () => {
+    if (onArchive) {
+      setIsArchiveConfirmOpen(true);
+    }
+  };
+
   const handleEditClick = () => {
     if (onEdit) {
       onEdit(task);
@@ -72,6 +91,20 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit }: TaskFu
       onDelete(task.id);
       setIsDeleteConfirmOpen(false);
       onClose();
+    }
+  };
+
+  const handleConfirmArchive = () => {
+    if (onArchive) {
+      onArchive(task.id);
+      setIsArchiveConfirmOpen(false);
+      onClose();
+    }
+  };
+
+  const handleRestore = () => {
+    if (onRestore) {
+      onRestore(task.id);
     }
   };
 
@@ -136,7 +169,7 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit }: TaskFu
                     <FileDisplay 
                       files={files} 
                       bucketName="event_attachments" 
-                      allowDelete 
+                      allowDelete={!isArchived}
                       onFileDeleted={handleFileDeleted}
                       parentId={task.id}
                       parentType="task"
@@ -149,47 +182,90 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit }: TaskFu
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-2 pt-4 border-t border-muted/20">
-            {onEdit && (
+            {isArchived ? (
+              // Archived view - only show restore button
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button 
-                    variant="secondary" 
+                    variant="default" 
                     size="sm" 
-                    onClick={handleEditClick}
+                    onClick={handleRestore}
                     className="flex items-center gap-2"
                   >
-                    <Pen className="h-4 w-4" />
-                    <span>{t("common.edit") || "Edit"}</span>
+                    <RefreshCw className="h-4 w-4" />
+                    <span>Restore</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{t("tasks.editTask") || "Edit Task"}</p>
+                  <p>Restore Task to Board</p>
                 </TooltipContent>
               </Tooltip>
-            )}
-            
-            {onDelete && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="destructive" 
-                    size="sm" 
-                    onClick={handleDeleteClick}
-                    className="flex items-center gap-2"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span>{t("common.delete")}</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{t("tasks.deleteTask") || "Delete Task"}</p>
-                </TooltipContent>
-              </Tooltip>
+            ) : (
+              // Active task view - show edit, archive, delete buttons
+              <>
+                {onEdit && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="secondary" 
+                        size="sm" 
+                        onClick={handleEditClick}
+                        className="flex items-center gap-2"
+                      >
+                        <Pen className="h-4 w-4" />
+                        <span>{t("common.edit") || "Edit"}</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{t("tasks.editTask") || "Edit Task"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                
+                {onArchive && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="secondary" 
+                        size="sm" 
+                        onClick={handleArchiveClick}
+                        className="flex items-center gap-2"
+                      >
+                        <Archive className="h-4 w-4" />
+                        <span>Archive</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Archive Task</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                
+                {onDelete && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        onClick={handleDeleteClick}
+                        className="flex items-center gap-2"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span>{t("common.delete")}</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{t("tasks.deleteTask") || "Delete Task"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </>
             )}
           </div>
         </DialogContent>
       </Dialog>
 
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <AlertDialogContent className="sm:max-w-md">
           <AlertDialogHeader>
@@ -205,6 +281,27 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit }: TaskFu
             <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Archive Confirmation Dialog */}
+      <AlertDialog open={isArchiveConfirmOpen} onOpenChange={setIsArchiveConfirmOpen}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Archive className="h-5 w-5 text-amber-600" />
+              Archive Task
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to archive this task? You can restore it later from the archive.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmArchive} className="bg-amber-600 text-white hover:bg-amber-700">
+              Archive
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
