@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { TaskColumn } from "./tasks/TaskColumn";
 import { AddTaskForm } from "./AddTaskForm";
@@ -29,7 +28,7 @@ export const TaskList = () => {
 
   const { data: tasks, isLoading, isError } = useQuery({
     queryKey: ['tasks', user?.id],
-    queryFn: () => getTasks(user?.id),
+    queryFn: () => getTasks(),
     enabled: !!user?.id,
   });
 
