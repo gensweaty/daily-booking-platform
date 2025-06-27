@@ -13,10 +13,11 @@ interface TaskCardProps {
   task: Task;
   index: number;
   onEdit: (task: Task) => void;
+  onView: (task: Task) => void;
   onDelete: (id: string) => void;
 }
 
-export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
+export const TaskCard = ({ task, index, onEdit, onView, onDelete }: TaskCardProps) => {
   const { language } = useLanguage();
   const isGeorgian = language === 'ka';
   
@@ -42,6 +43,11 @@ export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
     }
   };
 
+  const handleTitleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onView(task);
+  };
+
   return (
     <Draggable draggableId={String(task.id)} index={index}>
       {(provided) => (
@@ -55,11 +61,19 @@ export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
             <div className={task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'}>
               <div className="flex items-center gap-2">
                 {isGeorgian ? (
-                  <h3 className="font-semibold">
+                  <h3 
+                    className="font-semibold cursor-pointer hover:text-primary transition-colors" 
+                    onClick={handleTitleClick}
+                  >
                     <GeorgianAuthText fontWeight="bold">{task.title}</GeorgianAuthText>
                   </h3>
                 ) : (
-                  <h3 className="font-semibold">{task.title}</h3>
+                  <h3 
+                    className="font-semibold cursor-pointer hover:text-primary transition-colors"
+                    onClick={handleTitleClick}
+                  >
+                    {task.title}
+                  </h3>
                 )}
                 {files && files.length > 0 && (
                   <div className="flex items-center text-gray-600">
