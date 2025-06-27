@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getTasks, updateTask, deleteTask } from "@/lib/api";
 import { Task } from "@/lib/types";
@@ -22,7 +21,6 @@ export const TaskList = () => {
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const deleteTaskMutation = useMutation({
     mutationFn: (id: string) => deleteTask(id),
@@ -109,16 +107,6 @@ export const TaskList = () => {
 
   return (
     <>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t("navigation.tasks")}</h1>
-        <Button 
-          onClick={() => setIsAddDialogOpen(true)}
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          {t("tasks.addTask")}
-        </Button>
-      </div>
-
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {Object.entries(columns).map(([status, statusTasks]) => (
@@ -134,19 +122,8 @@ export const TaskList = () => {
         </div>
       </DragDropContext>
 
-      {/* Add Task Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="bg-background border-border sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-          <AddTaskForm 
-            onClose={() => setIsAddDialogOpen(false)} 
-            editingTask={null}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Task Dialog */}
       <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
-        <DialogContent className="bg-background border-border sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-background border-border sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <AddTaskForm 
             onClose={() => setEditingTask(null)} 
             editingTask={editingTask}
