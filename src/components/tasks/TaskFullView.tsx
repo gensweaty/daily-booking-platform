@@ -9,17 +9,20 @@ import { useEffect, useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "../ui/button";
-import { AlertCircle, Trash2 } from "lucide-react";
+import { AlertCircle, Trash2, Pen, FileText, Calendar, Paperclip } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import { Card, CardContent } from "../ui/card";
 
 interface TaskFullViewProps {
   task: Task;
   isOpen: boolean;
   onClose: () => void;
   onDelete?: (id: string) => void;
+  onEdit?: (task: Task) => void;
 }
 
-export const TaskFullView = ({ task, isOpen, onClose, onDelete }: TaskFullViewProps) => {
+export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit }: TaskFullViewProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -57,6 +60,13 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete }: TaskFullViewPr
     }
   };
 
+  const handleEditClick = () => {
+    if (onEdit) {
+      onEdit(task);
+      onClose();
+    }
+  };
+
   const handleConfirmDelete = () => {
     if (onDelete) {
       onDelete(task.id);
@@ -66,66 +76,118 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete }: TaskFullViewPr
   };
 
   return (
-    <>
+    <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="bg-background border-border text-foreground max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">{task.title}</DialogTitle>
+        <DialogContent className="bg-background border-border text-foreground sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-4">
+            <DialogTitle className="flex items-start gap-3 text-left">
+              <FileText className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+              <span className="text-xl font-bold leading-tight">{task.title}</span>
+            </DialogTitle>
           </DialogHeader>
-          <div className="mt-6 space-y-6">
-            <div className="prose dark:prose-invert">
-              <div className="p-4 rounded-lg border border-input bg-muted/50">
-                <h3 className="text-sm font-medium mb-2">{t("common.description")}</h3>
+
+          <div className="space-y-4">
+            {/* Description Section */}
+            <Card className="border-muted/40">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-medium text-muted-foreground">{t("common.description")}</h3>
+                </div>
                 {task.description ? (
                   <div 
-                    className="whitespace-pre-wrap text-foreground/80"
+                    className="text-sm text-foreground leading-relaxed prose-sm max-w-none"
                     dangerouslySetInnerHTML={{ __html: task.description }}
                   />
                 ) : (
-                  <p className="text-muted-foreground">{t("common.noDescription")}</p>
+                  <p className="text-sm text-muted-foreground italic">
+                    {t("common.noDescription")}
+                  </p>
                 )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
+            {/* Schedule Section */}
             {(task.deadline_at || task.reminder_at) && (
-              <div className="p-4 rounded-lg border border-input bg-muted/50">
-                <h3 className="text-sm font-medium mb-3">Schedule</h3>
-                <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
-              </div>
+              <Card className="border-muted/40">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-medium text-muted-foreground">Schedule</h3>
+                  </div>
+                  <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
+                </CardContent>
+              </Card>
             )}
 
+            {/* Attachments Section */}
             {files && files.length > 0 && (
-              <div className="p-4 rounded-lg border border-input bg-muted/50">
-                <FileDisplay 
-                  files={files} 
-                  bucketName="event_attachments" 
-                  allowDelete 
-                  onFileDeleted={handleFileDeleted}
-                  parentId={task.id}
-                  parentType="task"
-                />
-              </div>
+              <Card className="border-muted/40">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Paperclip className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      {t("common.attachments") || "Attachments"}
+                    </h3>
+                  </div>
+                  <FileDisplay 
+                    files={files} 
+                    bucketName="event_attachments" 
+                    allowDelete 
+                    onFileDeleted={handleFileDeleted}
+                    parentId={task.id}
+                    parentType="task"
+                  />
+                </CardContent>
+              </Card>
             )}
+          </div>
 
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-2 pt-4 border-t border-muted/20">
+            {onEdit && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={handleEditClick}
+                    className="flex items-center gap-2"
+                  >
+                    <Pen className="h-4 w-4" />
+                    <span>{t("common.edit") || "Edit"}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t("tasks.editTask") || "Edit Task"}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            
             {onDelete && (
-              <div className="flex justify-end">
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
-                  onClick={handleDeleteClick}
-                  className="flex items-center gap-1"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span>{t("common.delete")}</span>
-                </Button>
-              </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={handleDeleteClick}
+                    className="flex items-center gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>{t("common.delete")}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t("tasks.deleteTask") || "Delete Task"}</p>
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
         </DialogContent>
       </Dialog>
 
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-        <AlertDialogContent className="max-w-md">
+        <AlertDialogContent className="sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-destructive" />
@@ -143,6 +205,6 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete }: TaskFullViewPr
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </TooltipProvider>
   );
 };
