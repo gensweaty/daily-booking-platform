@@ -154,7 +154,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   };
 
   return (
-    <div className="max-w-2xl">
+    <div className="w-full">
       <TaskFormHeader editingTask={editingTask} />
       <form onSubmit={handleSubmit} className="space-y-4 mt-4">
         <TaskFormFields
