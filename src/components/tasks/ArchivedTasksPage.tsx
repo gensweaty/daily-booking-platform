@@ -36,14 +36,14 @@ export const ArchivedTasksPage = () => {
       queryClient.invalidateQueries({ queryKey: ['archivedTasks'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast({
-        title: "Success",
-        description: "Task restored successfully",
+        title: t("common.success"),
+        description: t("tasks.restoreTask"),
       });
       setSelectedTask(null);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
+        title: t("common.error"),
         description: error.message || "Failed to restore task",
         variant: "destructive",
       });
@@ -80,7 +80,7 @@ export const ArchivedTasksPage = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-foreground">Loading archived tasks...</div>
+        <div className="text-foreground">{t("tasks.loadingArchivedTasks")}</div>
       </div>
     );
   }
@@ -89,7 +89,7 @@ export const ArchivedTasksPage = () => {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl font-bold">Archived Tasks</CardTitle>
+          <CardTitle className="text-2xl font-bold">{t("tasks.archivedTasks")}</CardTitle>
         </CardHeader>
         <CardContent>
           {/* Search and Sort Controls */}
@@ -97,7 +97,7 @@ export const ArchivedTasksPage = () => {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search archived tasks..."
+                placeholder={t("tasks.searchArchivedTasks")}
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -112,14 +112,14 @@ export const ArchivedTasksPage = () => {
               className="flex items-center gap-2"
             >
               {sortOrder === 'desc' ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
-              {sortOrder === 'desc' ? 'Newest First' : 'Oldest First'}
+              {sortOrder === 'desc' ? t("tasks.newestFirst") : t("tasks.oldestFirst")}
             </Button>
           </div>
 
           {/* Tasks Grid */}
           {currentTasks.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              {searchTerm ? 'No archived tasks found matching your search.' : 'No archived tasks found.'}
+              {searchTerm ? t("tasks.noArchivedTasksSearch") : t("tasks.noArchivedTasks")}
             </div>
           ) : (
             <div className="grid gap-4">
@@ -174,7 +174,7 @@ export const ArchivedTasksPage = () => {
 
           {/* Task Count */}
           <div className="mt-4 text-center text-sm text-muted-foreground">
-            Showing {startIndex + 1}-{Math.min(endIndex, filteredTasks.length)} of {filteredTasks.length} archived tasks
+            {t("common.of")} {startIndex + 1}-{Math.min(endIndex, filteredTasks.length)} {t("common.of")} {filteredTasks.length} {t("tasks.showingArchivedTasks")}
           </div>
         </CardContent>
       </Card>

@@ -16,7 +16,7 @@ interface ArchivedTaskCardProps {
 }
 
 export const ArchivedTaskCard = ({ task, onView, onRestore }: ArchivedTaskCardProps) => {
-  const { language } = useLanguage();
+  const { t } = useLanguage();
   
   const { data: files } = useQuery({
     queryKey: ['taskFiles', task.id],
@@ -32,11 +32,11 @@ export const ArchivedTaskCard = ({ task, onView, onRestore }: ArchivedTaskCardPr
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'done':
-        return <Badge className="bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">Completed</Badge>;
+        return <Badge className="bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">{t("tasks.completed")}</Badge>;
       case 'inprogress':
-        return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-800 dark:text-amber-100">In Progress</Badge>;
+        return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-800 dark:text-amber-100">{t("tasks.inProgress")}</Badge>;
       default:
-        return <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100">To Do</Badge>;
+        return <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100">{t("tasks.todo")}</Badge>;
     }
   };
 
@@ -66,7 +66,7 @@ export const ArchivedTaskCard = ({ task, onView, onRestore }: ArchivedTaskCardPr
               {task.archived_at && (
                 <div className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
-                  <span>Archived {formatDistanceToNow(new Date(task.archived_at))} ago</span>
+                  <span>{t("tasks.archivedAgo")} {formatDistanceToNow(new Date(task.archived_at))} ago</span>
                 </div>
               )}
               
@@ -96,7 +96,7 @@ export const ArchivedTaskCard = ({ task, onView, onRestore }: ArchivedTaskCardPr
             className="ml-2 flex items-center gap-1"
           >
             <RefreshCw className="h-3 w-3" />
-            Restore
+            {t("tasks.restore")}
           </Button>
         </div>
       </CardContent>

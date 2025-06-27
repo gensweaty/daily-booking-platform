@@ -136,6 +136,22 @@ export interface TranslationType {
     archive: string;
     archived: string;
     taskArchived: string;
+    archivedTasks: string;
+    backToTasks: string;
+    searchArchivedTasks: string;
+    newestFirst: string;
+    oldestFirst: string;
+    noArchivedTasks: string;
+    noArchivedTasksSearch: string;
+    showingArchivedTasks: string;
+    restore: string;
+    archivedAgo: string;
+    restoreTask: string;
+    archiveTask: string;
+    archiveTaskConfirm: string;
+    restoreTaskConfirm: string;
+    completed: string;
+    loadingArchivedTasks: string;
   };
   website: {
     title: string;

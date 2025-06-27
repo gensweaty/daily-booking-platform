@@ -125,7 +125,7 @@ export const TaskFullView = ({
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <FileText className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="text-sm font-medium text-muted-foreground">{t("common.description")}</h3>
+                  <h3 className="text-sm font-medium text-muted-foreground">{t("tasks.descriptionLabel")}</h3>
                 </div>
                 {task.description ? (
                   <div 
@@ -162,7 +162,7 @@ export const TaskFullView = ({
                   <div className="flex items-center gap-2 mb-3">
                     <Paperclip className="h-4 w-4 text-muted-foreground" />
                     <h3 className="text-sm font-medium text-muted-foreground">
-                      {t("common.attachments") || "Attachments"}
+                      {t("common.attachments")}
                     </h3>
                   </div>
                   <div className="bg-muted/30 rounded-md p-3 border border-muted/40">
@@ -193,11 +193,11 @@ export const TaskFullView = ({
                     className="flex items-center gap-2"
                   >
                     <RefreshCw className="h-4 w-4" />
-                    <span>Restore</span>
+                    <span>{t("tasks.restore")}</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Restore Task to Board</p>
+                  <p>{t("tasks.restoreTask")}</p>
                 </TooltipContent>
               </Tooltip>
             ) : (
@@ -213,11 +213,11 @@ export const TaskFullView = ({
                         className="flex items-center gap-2"
                       >
                         <Pen className="h-4 w-4" />
-                        <span>{t("common.edit") || "Edit"}</span>
+                        <span>{t("tasks.editTask")}</span>
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{t("tasks.editTask") || "Edit Task"}</p>
+                      <p>{t("tasks.editTask")}</p>
                     </TooltipContent>
                   </Tooltip>
                 )}
@@ -232,11 +232,11 @@ export const TaskFullView = ({
                         className="flex items-center gap-2"
                       >
                         <Archive className="h-4 w-4" />
-                        <span>Archive</span>
+                        <span>{t("tasks.archive")}</span>
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Archive Task</p>
+                      <p>{t("tasks.archiveTask")}</p>
                     </TooltipContent>
                   </Tooltip>
                 )}
@@ -255,7 +255,7 @@ export const TaskFullView = ({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{t("tasks.deleteTask") || "Delete Task"}</p>
+                      <p>{t("common.delete")}</p>
                     </TooltipContent>
                   </Tooltip>
                 )}
@@ -292,16 +292,16 @@ export const TaskFullView = ({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Archive className="h-5 w-5 text-amber-600" />
-              Archive Task
+              {t("tasks.archiveTask")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to archive this task? You can restore it later from the archive.
+              {t("tasks.archiveTaskConfirm")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmArchive} className="bg-amber-600 text-white hover:bg-amber-700">
-              Archive
+              {t("tasks.archive")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
