@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { createTask, updateTask } from "@/lib/api";
@@ -88,14 +89,16 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         }
       }
 
+      // Fix: Explicitly handle null values for deadline and reminder
+      // Convert empty strings or undefined to null for proper database updates
       const taskData = {
         title,
         description,
         status: editingTask ? editingTask.status : ('todo' as const),
         user_id: user.id,
         position: editingTask?.position || 0,
-        deadline_at: deadline,
-        reminder_at: reminderAt
+        deadline_at: deadline && deadline.trim() !== '' ? deadline : null,
+        reminder_at: reminderAt && reminderAt.trim() !== '' ? reminderAt : null
       };
 
       let taskResponse;
