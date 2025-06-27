@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getTasks, updateTask, deleteTask } from "@/lib/api";
 import { Task } from "@/lib/types";
@@ -124,7 +123,7 @@ export const TaskList = () => {
       </DragDropContext>
 
       <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
-        <DialogContent className="bg-background border-border sm:max-w-md">
+        <DialogContent className="bg-background border-border sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <AddTaskForm 
             onClose={() => setEditingTask(null)} 
             editingTask={editingTask}

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { createTask, updateTask } from "@/lib/api";
@@ -154,9 +153,9 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-6 p-2">
       <TaskFormHeader editingTask={editingTask} />
-      <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <TaskFormFields
           title={title}
           setTitle={setTitle}
@@ -172,14 +171,16 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           reminderAt={reminderAt}
           setReminderAt={setReminderAt}
         />
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
-          <LanguageText>
-            {isSubmitting 
-              ? (language === 'es' ? 'Guardando...' : 'Saving...') 
-              : (editingTask ? t("tasks.editTask") : t("tasks.addTask"))
-            }
-          </LanguageText>
-        </Button>
+        <div className="flex justify-end pt-4 border-t border-muted/20">
+          <Button type="submit" className="min-w-[120px]" disabled={isSubmitting}>
+            <LanguageText>
+              {isSubmitting 
+                ? (language === 'es' ? 'Guardando...' : 'Saving...') 
+                : (editingTask ? t("tasks.editTask") : t("tasks.addTask"))
+              }
+            </LanguageText>
+          </Button>
+        </div>
       </form>
     </div>
   );

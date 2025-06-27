@@ -78,7 +78,7 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit }: TaskFu
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="bg-background border-border text-foreground sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-background border-border text-foreground sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="pb-4">
             <DialogTitle className="flex items-start gap-3 text-left">
               <FileText className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
