@@ -88,7 +88,7 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit }: TaskFu
 
           <div className="space-y-4">
             {/* Description Section */}
-            <Card className="border-muted/40">
+            <Card className="border-muted/40 bg-muted/20">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <FileText className="h-4 w-4 text-muted-foreground" />
@@ -96,11 +96,11 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit }: TaskFu
                 </div>
                 {task.description ? (
                   <div 
-                    className="text-sm text-foreground leading-relaxed prose-sm max-w-none"
+                    className="text-sm text-foreground leading-relaxed prose-sm max-w-none bg-muted/30 rounded-md p-3 border border-muted/40"
                     dangerouslySetInnerHTML={{ __html: task.description }}
                   />
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">
+                  <p className="text-sm text-muted-foreground italic bg-muted/30 rounded-md p-3 border border-muted/40">
                     {t("common.noDescription")}
                   </p>
                 )}
@@ -109,20 +109,22 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit }: TaskFu
 
             {/* Schedule Section */}
             {(task.deadline_at || task.reminder_at) && (
-              <Card className="border-muted/40">
+              <Card className="border-muted/40 bg-muted/20">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <h3 className="text-sm font-medium text-muted-foreground">Schedule</h3>
                   </div>
-                  <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
+                  <div className="bg-muted/30 rounded-md p-3 border border-muted/40">
+                    <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
+                  </div>
                 </CardContent>
               </Card>
             )}
 
             {/* Attachments Section */}
             {files && files.length > 0 && (
-              <Card className="border-muted/40">
+              <Card className="border-muted/40 bg-muted/20">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Paperclip className="h-4 w-4 text-muted-foreground" />
@@ -130,14 +132,16 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit }: TaskFu
                       {t("common.attachments") || "Attachments"}
                     </h3>
                   </div>
-                  <FileDisplay 
-                    files={files} 
-                    bucketName="event_attachments" 
-                    allowDelete 
-                    onFileDeleted={handleFileDeleted}
-                    parentId={task.id}
-                    parentType="task"
-                  />
+                  <div className="bg-muted/30 rounded-md p-3 border border-muted/40">
+                    <FileDisplay 
+                      files={files} 
+                      bucketName="event_attachments" 
+                      allowDelete 
+                      onFileDeleted={handleFileDeleted}
+                      parentId={task.id}
+                      parentType="task"
+                    />
+                  </div>
                 </CardContent>
               </Card>
             )}

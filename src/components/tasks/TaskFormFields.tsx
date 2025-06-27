@@ -99,11 +99,16 @@ export const TaskFormFields = ({
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
 
   return (
-    <div className="space-y-4">
-      <TaskFormTitle title={title} setTitle={setTitle} />
-      <TaskFormDescription description={description} setDescription={setDescription} />
+    <div className="space-y-6">
+      <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
+        <TaskFormTitle title={title} setTitle={setTitle} />
+      </div>
       
-      <div className="space-y-3">
+      <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
+        <TaskFormDescription description={description} setDescription={setDescription} />
+      </div>
+      
+      <div className="bg-muted/30 rounded-lg p-4 border border-muted/40 space-y-4">
         <TaskDateTimePicker
           label="Deadline"
           value={deadline}
@@ -123,7 +128,7 @@ export const TaskFormFields = ({
       </div>
       
       {editingTask?.id && existingFiles && existingFiles.length > 0 && (
-        <div className="space-y-2">
+        <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
           <FileDisplay 
             files={existingFiles} 
             bucketName="event_attachments"
@@ -135,12 +140,15 @@ export const TaskFormFields = ({
           />
         </div>
       )}
-      <FileUploadField 
-        onChange={setSelectedFile}
-        fileError={fileError}
-        setFileError={setFileError}
-        acceptedFileTypes={acceptedFormats}
-      />
+      
+      <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
+        <FileUploadField 
+          onChange={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+          acceptedFileTypes={acceptedFormats}
+        />
+      </div>
     </div>
   );
 };
