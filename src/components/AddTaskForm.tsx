@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createTask, updateTask, archiveTask } from "@/lib/api";
@@ -22,6 +23,8 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const [status, setStatus] = useState<'todo' | 'inprogress' | 'done'>('todo');
   const [deadlineAt, setDeadlineAt] = useState<Date | undefined>();
   const [reminderAt, setReminderAt] = useState<Date | undefined>();
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
   
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -121,6 +124,14 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     }
   };
 
+  const handleDeadlineChange = (deadline: string | undefined) => {
+    setDeadlineAt(deadline ? new Date(deadline) : undefined);
+  };
+
+  const handleReminderChange = (reminder: string | undefined) => {
+    setReminderAt(reminder ? new Date(reminder) : undefined);
+  };
+
   return (
     <div className="space-y-6">
       <TaskFormHeader 
@@ -134,13 +145,15 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           setTitle={setTitle}
           description={description}
           setDescription={setDescription}
-          status={status}
-          setStatus={setStatus}
-          deadlineAt={deadlineAt}
-          setDeadlineAt={setDeadlineAt}
-          reminderAt={reminderAt}
-          setReminderAt={setReminderAt}
-          t={t}
+          selectedFile={selectedFile}
+          setSelectedFile={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+          editingTask={editingTask}
+          deadline={deadlineAt?.toISOString()}
+          setDeadline={handleDeadlineChange}
+          reminderAt={reminderAt?.toISOString()}
+          setReminderAt={handleReminderChange}
         />
 
         <div className="flex justify-between pt-4">
@@ -170,3 +183,4 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     </div>
   );
 };
+
