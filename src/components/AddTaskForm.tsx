@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createTask, updateTask, archiveTask } from "@/lib/api";
@@ -101,6 +102,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       status,
       deadline_at: deadlineAt?.toISOString(),
       reminder_at: reminderAt?.toISOString(),
+      position: editingTask?.position ?? 0,
     };
 
     if (editingTask) {
@@ -122,7 +124,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   return (
     <div className="space-y-6">
       <TaskFormHeader 
-        isEditing={!!editingTask}
+        editingTask={editingTask}
         t={t}
       />
       

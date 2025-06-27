@@ -9,10 +9,12 @@ import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 interface TaskFormHeaderProps {
   onAddTask?: () => void;
   editingTask?: Task | null;
+  t?: (key: string, params?: Record<string, string | number>) => string;
 }
 
-export const TaskFormHeader = ({ onAddTask, editingTask }: TaskFormHeaderProps) => {
-  const { t, language } = useLanguage();
+export const TaskFormHeader = ({ onAddTask, editingTask, t: propT }: TaskFormHeaderProps) => {
+  const { t: contextT, language } = useLanguage();
+  const t = propT || contextT;
   const isGeorgian = language === 'ka';
   
   return (
