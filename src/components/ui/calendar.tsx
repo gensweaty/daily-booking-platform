@@ -7,22 +7,18 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { useTheme } from "next-themes";
+import { georgianMonths, georgianWeekdays } from "@/lib/dateLocalization";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
-// Georgian locale object
+// Enhanced Georgian locale object with proper month and weekday support
 const georgianLocale = {
   localize: {
     month: (monthIndex: number) => {
-      const months = [
-        "იანვარი", "თებერვალი", "მარტი", "აპრილი", "მაისი", "ივნისი",
-        "ივლისი", "აგვისტო", "სექტემბერი", "ოქტომბერი", "ნოემბერი", "დეკემბერი"
-      ];
-      return months[monthIndex];
+      return georgianMonths[monthIndex];
     },
     day: (dayIndex: number) => {
-      const days = ["კვირა", "ორშაბათი", "სამშაბათი", "ოთხშაბათი", "ხუთშაბათი", "პარასკევი", "შაბათი"];
-      return days[dayIndex];
+      return georgianWeekdays[dayIndex];
     }
   },
   formatLong: {
