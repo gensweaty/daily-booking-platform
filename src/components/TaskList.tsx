@@ -5,7 +5,7 @@ import { Task } from "@/lib/types";
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { useToast } from "./ui/use-toast";
 import { AddTaskForm } from "./AddTaskForm";
@@ -13,6 +13,7 @@ import { TaskFullView } from "./tasks/TaskFullView";
 import { TaskColumn } from "./tasks/TaskColumn";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { ensureNotificationPermission } from "@/utils/notificationUtils";
 
 export const TaskList = () => {
   const queryClient = useQueryClient();
@@ -22,6 +23,51 @@ export const TaskList = () => {
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  const [hasShownNotificationBanner, setHasShownNotificationBanner] = useState(false);
+
+  // Check notification permission when component mounts
+  useEffect(() => {
+    const checkNotificationPermission = async () => {
+      if (!hasShownNotificationBanner && "Notification" in window) {
+        const hasSeenBanner = sessionStorage.getItem("notificationBannerSeen");
+        if (!hasSeenBanner) {
+          if (Notification.permission === "default") {
+            // Show notification permission request for tasks page
+            toast({
+              title: "Enable Notifications",
+              description: "Get notified about your task reminders and updates",
+              duration: 8000,
+              action: (
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    const granted = await ensureNotificationPermission();
+                    sessionStorage.setItem("notificationBannerSeen", "true");
+                    setHasShownNotificationBanner(true);
+                    if (granted) {
+                      toast({
+                        title: "Notifications Enabled",
+                        description: "You'll now receive task reminders",
+                        duration: 3000,
+                      });
+                    }
+                  }}
+                >
+                  Enable
+                </Button>
+              ),
+            });
+          }
+          sessionStorage.setItem("notificationBannerSeen", "true");
+          setHasShownNotificationBanner(true);
+        } else {
+          setHasShownNotificationBanner(true);
+        }
+      }
+    };
+
+    checkNotificationPermission();
+  }, [hasShownNotificationBanner, toast]);
 
   const deleteTaskMutation = useMutation({
     mutationFn: (id: string) => deleteTask(id),
@@ -188,3 +234,4 @@ export const TaskList = () => {
     </>
   );
 };
+
