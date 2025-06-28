@@ -395,7 +395,13 @@ export const DashboardContent = ({
                 <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
                   <CardTitle>
                     {showArchive ? (
-                      "Archived Tasks"
+                      isGeorgian ? (
+                        <GeorgianAuthText fontWeight="bold">
+                          {t("tasks.archivedTasks")}
+                        </GeorgianAuthText>
+                      ) : (
+                        <LanguageText>{t("tasks.archivedTasks")}</LanguageText>
+                      )
                     ) : (
                       isGeorgian ? (
                         <GeorgianAuthText>დავალებები</GeorgianAuthText>
@@ -418,7 +424,11 @@ export const DashboardContent = ({
                           >
                             <Archive className="w-4 h-4" />
                           </motion.div>
-                          Archive
+                          {isGeorgian ? (
+                            <GeorgianAuthText>{t("tasks.archive")}</GeorgianAuthText>
+                          ) : (
+                            <LanguageText>{t("tasks.archive")}</LanguageText>
+                          )}
                         </Button>
                         <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
                           <DialogTrigger asChild>
@@ -454,7 +464,11 @@ export const DashboardContent = ({
                         className="flex items-center gap-2"
                       >
                         <ListTodo className="w-4 h-4" />
-                        Back to Tasks
+                        {isGeorgian ? (
+                          <GeorgianAuthText>{t("tasks.backToTasks")}</GeorgianAuthText>
+                        ) : (
+                          <LanguageText>{t("tasks.backToTasks")}</LanguageText>
+                        )}
                       </Button>
                     )}
                   </div>
