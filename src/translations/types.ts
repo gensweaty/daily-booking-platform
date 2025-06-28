@@ -1,6 +1,12 @@
 
 export type Language = 'en' | 'es' | 'ka';
 
+export interface LanguageContextType {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
+}
+
 export interface TranslationType {
   nav: {
     signin: string;
@@ -152,6 +158,8 @@ export interface TranslationType {
     restoreTaskConfirm: string;
     completed: string;
     loadingArchivedTasks: string;
+    deleteTask: string;
+    deleteTaskConfirmation: string;
   };
   website: {
     title: string;
@@ -602,8 +610,3 @@ export interface TranslationType {
   };
 }
 
-export interface LanguageContextType {
-  language: Language;
-  setLanguage: (language: Language) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
-}
