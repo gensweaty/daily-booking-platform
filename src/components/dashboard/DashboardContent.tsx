@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -225,110 +226,112 @@ export const DashboardContent = ({
       )}
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
-        <TabsList className="grid w-full grid-cols-5 mb-2 bg-transparent p-2 gap-2 h-auto">
-          <TabsTrigger 
-            value="calendar" 
-            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-border/40 bg-muted/30 rounded-md px-3 py-2 data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-lg data-[state=active]:scale-[1.02] hover:border-border/60 hover:bg-muted/50"
-          >
-            <motion.div
-              whileHover={{ rotate: 15 }}
-              transition={{ duration: 0.2 }}
+        <div className="bg-muted/50 border border-border/60 rounded-lg p-1 mb-2">
+          <TabsList className="grid w-full grid-cols-5 bg-transparent p-0 gap-1 h-auto">
+            <TabsTrigger 
+              value="calendar" 
+              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
             >
-              <CalendarIcon className="w-4 h-4" />
-            </motion.div>
-            <span className="hidden sm:inline">
-              <LanguageText>{t("dashboard.bookingCalendar")}</LanguageText>
-            </span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="statistics" 
-            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-border/40 bg-muted/30 rounded-md px-3 py-2 data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-lg data-[state=active]:scale-[1.02] hover:border-border/60 hover:bg-muted/50"
-          >
-            <motion.div
-              whileHover={{ rotate: 15 }}
-              transition={{ duration: 0.2 }}
-            >
-              <BarChart className="w-4 h-4" />
-            </motion.div>
-            <span className="hidden sm:inline">
-              {isGeorgian ? (
-                <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტიკა</GeorgianAuthText>
-              ) : (
-                <LanguageText>{t("dashboard.statistics")}</LanguageText>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="tasks" 
-            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-border/40 bg-muted/30 rounded-md px-3 py-2 data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-lg data-[state=active]:scale-[1.02] hover:border-border/60 hover:bg-muted/50"
-          >
-            <motion.div
-              whileHover={{ rotate: 15 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ListTodo className="w-4 h-4" />
-            </motion.div>
-            <span className="hidden sm:inline">
-              {isGeorgian ? (
-                <GeorgianAuthText>დავალებები</GeorgianAuthText>
-              ) : (
-                <LanguageText>{t("dashboard.tasks")}</LanguageText>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="crm" 
-            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-border/40 bg-muted/30 rounded-md px-3 py-2 data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-lg data-[state=active]:scale-[1.02] hover:border-border/60 hover:bg-muted/50"
-          >
-            <motion.div
-              whileHover={{ rotate: 15 }}
-              transition={{ duration: 0.2 }}
-            >
-              <Users className="w-4 h-4" />
-            </motion.div>
-            <span className="hidden sm:inline">
-              {isGeorgian ? (
-                <GeorgianAuthText>მომხმარებლების მართვა</GeorgianAuthText>
-              ) : (
-                <LanguageText>{t("dashboard.crm")}</LanguageText>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="business" 
-            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-border/40 bg-muted/30 rounded-md px-3 py-2 data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-lg data-[state=active]:scale-[1.02] hover:border-border/60 hover:bg-muted/50 relative"
-          >
-            <motion.div
-              whileHover={{ rotate: 15 }}
-              transition={{ duration: 0.2 }}
-            >
-              <Briefcase className="w-4 h-4" />
-            </motion.div>
-            <span className="hidden sm:inline">
-              {isGeorgian ? (
-                <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
-              ) : (
-                <LanguageText>{t("business.myBusiness")}</LanguageText>
-              )}
-            </span>
-            {pendingCount > 0 && (
               <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 500, damping: 25 }}
-                className="absolute top-1/2 -translate-y-1/2 right-0 transform -translate-x-full ml-1"
+                whileHover={{ rotate: 15 }}
+                transition={{ duration: 0.2 }}
               >
-                <Badge 
-                  variant="destructive" 
-                  className="flex items-center justify-center h-5 min-w-5 p-1 text-xs rounded-full gap-1"
-                >
-                  <Bell className="w-3 h-3" />
-                  {pendingCount}
-                </Badge>
+                <CalendarIcon className="w-4 h-4" />
               </motion.div>
-            )}
-          </TabsTrigger>
-        </TabsList>
+              <span className="hidden sm:inline">
+                <LanguageText>{t("dashboard.bookingCalendar")}</LanguageText>
+              </span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="statistics" 
+              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+            >
+              <motion.div
+                whileHover={{ rotate: 15 }}
+                transition={{ duration: 0.2 }}
+              >
+                <BarChart className="w-4 h-4" />
+              </motion.div>
+              <span className="hidden sm:inline">
+                {isGeorgian ? (
+                  <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტიკა</GeorgianAuthText>
+                ) : (
+                  <LanguageText>{t("dashboard.statistics")}</LanguageText>
+                )}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="tasks" 
+              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+            >
+              <motion.div
+                whileHover={{ rotate: 15 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ListTodo className="w-4 h-4" />
+              </motion.div>
+              <span className="hidden sm:inline">
+                {isGeorgian ? (
+                  <GeorgianAuthText>დავალებები</GeorgianAuthText>
+                ) : (
+                  <LanguageText>{t("dashboard.tasks")}</LanguageText>
+                )}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="crm" 
+              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+            >
+              <motion.div
+                whileHover={{ rotate: 15 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Users className="w-4 h-4" />
+              </motion.div>
+              <span className="hidden sm:inline">
+                {isGeorgian ? (
+                  <GeorgianAuthText>მომხმარებლების მართვა</GeorgianAuthText>
+                ) : (
+                  <LanguageText>{t("dashboard.crm")}</LanguageText>
+                )}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="business" 
+              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02] relative"
+            >
+              <motion.div
+                whileHover={{ rotate: 15 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Briefcase className="w-4 h-4" />
+              </motion.div>
+              <span className="hidden sm:inline">
+                {isGeorgian ? (
+                  <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
+                ) : (
+                  <LanguageText>{t("business.myBusiness")}</LanguageText>
+                )}
+              </span>
+              {pendingCount > 0 && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                  className="absolute top-1/2 -translate-y-1/2 right-0 transform -translate-x-full ml-1"
+                >
+                  <Badge 
+                    variant="destructive" 
+                    className="flex items-center justify-center h-5 min-w-5 p-1 text-xs rounded-full gap-1"
+                  >
+                    <Bell className="w-3 h-3" />
+                    {pendingCount}
+                  </Badge>
+                </motion.div>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <AnimatePresence mode="wait">
           <TabsContent key="calendar" value="calendar" className="mt-0">
