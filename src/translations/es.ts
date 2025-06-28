@@ -150,7 +150,9 @@ export const translations: TranslationType = {
     archiveTaskConfirm: "¿Estás seguro de que quieres archivar esta tarea? Puedes restaurarla más tarde desde el archivo.",
     restoreTaskConfirm: "¿Estás seguro de que quieres restaurar esta tarea?",
     completed: "Completada",
-    loadingArchivedTasks: "Cargando tareas archivadas..."
+    loadingArchivedTasks: "Cargando tareas archivadas...",
+    deleteTask: "Eliminar Tarea",
+    deleteTaskConfirmation: "¿Estás seguro de que quieres eliminar permanentemente esta tarea? Esta acción no se puede deshacer."
   },
   website: {
     title: "Sitio Web Gratuito para tu negocio",

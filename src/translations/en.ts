@@ -150,7 +150,9 @@ export const translations: TranslationType = {
     archiveTaskConfirm: "Are you sure you want to archive this task? You can restore it later from the archive.",
     restoreTaskConfirm: "Are you sure you want to restore this task?",
     completed: "Completed",
-    loadingArchivedTasks: "Loading archived tasks..."
+    loadingArchivedTasks: "Loading archived tasks...",
+    deleteTask: "Delete Task",
+    deleteTaskConfirmation: "Are you sure you want to permanently delete this task? This action cannot be undone."
   },
   website: {
     title: "Free Website for your business",
