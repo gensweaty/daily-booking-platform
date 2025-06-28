@@ -1,3 +1,4 @@
+
 import { Task } from "@/lib/types";
 import { RefreshCw, Paperclip, Calendar, Clock, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -72,7 +73,8 @@ export const ArchivedTaskCard = ({ task, onView, onRestore, onDelete }: Archived
                   </h3>
                 )}
               </div>
-              <div className="flex-shrink-0">
+              {/* Status badge - visible on desktop, hidden on mobile */}
+              <div className="flex-shrink-0 hidden sm:block">
                 {getStatusBadge(task.status)}
               </div>
             </div>
@@ -135,6 +137,11 @@ export const ArchivedTaskCard = ({ task, onView, onRestore, onDelete }: Archived
               {t("common.delete")}
             </Button>
           </div>
+        </div>
+        
+        {/* Status badge - visible on mobile only, positioned at bottom */}
+        <div className="sm:hidden mt-3 flex justify-center">
+          {getStatusBadge(task.status)}
         </div>
       </CardContent>
     </Card>
