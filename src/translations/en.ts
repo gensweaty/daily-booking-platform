@@ -320,7 +320,9 @@ export const translations: TranslationType = {
     eventDetails: "Event Details",
     title: "Event Title",
     bookAppointment: "Book Appointment",
-    submitRequest: "Submit Request"
+    submitRequest: "Submit Request",
+    deleteEventConfirmTitle: "Delete Event?",
+    deleteEventConfirmMessage: "Are you sure you want to delete this event? This action cannot be undone."
   },
   contact: {
     email: "Email",
