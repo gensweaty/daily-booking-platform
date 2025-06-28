@@ -390,7 +390,8 @@ export const translations: TranslationType = {
     save: "Save",
     saving: "Saving...",
     select: "Select",
-    fileDeleted: "File deleted successfully"
+    fileDeleted: "File deleted successfully",
+    view: "View"
   },
   auth: {
     welcome: "Welcome to SmartBookly",
