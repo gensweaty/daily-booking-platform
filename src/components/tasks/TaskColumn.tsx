@@ -36,7 +36,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, onArchive 
           {...provided.droppableProps}
           ref={provided.innerRef}
           className={`bg-muted/30 p-4 rounded-lg min-h-[200px] ${
-            snapshot.isDraggedOver ? 'bg-muted/50' : ''
+            snapshot.isDraggingOver ? 'bg-muted/50' : ''
           }`}
         >
           <h3 className="font-semibold mb-4 text-foreground">

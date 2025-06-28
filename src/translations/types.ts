@@ -1,6 +1,4 @@
 
-export type Language = 'en' | 'es' | 'ka';
-
 export interface TranslationType {
   nav: {
     signin: string;
@@ -392,6 +390,7 @@ export interface TranslationType {
     saving: string;
     select: string;
     fileDeleted: string;
+    view: string;
   };
   auth: {
     welcome: string;
@@ -600,10 +599,4 @@ export interface TranslationType {
     invalidFileType: string;
     fileTooLarge: string;
   };
-}
-
-export interface LanguageContextType {
-  language: Language;
-  setLanguage: (language: Language) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
 }
