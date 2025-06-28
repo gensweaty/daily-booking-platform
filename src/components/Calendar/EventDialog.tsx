@@ -437,10 +437,10 @@ export const EventDialog = ({
           <DialogHeader>
             <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
               {event 
-                ? (isGeorgian ? <GeorgianAuthText>ღონისძიების რედაქტირება</GeorgianAuthText> : <LanguageText>{t("events.editEvent")}</LanguageText>)
+                ? (isGeorgian ? <GeorgianAuthText>ღონისძიების რედაქტირება</GeorgianAuthText> : <LanguageText>Edit Event</LanguageText>)
                 : (isBookingRequest 
-                  ? (isGeorgian ? <GeorgianAuthText>ჯავშნის მოთხოვნა</GeorgianAuthText> : <LanguageText>{t("booking.bookingRequest")}</LanguageText>)
-                  : (isGeorgian ? <GeorgianAuthText>ახალი ღონისძიება</GeorgianAuthText> : <LanguageText>{t("events.newEvent")}</LanguageText>)
+                  ? (isGeorgian ? <GeorgianAuthText>ჯავშნის მოთხოვნა</GeorgianAuthText> : <LanguageText>Booking Request</LanguageText>)
+                  : (isGeorgian ? <GeorgianAuthText>ახალი ღონისძიება</GeorgianAuthText> : <LanguageText>New Event</LanguageText>)
                 )
               }
             </DialogTitle>
