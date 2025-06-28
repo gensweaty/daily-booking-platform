@@ -150,7 +150,9 @@ export const translations: TranslationType = {
     archiveTaskConfirm: "დარწმუნებული ხარ რომ გინდა ამ ამოცანის არქივირება? შეგიძლია მოგვიანებით აღადგინო არქივიდან.",
     restoreTaskConfirm: "დარწმუნებული ხარ რომ გინდა ამ ამოცანის აღდგენა?",
     completed: "დასრულებული",
-    loadingArchivedTasks: "არქივირებული ამოცანების ჩატვირთვა..."
+    loadingArchivedTasks: "არქივირებული ამოცანების ჩატვირთვა...",
+    deleteTask: "ამოცანის წაშლა",
+    deleteTaskConfirmation: "დარწმუნებული ხარ რომ გინდა ამ ამოცანის სამუდამოდ წაშლა? ეს მოქმედება ვერ გაუქმდება."
   },
   website: {
     title: "უფასო ვებსაიტი შენი ბიზნესისთვის",
