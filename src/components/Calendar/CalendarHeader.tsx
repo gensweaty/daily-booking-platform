@@ -35,8 +35,8 @@ export const CalendarHeader = ({
       case "month":
         return formatDate(selectedDate, "monthYear");
       case "week":
-        const weekOfText = language === 'ka' ? 'კვირა' : language === 'es' ? 'Semana del' : t("calendar.weekOf");
-        return `${weekOfText} ${formatDate(selectedDate, "weekOf")}`;
+        // Remove the redundant "კვირა" prefix since formatDate already includes it
+        return formatDate(selectedDate, "weekOf");
       case "day":
         return formatDate(selectedDate, "full");
       default:
