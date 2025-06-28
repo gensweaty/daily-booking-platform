@@ -10,6 +10,28 @@ import { useTheme } from "next-themes";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
+// Georgian locale object
+const georgianLocale = {
+  localize: {
+    month: (monthIndex: number) => {
+      const months = [
+        "იანვარი", "თებერვალი", "მარტი", "აპრილი", "მაისი", "ივნისი",
+        "ივლისი", "აგვისტო", "სექტემბერი", "ოქტომბერი", "ნოემბერი", "დეკემბერი"
+      ];
+      return months[monthIndex];
+    },
+    day: (dayIndex: number) => {
+      const days = ["კვირა", "ორშაბათი", "სამშაბათი", "ოთხშაბათი", "ხუთშაბათი", "პარასკევი", "შაბათი"];
+      return days[dayIndex];
+    }
+  },
+  formatLong: {
+    date: () => 'P',
+    time: () => 'p',
+    dateTime: () => 'Pp'
+  }
+};
+
 function Calendar({
   className,
   classNames,
@@ -74,6 +96,13 @@ function Calendar({
     };
   }, [theme, resolvedTheme]);
 
+  // Determine locale based on language
+  const getLocale = () => {
+    if (language === 'es') return es;
+    if (language === 'ka') return georgianLocale as any;
+    return undefined;
+  };
+
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
@@ -85,7 +114,7 @@ function Calendar({
         isGeorgian ? "font-georgian" : "", 
         className
       )}
-      locale={language === 'es' ? es : undefined}
+      locale={getLocale()}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",

@@ -620,5 +620,19 @@ export const translations: TranslationType = {
     annuallyOn: "Annually on",
     repeatUntil: "Repeat until",
     repeat: "Repeat"
+  },
+  months: {
+    january: "January",
+    february: "February",
+    march: "March",
+    april: "April",
+    may: "May",
+    june: "June",
+    july: "July",
+    august: "August",
+    september: "September",
+    october: "October",
+    november: "November",
+    december: "December"
   }
 };

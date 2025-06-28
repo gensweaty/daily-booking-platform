@@ -618,6 +618,20 @@ export interface TranslationType {
     repeatUntil: string;
     repeat: string;
   };
+  months: {
+    january: string;
+    february: string;
+    march: string;
+    april: string;
+    may: string;
+    june: string;
+    july: string;
+    august: string;
+    september: string;
+    october: string;
+    november: string;
+    december: string;
+  };
 }
 
 export interface LanguageContextType {

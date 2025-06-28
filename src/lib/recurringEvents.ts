@@ -1,3 +1,4 @@
+
 import { CalendarEventType } from "@/lib/types/calendar";
 import { addDays, addWeeks, addMonths, addYears, endOfYear, isBefore, format, getDay, startOfDay } from "date-fns";
 
@@ -33,10 +34,29 @@ export const getRepeatOptions = (selectedDate?: Date, t?: (key: string, params?:
     
     // Monthly options
     const date = selectedDate.getDate();
-    options.push({ value: "monthly", label: `${t("recurring.monthlyOnDay")} ${date}` });
+    if (language === "ka") {
+      options.push({ value: "monthly", label: `${t("recurring.monthlyOnDay")} ${date} ში` });
+    } else {
+      options.push({ value: "monthly", label: `${t("recurring.monthlyOnDay")} ${date}` });
+    }
     
     // Yearly option
-    options.push({ value: "yearly", label: `${t("recurring.annuallyOn")} ${format(selectedDate, "MMMM d")}` });
+    const monthIndex = selectedDate.getMonth();
+    const monthKeys = [
+      "months.january", "months.february", "months.march", "months.april",
+      "months.may", "months.june", "months.july", "months.august",
+      "months.september", "months.october", "months.november", "months.december"
+    ];
+    
+    const monthName = t(monthKeys[monthIndex]);
+    
+    if (language === "ka") {
+      // Georgian format: "ყოველწლიურად ივნისის 12"
+      const georgianMonthGenitive = monthName + "ის";
+      options.push({ value: "yearly", label: `${t("recurring.annuallyOn")} ${georgianMonthGenitive} ${date}` });
+    } else {
+      options.push({ value: "yearly", label: `${t("recurring.annuallyOn")} ${monthName} ${date}` });
+    }
   } else if (selectedDate) {
     const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const weekday = weekdays[getDay(selectedDate)];
