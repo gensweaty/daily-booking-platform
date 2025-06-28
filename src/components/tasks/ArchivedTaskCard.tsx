@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDistanceToNow, format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 
 interface ArchivedTaskCardProps {
   task: Task;
@@ -16,7 +17,8 @@ interface ArchivedTaskCardProps {
 }
 
 export const ArchivedTaskCard = ({ task, onView, onRestore }: ArchivedTaskCardProps) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
   
   const { data: files } = useQuery({
     queryKey: ['taskFiles', task.id],
@@ -48,11 +50,31 @@ export const ArchivedTaskCard = ({ task, onView, onRestore }: ArchivedTaskCardPr
   return (
     <Card className="hover:shadow-md transition-shadow cursor-pointer">
       <CardContent className="p-4">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0" onClick={() => onView(task)}>
-            <div className="flex items-center gap-2 mb-2">
-              <h3 className="font-semibold text-foreground truncate">{task.title}</h3>
-              {getStatusBadge(task.status)}
+            <div className="flex items-start gap-2 mb-2">
+              <div className="flex-1 min-w-0">
+                {isGeorgian ? (
+                  <h3 
+                    className="font-semibold text-foreground break-words line-clamp-2 leading-tight"
+                    title={task.title}
+                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                  >
+                    <GeorgianAuthText fontWeight="bold">{task.title}</GeorgianAuthText>
+                  </h3>
+                ) : (
+                  <h3 
+                    className="font-semibold text-foreground break-words line-clamp-2 leading-tight"
+                    title={task.title}
+                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                  >
+                    {task.title}
+                  </h3>
+                )}
+              </div>
+              <div className="flex-shrink-0">
+                {getStatusBadge(task.status)}
+              </div>
             </div>
             
             {task.description && (
@@ -62,7 +84,7 @@ export const ArchivedTaskCard = ({ task, onView, onRestore }: ArchivedTaskCardPr
               />
             )}
             
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
               {task.archived_at && (
                 <div className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
@@ -93,7 +115,7 @@ export const ArchivedTaskCard = ({ task, onView, onRestore }: ArchivedTaskCardPr
               e.stopPropagation();
               onRestore(task.id);
             }}
-            className="ml-2 flex items-center gap-1"
+            className="ml-2 flex items-center gap-1 flex-shrink-0"
           >
             <RefreshCw className="h-3 w-3" />
             {t("tasks.restore")}

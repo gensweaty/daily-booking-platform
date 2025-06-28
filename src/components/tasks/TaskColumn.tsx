@@ -48,9 +48,9 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
         <div
           ref={provided.innerRef}
           {...provided.droppableProps}
-          className={`p-4 rounded-lg min-h-[200px] border ${getColumnStyle(status)}`}
+          className={`p-4 rounded-lg min-h-[200px] border ${getColumnStyle(status)} flex flex-col`}
         >
-          <h3 className="font-semibold mb-4 capitalize text-foreground">
+          <h3 className="font-semibold mb-4 capitalize text-foreground flex-shrink-0">
             {isGeorgian ? (
               <GeorgianAuthText fontWeight="bold">
                 <LanguageText>{getColumnTitle(status)}</LanguageText>
@@ -59,16 +59,17 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
               <LanguageText>{getColumnTitle(status)}</LanguageText>
             )}
           </h3>
-          <div className="space-y-4">
+          <div className="space-y-4 flex-1">
             {tasks.map((task: Task, index: number) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                index={index}
-                onEdit={onEdit}
-                onView={onView}
-                onDelete={onDelete}
-              />
+              <div key={task.id} className="w-full">
+                <TaskCard
+                  task={task}
+                  index={index}
+                  onEdit={onEdit}
+                  onView={onView}
+                  onDelete={onDelete}
+                />
+              </div>
             ))}
             {provided.placeholder}
           </div>
