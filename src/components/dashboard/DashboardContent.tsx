@@ -225,10 +225,10 @@ export const DashboardContent = ({
       )}
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
-        <TabsList className="grid w-full grid-cols-5 mb-2 border border-border/40 bg-muted/30 p-1 rounded-lg">
+        <TabsList className="grid w-full grid-cols-5 mb-2 bg-transparent p-2 gap-2 h-auto">
           <TabsTrigger 
             value="calendar" 
-            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-r border-border/30 last:border-r-0 data-[state=active]:bg-background data-[state=active]:border-primary/20 data-[state=active]:shadow-sm"
+            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-border/40 bg-muted/30 rounded-md px-3 py-2 data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-lg data-[state=active]:scale-[1.02] hover:border-border/60 hover:bg-muted/50"
           >
             <motion.div
               whileHover={{ rotate: 15 }}
@@ -242,7 +242,7 @@ export const DashboardContent = ({
           </TabsTrigger>
           <TabsTrigger 
             value="statistics" 
-            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-r border-border/30 last:border-r-0 data-[state=active]:bg-background data-[state=active]:border-primary/20 data-[state=active]:shadow-sm"
+            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-border/40 bg-muted/30 rounded-md px-3 py-2 data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-lg data-[state=active]:scale-[1.02] hover:border-border/60 hover:bg-muted/50"
           >
             <motion.div
               whileHover={{ rotate: 15 }}
@@ -260,7 +260,7 @@ export const DashboardContent = ({
           </TabsTrigger>
           <TabsTrigger 
             value="tasks" 
-            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-r border-border/30 last:border-r-0 data-[state=active]:bg-background data-[state=active]:border-primary/20 data-[state=active]:shadow-sm"
+            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-border/40 bg-muted/30 rounded-md px-3 py-2 data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-lg data-[state=active]:scale-[1.02] hover:border-border/60 hover:bg-muted/50"
           >
             <motion.div
               whileHover={{ rotate: 15 }}
@@ -278,7 +278,7 @@ export const DashboardContent = ({
           </TabsTrigger>
           <TabsTrigger 
             value="crm" 
-            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-r border-border/30 last:border-r-0 data-[state=active]:bg-background data-[state=active]:border-primary/20 data-[state=active]:shadow-sm"
+            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-border/40 bg-muted/30 rounded-md px-3 py-2 data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-lg data-[state=active]:scale-[1.02] hover:border-border/60 hover:bg-muted/50"
           >
             <motion.div
               whileHover={{ rotate: 15 }}
@@ -296,7 +296,7 @@ export const DashboardContent = ({
           </TabsTrigger>
           <TabsTrigger 
             value="business" 
-            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-r border-border/30 last:border-r-0 data-[state=active]:bg-background data-[state=active]:border-primary/20 data-[state=active]:shadow-sm relative"
+            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-border/40 bg-muted/30 rounded-md px-3 py-2 data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-lg data-[state=active]:scale-[1.02] hover:border-border/60 hover:bg-muted/50 relative"
           >
             <motion.div
               whileHover={{ rotate: 15 }}
