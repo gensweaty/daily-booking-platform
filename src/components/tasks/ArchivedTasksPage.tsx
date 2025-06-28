@@ -1,13 +1,13 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getArchivedTasks, restoreTask } from "@/lib/api";
+import { getArchivedTasks, restoreTask, deleteTask } from "@/lib/api";
 import { Task } from "@/lib/types";
 import { Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { TaskFullView } from "./TaskFullView";
@@ -19,6 +19,7 @@ export const ArchivedTasksPage = () => {
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const tasksPerPage = 50;
   
   const { toast } = useToast();
@@ -50,6 +51,28 @@ export const ArchivedTasksPage = () => {
     },
   });
 
+  const deleteTaskMutation = useMutation({
+    mutationFn: deleteTask,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['archivedTasks'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast({
+        title: t("common.success"),
+        description: t("tasks.deleteTask"),
+      });
+      setSelectedTask(null);
+      setTaskToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("common.error"),
+        description: error.message || "Failed to delete task",
+        variant: "destructive",
+      });
+      setTaskToDelete(null);
+    },
+  });
+
   // Filter and sort tasks
   const filteredTasks = archivedTasks
     .filter(task => 
@@ -70,6 +93,16 @@ export const ArchivedTasksPage = () => {
 
   const handleRestore = (taskId: string) => {
     restoreTaskMutation.mutate(taskId);
+  };
+
+  const handleDelete = (taskId: string) => {
+    setTaskToDelete(taskId);
+  };
+
+  const confirmDelete = () => {
+    if (taskToDelete) {
+      deleteTaskMutation.mutate(taskToDelete);
+    }
   };
 
   const toggleSortOrder = () => {
@@ -129,6 +162,7 @@ export const ArchivedTasksPage = () => {
                   task={task}
                   onView={setSelectedTask}
                   onRestore={handleRestore}
+                  onDelete={handleDelete}
                 />
               ))}
             </div>
@@ -193,6 +227,26 @@ export const ArchivedTasksPage = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!taskToDelete} onOpenChange={() => setTaskToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("tasks.deleteTask")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("tasks.deleteTaskConfirmation")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setTaskToDelete(null)}>
+              {t("common.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

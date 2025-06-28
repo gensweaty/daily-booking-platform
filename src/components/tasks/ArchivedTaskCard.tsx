@@ -1,6 +1,5 @@
-
 import { Task } from "@/lib/types";
-import { RefreshCw, Paperclip, Calendar, Clock } from "lucide-react";
+import { RefreshCw, Paperclip, Calendar, Clock, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
@@ -14,9 +13,10 @@ interface ArchivedTaskCardProps {
   task: Task;
   onView: (task: Task) => void;
   onRestore: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
-export const ArchivedTaskCard = ({ task, onView, onRestore }: ArchivedTaskCardProps) => {
+export const ArchivedTaskCard = ({ task, onView, onRestore, onDelete }: ArchivedTaskCardProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
   
@@ -108,18 +108,33 @@ export const ArchivedTaskCard = ({ task, onView, onRestore }: ArchivedTaskCardPr
             </div>
           </div>
           
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRestore(task.id);
-            }}
-            className="ml-2 flex items-center gap-1 flex-shrink-0"
-          >
-            <RefreshCw className="h-3 w-3" />
-            {t("tasks.restore")}
-          </Button>
+          <div className="flex flex-col gap-2 ml-2 flex-shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRestore(task.id);
+              }}
+              className="flex items-center gap-1"
+            >
+              <RefreshCw className="h-3 w-3" />
+              {t("tasks.restore")}
+            </Button>
+            
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(task.id);
+              }}
+              className="flex items-center gap-1"
+            >
+              <Trash2 className="h-3 w-3" />
+              {t("common.delete")}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
