@@ -328,6 +328,8 @@ export interface TranslationType {
     title: string;
     bookAppointment: string;
     submitRequest: string;
+    deleteEventConfirmTitle: string;
+    deleteEventConfirmMessage: string;
   };
   contact: {
     email: string;
@@ -609,4 +611,3 @@ export interface TranslationType {
     fileTooLarge: string;
   };
 }
-

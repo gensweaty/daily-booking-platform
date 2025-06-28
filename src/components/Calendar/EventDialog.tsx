@@ -69,6 +69,7 @@ export const EventDialog = ({
   const [repeatPattern, setRepeatPattern] = useState("none");
   const [repeatUntil, setRepeatUntil] = useState<Date | undefined>(undefined);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [showRegularDeleteConfirmation, setShowRegularDeleteConfirmation] = useState(false);
 
   const { toast } = useToast();
   const { t, language } = useLanguage();
@@ -119,6 +120,7 @@ export const EventDialog = ({
       setFileError("");
       setDisplayedFiles([]);
       setShowDeleteConfirmation(false);
+      setShowRegularDeleteConfirmation(false);
     }
   }, [isOpen, event, selectedDate]);
 
@@ -320,7 +322,39 @@ export const EventDialog = ({
     if (isRecurringEvent) {
       setShowDeleteConfirmation(true);
     } else {
-      handleDelete();
+      setShowRegularDeleteConfirmation(true);
+    }
+  };
+
+  const handleRegularDelete = async () => {
+    if (!event) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('events')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', event.id);
+
+      if (error) throw error;
+
+      toast({
+        title: isGeorgian ? "წარმატება" : "Success",
+        description: isGeorgian ? "ღონისძიება წაიშალა" : "Event deleted successfully",
+      });
+
+      setShowRegularDeleteConfirmation(false);
+      onEventDeleted?.();
+      onClose();
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      toast({
+        title: isGeorgian ? "შეცდომა" : "Error",
+        description: isGeorgian ? "ღონისძიების წაშლისას მოხდა შეცდომა" : "Failed to delete event",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -528,6 +562,34 @@ export const EventDialog = ({
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Regular Delete Confirmation Dialog */}
+      <AlertDialog open={showRegularDeleteConfirmation} onOpenChange={setShowRegularDeleteConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {isGeorgian ? "ღონისძიების წაშლა" : t("events.deleteEventConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isGeorgian 
+                ? "ნამდვილად გსურთ ამ ღონისძიების წაშლა? ეს მოქმედება შეუქცევადია." 
+                : t("events.deleteEventConfirmMessage")
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowRegularDeleteConfirmation(false)}>
+              {isGeorgian ? "გაუქმება" : t("common.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleRegularDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isGeorgian ? "წაშლა" : t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Confirmation Dialog for Recurring Events */}
       <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
