@@ -40,13 +40,13 @@ export const TaskList = () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['archivedTasks'] });
       toast({
-        title: t("common.success"),
-        description: t("tasks.taskArchived"),
+        title: "Success",
+        description: "Task archived successfully",
       });
     },
     onError: (error: any) => {
       toast({
-        title: t("common.error"),
+        title: "Error",
         description: error.message || "Failed to archive task",
         variant: "destructive",
       });
@@ -141,7 +141,6 @@ export const TaskList = () => {
               onEdit={setEditingTask}
               onView={setViewingTask}
               onDelete={handleDeleteClick}
-              onArchive={handleArchiveClick}
             />
           ))}
         </div>

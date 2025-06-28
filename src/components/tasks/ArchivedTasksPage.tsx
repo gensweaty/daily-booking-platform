@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getArchivedTasks, restoreTask } from "@/lib/api";
 import { Task } from "@/lib/types";
-import { Search, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft } from "lucide-react";
+import { Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,18 +89,7 @@ export const ArchivedTasksPage = () => {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.history.back()}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              {t("tasks.backToTasks")}
-            </Button>
-            <CardTitle className="text-2xl font-bold">{t("tasks.archivedTasks")}</CardTitle>
-          </div>
+          <CardTitle className="text-2xl font-bold">{t("tasks.archivedTasks")}</CardTitle>
         </CardHeader>
         <CardContent>
           {/* Search and Sort Controls */}
@@ -185,7 +174,7 @@ export const ArchivedTasksPage = () => {
 
           {/* Task Count */}
           <div className="mt-4 text-center text-sm text-muted-foreground">
-            {startIndex + 1}-{Math.min(endIndex, filteredTasks.length)} {t("common.of")} {filteredTasks.length} {t("tasks.showingArchivedTasks")}
+            {t("common.of")} {startIndex + 1}-{Math.min(endIndex, filteredTasks.length)} {t("common.of")} {filteredTasks.length} {t("tasks.showingArchivedTasks")}
           </div>
         </CardContent>
       </Card>

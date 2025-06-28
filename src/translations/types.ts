@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface TranslationType {
@@ -391,7 +392,6 @@ export interface TranslationType {
     saving: string;
     select: string;
     fileDeleted: string;
-    view: string;
   };
   auth: {
     welcome: string;
