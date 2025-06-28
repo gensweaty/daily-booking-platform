@@ -1,10 +1,8 @@
 
 import { Task } from "@/lib/types";
-import { Droppable } from "@hello-pangea/dnd";
 import { TaskCard } from "./TaskCard";
+import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { LanguageText } from "../shared/LanguageText";
-import { GeorgianAuthText } from "../shared/GeorgianAuthText";
 
 interface TaskColumnProps {
   status: string;
@@ -12,31 +10,20 @@ interface TaskColumnProps {
   onEdit: (task: Task) => void;
   onView: (task: Task) => void;
   onDelete: (id: string) => void;
+  onArchive?: (id: string) => void;
 }
 
-export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColumnProps) => {
-  const { t, language } = useLanguage();
-  const isGeorgian = language === 'ka';
+export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, onArchive }: TaskColumnProps) => {
+  const { t } = useLanguage();
   
-  const getColumnStyle = (status: string) => {
-    switch (status) {
-      case 'in-progress':
-        return 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700';
-      case 'done':
-        return 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700';
-      default:
-        return 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-700';
-    }
-  };
-
   const getColumnTitle = (status: string) => {
     switch (status) {
       case 'todo':
-        return t('tasks.todo');
+        return t("tasks.todo");
       case 'in-progress':
-        return t('tasks.inProgress');
+        return t("tasks.inProgress");
       case 'done':
-        return t('tasks.done');
+        return t("tasks.done");
       default:
         return status;
     }
@@ -44,34 +31,42 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
 
   return (
     <Droppable droppableId={status}>
-      {(provided) => (
+      {(provided, snapshot) => (
         <div
-          ref={provided.innerRef}
           {...provided.droppableProps}
-          className={`p-4 rounded-lg min-h-[200px] border ${getColumnStyle(status)}`}
+          ref={provided.innerRef}
+          className={`bg-muted/30 p-4 rounded-lg min-h-[200px] ${
+            snapshot.isDraggedOver ? 'bg-muted/50' : ''
+          }`}
         >
-          <h3 className="font-semibold mb-4 capitalize text-foreground">
-            {isGeorgian ? (
-              <GeorgianAuthText fontWeight="bold">
-                <LanguageText>{getColumnTitle(status)}</LanguageText>
-              </GeorgianAuthText>
-            ) : (
-              <LanguageText>{getColumnTitle(status)}</LanguageText>
-            )}
+          <h3 className="font-semibold mb-4 text-foreground">
+            {getColumnTitle(status)} ({tasks.length})
           </h3>
-          <div className="space-y-4">
-            {tasks.map((task: Task, index: number) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                index={index}
-                onEdit={onEdit}
-                onView={onView}
-                onDelete={onDelete}
-              />
+          
+          <div className="space-y-3">
+            {tasks.map((task, index) => (
+              <Draggable key={task.id} draggableId={task.id} index={index}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                    className={snapshot.isDragging ? 'opacity-50' : ''}
+                  >
+                    <TaskCard
+                      task={task}
+                      onEdit={onEdit}
+                      onView={onView}
+                      onDelete={onDelete}
+                      onArchive={onArchive}
+                    />
+                  </div>
+                )}
+              </Draggable>
             ))}
-            {provided.placeholder}
           </div>
+          
+          {provided.placeholder}
         </div>
       )}
     </Droppable>

@@ -221,7 +221,7 @@ export const translations: TranslationType = {
     delete: "წაშლა",
     deleteBookingRequest: "წავშალო დაჯავშნის მოთხოვნა?",
     deleteConfirmation: "დარწმუნებული ხარ, რომ გსურს ამ დაჯავშნის მოთხოვნის წაშლა? ეს მოქმედება ვერ დაბრუნდება.",
-    businessName: "ბიზნესის სახელი",
+    businessName: "ბიზნესი სახელი",
     urlSlug: "URL მისამართი",
     description: "აღწერა",
     coverPhoto: "საფარის ფოტო",
@@ -297,7 +297,7 @@ export const translations: TranslationType = {
     startDateTime: "დაწყების თარიღი და დრო",
     endDateTime: "დამთავრების თარიღი და დრო",
     eventNotes: "შენიშვნები",
-    addEventNotes: "დაამატე შენიშვნები შენი დაჯავშნის მოთხოვნის შესახებ",
+    addEventNotes: "დაამატე შენიშვები შენი დაჯავშნის მოთხოვნის შესახებ",
     editEvent: "ღონისძიების რედაქტირება",
     addNewEvent: "ახალი ღონისძიების დამატება",
     updateEvent: "ღონისძიების განახლება",
@@ -390,7 +390,8 @@ export const translations: TranslationType = {
     save: "შენახვა",
     saving: "ინახება...",
     select: "არჩევა",
-    fileDeleted: "ფაილი წარმატებით წაიშალა"
+    fileDeleted: "ფაილი წარმატებით წაიშალა",
+    view: "ნახვა"
   },
   auth: {
     welcome: "კეთილი იყო SmartBookly-ში",
@@ -495,7 +496,7 @@ export const translations: TranslationType = {
   },
   subscription: {
     monthlyPlan: "ყოველთვიური გზეშე",
-    annualPlan: "წლიური გზეшე",
+    annualPlan: "წლიური გზეშე",
     monthlyPrice: "$19.99/თვე",
     monthlyOriginalPrice: "$39.99",
     yearlyPrice: "$199.99/წელი",
