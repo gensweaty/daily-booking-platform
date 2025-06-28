@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -226,10 +225,10 @@ export const DashboardContent = ({
       )}
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
-        <TabsList className="grid w-full grid-cols-5 mb-2 border-2 border-border/40 bg-muted/20 p-2 rounded-lg">
+        <TabsList className="grid w-full grid-cols-5 mb-2 bg-transparent p-2 gap-2 h-auto">
           <TabsTrigger 
             value="calendar" 
-            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted/50"
+            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-border/40 bg-muted/30 rounded-md px-3 py-2 data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-lg data-[state=active]:scale-[1.02] hover:border-border/60 hover:bg-muted/50"
           >
             <motion.div
               whileHover={{ rotate: 15 }}
@@ -243,7 +242,7 @@ export const DashboardContent = ({
           </TabsTrigger>
           <TabsTrigger 
             value="statistics" 
-            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted/50"
+            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-border/40 bg-muted/30 rounded-md px-3 py-2 data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-lg data-[state=active]:scale-[1.02] hover:border-border/60 hover:bg-muted/50"
           >
             <motion.div
               whileHover={{ rotate: 15 }}
@@ -261,7 +260,7 @@ export const DashboardContent = ({
           </TabsTrigger>
           <TabsTrigger 
             value="tasks" 
-            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted/50"
+            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-border/40 bg-muted/30 rounded-md px-3 py-2 data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-lg data-[state=active]:scale-[1.02] hover:border-border/60 hover:bg-muted/50"
           >
             <motion.div
               whileHover={{ rotate: 15 }}
@@ -279,7 +278,7 @@ export const DashboardContent = ({
           </TabsTrigger>
           <TabsTrigger 
             value="crm" 
-            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted/50"
+            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-border/40 bg-muted/30 rounded-md px-3 py-2 data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-lg data-[state=active]:scale-[1.02] hover:border-border/60 hover:bg-muted/50"
           >
             <motion.div
               whileHover={{ rotate: 15 }}
@@ -297,7 +296,7 @@ export const DashboardContent = ({
           </TabsTrigger>
           <TabsTrigger 
             value="business" 
-            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted/50 relative"
+            className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-border/40 bg-muted/30 rounded-md px-3 py-2 data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:shadow-lg data-[state=active]:scale-[1.02] hover:border-border/60 hover:bg-muted/50 relative"
           >
             <motion.div
               whileHover={{ rotate: 15 }}
