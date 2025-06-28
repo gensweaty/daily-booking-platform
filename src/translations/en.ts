@@ -606,5 +606,19 @@ export const translations: TranslationType = {
     avatarUploaded: "Avatar uploaded successfully",
     invalidFileType: "Invalid file type. Please use PNG, JPG, JPEG, or WebP.",
     fileTooLarge: "File too large. Maximum size is 5MB."
+  },
+  recurring: {
+    doesNotRepeat: "Does not repeat",
+    daily: "Daily",
+    weekly: "Weekly",
+    biweekly: "Every 2 weeks",
+    monthly: "Monthly",
+    yearly: "Yearly",
+    weeklyOn: "Weekly on",
+    biweeklyOn: "Every 2 weeks on",
+    monthlyOnDay: "Monthly on day",
+    annuallyOn: "Annually on",
+    repeatUntil: "Repeat until",
+    repeat: "Repeat"
   }
 };

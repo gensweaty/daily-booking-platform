@@ -119,11 +119,11 @@ export const EventDialogFields = ({
   // Show event name field only when there are multiple persons (additionalPersons.length > 0)
   const shouldShowEventNameField = additionalPersons.length > 0;
 
-  // Generate repeat options based on selected date
+  // Generate repeat options based on selected date and pass translation function
   const repeatOptions = useMemo(() => {
     const selectedDateTime = startDate ? new Date(startDate) : undefined;
-    return getRepeatOptions(selectedDateTime);
-  }, [startDate]);
+    return getRepeatOptions(selectedDateTime, t);
+  }, [startDate, t]);
 
   // Load additional persons when eventId changes - only load for specific events
   useEffect(() => {
@@ -539,13 +539,13 @@ export const EventDialogFields = ({
             style={georgianStyle}
           >
             <Repeat className="h-4 w-4" />
-            {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორება</GeorgianAuthText> : <LanguageText>Repeat</LanguageText>}
+            {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორება</GeorgianAuthText> : <LanguageText>{t("recurring.repeat")}</LanguageText>}
           </Label>
           <div className="flex gap-2">
             <div className="flex-1">
               <Select value={repeatPattern} onValueChange={setRepeatPattern}>
                 <SelectTrigger id="repeatPattern" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  <SelectValue placeholder={isGeorgian ? "განმეორების რეჟიმი" : "Select repeat option"} />
+                  <SelectValue placeholder={isGeorgian ? "განმეორების რეჟიმი" : t("recurring.doesNotRepeat")} />
                 </SelectTrigger>
                 <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
                   {repeatOptions.map((option) => (
@@ -577,7 +577,7 @@ export const EventDialogFields = ({
                         {isGeorgian ? (
                           <GeorgianAuthText letterSpacing="-0.05px">განმეორება მდე</GeorgianAuthText>
                         ) : (
-                          "Repeat until"
+                          <LanguageText>{t("recurring.repeatUntil")}</LanguageText>
                         )}
                       </span>
                     )}
@@ -649,13 +649,13 @@ export const EventDialogFields = ({
               MozOsxFontSmoothing: 'grayscale'
             } : undefined}
           >
-            {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">ღონისძიების სახელი</GeorgianAuthText> : <LanguageText>Event Name</LanguageText>}
+            {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">მოვლენის სახელი</GeorgianAuthText> : <LanguageText>Event Name</LanguageText>}
           </Label>
           <Input 
             id="eventName"
             value={eventName} 
             onChange={e => setEventName(e.target.value)} 
-            placeholder={isGeorgian ? "ღონისძიების სახელი" : "Event Name"} 
+            placeholder={isGeorgian ? "მოვლენის სახელი" : "Event Name"} 
             className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
             style={isGeorgian ? {
               fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",

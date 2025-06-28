@@ -6,13 +6,38 @@ export interface RepeatOption {
   label: string;
 }
 
-export const getRepeatOptions = (selectedDate?: Date): RepeatOption[] => {
+export const getRepeatOptions = (selectedDate?: Date, t?: (key: string, params?: Record<string, string | number>) => string): RepeatOption[] => {
   const options: RepeatOption[] = [
-    { value: "none", label: "Does not repeat" },
-    { value: "daily", label: "Daily" },
+    { value: "none", label: t ? t("recurring.doesNotRepeat") : "Does not repeat" },
+    { value: "daily", label: t ? t("recurring.daily") : "Daily" },
   ];
 
-  if (selectedDate) {
+  if (selectedDate && t) {
+    const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const georgianWeekdays = ["კვირა", "ორშაბათი", "სამშაბათი", "ოთხშაბათი", "ხუთშაბათი", "პარასკევი", "შაბათი"];
+    const spanishWeekdays = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    
+    const dayIndex = getDay(selectedDate);
+    const language = t("recurring.weekly") === "ყოველკვირეულად" ? "ka" : 
+                   t("recurring.weekly") === "Semanalmente" ? "es" : "en";
+    
+    let weekday = weekdays[dayIndex];
+    if (language === "ka") {
+      weekday = georgianWeekdays[dayIndex];
+    } else if (language === "es") {
+      weekday = spanishWeekdays[dayIndex];
+    }
+    
+    options.push({ value: "weekly", label: `${t("recurring.weeklyOn")} ${weekday}` });
+    options.push({ value: "biweekly", label: `${t("recurring.biweeklyOn")} ${weekday}` });
+    
+    // Monthly options
+    const date = selectedDate.getDate();
+    options.push({ value: "monthly", label: `${t("recurring.monthlyOnDay")} ${date}` });
+    
+    // Yearly option
+    options.push({ value: "yearly", label: `${t("recurring.annuallyOn")} ${format(selectedDate, "MMMM d")}` });
+  } else if (selectedDate) {
     const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const weekday = weekdays[getDay(selectedDate)];
     options.push({ value: "weekly", label: `Weekly on ${weekday}` });
@@ -20,18 +45,26 @@ export const getRepeatOptions = (selectedDate?: Date): RepeatOption[] => {
     
     // Monthly options
     const date = selectedDate.getDate();
-    const month = format(selectedDate, "MMMM");
     options.push({ value: "monthly", label: `Monthly on day ${date}` });
     
     // Yearly option
     options.push({ value: "yearly", label: `Annually on ${format(selectedDate, "MMMM d")}` });
   } else {
-    options.push(
-      { value: "weekly", label: "Weekly" },
-      { value: "biweekly", label: "Every 2 weeks" },
-      { value: "monthly", label: "Monthly" },
-      { value: "yearly", label: "Yearly" }
-    );
+    if (t) {
+      options.push(
+        { value: "weekly", label: t("recurring.weekly") },
+        { value: "biweekly", label: t("recurring.biweekly") },
+        { value: "monthly", label: t("recurring.monthly") },
+        { value: "yearly", label: t("recurring.yearly") }
+      );
+    } else {
+      options.push(
+        { value: "weekly", label: "Weekly" },
+        { value: "biweekly", label: "Every 2 weeks" },
+        { value: "monthly", label: "Monthly" },
+        { value: "yearly", label: "Yearly" }
+      );
+    }
   }
 
   return options;

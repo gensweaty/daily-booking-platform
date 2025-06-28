@@ -1,12 +1,6 @@
 
 export type Language = 'en' | 'es' | 'ka';
 
-export interface LanguageContextType {
-  language: Language;
-  setLanguage: (language: Language) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
-}
-
 export interface TranslationType {
   nav: {
     signin: string;
@@ -610,4 +604,24 @@ export interface TranslationType {
     invalidFileType: string;
     fileTooLarge: string;
   };
+  recurring: {
+    doesNotRepeat: string;
+    daily: string;
+    weekly: string;
+    biweekly: string;
+    monthly: string;
+    yearly: string;
+    weeklyOn: string;
+    biweeklyOn: string;
+    monthlyOnDay: string;
+    annuallyOn: string;
+    repeatUntil: string;
+    repeat: string;
+  };
+}
+
+export interface LanguageContextType {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }
