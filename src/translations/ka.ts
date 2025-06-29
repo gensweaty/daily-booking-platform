@@ -12,19 +12,19 @@ export const translations: TranslationType = {
     description: "მიიღეთ სრული კონტროლი თქვენს სამუშაო პროცესზე ჩვენი უწყვეტი დაჯავშნის კალენდრით, ძლიერი ამოცანების მართვით, ჭკვიანი კლიენტურ ურთიერთობათა მართვით და ჩაშენებული ანალიტიკით. ყველაფერი რაც თქვენს ბიზნესს სჭირდება, ერთ ადგილას."
   },
   features: {
-    title: "ფუნქციები",
+    title: "რას გთავაზობთ",
     mainTitle: "ყველაფერი რაც გჭირდებათ ბიზნესის მართვისთვის",
     booking: "ჯავშნის სისტემა",
     tasks: "ამოცანების მართვა",
     crm: "CRM სისტემა",
     analytics: "ანალიტიკა",
     website: "ვებსაიტი",
-    ownBookingWebsite: "საკუთარი ჯავშნის ვებსაიტი",
+    ownBookingWebsite: "საკუთარი ბიზნესის ჯავშნების ვებგვერდი",
     businessTitle: "ბიზნეს მენეჯმენტი",
-    smartAppointment: "ჭკვიანი ჯავშნის სისტემა",
-    automatedAnalytics: "ავტომატური ანალიტიკა",
-    modernCRM: "თანამედროვე CRM",
-    kanbanManagement: "კანბან მენეჯმენტი"
+    smartAppointment: "ჭკვიანი ჯავშნების სისტემა",
+    automatedAnalytics: "ავტომატიზირებული ანალიტიკა",
+    modernCRM: "თანამედროვე CRM სისტემა",
+    kanbanManagement: "კანბან ბორდი და თასქების მართვა"
   },
   booking: {
     title: "ჯავშნის სისტემა",
