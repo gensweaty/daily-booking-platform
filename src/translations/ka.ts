@@ -557,7 +557,7 @@ export const translations: TranslationType = {
     emailNotifications: "ელ. ფოსტის შეტყობინებები",
     pushNotifications: "პუშ შეტყობინებები",
     marketingEmails: "მარკეტინგული ელ. ფოსტა",
-    twoFactorAuth: "ორფაქტორიანი ავთენტიფიკაცია",
+    twoFactorAuth: "ორფაქტორიანი ავთენტიკაცია",
     changePassword: "პაროლის შეცვლა",
     loginSessions: "შესვლის სესიები",
     connectedAccounts: "დაკავშირებული ანგარიშები",
