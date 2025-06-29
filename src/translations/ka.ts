@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -19,7 +20,7 @@ export const translations: TranslationType = {
     crm: "CRM სისტემა",
     analytics: "ანალიტიკა",
     website: "ვებსაიტი",
-    ownBookingWebsite: "საკუთარი ბიზნესის ჯავშნების ვებგვერდი",
+    ownBookingWebsite: "თქვენი ბიზნესის ჯავშნების ვებგვერდი",
     businessTitle: "ბიზნეს მენეჯმენტი",
     smartAppointment: "ჭკვიანი ჯავშნების სისტემა",
     automatedAnalytics: "ავტომატიზირებული ანალიტიკა",
