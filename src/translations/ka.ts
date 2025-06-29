@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -21,7 +20,7 @@ export const translations: TranslationType = {
     analytics: "ანალიტიკა",
     website: "ვებსაიტი",
     ownBookingWebsite: "თქვენი ბიზნესის ჯავშნების ვებგვერდი",
-    businessTitle: "ბიზნეს მენეჯმენტი",
+    businessTitle: "ბიზნესებისთვის როგორიცაა",
     smartAppointment: "ჭკვიანი ჯავშნების სისტემა",
     automatedAnalytics: "ავტომატიზირებული ანალიტიკა",
     modernCRM: "თანამედროვე CRM სისტემა",
@@ -180,18 +179,18 @@ export const translations: TranslationType = {
     rights: "ყველა უფლება დაცულია"
   },
   business: {
-    events: "მოვლენები",
-    health: "ჯანდაცვა",
-    sports: "სპორტი",
-    beauty: "სილამაზე",
-    personal: "პირადი",
-    education: "განათლება",
-    eventsDesc: "ღონისძიებები და შეხვედრები",
-    healthDesc: "მედიცინა და ველნესი",
-    sportsDesc: "ფიტნესი და სპორტი",
-    beautyDesc: "სილამაზე და მოვლა",
-    personalDesc: "პირადი კოუჩინგი",
-    educationDesc: "განათლება და ტრენინგები",
+    events: "ღონისძიებები",
+    health: "ჯანმრთელობა და ველნესი",
+    sports: "სპორტი და ფიტნესი",
+    beauty: "სილამაზე და სპა",
+    personal: "პერსონალური მომსახურება",
+    education: "განათლება და კოუჩინგი",
+    eventsDesc: "კონფერენციები, ღონისძიებები, შეხვედრები და ღონისძიებები",
+    healthDesc: "ექიმები, თერაპევტები, დენტალური კლინიკები, ფიტნესები",
+    sportsDesc: "პირადი მწვრთნელები, სპორტის ტრენერები, ფიტნეს ცენტრები",
+    beautyDesc: "სალონები, სტილისტები, სპა ცენტრები, კოსმეტოლოგები",
+    personalDesc: "კონსულტაციები, ფოტოგრაფები, ფინანსური სერვისები",
+    educationDesc: "მასწავლებლები, რეპეტიტორები, ტრენინგები, ვორქშოპები",
     myBusiness: "ჩემი ბიზნესი",
     businessProfile: "ბიზნეს პროფილი",
     bookingRequests: "ჯავშნის მოთხოვნები",
