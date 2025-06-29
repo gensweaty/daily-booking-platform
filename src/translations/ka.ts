@@ -164,8 +164,8 @@ export const translations: TranslationType = {
     feature5: "ელფოსტით შეხვედრის დადასტურება"
   },
   cta: {
-    title: "მზად ხართ დასაწყებად?",
-    subtitle: "დაიწყეთ უფასო გამოცდა დღესვე",
+    title: "მზად ხართ გაზარდოთ თქვენი ბიზნესი?",
+    subtitle: "დაიწყეთ ჩვენი პლატფორმის გამოყენება დღესვე და იგრძენით განსხვავება!",
     button: "დაწყება"
   },
   footer: {
@@ -522,7 +522,7 @@ export const translations: TranslationType = {
     minutes: "წუთი",
     seconds: "წამი",
     trialIncluded: "საცდელი ჩართულია",
-    freeTrial: "უფასო საცდელი",
+    freeTrial: "უფასო 14 დღიანი საცდელი ვერსია, საკრედიტო ბარათი არ არის საჭირო!",
     startFreeTrial: "უფასო საცდელის დაწყება",
     trialThenBilling: "საცდელი შემდეგ ბილინგი",
     ultimateSubscription: "მაქსიმალური გამოწერა",
