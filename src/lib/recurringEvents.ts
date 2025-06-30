@@ -155,43 +155,97 @@ export const generateRecurringInstances = (baseEvent: CalendarEventType): Calend
 };
 
 export const filterDeletedInstances = (instances: CalendarEventType[], deletionExceptions: CalendarEventType[]): CalendarEventType[] => {
+  console.log("🔍 Filtering deleted instances:", {
+    instancesCount: instances.length,
+    exceptionsCount: deletionExceptions.length
+  });
+
+  // Create a set of deleted dates from deletion exceptions
   const deletedDates = new Set(
     deletionExceptions
-      .filter(exception => exception.type === 'deleted_exception')
-      .map(exception => exception.start_date.split('T')[0])
+      .filter(exception => {
+        // Filter for actual deletion exceptions
+        const isDeleted = exception.type === 'deleted_exception' || 
+                         (exception.title && exception.title.startsWith('DELETED_EXCEPTION_'));
+        
+        console.log("🚫 Checking exception:", {
+          id: exception.id,
+          title: exception.title,
+          type: exception.type,
+          isDeleted,
+          startDate: exception.start_date
+        });
+        
+        return isDeleted;
+      })
+      .map(exception => {
+        const dateStr = exception.start_date.split('T')[0];
+        console.log("📅 Adding deleted date:", dateStr);
+        return dateStr;
+      })
   );
   
-  return instances.filter(instance => {
+  console.log("🗑️ Deleted dates set:", Array.from(deletedDates));
+  
+  // Filter out instances that match deleted dates
+  const filteredInstances = instances.filter(instance => {
     const instanceDate = instance.start_date.split('T')[0];
-    return !deletedDates.has(instanceDate);
+    const isDeleted = deletedDates.has(instanceDate);
+    
+    if (isDeleted) {
+      console.log("❌ Filtering out deleted instance:", {
+        id: instance.id,
+        title: instance.title,
+        date: instanceDate
+      });
+    }
+    
+    return !isDeleted;
   });
+  
+  console.log("✅ Filtered instances:", {
+    original: instances.length,
+    filtered: filteredInstances.length,
+    removed: instances.length - filteredInstances.length
+  });
+  
+  return filteredInstances;
 };
 
 export const isVirtualInstance = (eventId: string): boolean => {
-  // Check if the ID ends with a date pattern (YYYY-MM-DD)
-  const datePattern = /\d{4}-\d{2}-\d{2}$/;
-  return datePattern.test(eventId);
+  // Check if the ID contains a date pattern (YYYY-MM-DD)
+  const hasDatePattern = /\d{4}-\d{2}-\d{2}$/.test(eventId);
+  console.log("🔍 Checking if virtual instance:", { eventId, hasDatePattern });
+  return hasDatePattern;
 };
 
 export const getParentEventId = (eventId: string): string => {
   if (!isVirtualInstance(eventId)) {
+    console.log("📋 Not a virtual instance, returning original ID:", eventId);
     return eventId;
   }
   
   // For virtual instances, remove the date suffix to get parent ID
   // Pattern: "uuid-YYYY-MM-DD" -> "uuid"
   const datePattern = /-\d{4}-\d{2}-\d{2}$/;
-  return eventId.replace(datePattern, '');
+  const parentId = eventId.replace(datePattern, '');
+  
+  console.log("👨‍👩‍👧‍👦 Extracted parent ID:", { originalId: eventId, parentId });
+  return parentId;
 };
 
 export const getInstanceDate = (eventId: string): string | null => {
   if (!isVirtualInstance(eventId)) {
+    console.log("📋 Not a virtual instance, no date to extract:", eventId);
     return null;
   }
   
   // Extract the date part from virtual instance ID
   const match = eventId.match(/(\d{4}-\d{2}-\d{2})$/);
-  return match ? match[1] : null;
+  const instanceDate = match ? match[1] : null;
+  
+  console.log("📅 Extracted instance date:", { eventId, instanceDate });
+  return instanceDate;
 };
 
 export const parseRepeatPattern = (pattern: string): string => {

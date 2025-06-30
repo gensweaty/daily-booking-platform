@@ -465,105 +465,74 @@ export const EventDialog = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
-      if (isRecurringEvent && deleteChoice) {
-        // Handle recurring event deletion with choice
-        if (isVirtualInstance(event.id)) {
-          const parentId = getParentEventId(event.id);
-          const instanceDate = getInstanceDate(event.id);
-          
-          console.log("Deleting virtual instance:", { 
-            eventId: event.id, 
-            parentId, 
-            instanceDate,
-            deleteChoice 
-          });
-          
-          if (deleteChoice === "this" && instanceDate) {
-            // Create deletion exception for this specific instance
-            const instanceStartDate = new Date(event.start_date);
-            const instanceEndDate = new Date(event.end_date);
-            
-            const exceptionData = {
-              user_id: user.id,
-              title: `${event.title || event.user_surname} - Deleted Instance`,
-              start_date: instanceStartDate.toISOString(),
-              end_date: instanceEndDate.toISOString(),
-              type: 'deleted_exception',
-              parent_event_id: parentId,
-              event_notes: `Deleted instance for date ${instanceDate}`,
-              is_recurring: false,
-              user_surname: event.user_surname,
-              user_number: event.user_number,
-              social_network_link: event.social_network_link,
-              payment_status: event.payment_status,
-              payment_amount: event.payment_amount
-            };
-            
-            console.log("Creating deletion exception:", exceptionData);
-            
-            const { error } = await supabase
-              .from('events')
-              .insert(exceptionData);
-              
-            if (error) throw error;
-          } else if (deleteChoice === "series") {
-            // Delete the parent event (entire series)
-            const { error } = await supabase
-              .from('events')
-              .update({ deleted_at: new Date().toISOString() })
-              .eq('id', parentId);
-              
-            if (error) throw error;
-          }
-        } else {
-          // This is the base event of a recurring series
-          if (deleteChoice === "this") {
-            // Create exception for the first occurrence
-            const baseStartDate = new Date(event.start_date);
-            const baseEndDate = new Date(event.end_date);
-            const firstDate = format(baseStartDate, 'yyyy-MM-dd');
-            
-            const exceptionData = {
-              user_id: user.id,
-              title: `${event.title || event.user_surname} - Deleted Instance`,
-              start_date: baseStartDate.toISOString(),
-              end_date: baseEndDate.toISOString(),
-              type: 'deleted_exception',
-              parent_event_id: event.id,
-              event_notes: `Deleted first instance for date ${firstDate}`,
-              is_recurring: false,
-              user_surname: event.user_surname,
-              user_number: event.user_number,
-              social_network_link: event.social_network_link,
-              payment_status: event.payment_status,
-              payment_amount: event.payment_amount
-            };
-            
-            console.log("Creating deletion exception for base event:", exceptionData);
-            
-            const { error } = await supabase
-              .from('events')
-              .insert(exceptionData);
-              
-            if (error) throw error;
-          } else {
-            // Delete entire series
-            const { error } = await supabase
-              .from('events')
-              .update({ deleted_at: new Date().toISOString() })
-              .eq('id', event.id);
+      console.log("🗑️ Deleting recurring event:", { 
+        eventId: event.id, 
+        deleteChoice, 
+        isVirtual: isVirtualInstance(event.id) 
+      });
 
-            if (error) throw error;
-          }
+      if (isRecurringEvent && deleteChoice === "this") {
+        // For "delete this event only", we need to create a deletion exception
+        // This is a special record that tells the system to skip this particular date
+        // when generating recurring instances
+        
+        const parentId = isVirtualInstance(event.id) ? getParentEventId(event.id) : event.id;
+        const instanceDate = new Date(event.start_date);
+        const instanceDateStr = format(instanceDate, 'yyyy-MM-dd');
+        
+        console.log("🚫 Creating deletion exception:", { 
+          parentId, 
+          instanceDate: instanceDateStr,
+          eventTitle: event.title || event.user_surname
+        });
+        
+        // Create a deletion exception record
+        // This is NOT a new event - it's a record that tells the system 
+        // "skip this date when showing recurring events"
+        const exceptionData = {
+          user_id: user.id,
+          title: `DELETED_EXCEPTION_${instanceDateStr}`, // Special marker title
+          start_date: instanceDate.toISOString(),
+          end_date: new Date(event.end_date).toISOString(),
+          type: 'deleted_exception', // Special type to identify this as a deletion exception
+          parent_event_id: parentId,
+          event_notes: `Deletion exception for recurring event on ${instanceDateStr}`,
+          is_recurring: false,
+          // Copy original event data for reference
+          user_surname: event.user_surname,
+          user_number: event.user_number,
+          social_network_link: event.social_network_link,
+          payment_status: event.payment_status,
+          payment_amount: event.payment_amount
+        };
+        
+        const { error } = await supabase
+          .from('events')
+          .insert(exceptionData);
+          
+        if (error) {
+          console.error("❌ Error creating deletion exception:", error);
+          throw error;
         }
-      } else {
-        // Regular event deletion (fallback)
+        
+        console.log("✅ Deletion exception created successfully");
+        
+      } else if (deleteChoice === "series") {
+        // Delete the entire series by marking the parent event as deleted
+        const parentId = isVirtualInstance(event.id) ? getParentEventId(event.id) : event.id;
+        console.log("🗑️ Deleting entire series:", parentId);
+        
         const { error } = await supabase
           .from('events')
           .update({ deleted_at: new Date().toISOString() })
-          .eq('id', event.id);
-
-        if (error) throw error;
+          .eq('id', parentId);
+          
+        if (error) {
+          console.error("❌ Error deleting series:", error);
+          throw error;
+        }
+        
+        console.log("✅ Series deleted successfully");
       }
 
       toast({
@@ -575,7 +544,7 @@ export const EventDialog = ({
       onEventDeleted?.();
       onOpenChange(false);
     } catch (error) {
-      console.error("Error deleting event:", error);
+      console.error("❌ Error deleting event:", error);
       toast({
         title: isGeorgian ? "შეცდომა" : "Error",
         description: isGeorgian ? "მოვლენის წაშლისას მოხდა შეცდომა" : "Failed to delete event",
