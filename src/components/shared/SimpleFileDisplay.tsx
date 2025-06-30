@@ -39,16 +39,6 @@ export const SimpleFileDisplay = ({
     }
   };
 
-  const getTableName = (type: string): string => {
-    switch (type) {
-      case 'task': return 'files';
-      case 'event': return 'event_files';
-      case 'customer': return 'customer_files_new';
-      case 'note': return 'note_files';
-      default: return 'files';
-    }
-  };
-
   const getFileExtension = (filename: string): string => {
     return filename.split('.').pop()?.toLowerCase() || '';
   };
@@ -160,7 +150,6 @@ export const SimpleFileDisplay = ({
       setDeletingFileId(file.id);
       
       const bucketName = getBucketName(parentType);
-      const tableName = getTableName(parentType);
       
       // Delete from storage
       const { error: storageError } = await supabase.storage
@@ -172,14 +161,37 @@ export const SimpleFileDisplay = ({
         throw storageError;
       }
       
-      // Delete from database
-      const { error: dbError } = await supabase
-        .from(tableName)
-        .delete()
-        .eq('id', file.id);
+      // Delete from database using type-safe table references
+      let dbError;
+      
+      if (parentType === 'task') {
+        const { error } = await supabase
+          .from('files')
+          .delete()
+          .eq('id', file.id);
+        dbError = error;
+      } else if (parentType === 'event') {
+        const { error } = await supabase
+          .from('event_files')
+          .delete()
+          .eq('id', file.id);
+        dbError = error;
+      } else if (parentType === 'customer') {
+        const { error } = await supabase
+          .from('customer_files_new')
+          .delete()
+          .eq('id', file.id);
+        dbError = error;
+      } else if (parentType === 'note') {
+        const { error } = await supabase
+          .from('note_files')
+          .delete()
+          .eq('id', file.id);
+        dbError = error;
+      }
         
       if (dbError) {
-        console.error(`Database deletion error from ${tableName}:`, dbError);
+        console.error(`Database deletion error for ${parentType}:`, dbError);
         throw dbError;
       }
       
@@ -208,12 +220,6 @@ export const SimpleFileDisplay = ({
     } finally {
       setDeletingFileId(null);
     }
-  };
-
-  const getImageUrl = async (file: FileRecord): Promise<string> => {
-    const bucketName = getBucketName(parentType);
-    const signedUrl = await generateSignedUrl(bucketName, file.file_path);
-    return signedUrl || `${getStorageUrl()}/object/public/${bucketName}/${normalizeFilePath(file.file_path)}`;
   };
 
   if (!files || files.length === 0) {
