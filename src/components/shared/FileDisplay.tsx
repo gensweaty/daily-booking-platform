@@ -37,7 +37,8 @@ export const FileDisplay = ({
     filesCount: files.length,
     bucketName,
     parentType,
-    parentId
+    parentId,
+    files: files.map(f => ({ id: f.id, filename: f.filename, file_path: f.file_path }))
   });
 
   // Remove duplicate files by ID
@@ -49,7 +50,10 @@ export const FileDisplay = ({
 
   useEffect(() => {
     const setupFileUrls = async () => {
-      if (uniqueFiles.length === 0) return;
+      if (uniqueFiles.length === 0) {
+        console.log("📁 FileDisplay - No files to process");
+        return;
+      }
 
       console.log("🔧 FileDisplay - Setting up file URLs");
       const newURLs: {[key: string]: string} = {};
@@ -60,13 +64,13 @@ export const FileDisplay = ({
           continue;
         }
         
-        // Use file path as-is, only remove leading slash if present
+        // Clean the path - remove leading slash if present
         const cleanPath = file.file_path.startsWith('/') ? file.file_path.substring(1) : file.file_path;
         
-        console.log(`🔧 FileDisplay - Processing file: ${file.filename}, path: ${cleanPath}`);
+        console.log(`🔧 FileDisplay - Processing file: ${file.filename}, original path: ${file.file_path}, clean path: ${cleanPath}`);
         
         try {
-          // Always use event_attachments bucket (matches our upload logic)
+          // Try event_attachments bucket first (most common)
           const { data } = supabase.storage
             .from('event_attachments')
             .getPublicUrl(cleanPath);
@@ -82,7 +86,7 @@ export const FileDisplay = ({
         }
       }
       
-      console.log(`🔧 FileDisplay - Setup complete. Created ${Object.keys(newURLs).length} URLs`);
+      console.log(`🔧 FileDisplay - Setup complete. Created ${Object.keys(newURLs).length} URLs out of ${uniqueFiles.length} files`);
       setFileURLs(newURLs);
     };
     
@@ -114,7 +118,7 @@ export const FileDisplay = ({
 
   const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
     try {
-      console.log(`⬇️ FileDisplay - Starting download: ${fileName}`);
+      console.log(`⬇️ FileDisplay - Starting download: ${fileName} from path: ${filePath}`);
       
       const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
       
@@ -171,7 +175,7 @@ export const FileDisplay = ({
 
   const handleDelete = async (fileId: string, filePath: string) => {
     try {
-      console.log(`🗑️ FileDisplay - Starting delete for file: ${fileId}`);
+      console.log(`🗑️ FileDisplay - Starting delete for file: ${fileId}, path: ${filePath}`);
       setDeletingFileId(fileId);
       
       const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
@@ -250,7 +254,11 @@ export const FileDisplay = ({
 
   if (!uniqueFiles || uniqueFiles.length === 0) {
     console.log("📁 FileDisplay - No files to display");
-    return null;
+    return (
+      <div className="text-sm text-muted-foreground">
+        {t("common.noFilesFound")}
+      </div>
+    );
   }
 
   return (

@@ -157,10 +157,9 @@ export const BookingRequestForm = ({
       // Validate required fields
       if (!fullName) {
         toast({
-          translateKeys: {
-            titleKey: "common.error",
-            descriptionKey: "events.fullNameRequired"
-          }
+          title: t("common.error"),
+          description: t("events.fullNameRequired"),
+          variant: "destructive",
         });
         setIsSubmitting(false);
         return;
@@ -168,10 +167,9 @@ export const BookingRequestForm = ({
 
       if (!userNumber) {
         toast({
-          translateKeys: {
-            titleKey: "common.error",
-            descriptionKey: "events.phoneNumberRequired"
-          }
+          title: t("common.error"),
+          description: t("events.phoneNumberRequired"),
+          variant: "destructive",
         });
         setIsSubmitting(false);
         return;
@@ -179,10 +177,9 @@ export const BookingRequestForm = ({
 
       if (!socialNetworkLink || !socialNetworkLink.includes('@')) {
         toast({
-          translateKeys: {
-            titleKey: "common.error",
-            descriptionKey: "events.validEmailRequired"
-          }
+          title: t("common.error"),
+          description: t("events.validEmailRequired"),
+          variant: "destructive",
         });
         setIsSubmitting(false);
         return;
@@ -193,10 +190,9 @@ export const BookingRequestForm = ({
 
       if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
         toast({
-          translateKeys: {
-            titleKey: "common.error",
-            descriptionKey: "events.validDatesRequired"
-          }
+          title: t("common.error"),
+          description: t("events.validDatesRequired"),
+          variant: "destructive",
         });
         setIsSubmitting(false);
         return;
@@ -228,7 +224,7 @@ export const BookingRequestForm = ({
         language: language
       };
 
-      console.log('📝 BookingRequestForm - Creating booking request');
+      console.log('📝 BookingRequestForm - Creating booking request with data:', bookingData);
 
       // Step 1: Create booking request
       const { data: bookingResponse, error: bookingError } = await supabase
@@ -284,37 +280,37 @@ export const BookingRequestForm = ({
         }
       }
 
-      // Step 3: Send notification email - improved error handling
+      // Step 3: Send notification email with proper error handling
       try {
         console.log('📧 BookingRequestForm - Preparing email notification');
         
-        // Ensure all required business data is available
         if (!businessData?.businessEmail) {
-          console.warn('⚠️ BookingRequestForm - Missing business email, skipping email notification');
+          console.warn('⚠️ BookingRequestForm - No business email found, skipping email notification');
         } else {
-          const notificationData = {
+          // Prepare email notification data with all required fields
+          const emailNotificationData = {
             businessId: businessId,
             businessEmail: businessData.businessEmail,
+            businessName: businessData.businessName || "Business",
+            businessAddress: businessData.businessAddress || "",
             requesterName: fullName,
             requesterEmail: socialNetworkLink,
             requesterPhone: userNumber,
             notes: eventNotes || "No additional notes",
             startDate: startDateTime.toISOString(),
             endDate: endDateTime.toISOString(),
-            hasAttachment: !!selectedFile,
             paymentStatus: paymentStatus,
             paymentAmount: finalPaymentAmount,
-            businessName: businessData.businessName || "Business",
-            businessAddress: businessData.businessAddress,
+            hasAttachment: !!selectedFile,
             language: language
           };
           
-          console.log("📧 BookingRequestForm - Sending email notification");
+          console.log("📧 BookingRequestForm - Sending email with data:", emailNotificationData);
           
           const { data: emailResult, error: emailError } = await supabase.functions.invoke(
             'send-booking-request-notification',
             {
-              body: notificationData,
+              body: emailNotificationData,
               headers: {
                 'Content-Type': 'application/json'
               }
@@ -323,19 +319,19 @@ export const BookingRequestForm = ({
 
           if (emailError) {
             console.error('❌ BookingRequestForm - Email send error:', emailError);
-            // Show user-friendly notification about email issue
+            // Show warning but don't block the flow
             toast({
               title: t("common.warning"),
-              description: "Booking created successfully, but email notification may have failed",
+              description: "Booking created successfully, but email notification failed to send",
               variant: "default",
             });
           } else {
-            console.log('✅ BookingRequestForm - Email notification sent successfully');
+            console.log('✅ BookingRequestForm - Email notification sent successfully:', emailResult);
           }
         }
       } catch (emailError) {
-        console.error("❌ BookingRequestForm - Email notification failed:", emailError);
-        // Don't block the main flow, just notify user
+        console.error("❌ BookingRequestForm - Email notification error:", emailError);
+        // Show warning but continue
         toast({
           title: t("common.warning"),
           description: "Booking created successfully, but email notification may have failed",
@@ -358,7 +354,10 @@ export const BookingRequestForm = ({
       }
 
       // Show success message
-      toast.event.bookingSubmitted();
+      toast({
+        title: t("common.success"),
+        description: t("events.requestSubmitted"),
+      });
 
       if (onSuccess) {
         onSuccess();
@@ -373,10 +372,9 @@ export const BookingRequestForm = ({
     } catch (error) {
       console.error('❌ BookingRequestForm - Submission error:', error);
       toast({
-        translateKeys: {
-          titleKey: "common.error",
-          descriptionKey: "common.errorOccurred"
-        }
+        title: t("common.error"),
+        description: t("common.errorOccurred"),
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
