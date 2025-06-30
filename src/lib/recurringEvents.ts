@@ -1,4 +1,3 @@
-
 import { CalendarEventType } from "@/lib/types/calendar";
 import { addDays, addWeeks, addMonths, addYears, endOfYear, isBefore, format, getDay, startOfDay } from "date-fns";
 
@@ -7,57 +6,13 @@ export interface RepeatOption {
   label: string;
 }
 
-export const getRepeatOptions = (selectedDate?: Date, t?: (key: string, params?: Record<string, string | number>) => string): RepeatOption[] => {
+export const getRepeatOptions = (selectedDate?: Date): RepeatOption[] => {
   const options: RepeatOption[] = [
-    { value: "none", label: t ? t("recurring.doesNotRepeat") : "Does not repeat" },
-    { value: "daily", label: t ? t("recurring.daily") : "Daily" },
+    { value: "none", label: "Does not repeat" },
+    { value: "daily", label: "Daily" },
   ];
 
-  if (selectedDate && t) {
-    const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const georgianWeekdays = ["კვირა", "ორშაბათი", "სამშაბათი", "ოთხშაბათი", "ხუთშაბათი", "პარასკევი", "შაბათი"];
-    const spanishWeekdays = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-    
-    const dayIndex = getDay(selectedDate);
-    const language = t("recurring.weekly") === "ყოველკვირეულად" ? "ka" : 
-                   t("recurring.weekly") === "Semanalmente" ? "es" : "en";
-    
-    let weekday = weekdays[dayIndex];
-    if (language === "ka") {
-      weekday = georgianWeekdays[dayIndex];
-    } else if (language === "es") {
-      weekday = spanishWeekdays[dayIndex];
-    }
-    
-    options.push({ value: "weekly", label: `${t("recurring.weeklyOn")} ${weekday}` });
-    options.push({ value: "biweekly", label: `${t("recurring.biweeklyOn")} ${weekday}` });
-    
-    // Monthly options
-    const date = selectedDate.getDate();
-    if (language === "ka") {
-      options.push({ value: "monthly", label: `${t("recurring.monthlyOnDay")} ${date} ში` });
-    } else {
-      options.push({ value: "monthly", label: `${t("recurring.monthlyOnDay")} ${date}` });
-    }
-    
-    // Yearly option
-    const monthIndex = selectedDate.getMonth();
-    const monthKeys = [
-      "months.january", "months.february", "months.march", "months.april",
-      "months.may", "months.june", "months.july", "months.august",
-      "months.september", "months.october", "months.november", "months.december"
-    ];
-    
-    const monthName = t(monthKeys[monthIndex]);
-    
-    if (language === "ka") {
-      // Georgian format: "ყოველწლიურად ივნისის 12"
-      const georgianMonthGenitive = monthName + "ის";
-      options.push({ value: "yearly", label: `${t("recurring.annuallyOn")} ${georgianMonthGenitive} ${date}` });
-    } else {
-      options.push({ value: "yearly", label: `${t("recurring.annuallyOn")} ${monthName} ${date}` });
-    }
-  } else if (selectedDate) {
+  if (selectedDate) {
     const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const weekday = weekdays[getDay(selectedDate)];
     options.push({ value: "weekly", label: `Weekly on ${weekday}` });
@@ -65,26 +20,18 @@ export const getRepeatOptions = (selectedDate?: Date, t?: (key: string, params?:
     
     // Monthly options
     const date = selectedDate.getDate();
+    const month = format(selectedDate, "MMMM");
     options.push({ value: "monthly", label: `Monthly on day ${date}` });
     
     // Yearly option
     options.push({ value: "yearly", label: `Annually on ${format(selectedDate, "MMMM d")}` });
   } else {
-    if (t) {
-      options.push(
-        { value: "weekly", label: t("recurring.weekly") },
-        { value: "biweekly", label: t("recurring.biweekly") },
-        { value: "monthly", label: t("recurring.monthly") },
-        { value: "yearly", label: t("recurring.yearly") }
-      );
-    } else {
-      options.push(
-        { value: "weekly", label: "Weekly" },
-        { value: "biweekly", label: "Every 2 weeks" },
-        { value: "monthly", label: "Monthly" },
-        { value: "yearly", label: "Yearly" }
-      );
-    }
+    options.push(
+      { value: "weekly", label: "Weekly" },
+      { value: "biweekly", label: "Every 2 weeks" },
+      { value: "monthly", label: "Monthly" },
+      { value: "yearly", label: "Yearly" }
+    );
   }
 
   return options;

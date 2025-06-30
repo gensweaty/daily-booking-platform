@@ -320,9 +320,7 @@ export const translations: TranslationType = {
     eventDetails: "Event Details",
     title: "Event Title",
     bookAppointment: "Book Appointment",
-    submitRequest: "Submit Request",
-    deleteEventConfirmTitle: "Delete Event?",
-    deleteEventConfirmMessage: "Are you sure you want to delete this event? This action cannot be undone."
+    submitRequest: "Submit Request"
   },
   contact: {
     email: "Email",
@@ -606,33 +604,5 @@ export const translations: TranslationType = {
     avatarUploaded: "Avatar uploaded successfully",
     invalidFileType: "Invalid file type. Please use PNG, JPG, JPEG, or WebP.",
     fileTooLarge: "File too large. Maximum size is 5MB."
-  },
-  recurring: {
-    doesNotRepeat: "Does not repeat",
-    daily: "Daily",
-    weekly: "Weekly",
-    biweekly: "Every 2 weeks",
-    monthly: "Monthly",
-    yearly: "Yearly",
-    weeklyOn: "Weekly on",
-    biweeklyOn: "Every 2 weeks on",
-    monthlyOnDay: "Monthly on day",
-    annuallyOn: "Annually on",
-    repeatUntil: "Repeat until",
-    repeat: "Repeat"
-  },
-  months: {
-    january: "January",
-    february: "February",
-    march: "March",
-    april: "April",
-    may: "May",
-    june: "June",
-    july: "July",
-    august: "August",
-    september: "September",
-    october: "October",
-    november: "November",
-    december: "December"
   }
 };

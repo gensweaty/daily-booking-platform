@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -45,7 +46,10 @@ export const BookingRequestForm = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [businessData, setBusinessData] = useState<{businessName?: string, businessEmail?: string, businessAddress?: string} | null>(null);
   
+  // Replace useState with fullName state
   const [fullName, setFullName] = useState('');
+  
+  // Add new state variables to match EventDialog structure
   const [userSurname, setUserSurname] = useState('');
   const [userNumber, setUserNumber] = useState('');
   const [socialNetworkLink, setSocialNetworkLink] = useState('');
@@ -55,8 +59,10 @@ export const BookingRequestForm = ({
   const [paymentStatus, setPaymentStatus] = useState('not_paid');
   const [paymentAmount, setPaymentAmount] = useState('');
 
+  // Get currency symbol based on language
   const currencySymbol = getCurrencySymbol(language);
 
+  // Move date initialization to useEffect
   useEffect(() => {
     try {
       const start = combineDateAndTime(selectedDate, startTime);
@@ -65,7 +71,8 @@ export const BookingRequestForm = ({
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     } catch (error) {
-      console.error('❌ BookingRequestForm - Error initializing dates:', error);
+      console.error('Error initializing dates:', error);
+      // Set fallback dates in case of error
       const now = new Date();
       const oneHourLater = new Date(now);
       oneHourLater.setHours(oneHourLater.getHours() + 1);
@@ -75,10 +82,10 @@ export const BookingRequestForm = ({
     }
   }, [selectedDate, startTime, endTime]);
 
+  // Fetch business data early and cache it
   useEffect(() => {
     const fetchBusinessData = async () => {
       try {
-        console.log('🏢 BookingRequestForm - Fetching business data for:', businessId);
         const { data, error } = await supabase
           .from('business_profiles')
           .select('business_name, contact_email, contact_address')
@@ -86,7 +93,7 @@ export const BookingRequestForm = ({
           .single();
 
         if (error) {
-          console.error("❌ BookingRequestForm - Error fetching business data:", error);
+          console.error("Error fetching business data:", error);
           return;
         }
 
@@ -96,9 +103,9 @@ export const BookingRequestForm = ({
           businessAddress: data?.contact_address
         });
         
-        console.log("✅ BookingRequestForm - Business data loaded:", data);
+        console.log("Cached business data:", data);
       } catch (err) {
-        console.error("❌ BookingRequestForm - Error in business data fetch:", err);
+        console.error("Error in business data fetch:", err);
       }
     };
 
@@ -107,10 +114,13 @@ export const BookingRequestForm = ({
     }
   }, [businessId]);
 
+  // Common Georgian font styling for consistent rendering
   const georgianFontStyle = isGeorgian ? getGeorgianFontStyle() : undefined;
+  
   const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
 
+  // Create a required field indicator component
   const RequiredFieldIndicator = () => (
     <Asterisk className="inline h-3 w-3 text-destructive ml-1" />
   );
@@ -123,6 +133,7 @@ export const BookingRequestForm = ({
     return newDate;
   };
 
+  // Handle name change to update both fullName and userSurname
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setFullName(value);
@@ -130,11 +141,11 @@ export const BookingRequestForm = ({
   };
 
   const handleFileChange = (file: File | null) => {
-    console.log('📁 BookingRequestForm - File selected:', file?.name || 'none');
     setSelectedFile(file);
     setFileError('');
   };
 
+  // Helper function for Georgian text to ensure consistent rendering
   const renderGeorgianText = (text: string) => {
     if (!isGeorgian) return text;
     
@@ -151,15 +162,16 @@ export const BookingRequestForm = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    console.log("🚀 BookingRequestForm - Starting submission");
+    console.log("Starting form submission...");
 
     try {
       // Validate required fields
       if (!fullName) {
         toast({
-          title: t("common.error"),
-          description: t("events.fullNameRequired"),
-          variant: "destructive",
+          translateKeys: {
+            titleKey: "common.error",
+            descriptionKey: "events.fullNameRequired"
+          }
         });
         setIsSubmitting(false);
         return;
@@ -167,9 +179,10 @@ export const BookingRequestForm = ({
 
       if (!userNumber) {
         toast({
-          title: t("common.error"),
-          description: t("events.phoneNumberRequired"),
-          variant: "destructive",
+          translateKeys: {
+            titleKey: "common.error",
+            descriptionKey: "events.phoneNumberRequired"
+          }
         });
         setIsSubmitting(false);
         return;
@@ -177,9 +190,10 @@ export const BookingRequestForm = ({
 
       if (!socialNetworkLink || !socialNetworkLink.includes('@')) {
         toast({
-          title: t("common.error"),
-          description: t("events.validEmailRequired"),
-          variant: "destructive",
+          translateKeys: {
+            titleKey: "common.error",
+            descriptionKey: "events.validEmailRequired"
+          }
         });
         setIsSubmitting(false);
         return;
@@ -188,19 +202,22 @@ export const BookingRequestForm = ({
       const startDateTime = new Date(startDate);
       const endDateTime = new Date(endDate);
 
+      // Additional validation for dates
       if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
         toast({
-          title: t("common.error"),
-          description: t("events.validDatesRequired"),
-          variant: "destructive",
+          translateKeys: {
+            titleKey: "common.error",
+            descriptionKey: "events.validDatesRequired"
+          }
         });
         setIsSubmitting(false);
         return;
       }
 
-      // Process payment amount
+      // Process payment amount - Parse numeric value only without currency symbol
       let finalPaymentAmount = null;
       if (showPaymentAmount && paymentAmount) {
+        // Remove any currency symbols or non-numeric characters except decimal point
         const cleanedAmount = paymentAmount.replace(/[^\d.]/g, '');
         const amount = parseFloat(cleanedAmount);
         if (!isNaN(amount)) {
@@ -208,25 +225,25 @@ export const BookingRequestForm = ({
         }
       }
 
-      // Create booking data
+      // Create booking data object
       const bookingData = {
         business_id: businessId,
         requester_name: fullName,
         requester_email: socialNetworkLink,
         requester_phone: userNumber,
-        title: fullName,
+        title: `${fullName}`,
         description: eventNotes || null,
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
         payment_status: paymentStatus,
         payment_amount: finalPaymentAmount,
         status: 'pending',
-        language: language
+        language: language // Include the current language
       };
 
-      console.log('📝 BookingRequestForm - Creating booking request with data:', bookingData);
+      console.log('Submitting booking request:', bookingData);
 
-      // Step 1: Create booking request
+      // Step 1: Create booking request in database
       const { data: bookingResponse, error: bookingError } = await supabase
         .from('booking_requests')
         .insert(bookingData)
@@ -234,33 +251,28 @@ export const BookingRequestForm = ({
         .single();
 
       if (bookingError) {
-        console.error('❌ BookingRequestForm - Booking creation error:', bookingError);
+        console.error('Error submitting booking request:', bookingError);
         throw bookingError;
       }
 
       const bookingId = bookingResponse.id;
-      console.log('✅ BookingRequestForm - Booking request created:', bookingId);
+      console.log('Booking request created with ID:', bookingId);
 
       // Step 2: Handle file upload if present
       if (selectedFile && bookingId) {
         try {
           const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `bookings/${bookingId}/${Date.now()}.${fileExt}`;
+          const filePath = `${bookingId}/${Date.now()}.${fileExt}`;
 
-          console.log('📁 BookingRequestForm - Uploading file:', filePath);
+          console.log('Uploading file to path:', filePath);
           const { error: uploadError } = await supabase.storage
-            .from('event_attachments')
+            .from('booking_attachments')
             .upload(filePath, selectedFile);
 
           if (uploadError) {
-            console.error('❌ BookingRequestForm - File upload error:', uploadError);
-            toast({
-              title: t("common.warning"),
-              description: "File upload failed, but booking was created successfully",
-              variant: "default",
-            });
+            console.error('Error uploading file:', uploadError);
           } else {
-            console.log('✅ BookingRequestForm - File uploaded successfully');
+            console.log('File uploaded successfully to path:', filePath);
 
             const fileRecord = {
               filename: selectedFile.name,
@@ -275,80 +287,62 @@ export const BookingRequestForm = ({
               .insert(fileRecord);
 
             if (fileRecordError) {
-              console.error('❌ BookingRequestForm - File record creation error:', fileRecordError);
+              console.error('Error creating file record:', fileRecordError);
             } else {
-              console.log('✅ BookingRequestForm - File record created successfully');
+              console.log('File record created successfully in event_files');
             }
           }
         } catch (fileError) {
-          console.error('❌ BookingRequestForm - File handling error:', fileError);
-          toast({
-            title: t("common.warning"),
-            description: "File upload failed, but booking was created successfully",
-            variant: "default",
-          });
+          console.error('Error handling file upload:', fileError);
         }
       }
 
-      // Step 3: Send notification email
+      // Step 3: Send notification email to business owner
       try {
-        console.log('📧 BookingRequestForm - Preparing email notification');
+        console.log('Sending notification email to business owner...');
         
-        if (!businessData?.businessEmail) {
-          console.warn('⚠️ BookingRequestForm - No business email found, skipping email notification');
-          toast({
-            title: t("common.warning"),
-            description: "Booking created successfully, but no business email found for notification",
-            variant: "default",
-          });
-        } else {
-          const emailData = {
-            businessId: businessId,
-            businessEmail: businessData.businessEmail,
-            businessName: businessData.businessName || "Business",
-            businessAddress: businessData.businessAddress || "",
-            requesterName: fullName,
-            requesterEmail: socialNetworkLink,
-            requesterPhone: userNumber,
-            notes: eventNotes || "",
-            startDate: startDateTime.toISOString(),
-            endDate: endDateTime.toISOString(),
-            paymentStatus: paymentStatus,
-            paymentAmount: finalPaymentAmount,
-            hasAttachment: !!selectedFile,
-            language: language
-          };
-          
-          console.log("📧 BookingRequestForm - Sending email notification:", emailData);
-
-          const { error: emailError } = await supabase.functions.invoke(
-            'send-booking-request-notification',
-            {
-              body: emailData
-            }
-          );
-
-          if (emailError) {
-            console.error('❌ BookingRequestForm - Email notification error:', emailError);
-            toast({
-              title: t("common.warning"),
-              description: "Booking created successfully, but email notification failed",
-              variant: "default",
-            });
-          } else {
-            console.log('✅ BookingRequestForm - Email notification sent successfully');
+        // Prepare notification data
+        const notificationData = {
+          businessId: businessId,
+          businessEmail: businessData?.businessEmail,
+          requesterName: fullName,
+          requesterEmail: socialNetworkLink,
+          requesterPhone: userNumber,
+          notes: eventNotes || "No additional notes",
+          startDate: startDateTime.toISOString(),
+          endDate: endDateTime.toISOString(),
+          hasAttachment: !!selectedFile,
+          paymentStatus: paymentStatus,
+          paymentAmount: finalPaymentAmount,
+          businessName: businessData?.businessName || "Business",
+          businessAddress: businessData?.businessAddress,
+          language: language
+        };
+        
+        console.log("Sending email notification with data:", JSON.stringify(notificationData));
+        
+        // Call the edge function to send notification email
+        const { data: emailResult, error: emailError } = await supabase.functions.invoke(
+          'send-booking-request-notification',
+          {
+            body: notificationData
           }
+        );
+
+        if (emailError) {
+          console.error('Error calling email function:', emailError);
+        } else {
+          console.log('Email notification sent successfully:', emailResult);
         }
       } catch (emailError) {
-        console.error("❌ BookingRequestForm - Email notification error:", emailError);
-        toast({
-          title: t("common.warning"),
-          description: "Booking created successfully, but email notification may have failed",
-          variant: "default",
-        });
+        console.error("Failed to send email notification:", emailError);
+        // Don't throw - we still want to show success to user
       }
 
-      // Reset form and show success
+      // Show success message
+      setIsSubmitting(false);
+      
+      // Reset form
       setFullName('');
       setUserSurname('');
       setUserNumber('');
@@ -362,10 +356,8 @@ export const BookingRequestForm = ({
         fileInputRef.current.value = '';
       }
 
-      toast({
-        title: t("common.success"),
-        description: t("events.requestSubmitted"),
-      });
+      // Use the dedicated toast helper for booking submissions
+      toast.event.bookingSubmitted();
 
       if (onSuccess) {
         onSuccess();
@@ -375,20 +367,19 @@ export const BookingRequestForm = ({
         onOpenChange(false);
       }
 
-      console.log('🎉 BookingRequestForm - Process completed successfully!');
-
     } catch (error) {
-      console.error('❌ BookingRequestForm - Submission error:', error);
-      toast({
-        title: t("common.error"),
-        description: t("common.errorOccurred"),
-        variant: "destructive",
-      });
-    } finally {
+      console.error('Error submitting form:', error);
       setIsSubmitting(false);
+      toast({
+        translateKeys: {
+          titleKey: "common.error",
+          descriptionKey: "common.errorOccurred"
+        }
+      });
     }
   };
 
+  // Get the correct Georgian placeholder text for event notes
   const getEventNotesPlaceholder = () => {
     if (isGeorgian) {
       return "დაამატეთ შენიშვნები თქვენი მოთხოვნის შესახებ";
@@ -578,7 +569,7 @@ export const BookingRequestForm = ({
           </Select>
         </div>
         
-        {/* Payment Amount Field */}
+        {/* Payment Amount Field - conditionally visible with currency symbol */}
         {showPaymentAmount && (
           <div>
             <Label htmlFor="paymentAmount" className={labelClass} style={georgianFontStyle}>
@@ -594,9 +585,10 @@ export const BookingRequestForm = ({
               </span>
               <Input
                 id="paymentAmount"
-                value={paymentAmount.replace(/^[^0-9.]*/, '')}
+                value={paymentAmount.replace(/^[^0-9.]*/, '')} // Remove any non-numeric prefix (like currency symbol) when displaying
                 onChange={(e) => {
                   const value = e.target.value;
+                  // Allow only numbers and decimal point
                   if (value === "" || /^\d*\.?\d*$/.test(value)) {
                     setPaymentAmount(value);
                   }
@@ -604,7 +596,7 @@ export const BookingRequestForm = ({
                 placeholder="0.00"
                 type="text"
                 inputMode="decimal"
-                className={cn(isGeorgian ? "font-georgian" : "", "pl-7")}
+                className={cn(isGeorgian ? "font-georgian" : "", "pl-7")} // Added left padding to make room for currency symbol
                 style={georgianFontStyle}
                 aria-label={`${t("events.paymentAmount")} (${currencySymbol})`}
               />

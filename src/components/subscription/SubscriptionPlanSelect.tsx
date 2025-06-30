@@ -26,28 +26,7 @@ export const SubscriptionPlanSelect = ({
   onRedeemClick,
   currentStatus
 }: SubscriptionPlanSelectProps) => {
-  const { t, language } = useLanguage();
-
-  // Get pricing based on language
-  const getPricing = () => {
-    if (language === 'ka') {
-      return {
-        monthlyPrice: '$19.99/თვე',
-        monthlyOriginalPrice: '$39.99/თვე',
-        yearlyPrice: '$199.99/წელი',
-        yearlyOriginalPrice: '$399.99/წელი',
-      };
-    }
-    
-    return {
-      monthlyPrice: t('subscription.monthlyPrice'),
-      monthlyOriginalPrice: t('subscription.monthlyOriginalPrice'),
-      yearlyPrice: t('subscription.yearlyPrice'),
-      yearlyOriginalPrice: t('subscription.yearlyOriginalPrice'),
-    };
-  };
-
-  const pricing = getPricing();
+  const { t } = useLanguage();
 
   return (
     <div className="space-y-6">
@@ -93,7 +72,9 @@ export const SubscriptionPlanSelect = ({
                 <LanguageText>{t('subscription.monthlyPlan')}</LanguageText>
               </div>
               <div className="text-sm text-muted-foreground">
-                {pricing.monthlyPrice} - <span className="line-through text-gray-400">{pricing.monthlyOriginalPrice}</span> <span className="text-green-600 font-medium"><LanguageText>{t('subscription.discount50')}</LanguageText></span>
+                <LanguageText>
+                  {t('subscription.monthlyPrice')} - <span className="line-through text-gray-400">{t('subscription.monthlyOriginalPrice')}</span> <span className="text-green-600 font-medium">{t('subscription.discount50')}</span>
+                </LanguageText>
               </div>
               <div className="text-xs text-green-600">
                 <LanguageText>{t('subscription.monthlyDuration')}</LanguageText>
@@ -111,7 +92,9 @@ export const SubscriptionPlanSelect = ({
                 </span>
               </div>
               <div className="text-sm text-muted-foreground">
-                {pricing.yearlyPrice} - <span className="line-through text-gray-400">{pricing.yearlyOriginalPrice}</span> <span className="text-green-600 font-medium"><LanguageText>{t('subscription.discount50')}</LanguageText></span>
+                <LanguageText>
+                  {t('subscription.yearlyPrice')} - <span className="line-through text-gray-400">{t('subscription.yearlyOriginalPrice')}</span> <span className="text-green-600 font-medium">{t('subscription.discount50')}</span>
+                </LanguageText>
               </div>
               <div className="text-xs text-green-600">
                 <LanguageText>{t('subscription.yearlyDuration')}</LanguageText>

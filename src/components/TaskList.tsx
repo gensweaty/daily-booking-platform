@@ -5,7 +5,7 @@ import { Task } from "@/lib/types";
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { useToast } from "./ui/use-toast";
 import { AddTaskForm } from "./AddTaskForm";

@@ -47,38 +47,22 @@ export const TaskFormFields = ({
   const { t } = useLanguage();
   const { validateDateTime } = useTimezoneValidation();
   
-  console.log('📋 TaskFormFields - Rendering with:', {
-    taskId: editingTask?.id || 'new',
-    selectedFile: selectedFile?.name || 'none'
-  });
-  
   const { data: existingFiles = [], refetch } = useQuery({
     queryKey: ['taskFiles', editingTask?.id],
     queryFn: async () => {
-      if (!editingTask?.id) {
-        console.log('📋 TaskFormFields - No task ID, returning empty array');
-        return [];
-      }
-      
-      console.log('📋 TaskFormFields - Fetching files for task:', editingTask.id);
+      if (!editingTask?.id) return [];
       const { data, error } = await supabase
         .from('files')
         .select('*')
         .eq('task_id', editingTask.id);
       
-      if (error) {
-        console.error('❌ TaskFormFields - Error fetching task files:', error);
-        throw error;
-      }
-      
-      console.log(`✅ TaskFormFields - Loaded ${data?.length || 0} files`);
+      if (error) throw error;
       return data || [];
     },
     enabled: !!editingTask?.id,
   });
 
   const handleFileDeleted = () => {
-    console.log('🗑️ TaskFormFields - File deleted, refetching');
     refetch();
     toast({
       title: t("common.success"),
@@ -110,14 +94,6 @@ export const TaskFormFields = ({
     }
 
     setReminderAt(newReminder);
-  };
-
-  const handleFileSelect = (file: File | null) => {
-    console.log('📁 TaskFormFields - File selected:', file?.name || 'none');
-    setSelectedFile(file);
-    if (file) {
-      setFileError(''); // Clear any previous errors
-    }
   };
 
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
@@ -153,7 +129,6 @@ export const TaskFormFields = ({
       
       {editingTask?.id && existingFiles && existingFiles.length > 0 && (
         <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
-          <h4 className="text-sm font-medium mb-3">Existing Files</h4>
           <FileDisplay 
             files={existingFiles} 
             bucketName="event_attachments"
@@ -161,17 +136,17 @@ export const TaskFormFields = ({
             onFileDeleted={handleFileDeleted}
             parentId={editingTask.id}
             parentType="task"
+            fallbackBuckets={["customer_attachments"]}
           />
         </div>
       )}
       
       <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
         <FileUploadField 
-          onChange={handleFileSelect}
+          onChange={setSelectedFile}
           fileError={fileError}
           setFileError={setFileError}
           acceptedFileTypes={acceptedFormats}
-          selectedFile={selectedFile}
         />
       </div>
     </div>

@@ -1,6 +1,12 @@
 
 export type Language = 'en' | 'es' | 'ka';
 
+export interface LanguageContextType {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
+}
+
 export interface TranslationType {
   nav: {
     signin: string;
@@ -322,8 +328,6 @@ export interface TranslationType {
     title: string;
     bookAppointment: string;
     submitRequest: string;
-    deleteEventConfirmTitle: string;
-    deleteEventConfirmMessage: string;
   };
   contact: {
     email: string;
@@ -604,38 +608,5 @@ export interface TranslationType {
     invalidFileType: string;
     fileTooLarge: string;
   };
-  recurring: {
-    doesNotRepeat: string;
-    daily: string;
-    weekly: string;
-    biweekly: string;
-    monthly: string;
-    yearly: string;
-    weeklyOn: string;
-    biweeklyOn: string;
-    monthlyOnDay: string;
-    annuallyOn: string;
-    repeatUntil: string;
-    repeat: string;
-  };
-  months: {
-    january: string;
-    february: string;
-    march: string;
-    april: string;
-    may: string;
-    june: string;
-    july: string;
-    august: string;
-    september: string;
-    october: string;
-    november: string;
-    december: string;
-  };
 }
 
-export interface LanguageContextType {
-  language: Language;
-  setLanguage: (language: Language) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
-}

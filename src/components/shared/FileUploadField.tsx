@@ -8,14 +8,17 @@ const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
 const MAX_FILE_SIZE_IMAGES = 50 * 1024 * 1024; // 50MB for images
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const ALLOWED_DOC_TYPES = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+// .docx
 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-"application/vnd.openxmlformats-officedocument.presentationml.presentation"];
+// .xlsx
+"application/vnd.openxmlformats-officedocument.presentationml.presentation" // .pptx
+];
 
 interface FileUploadFieldProps {
   onChange?: (file: File | null) => void;
   onUpload?: (url: string) => void;
-  onFileSelect?: (file: File) => Promise<void> | void;
-  onFileChange?: (file: File | null) => void;
+  onFileSelect?: (file: File) => Promise<void> | void; // Added this prop to match how it's being used
+  onFileChange?: (file: File | null) => void; // For backward compatibility
   fileError?: string;
   setFileError?: (error: string) => void;
   acceptedFileTypes?: string;
@@ -29,7 +32,7 @@ interface FileUploadFieldProps {
   noFileText?: string;
   maxSizeMB?: number;
   selectedFile?: File | null;
-  isUploading?: boolean;
+  isUploading?: boolean; // Added to support the isUploading prop being passed from BusinessProfileForm
 }
 
 export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps>(({
@@ -37,9 +40,9 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   onUpload,
   onFileChange,
   onFileSelect,
-  fileError,
-  setFileError,
-  acceptedFileTypes = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt",
+  fileError = "",
+  setFileError = () => {},
+  acceptedFileTypes,
   hideLabel = false,
   hideDescription = false,
   disabled = false,
@@ -50,157 +53,96 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   noFileText,
   maxSizeMB,
   selectedFile,
-  isUploading = false
+  isUploading
 }, ref) => {
-  const { t } = useLanguage();
-  const [localSelectedFile, setLocalSelectedFile] = useState<File | null>(selectedFile || null);
-  const [localError, setLocalError] = useState<string>("");
+  const { t, language } = useLanguage();
+  const [localFileError, setLocalFileError] = useState("");
+  const [fileSelected, setFileSelected] = useState<string>("");
 
-  const displayedFile = selectedFile || localSelectedFile;
-  const displayedError = fileError || localError;
-  const displayedSetError = setFileError || setLocalError;
+  // Use either provided error state or local state if not provided
+  const actualFileError = fileError || localFileError;
+  const actualSetFileError = setFileError || setLocalFileError;
 
-  console.log("📁 FileUploadField - Rendered with file:", displayedFile?.name || "none");
-
+  // Update fileSelected state when selectedFile prop changes
   useEffect(() => {
-    if (selectedFile !== undefined) {
-      console.log("📁 FileUploadField - External file changed:", selectedFile?.name || "none");
-      setLocalSelectedFile(selectedFile);
+    if (selectedFile) {
+      setFileSelected(selectedFile.name);
+    } else {
+      setFileSelected("");
     }
   }, [selectedFile]);
-
-  const validateFile = (file: File): boolean => {
-    console.log(`🔍 FileUploadField - Validating: ${file.name} (${file.type}, ${file.size} bytes)`);
-    
+  
+  const validateFile = (file: File) => {
     const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
     const isDoc = ALLOWED_DOC_TYPES.includes(file.type);
-    
     if (!isImage && !isDoc) {
-      console.log(`❌ FileUploadField - Invalid file type: ${file.type}`);
-      displayedSetError("Please select a valid file type (PDF, DOC, DOCX, XLS, XLSX, JPG, PNG)");
-      return false;
+      return "Invalid file type. Please upload an image (jpg, jpeg, png, webp) or document (pdf, docx, xlsx, pptx)";
     }
-    
-    const maxSize = isImage ? MAX_FILE_SIZE_IMAGES : MAX_FILE_SIZE_DOCS;
-    if (file.size > maxSize) {
-      const maxSizeMB = maxSize / (1024 * 1024);
-      console.log(`❌ FileUploadField - File too large: ${file.size} > ${maxSize}`);
-      displayedSetError(`File size must be less than ${maxSizeMB}MB`);
-      return false;
+
+    // If maxSizeMB is provided, use it, otherwise use default values
+    const sizeLimit = maxSizeMB ? maxSizeMB * 1024 * 1024 : isImage ? MAX_FILE_SIZE_IMAGES : MAX_FILE_SIZE_DOCS;
+    if (file.size > sizeLimit) {
+      const displaySize = maxSizeMB || (isImage ? MAX_FILE_SIZE_IMAGES / (1024 * 1024) : MAX_FILE_SIZE_DOCS / (1024 * 1024));
+      return `File size exceeds ${displaySize}MB limit${isImage ? ' for images' : ' for documents'}`;
     }
-    
-    console.log("✅ FileUploadField - File validation passed");
-    return true;
+    return null;
   };
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    
-    console.log("📁 FileUploadField - File input changed:", file?.name || "none selected");
-    
-    if (!file) {
-      console.log("📁 FileUploadField - Clearing file selection");
-      setLocalSelectedFile(null);
-      displayedSetError("");
-      
-      // Call all clear callbacks
-      onChange?.(null);
-      onFileChange?.(null);
-      return;
-    }
-
-    if (!validateFile(file)) {
-      console.log("❌ FileUploadField - File validation failed");
-      setLocalSelectedFile(null);
-      onChange?.(null);
-      onFileChange?.(null);
-      return;
-    }
-
-    console.log("✅ FileUploadField - File validated successfully");
-    displayedSetError("");
-    setLocalSelectedFile(file);
-    
-    // Execute all callbacks in sequence
-    try {
-      console.log("📁 FileUploadField - Executing onChange callback");
-      onChange?.(file);
-      
-      console.log("📁 FileUploadField - Executing onFileChange callback");
-      onFileChange?.(file);
-      
-      if (onFileSelect) {
-        console.log("📁 FileUploadField - Executing onFileSelect callback");
-        await onFileSelect(file);
-        console.log("✅ FileUploadField - onFileSelect completed successfully");
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault(); // Prevent default behavior
+    const selectedFile = e.target.files?.[0];
+    actualSetFileError("");
+    if (selectedFile) {
+      console.log(`Selected file: ${selectedFile.name}, Size: ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB, Type: ${selectedFile.type}`);
+      const error = validateFile(selectedFile);
+      if (error) {
+        actualSetFileError(error);
+        setFileSelected("");
+        if (onChange) onChange(null);
+        if (onFileChange) onFileChange(null);
+        return;
       }
-    } catch (error) {
-      console.error("❌ FileUploadField - Error in file callbacks:", error);
-      displayedSetError("Error processing file");
-      setLocalSelectedFile(null);
-      onChange?.(null);
-      onFileChange?.(null);
+      setFileSelected(selectedFile.name);
+      if (onChange) onChange(selectedFile);
+      if (onFileChange) onFileChange(selectedFile);
+      if (onFileSelect) onFileSelect(selectedFile); // Call onFileSelect if provided
+    } else {
+      setFileSelected("");
     }
   };
 
-  return (
-    <div className="space-y-2">
-      {!hideLabel && (
-        <label className="block text-sm font-medium text-gray-700">
-          <LanguageText>{t("common.attachments")}</LanguageText>
-        </label>
-      )}
+  // Display existing image if provided
+  const hasImage = !!imageUrl;
+  
+  return <div className={`${hideLabel && hideDescription ? '' : 'space-y-2'}`}>
+      {!hideLabel && <label htmlFor="file" className="block text-gray-700">
+          <LanguageText>{uploadText || t("calendar.attachment")}</LanguageText>
+        </label>}
       
-      <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
-        <Input
-          ref={ref}
-          type="file"
-          onChange={handleFileChange}
-          accept={acceptedFileTypes}
-          disabled={disabled || isUploading}
-          className="hidden"
-          id="file-upload"
-        />
-        
-        <label 
-          htmlFor="file-upload" 
-          className="cursor-pointer block"
-        >
-          {displayedFile ? (
-            <div className="text-sm text-gray-600">
-              <p className="font-medium">{displayedFile.name}</p>
-              <p className="text-xs text-gray-500">
-                {(displayedFile.size / 1024 / 1024).toFixed(2)} MB
-              </p>
-            </div>
-          ) : (
-            <div className="text-sm text-gray-500">
-              <p className="font-medium">
-                {chooseFileText || (
-                  <LanguageText>{t("common.chooseFile")}</LanguageText>
-                )}
-              </p>
-              {!hideDescription && (
-                <p className="text-xs">
-                  <LanguageText>{t("common.supportedFormats")}</LanguageText>: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG
-                </p>
-              )}
-            </div>
-          )}
-        </label>
-      </div>
-
-      {displayedError && (
-        <p className="text-sm text-red-600">{displayedError}</p>
-      )}
+      {hasImage && <div className="mb-3">
+          <img src={imageUrl} alt="Preview" className="max-h-40 rounded-md object-cover" />
+        </div>}
       
-      {isUploading && (
-        <p className="text-sm text-blue-600">
-          <LanguageText>{t("common.uploading")}</LanguageText>...
+      <Input id="file" type="file" onChange={handleFileChange} accept={acceptedFileTypes || [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")} className="cursor-pointer bg-background border-gray-300" onClick={e => {
+      // Reset value before opening to ensure onChange triggers even if same file is selected
+      (e.target as HTMLInputElement).value = '';
+    }} disabled={disabled || isUploading} ref={ref} />
+      
+      {fileSelected && <p className="text-xs text-gray-500 mt-1">Selected: {fileSelected}</p>}
+      
+      {actualFileError && <p className="text-sm text-red-500 mt-1">{actualFileError}</p>}
+      
+      {!hideDescription && !actualFileError && (
+        <p className="text-xs text-muted-foreground mt-1">
+          {language === 'en' ? 
+            "Supported Formats: .jpg, .jpeg, .png, .pdf, .docx, .xls" :
+            language === 'ka' ?
+            "მხარდაჭერილი ფორმატები: .jpg, .jpeg, .png, .pdf, .docx, .xls" :
+            <LanguageText>{t("common.supportedFormats")}</LanguageText>
+          }
         </p>
       )}
-    </div>
-  );
+    </div>;
 });
 
 FileUploadField.displayName = "FileUploadField";

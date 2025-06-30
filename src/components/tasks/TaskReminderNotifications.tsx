@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -5,7 +6,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Bell } from "lucide-react";
-import { platformNotificationManager } from "@/utils/platformNotificationManager";
 
 export const TaskReminderNotifications = () => {
   const { user } = useAuth();
@@ -69,6 +69,71 @@ export const TaskReminderNotifications = () => {
     refetchInterval: 30000, // Backup polling every 30 seconds
   });
 
+  // Enhanced browser notification function
+  const showBrowserNotification = (taskTitle: string) => {
+    console.log("🔔 Attempting browser notification for:", taskTitle);
+    
+    if (!("Notification" in window)) {
+      console.warn("❌ Browser doesn't support notifications");
+      return false;
+    }
+
+    if (Notification.permission !== "granted") {
+      console.warn("⛔ Browser notifications not permitted");
+      return false;
+    }
+
+    try {
+      const notification = new Notification("📋 Task Reminder", {
+        body: `Reminder: ${taskTitle}`,
+        icon: "/favicon.ico",
+        tag: `task-reminder-${taskTitle}`,
+        requireInteraction: true,
+        silent: false,
+      });
+
+      console.log("✅ Browser notification created successfully");
+
+      notification.onclick = () => {
+        console.log("🖱️ Notification clicked");
+        window.focus();
+        notification.close();
+      };
+
+      notification.onshow = () => {
+        console.log("👁️ Notification shown");
+        playNotificationSound();
+      };
+
+      notification.onerror = (error) => {
+        console.error("❌ Notification error:", error);
+      };
+
+      // Auto-close after 10 seconds
+      setTimeout(() => {
+        notification.close();
+      }, 10000);
+
+      return true;
+    } catch (error) {
+      console.error("❌ Error creating browser notification:", error);
+      return false;
+    }
+  };
+
+  // Play notification sound
+  const playNotificationSound = () => {
+    try {
+      const audio = new Audio("/audio/notification.mp3");
+      audio.volume = 0.5;
+      audio.play().catch((error) => {
+        console.log("🔇 Could not play notification sound:", error);
+      });
+    } catch (error) {
+      console.log("🔇 Notification sound not available:", error);
+    }
+  };
+
   // Show dashboard notification
   const showDashboardNotification = (taskTitle: string) => {
     console.log("📊 Showing dashboard notification for:", taskTitle);
@@ -85,13 +150,13 @@ export const TaskReminderNotifications = () => {
   };
 
   // Process due reminders
-  const processDueReminders = async (tasksToCheck: any[]) => {
+  const processDueReminders = (tasksToCheck: any[]) => {
     if (!tasksToCheck || tasksToCheck.length === 0) return;
 
     const now = new Date();
     let notificationsTriggered = 0;
     
-    for (const task of tasksToCheck) {
+    tasksToCheck.forEach((task) => {
       const reminderTime = new Date(task.reminder_at);
       const reminderKey = `${task.id}-${task.reminder_at}`;
       
@@ -105,26 +170,12 @@ export const TaskReminderNotifications = () => {
         console.log('🕐 Current time:', now.toLocaleString());
         console.log('⏱️ Time difference:', timeDiff, 'ms');
         
-        // Show dashboard notification
+        // Show both notifications
         showDashboardNotification(task.title);
-        
-        // Show platform-optimized system notification
-        const result = await platformNotificationManager.createNotification({
-          title: "📋 Task Reminder",
-          body: `Reminder: ${task.title}`,
-          icon: "/favicon.ico",
-          tag: `task-reminder-${task.id}`,
-          requireInteraction: true,
-        });
-        
-        if (result.success) {
-          console.log('🔔 System notification sent successfully', result.fallbackUsed ? '(fallback used)' : '');
-        } else {
-          console.error('❌ System notification failed:', result.error);
-        }
+        const browserSuccess = showBrowserNotification(task.title);
         
         console.log('📊 Dashboard notification:', '✅ Sent');
-        console.log('🔔 System notification:', result.success ? '✅ Sent' : '❌ Failed');
+        console.log('🔔 Browser notification:', browserSuccess ? '✅ Sent' : '❌ Failed');
         
         // Mark as processed
         setProcessedReminders(prev => {
@@ -135,7 +186,7 @@ export const TaskReminderNotifications = () => {
         
         notificationsTriggered++;
       }
-    }
+    });
 
     if (notificationsTriggered > 0) {
       console.log(`🎯 Total notifications triggered: ${notificationsTriggered}`);
@@ -160,6 +211,7 @@ export const TaskReminderNotifications = () => {
         },
         (payload) => {
           console.log('⚡ Realtime task change detected:', payload.eventType);
+          // Invalidate queries to fetch fresh data
           queryClient.invalidateQueries({ queryKey: ['taskReminders', user.id] });
         }
       )
@@ -183,7 +235,7 @@ export const TaskReminderNotifications = () => {
 
     precisionIntervalRef.current = setInterval(() => {
       processDueReminders(tasks);
-    }, 1000);
+    }, 1000); // Check every second for precision
 
     return () => {
       if (precisionIntervalRef.current) {
@@ -202,7 +254,7 @@ export const TaskReminderNotifications = () => {
     backupIntervalRef.current = setInterval(() => {
       console.log("🔄 Backup system: Force refreshing task reminders");
       queryClient.invalidateQueries({ queryKey: ['taskReminders', user.id] });
-    }, 5000);
+    }, 5000); // Every 5 seconds as backup
 
     return () => {
       if (backupIntervalRef.current) {
@@ -233,7 +285,7 @@ export const TaskReminderNotifications = () => {
         console.log('🧹 Cleanup complete. Before:', prev.size, 'After:', newSet.size);
         return newSet;
       });
-    }, 60 * 60 * 1000);
+    }, 60 * 60 * 1000); // Clean up every hour
 
     return () => clearInterval(cleanup);
   }, []);

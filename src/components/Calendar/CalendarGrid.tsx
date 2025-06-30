@@ -1,8 +1,8 @@
+
 import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfMonth, isBefore, isAfter } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { useLocalizedDate } from "@/hooks/useLocalizedDate";
 
 interface CalendarGridProps {
   days: Date[];
@@ -38,12 +38,10 @@ export const CalendarGrid = ({
   const startDate = startOfWeek(days[0]);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const isDarkTheme = theme === "dark";
-  const { getWeekdayName, formatDate } = useLocalizedDate();
   
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const dayDate = addDays(startDate, i);
-    return getWeekdayName(dayDate, true, isMobile);
-  });
+  const weekDays = Array.from({ length: 7 }, (_, i) => 
+    format(addDays(startDate, i), isMobile ? 'EEEEE' : 'EEE')
+  );
 
   const selectedDate = new Date(formattedSelectedDate);
   
@@ -144,10 +142,7 @@ export const CalendarGrid = ({
           <div className={`grid grid-cols-7 ${isDarkTheme ? 'bg-gray-800 text-gray-200 border-gray-600' : 'bg-white'} sticky top-0 z-20 border-b ${isDarkTheme ? 'border-gray-600' : 'border-gray-200'} h-8 ${isMobile ? 'text-[0.7rem]' : ''}`}>
             {days.map((day, index) => (
               <div key={`header-${index}`} className={`p-1 text-center font-semibold ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}>
-                {isMobile ? 
-                  `${getWeekdayName(day, true, true)} ${day.getDate()}` : 
-                  `${getWeekdayName(day, true)} ${day.getDate()}`
-                }
+                {format(day, isMobile ? 'E d' : 'EEE d')}
               </div>
             ))}
           </div>
@@ -156,10 +151,7 @@ export const CalendarGrid = ({
         {view === 'day' && (
           <div className={`${isDarkTheme ? 'bg-gray-800 text-gray-200 border-gray-600' : 'bg-white'} sticky top-0 z-20 border-b ${isDarkTheme ? 'border-gray-600' : 'border-gray-200'} h-8`}>
             <div className="p-1 text-center font-semibold text-xs sm:text-sm">
-              {isMobile ? 
-                `${getWeekdayName(days[0], true, true)} ${days[0].getDate()}` : 
-                formatDate(days[0], "full")
-              }
+              {format(days[0], isMobile ? 'E d' : 'EEEE, MMMM d')}
             </div>
           </div>
         )}

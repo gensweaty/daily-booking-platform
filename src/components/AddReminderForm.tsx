@@ -7,8 +7,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { ensureNotificationPermission, getPermissionInstructions, getDeviceSpecificMessage } from "@/utils/notificationUtils";
-import { detectDevice } from "@/utils/deviceDetector";
 
 export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
   const [title, setTitle] = useState("");
@@ -21,44 +19,10 @@ export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.id) {
-      toast({
-        title: "Error",
-        description: "You need to be logged in to create reminders",
-        variant: "destructive",
+      toast.error({
+        description: "You need to be logged in to create reminders"
       });
       return;
-    }
-
-    // Request notification permission when creating a reminder with due date
-    if (dueDate) {
-      const device = detectDevice();
-      console.log(`🔔 Requesting notification permission for reminder creation on ${device.os}`);
-      
-      const permissionGranted = await ensureNotificationPermission();
-      
-      if (permissionGranted) {
-        toast({
-          title: "🔔 Notifications Enabled",
-          description: `Perfect! You'll receive reminder notifications on your ${device.os} device`,
-          duration: 4000,
-        });
-      } else if (Notification.permission === "denied") {
-        const instructions = getPermissionInstructions();
-        toast({
-          title: "⚠️ Notifications Blocked",
-          description: instructions,
-          variant: "destructive",
-          duration: 8000,
-        });
-      } else {
-        // Permission request was cancelled or failed
-        const deviceMessage = getDeviceSpecificMessage();
-        toast({
-          title: "🔔 Enable Notifications",
-          description: deviceMessage,
-          duration: 5000,
-        });
-      }
     }
     
     try {
@@ -69,17 +33,12 @@ export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
         user_id: user.id
       });
       await queryClient.invalidateQueries({ queryKey: ['reminders'] });
-      toast({
-        title: "Success",
-        description: "Reminder created successfully",
-      });
+      toast.reminder.created();
       onClose();
     } catch (error) {
       console.error('Reminder creation error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create reminder. Please try again.",
-        variant: "destructive",
+      toast.error({
+        description: "Failed to create reminder. Please try again."
       });
     }
   };
