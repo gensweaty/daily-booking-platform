@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { supabase, getStorageUrl } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink, FileText, FileSpreadsheet, PresentationIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
@@ -35,7 +35,7 @@ export const FileDisplay = ({
 
   console.log("📁 FileDisplay - Initializing with:", {
     filesCount: files.length,
-    primaryBucket: bucketName,
+    bucketName,
     parentType,
     parentId
   });
@@ -66,7 +66,7 @@ export const FileDisplay = ({
         console.log(`🔧 FileDisplay - Processing file: ${file.filename}, path: ${cleanPath}`);
         
         try {
-          // Always use event_attachments bucket first (matches our upload logic)
+          // Always use event_attachments bucket (matches our upload logic)
           const { data } = supabase.storage
             .from('event_attachments')
             .getPublicUrl(cleanPath);
@@ -186,24 +186,34 @@ export const FileDisplay = ({
         // Continue with database deletion even if storage fails
       }
       
-      // Determine correct table for database deletion
-      let tableName: string;
+      // Delete from database using explicit table names
+      let dbError: any = null;
+      
       if (parentType === 'task') {
-        tableName = "files";
+        const { error } = await supabase
+          .from('files')
+          .delete()
+          .eq('id', fileId);
+        dbError = error;
       } else if (parentType === 'customer') {
-        tableName = "customer_files_new";
+        const { error } = await supabase
+          .from('customer_files_new')
+          .delete()
+          .eq('id', fileId);
+        dbError = error;
       } else if (parentType === 'note') {
-        tableName = "note_files";
+        const { error } = await supabase
+          .from('note_files')
+          .delete()
+          .eq('id', fileId);
+        dbError = error;
       } else {
-        tableName = "event_files";
+        const { error } = await supabase
+          .from('event_files')
+          .delete()
+          .eq('id', fileId);
+        dbError = error;
       }
-      
-      console.log(`🗑️ FileDisplay - Deleting from table: ${tableName}`);
-      
-      const { error: dbError } = await supabase
-        .from(tableName)
-        .delete()
-        .eq('id', fileId);
         
       if (dbError) {
         console.error("❌ FileDisplay - Database deletion error:", dbError);
