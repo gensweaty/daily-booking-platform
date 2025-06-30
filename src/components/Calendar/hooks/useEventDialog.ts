@@ -94,16 +94,14 @@ export const useEventDialog = ({
     }
   };
 
-  const handleDeleteEvent = async (deleteChoice?: "this" | "series") => {
+  const handleDeleteEvent = async (id: string, deleteChoice?: "this" | "series") => {
     try {
-      if (!deleteEvent || !selectedEvent) throw new Error("Delete event function not provided or no event selected");
+      if (!deleteEvent) throw new Error("Delete event function not provided");
       
-      const result = await deleteEvent({ id: selectedEvent.id, deleteChoice });
+      await deleteEvent({ id, deleteChoice });
       
       setSelectedEvent(null);
-      console.log("Event deleted successfully:", selectedEvent.id);
-      
-      return result;
+      console.log("Event deleted successfully:", id);
     } catch (error: any) {
       console.error("Failed to delete event:", error);
       toast({
