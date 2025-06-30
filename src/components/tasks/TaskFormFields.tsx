@@ -47,22 +47,35 @@ export const TaskFormFields = ({
   const { t } = useLanguage();
   const { validateDateTime } = useTimezoneValidation();
   
+  console.log('TaskFormFields - editingTask:', editingTask?.id);
+  
   const { data: existingFiles = [], refetch } = useQuery({
     queryKey: ['taskFiles', editingTask?.id],
     queryFn: async () => {
-      if (!editingTask?.id) return [];
+      if (!editingTask?.id) {
+        console.log('No task ID, returning empty array');
+        return [];
+      }
+      
+      console.log('Fetching files for task:', editingTask.id);
       const { data, error } = await supabase
         .from('files')
         .select('*')
         .eq('task_id', editingTask.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching task files:', error);
+        throw error;
+      }
+      
+      console.log('Task files loaded:', data);
       return data || [];
     },
     enabled: !!editingTask?.id,
   });
 
   const handleFileDeleted = () => {
+    console.log('File deleted, refetching task files');
     refetch();
     toast({
       title: t("common.success"),
@@ -129,6 +142,7 @@ export const TaskFormFields = ({
       
       {editingTask?.id && existingFiles && existingFiles.length > 0 && (
         <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
+          <h4 className="text-sm font-medium mb-3">Existing Files</h4>
           <FileDisplay 
             files={existingFiles} 
             bucketName="event_attachments"
@@ -147,6 +161,7 @@ export const TaskFormFields = ({
           fileError={fileError}
           setFileError={setFileError}
           acceptedFileTypes={acceptedFormats}
+          selectedFile={selectedFile}
         />
       </div>
     </div>

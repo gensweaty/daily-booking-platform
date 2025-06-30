@@ -46,10 +46,7 @@ export const BookingRequestForm = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [businessData, setBusinessData] = useState<{businessName?: string, businessEmail?: string, businessAddress?: string} | null>(null);
   
-  // Replace useState with fullName state
   const [fullName, setFullName] = useState('');
-  
-  // Add new state variables to match EventDialog structure
   const [userSurname, setUserSurname] = useState('');
   const [userNumber, setUserNumber] = useState('');
   const [socialNetworkLink, setSocialNetworkLink] = useState('');
@@ -59,10 +56,8 @@ export const BookingRequestForm = ({
   const [paymentStatus, setPaymentStatus] = useState('not_paid');
   const [paymentAmount, setPaymentAmount] = useState('');
 
-  // Get currency symbol based on language
   const currencySymbol = getCurrencySymbol(language);
 
-  // Move date initialization to useEffect
   useEffect(() => {
     try {
       const start = combineDateAndTime(selectedDate, startTime);
@@ -72,7 +67,6 @@ export const BookingRequestForm = ({
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     } catch (error) {
       console.error('Error initializing dates:', error);
-      // Set fallback dates in case of error
       const now = new Date();
       const oneHourLater = new Date(now);
       oneHourLater.setHours(oneHourLater.getHours() + 1);
@@ -82,10 +76,10 @@ export const BookingRequestForm = ({
     }
   }, [selectedDate, startTime, endTime]);
 
-  // Fetch business data early and cache it
   useEffect(() => {
     const fetchBusinessData = async () => {
       try {
+        console.log('Fetching business data for:', businessId);
         const { data, error } = await supabase
           .from('business_profiles')
           .select('business_name, contact_email, contact_address')
@@ -103,7 +97,7 @@ export const BookingRequestForm = ({
           businessAddress: data?.contact_address
         });
         
-        console.log("Cached business data:", data);
+        console.log("Business data loaded:", data);
       } catch (err) {
         console.error("Error in business data fetch:", err);
       }
@@ -114,13 +108,10 @@ export const BookingRequestForm = ({
     }
   }, [businessId]);
 
-  // Common Georgian font styling for consistent rendering
   const georgianFontStyle = isGeorgian ? getGeorgianFontStyle() : undefined;
-  
   const labelClass = cn("block font-medium", isGeorgian ? "font-georgian" : "");
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
 
-  // Create a required field indicator component
   const RequiredFieldIndicator = () => (
     <Asterisk className="inline h-3 w-3 text-destructive ml-1" />
   );
@@ -133,7 +124,6 @@ export const BookingRequestForm = ({
     return newDate;
   };
 
-  // Handle name change to update both fullName and userSurname
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setFullName(value);
@@ -145,7 +135,6 @@ export const BookingRequestForm = ({
     setFileError('');
   };
 
-  // Helper function for Georgian text to ensure consistent rendering
   const renderGeorgianText = (text: string) => {
     if (!isGeorgian) return text;
     
@@ -162,7 +151,7 @@ export const BookingRequestForm = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    console.log("Starting form submission...");
+    console.log("🚀 Starting booking request submission...");
 
     try {
       // Validate required fields
@@ -202,7 +191,6 @@ export const BookingRequestForm = ({
       const startDateTime = new Date(startDate);
       const endDateTime = new Date(endDate);
 
-      // Additional validation for dates
       if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
         toast({
           translateKeys: {
@@ -214,10 +202,9 @@ export const BookingRequestForm = ({
         return;
       }
 
-      // Process payment amount - Parse numeric value only without currency symbol
+      // Process payment amount
       let finalPaymentAmount = null;
       if (showPaymentAmount && paymentAmount) {
-        // Remove any currency symbols or non-numeric characters except decimal point
         const cleanedAmount = paymentAmount.replace(/[^\d.]/g, '');
         const amount = parseFloat(cleanedAmount);
         if (!isNaN(amount)) {
@@ -225,25 +212,25 @@ export const BookingRequestForm = ({
         }
       }
 
-      // Create booking data object
+      // Create booking data
       const bookingData = {
         business_id: businessId,
         requester_name: fullName,
         requester_email: socialNetworkLink,
         requester_phone: userNumber,
-        title: `${fullName}`,
+        title: fullName,
         description: eventNotes || null,
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
         payment_status: paymentStatus,
         payment_amount: finalPaymentAmount,
         status: 'pending',
-        language: language // Include the current language
+        language: language
       };
 
-      console.log('Submitting booking request:', bookingData);
+      console.log('📝 Creating booking request:', bookingData);
 
-      // Step 1: Create booking request in database
+      // Step 1: Create booking request
       const { data: bookingResponse, error: bookingError } = await supabase
         .from('booking_requests')
         .insert(bookingData)
@@ -251,12 +238,12 @@ export const BookingRequestForm = ({
         .single();
 
       if (bookingError) {
-        console.error('Error submitting booking request:', bookingError);
+        console.error('❌ Booking creation error:', bookingError);
         throw bookingError;
       }
 
       const bookingId = bookingResponse.id;
-      console.log('Booking request created with ID:', bookingId);
+      console.log('✅ Booking request created with ID:', bookingId);
 
       // Step 2: Handle file upload if present
       if (selectedFile && bookingId) {
@@ -264,15 +251,15 @@ export const BookingRequestForm = ({
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${bookingId}/${Date.now()}.${fileExt}`;
 
-          console.log('Uploading file to path:', filePath);
+          console.log('📁 Uploading file:', filePath);
           const { error: uploadError } = await supabase.storage
-            .from('booking_attachments')
+            .from('event_attachments')
             .upload(filePath, selectedFile);
 
           if (uploadError) {
-            console.error('Error uploading file:', uploadError);
+            console.error('❌ File upload error:', uploadError);
           } else {
-            console.log('File uploaded successfully to path:', filePath);
+            console.log('✅ File uploaded successfully');
 
             const fileRecord = {
               filename: selectedFile.name,
@@ -287,21 +274,20 @@ export const BookingRequestForm = ({
               .insert(fileRecord);
 
             if (fileRecordError) {
-              console.error('Error creating file record:', fileRecordError);
+              console.error('❌ File record creation error:', fileRecordError);
             } else {
-              console.log('File record created successfully in event_files');
+              console.log('✅ File record created successfully');
             }
           }
         } catch (fileError) {
-          console.error('Error handling file upload:', fileError);
+          console.error('❌ File handling error:', fileError);
         }
       }
 
-      // Step 3: Send notification email to business owner
+      // Step 3: Send notification email
       try {
-        console.log('Sending notification email to business owner...');
+        console.log('📧 Sending notification email...');
         
-        // Prepare notification data
         const notificationData = {
           businessId: businessId,
           businessEmail: businessData?.businessEmail,
@@ -319,9 +305,8 @@ export const BookingRequestForm = ({
           language: language
         };
         
-        console.log("Sending email notification with data:", JSON.stringify(notificationData));
+        console.log("📧 Email notification data:", JSON.stringify(notificationData, null, 2));
         
-        // Call the edge function to send notification email
         const { data: emailResult, error: emailError } = await supabase.functions.invoke(
           'send-booking-request-notification',
           {
@@ -330,18 +315,16 @@ export const BookingRequestForm = ({
         );
 
         if (emailError) {
-          console.error('Error calling email function:', emailError);
+          console.error('❌ Email function error:', emailError);
+          // Don't throw - we still want to show success to user
         } else {
-          console.log('Email notification sent successfully:', emailResult);
+          console.log('✅ Email notification sent successfully:', emailResult);
         }
       } catch (emailError) {
-        console.error("Failed to send email notification:", emailError);
+        console.error("❌ Email notification failed:", emailError);
         // Don't throw - we still want to show success to user
       }
 
-      // Show success message
-      setIsSubmitting(false);
-      
       // Reset form
       setFullName('');
       setUserSurname('');
@@ -356,7 +339,7 @@ export const BookingRequestForm = ({
         fileInputRef.current.value = '';
       }
 
-      // Use the dedicated toast helper for booking submissions
+      // Show success message
       toast.event.bookingSubmitted();
 
       if (onSuccess) {
@@ -367,8 +350,10 @@ export const BookingRequestForm = ({
         onOpenChange(false);
       }
 
+      console.log('🎉 Booking request completed successfully!');
+
     } catch (error) {
-      console.error('Error submitting form:', error);
+      console.error('❌ Booking request submission error:', error);
       setIsSubmitting(false);
       toast({
         translateKeys: {
@@ -376,10 +361,11 @@ export const BookingRequestForm = ({
           descriptionKey: "common.errorOccurred"
         }
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Get the correct Georgian placeholder text for event notes
   const getEventNotesPlaceholder = () => {
     if (isGeorgian) {
       return "დაამატეთ შენიშვნები თქვენი მოთხოვნის შესახებ";
@@ -569,7 +555,7 @@ export const BookingRequestForm = ({
           </Select>
         </div>
         
-        {/* Payment Amount Field - conditionally visible with currency symbol */}
+        {/* Payment Amount Field */}
         {showPaymentAmount && (
           <div>
             <Label htmlFor="paymentAmount" className={labelClass} style={georgianFontStyle}>
@@ -585,10 +571,9 @@ export const BookingRequestForm = ({
               </span>
               <Input
                 id="paymentAmount"
-                value={paymentAmount.replace(/^[^0-9.]*/, '')} // Remove any non-numeric prefix (like currency symbol) when displaying
+                value={paymentAmount.replace(/^[^0-9.]*/, '')}
                 onChange={(e) => {
                   const value = e.target.value;
-                  // Allow only numbers and decimal point
                   if (value === "" || /^\d*\.?\d*$/.test(value)) {
                     setPaymentAmount(value);
                   }
@@ -596,7 +581,7 @@ export const BookingRequestForm = ({
                 placeholder="0.00"
                 type="text"
                 inputMode="decimal"
-                className={cn(isGeorgian ? "font-georgian" : "", "pl-7")} // Added left padding to make room for currency symbol
+                className={cn(isGeorgian ? "font-georgian" : "", "pl-7")}
                 style={georgianFontStyle}
                 aria-label={`${t("events.paymentAmount")} (${currencySymbol})`}
               />
