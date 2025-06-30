@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { SimpleFileDisplay } from "@/components/shared/SimpleFileDisplay";
+import { FileDisplay } from "@/components/shared/FileDisplay";
 import { cn } from "@/lib/utils";
 import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -200,21 +200,9 @@ export const EventDialogFields = ({
   const processedFiles = useMemo(() => {
     if (!displayedFiles.length) return [];
     
-    // Convert displayedFiles to FileRecord format if needed
-    const fileRecords: FileRecord[] = displayedFiles.map(file => ({
-      id: file.id,
-      filename: file.filename,
-      file_path: file.file_path,
-      content_type: file.content_type || null,
-      size: file.size || null,
-      created_at: file.created_at || new Date().toISOString(),
-      user_id: file.user_id || null,
-      event_id: file.event_id || eventId || null,
-      parentType: 'event'
-    }));
-    
-    return fileRecords;
-  }, [displayedFiles, eventId]);
+    // Return the displayed files directly since deduplication is now handled in FileDisplay component
+    return displayedFiles;
+  }, [displayedFiles]);
   
   const georgianStyle = isGeorgian ? {
     fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
@@ -699,12 +687,14 @@ export const EventDialogFields = ({
       
       {processedFiles.length > 0 && (
         <div className="flex flex-col gap-2">
-          <SimpleFileDisplay 
+          <FileDisplay 
             files={processedFiles} 
-            parentType="event"
+            bucketName="event_attachments" 
             allowDelete={true} 
             onFileDeleted={onFileDeleted} 
+            parentType="event" 
             parentId={eventId}
+            fallbackBuckets={["customer_attachments", "booking_attachments"]} 
           />
         </div>
       )}

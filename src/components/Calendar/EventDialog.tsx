@@ -1,460 +1,626 @@
 
-import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useState, useEffect } from "react";
+import { format, addYears, endOfYear } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Trash2, AlertCircle } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import { EventDialogFields } from "./EventDialogFields";
+import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { testEmailSending } from "@/lib/api";
+import { FileUploadField } from "@/components/shared/FileUploadField";
 import { CalendarEventType } from "@/lib/types/calendar";
-import { isVirtualInstance, getParentEventId } from "@/lib/recurringEvents";
+import { cn } from "@/lib/utils";
 import { FileRecord } from "@/types/files";
+import { EventDialogFields } from "./EventDialogFields";
+import { LanguageText } from "@/components/shared/LanguageText";
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { generateRecurringInstances, isVirtualInstance } from "@/lib/recurringEvents";
+import { Trash } from "lucide-react";
 
 interface EventDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  event?: CalendarEventType | null;
-  onSubmit: (data: any) => Promise<CalendarEventType>;
-  onDelete?: (id: string, deleteChoice?: "this" | "series") => Promise<void>;
-  isNewEvent?: boolean;
+  isOpen: boolean;
+  onClose: () => void;
+  selectedDate?: Date;
+  event?: CalendarEventType;
+  onEventCreated?: () => void;
+  onEventUpdated?: () => void;
+  onEventDeleted?: () => void;
+  isBookingRequest?: boolean;
 }
 
-// Helper function to fetch event files
-async function fetchEventFiles(eventId: string): Promise<FileRecord[]> {
-  const { data, error } = await supabase
-    .from('event_files')
-    .select('*')
-    .eq('event_id', eventId);
-    
-  if (error) {
-    console.error('Error fetching event files:', error);
-    return [];
-  }
-  
-  return (data || []).map(file => ({
-    id: file.id,
-    filename: file.filename,
-    file_path: file.file_path,
-    content_type: file.content_type || null,
-    size: file.size || null,
-    created_at: file.created_at || new Date().toISOString(),
-    user_id: file.user_id || null,
-    event_id: file.event_id || null,
-    customer_id: null,
-    parentType: 'event' as const
-  }));
+interface PersonData {
+  id: string;
+  userSurname: string;
+  userNumber: string;
+  socialNetworkLink: string;
+  eventNotes: string;
+  paymentStatus: string;
+  paymentAmount: string;
 }
 
 export const EventDialog = ({
-  open,
-  onOpenChange,
+  isOpen,
+  onClose,
+  selectedDate,
   event,
-  onSubmit,
-  onDelete,
-  isNewEvent = false
+  onEventCreated,
+  onEventUpdated,
+  onEventDeleted,
+  isBookingRequest = false
 }: EventDialogProps) => {
-  const { t, language } = useLanguage();
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   
-  const [formData, setFormData] = useState({
-    title: "",
-    user_surname: "",
-    user_number: "",
-    social_network_link: "",
-    event_notes: "",
-    event_name: "",
-    start_date: "",
-    end_date: "",
-    payment_status: "not_paid",
-    payment_amount: "",
-    repeat_pattern: "none",
-    repeat_until: undefined as Date | undefined,
-  });
-  
+  const [title, setTitle] = useState("");
+  const [userSurname, setUserSurname] = useState("");
+  const [userNumber, setUserNumber] = useState("");
+  const [socialNetworkLink, setSocialNetworkLink] = useState("");
+  const [eventNotes, setEventNotes] = useState("");
+  const [eventName, setEventName] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("not_paid");
+  const [paymentAmount, setPaymentAmount] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
+  const [loading, setLoading] = useState(false);
   const [displayedFiles, setDisplayedFiles] = useState<FileRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [deleteChoice, setDeleteChoice] = useState<"this" | "series">("this");
+  const [repeatPattern, setRepeatPattern] = useState("none");
+  const [repeatUntil, setRepeatUntil] = useState<Date | undefined>(undefined);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [showRegularDeleteConfirmation, setShowRegularDeleteConfirmation] = useState(false);
 
-  // Initialize form data when event changes
+  const { toast } = useToast();
+  const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
+  const isNewEvent = !event;
+
+  // Check if this is a recurring event that needs delete confirmation
+  const isRecurringEvent = event && (event.is_recurring || isVirtualInstance(event.id));
+
+  // Initialize form when dialog opens
   useEffect(() => {
-    if (event) {
-      const eventStartDate = event.start_date ? new Date(event.start_date) : new Date();
-      const eventEndDate = event.end_date ? new Date(event.end_date) : new Date();
+    if (isOpen) {
+      if (event) {
+        // Editing existing event
+        setTitle(event.title || "");
+        setUserSurname(event.user_surname || "");
+        setUserNumber(event.user_number || "");
+        setSocialNetworkLink(event.social_network_link || "");
+        setEventNotes(event.event_notes || "");
+        setEventName(event.event_name || "");
+        setStartDate(event.start_date ? format(new Date(event.start_date), "yyyy-MM-dd'T'HH:mm") : "");
+        setEndDate(event.end_date ? format(new Date(event.end_date), "yyyy-MM-dd'T'HH:mm") : "");
+        setPaymentStatus(event.payment_status || "not_paid");
+        setPaymentAmount(event.payment_amount?.toString() || "");
+        setRepeatPattern(event.repeat_pattern || "none");
+        setRepeatUntil(event.repeat_until ? new Date(event.repeat_until) : undefined);
+      } else {
+        // Creating new event
+        const now = selectedDate || new Date();
+        const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+        const currentYearEnd = endOfYear(now);
+        
+        setTitle("");
+        setUserSurname("");
+        setUserNumber("");
+        setSocialNetworkLink("");
+        setEventNotes("");
+        setEventName("");
+        setStartDate(format(now, "yyyy-MM-dd'T'HH:mm"));
+        setEndDate(format(oneHourLater, "yyyy-MM-dd'T'HH:mm"));
+        setPaymentStatus("not_paid");
+        setPaymentAmount("");
+        setRepeatPattern("none");
+        setRepeatUntil(currentYearEnd); // Default to end of current year
+      }
       
-      setFormData({
-        title: event.title || "",
-        user_surname: event.user_surname || "",
-        user_number: event.user_number || "",
-        social_network_link: event.social_network_link || "",
-        event_notes: event.event_notes || "",
-        event_name: event.event_name || "",
-        start_date: eventStartDate.toISOString().slice(0, 16),
-        end_date: eventEndDate.toISOString().slice(0, 16),
-        payment_status: event.payment_status || "not_paid",
-        payment_amount: event.payment_amount?.toString() || "",
-        repeat_pattern: event.repeat_pattern || "none",
-        repeat_until: event.repeat_until ? new Date(event.repeat_until) : undefined,
-      });
-    } else {
-      // Reset form for new events
-      const now = new Date();
-      const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
-      
-      setFormData({
-        title: "",
-        user_surname: "",
-        user_number: "",
-        social_network_link: "",
-        event_notes: "",
-        event_name: "",
-        start_date: now.toISOString().slice(0, 16),
-        end_date: oneHourLater.toISOString().slice(0, 16),
-        payment_status: "not_paid",
-        payment_amount: "",
-        repeat_pattern: "none",
-        repeat_until: undefined,
-      });
+      setSelectedFile(null);
+      setFileError("");
+      setDisplayedFiles([]);
+      setShowDeleteConfirmation(false);
+      setShowRegularDeleteConfirmation(false);
     }
-  }, [event]);
+  }, [isOpen, event, selectedDate]);
 
-  // Load files when dialog opens with existing event
-  useEffect(() => {
-    const loadFiles = async () => {
-      if (!open) {
-        setDisplayedFiles([]);
-        setSelectedFile(null);
-        setFileError("");
+  const loadEventFiles = async (eventId: string) => {
+    if (!eventId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', eventId);
+
+      if (error) {
+        console.error("Error loading event files:", error);
         return;
       }
 
-      if (event?.id && !isVirtualInstance(event.id)) {
-        try {
-          const files = await fetchEventFiles(event.id);
-          setDisplayedFiles(files);
-        } catch (error) {
-          console.error("Error loading files:", error);
-          setDisplayedFiles([]);
-        }
-      } else {
-        setDisplayedFiles([]);
-      }
-    };
+      setDisplayedFiles(data);
+    } catch (error) {
+      console.error("Error loading event files:", error);
+    }
+  };
 
-    loadFiles();
-  }, [open, event?.id]);
+  const handleFileDeleted = (fileId: string) => {
+    setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
+  };
+
+  const validateForm = () => {
+    if (!userSurname.trim()) {
+      toast({
+        title: isGeorgian ? "შეცდომა" : "Error",
+        description: isGeorgian ? "სრული სახელი აუცილებელია" : "Full name is required",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (!startDate || !endDate) {
+      toast({
+        title: isGeorgian ? "შეცდომა" : "Error", 
+        description: isGeorgian ? "დაწყების და დასრულების თარიღები აუცილებელია" : "Start and end dates are required",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (new Date(startDate) >= new Date(endDate)) {
+      toast({
+        title: isGeorgian ? "შეცდომა" : "Error",
+        description: isGeorgian ? "დასრულების თარიღი უნდა იყოს დაწყების თარიღის შემდეგ" : "End date must be after start date",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    // Validate repeat until date
+    if (repeatPattern !== "none" && repeatUntil && new Date(startDate) >= repeatUntil) {
+      toast({
+        title: isGeorgian ? "შეცდომა" : "Error",
+        description: isGeorgian ? "განმეორების დასრულების თარიღი უნდა იყოს ღონისძიების დაწყების შემდეგ" : "Repeat until date must be after event start date",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!user?.id) {
-      toast({
-        title: t("common.error"),
-        description: t("common.missingUserInfo"),
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsLoading(true);
+    
+    if (!validateForm()) return;
+    
+    setLoading(true);
+    
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      // Get additional persons data from window
+      const additionalPersonsData = (window as any).additionalPersonsData || [];
+
+      // Prepare event data
       const eventData = {
-        ...formData,
+        title: userSurname,
+        user_surname: userSurname,
+        user_number: userNumber,
+        social_network_link: socialNetworkLink,
+        event_notes: eventNotes,
+        event_name: eventName || null,
+        start_date: new Date(startDate).toISOString(),
+        end_date: new Date(endDate).toISOString(),
+        payment_status: isBookingRequest ? "not_paid" : paymentStatus,
+        payment_amount: paymentStatus === "not_paid" ? null : parseFloat(paymentAmount) || null,
         user_id: user.id,
-        start_date: new Date(formData.start_date).toISOString(),
-        end_date: new Date(formData.end_date).toISOString(),
-        payment_amount: formData.payment_amount ? parseFloat(formData.payment_amount) : null,
-        is_recurring: formData.repeat_pattern !== "none",
-        repeat_pattern: formData.repeat_pattern !== "none" ? formData.repeat_pattern : null,
-        repeat_until: formData.repeat_until?.toISOString() || null,
-        id: event?.id,
+        type: isBookingRequest ? 'booking_request' : 'event',
+        is_recurring: repeatPattern !== "none",
+        repeat_pattern: repeatPattern !== "none" ? repeatPattern : null,
+        repeat_until: repeatPattern !== "none" && repeatUntil ? repeatUntil.toISOString() : null,
       };
 
-      console.log("Submitting event data:", eventData);
+      let savedEvent;
 
-      // Submit the event and get the saved event back
-      const savedEvent = await onSubmit(eventData);
-      
-      if (!savedEvent?.id) {
-        throw new Error("Event ID missing after save.");
+      if (event) {
+        // Update existing event
+        const { data, error } = await supabase
+          .from('events')
+          .update(eventData)
+          .eq('id', event.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        savedEvent = data;
+      } else {
+        // Create new event
+        const { data, error } = await supabase
+          .from('events')
+          .insert([eventData])
+          .select()
+          .single();
+
+        if (error) throw error;
+        savedEvent = data;
       }
 
-      console.log("Event saved with ID:", savedEvent.id);
-
       // Handle file upload if there's a selected file
-      if (selectedFile && user) {
-        console.log("Uploading file for event:", savedEvent.id);
-        
-        // 1. Upload file to storage
+      if (selectedFile && savedEvent) {
         const fileExt = selectedFile.name.split('.').pop();
-        const filePath = `${savedEvent.id}/${crypto.randomUUID()}.${fileExt}`;
+        const fileName = `${savedEvent.id}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from('event_attachments')
-          .upload(filePath, selectedFile);
+          .upload(filePath, selectedFile, {
+            upsert: true
+          });
 
         if (uploadError) {
-          console.error('Upload error:', uploadError);
-          throw uploadError;
+          console.error("File upload error:", uploadError);
+          toast({
+            title: isGeorgian ? "გაფრთხილება" : "Warning",
+            description: isGeorgian ? "ფაილი ვერ აიტვირთა" : "File could not be uploaded",
+            variant: "destructive",
+          });
         }
+      }
 
-        // 2. Create file record
-        const fileData = {
-          filename: selectedFile.name,
-          file_path: filePath,
-          content_type: selectedFile.type,
-          size: selectedFile.size,
+      // Handle additional persons if any
+      if (additionalPersonsData.length > 0) {
+        const customersData = additionalPersonsData.map((person: any) => ({
+          user_surname: person.userSurname,
+          user_number: person.userNumber,
+          social_network_link: person.socialNetworkLink,
+          event_notes: person.eventNotes,
+          start_date: new Date(startDate).toISOString(),
+          end_date: new Date(endDate).toISOString(),
+          payment_status: isBookingRequest ? "not_paid" : person.paymentStatus,
+          payment_amount: person.paymentStatus === "not_paid" ? null : parseFloat(person.paymentAmount) || null,
           user_id: user.id,
-          event_id: savedEvent.id
-        };
+          type: 'customer'
+        }));
 
-        const { error: insertError } = await supabase
-          .from('event_files')
-          .insert(fileData);
+        const { error: customersError } = await supabase
+          .from('customers')
+          .insert(customersData);
 
-        if (insertError) {
-          console.error('File record insert error:', insertError);
-          throw insertError;
-        }
-
-        console.log('✅ File uploaded and recorded for event:', savedEvent.id);
-        
-        // 3. Refresh the displayed files
-        const refreshedFiles = await fetchEventFiles(savedEvent.id);
-        setDisplayedFiles(refreshedFiles);
-      }
-
-      // Handle additional persons if they exist
-      const additionalPersons = (window as any).additionalPersonsData || [];
-      
-      if (additionalPersons.length > 0) {
-        console.log("Creating customers for additional persons:", additionalPersons.length);
-        
-        for (const person of additionalPersons) {
-          const customerData = {
-            title: person.userSurname,
-            user_surname: person.userSurname,
-            user_number: person.userNumber,
-            social_network_link: person.socialNetworkLink,
-            event_notes: person.eventNotes,
-            payment_status: person.paymentStatus,
-            payment_amount: person.paymentAmount ? parseFloat(person.paymentAmount) : null,
-            user_id: user.id,
-            start_date: savedEvent.start_date,
-            end_date: savedEvent.end_date,
-            type: 'customer'
-          };
-
-          const { error: customerError } = await supabase
-            .from('customers')
-            .insert(customerData);
-
-          if (customerError) {
-            console.error("Error creating customer:", customerError);
-          }
+        if (customersError) {
+          console.error("Error saving additional persons:", customersError);
         }
       }
-
-      // Send email notification if configured
-      if (formData.social_network_link && isValidEmail(formData.social_network_link)) {
-        await sendEventNotificationEmail(savedEvent, formData);
-      }
-
-      // Invalidate queries to refresh data
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-      await queryClient.invalidateQueries({ queryKey: ['customers'] });
-      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
 
       toast({
-        title: t("common.success"),
-        description: event ? t("events.eventUpdated") : t("events.eventCreated")
+        title: isGeorgian ? "წარმატება" : "Success",
+        description: event 
+          ? (isGeorgian ? "მოვლენა განახლდა" : "Event updated successfully")
+          : (isGeorgian ? "მოვლენა შეიქმნა" : "Event created successfully"),
       });
-      
-      onOpenChange(false);
-    } catch (error: any) {
+
+      if (event) {
+        onEventUpdated?.();
+      } else {
+        onEventCreated?.();
+      }
+      onClose();
+    } catch (error) {
       console.error("Error saving event:", error);
       toast({
-        title: t("common.error"),
-        description: error.message || t("common.errorOccurred"),
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDelete = () => {
-    if (event?.is_recurring && !isVirtualInstance(event.id)) {
-      setIsDeleteConfirmOpen(true);
-    } else {
-      confirmDelete("this");
-    }
-  };
-
-  const confirmDelete = async (choice: "this" | "series") => {
-    if (!event?.id || !onDelete) return;
-
-    try {
-      setIsLoading(true);
-      await onDelete(event.id, choice);
-      setIsDeleteConfirmOpen(false);
-      onOpenChange(false);
-    } catch (error: any) {
-      console.error('Delete error:', error);
-      toast({
-        title: t("common.error"),
-        description: error.message || t("common.deleteError"),
+        title: isGeorgian ? "შეცდომა" : "Error",
+        description: isGeorgian ? "მოვლენის შენახვისას მოხდა შეცდომა" : "Failed to save event",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const isValidEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+  const handleDeleteClick = () => {
+    if (isRecurringEvent) {
+      setShowDeleteConfirmation(true);
+    } else {
+      setShowRegularDeleteConfirmation(true);
+    }
   };
 
-  const sendEventNotificationEmail = async (savedEvent: CalendarEventType, formData: any) => {
+  const handleRegularDelete = async () => {
+    if (!event) return;
+    
+    setLoading(true);
     try {
-      const { data: businessData } = await supabase
-        .from('business_profiles')
-        .select('*')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-      
-      if (businessData) {
-        await testEmailSending(
-          formData.social_network_link,
-          formData.user_surname || formData.title || '',
-          businessData.business_name || '',
-          savedEvent.start_date,
-          savedEvent.end_date,
-          formData.payment_status || 'not_paid',
-          formData.payment_amount || null,
-          businessData.contact_address || '',
-          savedEvent.id,
-          null,
-          formData.event_notes || ''
-        );
-      }
+      const { error } = await supabase
+        .from('events')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', event.id);
+
+      if (error) throw error;
+
+      toast({
+        title: isGeorgian ? "წარმატება" : "Success",
+        description: isGeorgian ? "მოვლენა წაიშალა" : "Event deleted successfully",
+      });
+
+      setShowRegularDeleteConfirmation(false);
+      onEventDeleted?.();
+      onClose();
     } catch (error) {
-      console.error("Error sending event notification email:", error);
+      console.error("Error deleting event:", error);
+      toast({
+        title: isGeorgian ? "შეცდომა" : "Error",
+        description: isGeorgian ? "მოვლენის წაშლისას მოხდა შეცდომა" : "Failed to delete event",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
+
+  const handleDelete = async (deleteChoice?: "this" | "series") => {
+    if (!event) return;
+    
+    setLoading(true);
+    try {
+      if (isRecurringEvent && deleteChoice) {
+        // Handle recurring event deletion with choice
+        if (isVirtualInstance(event.id)) {
+          const parentId = event.id.split("-").slice(0, -3).join("-");
+          const instanceDate = event.id.split("-").slice(-3).join("-");
+          
+          if (deleteChoice === "this") {
+            // Create deletion exception for this instance
+            const exceptionData = {
+              user_id: event.user_id,
+              title: `DELETED_EXCEPTION_${instanceDate}`,
+              start_date: instanceDate + 'T00:00:00.000Z',
+              end_date: instanceDate + 'T23:59:59.999Z',
+              type: 'deleted_exception',
+              parent_event_id: parentId,
+              event_notes: `Exception for recurring event on ${instanceDate}`,
+              is_recurring: false
+            };
+            
+            const { error } = await supabase
+              .from('events')
+              .insert(exceptionData);
+              
+            if (error) throw error;
+          } else if (deleteChoice === "series") {
+            // Delete the parent event
+            const { error } = await supabase
+              .from('events')
+              .update({ deleted_at: new Date().toISOString() })
+              .eq('id', parentId);
+              
+            if (error) throw error;
+          }
+        } else {
+          // This is the base event of a recurring series
+          if (deleteChoice === "this") {
+            // Create exception for first occurrence
+            const firstDate = new Date(event.start_date).toISOString().split('T')[0];
+            const exceptionData = {
+              user_id: event.user_id,
+              title: `DELETED_EXCEPTION_${firstDate}`,
+              start_date: firstDate + 'T00:00:00.000Z',
+              end_date: firstDate + 'T23:59:59.999Z',
+              type: 'deleted_exception',
+              parent_event_id: event.id,
+              event_notes: `Exception for recurring event on ${firstDate}`,
+              is_recurring: false
+            };
+            
+            const { error } = await supabase
+              .from('events')
+              .insert(exceptionData);
+              
+            if (error) throw error;
+          } else {
+            // Delete entire series
+            const { error } = await supabase
+              .from('events')
+              .update({ deleted_at: new Date().toISOString() })
+              .eq('id', event.id);
+
+            if (error) throw error;
+          }
+        }
+      } else {
+        // Regular event deletion
+        const { error } = await supabase
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', event.id);
+
+        if (error) throw error;
+      }
+
+      toast({
+        title: isGeorgian ? "წარმატება" : "Success",
+        description: isGeorgian ? "მოვლენა წაიშალა" : "Event deleted successfully",
+      });
+
+      setShowDeleteConfirmation(false);
+      onEventDeleted?.();
+      onClose();
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      toast({
+        title: isGeorgian ? "შეცდომა" : "Error",
+        description: isGeorgian ? "მოვლენის წაშლისას მოხდა შეცდომა" : "Failed to delete event",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const georgianStyle = isGeorgian ? {
+    fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+    letterSpacing: '-0.2px',
+    WebkitFontSmoothing: 'antialiased',
+    MozOsxFontSmoothing: 'grayscale'
+  } : undefined;
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogTitle>
-            {event ? t("events.editEvent") : t("events.addEvent")}
-          </DialogTitle>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+              {event 
+                ? (isGeorgian ? <GeorgianAuthText>მოვლენის რედაქტირება</GeorgianAuthText> : <LanguageText>Edit Event</LanguageText>)
+                : (isBookingRequest 
+                  ? (isGeorgian ? <GeorgianAuthText>ჯავშნის მოთხოვნა</GeorgianAuthText> : <LanguageText>Booking Request</LanguageText>)
+                  : (isGeorgian ? <GeorgianAuthText>ახალი მოვლენა</GeorgianAuthText> : <LanguageText>New Event</LanguageText>)
+                )
+              }
+            </DialogTitle>
+          </DialogHeader>
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             <EventDialogFields
-              title={formData.title}
-              setTitle={(value) => setFormData({ ...formData, title: value })}
-              userSurname={formData.user_surname}
-              setUserSurname={(value) => setFormData({ ...formData, user_surname: value })}
-              userNumber={formData.user_number}
-              setUserNumber={(value) => setFormData({ ...formData, user_number: value })}
-              socialNetworkLink={formData.social_network_link}
-              setSocialNetworkLink={(value) => setFormData({ ...formData, social_network_link: value })}
-              eventNotes={formData.event_notes}
-              setEventNotes={(value) => setFormData({ ...formData, event_notes: value })}
-              eventName={formData.event_name}
-              setEventName={(value) => setFormData({ ...formData, event_name: value })}
-              startDate={formData.start_date}
-              setStartDate={(value) => setFormData({ ...formData, start_date: value })}
-              endDate={formData.end_date}
-              setEndDate={(value) => setFormData({ ...formData, end_date: value })}
-              paymentStatus={formData.payment_status}
-              setPaymentStatus={(value) => setFormData({ ...formData, payment_status: value })}
-              paymentAmount={formData.payment_amount}
-              setPaymentAmount={(value) => setFormData({ ...formData, payment_amount: value })}
+              title={title}
+              setTitle={setTitle}
+              userSurname={userSurname}
+              setUserSurname={setUserSurname}
+              userNumber={userNumber}
+              setUserNumber={setUserNumber}
+              socialNetworkLink={socialNetworkLink}
+              setSocialNetworkLink={setSocialNetworkLink}
+              eventNotes={eventNotes}
+              setEventNotes={setEventNotes}
+              eventName={eventName}
+              setEventName={setEventName}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              paymentStatus={paymentStatus}
+              setPaymentStatus={setPaymentStatus}
+              paymentAmount={paymentAmount}
+              setPaymentAmount={setPaymentAmount}
               selectedFile={selectedFile}
               setSelectedFile={setSelectedFile}
               fileError={fileError}
               setFileError={setFileError}
               eventId={event?.id}
               displayedFiles={displayedFiles}
-              onFileDeleted={(fileId) => {
-                setDisplayedFiles((prev) => prev.filter((file) => file.id !== fileId));
-              }}
-              repeatPattern={formData.repeat_pattern}
-              setRepeatPattern={(value) => setFormData({ ...formData, repeat_pattern: value })}
-              repeatUntil={formData.repeat_until}
-              setRepeatUntil={(date) => setFormData({ ...formData, repeat_until: date })}
+              onFileDeleted={handleFileDeleted}
+              isBookingRequest={isBookingRequest}
+              repeatPattern={repeatPattern}
+              setRepeatPattern={setRepeatPattern}
+              repeatUntil={repeatUntil}
+              setRepeatUntil={setRepeatUntil}
               isNewEvent={isNewEvent}
             />
-
-            <div className="flex justify-between">
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="flex-1 mr-2"
-              >
-                {event ? t("common.update") : t("common.add")}
-              </Button>
-              {event && onDelete && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  onClick={handleDelete}
-                  disabled={isLoading}
+            
+            <div className="flex justify-between pt-4">
+              <div>
+                {event && !isBookingRequest && (
+                  <Button 
+                    type="button" 
+                    variant="destructive" 
+                    onClick={handleDeleteClick}
+                    disabled={loading}
+                    className={cn(isGeorgian ? "font-georgian" : "")}
+                    style={georgianStyle}
+                  >
+                    <Trash className="h-4 w-4 mr-2" />
+                    {isGeorgian ? <GeorgianAuthText>წაშლა</GeorgianAuthText> : <LanguageText>{t("common.delete")}</LanguageText>}
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={onClose}
+                  className={cn(isGeorgian ? "font-georgian" : "")}
+                  style={georgianStyle}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  {isGeorgian ? <GeorgianAuthText>გაუქმება</GeorgianAuthText> : <LanguageText>{t("common.cancel")}</LanguageText>}
                 </Button>
-              )}
+                <Button 
+                  type="submit" 
+                  disabled={loading}
+                  className={cn(isGeorgian ? "font-georgian" : "")}
+                  style={georgianStyle}
+                >
+                  {loading 
+                    ? (isGeorgian ? <GeorgianAuthText>მუშავდება...</GeorgianAuthText> : <LanguageText>{t("common.saving")}</LanguageText>)
+                    : (event 
+                      ? (isGeorgian ? <GeorgianAuthText>განახლება</GeorgianAuthText> : <LanguageText>{t("common.update")}</LanguageText>)
+                      : (isGeorgian ? <GeorgianAuthText>შენახვა</GeorgianAuthText> : <LanguageText>{t("common.save")}</LanguageText>)
+                    )
+                  }
+                </Button>
+              </div>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-        <AlertDialogContent className="max-w-md">
+      {/* Regular Delete Confirmation Dialog */}
+      <AlertDialog open={showRegularDeleteConfirmation} onOpenChange={setShowRegularDeleteConfirmation}>
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-destructive" />
-              {t("events.deleteRecurringEvent")}
+            <AlertDialogTitle>
+              {isGeorgian ? "მოვლენის წაშლა" : t("events.deleteEventConfirmTitle")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {t("events.deleteRecurringDescription")}
+              {isGeorgian 
+                ? "ნამდვილად გსურთ ამ მოვლენის წაშლა? ეს მოქმედება შეუქცევადია." 
+                : t("events.deleteEventConfirmMessage")
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowRegularDeleteConfirmation(false)}>
+              {isGeorgian ? "გაუქმება" : t("common.cancel")}
+            </AlertDialogCancel>
             <AlertDialogAction 
-              onClick={() => confirmDelete("this")}
-              className="bg-orange-500 hover:bg-orange-600"
+              onClick={handleRegularDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {t("events.deleteThisEvent")}
+              {isGeorgian ? "წაშლა" : t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog for Recurring Events */}
+      <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {isGeorgian ? "განმეორადი მოვლენის წაშლა" : "Delete Recurring Event"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isGeorgian 
+                ? "ეს მოვლენა განმეორადია. რას გსურთ?" 
+                : "This is a recurring event. What would you like to do?"
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDeleteConfirmation(false)}>
+              {isGeorgian ? "გაუქმება" : "Cancel"}
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => handleDelete("this")}
+              className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            >
+              {isGeorgian ? "მხოლოდ ეს მოვლენა" : "Delete this event only"}
             </AlertDialogAction>
             <AlertDialogAction 
-              onClick={() => confirmDelete("series")}
-              className="bg-destructive hover:bg-destructive/90"
+              onClick={() => handleDelete("series")}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {t("events.deleteAllEvents")}
+              {isGeorgian ? "მთელი სერია" : "Delete entire series"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -462,3 +628,4 @@ export const EventDialog = ({
     </>
   );
 };
+

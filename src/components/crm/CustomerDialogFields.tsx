@@ -1,16 +1,23 @@
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FileUploadField } from "@/components/shared/FileUploadField";
-import { SimpleFileDisplay } from "@/components/shared/SimpleFileDisplay";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { FileDisplay } from "@/components/shared/FileDisplay";
+import { PaymentStatus } from "@/lib/types";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon, Clock, ChevronUp, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { getCurrencySymbol } from "@/lib/currency";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useMemo } from "react";
 import { FileRecord } from "@/types/files";
 
 interface CustomerDialogFieldsProps {
@@ -22,30 +29,30 @@ interface CustomerDialogFieldsProps {
   setUserNumber: (value: string) => void;
   socialNetworkLink: string;
   setSocialNetworkLink: (value: string) => void;
-  customerNotes: string;
-  setCustomerNotes: (value: string) => void;
+  createEvent: boolean;
+  setCreateEvent: (value: boolean) => void;
   paymentStatus: string;
   setPaymentStatus: (value: string) => void;
   paymentAmount: string;
   setPaymentAmount: (value: string) => void;
+  customerNotes: string;
+  setCustomerNotes: (value: string) => void;
   selectedFile: File | null;
   setSelectedFile: (file: File | null) => void;
   fileError: string;
   setFileError: (error: string) => void;
-  createEvent: boolean;
-  setCreateEvent: (value: boolean) => void;
   isEventBased?: boolean;
-  startDate?: string;
-  endDate?: string;
-  customerId?: string | null;
-  displayedFiles: any[];
-  onFileDeleted: (fileId: string) => void;
+  startDate?: string | null;
+  endDate?: string | null;
+  customerId?: string;
+  displayedFiles?: FileRecord[];
+  onFileDeleted?: (fileId: string) => void;
   eventStartDate: Date;
   setEventStartDate: (date: Date) => void;
   eventEndDate: Date;
   setEventEndDate: (date: Date) => void;
-  fileBucketName: string;
-  fallbackBuckets: string[];
+  fileBucketName?: string;
+  fallbackBuckets?: string[];
 }
 
 export const CustomerDialogFields = ({
@@ -57,265 +64,475 @@ export const CustomerDialogFields = ({
   setUserNumber,
   socialNetworkLink,
   setSocialNetworkLink,
-  customerNotes,
-  setCustomerNotes,
+  createEvent,
+  setCreateEvent,
   paymentStatus,
   setPaymentStatus,
   paymentAmount,
   setPaymentAmount,
+  customerNotes,
+  setCustomerNotes,
   selectedFile,
   setSelectedFile,
   fileError,
   setFileError,
-  createEvent,
-  setCreateEvent,
   isEventBased = false,
   startDate,
   endDate,
   customerId,
-  displayedFiles,
+  displayedFiles = [],
   onFileDeleted,
   eventStartDate,
   setEventStartDate,
   eventEndDate,
   setEventEndDate,
-  fileBucketName,
-  fallbackBuckets
+  fileBucketName = "customer_attachments",
+  fallbackBuckets = [],
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
-  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
-  const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
   const currencySymbol = getCurrencySymbol(language);
+  
+  // Show payment amount field if payment status is partly paid or fully paid
+  const showPaymentAmount = paymentStatus === "partly" || paymentStatus === "fully";
 
-  // Convert displayedFiles to FileRecord format
-  const processedFiles = useMemo(() => {
-    if (!displayedFiles.length) return [];
-    
-    const fileRecords: FileRecord[] = displayedFiles.map(file => ({
-      id: file.id,
-      filename: file.filename,
-      file_path: file.file_path,
-      content_type: file.content_type || null,
-      size: file.size || null,
-      created_at: file.created_at || new Date().toISOString(),
-      user_id: file.user_id || null,
-      event_id: file.event_id || null,
-      customer_id: file.customer_id || customerId || null,
-      parentType: isEventBased ? 'event' : 'customer'
-    }));
-    
-    return fileRecords;
-  }, [displayedFiles, customerId, isEventBased]);
-
-  const georgianStyle = isGeorgian ? {
-    fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-    letterSpacing: '-0.2px',
-    WebkitFontSmoothing: 'antialiased',
-    MozOsxFontSmoothing: 'grayscale'
-  } : undefined;
-
-  const renderGeorgianLabel = (text: string) => {
-    if (isGeorgian) {
-      if (text === "events.fullName") return <GeorgianAuthText letterSpacing="-0.05px">სრული სახელი</GeorgianAuthText>;
-      if (text === "events.phoneNumber") return <GeorgianAuthText letterSpacing="-0.05px">ტელეფონის ნომერი</GeorgianAuthText>;
-      if (text === "events.socialLinkEmail") return <GeorgianAuthText letterSpacing="-0.05px">ელფოსტა</GeorgianAuthText>;
-      if (text === "events.eventNotes") return <GeorgianAuthText letterSpacing="-0.05px">შენიშვნები</GeorgianAuthText>;
-      if (text === "crm.createEvent") return <GeorgianAuthText letterSpacing="-0.05px">ღონისძიების შექმნა</GeorgianAuthText>;
+  // Helper function to format date and time for display
+  const formatDateTime = (dateStr: string | null | undefined) => {
+    if (!dateStr) return "-";
+    try {
+      const date = new Date(dateStr);
+      return format(date, "PPp"); // Format using date-fns for localized date and time
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return dateStr;
     }
-    return <LanguageText>{t(text)}</LanguageText>;
   };
 
-  const getEventNotesPlaceholder = () => {
-    if (isGeorgian) {
-      return "დაამატეთ შენიშვნები თქვენი ჯავშნის შესახებ";
+  // Function to format payment status display
+  const renderPaymentStatus = () => {
+    if (!isEventBased || !paymentStatus) return null;
+
+    // Normalize payment status to handle both 'partly' and 'partly_paid' formats
+    const normalizedStatus = 
+      paymentStatus.includes('partly') ? 'partly' : 
+      paymentStatus.includes('fully') ? 'fully' : 
+      'not_paid';
+    
+    let textColorClass = '';
+    
+    switch(normalizedStatus) {
+      case 'fully':
+        textColorClass = 'text-green-600';
+        break;
+      case 'partly':
+        textColorClass = 'text-amber-600';
+        break;
+      default: // not_paid
+        textColorClass = 'text-[#ea384c]';
+        break;
     }
-    return t("events.addEventNotes");
+
+    // Display labels in user language
+    const statusTextMap = {
+      'not_paid': t('crm.notPaid'),
+      'partly': t('crm.paidPartly'),
+      'fully': t('crm.paidFully')
+    };
+    
+    const text = statusTextMap[normalizedStatus as keyof typeof statusTextMap];
+    
+    return (
+      <div className="mt-2 space-y-1">
+        <Label>{t('crm.paymentDetails')}</Label>
+        <div className={`font-medium ${textColorClass}`}>
+          <LanguageText>
+            {text}
+          </LanguageText>
+          {(normalizedStatus === 'partly' || normalizedStatus === 'fully') && paymentAmount && (
+            <div className="text-xs mt-0.5">
+              ({currencySymbol}{paymentAmount})
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
+
+  const formatDateDisplay = (date: Date) => {
+    return format(date, 'MM/dd/yyyy HH:mm');
+  };
+
+  // Generate time options for hours selection grid - full 24 hours
+  const hours = Array.from({ length: 24 }, (_, i) => {
+    const hour = i.toString().padStart(2, '0');
+    return { value: hour, label: hour };
+  });
+
+  // Generate time options for minutes selection grid - all 60 minutes
+  const minutes = Array.from({ length: 60 }, (_, i) => {
+    const minute = i.toString().padStart(2, '0');
+    return { value: minute, label: minute };
+  });
 
   return (
-    <div className="space-y-4">
-      <div>
-        <Label htmlFor="title" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-          {renderGeorgianLabel("events.fullName")}
+    <div className="space-y-4 mt-4">
+      <div className="space-y-2">
+        <Label htmlFor="title">
+          {isGeorgian ? (
+            <GeorgianAuthText>სრული სახელი</GeorgianAuthText>
+          ) : (
+            <LanguageText>{t("crm.fullNameRequired")}</LanguageText>
+          )}
         </Label>
         <Input
           id="title"
+          placeholder={isGeorgian ? "შეიყვანეთ კლიენტის სრული სახელი" : t("crm.fullNamePlaceholder")}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder={isGeorgian ? "სრული სახელი" : t("events.fullName")}
-          className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
-          style={georgianStyle}
+          required
         />
       </div>
 
-      <div>
-        <Label htmlFor="userNumber" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-          {renderGeorgianLabel("events.phoneNumber")}
+      <div className="space-y-2">
+        <Label htmlFor="number">
+          {isGeorgian ? (
+            <GeorgianAuthText>ტელეფონის ნომერი</GeorgianAuthText>
+          ) : (
+            <LanguageText>{t("crm.phoneNumber")}</LanguageText>
+          )}
         </Label>
         <Input
-          id="userNumber"
+          id="number"
+          type="tel"
+          placeholder={isGeorgian ? "შეიყვანეთ ტელეფონის ნომერი" : t("crm.phoneNumberPlaceholder")}
           value={userNumber}
           onChange={(e) => setUserNumber(e.target.value)}
-          placeholder={isGeorgian ? "ტელეფონის ნომერი" : t("events.phoneNumber")}
-          className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
-          style={georgianStyle}
         />
       </div>
 
-      <div>
-        <Label htmlFor="socialNetworkLink" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-          {renderGeorgianLabel("events.socialLinkEmail")}
-        </Label>
+      <div className="space-y-2">
+        <Label htmlFor="socialNetwork">{t("crm.socialLinkEmail")}</Label>
         <Input
-          id="socialNetworkLink"
+          id="socialNetwork"
+          type="email"
+          placeholder={t("crm.socialLinkEmailPlaceholder")}
           value={socialNetworkLink}
           onChange={(e) => setSocialNetworkLink(e.target.value)}
-          placeholder="email@example.com"
-          type="email"
-          style={georgianStyle}
         />
       </div>
 
-      <div>
-        <Label htmlFor="customerNotes" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-          {renderGeorgianLabel("events.eventNotes")}
-        </Label>
-        <Textarea
-          id="customerNotes"
-          value={customerNotes}
-          onChange={(e) => setCustomerNotes(e.target.value)}
-          placeholder={getEventNotesPlaceholder()}
-          className={cn("min-h-[100px] resize-none", isGeorgian ? "placeholder:font-georgian font-georgian" : "")}
-          style={georgianStyle}
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="paymentStatus" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-          <LanguageText>{t("events.paymentStatus")}</LanguageText>
-        </Label>
-        <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-          <SelectTrigger id="paymentStatus" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-            <SelectValue placeholder={t("events.selectPaymentStatus")} />
-          </SelectTrigger>
-          <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
-            <SelectItem value="not_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-              <LanguageText>{t("crm.notPaid")}</LanguageText>
-            </SelectItem>
-            <SelectItem value="partly_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-              <LanguageText>{t("crm.paidPartly")}</LanguageText>
-            </SelectItem>
-            <SelectItem value="fully_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-              <LanguageText>{t("crm.paidFully")}</LanguageText>
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {showPaymentAmount && (
-        <div>
-          <Label htmlFor="paymentAmount" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-            <LanguageText>{t("events.paymentAmount")}</LanguageText>
-          </Label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <span className="text-gray-500">{currencySymbol}</span>
+      {isEventBased && startDate && endDate && (
+        <div className="rounded-md bg-muted p-3 space-y-2">
+          <Label className="font-medium">{t("events.eventDetails")}</Label>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <span className="text-muted-foreground">{t("events.start")}:</span>
+              <div>{formatDateTime(startDate)}</div>
             </div>
-            <Input
-              id="paymentAmount"
-              value={paymentAmount}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                  setPaymentAmount(value);
-                }
-              }}
-              className="pl-7"
-              placeholder="0.00"
-              type="text"
-              inputMode="decimal"
-            />
+            <div>
+              <span className="text-muted-foreground">{t("events.end")}:</span>
+              <div>{formatDateTime(endDate)}</div>
+            </div>
           </div>
+          
+          {/* Payment status display for existing events */}
+          {renderPaymentStatus()}
         </div>
       )}
 
-      <div>
-        <Label htmlFor="createEvent" className={cn("flex items-center space-x-2", isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-          <Checkbox
-            id="createEvent"
-            checked={createEvent}
-            onCheckedChange={setCreateEvent}
-          />
-          {renderGeorgianLabel("crm.createEvent")}
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="createEvent"
+          checked={createEvent}
+          onCheckedChange={(checked) => setCreateEvent(checked as boolean)}
+          disabled={isEventBased} // Disable if the customer was created from an event
+        />
+        <Label
+          htmlFor="createEvent"
+          className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed ${isEventBased ? "text-muted-foreground" : ""}`}
+        >
+          {isEventBased 
+            ? t("crm.customerFromEvent") 
+            : t("crm.createEventForCustomer")}
         </Label>
       </div>
 
       {createEvent && (
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label htmlFor="eventStartDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">დაწყება</GeorgianAuthText> : <LanguageText>{t("events.start")}</LanguageText>}
-            </Label>
-            <Input
-              id="eventStartDate"
-              type="datetime-local"
-              value={eventStartDate.toISOString().slice(0, 16)}
-              onChange={(e) => setEventStartDate(new Date(e.target.value))}
-              className="w-full dark:text-white dark:[color-scheme:dark]"
-              style={{ colorScheme: 'auto' }}
-            />
+        <>
+          <div className="space-y-2">
+            <Label>{t("events.dateAndTime")}</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label htmlFor="startDate" className="text-xs text-muted-foreground">
+                  {isGeorgian ? (
+                    <GeorgianAuthText>დაწყება</GeorgianAuthText>
+                  ) : (
+                    <LanguageText>{t("events.start")}</LanguageText>
+                  )}
+                </Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      {formatDateDisplay(eventStartDate)}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent 
+                    className="w-auto p-0 bg-background" 
+                    align="start"
+                    sideOffset={4}
+                  >
+                    <div className="flex">
+                      <div className="border-r">
+                        <div className="flex items-center justify-between px-3 py-2 bg-muted">
+                          <h4 className="font-medium text-sm">
+                            {format(eventStartDate, 'MMMM yyyy')}
+                          </h4>
+                          <div className="flex items-center space-x-1">
+                            <Button variant="outline" size="icon" className="h-7 w-7 bg-background">
+                              <ChevronUp className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" className="h-7 w-7 bg-background">
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <Calendar
+                          mode="single"
+                          selected={eventStartDate}
+                          onSelect={(date) => {
+                            if (date) {
+                              const newDate = new Date(date);
+                              newDate.setHours(eventStartDate.getHours(), eventStartDate.getMinutes());
+                              setEventStartDate(newDate);
+                            }
+                          }}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </div>
+                      <div className="flex">
+                        <div className="grid auto-rows-max overflow-hidden">
+                          <ScrollArea className="h-72 w-16">
+                            <div className="flex flex-col items-center">
+                              {hours.map((hour) => (
+                                <div
+                                  key={hour.value}
+                                  className={cn(
+                                    "flex items-center justify-center text-center h-10 w-full cursor-pointer hover:bg-muted",
+                                    eventStartDate.getHours() === parseInt(hour.value) && "bg-primary text-primary-foreground"
+                                  )}
+                                  onClick={() => {
+                                    const newDate = new Date(eventStartDate);
+                                    newDate.setHours(parseInt(hour.value));
+                                    setEventStartDate(newDate);
+                                  }}
+                                >
+                                  {hour.label}
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </div>
+                        <div className="grid auto-rows-max overflow-hidden">
+                          <ScrollArea className="h-72 w-16">
+                            <div className="flex flex-col items-center">
+                              {minutes.map((minute) => (
+                                <div
+                                  key={minute.value}
+                                  className={cn(
+                                    "flex items-center justify-center text-center h-10 w-full cursor-pointer hover:bg-muted",
+                                    eventStartDate.getMinutes() === parseInt(minute.value) && "bg-primary text-primary-foreground"
+                                  )}
+                                  onClick={() => {
+                                    const newDate = new Date(eventStartDate);
+                                    newDate.setMinutes(parseInt(minute.value));
+                                    setEventStartDate(newDate);
+                                  }}
+                                >
+                                  {minute.label}
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </div>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="endDate" className="text-xs text-muted-foreground">
+                  {isGeorgian ? (
+                    <GeorgianAuthText>დასრულება</GeorgianAuthText>
+                  ) : (
+                    <LanguageText>{t("events.end")}</LanguageText>
+                  )}
+                </Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      {formatDateDisplay(eventEndDate)}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent 
+                    className="w-auto p-0 bg-background" 
+                    align="start"
+                    sideOffset={4}
+                  >
+                    <div className="flex">
+                      <div className="border-r">
+                        <div className="flex items-center justify-between px-3 py-2 bg-muted">
+                          <h4 className="font-medium text-sm">
+                            {format(eventEndDate, 'MMMM yyyy')}
+                          </h4>
+                          <div className="flex items-center space-x-1">
+                            <Button variant="outline" size="icon" className="h-7 w-7 bg-background">
+                              <ChevronUp className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" className="h-7 w-7 bg-background">
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <Calendar
+                          mode="single"
+                          selected={eventEndDate}
+                          onSelect={(date) => {
+                            if (date) {
+                              const newDate = new Date(date);
+                              newDate.setHours(eventEndDate.getHours(), eventEndDate.getMinutes());
+                              setEventEndDate(newDate);
+                            }
+                          }}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </div>
+                      <div className="flex">
+                        <div className="grid auto-rows-max overflow-hidden">
+                          <ScrollArea className="h-72 w-16">
+                            <div className="flex flex-col items-center">
+                              {hours.map((hour) => (
+                                <div
+                                  key={hour.value}
+                                  className={cn(
+                                    "flex items-center justify-center text-center h-10 w-full cursor-pointer hover:bg-muted",
+                                    eventEndDate.getHours() === parseInt(hour.value) && "bg-primary text-primary-foreground"
+                                  )}
+                                  onClick={() => {
+                                    const newDate = new Date(eventEndDate);
+                                    newDate.setHours(parseInt(hour.value));
+                                    setEventEndDate(newDate);
+                                  }}
+                                >
+                                  {hour.label}
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </div>
+                        <div className="grid auto-rows-max overflow-hidden">
+                          <ScrollArea className="h-72 w-16">
+                            <div className="flex flex-col items-center">
+                              {minutes.map((minute) => (
+                                <div
+                                  key={minute.value}
+                                  className={cn(
+                                    "flex items-center justify-center text-center h-10 w-full cursor-pointer hover:bg-muted",
+                                    eventEndDate.getMinutes() === parseInt(minute.value) && "bg-primary text-primary-foreground"
+                                  )}
+                                  onClick={() => {
+                                    const newDate = new Date(eventEndDate);
+                                    newDate.setMinutes(parseInt(minute.value));
+                                    setEventEndDate(newDate);
+                                  }}
+                                >
+                                  {minute.label}
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </div>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
           </div>
-          <div>
-            <Label htmlFor="eventEndDate" className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">დასრულება</GeorgianAuthText> : <LanguageText>{t("events.end")}</LanguageText>}
-            </Label>
-            <Input
-              id="eventEndDate"
-              type="datetime-local"
-              value={eventEndDate.toISOString().slice(0, 16)}
-              onChange={(e) => setEventEndDate(new Date(e.target.value))}
-              className="w-full dark:text-white dark:[color-scheme:dark]"
-              style={{ colorScheme: 'auto' }}
-            />
+
+          <div className="space-y-2">
+            <Label>{t("crm.paymentStatus")}</Label>
+            <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t("crm.selectPaymentStatus")} />
+              </SelectTrigger>
+              <SelectContent className="bg-background">
+                <SelectItem value="not_paid">{t("crm.notPaid")}</SelectItem>
+                <SelectItem value="partly">{t("crm.paidPartly")}</SelectItem>
+                <SelectItem value="fully">{t("crm.paidFully")}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </div>
+
+          {showPaymentAmount && (
+            <div className="space-y-2">
+              <Label htmlFor="amount">
+                {t("events.paymentAmount")} ({currencySymbol})
+              </Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                placeholder={`${t("events.paymentAmount")} (${currencySymbol})`}
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                required={showPaymentAmount}
+              />
+            </div>
+          )}
+        </>
       )}
 
-      <div>
-        <Label 
-          htmlFor="file" 
-          className={cn(isGeorgian ? "font-georgian" : "")}
-          style={isGeorgian ? {
-            fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-            letterSpacing: '-0.2px',
-            WebkitFontSmoothing: 'antialiased',
-            MozOsxFontSmoothing: 'grayscale'
-          } : undefined}
-        >
-          <LanguageText>{t("common.attachments")}</LanguageText>
-        </Label>
-        <FileUploadField 
-          onChange={setSelectedFile} 
-          fileError={fileError} 
-          setFileError={setFileError} 
-          acceptedFileTypes={acceptedFormats} 
-          selectedFile={selectedFile} 
-          hideLabel={true} 
+      <div className="space-y-2">
+        <Label htmlFor="notes">{t("crm.comment")}</Label>
+        <Textarea
+          id="notes"
+          placeholder={t("crm.commentPlaceholder")}
+          value={customerNotes}
+          onChange={(e) => setCustomerNotes(e.target.value)}
+          className="min-h-[100px]"
         />
       </div>
-      
-      {processedFiles.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <SimpleFileDisplay 
-            files={processedFiles} 
-            parentType={isEventBased ? 'event' : 'customer'}
-            allowDelete={true} 
-            onFileDeleted={onFileDeleted} 
-            parentId={customerId}
+
+      {customerId && displayedFiles && displayedFiles.length > 0 && (
+        <div className="space-y-2">
+          <FileDisplay 
+            files={displayedFiles} 
+            bucketName={fileBucketName}
+            allowDelete
+            onFileDeleted={onFileDeleted}
+            parentType="customer"
+            fallbackBuckets={fallbackBuckets}
           />
         </div>
       )}
+
+      <div className="space-y-2">
+        <FileUploadField 
+          onChange={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+        />
+      </div>
     </div>
   );
 };
