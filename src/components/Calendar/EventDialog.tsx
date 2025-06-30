@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { format, addYears, endOfYear } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -668,7 +667,7 @@ export const EventDialog = ({
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </Dialog>
+      </AlertDialog>
     </>
   );
 };
