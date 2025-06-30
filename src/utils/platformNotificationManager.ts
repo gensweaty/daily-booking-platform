@@ -1,6 +1,12 @@
 
 import { detectDevice, getNotificationCapabilities } from './deviceDetector';
 
+export interface NotificationAction {
+  action: string;
+  title: string;
+  icon?: string;
+}
+
 export interface NotificationOptions {
   title: string;
   body: string;
