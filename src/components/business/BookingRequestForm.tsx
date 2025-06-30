@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -66,7 +65,7 @@ export const BookingRequestForm = ({
       setStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     } catch (error) {
-      console.error('Error initializing dates:', error);
+      console.error('❌ BookingRequestForm - Error initializing dates:', error);
       const now = new Date();
       const oneHourLater = new Date(now);
       oneHourLater.setHours(oneHourLater.getHours() + 1);
@@ -79,7 +78,7 @@ export const BookingRequestForm = ({
   useEffect(() => {
     const fetchBusinessData = async () => {
       try {
-        console.log('Fetching business data for:', businessId);
+        console.log('🏢 BookingRequestForm - Fetching business data for:', businessId);
         const { data, error } = await supabase
           .from('business_profiles')
           .select('business_name, contact_email, contact_address')
@@ -87,7 +86,7 @@ export const BookingRequestForm = ({
           .single();
 
         if (error) {
-          console.error("Error fetching business data:", error);
+          console.error("❌ BookingRequestForm - Error fetching business data:", error);
           return;
         }
 
@@ -97,9 +96,9 @@ export const BookingRequestForm = ({
           businessAddress: data?.contact_address
         });
         
-        console.log("Business data loaded:", data);
+        console.log("✅ BookingRequestForm - Business data loaded:", data);
       } catch (err) {
-        console.error("Error in business data fetch:", err);
+        console.error("❌ BookingRequestForm - Error in business data fetch:", err);
       }
     };
 
@@ -131,6 +130,7 @@ export const BookingRequestForm = ({
   };
 
   const handleFileChange = (file: File | null) => {
+    console.log('📁 BookingRequestForm - File selected:', file?.name);
     setSelectedFile(file);
     setFileError('');
   };
@@ -151,7 +151,7 @@ export const BookingRequestForm = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    console.log("🚀 Starting booking request submission...");
+    console.log("🚀 BookingRequestForm - Starting booking request submission...");
 
     try {
       // Validate required fields
@@ -228,7 +228,7 @@ export const BookingRequestForm = ({
         language: language
       };
 
-      console.log('📝 Creating booking request:', bookingData);
+      console.log('📝 BookingRequestForm - Creating booking request:', bookingData);
 
       // Step 1: Create booking request
       const { data: bookingResponse, error: bookingError } = await supabase
@@ -238,12 +238,12 @@ export const BookingRequestForm = ({
         .single();
 
       if (bookingError) {
-        console.error('❌ Booking creation error:', bookingError);
+        console.error('❌ BookingRequestForm - Booking creation error:', bookingError);
         throw bookingError;
       }
 
       const bookingId = bookingResponse.id;
-      console.log('✅ Booking request created with ID:', bookingId);
+      console.log('✅ BookingRequestForm - Booking request created with ID:', bookingId);
 
       // Step 2: Handle file upload if present
       if (selectedFile && bookingId) {
@@ -251,15 +251,15 @@ export const BookingRequestForm = ({
           const fileExt = selectedFile.name.split('.').pop();
           const filePath = `${bookingId}/${Date.now()}.${fileExt}`;
 
-          console.log('📁 Uploading file:', filePath);
+          console.log('📁 BookingRequestForm - Uploading file:', filePath);
           const { error: uploadError } = await supabase.storage
             .from('event_attachments')
             .upload(filePath, selectedFile);
 
           if (uploadError) {
-            console.error('❌ File upload error:', uploadError);
+            console.error('❌ BookingRequestForm - File upload error:', uploadError);
           } else {
-            console.log('✅ File uploaded successfully');
+            console.log('✅ BookingRequestForm - File uploaded successfully');
 
             const fileRecord = {
               filename: selectedFile.name,
@@ -274,19 +274,19 @@ export const BookingRequestForm = ({
               .insert(fileRecord);
 
             if (fileRecordError) {
-              console.error('❌ File record creation error:', fileRecordError);
+              console.error('❌ BookingRequestForm - File record creation error:', fileRecordError);
             } else {
-              console.log('✅ File record created successfully');
+              console.log('✅ BookingRequestForm - File record created successfully');
             }
           }
         } catch (fileError) {
-          console.error('❌ File handling error:', fileError);
+          console.error('❌ BookingRequestForm - File handling error:', fileError);
         }
       }
 
-      // Step 3: Send notification email
+      // Step 3: Send notification email with enhanced error handling
       try {
-        console.log('📧 Sending notification email...');
+        console.log('📧 BookingRequestForm - Preparing to send notification email...');
         
         const notificationData = {
           businessId: businessId,
@@ -305,23 +305,31 @@ export const BookingRequestForm = ({
           language: language
         };
         
-        console.log("📧 Email notification data:", JSON.stringify(notificationData, null, 2));
+        console.log("📧 BookingRequestForm - Email notification data:", JSON.stringify(notificationData, null, 2));
         
         const { data: emailResult, error: emailError } = await supabase.functions.invoke(
           'send-booking-request-notification',
           {
-            body: notificationData
+            body: notificationData,
+            headers: {
+              'Content-Type': 'application/json'
+            }
           }
         );
 
         if (emailError) {
-          console.error('❌ Email function error:', emailError);
+          console.error('❌ BookingRequestForm - Email function error:', emailError);
+          console.error('❌ BookingRequestForm - Email error details:', {
+            message: emailError.message,
+            context: emailError.context,
+            details: emailError.details
+          });
           // Don't throw - we still want to show success to user
         } else {
-          console.log('✅ Email notification sent successfully:', emailResult);
+          console.log('✅ BookingRequestForm - Email notification sent successfully:', emailResult);
         }
       } catch (emailError) {
-        console.error("❌ Email notification failed:", emailError);
+        console.error("❌ BookingRequestForm - Email notification failed:", emailError);
         // Don't throw - we still want to show success to user
       }
 
@@ -350,11 +358,10 @@ export const BookingRequestForm = ({
         onOpenChange(false);
       }
 
-      console.log('🎉 Booking request completed successfully!');
+      console.log('🎉 BookingRequestForm - Booking request completed successfully!');
 
     } catch (error) {
-      console.error('❌ Booking request submission error:', error);
-      setIsSubmitting(false);
+      console.error('❌ BookingRequestForm - Booking request submission error:', error);
       toast({
         translateKeys: {
           titleKey: "common.error",

@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
+import { supabase, getStorageUrl } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink, FileText, FileSpreadsheet, PresentationIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
@@ -29,67 +29,66 @@ export const FileDisplay = ({
 }: FileDisplayProps) => {
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [fileURLs, setFileURLs] = useState<{[key: string]: string}>({});
-  const [validatedBuckets, setValidatedBuckets] = useState<{[key: string]: string}>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
-  console.log("FileDisplay - Files received:", files);
-  console.log("FileDisplay - Primary bucket:", bucketName);
+  console.log("📁 FileDisplay - Files received:", files.length, "files");
+  console.log("📁 FileDisplay - Primary bucket:", bucketName);
 
-  // Remove duplicate files using a simple approach
+  // Remove duplicate files
   const uniqueFiles = files.filter((file, index, self) => 
-    index === self.findIndex(f => f.id === file.id && f.file_path === file.file_path)
+    index === self.findIndex(f => f.id === file.id)
   );
 
-  console.log("FileDisplay - Unique files:", uniqueFiles);
+  console.log("📁 FileDisplay - Unique files after dedup:", uniqueFiles.length);
 
   useEffect(() => {
     const setupFileUrls = async () => {
+      console.log("🔧 FileDisplay - Setting up file URLs for", uniqueFiles.length, "files");
       const newURLs: {[key: string]: string} = {};
-      const newBuckets: {[key: string]: string} = {};
-      
-      // List of buckets to try in order
-      const bucketsToTry = [bucketName, ...fallbackBuckets, 'event_attachments', 'customer_attachments'];
       
       for (const file of uniqueFiles) {
         if (!file.file_path) {
-          console.log(`Skipping file ${file.filename} - no file path`);
+          console.log("⚠️ FileDisplay - Skipping file with no path:", file.filename);
           continue;
         }
         
-        const normalizedPath = normalizeFilePath(file.file_path);
-        let foundBucket = null;
+        // Clean file path - remove leading slashes
+        const cleanPath = file.file_path.replace(/^\/+/, '');
+        console.log("🔧 FileDisplay - Processing file:", file.filename, "Path:", cleanPath);
         
-        // Try each bucket until we find the file
+        // Try primary bucket first, then fallbacks
+        const bucketsToTry = [bucketName, ...fallbackBuckets];
+        let fileUrl = null;
+        
         for (const bucket of bucketsToTry) {
           try {
-            console.log(`Checking file ${file.filename} in bucket ${bucket} at path ${normalizedPath}`);
-            
-            // Try to create a signed URL to test if file exists
-            const { data, error } = await supabase.storage
+            // Create public URL for the file
+            const { data } = supabase.storage
               .from(bucket)
-              .createSignedUrl(normalizedPath, 60);
+              .getPublicUrl(cleanPath);
             
-            if (data && !error) {
-              foundBucket = bucket;
-              console.log(`✅ File ${file.filename} found in bucket ${bucket}`);
+            if (data?.publicUrl) {
+              fileUrl = data.publicUrl;
+              console.log("✅ FileDisplay - Found file in bucket:", bucket, "URL:", fileUrl);
               break;
             }
           } catch (error) {
-            console.log(`❌ Error checking file in ${bucket}:`, error);
+            console.log("❌ FileDisplay - Error accessing file in bucket:", bucket, error);
           }
         }
         
-        // Use found bucket or default to primary bucket
-        const effectiveBucket = foundBucket || bucketName;
-        newBuckets[file.id] = effectiveBucket;
-        newURLs[file.id] = `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
-        
-        console.log(`File ${file.filename} will use bucket: ${effectiveBucket}`);
+        if (fileUrl) {
+          newURLs[file.id] = fileUrl;
+        } else {
+          console.log("❌ FileDisplay - Could not find file:", file.filename, "in any bucket");
+          // Create fallback URL anyway
+          newURLs[file.id] = `${getStorageUrl()}/object/public/${bucketName}/${cleanPath}`;
+        }
       }
       
-      setValidatedBuckets(newBuckets);
+      console.log("🔧 FileDisplay - Setup complete. URLs created:", Object.keys(newURLs).length);
       setFileURLs(newURLs);
     };
     
@@ -123,46 +122,48 @@ export const FileDisplay = ({
 
   const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
     try {
-      const effectiveBucket = validatedBuckets[fileId] || bucketName;
-      const normalizedPath = normalizeFilePath(filePath);
+      console.log("⬇️ FileDisplay - Starting download for:", fileName);
+      const cleanPath = filePath.replace(/^\/+/, '');
       
-      console.log(`Downloading file: ${fileName} from ${effectiveBucket}:${normalizedPath}`);
+      // Try to download from primary bucket first
+      const bucketsToTry = [bucketName, ...fallbackBuckets];
+      let downloadSuccess = false;
       
-      // Create a fresh signed URL for download
-      const { data, error } = await supabase.storage
-        .from(effectiveBucket)
-        .createSignedUrl(normalizedPath, 300);
-      
-      if (error || !data?.signedUrl) {
-        throw new Error(`Failed to create download URL: ${error?.message}`);
+      for (const bucket of bucketsToTry) {
+        try {
+          const { data, error } = await supabase.storage
+            .from(bucket)
+            .download(cleanPath);
+          
+          if (data && !error) {
+            const url = window.URL.createObjectURL(data);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            console.log("✅ FileDisplay - Download successful from bucket:", bucket);
+            downloadSuccess = true;
+            break;
+          }
+        } catch (error) {
+          console.log("❌ FileDisplay - Download failed from bucket:", bucket, error);
+        }
       }
       
-      // Download the file
-      const response = await fetch(data.signedUrl);
-      if (!response.ok) {
-        throw new Error(`Download failed: ${response.status}`);
+      if (downloadSuccess) {
+        toast({
+          title: t("common.success"),
+          description: t("common.downloadStarted"),
+        });
+      } else {
+        throw new Error("File not found in any bucket");
       }
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      
-      // Create download link
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      
-      // Cleanup
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-      
-      toast({
-        title: t("common.success"),
-        description: t("common.downloadStarted"),
-      });
     } catch (error) {
-      console.error('Download error:', error);
+      console.error('💥 FileDisplay - Download error:', error);
       toast({
         title: t("common.error"),
         description: t("common.downloadError"),
@@ -171,23 +172,13 @@ export const FileDisplay = ({
     }
   };
 
-  const handleOpenFile = async (filePath: string, fileId: string) => {
-    try {
-      const effectiveBucket = validatedBuckets[fileId] || bucketName;
-      const normalizedPath = normalizeFilePath(filePath);
-      
-      // Create a signed URL for viewing
-      const { data, error } = await supabase.storage
-        .from(effectiveBucket)
-        .createSignedUrl(normalizedPath, 3600);
-      
-      if (error || !data?.signedUrl) {
-        throw new Error(`Failed to create view URL: ${error?.message}`);
-      }
-      
-      window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
-    } catch (error) {
-      console.error('Open file error:', error);
+  const handleOpenFile = (filePath: string, fileId: string) => {
+    const fileUrl = fileURLs[fileId];
+    if (fileUrl) {
+      console.log("🔗 FileDisplay - Opening file:", fileUrl);
+      window.open(fileUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      console.log("❌ FileDisplay - No URL available for file");
       toast({
         title: t("common.error"),
         description: t("common.fileAccessError"),
@@ -198,21 +189,26 @@ export const FileDisplay = ({
 
   const handleDelete = async (fileId: string, filePath: string) => {
     try {
+      console.log("🗑️ FileDisplay - Starting delete for file:", fileId);
       setDeletingFileId(fileId);
       
-      const effectiveBucket = validatedBuckets[fileId] || bucketName;
-      const normalizedPath = normalizeFilePath(filePath);
+      const cleanPath = filePath.replace(/^\/+/, '');
       
-      console.log(`Deleting file from ${effectiveBucket}:${normalizedPath}`);
-      
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from(effectiveBucket)
-        .remove([normalizedPath]);
-
-      if (storageError) {
-        console.error('Storage deletion error:', storageError);
-        throw storageError;
+      // Delete from storage - try all possible buckets
+      const bucketsToTry = [bucketName, ...fallbackBuckets];
+      for (const bucket of bucketsToTry) {
+        try {
+          const { error: storageError } = await supabase.storage
+            .from(bucket)
+            .remove([cleanPath]);
+          
+          if (!storageError) {
+            console.log("✅ FileDisplay - File deleted from storage bucket:", bucket);
+            break;
+          }
+        } catch (error) {
+          console.log("❌ FileDisplay - Failed to delete from bucket:", bucket, error);
+        }
       }
       
       // Delete from database - determine correct table
@@ -228,16 +224,18 @@ export const FileDisplay = ({
         tableName = "event_files";
       }
       
-      console.log(`Deleting file record from ${tableName}, id: ${fileId}`);
+      console.log("🗑️ FileDisplay - Deleting from database table:", tableName);
       const { error: dbError } = await supabase
         .from(tableName)
         .delete()
         .eq('id', fileId);
         
       if (dbError) {
-        console.error(`Database deletion error from ${tableName}:`, dbError);
+        console.error("❌ FileDisplay - Database deletion error:", dbError);
         throw dbError;
       }
+      
+      console.log("✅ FileDisplay - File deleted successfully");
       
       // Call callback and invalidate queries
       if (onFileDeleted) {
@@ -254,7 +252,7 @@ export const FileDisplay = ({
         description: t("common.fileDeleted"),
       });
     } catch (error) {
-      console.error('Delete error:', error);
+      console.error('💥 FileDisplay - Delete error:', error);
       toast({
         title: t("common.error"),
         description: t("common.deleteError"),
@@ -266,13 +264,17 @@ export const FileDisplay = ({
   };
 
   if (!uniqueFiles || uniqueFiles.length === 0) {
+    console.log("📁 FileDisplay - No files to display");
     return null;
   }
 
   return (
     <div className="space-y-2">
       {uniqueFiles.map((file) => {
-        if (!file.file_path) return null;
+        if (!file.file_path) {
+          console.log("⚠️ FileDisplay - Skipping file with no path:", file.filename);
+          return null;
+        }
         
         const fileNameDisplay = file.filename && file.filename.length > 20 
           ? file.filename.substring(0, 20) + '...' 
@@ -291,7 +293,7 @@ export const FileDisplay = ({
                       alt={file.filename}
                       className="h-full w-full object-cover"
                       onError={(e) => {
-                        console.error('Image load failed:', imageUrl);
+                        console.error('🖼️ FileDisplay - Image load failed:', imageUrl);
                         e.currentTarget.src = '/placeholder.svg';
                       }}
                     />

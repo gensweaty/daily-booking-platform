@@ -60,8 +60,11 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   const displayedError = fileError || localError;
   const displayedSetError = setFileError || setLocalError;
 
+  console.log("📁 FileUploadField - Component rendered with file:", displayedFile?.name);
+
   useEffect(() => {
     if (selectedFile !== undefined) {
+      console.log("📁 FileUploadField - External selectedFile changed:", selectedFile?.name);
       setLocalSelectedFile(selectedFile);
     }
   }, [selectedFile]);
@@ -93,7 +96,7 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     
-    console.log('📁 FileUploadField - File selected:', file?.name);
+    console.log('📁 FileUploadField - File input changed, file:', file?.name);
     
     if (!file) {
       console.log('📁 FileUploadField - No file selected, clearing state');
@@ -117,18 +120,24 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
     setLocalSelectedFile(file);
     
     // Call all the callback functions
-    onChange?.(file);
-    onFileChange?.(file);
-    
-    if (onFileSelect) {
-      try {
+    try {
+      console.log('📁 FileUploadField - Calling onChange callback');
+      onChange?.(file);
+      
+      console.log('📁 FileUploadField - Calling onFileChange callback');
+      onFileChange?.(file);
+      
+      if (onFileSelect) {
         console.log('📁 FileUploadField - Calling onFileSelect callback');
         await onFileSelect(file);
         console.log('✅ FileUploadField - onFileSelect completed successfully');
-      } catch (error) {
-        console.error('❌ FileUploadField - Error in onFileSelect:', error);
-        displayedSetError("Error processing file");
       }
+    } catch (error) {
+      console.error('❌ FileUploadField - Error in file callbacks:', error);
+      displayedSetError("Error processing file");
+      setLocalSelectedFile(null);
+      onChange?.(null);
+      onFileChange?.(null);
     }
   };
 
