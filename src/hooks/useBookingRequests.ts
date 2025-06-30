@@ -174,9 +174,9 @@ export const useBookingRequests = () => {
     }
 
     try {
-      console.log(`Sending approval email to ${email} for booking at ${businessName} with language: ${language || 'not specified'}`);
+      console.log(`🔥 SENDING EMAIL: ${email} for booking at ${businessName} with language: ${language || 'not specified'}`);
       
-      // Log all data being sent in the request
+      // Log all data being sent in the request  
       const requestBody = {
         recipientEmail: email.trim(),
         fullName: fullName || "",
@@ -190,7 +190,7 @@ export const useBookingRequests = () => {
         eventNotes: eventNotes
       };
       
-      console.log("Email request payload:", {
+      console.log("📧 Email request payload:", {
         ...requestBody,
         recipientEmail: email.trim().substring(0, 3) + '***' // Mask email for privacy in logs
       });
@@ -200,7 +200,7 @@ export const useBookingRequests = () => {
       const accessToken = sessionData.session?.access_token;
       
       if (!accessToken) {
-        console.error("No access token available for authenticated request");
+        console.error("❌ No access token available for authenticated request");
         return { success: false, error: "Authentication error" };
       }
       
@@ -217,14 +217,17 @@ export const useBookingRequests = () => {
         }
       );
       
+      console.log(`📡 Email API response status: ${response.status}`);
+      
       // Read the response as text first
       const responseText = await response.text();
+      console.log(`📨 Email API response body:`, responseText);
       
       let data;
       try {
         data = responseText ? JSON.parse(responseText) : {};
       } catch (e) {
-        console.error("Failed to parse response JSON:", e);
+        console.error("❌ Failed to parse response JSON:", e);
         if (!response.ok) {
           return { success: false, error: `Invalid response (status ${response.status})` };
         }
@@ -232,21 +235,21 @@ export const useBookingRequests = () => {
       }
       
       if (!response.ok) {
-        console.error("Failed to send approval email:", data);
+        console.error("❌ Failed to send approval email:", data);
         return { success: false, error: data.error || data.details || "Failed to send email" };
       } else {
-        console.log("Email API response success:", data);
+        console.log("✅ Email API response success:", data);
         return { success: true, data };
       }
     } catch (err) {
-      console.error("Error calling Edge Function:", err);
+      console.error("❌ Error calling Edge Function:", err);
       return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
     }
   }, []);
 
   const approveMutation = useMutation({
     mutationFn: async (bookingId: string) => {
-      console.log('Starting approval process for booking:', bookingId);
+      console.log('🔥 Starting approval process for booking:', bookingId);
       
       if (!user?.id) {
         throw new Error('User not authenticated');
@@ -261,12 +264,17 @@ export const useBookingRequests = () => {
       if (fetchError) throw fetchError;
       if (!booking) throw new Error('Booking request not found');
       
-      // Log the booking details including language
-      console.log('Booking details for approval:', {
+      // Log the booking details including language and additional persons
+      console.log('📋 Booking details for approval:', {
         id: booking.id,
         requester_name: booking.requester_name,
+        requester_email: booking.requester_email,
         language: booking.language || 'not set',
-        payment_status: booking.payment_status
+        payment_status: booking.payment_status,
+        user_surname: booking.user_surname,
+        user_number: booking.user_number,
+        social_network_link: booking.social_network_link,
+        event_notes: booking.event_notes
       });
       
       // Check for conflicts
@@ -292,19 +300,6 @@ export const useBookingRequests = () => {
         throw new Error('Time slot is no longer available');
       }
       
-      // Parse additional persons from the booking request
-      let additionalPersonsFromBooking = [];
-      try {
-        if (booking.additional_persons && typeof booking.additional_persons === 'string') {
-          additionalPersonsFromBooking = JSON.parse(booking.additional_persons);
-        } else if (Array.isArray(booking.additional_persons)) {
-          additionalPersonsFromBooking = booking.additional_persons;
-        }
-      } catch (e) {
-        console.log('No additional persons or parsing error:', e);
-        additionalPersonsFromBooking = [];
-      }
-      
       // Use transaction to update booking status
       const { error: updateError } = await supabase
         .from('booking_requests')
@@ -313,57 +308,53 @@ export const useBookingRequests = () => {
       
       if (updateError) throw updateError;
       
-      // Prepare data for event and customer creation
+      // Prepare data for event creation using the save_event_with_persons function
       const eventData = {
         title: booking.title,
         start_date: booking.start_date,
         end_date: booking.end_date,
-        user_id: user.id,
         user_surname: booking.requester_name,
         user_number: booking.requester_phone || booking.user_number || null,
         social_network_link: booking.requester_email || booking.social_network_link || null,
         event_notes: booking.description || booking.event_notes || null,
         type: 'booking_request',
-        booking_request_id: booking.id,
         payment_status: booking.payment_status || 'not_paid',
         payment_amount: booking.payment_amount,
         language: booking.language || language
       };
+
+      // Parse additional persons - this is where the email recipients come from
+      let additionalPersonsFromBooking = [];
+      if (booking.user_surname && booking.user_surname !== booking.requester_name && booking.social_network_link && booking.social_network_link.includes('@')) {
+        // This looks like we have additional person data stored in booking fields
+        const additionalPerson = {
+          userSurname: booking.user_surname,
+          userNumber: booking.user_number,
+          socialNetworkLink: booking.social_network_link,
+          eventNotes: booking.event_notes,
+          paymentStatus: booking.payment_status,
+          paymentAmount: booking.payment_amount
+        };
+        additionalPersonsFromBooking.push(additionalPerson);
+        console.log('📋 Found additional person in booking fields:', additionalPerson);
+      }
+
+      // Create event and customer records using the database function
+      const { data: savedEventId, error: saveError } = await supabase
+        .rpc('save_event_with_persons', {
+          p_event_data: eventData,
+          p_additional_persons: additionalPersonsFromBooking,
+          p_user_id: user.id
+        });
       
-      const customerData = {
-        title: booking.requester_name,
-        user_surname: booking.user_surname || null,
-        user_number: booking.requester_phone || booking.user_number || null,
-        social_network_link: booking.requester_email || booking.social_network_link || null,
-        event_notes: booking.description || booking.event_notes || null,
-        start_date: booking.start_date,
-        end_date: booking.end_date,
-        user_id: user.id,
-        type: 'booking_request',
-        payment_status: booking.payment_status,
-        payment_amount: booking.payment_amount
-      };
-      
-      // Create event and customer records in parallel
-      const [eventResult, customerResult] = await Promise.all([
-        supabase.from('events').insert(eventData).select().single(),
-        supabase.from('customers').insert(customerData).select().single()
-      ]);
-      
-      if (eventResult.error) {
-        console.error('Error creating event from booking:', eventResult.error);
-        throw eventResult.error;
+      if (saveError) {
+        console.error('❌ Error saving event with persons:', saveError);
+        throw saveError;
       }
       
-      if (customerResult.error) {
-        console.error('Error creating customer from booking:', customerResult.error);
-        // Continue with the approval even if customer creation fails
-      }
+      console.log('✅ Event saved with ID:', savedEventId);
       
-      const eventData2 = eventResult.data;
-      const customerData2 = customerResult.data;
-      
-      // Process files in parallel instead of sequentially
+      // Process files in parallel
       const processFiles = async () => {
         try {
           // Fetch all files from event_files linked to the booking request
@@ -398,23 +389,15 @@ export const useBookingRequests = () => {
                 }
                 
                 // Generate unique paths for both buckets to avoid conflicts
-                const eventFilePath = `event_${eventData2.id}/${Date.now()}_${file.filename.replace(/\s+/g, '_')}`;
-                const customerFilePath = customerData2 ? `customer_${customerData2.id}/${Date.now()}_${file.filename.replace(/\s+/g, '_')}` : null;
+                const eventFilePath = `event_${savedEventId}/${Date.now()}_${file.filename.replace(/\s+/g, '_')}`;
                 
-                // Upload files in parallel
-                const [eventUpload, customerUpload] = await Promise.all([
-                  supabase.storage
-                    .from('event_attachments')
-                    .upload(eventFilePath, fileData),
-                  customerFilePath ? 
-                    supabase.storage
-                      .from('customer_attachments')
-                      .upload(customerFilePath, fileData) : 
-                    Promise.resolve({ error: null })
-                ]);
+                // Upload file to event_attachments
+                const { error: eventUploadError } = await supabase.storage
+                  .from('event_attachments')
+                  .upload(eventFilePath, fileData);
                 
-                if (eventUpload.error) {
-                  console.error('Error uploading file to event_attachments:', eventUpload.error);
+                if (eventUploadError) {
+                  console.error('Error uploading file to event_attachments:', eventUploadError);
                 } else {
                   console.log(`Successfully copied file to event_attachments/${eventFilePath}`);
                   
@@ -427,24 +410,7 @@ export const useBookingRequests = () => {
                       content_type: file.content_type,
                       size: file.size,
                       user_id: user?.id,
-                      event_id: eventData2.id
-                    });
-                }
-                
-                // Only upload to customer_attachments if we successfully created a customer and the upload succeeded
-                if (customerData2 && !customerUpload.error && customerFilePath) {
-                  console.log(`Successfully copied file to customer_attachments/${customerFilePath}`);
-                  
-                  // Create customer file record
-                  await supabase
-                    .from('customer_files_new')
-                    .insert({
-                      filename: file.filename,
-                      file_path: customerFilePath,
-                      content_type: file.content_type,
-                      size: file.size,
-                      user_id: user?.id,
-                      customer_id: customerData2.id
+                      event_id: savedEventId
                     });
                 }
               } catch (error) {
@@ -468,24 +434,16 @@ export const useBookingRequests = () => {
               } 
               
               if (fileData) {
-                // Generate unique paths for both buckets to avoid conflicts
-                const eventFilePath = `event_${eventData2.id}/${Date.now()}_${(booking.filename || 'attachment').replace(/\s+/g, '_')}`;
-                const customerFilePath = customerData2 ? `customer_${customerData2.id}/${Date.now()}_${(booking.filename || 'attachment').replace(/\s+/g, '_')}` : null;
+                // Generate unique paths for event attachments
+                const eventFilePath = `event_${savedEventId}/${Date.now()}_${(booking.filename || 'attachment').replace(/\s+/g, '_')}`;
                 
-                // Upload files in parallel
-                const [eventUpload, customerUpload] = await Promise.all([
-                  supabase.storage
-                    .from('event_attachments')
-                    .upload(eventFilePath, fileData),
-                  customerFilePath ?
-                    supabase.storage
-                      .from('customer_attachments')
-                      .upload(customerFilePath, fileData) :
-                    Promise.resolve({ error: null })
-                ]);
+                // Upload file to event_attachments
+                const { error: eventUploadError } = await supabase.storage
+                  .from('event_attachments')
+                  .upload(eventFilePath, fileData);
                 
-                if (eventUpload.error) {
-                  console.error('Error uploading direct file to event_attachments:', eventUpload.error);
+                if (eventUploadError) {
+                  console.error('Error uploading direct file to event_attachments:', eventUploadError);
                 } else {
                   console.log(`Successfully copied direct file to event_attachments/${eventFilePath}`);
                   
@@ -498,24 +456,7 @@ export const useBookingRequests = () => {
                       content_type: booking.content_type || 'application/octet-stream',
                       size: booking.size || 0,
                       user_id: user?.id,
-                      event_id: eventData2.id
-                    });
-                }
-                
-                // Only upload to customer_attachments if we successfully created a customer and the upload succeeded
-                if (customerData2 && !customerUpload.error && customerFilePath) {
-                  console.log(`Successfully copied direct file to customer_attachments/${customerFilePath}`);
-                  
-                  // Create customer file record
-                  await supabase
-                    .from('customer_files_new')
-                    .insert({
-                      filename: booking.filename || 'attachment',
-                      file_path: customerFilePath,
-                      content_type: booking.content_type || 'application/octet-stream',
-                      size: booking.size || 0,
-                      user_id: user?.id,
-                      customer_id: customerData2.id
+                      event_id: savedEventId
                     });
                 }
               }
@@ -531,53 +472,49 @@ export const useBookingRequests = () => {
       // Start file processing but don't wait for it to complete
       const fileProcessingPromise = processFiles();
       
-      // FIXED: Send email notifications to ALL attendees
+      // 🔥 EMAIL SENDING LOGIC - This is the critical part that was broken
       console.log('🔥 Starting email notifications to all attendees');
       
-      if (businessProfile?.contact_address) { // Only send emails if business address is available
+      if (businessProfile?.contact_address) {
         const businessName = businessProfile?.business_name || "Our Business";
         const contactAddress = businessProfile?.contact_address;
         
         // Collect all email recipients
         const emailRecipients = [];
         
-        // Add main requester
+        // Add main requester - ALWAYS add this first
         if (booking.requester_email) {
           emailRecipients.push({
             email: booking.requester_email,
-            fullName: booking.requester_name || booking.user_surname || "",
+            fullName: booking.requester_name || "",
             paymentStatus: booking.payment_status,
             paymentAmount: booking.payment_amount,
             eventNotes: booking.description || booking.event_notes || null
           });
+          console.log(`📧 Added main requester to email list: ${booking.requester_email}`);
         }
         
-        // Add additional persons who have email addresses
-        if (additionalPersonsFromBooking && additionalPersonsFromBooking.length > 0) {
-          console.log(`📧 Found ${additionalPersonsFromBooking.length} additional persons to notify`);
-          
-          additionalPersonsFromBooking.forEach((person, index) => {
-            // Check multiple possible email field names
-            const personEmail = person.socialNetworkLink || person.social_network_link || person.email;
-            
-            if (personEmail && personEmail.includes('@')) {
-              emailRecipients.push({
-                email: personEmail,
-                fullName: person.userSurname || person.user_surname || person.name || `Guest ${index + 1}`,
-                paymentStatus: person.paymentStatus || person.payment_status || booking.payment_status,
-                paymentAmount: person.paymentAmount || person.payment_amount || booking.payment_amount,
-                eventNotes: person.eventNotes || person.event_notes || booking.description || booking.event_notes || null
-              });
-            } else {
-              console.log(`⚠️ Additional person ${index + 1} has no valid email:`, person);
-            }
+        // Add additional persons from the booking fields
+        if (booking.user_surname && booking.user_surname !== booking.requester_name && booking.social_network_link && booking.social_network_link.includes('@')) {
+          emailRecipients.push({
+            email: booking.social_network_link,
+            fullName: booking.user_surname,
+            paymentStatus: booking.payment_status,
+            paymentAmount: booking.payment_amount,
+            eventNotes: booking.event_notes
           });
+          console.log(`📧 Added additional person to email list: ${booking.social_network_link}`);
         }
         
-        console.log(`📬 Sending emails to ${emailRecipients.length} recipients`);
+        console.log(`📬 Total email recipients: ${emailRecipients.length}`);
+        console.log(`📬 Recipients list:`, emailRecipients.map(r => ({ email: r.email, name: r.fullName })));
+        
+        if (emailRecipients.length === 0) {
+          console.warn('⚠️ No valid email recipients found for booking:', bookingId);
+        }
         
         // Send emails to all recipients
-        const emailPromises = emailRecipients.map(async (recipient) => {
+        const emailPromises = emailRecipients.map(async (recipient, index) => {
           const emailParams = {
             email: recipient.email,
             fullName: recipient.fullName,
@@ -591,18 +528,18 @@ export const useBookingRequests = () => {
             eventNotes: recipient.eventNotes
           };
           
-          console.log(`📧 Sending email to: ${recipient.email} (${recipient.fullName})`);
+          console.log(`📧 [${index + 1}/${emailRecipients.length}] Sending email to: ${recipient.email} (${recipient.fullName})`);
           
           try {
             const emailResult = await sendApprovalEmail(emailParams);
             if (emailResult.success) {
-              console.log(`✅ Email sent successfully to ${recipient.email}`);
+              console.log(`✅ [${index + 1}/${emailRecipients.length}] Email sent successfully to ${recipient.email}`);
             } else {
-              console.error(`❌ Failed to send email to ${recipient.email}:`, emailResult.error);
+              console.error(`❌ [${index + 1}/${emailRecipients.length}] Failed to send email to ${recipient.email}:`, emailResult.error);
             }
             return emailResult;
           } catch (error) {
-            console.error(`❌ Exception sending email to ${recipient.email}:`, error);
+            console.error(`❌ [${index + 1}/${emailRecipients.length}] Exception sending email to ${recipient.email}:`, error);
             return { success: false, error: error.message };
           }
         });
@@ -613,16 +550,34 @@ export const useBookingRequests = () => {
           const successCount = emailResults.filter(r => r.success).length;
           const failCount = emailResults.filter(r => !r.success).length;
           
-          console.log(`📊 Email summary: ${successCount} sent, ${failCount} failed`);
+          console.log(`📊 Email summary: ${successCount} sent, ${failCount} failed out of ${emailRecipients.length} total`);
           
           if (failCount > 0) {
             console.warn(`⚠️ Some emails failed to send (${failCount}/${emailRecipients.length})`);
+            // Show a warning but don't fail the entire process
+            toast({
+              variant: "destructive",
+              title: "Partial Email Failure",
+              description: `Booking approved but ${failCount} confirmation emails failed to send.`
+            });
+          } else if (successCount > 0) {
+            console.log(`🎉 All ${successCount} confirmation emails sent successfully!`);
           }
         } catch (error) {
           console.error('❌ Error in bulk email sending:', error);
+          toast({
+            variant: "destructive",
+            title: "Email Error",
+            description: "Booking approved but confirmation emails failed to send."
+          });
         }
       } else {
         console.log('⚠️ No business address configured - skipping email notifications');
+        toast({
+          variant: "destructive",
+          title: "Email Configuration Missing",
+          description: "Booking approved but no business address configured for email notifications."
+        });
       }
 
       console.log('✅ Booking approval process completed successfully');
