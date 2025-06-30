@@ -346,9 +346,11 @@ export const EventDialog = ({
       if (error) throw error;
 
       // Handle file upload if there's a selected file
-      if (selectedFile && savedEventId && user) {
+      if (selectedFile && user) {
+        // Use the correct event ID for file operations
+        const eventIdForFiles = actualEventId || savedEventId;
         const fileExt = selectedFile.name.split('.').pop();
-        const filePath = `${savedEventId}/${crypto.randomUUID()}.${fileExt}`;
+        const filePath = `${eventIdForFiles}/${crypto.randomUUID()}.${fileExt}`;
 
         // Upload file to storage
         const { error: uploadError } = await supabase.storage
@@ -365,7 +367,7 @@ export const EventDialog = ({
         } else {
           // Create file record in event_files table
           const fileData = {
-            event_id: savedEventId,
+            event_id: eventIdForFiles,
             filename: selectedFile.name,
             file_path: filePath,
             content_type: selectedFile.type,
@@ -387,32 +389,17 @@ export const EventDialog = ({
           } else {
             console.log('✅ File uploaded and recorded successfully');
             
-            // Force refresh the displayed files for the correct event ID
-            const eventIdForFiles = actualEventId || savedEventId;
-            console.log('🔄 Refreshing files for event ID:', eventIdForFiles);
-            
-            // Wait a moment for the database to be consistent
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            try {
-              const refreshedFiles = await fetchEventFiles(eventIdForFiles);
-              console.log('📁 Refreshed files count:', refreshedFiles.length);
-              setDisplayedFiles(refreshedFiles);
-              
-              // Also clear the selected file
-              setSelectedFile(null);
-            } catch (refreshError) {
-              console.error('Error refreshing files:', refreshError);
-              // Fallback: try to reload files after a longer delay
-              setTimeout(async () => {
-                try {
-                  const fallbackFiles = await fetchEventFiles(eventIdForFiles);
-                  console.log('📁 Fallback files count:', fallbackFiles.length);
-                  setDisplayedFiles(fallbackFiles);
-                } catch (fallbackError) {
-                  console.error('Fallback file refresh failed:', fallbackError);
-                }
-              }, 500);
+            // FIXED: Refresh files BEFORE closing the dialog
+            if (eventIdForFiles) {
+              try {
+                const refreshedFiles = await fetchEventFiles(eventIdForFiles);
+                console.log('📁 Refreshed files count:', refreshedFiles.length);
+                setDisplayedFiles(refreshedFiles);
+                // Clear selected file
+                setSelectedFile(null);
+              } catch (refreshError) {
+                console.error('Error refreshing files:', refreshError);
+              }
             }
           }
         }
@@ -430,6 +417,8 @@ export const EventDialog = ({
       } else {
         onEventCreated?.();
       }
+      
+      // FIXED: Close dialog AFTER file refresh is complete
       onOpenChange(false);
     } catch (error) {
       console.error("Error saving event:", error);
