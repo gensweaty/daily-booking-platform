@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { format, addYears, endOfYear } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -386,7 +385,7 @@ export const EventDialog = ({
           } else {
             console.log('✅ File uploaded and recorded successfully');
             
-            // Refresh the displayed files
+            // Refresh the displayed files immediately after successful upload
             const refreshedFiles = await fetchEventFiles(savedEventId);
             setDisplayedFiles(refreshedFiles);
           }
