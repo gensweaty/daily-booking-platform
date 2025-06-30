@@ -1,6 +1,5 @@
+
 import { useEffect } from 'react';
-import { RouterProvider } from 'react-router-dom';
-import { router } from './router';
 import { AuthProvider } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { initializeStorage } from './lib/storage-init';
@@ -14,7 +13,10 @@ function App() {
   return (
     <AuthProvider>
       <LanguageProvider>
-        <RouterProvider router={router} />
+        <div>
+          <h1>App is running</h1>
+          <p>Storage initialization in progress...</p>
+        </div>
       </LanguageProvider>
     </AuthProvider>
   );
