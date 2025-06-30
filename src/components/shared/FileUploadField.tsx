@@ -67,12 +67,13 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   }, [selectedFile]);
 
   const validateFile = (file: File): boolean => {
-    console.log('Validating file:', file.name, 'Type:', file.type, 'Size:', file.size);
+    console.log('🔍 FileUploadField - Validating file:', file.name, 'Type:', file.type, 'Size:', file.size);
     
     const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
     const isDoc = ALLOWED_DOC_TYPES.includes(file.type);
     
     if (!isImage && !isDoc) {
+      console.log('❌ FileUploadField - Invalid file type:', file.type);
       displayedSetError("Please select a valid file type (PDF, DOC, DOCX, XLS, XLSX, JPG, PNG)");
       return false;
     }
@@ -80,19 +81,22 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
     const maxSize = isImage ? MAX_FILE_SIZE_IMAGES : MAX_FILE_SIZE_DOCS;
     if (file.size > maxSize) {
       const maxSizeMB = maxSize / (1024 * 1024);
+      console.log('❌ FileUploadField - File too large:', file.size, 'Max:', maxSize);
       displayedSetError(`File size must be less than ${maxSizeMB}MB`);
       return false;
     }
     
+    console.log('✅ FileUploadField - File validation passed');
     return true;
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     
-    console.log('File selected:', file?.name);
+    console.log('📁 FileUploadField - File selected:', file?.name);
     
     if (!file) {
+      console.log('📁 FileUploadField - No file selected, clearing state');
       setLocalSelectedFile(null);
       onChange?.(null);
       onFileChange?.(null);
@@ -101,14 +105,14 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
     }
 
     if (!validateFile(file)) {
-      console.log('File validation failed');
+      console.log('❌ FileUploadField - File validation failed');
       setLocalSelectedFile(null);
       onChange?.(null);
       onFileChange?.(null);
       return;
     }
 
-    console.log('File validation passed');
+    console.log('✅ FileUploadField - File validation passed, updating state');
     displayedSetError("");
     setLocalSelectedFile(file);
     
@@ -118,9 +122,11 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
     
     if (onFileSelect) {
       try {
+        console.log('📁 FileUploadField - Calling onFileSelect callback');
         await onFileSelect(file);
+        console.log('✅ FileUploadField - onFileSelect completed successfully');
       } catch (error) {
-        console.error('Error in onFileSelect:', error);
+        console.error('❌ FileUploadField - Error in onFileSelect:', error);
         displayedSetError("Error processing file");
       }
     }
@@ -187,5 +193,3 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
 });
 
 FileUploadField.displayName = "FileUploadField";
-
-export { FileUploadField };
