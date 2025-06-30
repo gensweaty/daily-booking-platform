@@ -154,7 +154,8 @@ export const useBookingRequests = () => {
     paymentStatus, 
     paymentAmount, 
     businessAddress,
-    language // Add language parameter
+    language,
+    eventNotes
   }: {
     email: string;
     fullName: string;
@@ -164,7 +165,8 @@ export const useBookingRequests = () => {
     paymentStatus?: string;
     paymentAmount?: number;
     businessAddress?: string;
-    language?: string; // Add language parameter type
+    language?: string;
+    eventNotes?: string;
   }) => {
     if (!email || !email.includes('@')) {
       console.error("Invalid email format or missing email:", email);
@@ -183,8 +185,9 @@ export const useBookingRequests = () => {
         endDate: endDate,
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
-        businessAddress: businessAddress, // Pass the address as is
-        language: language // Pass language parameter to the edge function
+        businessAddress: businessAddress,
+        language: language,
+        eventNotes: eventNotes
       };
       
       console.log("Email request payload:", {
@@ -249,9 +252,6 @@ export const useBookingRequests = () => {
         throw new Error('User not authenticated');
       }
       
-      // Remove the loading toast notification since we have button loading animations
-      // This was displaying "Processing approval... Please wait while we process your request."
-      
       const { data: booking, error: fetchError } = await supabase
         .from('booking_requests')
         .select('*')
@@ -292,6 +292,19 @@ export const useBookingRequests = () => {
         throw new Error('Time slot is no longer available');
       }
       
+      // Parse additional persons from the booking request
+      let additionalPersonsFromBooking = [];
+      try {
+        if (booking.additional_persons && typeof booking.additional_persons === 'string') {
+          additionalPersonsFromBooking = JSON.parse(booking.additional_persons);
+        } else if (Array.isArray(booking.additional_persons)) {
+          additionalPersonsFromBooking = booking.additional_persons;
+        }
+      } catch (e) {
+        console.log('No additional persons or parsing error:', e);
+        additionalPersonsFromBooking = [];
+      }
+      
       // Use transaction to update booking status
       const { error: updateError } = await supabase
         .from('booking_requests')
@@ -314,7 +327,7 @@ export const useBookingRequests = () => {
         booking_request_id: booking.id,
         payment_status: booking.payment_status || 'not_paid',
         payment_amount: booking.payment_amount,
-        language: booking.language || language // Preserve the booking's original language or use UI language
+        language: booking.language || language
       };
       
       const customerData = {
@@ -518,38 +531,101 @@ export const useBookingRequests = () => {
       // Start file processing but don't wait for it to complete
       const fileProcessingPromise = processFiles();
       
-      // Send email notification (using cached business profile data)
-      if (booking.requester_email) {
-        // Use the cached business profile info instead of making another database call
+      // FIXED: Send email notifications to ALL attendees
+      console.log('🔥 Starting email notifications to all attendees');
+      
+      if (businessProfile?.contact_address) { // Only send emails if business address is available
         const businessName = businessProfile?.business_name || "Our Business";
-        const contactAddress = businessProfile?.contact_address || null;
+        const contactAddress = businessProfile?.contact_address;
         
-        // Prepare email parameters
-        const emailParams = {
-          email: booking.requester_email,
-          fullName: booking.requester_name || booking.user_surname || "",
-          businessName,
-          startDate: booking.start_date,
-          endDate: booking.end_date,
-          paymentStatus: booking.payment_status,
-          paymentAmount: booking.payment_amount,
-          businessAddress: contactAddress,
-          language: booking.language || language // Pass the booking's language or fallback to UI language
-        };
+        // Collect all email recipients
+        const emailRecipients = [];
         
-        console.log('Sending approval email with language:', emailParams.language);
+        // Add main requester
+        if (booking.requester_email) {
+          emailRecipients.push({
+            email: booking.requester_email,
+            fullName: booking.requester_name || booking.user_surname || "",
+            paymentStatus: booking.payment_status,
+            paymentAmount: booking.payment_amount,
+            eventNotes: booking.description || booking.event_notes || null
+          });
+        }
         
-        // Send email but don't block the approval process completion
-        sendApprovalEmail(emailParams).then(emailResult => {
-          if (emailResult.success) {
-            console.log("Email notification processed during booking approval");
-          } else {
-            console.error("Failed to process email during booking approval:", emailResult.error);
+        // Add additional persons who have email addresses
+        if (additionalPersonsFromBooking && additionalPersonsFromBooking.length > 0) {
+          console.log(`📧 Found ${additionalPersonsFromBooking.length} additional persons to notify`);
+          
+          additionalPersonsFromBooking.forEach((person, index) => {
+            // Check multiple possible email field names
+            const personEmail = person.socialNetworkLink || person.social_network_link || person.email;
+            
+            if (personEmail && personEmail.includes('@')) {
+              emailRecipients.push({
+                email: personEmail,
+                fullName: person.userSurname || person.user_surname || person.name || `Guest ${index + 1}`,
+                paymentStatus: person.paymentStatus || person.payment_status || booking.payment_status,
+                paymentAmount: person.paymentAmount || person.payment_amount || booking.payment_amount,
+                eventNotes: person.eventNotes || person.event_notes || booking.description || booking.event_notes || null
+              });
+            } else {
+              console.log(`⚠️ Additional person ${index + 1} has no valid email:`, person);
+            }
+          });
+        }
+        
+        console.log(`📬 Sending emails to ${emailRecipients.length} recipients`);
+        
+        // Send emails to all recipients
+        const emailPromises = emailRecipients.map(async (recipient) => {
+          const emailParams = {
+            email: recipient.email,
+            fullName: recipient.fullName,
+            businessName,
+            startDate: booking.start_date,
+            endDate: booking.end_date,
+            paymentStatus: recipient.paymentStatus,
+            paymentAmount: recipient.paymentAmount,
+            businessAddress: contactAddress,
+            language: booking.language || language,
+            eventNotes: recipient.eventNotes
+          };
+          
+          console.log(`📧 Sending email to: ${recipient.email} (${recipient.fullName})`);
+          
+          try {
+            const emailResult = await sendApprovalEmail(emailParams);
+            if (emailResult.success) {
+              console.log(`✅ Email sent successfully to ${recipient.email}`);
+            } else {
+              console.error(`❌ Failed to send email to ${recipient.email}:`, emailResult.error);
+            }
+            return emailResult;
+          } catch (error) {
+            console.error(`❌ Exception sending email to ${recipient.email}:`, error);
+            return { success: false, error: error.message };
           }
         });
+        
+        // Wait for all emails to be sent
+        try {
+          const emailResults = await Promise.all(emailPromises);
+          const successCount = emailResults.filter(r => r.success).length;
+          const failCount = emailResults.filter(r => !r.success).length;
+          
+          console.log(`📊 Email summary: ${successCount} sent, ${failCount} failed`);
+          
+          if (failCount > 0) {
+            console.warn(`⚠️ Some emails failed to send (${failCount}/${emailRecipients.length})`);
+          }
+        } catch (error) {
+          console.error('❌ Error in bulk email sending:', error);
+        }
+      } else {
+        console.log('⚠️ No business address configured - skipping email notifications');
       }
 
-      console.log('Booking approval process completed successfully');
+      console.log('✅ Booking approval process completed successfully');
       return booking;
     },
     onSuccess: () => {
