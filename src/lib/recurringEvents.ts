@@ -168,15 +168,30 @@ export const filterDeletedInstances = (instances: CalendarEventType[], deletionE
 };
 
 export const isVirtualInstance = (eventId: string): boolean => {
-  const match = eventId.match(/\d{4}-\d{2}-\d{2}$/);
-  return match !== null;
+  // Check if the ID ends with a date pattern (YYYY-MM-DD)
+  const datePattern = /\d{4}-\d{2}-\d{2}$/;
+  return datePattern.test(eventId);
 };
 
 export const getParentEventId = (eventId: string): string => {
-  if (isVirtualInstance(eventId)) {
-    return eventId.split("-").slice(0, -3).join("-"); // Remove the date suffix
+  if (!isVirtualInstance(eventId)) {
+    return eventId;
   }
-  return eventId;
+  
+  // For virtual instances, remove the date suffix to get parent ID
+  // Pattern: "uuid-YYYY-MM-DD" -> "uuid"
+  const datePattern = /-\d{4}-\d{2}-\d{2}$/;
+  return eventId.replace(datePattern, '');
+};
+
+export const getInstanceDate = (eventId: string): string | null => {
+  if (!isVirtualInstance(eventId)) {
+    return null;
+  }
+  
+  // Extract the date part from virtual instance ID
+  const match = eventId.match(/(\d{4}-\d{2}-\d{2})$/);
+  return match ? match[1] : null;
 };
 
 export const parseRepeatPattern = (pattern: string): string => {

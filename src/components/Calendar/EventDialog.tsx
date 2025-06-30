@@ -12,7 +12,7 @@ import { FileRecord } from "@/types/files";
 import { EventDialogFields } from "./EventDialogFields";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
-import { generateRecurringInstances, isVirtualInstance, getParentEventId } from "@/lib/recurringEvents";
+import { generateRecurringInstances, isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
 import { Trash } from "lucide-react";
 
 interface EventDialogProps {
@@ -458,28 +458,48 @@ export const EventDialog = ({
   };
 
   const handleDelete = async (deleteChoice?: "this" | "series") => {
-    if (!event) return;
+    if (!event || !deleteChoice) return;
     
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
       if (isRecurringEvent && deleteChoice) {
         // Handle recurring event deletion with choice
         if (isVirtualInstance(event.id)) {
-          const parentId = event.id.split("-").slice(0, -3).join("-");
-          const instanceDate = event.id.split("-").slice(-3).join("-");
+          const parentId = getParentEventId(event.id);
+          const instanceDate = getInstanceDate(event.id);
           
-          if (deleteChoice === "this") {
-            // Create deletion exception for this instance
+          console.log("Deleting virtual instance:", { 
+            eventId: event.id, 
+            parentId, 
+            instanceDate,
+            deleteChoice 
+          });
+          
+          if (deleteChoice === "this" && instanceDate) {
+            // Create deletion exception for this specific instance
+            const instanceStartDate = new Date(event.start_date);
+            const instanceEndDate = new Date(event.end_date);
+            
             const exceptionData = {
-              user_id: event.user_id,
-              title: `DELETED_EXCEPTION_${instanceDate}`,
-              start_date: instanceDate + 'T00:00:00.000Z',
-              end_date: instanceDate + 'T23:59:59.999Z',
+              user_id: user.id,
+              title: `${event.title || event.user_surname} - Deleted Instance`,
+              start_date: instanceStartDate.toISOString(),
+              end_date: instanceEndDate.toISOString(),
               type: 'deleted_exception',
               parent_event_id: parentId,
-              event_notes: `Exception for recurring event on ${instanceDate}`,
-              is_recurring: false
+              event_notes: `Deleted instance for date ${instanceDate}`,
+              is_recurring: false,
+              user_surname: event.user_surname,
+              user_number: event.user_number,
+              social_network_link: event.social_network_link,
+              payment_status: event.payment_status,
+              payment_amount: event.payment_amount
             };
+            
+            console.log("Creating deletion exception:", exceptionData);
             
             const { error } = await supabase
               .from('events')
@@ -487,7 +507,7 @@ export const EventDialog = ({
               
             if (error) throw error;
           } else if (deleteChoice === "series") {
-            // Delete the parent event
+            // Delete the parent event (entire series)
             const { error } = await supabase
               .from('events')
               .update({ deleted_at: new Date().toISOString() })
@@ -498,18 +518,28 @@ export const EventDialog = ({
         } else {
           // This is the base event of a recurring series
           if (deleteChoice === "this") {
-            // Create exception for first occurrence
-            const firstDate = new Date(event.start_date).toISOString().split('T')[0];
+            // Create exception for the first occurrence
+            const baseStartDate = new Date(event.start_date);
+            const baseEndDate = new Date(event.end_date);
+            const firstDate = format(baseStartDate, 'yyyy-MM-dd');
+            
             const exceptionData = {
-              user_id: event.user_id,
-              title: `DELETED_EXCEPTION_${firstDate}`,
-              start_date: firstDate + 'T00:00:00.000Z',
-              end_date: firstDate + 'T23:59:59.999Z',
+              user_id: user.id,
+              title: `${event.title || event.user_surname} - Deleted Instance`,
+              start_date: baseStartDate.toISOString(),
+              end_date: baseEndDate.toISOString(),
               type: 'deleted_exception',
               parent_event_id: event.id,
-              event_notes: `Exception for recurring event on ${firstDate}`,
-              is_recurring: false
+              event_notes: `Deleted first instance for date ${firstDate}`,
+              is_recurring: false,
+              user_surname: event.user_surname,
+              user_number: event.user_number,
+              social_network_link: event.social_network_link,
+              payment_status: event.payment_status,
+              payment_amount: event.payment_amount
             };
+            
+            console.log("Creating deletion exception for base event:", exceptionData);
             
             const { error } = await supabase
               .from('events')
@@ -527,7 +557,7 @@ export const EventDialog = ({
           }
         }
       } else {
-        // Regular event deletion
+        // Regular event deletion (fallback)
         const { error } = await supabase
           .from('events')
           .update({ deleted_at: new Date().toISOString() })
@@ -681,11 +711,21 @@ export const EventDialog = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowRegularDeleteConfirmation(false)}>
+            <AlertDialogCancel 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowRegularDeleteConfirmation(false);
+              }}
+            >
               {isGeorgian ? "გაუქმება" : t("common.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction 
-              onClick={handleRegularDelete}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleRegularDelete();
+              }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isGeorgian ? "წაშლა" : t("common.delete")}
@@ -709,17 +749,31 @@ export const EventDialog = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowDeleteConfirmation(false)}>
+            <AlertDialogCancel 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowDeleteConfirmation(false);
+              }}
+            >
               {isGeorgian ? "გაუქმება" : "Cancel"}
             </AlertDialogCancel>
             <AlertDialogAction 
-              onClick={() => handleDelete("this")}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDelete("this");
+              }}
               className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
             >
               {isGeorgian ? "მხოლოდ ეს მოვლენა" : "Delete this event only"}
             </AlertDialogAction>
             <AlertDialogAction 
-              onClick={() => handleDelete("series")}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDelete("series");
+              }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isGeorgian ? "მთელი სერია" : "Delete entire series"}
