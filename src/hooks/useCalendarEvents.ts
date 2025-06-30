@@ -82,6 +82,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
               repeat_pattern: event.repeat_pattern,
               repeat_until: event.repeat_until,
               language: event.language,
+              created_at: event.created_at || new Date().toISOString(),
             });
           }
         }
@@ -103,6 +104,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           payment_amount: booking.payment_amount,
           type: 'booking_request',
           language: booking.language,
+          created_at: booking.created_at || new Date().toISOString(),
         });
       }
 
@@ -158,7 +160,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       if (error) throw error;
 
-      return { id: savedEventId, ...eventData };
+      // Return a complete CalendarEventType object
+      return {
+        id: savedEventId,
+        title: eventData.user_surname || eventData.title || 'Untitled Event',
+        start_date: eventData.start_date || new Date().toISOString(),
+        end_date: eventData.end_date || new Date().toISOString(),
+        user_id: user.id,
+        type: eventData.type || 'event',
+        created_at: new Date().toISOString(),
+        ...eventData
+      } as CalendarEventType;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
@@ -212,7 +224,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       if (error) throw error;
 
-      return { ...eventData, id: savedEventId };
+      // Return a complete CalendarEventType object
+      return {
+        id: savedEventId,
+        title: eventData.user_surname || eventData.title || 'Untitled Event',
+        start_date: eventData.start_date || new Date().toISOString(),
+        end_date: eventData.end_date || new Date().toISOString(),
+        user_id: user.id,
+        type: eventData.type || 'event',
+        created_at: eventData.created_at || new Date().toISOString(),
+        ...eventData
+      } as CalendarEventType;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
