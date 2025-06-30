@@ -33,69 +33,61 @@ export const FileDisplay = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
-  console.log("📁 FileDisplay - Files received:", files.length, "files");
-  console.log("📁 FileDisplay - Primary bucket:", bucketName);
+  console.log("📁 FileDisplay - Initializing with:", {
+    filesCount: files.length,
+    primaryBucket: bucketName,
+    parentType,
+    parentId
+  });
 
-  // Remove duplicate files
+  // Remove duplicate files by ID
   const uniqueFiles = files.filter((file, index, self) => 
     index === self.findIndex(f => f.id === file.id)
   );
 
-  console.log("📁 FileDisplay - Unique files after dedup:", uniqueFiles.length);
+  console.log(`📁 FileDisplay - Processing ${uniqueFiles.length} unique files`);
 
   useEffect(() => {
     const setupFileUrls = async () => {
-      console.log("🔧 FileDisplay - Setting up file URLs for", uniqueFiles.length, "files");
+      if (uniqueFiles.length === 0) return;
+
+      console.log("🔧 FileDisplay - Setting up file URLs");
       const newURLs: {[key: string]: string} = {};
       
       for (const file of uniqueFiles) {
         if (!file.file_path) {
-          console.log("⚠️ FileDisplay - Skipping file with no path:", file.filename);
+          console.warn("⚠️ FileDisplay - File missing path:", file.filename);
           continue;
         }
         
-        // Clean file path - remove leading slashes
-        const cleanPath = file.file_path.replace(/^\/+/, '');
-        console.log("🔧 FileDisplay - Processing file:", file.filename, "Path:", cleanPath);
+        // Use file path as-is, only remove leading slash if present
+        const cleanPath = file.file_path.startsWith('/') ? file.file_path.substring(1) : file.file_path;
         
-        // Try primary bucket first, then fallbacks
-        const bucketsToTry = [bucketName, ...fallbackBuckets];
-        let fileUrl = null;
+        console.log(`🔧 FileDisplay - Processing file: ${file.filename}, path: ${cleanPath}`);
         
-        for (const bucket of bucketsToTry) {
-          try {
-            // Create public URL for the file
-            const { data } = supabase.storage
-              .from(bucket)
-              .getPublicUrl(cleanPath);
-            
-            if (data?.publicUrl) {
-              fileUrl = data.publicUrl;
-              console.log("✅ FileDisplay - Found file in bucket:", bucket, "URL:", fileUrl);
-              break;
-            }
-          } catch (error) {
-            console.log("❌ FileDisplay - Error accessing file in bucket:", bucket, error);
+        try {
+          // Always use event_attachments bucket first (matches our upload logic)
+          const { data } = supabase.storage
+            .from('event_attachments')
+            .getPublicUrl(cleanPath);
+          
+          if (data?.publicUrl) {
+            newURLs[file.id] = data.publicUrl;
+            console.log(`✅ FileDisplay - URL created for ${file.filename}: ${data.publicUrl}`);
+          } else {
+            console.warn(`⚠️ FileDisplay - Failed to create URL for ${file.filename}`);
           }
-        }
-        
-        if (fileUrl) {
-          newURLs[file.id] = fileUrl;
-        } else {
-          console.log("❌ FileDisplay - Could not find file:", file.filename, "in any bucket");
-          // Create fallback URL anyway
-          newURLs[file.id] = `${getStorageUrl()}/object/public/${bucketName}/${cleanPath}`;
+        } catch (error) {
+          console.error(`❌ FileDisplay - Error creating URL for ${file.filename}:`, error);
         }
       }
       
-      console.log("🔧 FileDisplay - Setup complete. URLs created:", Object.keys(newURLs).length);
+      console.log(`🔧 FileDisplay - Setup complete. Created ${Object.keys(newURLs).length} URLs`);
       setFileURLs(newURLs);
     };
     
-    if (uniqueFiles.length > 0) {
-      setupFileUrls();
-    }
-  }, [uniqueFiles, bucketName, fallbackBuckets]);
+    setupFileUrls();
+  }, [uniqueFiles]);
 
   const getFileExtension = (filename: string): string => {
     return filename.split('.').pop()?.toLowerCase() || '';
@@ -122,48 +114,38 @@ export const FileDisplay = ({
 
   const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
     try {
-      console.log("⬇️ FileDisplay - Starting download for:", fileName);
-      const cleanPath = filePath.replace(/^\/+/, '');
+      console.log(`⬇️ FileDisplay - Starting download: ${fileName}`);
       
-      // Try to download from primary bucket first
-      const bucketsToTry = [bucketName, ...fallbackBuckets];
-      let downloadSuccess = false;
+      const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
       
-      for (const bucket of bucketsToTry) {
-        try {
-          const { data, error } = await supabase.storage
-            .from(bucket)
-            .download(cleanPath);
-          
-          if (data && !error) {
-            const url = window.URL.createObjectURL(data);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-            
-            console.log("✅ FileDisplay - Download successful from bucket:", bucket);
-            downloadSuccess = true;
-            break;
-          }
-        } catch (error) {
-          console.log("❌ FileDisplay - Download failed from bucket:", bucket, error);
-        }
+      const { data, error } = await supabase.storage
+        .from('event_attachments')
+        .download(cleanPath);
+      
+      if (error) {
+        console.error(`❌ FileDisplay - Download error:`, error);
+        throw error;
       }
       
-      if (downloadSuccess) {
+      if (data) {
+        const url = window.URL.createObjectURL(data);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        console.log(`✅ FileDisplay - Download successful: ${fileName}`);
+        
         toast({
           title: t("common.success"),
           description: t("common.downloadStarted"),
         });
-      } else {
-        throw new Error("File not found in any bucket");
       }
     } catch (error) {
-      console.error('💥 FileDisplay - Download error:', error);
+      console.error(`❌ FileDisplay - Download failed for ${fileName}:`, error);
       toast({
         title: t("common.error"),
         description: t("common.downloadError"),
@@ -175,10 +157,10 @@ export const FileDisplay = ({
   const handleOpenFile = (filePath: string, fileId: string) => {
     const fileUrl = fileURLs[fileId];
     if (fileUrl) {
-      console.log("🔗 FileDisplay - Opening file:", fileUrl);
+      console.log(`🔗 FileDisplay - Opening file: ${fileUrl}`);
       window.open(fileUrl, '_blank', 'noopener,noreferrer');
     } else {
-      console.log("❌ FileDisplay - No URL available for file");
+      console.error(`❌ FileDisplay - No URL available for file ID: ${fileId}`);
       toast({
         title: t("common.error"),
         description: t("common.fileAccessError"),
@@ -189,31 +171,23 @@ export const FileDisplay = ({
 
   const handleDelete = async (fileId: string, filePath: string) => {
     try {
-      console.log("🗑️ FileDisplay - Starting delete for file:", fileId);
+      console.log(`🗑️ FileDisplay - Starting delete for file: ${fileId}`);
       setDeletingFileId(fileId);
       
-      const cleanPath = filePath.replace(/^\/+/, '');
+      const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
       
-      // Delete from storage - try all possible buckets
-      const bucketsToTry = [bucketName, ...fallbackBuckets];
-      for (const bucket of bucketsToTry) {
-        try {
-          const { error: storageError } = await supabase.storage
-            .from(bucket)
-            .remove([cleanPath]);
-          
-          if (!storageError) {
-            console.log("✅ FileDisplay - File deleted from storage bucket:", bucket);
-            break;
-          }
-        } catch (error) {
-          console.log("❌ FileDisplay - Failed to delete from bucket:", bucket, error);
-        }
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('event_attachments')
+        .remove([cleanPath]);
+      
+      if (storageError) {
+        console.warn("⚠️ FileDisplay - Storage deletion warning:", storageError);
+        // Continue with database deletion even if storage fails
       }
       
-      // Delete from database - determine correct table
-      let tableName: "files" | "customer_files_new" | "note_files" | "event_files";
-      
+      // Determine correct table for database deletion
+      let tableName: string;
       if (parentType === 'task') {
         tableName = "files";
       } else if (parentType === 'customer') {
@@ -224,7 +198,8 @@ export const FileDisplay = ({
         tableName = "event_files";
       }
       
-      console.log("🗑️ FileDisplay - Deleting from database table:", tableName);
+      console.log(`🗑️ FileDisplay - Deleting from table: ${tableName}`);
+      
       const { error: dbError } = await supabase
         .from(tableName)
         .delete()
@@ -237,22 +212,22 @@ export const FileDisplay = ({
       
       console.log("✅ FileDisplay - File deleted successfully");
       
-      // Call callback and invalidate queries
+      // Invalidate all relevant queries
+      await queryClient.invalidateQueries({ queryKey: ['files'] });
+      await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
+      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
+      
       if (onFileDeleted) {
         onFileDeleted(fileId);
       }
-      
-      queryClient.invalidateQueries({ queryKey: ['files'] });
-      queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       
       toast({
         title: t("common.success"),
         description: t("common.fileDeleted"),
       });
     } catch (error) {
-      console.error('💥 FileDisplay - Delete error:', error);
+      console.error(`❌ FileDisplay - Delete failed:`, error);
       toast({
         title: t("common.error"),
         description: t("common.deleteError"),
@@ -272,7 +247,7 @@ export const FileDisplay = ({
     <div className="space-y-2">
       {uniqueFiles.map((file) => {
         if (!file.file_path) {
-          console.log("⚠️ FileDisplay - Skipping file with no path:", file.filename);
+          console.warn("⚠️ FileDisplay - Skipping file with no path:", file.filename);
           return null;
         }
         
@@ -293,7 +268,7 @@ export const FileDisplay = ({
                       alt={file.filename}
                       className="h-full w-full object-cover"
                       onError={(e) => {
-                        console.error('🖼️ FileDisplay - Image load failed:', imageUrl);
+                        console.error(`🖼️ FileDisplay - Image load failed: ${imageUrl}`);
                         e.currentTarget.src = '/placeholder.svg';
                       }}
                     />

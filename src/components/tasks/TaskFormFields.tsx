@@ -47,7 +47,10 @@ export const TaskFormFields = ({
   const { t } = useLanguage();
   const { validateDateTime } = useTimezoneValidation();
   
-  console.log('📋 TaskFormFields - Component rendered with editingTask:', editingTask?.id);
+  console.log('📋 TaskFormFields - Rendering with:', {
+    taskId: editingTask?.id || 'new',
+    selectedFile: selectedFile?.name || 'none'
+  });
   
   const { data: existingFiles = [], refetch } = useQuery({
     queryKey: ['taskFiles', editingTask?.id],
@@ -68,14 +71,14 @@ export const TaskFormFields = ({
         throw error;
       }
       
-      console.log('✅ TaskFormFields - Task files loaded:', data?.length || 0, 'files');
+      console.log(`✅ TaskFormFields - Loaded ${data?.length || 0} files`);
       return data || [];
     },
     enabled: !!editingTask?.id,
   });
 
   const handleFileDeleted = () => {
-    console.log('🗑️ TaskFormFields - File deleted, refetching task files');
+    console.log('🗑️ TaskFormFields - File deleted, refetching');
     refetch();
     toast({
       title: t("common.success"),
@@ -110,8 +113,11 @@ export const TaskFormFields = ({
   };
 
   const handleFileSelect = (file: File | null) => {
-    console.log('📁 TaskFormFields - File selected:', file?.name);
+    console.log('📁 TaskFormFields - File selected:', file?.name || 'none');
     setSelectedFile(file);
+    if (file) {
+      setFileError(''); // Clear any previous errors
+    }
   };
 
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";

@@ -130,7 +130,7 @@ export const BookingRequestForm = ({
   };
 
   const handleFileChange = (file: File | null) => {
-    console.log('📁 BookingRequestForm - File selected:', file?.name);
+    console.log('📁 BookingRequestForm - File selected:', file?.name || 'none');
     setSelectedFile(file);
     setFileError('');
   };
@@ -151,7 +151,7 @@ export const BookingRequestForm = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    console.log("🚀 BookingRequestForm - Starting booking request submission...");
+    console.log("🚀 BookingRequestForm - Starting submission");
 
     try {
       // Validate required fields
@@ -228,7 +228,7 @@ export const BookingRequestForm = ({
         language: language
       };
 
-      console.log('📝 BookingRequestForm - Creating booking request:', bookingData);
+      console.log('📝 BookingRequestForm - Creating booking request');
 
       // Step 1: Create booking request
       const { data: bookingResponse, error: bookingError } = await supabase
@@ -243,7 +243,7 @@ export const BookingRequestForm = ({
       }
 
       const bookingId = bookingResponse.id;
-      console.log('✅ BookingRequestForm - Booking request created with ID:', bookingId);
+      console.log('✅ BookingRequestForm - Booking request created:', bookingId);
 
       // Step 2: Handle file upload if present
       if (selectedFile && bookingId) {
@@ -284,53 +284,63 @@ export const BookingRequestForm = ({
         }
       }
 
-      // Step 3: Send notification email with enhanced error handling
+      // Step 3: Send notification email - improved error handling
       try {
-        console.log('📧 BookingRequestForm - Preparing to send notification email...');
+        console.log('📧 BookingRequestForm - Preparing email notification');
         
-        const notificationData = {
-          businessId: businessId,
-          businessEmail: businessData?.businessEmail,
-          requesterName: fullName,
-          requesterEmail: socialNetworkLink,
-          requesterPhone: userNumber,
-          notes: eventNotes || "No additional notes",
-          startDate: startDateTime.toISOString(),
-          endDate: endDateTime.toISOString(),
-          hasAttachment: !!selectedFile,
-          paymentStatus: paymentStatus,
-          paymentAmount: finalPaymentAmount,
-          businessName: businessData?.businessName || "Business",
-          businessAddress: businessData?.businessAddress,
-          language: language
-        };
-        
-        console.log("📧 BookingRequestForm - Email notification data:", JSON.stringify(notificationData, null, 2));
-        
-        const { data: emailResult, error: emailError } = await supabase.functions.invoke(
-          'send-booking-request-notification',
-          {
-            body: notificationData,
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-
-        if (emailError) {
-          console.error('❌ BookingRequestForm - Email function error:', emailError);
-          console.error('❌ BookingRequestForm - Email error details:', {
-            message: emailError.message,
-            context: emailError.context,
-            details: emailError.details
-          });
-          // Don't throw - we still want to show success to user
+        // Ensure all required business data is available
+        if (!businessData?.businessEmail) {
+          console.warn('⚠️ BookingRequestForm - Missing business email, skipping email notification');
         } else {
-          console.log('✅ BookingRequestForm - Email notification sent successfully:', emailResult);
+          const notificationData = {
+            businessId: businessId,
+            businessEmail: businessData.businessEmail,
+            requesterName: fullName,
+            requesterEmail: socialNetworkLink,
+            requesterPhone: userNumber,
+            notes: eventNotes || "No additional notes",
+            startDate: startDateTime.toISOString(),
+            endDate: endDateTime.toISOString(),
+            hasAttachment: !!selectedFile,
+            paymentStatus: paymentStatus,
+            paymentAmount: finalPaymentAmount,
+            businessName: businessData.businessName || "Business",
+            businessAddress: businessData.businessAddress,
+            language: language
+          };
+          
+          console.log("📧 BookingRequestForm - Sending email notification");
+          
+          const { data: emailResult, error: emailError } = await supabase.functions.invoke(
+            'send-booking-request-notification',
+            {
+              body: notificationData,
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+
+          if (emailError) {
+            console.error('❌ BookingRequestForm - Email send error:', emailError);
+            // Show user-friendly notification about email issue
+            toast({
+              title: t("common.warning"),
+              description: "Booking created successfully, but email notification may have failed",
+              variant: "default",
+            });
+          } else {
+            console.log('✅ BookingRequestForm - Email notification sent successfully');
+          }
         }
       } catch (emailError) {
         console.error("❌ BookingRequestForm - Email notification failed:", emailError);
-        // Don't throw - we still want to show success to user
+        // Don't block the main flow, just notify user
+        toast({
+          title: t("common.warning"),
+          description: "Booking created successfully, but email notification may have failed",
+          variant: "default",
+        });
       }
 
       // Reset form
@@ -358,10 +368,10 @@ export const BookingRequestForm = ({
         onOpenChange(false);
       }
 
-      console.log('🎉 BookingRequestForm - Booking request completed successfully!');
+      console.log('🎉 BookingRequestForm - Process completed successfully!');
 
     } catch (error) {
-      console.error('❌ BookingRequestForm - Booking request submission error:', error);
+      console.error('❌ BookingRequestForm - Submission error:', error);
       toast({
         translateKeys: {
           titleKey: "common.error",

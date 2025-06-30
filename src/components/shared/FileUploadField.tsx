@@ -60,23 +60,23 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   const displayedError = fileError || localError;
   const displayedSetError = setFileError || setLocalError;
 
-  console.log("📁 FileUploadField - Component rendered with file:", displayedFile?.name);
+  console.log("📁 FileUploadField - Rendered with file:", displayedFile?.name || "none");
 
   useEffect(() => {
     if (selectedFile !== undefined) {
-      console.log("📁 FileUploadField - External selectedFile changed:", selectedFile?.name);
+      console.log("📁 FileUploadField - External file changed:", selectedFile?.name || "none");
       setLocalSelectedFile(selectedFile);
     }
   }, [selectedFile]);
 
   const validateFile = (file: File): boolean => {
-    console.log('🔍 FileUploadField - Validating file:', file.name, 'Type:', file.type, 'Size:', file.size);
+    console.log(`🔍 FileUploadField - Validating: ${file.name} (${file.type}, ${file.size} bytes)`);
     
     const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
     const isDoc = ALLOWED_DOC_TYPES.includes(file.type);
     
     if (!isImage && !isDoc) {
-      console.log('❌ FileUploadField - Invalid file type:', file.type);
+      console.log(`❌ FileUploadField - Invalid file type: ${file.type}`);
       displayedSetError("Please select a valid file type (PDF, DOC, DOCX, XLS, XLSX, JPG, PNG)");
       return false;
     }
@@ -84,56 +84,58 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
     const maxSize = isImage ? MAX_FILE_SIZE_IMAGES : MAX_FILE_SIZE_DOCS;
     if (file.size > maxSize) {
       const maxSizeMB = maxSize / (1024 * 1024);
-      console.log('❌ FileUploadField - File too large:', file.size, 'Max:', maxSize);
+      console.log(`❌ FileUploadField - File too large: ${file.size} > ${maxSize}`);
       displayedSetError(`File size must be less than ${maxSizeMB}MB`);
       return false;
     }
     
-    console.log('✅ FileUploadField - File validation passed');
+    console.log("✅ FileUploadField - File validation passed");
     return true;
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     
-    console.log('📁 FileUploadField - File input changed, file:', file?.name);
+    console.log("📁 FileUploadField - File input changed:", file?.name || "none selected");
     
     if (!file) {
-      console.log('📁 FileUploadField - No file selected, clearing state');
+      console.log("📁 FileUploadField - Clearing file selection");
       setLocalSelectedFile(null);
+      displayedSetError("");
+      
+      // Call all clear callbacks
       onChange?.(null);
       onFileChange?.(null);
-      displayedSetError("");
       return;
     }
 
     if (!validateFile(file)) {
-      console.log('❌ FileUploadField - File validation failed');
+      console.log("❌ FileUploadField - File validation failed");
       setLocalSelectedFile(null);
       onChange?.(null);
       onFileChange?.(null);
       return;
     }
 
-    console.log('✅ FileUploadField - File validation passed, updating state');
+    console.log("✅ FileUploadField - File validated successfully");
     displayedSetError("");
     setLocalSelectedFile(file);
     
-    // Call all the callback functions
+    // Execute all callbacks in sequence
     try {
-      console.log('📁 FileUploadField - Calling onChange callback');
+      console.log("📁 FileUploadField - Executing onChange callback");
       onChange?.(file);
       
-      console.log('📁 FileUploadField - Calling onFileChange callback');
+      console.log("📁 FileUploadField - Executing onFileChange callback");
       onFileChange?.(file);
       
       if (onFileSelect) {
-        console.log('📁 FileUploadField - Calling onFileSelect callback');
+        console.log("📁 FileUploadField - Executing onFileSelect callback");
         await onFileSelect(file);
-        console.log('✅ FileUploadField - onFileSelect completed successfully');
+        console.log("✅ FileUploadField - onFileSelect completed successfully");
       }
     } catch (error) {
-      console.error('❌ FileUploadField - Error in file callbacks:', error);
+      console.error("❌ FileUploadField - Error in file callbacks:", error);
       displayedSetError("Error processing file");
       setLocalSelectedFile(null);
       onChange?.(null);
