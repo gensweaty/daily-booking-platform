@@ -1,6 +1,6 @@
 
+import { SimpleFileDisplay } from "../shared/SimpleFileDisplay";
 import { FileUploadField } from "../shared/FileUploadField";
-import { FileDisplay } from "../shared/FileDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Task } from "@/lib/types";
@@ -47,16 +47,24 @@ export const TaskFormFields = ({
   const { t } = useLanguage();
   const { validateDateTime } = useTimezoneValidation();
   
+  // Fixed query to properly fetch task files
   const { data: existingFiles = [], refetch } = useQuery({
     queryKey: ['taskFiles', editingTask?.id],
     queryFn: async () => {
       if (!editingTask?.id) return [];
+      console.log('Fetching files for task:', editingTask.id);
+      
       const { data, error } = await supabase
         .from('files')
         .select('*')
         .eq('task_id', editingTask.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching task files:', error);
+        throw error;
+      }
+      
+      console.log('Task files found:', data);
       return data || [];
     },
     enabled: !!editingTask?.id,
@@ -129,14 +137,12 @@ export const TaskFormFields = ({
       
       {editingTask?.id && existingFiles && existingFiles.length > 0 && (
         <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
-          <FileDisplay 
+          <SimpleFileDisplay 
             files={existingFiles} 
-            bucketName="event_attachments"
+            parentType="task"
             allowDelete
             onFileDeleted={handleFileDeleted}
             parentId={editingTask.id}
-            parentType="task"
-            fallbackBuckets={["customer_attachments"]}
           />
         </div>
       )}

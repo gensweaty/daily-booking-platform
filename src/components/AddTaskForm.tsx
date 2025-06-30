@@ -95,8 +95,6 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         }
       }
 
-      // Fix: Explicitly handle null values for deadline and reminder
-      // Convert empty strings or undefined to null for proper database updates
       const taskData = {
         title,
         description,
@@ -114,16 +112,25 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         taskResponse = await createTask(taskData);
       }
 
+      // Handle file upload with proper bucket assignment
       if (selectedFile && taskResponse) {
+        console.log('Uploading file for task:', taskResponse.id);
         const fileExt = selectedFile.name.split('.').pop();
         const filePath = `${crypto.randomUUID()}.${fileExt}`;
         
+        // Upload to task_attachments bucket
         const { error: uploadError } = await supabase.storage
-          .from('event_attachments')
+          .from('task_attachments')
           .upload(filePath, selectedFile);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('File upload error:', uploadError);
+          throw uploadError;
+        }
 
+        console.log('File uploaded successfully, creating database record');
+        
+        // Create file record in files table
         const { error: fileRecordError } = await supabase
           .from('files')
           .insert({
@@ -132,10 +139,17 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
             file_path: filePath,
             content_type: selectedFile.type,
             size: selectedFile.size,
-            user_id: user.id
+            user_id: user.id,
+            source: 'task',
+            parent_type: 'task'
           });
 
-        if (fileRecordError) throw fileRecordError;
+        if (fileRecordError) {
+          console.error('File record creation error:', fileRecordError);
+          throw fileRecordError;
+        }
+
+        console.log('File record created successfully');
       }
 
       await queryClient.invalidateQueries({ queryKey: ['tasks'] });

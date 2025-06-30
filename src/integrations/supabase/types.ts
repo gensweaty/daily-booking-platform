@@ -614,7 +614,9 @@ export type Database = {
           file_path: string
           filename: string
           id: string
+          parent_type: string | null
           size: number | null
+          source: string | null
           task_id: string | null
           user_id: string | null
         }
@@ -624,7 +626,9 @@ export type Database = {
           file_path: string
           filename: string
           id?: string
+          parent_type?: string | null
           size?: number | null
+          source?: string | null
           task_id?: string | null
           user_id?: string | null
         }
@@ -634,7 +638,9 @@ export type Database = {
           file_path?: string
           filename?: string
           id?: string
+          parent_type?: string | null
           size?: number | null
+          source?: string | null
           task_id?: string | null
           user_id?: string | null
         }
