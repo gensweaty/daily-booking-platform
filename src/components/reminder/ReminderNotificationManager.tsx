@@ -13,18 +13,6 @@ export const ReminderNotificationManager = ({ reminders }: { reminders: Reminder
     audioRef.current = new Audio('/audio/notification.mp3');
     audioRef.current.volume = 0.5; // Set volume to 50%
 
-    // Request notification permission
-    if ('Notification' in window) {
-      Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
-          toast({
-            title: "Notifications Enabled",
-            description: "You will receive reminder notifications",
-          });
-        }
-      });
-    }
-
     const checkReminders = () => {
       reminders?.forEach((reminder: Reminder) => {
         const dueTime = new Date(reminder.remind_at).getTime();

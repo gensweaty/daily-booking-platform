@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { ensureNotificationPermission } from "@/utils/notificationUtils";
 
 export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
   const [title, setTitle] = useState("");
@@ -19,10 +20,33 @@ export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.id) {
-      toast.error({
-        description: "You need to be logged in to create reminders"
+      toast({
+        title: "Error",
+        description: "You need to be logged in to create reminders",
+        variant: "destructive",
       });
       return;
+    }
+
+    // Request notification permission when creating a reminder
+    if (dueDate) {
+      console.log("🔔 Requesting notification permission for reminder creation");
+      const permissionGranted = await ensureNotificationPermission();
+      
+      if (permissionGranted) {
+        toast({
+          title: "🔔 Notifications Enabled",
+          description: "You'll receive notifications for this reminder",
+          duration: 3000,
+        });
+      } else if (Notification.permission === "denied") {
+        toast({
+          title: "⚠️ Notifications Blocked",
+          description: "Please enable notifications in your browser settings to receive reminders",
+          variant: "destructive",
+          duration: 5000,
+        });
+      }
     }
     
     try {
@@ -33,12 +57,17 @@ export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
         user_id: user.id
       });
       await queryClient.invalidateQueries({ queryKey: ['reminders'] });
-      toast.reminder.created();
+      toast({
+        title: "Success",
+        description: "Reminder created successfully",
+      });
       onClose();
     } catch (error) {
       console.error('Reminder creation error:', error);
-      toast.error({
-        description: "Failed to create reminder. Please try again."
+      toast({
+        title: "Error",
+        description: "Failed to create reminder. Please try again.",
+        variant: "destructive",
       });
     }
   };
