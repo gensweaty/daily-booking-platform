@@ -22,8 +22,8 @@ import { generateRecurringInstances, isVirtualInstance } from "@/lib/recurringEv
 import { Trash } from "lucide-react";
 
 interface EventDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   selectedDate?: Date;
   event?: CalendarEventType;
   onEventCreated?: () => void;
@@ -42,9 +42,31 @@ interface PersonData {
   paymentAmount: string;
 }
 
+// Helper function to fetch event files
+const fetchEventFiles = async (eventId: string): Promise<FileRecord[]> => {
+  if (!eventId) return [];
+  
+  try {
+    const { data, error } = await supabase
+      .from('event_files')
+      .select('*')
+      .eq('event_id', eventId);
+
+    if (error) {
+      console.error('Error fetching event files:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching event files:', error);
+    return [];
+  }
+};
+
 export const EventDialog = ({
-  isOpen,
-  onClose,
+  open,
+  onOpenChange,
   selectedDate,
   event,
   onEventCreated,
@@ -82,7 +104,7 @@ export const EventDialog = ({
 
   // Initialize form when dialog opens
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       if (event) {
         // Editing existing event
         setTitle(event.title || "");
@@ -97,6 +119,9 @@ export const EventDialog = ({
         setPaymentAmount(event.payment_amount?.toString() || "");
         setRepeatPattern(event.repeat_pattern || "none");
         setRepeatUntil(event.repeat_until ? new Date(event.repeat_until) : undefined);
+        
+        // Load files for existing event
+        loadEventFiles(event.id);
       } else {
         // Creating new event
         const now = selectedDate || new Date();
@@ -115,33 +140,25 @@ export const EventDialog = ({
         setPaymentAmount("");
         setRepeatPattern("none");
         setRepeatUntil(currentYearEnd); // Default to end of current year
+        setDisplayedFiles([]);
       }
       
       setSelectedFile(null);
       setFileError("");
-      setDisplayedFiles([]);
       setShowDeleteConfirmation(false);
       setShowRegularDeleteConfirmation(false);
     }
-  }, [isOpen, event, selectedDate]);
+  }, [open, event, selectedDate]);
 
   const loadEventFiles = async (eventId: string) => {
     if (!eventId) return;
 
     try {
-      const { data, error } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', eventId);
-
-      if (error) {
-        console.error("Error loading event files:", error);
-        return;
-      }
-
-      setDisplayedFiles(data);
+      const files = await fetchEventFiles(eventId);
+      setDisplayedFiles(files);
     } catch (error) {
       console.error("Error loading event files:", error);
+      setDisplayedFiles([]);
     }
   };
 
@@ -249,16 +266,14 @@ export const EventDialog = ({
       }
 
       // Handle file upload if there's a selected file
-      if (selectedFile && savedEvent) {
+      if (selectedFile && savedEvent && user) {
         const fileExt = selectedFile.name.split('.').pop();
-        const fileName = `${savedEvent.id}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`;
+        const filePath = `${savedEvent.id}/${crypto.randomUUID()}.${fileExt}`;
 
+        // Upload file to storage
         const { error: uploadError } = await supabase.storage
           .from('event_attachments')
-          .upload(filePath, selectedFile, {
-            upsert: true
-          });
+          .upload(filePath, selectedFile);
 
         if (uploadError) {
           console.error("File upload error:", uploadError);
@@ -267,6 +282,35 @@ export const EventDialog = ({
             description: isGeorgian ? "ფაილი ვერ აიტვირთა" : "File could not be uploaded",
             variant: "destructive",
           });
+        } else {
+          // Create file record in event_files table
+          const fileData = {
+            event_id: savedEvent.id,
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            user_id: user.id,
+          };
+
+          const { error: insertError } = await supabase
+            .from('event_files')
+            .insert(fileData);
+
+          if (insertError) {
+            console.error('File record insert error:', insertError);
+            toast({
+              title: isGeorgian ? "გაფრთხილება" : "Warning",
+              description: isGeorgian ? "ფაილის ჩანაწერი ვერ შეიქმნა" : "File record could not be created",
+              variant: "destructive",
+            });
+          } else {
+            console.log('✅ File uploaded and recorded successfully');
+            
+            // Refresh the displayed files
+            const refreshedFiles = await fetchEventFiles(savedEvent.id);
+            setDisplayedFiles(refreshedFiles);
+          }
         }
       }
 
@@ -306,7 +350,7 @@ export const EventDialog = ({
       } else {
         onEventCreated?.();
       }
-      onClose();
+      onOpenChange(false);
     } catch (error) {
       console.error("Error saving event:", error);
       toast({
@@ -346,7 +390,7 @@ export const EventDialog = ({
 
       setShowRegularDeleteConfirmation(false);
       onEventDeleted?.();
-      onClose();
+      onOpenChange(false);
     } catch (error) {
       console.error("Error deleting event:", error);
       toast({
@@ -445,7 +489,7 @@ export const EventDialog = ({
 
       setShowDeleteConfirmation(false);
       onEventDeleted?.();
-      onClose();
+      onOpenChange(false);
     } catch (error) {
       console.error("Error deleting event:", error);
       toast({
@@ -467,7 +511,7 @@ export const EventDialog = ({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
@@ -538,7 +582,7 @@ export const EventDialog = ({
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={onClose}
+                  onClick={() => onOpenChange(false)}
                   className={cn(isGeorgian ? "font-georgian" : "")}
                   style={georgianStyle}
                 >
@@ -624,8 +668,7 @@ export const EventDialog = ({
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </Dialog>
     </>
   );
 };
-
