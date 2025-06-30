@@ -3,14 +3,9 @@ import { format, addYears, endOfYear } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { FileUploadField } from "@/components/shared/FileUploadField";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { cn } from "@/lib/utils";
 import { FileRecord } from "@/types/files";
@@ -92,6 +87,9 @@ export const EventDialog = ({
   const [repeatUntil, setRepeatUntil] = useState<Date | undefined>(undefined);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [showRegularDeleteConfirmation, setShowRegularDeleteConfirmation] = useState(false);
+  
+  // New state for additional persons management
+  const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
 
   const { toast } = useToast();
   const { t, language } = useLanguage();
@@ -100,6 +98,52 @@ export const EventDialog = ({
 
   // Check if this is a recurring event that needs delete confirmation
   const isRecurringEvent = event && (event.is_recurring || isVirtualInstance(event.id));
+
+  // Load additional persons for existing events
+  const loadAdditionalPersons = async (eventId: string) => {
+    if (!eventId) {
+      setAdditionalPersons([]);
+      return;
+    }
+    
+    try {
+      console.log("Loading additional persons for event:", eventId);
+      
+      // Use the new event_id foreign key relationship
+      const { data: customers, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('type', 'customer')
+        .order('created_at', { ascending: true });
+        
+      if (error) {
+        console.error("Error loading additional persons:", error);
+        return;
+      }
+      
+      if (customers && customers.length > 0) {
+        // Convert customers to PersonData format
+        const personsData: PersonData[] = customers.map(customer => ({
+          id: customer.id,
+          userSurname: customer.user_surname || '',
+          userNumber: customer.user_number || '',
+          socialNetworkLink: customer.social_network_link || '',
+          eventNotes: customer.event_notes || '',
+          paymentStatus: customer.payment_status || 'not_paid',
+          paymentAmount: customer.payment_amount?.toString() || ''
+        }));
+        
+        console.log("Loaded additional persons:", personsData.length);
+        setAdditionalPersons(personsData);
+      } else {
+        setAdditionalPersons([]);
+      }
+    } catch (err) {
+      console.error("Exception loading additional persons:", err);
+      setAdditionalPersons([]);
+    }
+  };
 
   // Initialize form when dialog opens
   useEffect(() => {
@@ -119,8 +163,9 @@ export const EventDialog = ({
         setRepeatPattern(event.repeat_pattern || "none");
         setRepeatUntil(event.repeat_until ? new Date(event.repeat_until) : undefined);
         
-        // Load files for existing event
+        // Load files and additional persons for existing event
         loadEventFiles(event.id);
+        loadAdditionalPersons(event.id);
       } else {
         // Creating new event
         const now = selectedDate || new Date();
@@ -138,8 +183,9 @@ export const EventDialog = ({
         setPaymentStatus("not_paid");
         setPaymentAmount("");
         setRepeatPattern("none");
-        setRepeatUntil(currentYearEnd); // Default to end of current year
+        setRepeatUntil(currentYearEnd);
         setDisplayedFiles([]);
+        setAdditionalPersons([]);
       }
       
       setSelectedFile(null);
@@ -163,6 +209,37 @@ export const EventDialog = ({
 
   const handleFileDeleted = (fileId: string) => {
     setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
+  };
+
+  // Functions to manage additional persons
+  const addPerson = () => {
+    if (additionalPersons.length >= 49) {
+      return;
+    }
+    
+    const newPerson: PersonData = {
+      id: crypto.randomUUID(),
+      userSurname: '',
+      userNumber: '',
+      socialNetworkLink: '',
+      eventNotes: '',
+      paymentStatus: 'not_paid',
+      paymentAmount: ''
+    };
+    
+    setAdditionalPersons(prev => [...prev, newPerson]);
+  };
+
+  const removePerson = (personId: string) => {
+    setAdditionalPersons(prev => prev.filter(person => person.id !== personId));
+  };
+
+  const updatePerson = (personId: string, field: keyof PersonData, value: string) => {
+    setAdditionalPersons(prev => 
+      prev.map(person => 
+        person.id === personId ? { ...person, [field]: value } : person
+      )
+    );
   };
 
   const validateForm = () => {
@@ -217,9 +294,6 @@ export const EventDialog = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
-      // Get additional persons data from window
-      const additionalPersonsData = (window as any).additionalPersonsData || [];
-
       // Prepare event data
       const eventData = {
         title: userSurname,
@@ -232,42 +306,36 @@ export const EventDialog = ({
         end_date: new Date(endDate).toISOString(),
         payment_status: isBookingRequest ? "not_paid" : paymentStatus,
         payment_amount: paymentStatus === "not_paid" ? null : parseFloat(paymentAmount) || null,
-        user_id: user.id,
         type: isBookingRequest ? 'booking_request' : 'event',
         is_recurring: repeatPattern !== "none",
         repeat_pattern: repeatPattern !== "none" ? repeatPattern : null,
         repeat_until: repeatPattern !== "none" && repeatUntil ? repeatUntil.toISOString() : null,
       };
 
-      let savedEvent;
+      // Convert additional persons to JSONB format
+      const additionalPersonsData = additionalPersons.map(person => ({
+        userSurname: person.userSurname,
+        userNumber: person.userNumber,
+        socialNetworkLink: person.socialNetworkLink,
+        eventNotes: person.eventNotes,
+        paymentStatus: person.paymentStatus,
+        paymentAmount: person.paymentAmount
+      }));
 
-      if (event) {
-        // Update existing event
-        const { data, error } = await supabase
-          .from('events')
-          .update(eventData)
-          .eq('id', event.id)
-          .select()
-          .single();
+      // Use the new database function for atomic operations
+      const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
+        p_event_data: eventData,
+        p_additional_persons: additionalPersonsData,
+        p_user_id: user.id,
+        p_event_id: event?.id || null
+      });
 
-        if (error) throw error;
-        savedEvent = data;
-      } else {
-        // Create new event
-        const { data, error } = await supabase
-          .from('events')
-          .insert([eventData])
-          .select()
-          .single();
-
-        if (error) throw error;
-        savedEvent = data;
-      }
+      if (error) throw error;
 
       // Handle file upload if there's a selected file
-      if (selectedFile && savedEvent && user) {
+      if (selectedFile && savedEventId && user) {
         const fileExt = selectedFile.name.split('.').pop();
-        const filePath = `${savedEvent.id}/${crypto.randomUUID()}.${fileExt}`;
+        const filePath = `${savedEventId}/${crypto.randomUUID()}.${fileExt}`;
 
         // Upload file to storage
         const { error: uploadError } = await supabase.storage
@@ -284,7 +352,7 @@ export const EventDialog = ({
         } else {
           // Create file record in event_files table
           const fileData = {
-            event_id: savedEvent.id,
+            event_id: savedEventId,
             filename: selectedFile.name,
             file_path: filePath,
             content_type: selectedFile.type,
@@ -307,33 +375,9 @@ export const EventDialog = ({
             console.log('✅ File uploaded and recorded successfully');
             
             // Refresh the displayed files
-            const refreshedFiles = await fetchEventFiles(savedEvent.id);
+            const refreshedFiles = await fetchEventFiles(savedEventId);
             setDisplayedFiles(refreshedFiles);
           }
-        }
-      }
-
-      // Handle additional persons if any
-      if (additionalPersonsData.length > 0) {
-        const customersData = additionalPersonsData.map((person: any) => ({
-          user_surname: person.userSurname,
-          user_number: person.userNumber,
-          social_network_link: person.socialNetworkLink,
-          event_notes: person.eventNotes,
-          start_date: new Date(startDate).toISOString(),
-          end_date: new Date(endDate).toISOString(),
-          payment_status: isBookingRequest ? "not_paid" : person.paymentStatus,
-          payment_amount: person.paymentStatus === "not_paid" ? null : parseFloat(person.paymentAmount) || null,
-          user_id: user.id,
-          type: 'customer'
-        }));
-
-        const { error: customersError } = await supabase
-          .from('customers')
-          .insert(customersData);
-
-        if (customersError) {
-          console.error("Error saving additional persons:", customersError);
         }
       }
 
@@ -559,6 +603,10 @@ export const EventDialog = ({
               repeatUntil={repeatUntil}
               setRepeatUntil={setRepeatUntil}
               isNewEvent={isNewEvent}
+              additionalPersons={additionalPersons}
+              onAddPerson={addPerson}
+              onRemovePerson={removePerson}
+              onUpdatePerson={updatePerson}
             />
             
             <div className="flex justify-between pt-4">

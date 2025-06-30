@@ -338,6 +338,7 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           end_date: string | null
+          event_id: string | null
           event_notes: string | null
           id: string
           is_group_member: boolean | null
@@ -357,6 +358,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           end_date?: string | null
+          event_id?: string | null
           event_notes?: string | null
           id?: string
           is_group_member?: boolean | null
@@ -376,6 +378,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           end_date?: string | null
+          event_id?: string | null
           event_notes?: string | null
           id?: string
           is_group_member?: boolean | null
@@ -390,7 +393,15 @@ export type Database = {
           user_number?: string | null
           user_surname?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_customers_event_id"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_files: {
         Row: {
@@ -1108,6 +1119,15 @@ export type Database = {
           in_progress: number
           todo: number
         }[]
+      }
+      save_event_with_persons: {
+        Args: {
+          p_event_data: Json
+          p_additional_persons: Json
+          p_user_id: string
+          p_event_id?: string
+        }
+        Returns: string
       }
       validate_and_use_redeem_code: {
         Args: { p_code: string; p_user_id: string }

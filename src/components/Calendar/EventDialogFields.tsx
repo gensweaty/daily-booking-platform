@@ -65,6 +65,11 @@ interface EventDialogFieldsProps {
   repeatUntil: Date | undefined;
   setRepeatUntil: (date: Date | undefined) => void;
   isNewEvent?: boolean;
+  // New props for additional persons management
+  additionalPersons: PersonData[];
+  onAddPerson: () => void;
+  onRemovePerson: (personId: string) => void;
+  onUpdatePerson: (personId: string, field: keyof PersonData, value: string) => void;
 }
 
 export const EventDialogFields = ({
@@ -100,7 +105,11 @@ export const EventDialogFields = ({
   setRepeatPattern,
   repeatUntil,
   setRepeatUntil,
-  isNewEvent = false
+  isNewEvent = false,
+  additionalPersons,
+  onAddPerson,
+  onRemovePerson,
+  onUpdatePerson
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -113,9 +122,6 @@ export const EventDialogFields = ({
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
   const currencySymbol = getCurrencySymbol(language);
   
-  // State for additional persons
-  const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
-  
   // Show event name field only when there are multiple persons (additionalPersons.length > 0)
   const shouldShowEventNameField = additionalPersons.length > 0;
 
@@ -125,77 +131,6 @@ export const EventDialogFields = ({
     return getRepeatOptions(selectedDateTime, t);
   }, [startDate, t]);
 
-  // Load additional persons when eventId changes - only load for specific events
-  useEffect(() => {
-    const loadAdditionalPersons = async () => {
-      if (!eventId) {
-        setAdditionalPersons([]);
-        return;
-      }
-      
-      try {
-        console.log("Loading additional persons for specific event:", eventId);
-        
-        // Query customers table for additional persons linked to this specific event
-        // We'll match by start_date, end_date, and user_id to find customers created for this event
-        const { data: event, error: eventError } = await supabase
-          .from('events')
-          .select('start_date, end_date, user_id')
-          .eq('id', eventId)
-          .single();
-          
-        if (eventError || !event) {
-          console.error("Error loading event data:", eventError);
-          setAdditionalPersons([]);
-          return;
-        }
-        
-        // Find customers that were created for this specific event time slot
-        const { data: customers, error } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('user_id', event.user_id)
-          .eq('start_date', event.start_date)
-          .eq('end_date', event.end_date)
-          .eq('type', 'customer')
-          .order('created_at', { ascending: true });
-          
-        if (error) {
-          console.error("Error loading additional persons:", error);
-          return;
-        }
-        
-        if (customers && customers.length > 0) {
-          // Convert customers to PersonData format
-          const personsData: PersonData[] = customers.map(customer => ({
-            id: customer.id,
-            userSurname: customer.user_surname || '',
-            userNumber: customer.user_number || '',
-            socialNetworkLink: customer.social_network_link || '',
-            eventNotes: customer.event_notes || '',
-            paymentStatus: customer.payment_status || 'not_paid',
-            paymentAmount: customer.payment_amount?.toString() || ''
-          }));
-          
-          console.log("Loaded additional persons for this event:", personsData.length);
-          setAdditionalPersons(personsData);
-        } else {
-          setAdditionalPersons([]);
-        }
-      } catch (err) {
-        console.error("Exception loading additional persons:", err);
-        setAdditionalPersons([]);
-      }
-    };
-    
-    if (eventId) {
-      loadAdditionalPersons();
-    } else {
-      // Clear additional persons when creating a new event
-      setAdditionalPersons([]);
-    }
-  }, [eventId]);
-  
   // Process files to remove duplicates by comparing path and name
   const processedFiles = useMemo(() => {
     if (!displayedFiles.length) return [];
@@ -228,39 +163,6 @@ export const EventDialogFields = ({
       return "დაამატეთ შენიშვნები თქვენი ჯავშნის შესახებ";
     }
     return t("events.addEventNotes");
-  };
-
-  // Function to add a new person
-  const addPerson = () => {
-    if (additionalPersons.length >= 49) { // 49 + main person = 50 total
-      return;
-    }
-    
-    const newPerson: PersonData = {
-      id: crypto.randomUUID(),
-      userSurname: '',
-      userNumber: '',
-      socialNetworkLink: '',
-      eventNotes: '',
-      paymentStatus: 'not_paid',
-      paymentAmount: ''
-    };
-    
-    setAdditionalPersons(prev => [...prev, newPerson]);
-  };
-
-  // Function to remove a person
-  const removePerson = (personId: string) => {
-    setAdditionalPersons(prev => prev.filter(person => person.id !== personId));
-  };
-
-  // Function to update person data
-  const updatePerson = (personId: string, field: keyof PersonData, value: string) => {
-    setAdditionalPersons(prev => 
-      prev.map(person => 
-        person.id === personId ? { ...person, [field]: value } : person
-      )
-    );
   };
 
   // Function to render person data section
@@ -301,7 +203,7 @@ export const EventDialogFields = ({
             break;
         }
       } else if (person) {
-        updatePerson(person.id, field as keyof PersonData, value);
+        onUpdatePerson(person.id, field as keyof PersonData, value);
       }
     };
 
@@ -322,7 +224,7 @@ export const EventDialogFields = ({
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => removePerson(person!.id)}
+              onClick={() => onRemovePerson(person!.id)}
               className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="h-4 w-4" />
@@ -469,12 +371,6 @@ export const EventDialogFields = ({
       </div>
     );
   };
-
-  // Expose additional persons data to parent component via a hidden field or callback
-  useEffect(() => {
-    // Store additional persons data in a way that can be accessed by parent
-    (window as any).additionalPersonsData = additionalPersons;
-  }, [additionalPersons]);
   
   return <>
       {/* Date and Time - Moved to top */}
@@ -623,7 +519,7 @@ export const EventDialogFields = ({
           <Button
             type="button"
             variant="outline"
-            onClick={addPerson}
+            onClick={onAddPerson}
             className="flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />

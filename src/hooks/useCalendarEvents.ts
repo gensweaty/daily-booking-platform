@@ -1,327 +1,282 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
-import { useToast } from "@/components/ui/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
-import { generateRecurringInstances, isVirtualInstance, getParentEventId, filterDeletedInstances } from "@/lib/recurringEvents";
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { generateRecurringInstances } from '@/lib/recurringEvents';
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const eventsQuery = useQuery({
-    queryKey: businessId ? ['business-events', businessId] : ['events', user?.id],
-    queryFn: async () => {
-      let query = supabase
-        .from('events')
-        .select('*')
-        .is('deleted_at', null)
-        .order('start_date', { ascending: true });
-
-      if (businessId && businessUserId) {
-        query = query.eq('user_id', businessUserId);
-      } else if (user?.id) {
-        query = query.eq('user_id', user.id);
-      } else {
+  const fetchEvents = async (): Promise<CalendarEventType[]> => {
+    try {
+      // Determine which user's events to fetch
+      const targetUserId = businessUserId || user?.id;
+      
+      if (!targetUserId) {
+        console.log("No user ID available for fetching events");
         return [];
       }
 
-      const { data, error } = await query;
-      
-      if (error) {
-        console.error('Error fetching events:', error);
-        throw error;
+      console.log("Fetching events for user:", targetUserId, "business:", businessId);
+
+      // Fetch events from the events table
+      const { data: events, error: eventsError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('user_id', targetUserId)
+        .is('deleted_at', null)
+        .order('start_date', { ascending: true });
+
+      if (eventsError) {
+        console.error("Error fetching events:", eventsError);
+        throw eventsError;
       }
 
-      if (!data) return [];
+      // Fetch booking requests if we have a business ID
+      let bookingRequests: any[] = [];
+      if (businessId) {
+        const { data: bookings, error: bookingsError } = await supabase
+          .from('booking_requests')
+          .select('*')
+          .eq('business_id', businessId)
+          .is('deleted_at', null)
+          .order('start_date', { ascending: true });
 
-      // Separate regular events from deletion exceptions
-      const regularEvents = data.filter(event => event.type !== 'deleted_exception');
-      const deletionExceptions = data.filter(event => event.type === 'deleted_exception');
-      
+        if (bookingsError) {
+          console.error("Error fetching booking requests:", bookingsError);
+        } else {
+          bookingRequests = bookings || [];
+        }
+      }
+
+      // Convert all data to CalendarEventType format
       const allEvents: CalendarEventType[] = [];
-      
-      regularEvents.forEach(event => {
-        const instances = generateRecurringInstances(event);
-        // Filter out instances that have deletion exceptions
-        const filteredInstances = filterDeletedInstances(instances, deletionExceptions);
-        allEvents.push(...filteredInstances);
-      });
 
-      console.log(`Loaded ${regularEvents.length} base events, generated ${allEvents.length} total instances after filtering exceptions`);
+      // Add regular events
+      if (events) {
+        for (const event of events) {
+          if (event.is_recurring && event.repeat_pattern) {
+            // Generate recurring instances
+            const instances = generateRecurringInstances(event);
+            allEvents.push(...instances);
+          } else {
+            allEvents.push({
+              id: event.id,
+              title: event.title,
+              start_date: event.start_date,
+              end_date: event.end_date,
+              user_id: event.user_id,
+              user_surname: event.user_surname,
+              user_number: event.user_number,
+              social_network_link: event.social_network_link,
+              event_notes: event.event_notes,
+              event_name: event.event_name,
+              payment_status: event.payment_status,
+              payment_amount: event.payment_amount,
+              type: event.type || 'event',
+              is_recurring: event.is_recurring || false,
+              repeat_pattern: event.repeat_pattern,
+              repeat_until: event.repeat_until,
+              language: event.language,
+            });
+          }
+        }
+      }
+
+      // Add booking requests
+      for (const booking of bookingRequests) {
+        allEvents.push({
+          id: booking.id,
+          title: booking.title,
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          user_id: booking.user_id,
+          user_surname: booking.requester_name,
+          user_number: booking.requester_phone,
+          social_network_link: booking.requester_email,
+          event_notes: booking.description,
+          payment_status: booking.payment_status,
+          payment_amount: booking.payment_amount,
+          type: 'booking_request',
+          language: booking.language,
+        });
+      }
+
+      console.log(`Loaded ${allEvents.length} total events`);
       return allEvents;
-    },
-    enabled: !!user || (!!businessId && !!businessUserId),
+
+    } catch (error) {
+      console.error("Error in fetchEvents:", error);
+      throw error;
+    }
+  };
+
+  const {
+    data: events = [],
+    isLoading,
+    error,
+    refetch
+  } = useQuery({
+    queryKey: businessId ? ['business-events', businessId] : ['events', user?.id],
+    queryFn: fetchEvents,
+    enabled: !!(businessUserId || user?.id),
+    staleTime: 30 * 1000, // 30 seconds
   });
 
   const createEventMutation = useMutation({
-    mutationFn: async (data: Partial<CalendarEventType>) => {
-      if (!user && !businessUserId) throw new Error("User not authenticated");
-      
-      const userId = businessUserId || user!.id;
-      
-      console.log("Creating event with data:", data);
-      
-      if (!data.start_date || !data.end_date) {
-        throw new Error("Start date and end date are required");
-      }
-      
-      const eventData = {
-        user_id: userId,
-        title: data.title || data.user_surname || '',
-        user_surname: data.user_surname,
-        user_number: data.user_number,
-        social_network_link: data.social_network_link,
-        event_notes: data.event_notes,
-        start_date: data.start_date,
-        end_date: data.end_date,
-        type: data.type || 'event',
-        payment_status: data.payment_status,
-        payment_amount: data.payment_amount,
-        language: data.language,
-        customer_id: data.customer_id,
-        event_name: data.event_name,
-        is_recurring: data.is_recurring || false,
-        repeat_pattern: data.repeat_pattern,
-        repeat_until: data.repeat_until,
-        parent_event_id: data.parent_event_id,
-      };
+    mutationFn: async (eventData: Partial<CalendarEventType>) => {
+      if (!user?.id) throw new Error("User not authenticated");
 
-      const { data: newEvent, error } = await supabase
-        .from('events')
-        .insert(eventData)
-        .select()
-        .single();
+      console.log("Creating event with data:", eventData);
 
-      if (error) {
-        console.error('Error creating event:', error);
-        throw error;
-      }
+      // Use the new database function for atomic operations
+      const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
+        p_event_data: {
+          title: eventData.user_surname || eventData.title,
+          user_surname: eventData.user_surname,
+          user_number: eventData.user_number,
+          social_network_link: eventData.social_network_link,
+          event_notes: eventData.event_notes,
+          event_name: eventData.event_name,
+          start_date: eventData.start_date,
+          end_date: eventData.end_date,
+          payment_status: eventData.payment_status || 'not_paid',
+          payment_amount: eventData.payment_amount?.toString() || '',
+          type: eventData.type || 'event',
+          is_recurring: eventData.is_recurring || false,
+          repeat_pattern: eventData.repeat_pattern,
+          repeat_until: eventData.repeat_until
+        },
+        p_additional_persons: [], // No additional persons for direct creation
+        p_user_id: user.id,
+        p_event_id: null
+      });
 
-      console.log("Event created successfully:", newEvent);
-      return newEvent;
+      if (error) throw error;
+
+      return { id: savedEventId, ...eventData };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: businessId ? ['business-events', businessId] : ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      if (businessId) {
+        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
+      }
+      
+      toast({
+        title: "Success",
+        description: "Event created successfully",
+      });
     },
     onError: (error: any) => {
-      console.error('Create event error:', error);
+      console.error("Error creating event:", error);
       toast({
-        translateKeys: {
-          titleKey: "common.error",
-          descriptionKey: "common.errorOccurred"
-        }
+        title: "Error",
+        description: error.message || "Failed to create event",
+        variant: "destructive",
       });
     },
   });
 
   const updateEventMutation = useMutation({
-    mutationFn: async (data: Partial<CalendarEventType>) => {
-      if (!data.id) throw new Error("Event ID is required for update");
-      
-      console.log("Updating event with data:", data);
-      
-      if (isVirtualInstance(data.id)) {
-        const { id, ...eventDataWithoutId } = data;
-        return createEventMutation.mutateAsync(eventDataWithoutId);
-      }
-      
-      const { id, ...updateData } = data;
-      
-      const cleanUpdateData = {
-        title: updateData.title,
-        user_surname: updateData.user_surname,
-        user_number: updateData.user_number,
-        social_network_link: updateData.social_network_link,
-        event_notes: updateData.event_notes,
-        start_date: updateData.start_date,
-        end_date: updateData.end_date,
-        type: updateData.type,
-        payment_status: updateData.payment_status,
-        payment_amount: updateData.payment_amount,
-        language: updateData.language,
-        customer_id: updateData.customer_id,
-        event_name: updateData.event_name,
-        is_recurring: updateData.is_recurring,
-        repeat_pattern: updateData.repeat_pattern,
-        repeat_until: updateData.repeat_until,
-        parent_event_id: updateData.parent_event_id,
-      };
-      
-      const { data: updatedEvent, error } = await supabase
-        .from('events')
-        .update(cleanUpdateData)
-        .eq('id', id)
-        .select()
-        .single();
+    mutationFn: async (eventData: Partial<CalendarEventType> & { id: string }) => {
+      if (!user?.id) throw new Error("User not authenticated");
 
-      if (error) {
-        console.error('Error updating event:', error);
-        throw error;
-      }
+      console.log("Updating event with data:", eventData);
 
-      console.log("Event updated successfully:", updatedEvent);
-      return updatedEvent;
+      // Use the new database function for atomic operations
+      const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
+        p_event_data: {
+          title: eventData.user_surname || eventData.title,
+          user_surname: eventData.user_surname,
+          user_number: eventData.user_number,
+          social_network_link: eventData.social_network_link,
+          event_notes: eventData.event_notes,
+          event_name: eventData.event_name,
+          start_date: eventData.start_date,
+          end_date: eventData.end_date,
+          payment_status: eventData.payment_status || 'not_paid',
+          payment_amount: eventData.payment_amount?.toString() || '',
+          type: eventData.type || 'event',
+          is_recurring: eventData.is_recurring || false,
+          repeat_pattern: eventData.repeat_pattern,
+          repeat_until: eventData.repeat_until
+        },
+        p_additional_persons: [], // Additional persons handled in EventDialog
+        p_user_id: user.id,
+        p_event_id: eventData.id
+      });
+
+      if (error) throw error;
+
+      return { ...eventData, id: savedEventId };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: businessId ? ['business-events', businessId] : ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      if (businessId) {
+        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
+      }
+      
+      toast({
+        title: "Success",
+        description: "Event updated successfully",
+      });
     },
     onError: (error: any) => {
-      console.error('Update event error:', error);
+      console.error("Error updating event:", error);
       toast({
-        translateKeys: {
-          titleKey: "common.error",
-          descriptionKey: "common.errorOccurred"
-        }
+        title: "Error",
+        description: error.message || "Failed to update event",
+        variant: "destructive",
       });
     },
   });
 
   const deleteEventMutation = useMutation({
     mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
-      console.log("Deleting event:", id, "choice:", deleteChoice);
-      
-      // Handle virtual instances (non-first events in recurring series)
-      if (isVirtualInstance(id)) {
-        const parentId = getParentEventId(id);
-        const instanceDate = id.split("-").slice(-3).join("-"); // Extract date from virtual ID
-        
-        if (deleteChoice === "this") {
-          console.log("Creating exception for virtual instance:", id, "on date:", instanceDate);
-          
-          // Create an exception event that marks this specific date as deleted
-          const exceptionData = {
-            user_id: businessUserId || user!.id,
-            title: `DELETED_EXCEPTION_${instanceDate}`,
-            start_date: instanceDate + 'T00:00:00.000Z',
-            end_date: instanceDate + 'T23:59:59.999Z',
-            type: 'deleted_exception',
-            parent_event_id: parentId,
-            event_notes: `Exception for recurring event on ${instanceDate}`,
-            is_recurring: false
-          };
-          
-          const { error } = await supabase
-            .from('events')
-            .insert(exceptionData);
-            
-          if (error) {
-            console.error('Error creating deletion exception:', error);
-            throw error;
-          }
-          
-          console.log("Created deletion exception for:", instanceDate);
-          return { success: true, deletedInstanceId: id, isVirtualDelete: true };
-        } else if (deleteChoice === "series") {
-          // Delete the parent event to remove entire series
-          console.log("Deleting parent event for series:", parentId);
-          
-          const { error } = await supabase
-            .from('events')
-            .update({ deleted_at: new Date().toISOString() })
-            .eq('id', parentId);
-            
-          if (error) {
-            console.error('Error deleting parent event:', error);
-            throw error;
-          }
-          
-          return { success: true, deletedParentId: parentId };
-        }
-      }
-      
-      // Handle regular events and first events in recurring series
-      if (deleteChoice === "this" && !isVirtualInstance(id)) {
-        // Check if this is the first event of a recurring series
-        const { data: eventData, error: fetchError } = await supabase
-          .from('events')
-          .select('is_recurring, repeat_pattern, start_date')
-          .eq('id', id)
-          .single();
-          
-        if (fetchError) {
-          console.error('Error fetching event data:', fetchError);
-          throw fetchError;
-        }
-        
-        if (eventData && eventData.is_recurring) {
-          // This is the first event in a recurring series
-          console.log("Deleting first instance of recurring series");
-          
-          // Create an exception for the first occurrence and keep the series
-          const firstDate = new Date(eventData.start_date).toISOString().split('T')[0];
-          const exceptionData = {
-            user_id: businessUserId || user!.id,
-            title: `DELETED_EXCEPTION_${firstDate}`,
-            start_date: firstDate + 'T00:00:00.000Z',
-            end_date: firstDate + 'T23:59:59.999Z',
-            type: 'deleted_exception',
-            parent_event_id: id,
-            event_notes: `Exception for recurring event on ${firstDate}`,
-            is_recurring: false
-          };
-          
-          const { error: exceptionError } = await supabase
-            .from('events')
-            .insert(exceptionData);
-            
-          if (exceptionError) {
-            console.error('Error creating first instance exception:', exceptionError);
-            throw exceptionError;
-          }
-          
-          return { success: true, deletedFirstInstance: id, isFirstInstanceDelete: true };
-        }
-      }
-      
-      // For regular events or when deleting entire series
+      if (!user?.id) throw new Error("User not authenticated");
+
+      console.log("Deleting event:", id, deleteChoice);
+
       const { error } = await supabase
         .from('events')
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user.id);
 
-      if (error) {
-        console.error('Error deleting event:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log("Event deleted successfully:", id);
-      return { success: true, deletedEventId: id };
+      return { success: true };
     },
     onSuccess: () => {
-      // Simply invalidate queries and let them refetch
-      // The exception events will prevent deleted instances from being generated
-      queryClient.invalidateQueries({ queryKey: businessId ? ['business-events', businessId] : ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      if (businessId) {
+        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
+      }
       
       toast({
-        translateKeys: {
-          titleKey: "common.success",
-          descriptionKey: "events.eventDeleted"
-        }
+        title: "Success",
+        description: "Event deleted successfully",
       });
     },
     onError: (error: any) => {
-      console.error('Delete event error:', error);
+      console.error("Error deleting event:", error);
       toast({
-        translateKeys: {
-          titleKey: "common.error",
-          descriptionKey: "common.errorOccurred"
-        }
+        title: "Error",
+        description: error.message || "Failed to delete event",
+        variant: "destructive",
       });
     },
   });
 
   return {
-    events: eventsQuery.data || [],
-    isLoading: eventsQuery.isLoading,
-    error: eventsQuery.error,
+    events,
+    isLoading,
+    error,
+    refetch,
     createEvent: createEventMutation.mutateAsync,
     updateEvent: updateEventMutation.mutateAsync,
     deleteEvent: deleteEventMutation.mutateAsync,
