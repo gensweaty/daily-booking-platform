@@ -12,7 +12,7 @@ import { FileRecord } from "@/types/files";
 import { EventDialogFields } from "./EventDialogFields";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
-import { generateRecurringInstances, isVirtualInstance } from "@/lib/recurringEvents";
+import { generateRecurringInstances, isVirtualInstance, getParentEventId } from "@/lib/recurringEvents";
 import { Trash } from "lucide-react";
 
 interface EventDialogProps {
@@ -41,16 +41,21 @@ const fetchEventFiles = async (eventId: string): Promise<FileRecord[]> => {
   if (!eventId) return [];
   
   try {
+    // For virtual instances, use the parent event ID
+    const actualEventId = isVirtualInstance(eventId) ? getParentEventId(eventId) : eventId;
+    console.log("Fetching files for event:", { originalId: eventId, actualId: actualEventId, isVirtual: isVirtualInstance(eventId) });
+    
     const { data, error } = await supabase
       .from('event_files')
       .select('*')
-      .eq('event_id', eventId);
+      .eq('event_id', actualEventId);
 
     if (error) {
       console.error('Error fetching event files:', error);
       return [];
     }
 
+    console.log("Loaded files:", data?.length || 0);
     return data || [];
   } catch (error) {
     console.error('Error fetching event files:', error);
@@ -107,13 +112,15 @@ export const EventDialog = ({
     }
     
     try {
-      console.log("Loading additional persons for event:", eventId);
+      // For virtual instances, use the parent event ID
+      const actualEventId = isVirtualInstance(eventId) ? getParentEventId(eventId) : eventId;
+      console.log("Loading additional persons for event:", { originalId: eventId, actualId: actualEventId, isVirtual: isVirtualInstance(eventId) });
       
       // Use the new event_id foreign key relationship
       const { data: customers, error } = await supabase
         .from('customers')
         .select('*')
-        .eq('event_id', eventId)
+        .eq('event_id', actualEventId)
         .eq('type', 'customer')
         .order('created_at', { ascending: true });
         
@@ -294,6 +301,10 @@ export const EventDialog = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
+      // For virtual instances, always use the parent event ID for updates
+      const actualEventId = event && isVirtualInstance(event.id) ? getParentEventId(event.id) : event?.id;
+      console.log("Saving event:", { originalId: event?.id, actualId: actualEventId, isVirtual: event ? isVirtualInstance(event.id) : false });
+
       // Prepare event data
       const eventData = {
         title: userSurname,
@@ -327,7 +338,7 @@ export const EventDialog = ({
         p_event_data: eventData,
         p_additional_persons: additionalPersonsData,
         p_user_id: user.id,
-        p_event_id: event?.id || null
+        p_event_id: actualEventId || null
       });
 
       if (error) throw error;
