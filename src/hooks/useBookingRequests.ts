@@ -509,7 +509,7 @@ export const useBookingRequests = () => {
       // Start file processing but don't wait for it to complete
       const fileProcessingPromise = processFiles();
       
-      // 🔥 EMAIL SENDING LOGIC - This is the critical part that was broken
+      // 🔥 EMAIL SENDING LOGIC - Complete implementation
       console.log('🔥 Starting email notifications to all attendees');
       
       if (businessProfile?.contact_address) {
@@ -519,7 +519,7 @@ export const useBookingRequests = () => {
         // Collect all email recipients
         const emailRecipients = [];
         
-        // Add main requester - ALWAYS add this first
+        // Always include main requester
         if (booking.requester_email) {
           emailRecipients.push({
             email: booking.requester_email,
@@ -551,7 +551,7 @@ export const useBookingRequests = () => {
         if (emailRecipients.length === 0) {
           console.warn('⚠️ No valid email recipients found for booking:', bookingId);
         } else {
-          // 🔥 FIXED: Send emails to all recipients in parallel
+          // ✅ Actually send emails to all recipients
           console.log('🔥 About to send emails to all recipients...');
           
           try {
@@ -594,7 +594,6 @@ export const useBookingRequests = () => {
             
             if (failCount > 0) {
               console.warn(`⚠️ Some emails failed to send (${failCount}/${emailRecipients.length})`);
-              // Show a warning but don't fail the entire process
               toast({
                 variant: "destructive",
                 title: "Partial Email Failure",
