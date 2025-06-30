@@ -7,7 +7,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { ensureNotificationPermission } from "@/utils/notificationUtils";
+import { ensureNotificationPermission, getPermissionInstructions, getDeviceSpecificMessage } from "@/utils/notificationUtils";
+import { detectDevice } from "@/utils/deviceDetector";
 
 export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
   const [title, setTitle] = useState("");
@@ -28,22 +29,33 @@ export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
       return;
     }
 
-    // Request notification permission when creating a reminder
+    // Request notification permission when creating a reminder with due date
     if (dueDate) {
-      console.log("🔔 Requesting notification permission for reminder creation");
+      const device = detectDevice();
+      console.log(`🔔 Requesting notification permission for reminder creation on ${device.os}`);
+      
       const permissionGranted = await ensureNotificationPermission();
       
       if (permissionGranted) {
         toast({
           title: "🔔 Notifications Enabled",
-          description: "You'll receive notifications for this reminder",
-          duration: 3000,
+          description: `Perfect! You'll receive reminder notifications on your ${device.os} device`,
+          duration: 4000,
         });
       } else if (Notification.permission === "denied") {
+        const instructions = getPermissionInstructions();
         toast({
           title: "⚠️ Notifications Blocked",
-          description: "Please enable notifications in your browser settings to receive reminders",
+          description: instructions,
           variant: "destructive",
+          duration: 8000,
+        });
+      } else {
+        // Permission request was cancelled or failed
+        const deviceMessage = getDeviceSpecificMessage();
+        toast({
+          title: "🔔 Enable Notifications",
+          description: deviceMessage,
           duration: 5000,
         });
       }
