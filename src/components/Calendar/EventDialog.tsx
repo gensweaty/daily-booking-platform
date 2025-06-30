@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { format, addYears, endOfYear } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -468,7 +469,8 @@ export const EventDialog = ({
       console.log("🗑️ Deleting recurring event:", { 
         eventId: event.id, 
         deleteChoice, 
-        isVirtual: isVirtualInstance(event.id) 
+        isVirtual: isVirtualInstance(event.id),
+        eventTitle: event.title || event.user_surname
       });
 
       if (isRecurringEvent && deleteChoice === "this") {
@@ -486,24 +488,25 @@ export const EventDialog = ({
           eventTitle: event.title || event.user_surname
         });
         
-        // Create a deletion exception record
-        // This is NOT a new event - it's a record that tells the system 
-        // "skip this date when showing recurring events"
+        // Create a deletion exception record with a special structure
+        // This record is NOT meant to be displayed as an event
         const exceptionData = {
           user_id: user.id,
-          title: `DELETED_EXCEPTION_${instanceDateStr}`, // Special marker title
+          title: `__DELETED_${parentId}_${instanceDateStr}__`, // Special hidden marker
           start_date: instanceDate.toISOString(),
           end_date: new Date(event.end_date).toISOString(),
-          type: 'deleted_exception', // Special type to identify this as a deletion exception
+          type: 'deletion_exception', // Special type to identify deletion exceptions
           parent_event_id: parentId,
-          event_notes: `Deletion exception for recurring event on ${instanceDateStr}`,
+          event_notes: `Hidden deletion marker for ${instanceDateStr}`,
           is_recurring: false,
-          // Copy original event data for reference
-          user_surname: event.user_surname,
-          user_number: event.user_number,
-          social_network_link: event.social_network_link,
-          payment_status: event.payment_status,
-          payment_amount: event.payment_amount
+          // Mark this as a system record that should never be displayed
+          user_surname: '__SYSTEM_DELETION_EXCEPTION__',
+          user_number: '',
+          social_network_link: '',
+          payment_status: 'not_paid',
+          payment_amount: null,
+          // Add a special flag to make filtering easier
+          deleted_at: null // This is NOT a deleted event, it's a deletion marker
         };
         
         const { error } = await supabase

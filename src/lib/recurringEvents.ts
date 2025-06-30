@@ -161,22 +161,25 @@ export const filterDeletedInstances = (instances: CalendarEventType[], deletionE
   });
 
   // Create a set of deleted dates from deletion exceptions
+  // Look for our special deletion markers
   const deletedDates = new Set(
     deletionExceptions
       .filter(exception => {
-        // Filter for actual deletion exceptions
-        const isDeleted = exception.type === 'deleted_exception' || 
-                         (exception.title && exception.title.startsWith('DELETED_EXCEPTION_'));
+        // Look for our special deletion markers
+        const isDeletionException = exception.type === 'deletion_exception' || 
+                                   (exception.title && exception.title.startsWith('__DELETED_')) ||
+                                   (exception.user_surname === '__SYSTEM_DELETION_EXCEPTION__');
         
         console.log("🚫 Checking exception:", {
           id: exception.id,
           title: exception.title,
           type: exception.type,
-          isDeleted,
+          user_surname: exception.user_surname,
+          isDeletionException,
           startDate: exception.start_date
         });
         
-        return isDeleted;
+        return isDeletionException;
       })
       .map(exception => {
         const dateStr = exception.start_date.split('T')[0];
