@@ -1,11 +1,11 @@
 
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { CalendarViewType } from "@/lib/types/calendar";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { useLocalizedDate } from "@/hooks/useLocalizedDate";
 
 interface CalendarHeaderProps {
   selectedDate: Date;
@@ -27,16 +27,18 @@ export const CalendarHeader = ({
   isExternalCalendar = false,
 }: CalendarHeaderProps) => {
   const { t, language } = useLanguage();
+  const { formatDate } = useLocalizedDate();
   const isGeorgian = language === 'ka';
 
   const getFormattedDate = () => {
     switch (view) {
       case "month":
-        return format(selectedDate, "MMMM yyyy");
+        return formatDate(selectedDate, "monthYear");
       case "week":
-        return `${t("calendar.weekOf")} ${format(selectedDate, "MMM d, yyyy")}`;
+        // Remove the redundant "კვირა" prefix since formatDate already includes it
+        return formatDate(selectedDate, "weekOf");
       case "day":
-        return format(selectedDate, "EEEE, MMMM d, yyyy");
+        return formatDate(selectedDate, "full");
       default:
         return "";
     }

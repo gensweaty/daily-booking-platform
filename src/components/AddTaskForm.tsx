@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { createTask, updateTask, archiveTask } from "@/lib/api";
@@ -13,7 +12,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "./shared/LanguageText";
 import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
 import { GeorgianAuthText } from "./shared/GeorgianAuthText";
-import { Archive } from "lucide-react";
+import { Archive, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface AddTaskFormProps {
   onClose: () => void;
@@ -29,6 +29,8 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const [reminderAt, setReminderAt] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -188,69 +190,162 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     }
   };
 
+  const handleDeleteClick = () => {
+    setShowDeleteConfirmation(true);
+  };
+
+  const handleDelete = async () => {
+    if (!editingTask || !user) return;
+
+    setIsDeleting(true);
+
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', editingTask.id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      
+      toast({
+        title: t("common.success"),
+        description: t("tasks.taskDeleted"),
+      });
+      
+      setShowDeleteConfirmation(false);
+      onClose();
+    } catch (error: any) {
+      console.error('Task delete error:', error);
+      toast({
+        title: "Error",
+        description: language === 'es'
+          ? "Error al eliminar la tarea. Por favor intenta de nuevo."
+          : error.message || "Failed to delete task. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
-    <div className="w-full space-y-6 p-2">
-      <TaskFormHeader editingTask={editingTask} />
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <TaskFormFields
-          title={title}
-          setTitle={setTitle}
-          description={description}
-          setDescription={setDescription}
-          selectedFile={selectedFile}
-          setSelectedFile={setSelectedFile}
-          fileError={fileError}
-          setFileError={setFileError}
-          editingTask={editingTask}
-          deadline={deadline}
-          setDeadline={setDeadline}
-          reminderAt={reminderAt}
-          setReminderAt={setReminderAt}
-        />
-        <div className="flex justify-end gap-2 pt-4 border-t border-muted/20">
-          {editingTask && (
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={handleArchive}
-              disabled={isArchiving}
-              className="min-w-[120px]"
-            >
-              <Archive className="mr-2 h-4 w-4" />
+    <>
+      <div className="w-full space-y-6 p-2">
+        <TaskFormHeader editingTask={editingTask} />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <TaskFormFields
+            title={title}
+            setTitle={setTitle}
+            description={description}
+            setDescription={setDescription}
+            selectedFile={selectedFile}
+            setSelectedFile={setSelectedFile}
+            fileError={fileError}
+            setFileError={setFileError}
+            editingTask={editingTask}
+            deadline={deadline}
+            setDeadline={setDeadline}
+            reminderAt={reminderAt}
+            setReminderAt={setReminderAt}
+          />
+          <div className="flex justify-end gap-2 pt-4 border-t border-muted/20">
+            {editingTask && (
+              <>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={handleArchive}
+                  disabled={isArchiving}
+                  className="min-w-[120px]"
+                >
+                  <Archive className="mr-2 h-4 w-4" />
+                  {isGeorgian ? (
+                    <GeorgianAuthText fontWeight="bold">
+                      <LanguageText>
+                        {isArchiving ? t("common.saving") : t("tasks.archive")}
+                      </LanguageText>
+                    </GeorgianAuthText>
+                  ) : (
+                    <LanguageText>
+                      {isArchiving ? t("common.saving") : t("tasks.archive")}
+                    </LanguageText>
+                  )}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  onClick={handleDeleteClick}
+                  disabled={isDeleting}
+                  className="min-w-[120px]"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {isGeorgian ? (
+                    <GeorgianAuthText fontWeight="bold">
+                      <LanguageText>
+                        {isDeleting ? t("common.saving") : t("tasks.deleteTask")}
+                      </LanguageText>
+                    </GeorgianAuthText>
+                  ) : (
+                    <LanguageText>
+                      {isDeleting ? t("common.saving") : t("tasks.deleteTask")}
+                    </LanguageText>
+                  )}
+                </Button>
+              </>
+            )}
+            <Button type="submit" className="min-w-[120px]" disabled={isSubmitting}>
               {isGeorgian ? (
                 <GeorgianAuthText fontWeight="bold">
                   <LanguageText>
-                    {isArchiving ? t("common.saving") : t("tasks.archive")}
+                    {isSubmitting 
+                      ? t("common.saving")
+                      : (editingTask ? t("tasks.editTask") : t("tasks.addTask"))
+                    }
                   </LanguageText>
                 </GeorgianAuthText>
               ) : (
-                <LanguageText>
-                  {isArchiving ? t("common.saving") : t("tasks.archive")}
-                </LanguageText>
-              )}
-            </Button>
-          )}
-          <Button type="submit" className="min-w-[120px]" disabled={isSubmitting}>
-            {isGeorgian ? (
-              <GeorgianAuthText fontWeight="bold">
                 <LanguageText>
                   {isSubmitting 
                     ? t("common.saving")
                     : (editingTask ? t("tasks.editTask") : t("tasks.addTask"))
                   }
                 </LanguageText>
-              </GeorgianAuthText>
-            ) : (
-              <LanguageText>
-                {isSubmitting 
-                  ? t("common.saving")
-                  : (editingTask ? t("tasks.editTask") : t("tasks.addTask"))
-                }
-              </LanguageText>
-            )}
-          </Button>
-        </div>
-      </form>
-    </div>
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {isGeorgian ? "დავალების წაშლა" : t("tasks.deleteTaskConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isGeorgian 
+                ? "ნამდვილად გსურთ ამ დავალების წაშლა? ეს მოქმედება შეუქცევადია." 
+                : t("tasks.deleteTaskConfirmation")
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDeleteConfirmation(false)}>
+              {isGeorgian ? "გაუქმება" : t("common.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isGeorgian ? "წაშლა" : t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };

@@ -1,82 +1,74 @@
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { format } from 'date-fns';
 import { Reminder } from '@/lib/types';
 import { useToast } from '@/components/ui/use-toast';
+import { platformNotificationManager } from '@/utils/platformNotificationManager';
 
 export const ReminderNotificationManager = ({ reminders }: { reminders: Reminder[] }) => {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Initialize audio element
-    audioRef.current = new Audio('/audio/notification.mp3');
-    audioRef.current.volume = 0.5; // Set volume to 50%
+    const checkReminders = async () => {
+      if (!reminders || reminders.length === 0) return;
 
-    // Request notification permission
-    if ('Notification' in window) {
-      Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
-          toast({
-            title: "Notifications Enabled",
-            description: "You will receive reminder notifications",
-          });
-        }
-      });
-    }
-
-    const checkReminders = () => {
-      reminders?.forEach((reminder: Reminder) => {
+      reminders.forEach(async (reminder: Reminder) => {
         const dueTime = new Date(reminder.remind_at).getTime();
         const now = new Date().getTime();
         const fiveMinutes = 5 * 60 * 1000;
 
+        // 5 minutes before due
         if (dueTime - now <= fiveMinutes && dueTime > now) {
-          if (Notification.permission === "granted") {
-            audioRef.current?.play().catch(console.error);
-            
-            new Notification("Reminder Due Soon!", {
-              body: `${reminder.title} is due at ${format(new Date(reminder.remind_at), 'pp')}`,
-              icon: "/favicon.ico",
-              badge: "/reminder-banner.jpg"
-            });
-            
-            toast({
-              title: "Reminder Due Soon!",
-              description: `${reminder.title} is due at ${format(new Date(reminder.remind_at), 'pp')}`,
-              variant: "default",
-            });
+          const result = await platformNotificationManager.createNotification({
+            title: "Reminder Due Soon!",
+            body: `${reminder.title} is due at ${format(new Date(reminder.remind_at), 'pp')}`,
+            icon: "/favicon.ico",
+            tag: `reminder-soon-${reminder.id}`,
+            requireInteraction: true,
+          });
+
+          if (result.success) {
+            console.log("✅ 5-minute reminder notification sent", result.fallbackUsed ? "(fallback)" : "");
+          } else {
+            console.error("❌ 5-minute reminder notification failed:", result.error);
           }
+          
+          toast({
+            title: "Reminder Due Soon!",
+            description: `${reminder.title} is due at ${format(new Date(reminder.remind_at), 'pp')}`,
+            variant: "default",
+          });
         }
 
+        // Due now
         if (Math.abs(dueTime - now) < 60000) {
-          if (Notification.permission === "granted") {
-            audioRef.current?.play().catch(console.error);
+          const result = await platformNotificationManager.createNotification({
+            title: "⏰ Reminder Due Now!",
+            body: `${reminder.title} is due now!`,
+            icon: "/favicon.ico",
+            tag: `reminder-now-${reminder.id}`,
+            requireInteraction: true,
+          });
 
-            new Notification("Reminder Due Now!", {
-              body: `${reminder.title} is due now!`,
-              icon: "/favicon.ico",
-              badge: "/reminder-banner.jpg"
-            });
-            
-            toast({
-              title: "⏰ Reminder Due Now!",
-              description: `${reminder.title} is due now!`,
-              variant: "destructive",
-            });
+          if (result.success) {
+            console.log("✅ Due now reminder notification sent", result.fallbackUsed ? "(fallback)" : "");
+          } else {
+            console.error("❌ Due now reminder notification failed:", result.error);
           }
+          
+          toast({
+            title: "⏰ Reminder Due Now!",
+            description: `${reminder.title} is due now!`,
+            variant: "destructive",
+          });
         }
       });
     };
 
     const interval = setInterval(checkReminders, 30000);
-    return () => {
-      clearInterval(interval);
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
+    checkReminders(); // Run immediately
+    
+    return () => clearInterval(interval);
   }, [reminders, toast]);
 
   return null;

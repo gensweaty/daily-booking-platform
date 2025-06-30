@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { format, addYears, endOfYear } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,7 @@ export const EventDialog = ({
   const [repeatPattern, setRepeatPattern] = useState("none");
   const [repeatUntil, setRepeatUntil] = useState<Date | undefined>(undefined);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [showRegularDeleteConfirmation, setShowRegularDeleteConfirmation] = useState(false);
 
   const { toast } = useToast();
   const { t, language } = useLanguage();
@@ -119,6 +121,7 @@ export const EventDialog = ({
       setFileError("");
       setDisplayedFiles([]);
       setShowDeleteConfirmation(false);
+      setShowRegularDeleteConfirmation(false);
     }
   }, [isOpen, event, selectedDate]);
 
@@ -294,8 +297,8 @@ export const EventDialog = ({
       toast({
         title: isGeorgian ? "წარმატება" : "Success",
         description: event 
-          ? (isGeorgian ? "ღონისძიება განახლდა" : "Event updated successfully")
-          : (isGeorgian ? "ღონისძიება შეიქმნა" : "Event created successfully"),
+          ? (isGeorgian ? "მოვლენა განახლდა" : "Event updated successfully")
+          : (isGeorgian ? "მოვლენა შეიქმნა" : "Event created successfully"),
       });
 
       if (event) {
@@ -308,7 +311,7 @@ export const EventDialog = ({
       console.error("Error saving event:", error);
       toast({
         title: isGeorgian ? "შეცდომა" : "Error",
-        description: isGeorgian ? "ღონისძიების შენახვისას მოხდა შეცდომა" : "Failed to save event",
+        description: isGeorgian ? "მოვლენის შენახვისას მოხდა შეცდომა" : "Failed to save event",
         variant: "destructive",
       });
     } finally {
@@ -320,7 +323,39 @@ export const EventDialog = ({
     if (isRecurringEvent) {
       setShowDeleteConfirmation(true);
     } else {
-      handleDelete();
+      setShowRegularDeleteConfirmation(true);
+    }
+  };
+
+  const handleRegularDelete = async () => {
+    if (!event) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('events')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', event.id);
+
+      if (error) throw error;
+
+      toast({
+        title: isGeorgian ? "წარმატება" : "Success",
+        description: isGeorgian ? "მოვლენა წაიშალა" : "Event deleted successfully",
+      });
+
+      setShowRegularDeleteConfirmation(false);
+      onEventDeleted?.();
+      onClose();
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      toast({
+        title: isGeorgian ? "შეცდომა" : "Error",
+        description: isGeorgian ? "მოვლენის წაშლისას მოხდა შეცდომა" : "Failed to delete event",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -405,7 +440,7 @@ export const EventDialog = ({
 
       toast({
         title: isGeorgian ? "წარმატება" : "Success",
-        description: isGeorgian ? "ღონისძიება წაიშალა" : "Event deleted successfully",
+        description: isGeorgian ? "მოვლენა წაიშალა" : "Event deleted successfully",
       });
 
       setShowDeleteConfirmation(false);
@@ -415,7 +450,7 @@ export const EventDialog = ({
       console.error("Error deleting event:", error);
       toast({
         title: isGeorgian ? "შეცდომა" : "Error",
-        description: isGeorgian ? "ღონისძიების წაშლისას მოხდა შეცდომა" : "Failed to delete event",
+        description: isGeorgian ? "მოვლენის წაშლისას მოხდა შეცდომა" : "Failed to delete event",
         variant: "destructive",
       });
     } finally {
@@ -437,10 +472,10 @@ export const EventDialog = ({
           <DialogHeader>
             <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
               {event 
-                ? (isGeorgian ? <GeorgianAuthText>ღონისძიების რედაქტირება</GeorgianAuthText> : <LanguageText>Edit Event</LanguageText>)
+                ? (isGeorgian ? <GeorgianAuthText>მოვლენის რედაქტირება</GeorgianAuthText> : <LanguageText>Edit Event</LanguageText>)
                 : (isBookingRequest 
                   ? (isGeorgian ? <GeorgianAuthText>ჯავშნის მოთხოვნა</GeorgianAuthText> : <LanguageText>Booking Request</LanguageText>)
-                  : (isGeorgian ? <GeorgianAuthText>ახალი ღონისძიება</GeorgianAuthText> : <LanguageText>New Event</LanguageText>)
+                  : (isGeorgian ? <GeorgianAuthText>ახალი მოვლენა</GeorgianAuthText> : <LanguageText>New Event</LanguageText>)
                 )
               }
             </DialogTitle>
@@ -529,16 +564,44 @@ export const EventDialog = ({
         </DialogContent>
       </Dialog>
 
+      {/* Regular Delete Confirmation Dialog */}
+      <AlertDialog open={showRegularDeleteConfirmation} onOpenChange={setShowRegularDeleteConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {isGeorgian ? "მოვლენის წაშლა" : t("events.deleteEventConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isGeorgian 
+                ? "ნამდვილად გსურთ ამ მოვლენის წაშლა? ეს მოქმედება შეუქცევადია." 
+                : t("events.deleteEventConfirmMessage")
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowRegularDeleteConfirmation(false)}>
+              {isGeorgian ? "გაუქმება" : t("common.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleRegularDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isGeorgian ? "წაშლა" : t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Delete Confirmation Dialog for Recurring Events */}
       <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {isGeorgian ? "განმეორადი ღონისძიების წაშლა" : "Delete Recurring Event"}
+              {isGeorgian ? "განმეორადი მოვლენის წაშლა" : "Delete Recurring Event"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {isGeorgian 
-                ? "ეს ღონისძიება განმეორადია. რას გსურთ?" 
+                ? "ეს მოვლენა განმეორადია. რას გსურთ?" 
                 : "This is a recurring event. What would you like to do?"
               }
             </AlertDialogDescription>
@@ -551,7 +614,7 @@ export const EventDialog = ({
               onClick={() => handleDelete("this")}
               className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
             >
-              {isGeorgian ? "მხოლოდ ეს ღონისძიება" : "Delete this event only"}
+              {isGeorgian ? "მხოლოდ ეს მოვლენა" : "Delete this event only"}
             </AlertDialogAction>
             <AlertDialogAction 
               onClick={() => handleDelete("series")}
@@ -565,3 +628,4 @@ export const EventDialog = ({
     </>
   );
 };
+
