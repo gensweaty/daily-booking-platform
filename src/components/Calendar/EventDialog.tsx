@@ -207,6 +207,7 @@ export const EventDialog = ({
 
     try {
       const files = await fetchEventFiles(eventId);
+      console.log("Setting displayed files:", files.length);
       setDisplayedFiles(files);
     } catch (error) {
       console.error("Error loading event files:", error);
@@ -215,6 +216,7 @@ export const EventDialog = ({
   };
 
   const handleFileDeleted = (fileId: string) => {
+    console.log("File deleted, removing from displayed files:", fileId);
     setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
   };
 
@@ -385,9 +387,33 @@ export const EventDialog = ({
           } else {
             console.log('✅ File uploaded and recorded successfully');
             
-            // Refresh the displayed files immediately after successful upload
-            const refreshedFiles = await fetchEventFiles(savedEventId);
-            setDisplayedFiles(refreshedFiles);
+            // Force refresh the displayed files for the correct event ID
+            const eventIdForFiles = actualEventId || savedEventId;
+            console.log('🔄 Refreshing files for event ID:', eventIdForFiles);
+            
+            // Wait a moment for the database to be consistent
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            try {
+              const refreshedFiles = await fetchEventFiles(eventIdForFiles);
+              console.log('📁 Refreshed files count:', refreshedFiles.length);
+              setDisplayedFiles(refreshedFiles);
+              
+              // Also clear the selected file
+              setSelectedFile(null);
+            } catch (refreshError) {
+              console.error('Error refreshing files:', refreshError);
+              // Fallback: try to reload files after a longer delay
+              setTimeout(async () => {
+                try {
+                  const fallbackFiles = await fetchEventFiles(eventIdForFiles);
+                  console.log('📁 Fallback files count:', fallbackFiles.length);
+                  setDisplayedFiles(fallbackFiles);
+                } catch (fallbackError) {
+                  console.error('Fallback file refresh failed:', fallbackError);
+                }
+              }, 500);
+            }
           }
         }
       }
