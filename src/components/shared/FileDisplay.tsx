@@ -28,70 +28,16 @@ export const FileDisplay = ({
   fallbackBuckets = []
 }: FileDisplayProps) => {
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
-  const [fileURLs, setFileURLs] = useState<{[key: string]: string}>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
-  console.log("📁 FileDisplay - Initializing with:", {
-    filesCount: files.length,
-    bucketName,
-    parentType,
-    parentId,
-    files: files.map(f => ({ id: f.id, filename: f.filename, file_path: f.file_path }))
-  });
+  console.log("📁 FileDisplay - Rendering with files:", files.length);
 
   // Remove duplicate files by ID
   const uniqueFiles = files.filter((file, index, self) => 
     index === self.findIndex(f => f.id === file.id)
   );
-
-  console.log(`📁 FileDisplay - Processing ${uniqueFiles.length} unique files`);
-
-  useEffect(() => {
-    const setupFileUrls = async () => {
-      if (uniqueFiles.length === 0) {
-        console.log("📁 FileDisplay - No files to process");
-        return;
-      }
-
-      console.log("🔧 FileDisplay - Setting up file URLs");
-      const newURLs: {[key: string]: string} = {};
-      
-      for (const file of uniqueFiles) {
-        if (!file.file_path) {
-          console.warn("⚠️ FileDisplay - File missing path:", file.filename);
-          continue;
-        }
-        
-        // Clean the path - remove leading slash if present
-        const cleanPath = file.file_path.startsWith('/') ? file.file_path.substring(1) : file.file_path;
-        
-        console.log(`🔧 FileDisplay - Processing file: ${file.filename}, original path: ${file.file_path}, clean path: ${cleanPath}`);
-        
-        try {
-          // Try event_attachments bucket first (most common)
-          const { data } = supabase.storage
-            .from('event_attachments')
-            .getPublicUrl(cleanPath);
-          
-          if (data?.publicUrl) {
-            newURLs[file.id] = data.publicUrl;
-            console.log(`✅ FileDisplay - URL created for ${file.filename}: ${data.publicUrl}`);
-          } else {
-            console.warn(`⚠️ FileDisplay - Failed to create URL for ${file.filename}`);
-          }
-        } catch (error) {
-          console.error(`❌ FileDisplay - Error creating URL for ${file.filename}:`, error);
-        }
-      }
-      
-      console.log(`🔧 FileDisplay - Setup complete. Created ${Object.keys(newURLs).length} URLs out of ${uniqueFiles.length} files`);
-      setFileURLs(newURLs);
-    };
-    
-    setupFileUrls();
-  }, [uniqueFiles]);
 
   const getFileExtension = (filename: string): string => {
     return filename.split('.').pop()?.toLowerCase() || '';
@@ -116,18 +62,25 @@ export const FileDisplay = ({
     return <FileIcon className="h-5 w-5" />;
   };
 
-  const handleDownload = async (filePath: string, fileName: string, fileId: string) => {
+  const getPublicUrl = (filePath: string) => {
+    // Try to get public URL from storage
+    const { data } = supabase.storage
+      .from('event_attachments')
+      .getPublicUrl(filePath);
+    
+    return data?.publicUrl || null;
+  };
+
+  const handleDownload = async (filePath: string, fileName: string) => {
     try {
-      console.log(`⬇️ FileDisplay - Starting download: ${fileName} from path: ${filePath}`);
-      
-      const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+      console.log(`⬇️ Downloading file: ${fileName} from path: ${filePath}`);
       
       const { data, error } = await supabase.storage
         .from('event_attachments')
-        .download(cleanPath);
+        .download(filePath);
       
       if (error) {
-        console.error(`❌ FileDisplay - Download error:`, error);
+        console.error("Download error:", error);
         throw error;
       }
       
@@ -141,15 +94,13 @@ export const FileDisplay = ({
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
         
-        console.log(`✅ FileDisplay - Download successful: ${fileName}`);
-        
         toast({
           title: t("common.success"),
           description: t("common.downloadStarted"),
         });
       }
     } catch (error) {
-      console.error(`❌ FileDisplay - Download failed for ${fileName}:`, error);
+      console.error("Download failed:", error);
       toast({
         title: t("common.error"),
         description: t("common.downloadError"),
@@ -158,39 +109,21 @@ export const FileDisplay = ({
     }
   };
 
-  const handleOpenFile = (filePath: string, fileId: string) => {
-    const fileUrl = fileURLs[fileId];
-    if (fileUrl) {
-      console.log(`🔗 FileDisplay - Opening file: ${fileUrl}`);
-      window.open(fileUrl, '_blank', 'noopener,noreferrer');
-    } else {
-      console.error(`❌ FileDisplay - No URL available for file ID: ${fileId}`);
-      toast({
-        title: t("common.error"),
-        description: t("common.fileAccessError"),
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleDelete = async (fileId: string, filePath: string) => {
     try {
-      console.log(`🗑️ FileDisplay - Starting delete for file: ${fileId}, path: ${filePath}`);
+      console.log(`🗑️ Deleting file: ${fileId}, path: ${filePath}`);
       setDeletingFileId(fileId);
-      
-      const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
       
       // Delete from storage
       const { error: storageError } = await supabase.storage
         .from('event_attachments')
-        .remove([cleanPath]);
+        .remove([filePath]);
       
       if (storageError) {
-        console.warn("⚠️ FileDisplay - Storage deletion warning:", storageError);
-        // Continue with database deletion even if storage fails
+        console.warn("Storage deletion warning:", storageError);
       }
       
-      // Delete from database using explicit table names
+      // Delete from database based on parent type
       let dbError: any = null;
       
       if (parentType === 'task') {
@@ -220,13 +153,13 @@ export const FileDisplay = ({
       }
         
       if (dbError) {
-        console.error("❌ FileDisplay - Database deletion error:", dbError);
+        console.error("Database deletion error:", dbError);
         throw dbError;
       }
       
-      console.log("✅ FileDisplay - File deleted successfully");
+      console.log("✅ File deleted successfully");
       
-      // Invalidate all relevant queries
+      // Invalidate queries
       await queryClient.invalidateQueries({ queryKey: ['files'] });
       await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
       await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
@@ -241,7 +174,7 @@ export const FileDisplay = ({
         description: t("common.fileDeleted"),
       });
     } catch (error) {
-      console.error(`❌ FileDisplay - Delete failed:`, error);
+      console.error("Delete failed:", error);
       toast({
         title: t("common.error"),
         description: t("common.deleteError"),
@@ -253,7 +186,6 @@ export const FileDisplay = ({
   };
 
   if (!uniqueFiles || uniqueFiles.length === 0) {
-    console.log("📁 FileDisplay - No files to display");
     return (
       <div className="text-sm text-muted-foreground">
         {t("common.noFilesFound")}
@@ -265,7 +197,7 @@ export const FileDisplay = ({
     <div className="space-y-2">
       {uniqueFiles.map((file) => {
         if (!file.file_path) {
-          console.warn("⚠️ FileDisplay - Skipping file with no path:", file.filename);
+          console.warn("Skipping file with no path:", file.filename);
           return null;
         }
         
@@ -273,21 +205,21 @@ export const FileDisplay = ({
           ? file.filename.substring(0, 20) + '...' 
           : file.filename;
           
-        const imageUrl = fileURLs[file.id];
+        const publicUrl = getPublicUrl(file.file_path);
           
         return (
           <div key={file.id} className="flex flex-col bg-background border rounded-md overflow-hidden">
             <div className="p-3 flex items-center justify-between">
               <div className="flex items-center space-x-2 overflow-hidden">
-                {isImage(file.filename) ? (
+                {isImage(file.filename) && publicUrl ? (
                   <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                     <img 
-                      src={imageUrl}
+                      src={publicUrl}
                       alt={file.filename}
                       className="h-full w-full object-cover"
                       onError={(e) => {
-                        console.error(`🖼️ FileDisplay - Image load failed: ${imageUrl}`);
-                        e.currentTarget.src = '/placeholder.svg';
+                        console.error("Image load failed:", publicUrl);
+                        e.currentTarget.style.display = 'none';
                       }}
                     />
                   </div>
@@ -303,7 +235,7 @@ export const FileDisplay = ({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  onClick={() => handleDownload(file.file_path, file.filename, file.id)}
+                  onClick={() => handleDownload(file.file_path, file.filename)}
                   title={t("common.download")}
                 >
                   <Download className="h-4 w-4" />
@@ -323,15 +255,17 @@ export const FileDisplay = ({
               </div>
             </div>
             
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full rounded-none border-t flex items-center justify-center gap-2 py-1.5"
-              onClick={() => handleOpenFile(file.file_path, file.id)}
-            >
-              <ExternalLink className="h-4 w-4" />
-              {t("crm.open")}
-            </Button>
+            {publicUrl && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full rounded-none border-t flex items-center justify-center gap-2 py-1.5"
+                onClick={() => window.open(publicUrl, '_blank', 'noopener,noreferrer')}
+              >
+                <ExternalLink className="h-4 w-4" />
+                {t("crm.open")}
+              </Button>
+            )}
           </div>
         );
       })}

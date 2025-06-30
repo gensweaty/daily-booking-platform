@@ -245,7 +245,7 @@ export const BookingRequestForm = ({
       if (selectedFile && bookingId) {
         try {
           const fileExt = selectedFile.name.split('.').pop();
-          const filePath = `${bookingId}/${Date.now()}.${fileExt}`;
+          const filePath = `bookings/${bookingId}/${Date.now()}.${fileExt}`;
 
           console.log('📁 BookingRequestForm - Uploading file:', filePath);
           const { error: uploadError } = await supabase.storage
@@ -254,6 +254,11 @@ export const BookingRequestForm = ({
 
           if (uploadError) {
             console.error('❌ BookingRequestForm - File upload error:', uploadError);
+            toast({
+              title: t("common.warning"),
+              description: "File upload failed, but booking was created successfully",
+              variant: "default",
+            });
           } else {
             console.log('✅ BookingRequestForm - File uploaded successfully');
 
@@ -277,18 +282,27 @@ export const BookingRequestForm = ({
           }
         } catch (fileError) {
           console.error('❌ BookingRequestForm - File handling error:', fileError);
+          toast({
+            title: t("common.warning"),
+            description: "File upload failed, but booking was created successfully",
+            variant: "default",
+          });
         }
       }
 
-      // Step 3: Send notification email with proper error handling
+      // Step 3: Send notification email
       try {
         console.log('📧 BookingRequestForm - Preparing email notification');
         
         if (!businessData?.businessEmail) {
           console.warn('⚠️ BookingRequestForm - No business email found, skipping email notification');
+          toast({
+            title: t("common.warning"),
+            description: "Booking created successfully, but no business email found for notification",
+            variant: "default",
+          });
         } else {
-          // Prepare email notification data with all required fields
-          const emailNotificationData = {
+          const emailData = {
             businessId: businessId,
             businessEmail: businessData.businessEmail,
             businessName: businessData.businessName || "Business",
@@ -296,7 +310,7 @@ export const BookingRequestForm = ({
             requesterName: fullName,
             requesterEmail: socialNetworkLink,
             requesterPhone: userNumber,
-            notes: eventNotes || "No additional notes",
+            notes: eventNotes || "",
             startDate: startDateTime.toISOString(),
             endDate: endDateTime.toISOString(),
             paymentStatus: paymentStatus,
@@ -305,33 +319,28 @@ export const BookingRequestForm = ({
             language: language
           };
           
-          console.log("📧 BookingRequestForm - Sending email with data:", emailNotificationData);
-          
-          const { data: emailResult, error: emailError } = await supabase.functions.invoke(
+          console.log("📧 BookingRequestForm - Sending email notification:", emailData);
+
+          const { error: emailError } = await supabase.functions.invoke(
             'send-booking-request-notification',
             {
-              body: emailNotificationData,
-              headers: {
-                'Content-Type': 'application/json'
-              }
+              body: emailData
             }
           );
 
           if (emailError) {
-            console.error('❌ BookingRequestForm - Email send error:', emailError);
-            // Show warning but don't block the flow
+            console.error('❌ BookingRequestForm - Email notification error:', emailError);
             toast({
               title: t("common.warning"),
-              description: "Booking created successfully, but email notification failed to send",
+              description: "Booking created successfully, but email notification failed",
               variant: "default",
             });
           } else {
-            console.log('✅ BookingRequestForm - Email notification sent successfully:', emailResult);
+            console.log('✅ BookingRequestForm - Email notification sent successfully');
           }
         }
       } catch (emailError) {
         console.error("❌ BookingRequestForm - Email notification error:", emailError);
-        // Show warning but continue
         toast({
           title: t("common.warning"),
           description: "Booking created successfully, but email notification may have failed",
@@ -339,7 +348,7 @@ export const BookingRequestForm = ({
         });
       }
 
-      // Reset form
+      // Reset form and show success
       setFullName('');
       setUserSurname('');
       setUserNumber('');
@@ -353,7 +362,6 @@ export const BookingRequestForm = ({
         fileInputRef.current.value = '';
       }
 
-      // Show success message
       toast({
         title: t("common.success"),
         description: t("events.requestSubmitted"),
