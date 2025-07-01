@@ -185,7 +185,7 @@ export const useBookingRequests = () => {
         endDate: endDate,
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
-        businessAddress: businessAddress,
+        businessAddress: businessAddress || "Contact us for location details",
         language: language,
         eventNotes: eventNotes
       };
@@ -198,6 +198,8 @@ export const useBookingRequests = () => {
       // Get access token for authenticated request
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
+      
+      console.log("🔑 Access token available:", !!accessToken);
       
       if (!accessToken) {
         console.error("❌ No access token available for authenticated request");
@@ -509,115 +511,119 @@ export const useBookingRequests = () => {
       // Start file processing but don't wait for it to complete
       const fileProcessingPromise = processFiles();
       
-      // 🔥 EMAIL SENDING LOGIC - Complete implementation
+      // 🔥 EMAIL SENDING LOGIC - Fixed version with proper debugging
       console.log('🔥 Starting email notifications to all attendees');
+      console.log('📋 Business profile:', businessProfile);
       
-      if (businessProfile?.contact_address) {
-        const businessName = businessProfile?.business_name || "Our Business";
-        const contactAddress = businessProfile?.contact_address;
-        
-        // Collect all email recipients
-        const emailRecipients = [];
-        
-        // Always include main requester
-        if (booking.requester_email) {
-          emailRecipients.push({
-            email: booking.requester_email,
-            fullName: booking.requester_name || "",
-            paymentStatus: booking.payment_status,
-            paymentAmount: booking.payment_amount,
-            eventNotes: booking.description || booking.event_notes || null
-          });
-          console.log(`📧 Added main requester to email list: ${booking.requester_email}`);
-        }
-        
-        // Add additional persons from the parsed data
-        additionalPersonsFromBooking.forEach(person => {
-          if (person.socialNetworkLink && person.socialNetworkLink.includes('@')) {
-            emailRecipients.push({
-              email: person.socialNetworkLink,
-              fullName: person.userSurname || "",
-              paymentStatus: person.paymentStatus || booking.payment_status,
-              paymentAmount: person.paymentAmount || booking.payment_amount,
-              eventNotes: person.eventNotes || booking.event_notes
-            });
-            console.log(`📧 Added additional person to email list: ${person.socialNetworkLink}`);
-          }
+      const businessName = businessProfile?.business_name || "Our Business";
+      const contactAddress = businessProfile?.contact_address || "Contact us for location details";
+      
+      console.log('📧 Using business name:', businessName);
+      console.log('📧 Using contact address:', contactAddress);
+      
+      // Collect all email recipients
+      const emailRecipients = [];
+      
+      // Always include main requester
+      if (booking.requester_email) {
+        emailRecipients.push({
+          email: booking.requester_email,
+          fullName: booking.requester_name || "",
+          paymentStatus: booking.payment_status,
+          paymentAmount: booking.payment_amount,
+          eventNotes: booking.description || booking.event_notes || null
         });
-        
-        console.log(`📬 Total email recipients: ${emailRecipients.length}`);
-        console.log(`📬 Recipients list:`, emailRecipients.map(r => ({ email: r.email, name: r.fullName })));
-        
-        if (emailRecipients.length === 0) {
-          console.warn('⚠️ No valid email recipients found for booking:', bookingId);
-        } else {
-          // ✅ Actually send emails to all recipients
-          console.log('🔥 About to send emails to all recipients...');
-          
-          try {
-            const emailResults = await Promise.all(
-              emailRecipients.map(async (recipient, index) => {
-                const emailParams = {
-                  email: recipient.email,
-                  fullName: recipient.fullName,
-                  businessName,
-                  startDate: booking.start_date,
-                  endDate: booking.end_date,
-                  paymentStatus: recipient.paymentStatus,
-                  paymentAmount: recipient.paymentAmount,
-                  businessAddress: contactAddress,
-                  language: booking.language || language,
-                  eventNotes: recipient.eventNotes
-                };
-                
-                console.log(`📧 [${index + 1}/${emailRecipients.length}] Sending email to: ${recipient.email} (${recipient.fullName})`);
-                
-                try {
-                  const emailResult = await sendApprovalEmail(emailParams);
-                  if (emailResult.success) {
-                    console.log(`✅ [${index + 1}/${emailRecipients.length}] Email sent successfully to ${recipient.email}`);
-                  } else {
-                    console.error(`❌ [${index + 1}/${emailRecipients.length}] Failed to send email to ${recipient.email}:`, emailResult.error);
-                  }
-                  return emailResult;
-                } catch (error) {
-                  console.error(`❌ [${index + 1}/${emailRecipients.length}] Exception sending email to ${recipient.email}:`, error);
-                  return { success: false, error: error.message };
-                }
-              })
-            );
-            
-            const successCount = emailResults.filter(r => r.success).length;
-            const failCount = emailResults.filter(r => !r.success).length;
-            
-            console.log(`📊 Email summary: ${successCount} sent, ${failCount} failed out of ${emailRecipients.length} total`);
-            
-            if (failCount > 0) {
-              console.warn(`⚠️ Some emails failed to send (${failCount}/${emailRecipients.length})`);
-              toast({
-                variant: "destructive",
-                title: "Partial Email Failure",
-                description: `Booking approved but ${failCount} confirmation emails failed to send.`
-              });
-            } else if (successCount > 0) {
-              console.log(`🎉 All ${successCount} confirmation emails sent successfully!`);
-            }
-          } catch (error) {
-            console.error('❌ Error in bulk email sending:', error);
-            toast({
-              variant: "destructive",
-              title: "Email Error",
-              description: "Booking approved but confirmation emails failed to send."
-            });
-          }
+        console.log(`📧 Added main requester to email list: ${booking.requester_email}`);
+      }
+      
+      // Add additional persons from the parsed data
+      additionalPersonsFromBooking.forEach(person => {
+        if (person.socialNetworkLink && person.socialNetworkLink.includes('@')) {
+          emailRecipients.push({
+            email: person.socialNetworkLink,
+            fullName: person.userSurname || "",
+            paymentStatus: person.paymentStatus || booking.payment_status,
+            paymentAmount: person.paymentAmount || booking.payment_amount,
+            eventNotes: person.eventNotes || booking.event_notes
+          });
+          console.log(`📧 Added additional person to email list: ${person.socialNetworkLink}`);
         }
-      } else {
-        console.log('⚠️ No business address configured - skipping email notifications');
+      });
+      
+      console.log(`📬 Total email recipients: ${emailRecipients.length}`);
+      console.log(`📬 Recipients list:`, emailRecipients.map(r => ({ email: r.email, name: r.fullName })));
+      
+      if (emailRecipients.length === 0) {
+        console.warn('⚠️ No valid email recipients found for booking:', bookingId);
         toast({
           variant: "destructive",
-          title: "Email Configuration Missing",
-          description: "Booking approved but no business address configured for email notifications."
+          title: "No Email Recipients",
+          description: "Booking approved but no valid email addresses found."
         });
+      } else {
+        // ✅ Actually send emails to all recipients
+        console.log('🔥 About to send emails to all recipients...');
+        
+        try {
+          const emailResults = await Promise.all(
+            emailRecipients.map(async (recipient, index) => {
+              const emailParams = {
+                email: recipient.email,
+                fullName: recipient.fullName,
+                businessName,
+                startDate: booking.start_date,
+                endDate: booking.end_date,
+                paymentStatus: recipient.paymentStatus,
+                paymentAmount: recipient.paymentAmount,
+                businessAddress: contactAddress,
+                language: booking.language || language,
+                eventNotes: recipient.eventNotes
+              };
+              
+              console.log(`📧 [${index + 1}/${emailRecipients.length}] Sending email to: ${recipient.email} (${recipient.fullName})`);
+              
+              try {
+                const emailResult = await sendApprovalEmail(emailParams);
+                if (emailResult.success) {
+                  console.log(`✅ [${index + 1}/${emailRecipients.length}] Email sent successfully to ${recipient.email}`);
+                } else {
+                  console.error(`❌ [${index + 1}/${emailRecipients.length}] Failed to send email to ${recipient.email}:`, emailResult.error);
+                }
+                return emailResult;
+              } catch (error) {
+                console.error(`❌ [${index + 1}/${emailRecipients.length}] Exception sending email to ${recipient.email}:`, error);
+                return { success: false, error: error.message };
+              }
+            })
+          );
+          
+          const successCount = emailResults.filter(r => r.success).length;
+          const failCount = emailResults.filter(r => !r.success).length;
+          
+          console.log(`📊 Email summary: ${successCount} sent, ${failCount} failed out of ${emailRecipients.length} total`);
+          
+          if (failCount > 0) {
+            console.warn(`⚠️ Some emails failed to send (${failCount}/${emailRecipients.length})`);
+            toast({
+              variant: "destructive",
+              title: "Partial Email Failure",
+              description: `Booking approved but ${failCount} confirmation emails failed to send.`
+            });
+          } else if (successCount > 0) {
+            console.log(`🎉 All ${successCount} confirmation emails sent successfully!`);
+            toast({
+              title: "Emails Sent",
+              description: `Booking approved and ${successCount} confirmation emails sent successfully.`
+            });
+          }
+        } catch (error) {
+          console.error('❌ Error in bulk email sending:', error);
+          toast({
+            variant: "destructive",
+            title: "Email Error",
+            description: "Booking approved but confirmation emails failed to send."
+          });
+        }
       }
 
       console.log('✅ Booking approval process completed successfully');
