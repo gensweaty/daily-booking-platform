@@ -196,6 +196,7 @@ export const useBookingRequests = () => {
       console.log('Booking details for approval:', {
         id: booking.id,
         requester_name: booking.requester_name,
+        requester_email: booking.requester_email,
         language: booking.language || 'not set',
         payment_status: booking.payment_status
       });
@@ -471,6 +472,15 @@ export const useBookingRequests = () => {
         const businessName = businessProfile?.business_name || "Our Business";
         
         console.log('Sending approval email with correct event ID:', eventData2.id);
+        console.log('Requester email:', booking.requester_email);
+        console.log('Business address:', contactAddress);
+        
+        // Determine the correct base URL based on environment
+        const baseUrl = import.meta.env.DEV 
+          ? 'http://localhost:54321'
+          : 'https://mrueqpffzauvdxmuwhfa.supabase.co';
+        
+        const functionUrl = `${baseUrl}/functions/v1/send-booking-approval-email`;
         
         // Use direct Edge Function call for reliable email sending
         try {
@@ -482,28 +492,36 @@ export const useBookingRequests = () => {
             return booking;
           }
 
-          const response = await fetch(`https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email`, {
+          console.log("Sending email via:", functionUrl);
+          console.log("Access Token exists:", !!accessToken);
+
+          const requestBody = {
+            recipientEmail: booking.requester_email,
+            fullName: booking.requester_name || booking.user_surname || "",
+            businessName,
+            startDate: booking.start_date,
+            endDate: booking.end_date,
+            paymentStatus: booking.payment_status || 'not_paid',
+            paymentAmount: booking.payment_amount || null,
+            businessAddress: contactAddress,
+            eventId: eventData2.id, // Use the actual event ID for proper deduplication
+            source: 'booking-approval',
+            language: booking.language || language,
+            eventNotes: booking.description || booking.event_notes || ''
+          };
+
+          console.log("Request payload:", requestBody);
+
+          const response = await fetch(functionUrl, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${accessToken}`,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-              recipientEmail: booking.requester_email,
-              fullName: booking.requester_name || booking.user_surname || "",
-              businessName,
-              startDate: booking.start_date,
-              endDate: booking.end_date,
-              paymentStatus: booking.payment_status || 'not_paid',
-              paymentAmount: booking.payment_amount || null,
-              businessAddress: contactAddress,
-              eventId: eventData2.id, // Use the actual event ID for proper deduplication
-              source: 'booking-approval',
-              language: booking.language || language,
-              eventNotes: booking.description || booking.event_notes || ''
-            })
+            body: JSON.stringify(requestBody)
           });
 
+          console.log("Response status:", response.status);
           const emailResult = await response.json();
           console.log("Email result:", emailResult);
           

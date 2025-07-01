@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -195,6 +196,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   console.log("Received request to send booking approval email via Resend API");
+  
+  // Log RESEND_API_KEY presence
+  console.log("RESEND_API_KEY present:", !!Deno.env.get("RESEND_API_KEY"));
 
   try {
     const requestBody = await req.text();
@@ -232,7 +236,8 @@ const handler = async (req: Request): Promise<Response> => {
       paymentStatus,
       paymentAmount,
       language,
-      eventNotes
+      eventNotes,
+      businessAddress
     });
 
     // Build a standardized deduplication key that ignores the source
