@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -277,19 +276,12 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    // Only skip if business address is completely missing (but allow fallback values)
-    if (!businessAddress || businessAddress.trim() === '') {
-      console.log(`Request without business address rejected for ${recipientEmail}`);
-      return new Response(
-        JSON.stringify({ 
-          message: "Email request rejected due to missing business address",
-          to: recipientEmail,
-          id: null,
-          skipped: true,
-          reason: "Missing business address"
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
-      );
+    // Allow fallback addresses instead of rejecting the request
+    const trimmedAddress = businessAddress?.trim();
+    
+    // Only reject if completely missing - allow "Address not provided" to pass through
+    if (!trimmedAddress) {
+      console.warn(`Email sent without business address for ${recipientEmail}`);
     }
     
     // Format dates
@@ -322,18 +314,16 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       
-      // Prepare address section
+      // Prepare address section - use fallback if needed
       let addressInfo = "";
-      let addressDisplay = businessAddress?.trim() || "";
+      let addressDisplay = trimmedAddress || "Address not provided";
       
       // Address label translations
       const addressLabel = language === 'ka' 
         ? "მისამართი" 
         : (language === 'es' ? "Dirección" : "Address");
       
-      if (addressDisplay) {
-        addressInfo = `<p style="margin: 8px 0;"><strong>${addressLabel}:</strong> ${addressDisplay}</p>`;
-      }
+      addressInfo = `<p style="margin: 8px 0;"><strong>${addressLabel}:</strong> ${addressDisplay}</p>`;
       
       // Prepare event notes section
       let eventNotesInfo = "";
