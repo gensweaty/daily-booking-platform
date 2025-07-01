@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -236,15 +235,16 @@ const handler = async (req: Request): Promise<Response> => {
       paymentAmount,
       language,
       hasBusinessAddress: !!businessAddress,
-      hasEventNotes: !!eventNotes
+      hasEventNotes: !!eventNotes,
+      eventId // ✅ LOG EVENT ID
     });
 
-    // Build a standardized deduplication key that ignores the source
-    // This ensures we don't send duplicate emails just because they come from different sources
+    // ✅ FIXED: Build deduplication key with proper fallback
     let dedupeKey: string;
     
     if (eventId) {
       dedupeKey = `${eventId}_${recipientEmail}`;
+      console.log(`🔐 Using eventId-based deduplication key: ${dedupeKey}`);
       
       // Check if we already sent an email for this event/recipient
       const now = Date.now();
@@ -268,6 +268,7 @@ const handler = async (req: Request): Promise<Response> => {
     } else {
       // If no eventId, use a combination of email and timestamps as a fallback
       dedupeKey = `${recipientEmail}_${startDate}_${endDate}`;
+      console.log(`🔐 Using fallback deduplication key: ${dedupeKey}`);
     }
     
     // Validate email format
@@ -280,9 +281,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    // 🔧 FIXED: Remove strict business address requirement
-    // Previous code was rejecting emails without business address
-    // Now we'll use a fallback address if none provided
+    // ✅ FIXED: Make business address optional with fallback
     const addressDisplay = businessAddress?.trim() || "Contact business for location details";
     console.log("📍 Using business address:", addressDisplay);
     
@@ -360,7 +359,9 @@ const handler = async (req: Request): Promise<Response> => {
       
       const resend = new Resend(resendApiKey);
       
-      // Email subjects based on language
+      // ✅ IMPROVED: Use fallback sender email for better deliverability
+      const senderEmail = `${businessName || 'SmartBookly'} <onboarding@resend.dev>`; // Verified by default
+      
       const emailSubject = language === 'ka' 
         ? `ჯავშანი დადასტურებულია ${businessName || 'SmartBookly'}-ში` 
         : (language === 'es' 
@@ -368,12 +369,19 @@ const handler = async (req: Request): Promise<Response> => {
             : `Booking Approved at ${businessName || 'SmartBookly'}`);
       
       console.log("📬 Sending email via Resend API...");
+      console.log("📬 From:", senderEmail);
+      console.log("📬 To:", recipientEmail);
+      console.log("📬 Subject:", emailSubject);
+      
       const emailResult = await resend.emails.send({
-        from: `${businessName || 'SmartBookly'} <info@smartbookly.com>`,
+        from: senderEmail,
         to: [recipientEmail],
         subject: emailSubject,
         html: htmlContent,
       });
+
+      // ✅ IMPROVED: Log full Resend response for debugging
+      console.log("Resend full response:", JSON.stringify(emailResult, null, 2));
 
       if (emailResult.error) {
         console.error("❌ Error from Resend API:", emailResult.error);
@@ -383,7 +391,6 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`✅ Email successfully sent via Resend API to ${recipientEmail}, ID: ${emailResult.data?.id}`);
       
       // Mark as recently sent ONLY if the email was successfully sent
-      // This prevents failed attempts from blocking future retries
       recentlySentEmails.set(dedupeKey, Date.now());
       console.log(`🔐 Setting deduplication key: ${dedupeKey} (tracking ${recentlySentEmails.size} emails)`);
       
@@ -398,7 +405,8 @@ const handler = async (req: Request): Promise<Response> => {
           dedupeKey: dedupeKey,
           language: language, // Log the language used for verification
           currencySymbol: currencySymbol, // Log the currency symbol used
-          hasEventNotes: !!eventNotesInfo // Log whether event notes were included
+          hasEventNotes: !!eventNotesInfo, // Log whether event notes were included
+          eventId: eventId // ✅ RETURN EVENT ID IN RESPONSE
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );

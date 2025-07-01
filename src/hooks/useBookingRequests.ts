@@ -14,7 +14,7 @@ export const useBookingRequests = () => {
     business_name: string;
     contact_address: string | null;
   } | null>(null);
-  const { language } = useLanguage(); // Get current UI language
+  const { language } = useLanguage();
   
   // Cache business profile data when component mounts
   useEffect(() => {
@@ -144,7 +144,7 @@ export const useBookingRequests = () => {
   const approvedRequests = bookingRequests.filter(req => req.status === 'approved');
   const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected');
   
-  // 🔧 IMPROVED: Enhanced sendApprovalEmail function with better error handling and session management
+  // 🔧 FIXED: Enhanced sendApprovalEmail function with eventId parameter
   const sendApprovalEmail = useCallback(async ({ 
     email, 
     fullName, 
@@ -155,7 +155,8 @@ export const useBookingRequests = () => {
     paymentAmount, 
     businessAddress,
     language,
-    eventNotes
+    eventNotes,
+    eventId // ✅ ADD THIS PARAMETER
   }: {
     email: string;
     fullName: string;
@@ -167,6 +168,7 @@ export const useBookingRequests = () => {
     businessAddress?: string;
     language?: string;
     eventNotes?: string;
+    eventId?: string; // ✅ ADD THIS TYPE
   }) => {
     if (!email || !email.includes('@')) {
       console.error("❌ Invalid email format or missing email:", email);
@@ -174,9 +176,8 @@ export const useBookingRequests = () => {
     }
 
     try {
-      console.log(`🔥 SENDING EMAIL: ${email} for booking at ${businessName} with language: ${language || 'not specified'}`);
+      console.log(`🔥 SENDING EMAIL: ${email} for booking at ${businessName} with eventId: ${eventId}`);
       
-      // Log all data being sent in the request  
       const requestBody = {
         recipientEmail: email.trim(),
         fullName: fullName || "",
@@ -185,17 +186,18 @@ export const useBookingRequests = () => {
         endDate: endDate,
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
-        businessAddress: businessAddress || "Contact business for location details", // 🔧 FIXED: Provide fallback instead of rejecting
+        businessAddress: businessAddress || "Contact business for location details",
         language: language,
-        eventNotes: eventNotes
+        eventNotes: eventNotes,
+        eventId: eventId // ✅ PASS EVENT ID FOR PROPER DEDUPLICATION
       };
       
       console.log("📧 Email request payload:", {
         ...requestBody,
-        recipientEmail: email.trim().substring(0, 3) + '***' // Mask email for privacy in logs
+        recipientEmail: email.trim().substring(0, 3) + '***'
       });
       
-      // 🔧 IMPROVED: Better session management with error handling
+      // Get access token with refresh logic
       let accessToken: string | undefined;
       
       try {
@@ -207,12 +209,10 @@ export const useBookingRequests = () => {
         }
         
         accessToken = sessionData.session?.access_token;
-        console.log("🔑 Access token status:", accessToken ? "Present" : "Missing");
         
         if (!accessToken) {
           console.error("❌ No access token available - attempting refresh");
           
-          // Try to refresh the session
           const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
           
           if (refreshError || !refreshData.session) {
@@ -243,7 +243,6 @@ export const useBookingRequests = () => {
       
       console.log(`📡 Email API response status: ${response.status}`);
       
-      // Read the response as text first
       const responseText = await response.text();
       console.log(`📨 Email API response body:`, responseText);
       
@@ -259,8 +258,8 @@ export const useBookingRequests = () => {
       }
       
       if (!response.ok) {
-        console.error("❌ Failed to send approval email:", data);
-        return { success: false, error: data.error || data.details || "Failed to send email" };
+        console.error("❌ Failed to send approval email - Status:", response.status, "Data:", data);
+        return { success: false, error: data.error || data.details || `HTTP ${response.status}: Failed to send email` };
       } else {
         console.log("✅ Email API response success:", data);
         return { success: true, data };
@@ -288,18 +287,11 @@ export const useBookingRequests = () => {
       if (fetchError) throw fetchError;
       if (!booking) throw new Error('Booking request not found');
       
-      // Log the booking details including language and additional persons
       console.log('📋 Booking details for approval:', {
         id: booking.id,
         requester_name: booking.requester_name,
         requester_email: booking.requester_email,
-        language: booking.language || 'not set',
-        payment_status: booking.payment_status,
-        user_surname: booking.user_surname,
-        user_number: booking.user_number,
-        social_network_link: booking.social_network_link,
-        event_notes: booking.event_notes,
-        additional_persons: booking.additional_persons
+        language: booking.language || 'not set'
       });
       
       // Check for conflicts
@@ -533,15 +525,11 @@ export const useBookingRequests = () => {
       // Start file processing but don't wait for it to complete
       const fileProcessingPromise = processFiles();
       
-      // 🔥 EMAIL SENDING LOGIC - Fixed version with comprehensive debugging and error handling
+      // 🔥 FIXED EMAIL SENDING LOGIC with eventId
       console.log('🔥 Starting email notifications to all attendees');
-      console.log('📋 Business profile:', businessProfile);
       
       const businessName = businessProfile?.business_name || "Our Business";
-      const contactAddress = businessProfile?.contact_address || "Contact business for location details"; // 🔧 FIXED: Always provide fallback
-      
-      console.log('📧 Using business name:', businessName);
-      console.log('📧 Using contact address:', contactAddress);
+      const contactAddress = businessProfile?.contact_address || "Contact business for location details";
       
       // Collect all email recipients
       const emailRecipients = [];
@@ -573,7 +561,6 @@ export const useBookingRequests = () => {
       });
       
       console.log(`📬 Total email recipients: ${emailRecipients.length}`);
-      console.log(`📬 Recipients list:`, emailRecipients.map(r => ({ email: r.email, name: r.fullName })));
       
       if (emailRecipients.length === 0) {
         console.warn('⚠️ No valid email recipients found for booking:', bookingId);
@@ -582,14 +569,14 @@ export const useBookingRequests = () => {
           title: "No Email Recipients",
           description: "Booking approved but no valid email addresses found."
         });
-        return booking; // 🔧 FIXED: Don't throw error, still return successful booking
+        return booking;
       }
       
-      // ✅ Actually send emails to all recipients with comprehensive error handling
-      console.log('🔥 About to send emails to all recipients...');
+      // ✅ FIXED: Send emails with eventId for proper deduplication
+      console.log('🔥 About to send emails to all recipients with eventId:', savedEventId);
       
       try {
-        const emailResults = await Promise.all(
+        const emailResults = await Promise.allSettled(
           emailRecipients.map(async (recipient, index) => {
             const emailParams = {
               email: recipient.email,
@@ -599,34 +586,38 @@ export const useBookingRequests = () => {
               endDate: booking.end_date,
               paymentStatus: recipient.paymentStatus,
               paymentAmount: recipient.paymentAmount,
-              businessAddress: contactAddress, // 🔧 FIXED: Always include address (with fallback)
+              businessAddress: contactAddress,
               language: booking.language || language,
-              eventNotes: recipient.eventNotes
+              eventNotes: recipient.eventNotes,
+              eventId: savedEventId // ✅ CRITICAL FIX: Pass the event ID
             };
             
-            console.log(`📧 [${index + 1}/${emailRecipients.length}] Sending email to: ${recipient.email} (${recipient.fullName})`);
+            console.log(`📧 [${index + 1}/${emailRecipients.length}] Sending email to: ${recipient.email} with eventId: ${savedEventId}`);
             
-            try {
-              const emailResult = await sendApprovalEmail(emailParams);
-              if (emailResult.success) {
-                console.log(`✅ [${index + 1}/${emailRecipients.length}] Email sent successfully to ${recipient.email}`);
-              } else {
-                console.error(`❌ [${index + 1}/${emailRecipients.length}] Failed to send email to ${recipient.email}:`, emailResult.error);
-              }
-              return emailResult;
-            } catch (error) {
-              console.error(`❌ [${index + 1}/${emailRecipients.length}] Exception sending email to ${recipient.email}:`, error);
-              return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+            const emailResult = await sendApprovalEmail(emailParams);
+            if (emailResult.success) {
+              console.log(`✅ [${index + 1}/${emailRecipients.length}] Email sent successfully to ${recipient.email}`);
+            } else {
+              console.error(`❌ [${index + 1}/${emailRecipients.length}] Failed to send email to ${recipient.email}:`, emailResult.error);
             }
+            return emailResult;
           })
         );
         
-        const successCount = emailResults.filter(r => r.success).length;
-        const failCount = emailResults.filter(r => !r.success).length;
+        const successCount = emailResults.filter(r => r.status === 'fulfilled' && r.value.success).length;
+        const failCount = emailResults.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)).length;
         
         console.log(`📊 Email summary: ${successCount} sent, ${failCount} failed out of ${emailRecipients.length} total`);
         
-        if (failCount > 0) {
+        // ✅ IMPROVED: Alert if ALL emails fail
+        if (successCount === 0 && failCount > 0) {
+          console.error('❌ ALL emails failed to send!');
+          toast({
+            variant: "destructive",
+            title: "Email Failure", 
+            description: "All confirmation emails failed. Check your Resend API key and logs."
+          });
+        } else if (failCount > 0) {
           console.warn(`⚠️ Some emails failed to send (${failCount}/${emailRecipients.length})`);
           toast({
             variant: "destructive",
