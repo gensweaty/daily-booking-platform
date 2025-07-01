@@ -276,8 +276,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    // If there's no business address, reject the request
-    // This ensures we only send emails that include the address
+    // Only skip if business address is completely missing (but allow fallback values)
     if (!businessAddress || businessAddress.trim() === '') {
       console.log(`Request without business address rejected for ${recipientEmail}`);
       return new Response(

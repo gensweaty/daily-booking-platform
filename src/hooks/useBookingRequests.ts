@@ -70,14 +70,35 @@ export const useBookingRequests = () => {
       
       console.log(`Found ${requests.length} booking requests`);
       
-      // Fetch files for all booking requests using event_files table
-      // Files for booking requests are stored with event_id matching the booking request ID
+      // Fetch files for all booking requests
+      // First, get events linked to these booking requests to get correct event IDs
       const requestIds = requests.map(req => req.id);
+      
+      const { data: events, error: eventsError } = await supabase
+        .from('events')
+        .select('id, booking_request_id')
+        .in('booking_request_id', requestIds);
+      
+      if (eventsError) {
+        console.error('Error fetching events for booking requests:', eventsError);
+      }
+      
+      // Map booking_request_id to event.id
+      const bookingToEventIdMap = new Map<string, string>();
+      events?.forEach(e => {
+        if (e.booking_request_id) {
+          bookingToEventIdMap.set(e.booking_request_id, e.id);
+        }
+      });
+      
+      // Fetch files using both booking request IDs (for pending) and event IDs (for approved)
+      const eventIds = Array.from(bookingToEventIdMap.values());
+      const allSearchIds = [...requestIds, ...eventIds];
       
       const { data: filesData, error: filesError } = await supabase
         .from('event_files')
         .select('*')
-        .in('event_id', requestIds);
+        .in('event_id', allSearchIds);
       
       if (filesError) {
         console.error('Error fetching booking request files:', filesError);
@@ -94,12 +115,22 @@ export const useBookingRequests = () => {
         filesData.forEach(file => {
           if (!file.event_id) return;
           
-          if (!filesMap.has(file.event_id)) {
-            filesMap.set(file.event_id, new Map<string, EventFile>());
+          // Determine the booking request ID for this file
+          let bookingId = file.event_id;
+          
+          // If this is an event ID, map it back to booking request ID
+          const foundBookingId = Array.from(bookingToEventIdMap.entries())
+            .find(([, eventId]) => eventId === file.event_id)?.[0];
+          if (foundBookingId) {
+            bookingId = foundBookingId;
+          }
+          
+          if (!filesMap.has(bookingId)) {
+            filesMap.set(bookingId, new Map<string, EventFile>());
           }
           
           // Use file path as key to prevent duplicates
-          const fileMap = filesMap.get(file.event_id)!;
+          const fileMap = filesMap.get(bookingId)!;
           const fileKey = `${file.filename}:${file.file_path}`;
           
           if (!fileMap.has(fileKey)) {
@@ -154,7 +185,8 @@ export const useBookingRequests = () => {
     paymentStatus, 
     paymentAmount, 
     businessAddress,
-    language // Add language parameter
+    language, // Add language parameter
+    eventId // Add eventId parameter
   }: {
     email: string;
     fullName: string;
@@ -165,6 +197,7 @@ export const useBookingRequests = () => {
     paymentAmount?: number;
     businessAddress?: string;
     language?: string; // Add language parameter type
+    eventId?: string; // Add eventId parameter type
   }) => {
     if (!email || !email.includes('@')) {
       console.error("Invalid email format or missing email:", email);
@@ -184,7 +217,8 @@ export const useBookingRequests = () => {
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
         businessAddress: businessAddress, // Pass the address as is
-        language: language // Pass language parameter to the edge function
+        language: language, // Pass language parameter to the edge function
+        eventId: eventId // Pass eventId for deduplication
       };
       
       console.log("Email request payload:", {
@@ -522,7 +556,7 @@ export const useBookingRequests = () => {
       if (booking.requester_email) {
         // Use the cached business profile info instead of making another database call
         const businessName = businessProfile?.business_name || "Our Business";
-        const contactAddress = businessProfile?.contact_address || null;
+        const contactAddress = businessProfile?.contact_address || "Company Address";
         
         // Prepare email parameters
         const emailParams = {
@@ -534,7 +568,8 @@ export const useBookingRequests = () => {
           paymentStatus: booking.payment_status,
           paymentAmount: booking.payment_amount,
           businessAddress: contactAddress,
-          language: booking.language || language // Pass the booking's language or fallback to UI language
+          language: booking.language || language, // Pass the booking's language or fallback to UI language
+          eventId: booking.id // Add booking ID for deduplication
         };
         
         console.log('Sending approval email with language:', emailParams.language);
