@@ -144,7 +144,7 @@ export const useBookingRequests = () => {
   const approvedRequests = bookingRequests.filter(req => req.status === 'approved');
   const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected');
   
-  // 🔧 FIXED: Enhanced sendApprovalEmail function with comprehensive debugging
+  // 🔧 IMPROVED: Enhanced sendApprovalEmail function with better error handling and session management
   const sendApprovalEmail = useCallback(async ({ 
     email, 
     fullName, 
@@ -168,75 +168,15 @@ export const useBookingRequests = () => {
     language?: string;
     eventNotes?: string;
   }) => {
-    console.log(`🔥 STARTING EMAIL SEND PROCESS for ${email}`);
-    
     if (!email || !email.includes('@')) {
-      console.error("❌ Invalid email format:", email);
+      console.error("❌ Invalid email format or missing email:", email);
       return { success: false, error: "Invalid email format" };
     }
 
     try {
-      // 🔧 STEP 1: Get fresh session with comprehensive error handling
-      console.log("🔑 Step 1: Getting authentication session...");
+      console.log(`🔥 SENDING EMAIL: ${email} for booking at ${businessName} with language: ${language || 'not specified'}`);
       
-      let accessToken: string | undefined;
-      
-      try {
-        // First try to get current session
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        
-        console.log("📊 Session data:", {
-          hasSession: !!sessionData.session,
-          hasAccessToken: !!sessionData.session?.access_token,
-          sessionError: sessionError?.message
-        });
-        
-        if (sessionError) {
-          console.error("❌ Session error:", sessionError);
-          throw new Error(`Session error: ${sessionError.message}`);
-        }
-        
-        if (!sessionData.session) {
-          console.error("❌ No active session found");
-          throw new Error("No active session - user needs to log in");
-        }
-        
-        accessToken = sessionData.session.access_token;
-        
-        if (!accessToken) {
-          console.warn("⚠️ No access token in session, attempting refresh...");
-          
-          // Try to refresh the session
-          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-          
-          if (refreshError) {
-            console.error("❌ Session refresh failed:", refreshError);
-            throw new Error(`Session refresh failed: ${refreshError.message}`);
-          }
-          
-          if (!refreshData.session) {
-            console.error("❌ No session after refresh");
-            throw new Error("Unable to refresh session");
-          }
-          
-          accessToken = refreshData.session.access_token;
-          console.log("✅ Session refreshed successfully");
-        }
-        
-        if (!accessToken) {
-          throw new Error("Unable to obtain access token");
-        }
-        
-        console.log("✅ Access token obtained successfully");
-        
-      } catch (authError) {
-        console.error("❌ Authentication setup error:", authError);
-        return { success: false, error: `Authentication failed: ${authError instanceof Error ? authError.message : 'Unknown auth error'}` };
-      }
-      
-      // 🔧 STEP 2: Prepare request payload
-      console.log("📝 Step 2: Preparing email request payload...");
-      
+      // Log all data being sent in the request  
       const requestBody = {
         recipientEmail: email.trim(),
         fullName: fullName || "",
@@ -245,101 +185,89 @@ export const useBookingRequests = () => {
         endDate: endDate,
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
-        businessAddress: businessAddress || "Contact business for location details",
-        language: language || 'en',
-        eventNotes: eventNotes,
-        eventId: `booking_${Date.now()}`, // Add unique event ID for deduplication
-        source: 'booking_approval'
+        businessAddress: businessAddress || "Contact business for location details", // 🔧 FIXED: Provide fallback instead of rejecting
+        language: language,
+        eventNotes: eventNotes
       };
       
       console.log("📧 Email request payload:", {
-        recipientEmail: email.trim().substring(0, 3) + '***',
-        fullName,
-        businessName,
-        startDate,
-        endDate,
-        paymentStatus,
-        paymentAmount,
-        hasBusinessAddress: !!businessAddress,
-        language,
-        hasEventNotes: !!eventNotes
+        ...requestBody,
+        recipientEmail: email.trim().substring(0, 3) + '***' // Mask email for privacy in logs
       });
       
-      // 🔧 STEP 3: Make the API call with detailed logging
-      console.log("🚀 Step 3: Calling Edge Function...");
+      // 🔧 IMPROVED: Better session management with error handling
+      let accessToken: string | undefined;
       
-      const functionUrl = "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email";
-      console.log("📡 Function URL:", functionUrl);
+      try {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error("❌ Session error:", sessionError);
+          return { success: false, error: "Session authentication failed" };
+        }
+        
+        accessToken = sessionData.session?.access_token;
+        console.log("🔑 Access token status:", accessToken ? "Present" : "Missing");
+        
+        if (!accessToken) {
+          console.error("❌ No access token available - attempting refresh");
+          
+          // Try to refresh the session
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          
+          if (refreshError || !refreshData.session) {
+            console.error("❌ Session refresh failed:", refreshError);
+            return { success: false, error: "Authentication token unavailable" };
+          }
+          
+          accessToken = refreshData.session.access_token;
+          console.log("✅ Access token refreshed successfully");
+        }
+      } catch (authError) {
+        console.error("❌ Authentication setup error:", authError);
+        return { success: false, error: "Authentication setup failed" };
+      }
       
-      const headers = {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${accessToken}`
-      };
+      // Call the Edge Function
+      const response = await fetch(
+        "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
+        {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${accessToken}`
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
       
-      console.log("📋 Request headers:", {
-        "Content-Type": headers["Content-Type"],
-        "Authorization": `Bearer ${accessToken.substring(0, 20)}...`
-      });
+      console.log(`📡 Email API response status: ${response.status}`);
       
-      console.log("🔄 Making fetch request NOW...");
-      
-      const response = await fetch(functionUrl, {
-        method: "POST",
-        headers: headers,
-        body: JSON.stringify(requestBody),
-      });
-      
-      console.log(`📡 Response received - Status: ${response.status} ${response.statusText}`);
-      console.log("📊 Response headers:", Object.fromEntries(response.headers.entries()));
-      
-      // 🔧 STEP 4: Handle response
+      // Read the response as text first
       const responseText = await response.text();
-      console.log(`📨 Response body (${responseText.length} chars):`, responseText);
+      console.log(`📨 Email API response body:`, responseText);
       
       let data;
       try {
         data = responseText ? JSON.parse(responseText) : {};
-        console.log("✅ Response parsed successfully:", data);
-      } catch (parseError) {
-        console.error("❌ Failed to parse response JSON:", parseError);
-        console.log("🔍 Raw response text:", responseText);
-        
+      } catch (e) {
+        console.error("❌ Failed to parse response JSON:", e);
         if (!response.ok) {
-          return { 
-            success: false, 
-            error: `HTTP ${response.status}: ${response.statusText}`,
-            responseText: responseText
-          };
+          return { success: false, error: `Invalid response (status ${response.status})` };
         }
-        
-        // If response is ok but parsing failed, treat as success
-        return { 
-          success: true, 
-          message: "Email sent (response parsing issue)",
-          responseText: responseText
-        };
+        return { success: true, message: "Email notification processed (response parsing error)" };
       }
       
       if (!response.ok) {
-        console.error(`❌ HTTP Error ${response.status}:`, data);
-        return { 
-          success: false, 
-          error: data.error || data.details || `HTTP ${response.status}: ${response.statusText}`,
-          data: data
-        };
+        console.error("❌ Failed to send approval email:", data);
+        return { success: false, error: data.error || data.details || "Failed to send email" };
       } else {
-        console.log("🎉 Email sent successfully!");
+        console.log("✅ Email API response success:", data);
         return { success: true, data };
       }
-      
     } catch (err) {
-      console.error("💥 CRITICAL ERROR in sendApprovalEmail:", err);
-      console.error("Error stack:", err instanceof Error ? err.stack : 'No stack trace');
-      return { 
-        success: false, 
-        error: err instanceof Error ? err.message : "Unknown critical error",
-        errorType: err instanceof Error ? err.constructor.name : typeof err
-      };
+      console.error("❌ Error calling Edge Function:", err);
+      return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
     }
   }, []);
 
@@ -605,12 +533,12 @@ export const useBookingRequests = () => {
       // Start file processing but don't wait for it to complete
       const fileProcessingPromise = processFiles();
       
-      // 🔥 EMAIL SENDING LOGIC - Enhanced with comprehensive logging
+      // 🔥 EMAIL SENDING LOGIC - Fixed version with comprehensive debugging and error handling
       console.log('🔥 Starting email notifications to all attendees');
       console.log('📋 Business profile:', businessProfile);
       
       const businessName = businessProfile?.business_name || "Our Business";
-      const contactAddress = businessProfile?.contact_address || "Contact business for location details";
+      const contactAddress = businessProfile?.contact_address || "Contact business for location details"; // 🔧 FIXED: Always provide fallback
       
       console.log('📧 Using business name:', businessName);
       console.log('📧 Using contact address:', contactAddress);
@@ -645,6 +573,7 @@ export const useBookingRequests = () => {
       });
       
       console.log(`📬 Total email recipients: ${emailRecipients.length}`);
+      console.log(`📬 Recipients list:`, emailRecipients.map(r => ({ email: r.email, name: r.fullName })));
       
       if (emailRecipients.length === 0) {
         console.warn('⚠️ No valid email recipients found for booking:', bookingId);
@@ -653,14 +582,14 @@ export const useBookingRequests = () => {
           title: "No Email Recipients",
           description: "Booking approved but no valid email addresses found."
         });
-        return booking;
+        return booking; // 🔧 FIXED: Don't throw error, still return successful booking
       }
       
-      // ✅ Send emails to all recipients with enhanced error handling
-      console.log('🚀 About to send emails to all recipients...');
+      // ✅ Actually send emails to all recipients with comprehensive error handling
+      console.log('🔥 About to send emails to all recipients...');
       
       try {
-        const emailResults = await Promise.allSettled(
+        const emailResults = await Promise.all(
           emailRecipients.map(async (recipient, index) => {
             const emailParams = {
               email: recipient.email,
@@ -670,68 +599,57 @@ export const useBookingRequests = () => {
               endDate: booking.end_date,
               paymentStatus: recipient.paymentStatus,
               paymentAmount: recipient.paymentAmount,
-              businessAddress: contactAddress,
+              businessAddress: contactAddress, // 🔧 FIXED: Always include address (with fallback)
               language: booking.language || language,
               eventNotes: recipient.eventNotes
             };
             
-            console.log(`📧 [${index + 1}/${emailRecipients.length}] Starting email to: ${recipient.email}`);
+            console.log(`📧 [${index + 1}/${emailRecipients.length}] Sending email to: ${recipient.email} (${recipient.fullName})`);
             
-            const emailResult = await sendApprovalEmail(emailParams);
-            
-            console.log(`📧 [${index + 1}/${emailRecipients.length}] Email result:`, emailResult);
-            
-            return { recipient: recipient.email, result: emailResult };
+            try {
+              const emailResult = await sendApprovalEmail(emailParams);
+              if (emailResult.success) {
+                console.log(`✅ [${index + 1}/${emailRecipients.length}] Email sent successfully to ${recipient.email}`);
+              } else {
+                console.error(`❌ [${index + 1}/${emailRecipients.length}] Failed to send email to ${recipient.email}:`, emailResult.error);
+              }
+              return emailResult;
+            } catch (error) {
+              console.error(`❌ [${index + 1}/${emailRecipients.length}] Exception sending email to ${recipient.email}:`, error);
+              return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+            }
           })
         );
         
-        // Process results
-        const successCount = emailResults.filter(r => r.status === 'fulfilled' && r.value.result.success).length;
-        const failCount = emailResults.length - successCount;
+        const successCount = emailResults.filter(r => r.success).length;
+        const failCount = emailResults.filter(r => !r.success).length;
         
         console.log(`📊 Email summary: ${successCount} sent, ${failCount} failed out of ${emailRecipients.length} total`);
         
-        // Log failed emails
-        emailResults.forEach((result, index) => {
-          if (result.status === 'rejected') {
-            console.error(`❌ Email ${index + 1} rejected:`, result.reason);
-          } else if (result.status === 'fulfilled' && !result.value.result.success) {
-            console.error(`❌ Email ${index + 1} failed:`, result.value.result.error);
-          }
-        });
-        
-        if (successCount === 0) {
-          console.error('💥 ALL EMAILS FAILED TO SEND');
-          toast({
-            variant: "destructive",
-            title: "Email Sending Failed",
-            description: "Booking approved but all confirmation emails failed to send. Check logs for details."
-          });
-        } else if (failCount > 0) {
+        if (failCount > 0) {
           console.warn(`⚠️ Some emails failed to send (${failCount}/${emailRecipients.length})`);
           toast({
             variant: "destructive",
             title: "Partial Email Failure",
             description: `Booking approved but ${failCount} confirmation emails failed to send.`
           });
-        } else {
+        } else if (successCount > 0) {
           console.log(`🎉 All ${successCount} confirmation emails sent successfully!`);
           toast({
             title: "Emails Sent",
             description: `Booking approved and ${successCount} confirmation emails sent successfully.`
           });
         }
-        
       } catch (error) {
-        console.error('💥 CRITICAL ERROR in bulk email sending:', error);
+        console.error('❌ Error in bulk email sending:', error);
         toast({
           variant: "destructive",
           title: "Email Error",
-          description: "Booking approved but confirmation emails failed to send due to a critical error."
+          description: "Booking approved but confirmation emails failed to send."
         });
       }
 
-      console.log('✅ Booking approval process completed');
+      console.log('✅ Booking approval process completed successfully');
       return booking;
     },
     onSuccess: () => {
