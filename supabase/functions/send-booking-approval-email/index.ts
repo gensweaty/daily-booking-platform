@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -194,18 +195,16 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log("📧 Received request to send booking approval email via Resend API");
+  console.log("Received request to send booking approval email via Resend API");
 
   try {
     const requestBody = await req.text();
-    console.log("📋 Raw request body received:", requestBody ? "Present" : "Empty");
     
     let parsedBody: BookingApprovalEmailRequest;
     try {
       parsedBody = JSON.parse(requestBody);
-      console.log("✅ Successfully parsed request body");
     } catch (parseError) {
-      console.error("❌ Failed to parse JSON request:", parseError);
+      console.error("Failed to parse JSON request:", parseError);
       return new Response(
         JSON.stringify({ error: "Invalid JSON in request body" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
@@ -227,31 +226,29 @@ const handler = async (req: Request): Promise<Response> => {
       eventNotes
     } = parsedBody;
 
-    console.log("📝 Processing email request:", {
-      recipientEmail: recipientEmail ? "***@***" : "missing",
+    console.log("Request body:", {
+      recipientEmail,
       fullName,
       businessName,
       paymentStatus,
       paymentAmount,
       language,
-      hasBusinessAddress: !!businessAddress,
-      hasEventNotes: !!eventNotes,
-      eventId // ✅ LOG EVENT ID
+      eventNotes
     });
 
-    // ✅ FIXED: Build deduplication key with proper fallback
+    // Build a standardized deduplication key that ignores the source
+    // This ensures we don't send duplicate emails just because they come from different sources
     let dedupeKey: string;
     
     if (eventId) {
       dedupeKey = `${eventId}_${recipientEmail}`;
-      console.log(`🔐 Using eventId-based deduplication key: ${dedupeKey}`);
       
       // Check if we already sent an email for this event/recipient
       const now = Date.now();
       if (recentlySentEmails.has(dedupeKey)) {
         const lastSent = recentlySentEmails.get(dedupeKey);
         const timeAgo = now - (lastSent || 0);
-        console.log(`⚠️ Duplicate email detected for key ${dedupeKey}. Last sent ${timeAgo}ms ago. Skipping.`);
+        console.log(`Duplicate email detected for key ${dedupeKey}. Last sent ${timeAgo}ms ago. Skipping.`);
         
         return new Response(
           JSON.stringify({ 
@@ -268,22 +265,33 @@ const handler = async (req: Request): Promise<Response> => {
     } else {
       // If no eventId, use a combination of email and timestamps as a fallback
       dedupeKey = `${recipientEmail}_${startDate}_${endDate}`;
-      console.log(`🔐 Using fallback deduplication key: ${dedupeKey}`);
     }
     
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(recipientEmail)) {
-      console.error("❌ Invalid email format:", recipientEmail);
+      console.error("Invalid email format:", recipientEmail);
       return new Response(
         JSON.stringify({ error: "Invalid email format" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
     }
     
-    // ✅ FIXED: Make business address optional with fallback
-    const addressDisplay = businessAddress?.trim() || "Contact business for location details";
-    console.log("📍 Using business address:", addressDisplay);
+    // If there's no business address, reject the request
+    // This ensures we only send emails that include the address
+    if (!businessAddress || businessAddress.trim() === '') {
+      console.log(`Request without business address rejected for ${recipientEmail}`);
+      return new Response(
+        JSON.stringify({ 
+          message: "Email request rejected due to missing business address",
+          to: recipientEmail,
+          id: null,
+          skipped: true,
+          reason: "Missing business address"
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+      );
+    }
     
     // Format dates
     const formattedStartDate = formatDateTime(startDate, language);
@@ -292,7 +300,7 @@ const handler = async (req: Request): Promise<Response> => {
     try {
       // Get the currency symbol based on language
       const currencySymbol = getCurrencySymbolByLanguage(language);
-      console.log(`💰 Using currency symbol: ${currencySymbol} for language: ${language}`);
+      console.log(`Using currency symbol: ${currencySymbol} for language: ${language}`);
       
       // Format payment information if available based on language
       let paymentInfo = "";
@@ -317,6 +325,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       // Prepare address section
       let addressInfo = "";
+      let addressDisplay = businessAddress?.trim() || "";
       
       // Address label translations
       const addressLabel = language === 'ka' 
@@ -353,46 +362,36 @@ const handler = async (req: Request): Promise<Response> => {
       // Use Resend API to send the email
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       if (!resendApiKey) {
-        console.error("❌ Missing RESEND_API_KEY environment variable");
         throw new Error("Missing RESEND_API_KEY");
       }
       
       const resend = new Resend(resendApiKey);
       
-      // ✅ IMPROVED: Use fallback sender email for better deliverability
-      const senderEmail = `${businessName || 'SmartBookly'} <onboarding@resend.dev>`; // Verified by default
-      
+      // Email subjects based on language
       const emailSubject = language === 'ka' 
         ? `ჯავშანი დადასტურებულია ${businessName || 'SmartBookly'}-ში` 
         : (language === 'es' 
             ? `Reserva Aprobada en ${businessName || 'SmartBookly'}` 
             : `Booking Approved at ${businessName || 'SmartBookly'}`);
       
-      console.log("📬 Sending email via Resend API...");
-      console.log("📬 From:", senderEmail);
-      console.log("📬 To:", recipientEmail);
-      console.log("📬 Subject:", emailSubject);
-      
       const emailResult = await resend.emails.send({
-        from: senderEmail,
+        from: `${businessName || 'SmartBookly'} <info@smartbookly.com>`,
         to: [recipientEmail],
         subject: emailSubject,
         html: htmlContent,
       });
 
-      // ✅ IMPROVED: Log full Resend response for debugging
-      console.log("Resend full response:", JSON.stringify(emailResult, null, 2));
-
       if (emailResult.error) {
-        console.error("❌ Error from Resend API:", emailResult.error);
+        console.error("Error from Resend API:", emailResult.error);
         throw new Error(emailResult.error.message || "Unknown Resend API error");
       }
 
-      console.log(`✅ Email successfully sent via Resend API to ${recipientEmail}, ID: ${emailResult.data?.id}`);
+      console.log(`Email successfully sent via Resend API to ${recipientEmail}, ID: ${emailResult.data?.id}`);
       
       // Mark as recently sent ONLY if the email was successfully sent
+      // This prevents failed attempts from blocking future retries
       recentlySentEmails.set(dedupeKey, Date.now());
-      console.log(`🔐 Setting deduplication key: ${dedupeKey} (tracking ${recentlySentEmails.size} emails)`);
+      console.log(`Setting deduplication key: ${dedupeKey} (tracking ${recentlySentEmails.size} emails)`);
       
       return new Response(
         JSON.stringify({ 
@@ -405,15 +404,14 @@ const handler = async (req: Request): Promise<Response> => {
           dedupeKey: dedupeKey,
           language: language, // Log the language used for verification
           currencySymbol: currencySymbol, // Log the currency symbol used
-          hasEventNotes: !!eventNotesInfo, // Log whether event notes were included
-          eventId: eventId // ✅ RETURN EVENT ID IN RESPONSE
+          hasEventNotes: !!eventNotesInfo // Log whether event notes were included
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
       
     } catch (emailError: any) {
       // Catch errors specifically from resend.emails.send
-      console.error("❌ Error sending email via Resend API:", emailError);
+      console.error("Error sending email via Resend API:", emailError);
       return new Response(
         JSON.stringify({
           error: "Failed to send email via Resend API",
@@ -424,7 +422,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
   } catch (error: any) {
-    console.error("❌ Unhandled error in send-booking-approval-email:", error);
+    console.error("Unhandled error in send-booking-approval-email:", error);
     return new Response(
       JSON.stringify({ 
         error: error?.message || "Unknown error", 
