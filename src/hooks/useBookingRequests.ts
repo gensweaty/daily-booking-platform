@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -5,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { BookingRequest, EventFile } from "@/types/database";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { testEmailSending } from "@/lib/api";
 
 export const useBookingRequests = () => {
   const { user } = useAuth();
@@ -14,7 +16,7 @@ export const useBookingRequests = () => {
     business_name: string;
     contact_address: string | null;
   } | null>(null);
-  const { language } = useLanguage(); // Get current UI language
+  const { language } = useLanguage();
   
   // Cache business profile data when component mounts
   useEffect(() => {
@@ -174,106 +176,6 @@ export const useBookingRequests = () => {
   const pendingRequests = bookingRequests.filter(req => req.status === 'pending');
   const approvedRequests = bookingRequests.filter(req => req.status === 'approved');
   const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected');
-  
-  // Memoized function for sending emails to avoid recreating it on each render
-  const sendApprovalEmail = useCallback(async ({ 
-    email, 
-    fullName, 
-    businessName, 
-    startDate, 
-    endDate, 
-    paymentStatus, 
-    paymentAmount, 
-    businessAddress,
-    language, // Add language parameter
-    eventId // Add eventId parameter
-  }: {
-    email: string;
-    fullName: string;
-    businessName: string;
-    startDate: string;
-    endDate: string;
-    paymentStatus?: string;
-    paymentAmount?: number;
-    businessAddress?: string;
-    language?: string; // Add language parameter type
-    eventId?: string; // Add eventId parameter type
-  }) => {
-    if (!email || !email.includes('@')) {
-      console.error("Invalid email format or missing email:", email);
-      return { success: false, error: "Invalid email format" };
-    }
-
-    try {
-      console.log(`Sending approval email to ${email} for booking at ${businessName} with language: ${language || 'not specified'}`);
-      
-      // Log all data being sent in the request
-      const requestBody = {
-        recipientEmail: email.trim(),
-        fullName: fullName || "",
-        businessName: businessName || "Our Business",
-        startDate: startDate,
-        endDate: endDate,
-        paymentStatus: paymentStatus,
-        paymentAmount: paymentAmount,
-        businessAddress: businessAddress, // Pass the address as is
-        language: language, // Pass language parameter to the edge function
-        eventId: eventId // Pass eventId for deduplication
-      };
-      
-      console.log("Email request payload:", {
-        ...requestBody,
-        recipientEmail: email.trim().substring(0, 3) + '***' // Mask email for privacy in logs
-      });
-      
-      // Get access token for authenticated request
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      
-      if (!accessToken) {
-        console.error("No access token available for authenticated request");
-        return { success: false, error: "Authentication error" };
-      }
-      
-      // Call the Edge Function
-      const response = await fetch(
-        "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
-        {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${accessToken}`
-          },
-          body: JSON.stringify(requestBody),
-        }
-      );
-      
-      // Read the response as text first
-      const responseText = await response.text();
-      
-      let data;
-      try {
-        data = responseText ? JSON.parse(responseText) : {};
-      } catch (e) {
-        console.error("Failed to parse response JSON:", e);
-        if (!response.ok) {
-          return { success: false, error: `Invalid response (status ${response.status})` };
-        }
-        return { success: true, message: "Email notification processed (response parsing error)" };
-      }
-      
-      if (!response.ok) {
-        console.error("Failed to send approval email:", data);
-        return { success: false, error: data.error || data.details || "Failed to send email" };
-      } else {
-        console.log("Email API response success:", data);
-        return { success: true, data };
-      }
-    } catch (err) {
-      console.error("Error calling Edge Function:", err);
-      return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
-    }
-  }, []);
 
   const approveMutation = useMutation({
     mutationFn: async (bookingId: string) => {
@@ -282,9 +184,6 @@ export const useBookingRequests = () => {
       if (!user?.id) {
         throw new Error('User not authenticated');
       }
-      
-      // Remove the loading toast notification since we have button loading animations
-      // This was displaying "Processing approval... Please wait while we process your request."
       
       const { data: booking, error: fetchError } = await supabase
         .from('booking_requests')
@@ -434,8 +333,10 @@ export const useBookingRequests = () => {
                     Promise.resolve({ error: null })
                 ]);
                 
+                // Check for upload errors and handle them
                 if (eventUpload.error) {
                   console.error('Error uploading file to event_attachments:', eventUpload.error);
+                  throw new Error(`Event storage upload failed: ${eventUpload.error.message}`);
                 } else {
                   console.log(`Successfully copied file to event_attachments/${eventFilePath}`);
                   
@@ -467,6 +368,8 @@ export const useBookingRequests = () => {
                       user_id: user?.id,
                       customer_id: customerData2.id
                     });
+                } else if (customerUpload.error) {
+                  console.error('Error uploading file to customer_attachments:', customerUpload.error);
                 }
               } catch (error) {
                 console.error('Error processing file:', error);
@@ -505,8 +408,10 @@ export const useBookingRequests = () => {
                     Promise.resolve({ error: null })
                 ]);
                 
+                // Check for upload errors
                 if (eventUpload.error) {
                   console.error('Error uploading direct file to event_attachments:', eventUpload.error);
+                  throw new Error(`Event storage upload failed: ${eventUpload.error.message}`);
                 } else {
                   console.log(`Successfully copied direct file to event_attachments/${eventFilePath}`);
                   
@@ -538,6 +443,8 @@ export const useBookingRequests = () => {
                       user_id: user?.id,
                       customer_id: customerData2.id
                     });
+                } else if (customerUpload.error) {
+                  console.error('Error uploading direct file to customer_attachments:', customerUpload.error);
                 }
               }
             } catch (error) {
@@ -552,36 +459,43 @@ export const useBookingRequests = () => {
       // Start file processing but don't wait for it to complete
       const fileProcessingPromise = processFiles();
       
-      // Send email notification (using cached business profile data)
+      // Send email notification AFTER event creation using correct event ID
       if (booking.requester_email) {
-        // Use the cached business profile info instead of making another database call
+        // Get business address with fallback
+        const contactAddress = booking.business_address || 
+                             businessProfile?.contact_address || 
+                             "Company Address";
+        
         const businessName = businessProfile?.business_name || "Our Business";
-        const contactAddress = businessProfile?.contact_address || "Company Address";
         
-        // Prepare email parameters
-        const emailParams = {
-          email: booking.requester_email,
-          fullName: booking.requester_name || booking.user_surname || "",
-          businessName,
-          startDate: booking.start_date,
-          endDate: booking.end_date,
-          paymentStatus: booking.payment_status,
-          paymentAmount: booking.payment_amount,
-          businessAddress: contactAddress,
-          language: booking.language || language, // Pass the booking's language or fallback to UI language
-          eventId: booking.id // Add booking ID for deduplication
-        };
+        console.log('Sending approval email with correct event ID:', eventData2.id);
         
-        console.log('Sending approval email with language:', emailParams.language);
-        
-        // Send email but don't block the approval process completion
-        sendApprovalEmail(emailParams).then(emailResult => {
-          if (emailResult.success) {
-            console.log("Email notification processed during booking approval");
+        // Send email notification using the API function
+        try {
+          const emailResult = await testEmailSending(
+            booking.requester_email,
+            booking.requester_name || booking.user_surname || "",
+            businessName,
+            booking.start_date,
+            booking.end_date,
+            booking.payment_status || 'not_paid',
+            booking.payment_amount || null,
+            contactAddress,
+            eventData2.id, // Use the actual event ID, not booking ID
+            booking.language || language,
+            booking.description || booking.event_notes || ''
+          );
+          
+          console.log("Email result:", emailResult);
+          
+          if (emailResult?.error) {
+            console.error("Failed to send approval email:", emailResult.error);
           } else {
-            console.error("Failed to process email during booking approval:", emailResult.error);
+            console.log("Approval email sent successfully");
           }
-        });
+        } catch (emailError) {
+          console.error("Error sending approval email:", emailError);
+        }
       }
 
       console.log('Booking approval process completed successfully');
