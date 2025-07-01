@@ -38,11 +38,6 @@ export const useBookingRequests = () => {
           business_name: data.business_name || 'Our Business',
           contact_address: data.contact_address || null
         });
-        console.log('Business profile loaded:', {
-          business_name: data.business_name,
-          has_contact_address: !!data.contact_address,
-          contact_address: data.contact_address
-        });
       }
     };
     
@@ -248,11 +243,14 @@ export const useBookingRequests = () => {
 
   const approveMutation = useMutation({
     mutationFn: async (bookingId: string) => {
-      console.log('🎯 Starting approval process for booking:', bookingId);
+      console.log('Starting approval process for booking:', bookingId);
       
       if (!user?.id) {
         throw new Error('User not authenticated');
       }
+      
+      // Remove the loading toast notification since we have button loading animations
+      // This was displaying "Processing approval... Please wait while we process your request."
       
       const { data: booking, error: fetchError } = await supabase
         .from('booking_requests')
@@ -264,10 +262,9 @@ export const useBookingRequests = () => {
       if (!booking) throw new Error('Booking request not found');
       
       // Log the booking details including language
-      console.log('📋 Booking details for approval:', {
+      console.log('Booking details for approval:', {
         id: booking.id,
         requester_name: booking.requester_name,
-        requester_email: booking.requester_email,
         language: booking.language || 'not set',
         payment_status: booking.payment_status
       });
@@ -317,7 +314,7 @@ export const useBookingRequests = () => {
         booking_request_id: booking.id,
         payment_status: booking.payment_status || 'not_paid',
         payment_amount: booking.payment_amount,
-        language: booking.language || language
+        language: booking.language || language // Preserve the booking's original language or use UI language
       };
       
       const customerData = {
@@ -353,7 +350,7 @@ export const useBookingRequests = () => {
       const eventData2 = eventResult.data;
       const customerData2 = customerResult.data;
       
-      // Process files in parallel instead of sequentially  
+      // Process files in parallel instead of sequentially
       const processFiles = async () => {
         try {
           // Fetch all files from event_files linked to the booking request
@@ -552,7 +549,7 @@ export const useBookingRequests = () => {
         });
       }
 
-      console.log('✅ Booking approval process completed successfully');
+      console.log('Booking approval process completed successfully');
       return booking;
     },
     onSuccess: () => {
@@ -635,7 +632,7 @@ export const useBookingRequests = () => {
       toast({
         variant: "destructive",
         translateKeys: {
-          titleKey: "common.error",  
+          titleKey: "common.error",
           descriptionKey: "common.errorOccurred"
         },
         description: error.message || "Failed to delete booking request"
