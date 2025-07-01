@@ -295,7 +295,11 @@ export const useBookingRequests = () => {
             return;
           }
           
-          console.log('Found booking files:', bookingFiles);
+          if (!bookingFiles?.length) {
+            console.warn('No booking files found to process for event:', bookingId);
+          } else {
+            console.log('Found booking files:', bookingFiles);
+          }
             
           if (bookingFiles && bookingFiles.length > 0) {
             console.log(`Processing ${bookingFiles.length} files for the booking in parallel`);
@@ -505,6 +509,7 @@ export const useBookingRequests = () => {
           
           if (!response.ok) {
             console.error("Failed to send approval email:", emailResult);
+            throw new Error(emailResult.error || 'Failed to send email');
           } else {
             console.log("Approval email sent successfully");
           }
