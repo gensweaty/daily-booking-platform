@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -6,7 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { BookingRequest, EventFile } from "@/types/database";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { testEmailSending } from "@/lib/api";
 
 export const useBookingRequests = () => {
   const { user } = useAuth();
@@ -340,7 +338,7 @@ export const useBookingRequests = () => {
                 } else {
                   console.log(`Successfully copied file to event_attachments/${eventFilePath}`);
                   
-                  // Create event file record
+                  // Create event file record with correct event ID
                   await supabase
                     .from('event_files')
                     .insert({
@@ -349,7 +347,7 @@ export const useBookingRequests = () => {
                       content_type: file.content_type,
                       size: file.size,
                       user_id: user?.id,
-                      event_id: eventData2.id
+                      event_id: eventData2.id // Use the new event ID, not booking ID
                     });
                 }
                 
@@ -415,7 +413,7 @@ export const useBookingRequests = () => {
                 } else {
                   console.log(`Successfully copied direct file to event_attachments/${eventFilePath}`);
                   
-                  // Create event file record
+                  // Create event file record with correct event ID
                   await supabase
                     .from('event_files')
                     .insert({
@@ -424,7 +422,7 @@ export const useBookingRequests = () => {
                       content_type: booking.content_type || 'application/octet-stream',
                       size: booking.size || 0,
                       user_id: user?.id,
-                      event_id: eventData2.id
+                      event_id: eventData2.id // Use the new event ID, not booking ID
                     });
                 }
                 
@@ -461,35 +459,52 @@ export const useBookingRequests = () => {
       
       // Send email notification AFTER event creation using correct event ID
       if (booking.requester_email) {
-        // Get business address with fallback
+        // Get business address with multiple fallbacks
         const contactAddress = booking.business_address || 
                              businessProfile?.contact_address || 
-                             "Company Address";
+                             "Address not provided";
         
         const businessName = businessProfile?.business_name || "Our Business";
         
         console.log('Sending approval email with correct event ID:', eventData2.id);
         
-        // Send email notification using the API function
+        // Use direct Edge Function call for reliable email sending
         try {
-          const emailResult = await testEmailSending(
-            booking.requester_email,
-            booking.requester_name || booking.user_surname || "",
-            businessName,
-            booking.start_date,
-            booking.end_date,
-            booking.payment_status || 'not_paid',
-            booking.payment_amount || null,
-            contactAddress,
-            eventData2.id, // Use the actual event ID, not booking ID
-            booking.language || language,
-            booking.description || booking.event_notes || ''
-          );
-          
+          const { data: { session } } = await supabase.auth.getSession();
+          const accessToken = session?.access_token;
+
+          if (!accessToken) {
+            console.error('No access token available for email sending');
+            return booking;
+          }
+
+          const response = await fetch(`https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              recipientEmail: booking.requester_email,
+              fullName: booking.requester_name || booking.user_surname || "",
+              businessName,
+              startDate: booking.start_date,
+              endDate: booking.end_date,
+              paymentStatus: booking.payment_status || 'not_paid',
+              paymentAmount: booking.payment_amount || null,
+              businessAddress: contactAddress,
+              eventId: eventData2.id, // Use the actual event ID for proper deduplication
+              source: 'booking-approval',
+              language: booking.language || language,
+              eventNotes: booking.description || booking.event_notes || ''
+            })
+          });
+
+          const emailResult = await response.json();
           console.log("Email result:", emailResult);
           
-          if (emailResult?.error) {
-            console.error("Failed to send approval email:", emailResult.error);
+          if (!response.ok) {
+            console.error("Failed to send approval email:", emailResult);
           } else {
             console.log("Approval email sent successfully");
           }
