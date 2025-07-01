@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -226,6 +225,7 @@ const handler = async (req: Request): Promise<Response> => {
       eventNotes
     } = parsedBody;
 
+    console.log("🌟 Received eventId:", eventId); // 🔥 KEY LOG - Confirm eventId arrival
     console.log("Request body:", {
       recipientEmail,
       fullName,
@@ -233,7 +233,8 @@ const handler = async (req: Request): Promise<Response> => {
       paymentStatus,
       paymentAmount,
       language,
-      eventNotes
+      eventNotes,
+      eventId // Log eventId in request body
     });
 
     // Build a standardized deduplication key that ignores the source
@@ -242,6 +243,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     if (eventId) {
       dedupeKey = `${eventId}_${recipientEmail}`;
+      console.log("🔑 Using eventId-based deduplication key:", dedupeKey);
       
       // Check if we already sent an email for this event/recipient
       const now = Date.now();
@@ -265,6 +267,7 @@ const handler = async (req: Request): Promise<Response> => {
     } else {
       // If no eventId, use a combination of email and timestamps as a fallback
       dedupeKey = `${recipientEmail}_${startDate}_${endDate}`;
+      console.log("⚠️ No eventId provided, using fallback deduplication key:", dedupeKey);
     }
     
     // Validate email format

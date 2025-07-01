@@ -159,7 +159,8 @@ export const useBookingRequests = () => {
     paymentStatus, 
     paymentAmount, 
     businessAddress,
-    language // Add language parameter
+    language,
+    eventId // Add eventId parameter
   }: {
     email: string;
     fullName: string;
@@ -169,7 +170,8 @@ export const useBookingRequests = () => {
     paymentStatus?: string;
     paymentAmount?: number;
     businessAddress?: string;
-    language?: string; // Add language parameter type
+    language?: string;
+    eventId?: string; // Add eventId to the type
   }) => {
     console.log('🚀 Starting sendApprovalEmail function');
     console.log('📧 Email parameters:', {
@@ -181,7 +183,8 @@ export const useBookingRequests = () => {
       paymentStatus,
       paymentAmount,
       businessAddress: businessAddress ? 'PROVIDED' : 'MISSING',
-      language
+      language,
+      eventId // Log eventId
     });
 
     if (!email || !email.includes('@')) {
@@ -225,7 +228,8 @@ export const useBookingRequests = () => {
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
         businessAddress: businessAddress.trim(),
-        language: language
+        language: language,
+        eventId: eventId // Include eventId in request body
       };
       
       console.log('📤 Sending email request with payload:', {
@@ -352,7 +356,7 @@ export const useBookingRequests = () => {
         booking_request_id: booking.id,
         payment_status: booking.payment_status || 'not_paid',
         payment_amount: booking.payment_amount,
-        language: booking.language || language // Preserve the booking's original language or use UI language
+        language: booking.language || language
       };
       
       const customerData = {
@@ -387,6 +391,10 @@ export const useBookingRequests = () => {
       
       const eventData2 = eventResult.data;
       const customerData2 = customerResult.data;
+      
+      // Store the created event ID for email sending
+      const createdEventId = eventData2?.id;
+      console.log('📌 Created event ID for email:', createdEventId);
       
       // Process files in parallel instead of sequentially  
       const processFiles = async () => {
@@ -575,7 +583,7 @@ export const useBookingRequests = () => {
           console.warn('⚠️  No business contact address available - email will be skipped');
           console.log('Business profile:', businessProfile);
         } else {
-          // Prepare email parameters
+          // Prepare email parameters with eventId
           const emailParams = {
             email: booking.requester_email,
             fullName: booking.requester_name || booking.user_surname || "",
@@ -585,12 +593,14 @@ export const useBookingRequests = () => {
             paymentStatus: booking.payment_status,
             paymentAmount: booking.payment_amount,
             businessAddress: contactAddress,
-            language: booking.language || language // Pass the booking's language or fallback to UI language
+            language: booking.language || language,
+            eventId: createdEventId // 🔥 THIS IS THE KEY FIX - Include eventId
           };
           
-          console.log('📤 Sending approval email with parameters:', {
+          console.log('📤 Sending approval email with parameters (including eventId):', {
             ...emailParams,
-            email: emailParams.email.substring(0, 3) + '***'
+            email: emailParams.email.substring(0, 3) + '***',
+            eventId: createdEventId
           });
           
           // Send email and AWAIT the result to see any errors
