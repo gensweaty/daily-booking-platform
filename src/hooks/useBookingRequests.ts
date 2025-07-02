@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -131,7 +130,6 @@ export const useBookingRequests = () => {
           }
           
           // Use file path as key to prevent duplicates
-          const fileMap = filesMap.get(bookingId)!;
           const fileKey = `${file.filename}:${file.file_path}`;
           
           if (!fileMap.has(fileKey)) {
@@ -293,8 +291,8 @@ export const useBookingRequests = () => {
         // Don't throw here, as the event is created successfully
       }
       
-      // Step 3: Send email notification immediately after event creation
-      console.log('[APPROVAL] Step 3: Sending email notification');
+      // Step 3: Send email notification using Supabase function invoke
+      console.log('[APPROVAL] Step 3: Sending email notification via supabase.functions.invoke');
       
       if (booking.requester_email) {
         const contactAddress = booking.business_address || 
@@ -309,60 +307,37 @@ export const useBookingRequests = () => {
           businessAddress: contactAddress
         });
         
-        // Determine the correct base URL based on environment
-        const baseUrl = import.meta.env.DEV 
-          ? 'http://localhost:54321'
-          : 'https://mrueqpffzauvdxmuwhfa.supabase.co';
-        
-        const functionUrl = `${baseUrl}/functions/v1/send-booking-approval-email`;
-        
         try {
-          const { data: { session } } = await supabase.auth.getSession();
-          const accessToken = session?.access_token;
+          const requestBody = {
+            recipientEmail: booking.requester_email,
+            fullName: booking.requester_name || "",
+            businessName,
+            startDate: booking.start_date,
+            endDate: booking.end_date,
+            paymentStatus: booking.payment_status || 'not_paid',
+            paymentAmount: booking.payment_amount || null,
+            businessAddress: contactAddress,
+            eventId: eventId, // Use the event ID from RPC
+            source: 'booking-approval',
+            language: booking.language || language,
+            eventNotes: booking.description || ''
+          };
 
-          if (!accessToken) {
-            console.error('[APPROVAL] No access token available for email sending');
+          console.log("[APPROVAL] Request payload:", requestBody);
+
+          // Use Supabase function invoke instead of manual fetch
+          const { data: emailResult, error: emailError } = await supabase.functions.invoke(
+            'send-booking-approval-email',
+            {
+              body: requestBody
+            }
+          );
+
+          if (emailError) {
+            console.error("[APPROVAL] Failed to send approval email:", emailError);
             // Don't throw - email failure shouldn't break approval
           } else {
-            console.log("[APPROVAL] Sending email via:", functionUrl);
-            console.log("[APPROVAL] Access Token exists:", !!accessToken);
-
-            const requestBody = {
-              recipientEmail: booking.requester_email,
-              fullName: booking.requester_name || "",
-              businessName,
-              startDate: booking.start_date,
-              endDate: booking.end_date,
-              paymentStatus: booking.payment_status || 'not_paid',
-              paymentAmount: booking.payment_amount || null,
-              businessAddress: contactAddress,
-              eventId: eventId, // Use the event ID from RPC
-              source: 'booking-approval',
-              language: booking.language || language,
-              eventNotes: booking.description || ''
-            };
-
-            console.log("[APPROVAL] Request payload:", requestBody);
-
-            const response = await fetch(functionUrl, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(requestBody)
-            });
-
-            console.log("[APPROVAL] Response status:", response.status);
-            const emailResult = await response.json();
-            console.log("[APPROVAL] Email result:", emailResult);
-            
-            if (!response.ok) {
-              console.error("[APPROVAL] Failed to send approval email:", emailResult);
-              // Don't throw - email failure shouldn't break approval
-            } else {
-              console.log("[APPROVAL] Approval email sent successfully");
-            }
+            console.log("[APPROVAL] Approval email sent successfully:", emailResult);
           }
         } catch (emailError) {
           console.error("[APPROVAL] Error sending approval email:", emailError);
