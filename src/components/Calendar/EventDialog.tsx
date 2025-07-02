@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -49,6 +50,7 @@ export const EventDialog = ({
   
   const [isLoading, setIsLoading] = useState(false);
   const [additionalPersons, setAdditionalPersons] = useState<Array<{
+    id: string;
     userSurname: string;
     userNumber: string;
     socialNetworkLink: string;
@@ -331,6 +333,31 @@ export const EventDialog = ({
     }
   };
 
+  // Convert selectedDate to the proper format for EventDialogFields
+  const handleStartDateChange = (date: Date) => {
+    const formatDateTime = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+    setStartDate(formatDateTime(date));
+  };
+
+  const handleEndDateChange = (date: Date) => {
+    const formatDateTime = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+    setEndDate(formatDateTime(date));
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -358,10 +385,10 @@ export const EventDialog = ({
             setPaymentStatus={setPaymentStatus}
             paymentAmount={paymentAmount}
             setPaymentAmount={setPaymentAmount}
-            startDate={startDate}
-            setStartDate={setStartDate}
-            endDate={endDate}
-            setEndDate={setEndDate}
+            startDate={selectedDate || new Date()}
+            setStartDate={handleStartDateChange}
+            endDate={selectedDate ? new Date(selectedDate.getTime() + 60 * 60 * 1000) : new Date()}
+            setEndDate={handleEndDateChange}
             isRecurring={isRecurring}
             setIsRecurring={setIsRecurring}
             repeatPattern={repeatPattern}
@@ -370,7 +397,10 @@ export const EventDialog = ({
             setRepeatUntil={setRepeatUntil}
             files={files}
             setFiles={setFiles}
-            additionalPersons={additionalPersons}
+            additionalPersons={additionalPersons.map(person => ({
+              ...person,
+              id: person.id || crypto.randomUUID()
+            }))}
             setAdditionalPersons={setAdditionalPersons}
           />
 
