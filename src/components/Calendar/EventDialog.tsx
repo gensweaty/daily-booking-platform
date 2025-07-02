@@ -70,7 +70,6 @@ export const EventDialog = ({
           setAdditionalPersons([]);
         }
       } else if (Array.isArray(event.additional_persons)) {
-        // If it's already an array, use it directly
         setAdditionalPersons(event.additional_persons);
       } else {
         setAdditionalPersons([]);
@@ -81,8 +80,23 @@ export const EventDialog = ({
       setUserSurname("");
       setUserNumber("");
       setSocialNetworkLink("");
-      setStartDate(propSelectedDate || new Date());
-      setEndDate(propSelectedDate || new Date());
+      
+      // Set default date and time properly
+      const defaultDate = propSelectedDate || new Date();
+      const defaultStartDate = new Date(defaultDate);
+      const defaultEndDate = new Date(defaultDate);
+      
+      // If no specific time is set, default to 9:00 AM - 10:00 AM
+      if (defaultStartDate.getHours() === 0 && defaultStartDate.getMinutes() === 0) {
+        defaultStartDate.setHours(9, 0, 0, 0);
+        defaultEndDate.setHours(10, 0, 0, 0);
+      } else {
+        // If time is already set, make end time 1 hour later
+        defaultEndDate.setTime(defaultStartDate.getTime() + 60 * 60 * 1000);
+      }
+      
+      setStartDate(defaultStartDate);
+      setEndDate(defaultEndDate);
       setPaymentStatus("not_paid");
       setPaymentAmount("");
       setEventNotes("");
@@ -255,8 +269,8 @@ export const EventDialog = ({
 
       if (!user?.id) {
         toast({
-          title: t("common.error"),
-          description: t("common.missingUserInfo"),
+          title: t("common.error") || "Error",
+          description: t("common.missingUserInfo") || "Missing user information",
           variant: "destructive",
         });
         return;
@@ -290,8 +304,8 @@ export const EventDialog = ({
           if (error) {
             console.error("Error updating event:", error);
             toast({
-              title: t("common.error"),
-              description: t("crm.eventUpdateFailed"),
+              title: t("common.error") || "Error",
+              description: t("crm.eventUpdateFailed") || "Failed to update event",
               variant: "destructive",
             });
           } else {
@@ -302,8 +316,8 @@ export const EventDialog = ({
             }, additionalPersons);
             
             toast({
-              title: t("common.success"),
-              description: t("crm.eventUpdated"),
+              title: t("common.success") || "Success",
+              description: t("crm.eventUpdated") || "Event updated successfully",
             });
             onSave?.(data);
             onEventUpdated?.();
@@ -320,8 +334,8 @@ export const EventDialog = ({
           if (error) {
             console.error("Error creating event:", error);
             toast({
-              title: t("common.error"),
-              description: t("crm.eventCreationFailed"),
+              title: t("common.error") || "Error",
+              description: t("crm.eventCreationFailed") || "Failed to create event",
               variant: "destructive",
             });
           } else {
@@ -332,8 +346,8 @@ export const EventDialog = ({
             }, additionalPersons);
             
             toast({
-              title: t("common.success"),
-              description: t("crm.eventCreated"),
+              title: t("common.success") || "Success",
+              description: t("crm.eventCreated") || "Event created successfully",
             });
             onSave?.(data);
             onEventCreated?.();
@@ -343,8 +357,8 @@ export const EventDialog = ({
       } catch (error: any) {
         console.error("Error submitting event:", error);
         toast({
-          title: t("common.error"),
-          description: error.message || t("common.errorOccurred"),
+          title: t("common.error") || "Error",
+          description: error.message || t("common.errorOccurred") || "An error occurred",
           variant: "destructive",
         });
       }
@@ -386,8 +400,8 @@ export const EventDialog = ({
       if (error) throw error;
 
       toast({
-        title: t("common.success"),
-        description: t("common.deleteSuccess"),
+        title: t("common.success") || "Success",
+        description: t("common.deleteSuccess") || "Successfully deleted",
       });
       onDelete?.(event.id);
       onEventDeleted?.();
@@ -395,8 +409,8 @@ export const EventDialog = ({
     } catch (error: any) {
       console.error("Error deleting event:", error);
       toast({
-        title: t("common.error"),
-        description: error.message || t("common.deleteError"),
+        title: t("common.error") || "Error",
+        description: error.message || t("common.deleteError") || "Failed to delete",
         variant: "destructive",
       });
     }
@@ -407,7 +421,7 @@ export const EventDialog = ({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {event ? t("crm.editEvent") : t("crm.addEvent")}
+            {event ? (t("crm.editEvent") || "Edit Event") : (t("crm.addEvent") || "Add Event")}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -466,7 +480,7 @@ export const EventDialog = ({
 
           <div className="flex justify-between">
             <Button type="submit" className="flex-1 mr-2">
-              {event ? t("common.update") : t("common.add")}
+              {event ? (t("common.update") || "Update") : (t("common.add") || "Add")}
             </Button>
             {event && (
               <Button
@@ -474,7 +488,7 @@ export const EventDialog = ({
                 variant="destructive"
                 onClick={handleDelete}
               >
-                {t("common.delete")}
+                {t("common.delete") || "Delete"}
               </Button>
             )}
           </div>
