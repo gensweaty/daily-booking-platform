@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -51,25 +52,21 @@ interface EventDialogFieldsProps {
   setPaymentStatus: (value: string) => void;
   paymentAmount: string;
   setPaymentAmount: (value: string) => void;
-  selectedFile: File | null;
-  setSelectedFile: (file: File | null) => void;
-  fileError: string;
-  setFileError: (error: string) => void;
+  files: File[];
+  setFiles: (files: File[]) => void;
   eventId?: string;
-  displayedFiles: FileRecord[];
-  onFileDeleted: (fileId: string) => void;
   isBookingRequest?: boolean;
   // Add repeat props
+  isRecurring: boolean;
+  setIsRecurring: (value: boolean) => void;
   repeatPattern: string;
   setRepeatPattern: (value: string) => void;
   repeatUntil: Date | undefined;
-  setRepeatUntil: (date: Date | undefined) => void;
+  setRepeatUntil: (date: Date) => void;
   isNewEvent?: boolean;
   // New props for additional persons management
   additionalPersons: PersonData[];
-  onAddPerson: () => void;
-  onRemovePerson: (personId: string) => void;
-  onUpdatePerson: (personId: string, field: keyof PersonData, value: string) => void;
+  setAdditionalPersons: (persons: PersonData[]) => void;
 }
 
 export const EventDialogFields = ({
@@ -93,23 +90,19 @@ export const EventDialogFields = ({
   setPaymentStatus,
   paymentAmount,
   setPaymentAmount,
-  selectedFile,
-  setSelectedFile,
-  fileError,
-  setFileError,
+  files,
+  setFiles,
   eventId,
-  displayedFiles,
-  onFileDeleted,
   isBookingRequest = false,
+  isRecurring,
+  setIsRecurring,
   repeatPattern,
   setRepeatPattern,
   repeatUntil,
   setRepeatUntil,
   isNewEvent = false,
   additionalPersons,
-  onAddPerson,
-  onRemovePerson,
-  onUpdatePerson
+  setAdditionalPersons
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -130,14 +123,6 @@ export const EventDialogFields = ({
     const selectedDateTime = startDate ? new Date(startDate) : undefined;
     return getRepeatOptions(selectedDateTime, t);
   }, [startDate, t]);
-
-  // Process files to remove duplicates by comparing path and name
-  const processedFiles = useMemo(() => {
-    if (!displayedFiles.length) return [];
-    
-    // Return the displayed files directly since deduplication is now handled in FileDisplay component
-    return displayedFiles;
-  }, [displayedFiles]);
   
   const georgianStyle = isGeorgian ? {
     fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
@@ -163,6 +148,30 @@ export const EventDialogFields = ({
       return "დაამატეთ შენიშვნები თქვენი ჯავშნის შესახებ";
     }
     return t("events.addEventNotes");
+  };
+
+  // Helper functions for additional persons management
+  const onAddPerson = () => {
+    const newPerson: PersonData = {
+      id: crypto.randomUUID(),
+      userSurname: '',
+      userNumber: '',
+      socialNetworkLink: '',
+      eventNotes: '',
+      paymentStatus: 'not_paid',
+      paymentAmount: ''
+    };
+    setAdditionalPersons([...additionalPersons, newPerson]);
+  };
+
+  const onRemovePerson = (personId: string) => {
+    setAdditionalPersons(additionalPersons.filter(person => person.id !== personId));
+  };
+
+  const onUpdatePerson = (personId: string, field: keyof PersonData, value: string) => {
+    setAdditionalPersons(additionalPersons.map(person => 
+      person.id === personId ? { ...person, [field]: value } : person
+    ));
   };
 
   // Function to render person data section
@@ -484,7 +493,9 @@ export const EventDialogFields = ({
                     mode="single"
                     selected={repeatUntil}
                     onSelect={(date) => {
-                      setRepeatUntil(date);
+                      if (date) {
+                        setRepeatUntil(date);
+                      }
                       setIsDatePickerOpen(false);
                     }}
                     disabled={(date) => {
@@ -572,26 +583,36 @@ export const EventDialogFields = ({
           <LanguageText>{t("common.attachments")}</LanguageText>
         </Label>
         <FileUploadField 
-          onChange={setSelectedFile} 
-          fileError={fileError} 
-          setFileError={setFileError} 
+          onChange={(file) => {
+            if (file) {
+              setFiles([...files, file]);
+            }
+          }} 
+          fileError="" 
+          setFileError={() => {}} 
           acceptedFileTypes={acceptedFormats} 
-          selectedFile={selectedFile} 
+          selectedFile={null} 
           hideLabel={true} 
         />
       </div>
       
-      {processedFiles.length > 0 && (
+      {files.length > 0 && (
         <div className="flex flex-col gap-2">
-          <FileDisplay 
-            files={processedFiles} 
-            bucketName="event_attachments" 
-            allowDelete={true} 
-            onFileDeleted={onFileDeleted} 
-            parentType="event" 
-            parentId={eventId}
-            fallbackBuckets={["customer_attachments", "booking_attachments"]} 
-          />
+          <div className="text-sm font-medium">Selected Files:</div>
+          {files.map((file, index) => (
+            <div key={index} className="flex items-center justify-between p-2 border rounded">
+              <span className="text-sm">{file.name}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setFiles(files.filter((_, i) => i !== index))}
+                className="h-6 w-6 p-0"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
         </div>
       )}
     </>;
