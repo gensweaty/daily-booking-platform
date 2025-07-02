@@ -423,23 +423,33 @@ export const EventDialogFields = ({
       <div className="border-t pt-4">
         <Label>Attachments</Label>
         <FileUploadField
-          files={files}
-          onFilesChange={setFiles}
-          maxFiles={5}
-          accept="image/*,.pdf,.doc,.docx"
+          onFileChange={(file) => {
+            if (file) {
+              setFiles([...files, file]);
+            }
+          }}
+          maxSizeMB={5}
+          acceptedFileTypes="image/*,.pdf,.doc,.docx"
         />
         
         {existingFiles.length > 0 && (
           <div className="mt-4">
             <Label>Existing Files</Label>
             <div className="space-y-2">
-              {existingFiles.map((file) => (
-                <SimpleFileDisplay
-                  key={file.id}
-                  file={file}
-                  onRemove={() => onRemoveExistingFile(file.id)}
-                />
-              ))}
+              <SimpleFileDisplay
+                files={existingFiles.map(file => ({
+                  id: file.id,
+                  filename: file.filename,
+                  file_path: file.file_path,
+                  content_type: file.content_type || '',
+                  size: file.size || 0,
+                  created_at: new Date().toISOString(),
+                  user_id: null
+                }))}
+                parentType="event"
+                allowDelete={true}
+                onFileDeleted={onRemoveExistingFile}
+              />
             </div>
           </div>
         )}
