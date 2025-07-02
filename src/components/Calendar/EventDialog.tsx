@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -420,16 +419,16 @@ export const EventDialog = ({
             setPaymentStatus={setPaymentStatus}
             paymentAmount={paymentAmount}
             setPaymentAmount={setPaymentAmount}
-            startDate={getStartDateAsDate()}
-            setStartDate={handleStartDateChange}
-            endDate={getEndDateAsDate()}
-            setEndDate={handleEndDateChange}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
             isRecurring={isRecurring}
             setIsRecurring={setIsRecurring}
             repeatPattern={repeatPattern}
             setRepeatPattern={setRepeatPattern}
-            repeatUntil={repeatUntil ? getRepeatUntilAsDate() : undefined}
-            setRepeatUntil={handleRepeatUntilChange}
+            repeatUntil={repeatUntil}
+            setRepeatUntil={setRepeatUntil}
             files={files}
             setFiles={setFiles}
             additionalPersons={additionalPersons.map(person => ({
