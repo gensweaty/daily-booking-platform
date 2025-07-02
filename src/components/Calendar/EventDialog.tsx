@@ -332,47 +332,6 @@ export const EventDialog = ({
     }
   };
 
-  // Helper functions to convert between Date and string formats
-  const handleStartDateChange = (date: Date) => {
-    const formatDateTime = (date: Date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      return `${year}-${month}-${day}T${hours}:${minutes}`;
-    };
-    setStartDate(formatDateTime(date));
-  };
-
-  const handleEndDateChange = (date: Date) => {
-    const formatDateTime = (date: Date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      return `${year}-${month}-${day}T${hours}:${minutes}`;
-    };
-    setEndDate(formatDateTime(date));
-  };
-
-  // Helper functions to convert string to Date for the fields component
-  const getStartDateAsDate = (): Date => {
-    if (startDate) {
-      return new Date(startDate);
-    }
-    return selectedDate || new Date();
-  };
-
-  const getEndDateAsDate = (): Date => {
-    if (endDate) {
-      return new Date(endDate);
-    }
-    const baseDate = selectedDate || new Date();
-    return new Date(baseDate.getTime() + 60 * 60 * 1000);
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -400,10 +359,10 @@ export const EventDialog = ({
             setPaymentStatus={setPaymentStatus}
             paymentAmount={paymentAmount}
             setPaymentAmount={setPaymentAmount}
-            startDate={getStartDateAsDate()}
-            setStartDate={handleStartDateChange}
-            endDate={getEndDateAsDate()}
-            setEndDate={handleEndDateChange}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
             isRecurring={isRecurring}
             setIsRecurring={setIsRecurring}
             repeatPattern={repeatPattern}
