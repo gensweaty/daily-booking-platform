@@ -76,6 +76,7 @@ interface EventDialogFieldsProps {
   // Additional persons props
   additionalPersons: PersonData[];
   setAdditionalPersons: (persons: PersonData[]) => void;
+  dataLoading?: boolean;
 }
 
 export const EventDialogFields = ({
@@ -113,7 +114,8 @@ export const EventDialogFields = ({
   setRepeatUntil,
   isNewEvent = false,
   additionalPersons,
-  setAdditionalPersons
+  setAdditionalPersons,
+  dataLoading = false
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -392,6 +394,20 @@ export const EventDialogFields = ({
     );
   };
   
+  // Convert existing files to FileRecord format for FileDisplay component
+  const convertToFileRecords = (files: ExistingFile[]): FileRecord[] => {
+    return files.map(file => ({
+      id: file.id,
+      filename: file.filename,
+      file_path: file.file_path,
+      content_type: file.content_type,
+      size: file.size,
+      created_at: new Date().toISOString(), // Default value
+      user_id: '', // Will be handled by FileDisplay component
+      parentType: 'event'
+    }));
+  };
+  
   return <>
       {/* Date and Time - Moved to top */}
       <div>
@@ -446,8 +462,8 @@ export const EventDialogFields = ({
         </div>
       </div>
 
-      {/* Repeat Options - Show for new events OR when editing existing recurring events */}
-      {(isNewEvent || isRecurring) && (
+      {/* Repeat Options - Always show, with loading state consideration */}
+      {!dataLoading && (
         <div>
           <Label 
             htmlFor="repeatPattern" 
@@ -607,24 +623,18 @@ export const EventDialogFields = ({
         />
       </div>
 
-      {/* Display existing files */}
+      {/* Display existing files using FileDisplay component */}
       {existingFiles.length > 0 && (
-        <div className="flex flex-col gap-2">
+        <div className="space-y-2">
           <div className="text-sm font-medium">Existing Files:</div>
-          {existingFiles.map((file) => (
-            <div key={file.id} className="flex items-center justify-between p-2 border rounded bg-muted/50">
-              <span className="text-sm">{file.filename}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => onRemoveExistingFile?.(file.id)}
-                className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </div>
-          ))}
+          <FileDisplay 
+            files={convertToFileRecords(existingFiles)}
+            bucketName="event_attachments"
+            allowDelete={true}
+            onFileDeleted={onRemoveExistingFile}
+            parentType="event"
+            fallbackBuckets={['customer_attachments', 'booking_attachments']}
+          />
         </div>
       )}
       

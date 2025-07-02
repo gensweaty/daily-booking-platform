@@ -18,6 +18,14 @@ const formatDatetimeLocal = (dt: string | Date | null | undefined): string => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+// Helper function to format date for date input (repeat until)
+const formatDateOnly = (dt: string | Date | null | undefined): string => {
+  if (!dt) return '';
+  const d = typeof dt === 'string' ? new Date(dt) : dt;
+  const pad = (v: number) => String(v).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
 interface EventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -159,6 +167,7 @@ export const EventDialog = ({
   
   const [isLoading, setIsLoading] = useState(false);
   const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
+  const [dataLoading, setDataLoading] = useState(false);
 
   // Determine if this is a new event (not editing an existing one)
   const isNewEvent = !eventId && !initialData;
@@ -203,6 +212,7 @@ export const EventDialog = ({
         
       } else if ((eventId || initialData) && !isNewEvent && user) {
         // Editing existing event - load all data
+        setDataLoading(true);
         const currentEventId = eventId || initialData?.id;
         if (!currentEventId) return;
 
@@ -222,7 +232,7 @@ export const EventDialog = ({
             setEndDate(formatDatetimeLocal(initialData.end_date));
             setIsRecurring(initialData.is_recurring || false);
             setRepeatPattern(initialData.repeat_pattern || "none");
-            setRepeatUntil(initialData.repeat_until || "");
+            setRepeatUntil(initialData.repeat_until ? formatDateOnly(initialData.repeat_until) : "");
             
             console.log("Set recurring state:", {
               isRecurring: initialData.is_recurring,
@@ -255,27 +265,11 @@ export const EventDialog = ({
           }
 
           // Fetch event files
-          const { data: filesData, error: filesError } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', currentEventId)
-            .eq('user_id', user.id);
-
-          if (filesError) {
-            console.error('Error fetching event files:', filesError);
-          } else if (filesData && filesData.length > 0) {
-            console.log('Event files found:', filesData);
-            const mappedFiles: ExistingFile[] = filesData.map(file => ({
-              id: file.id,
-              filename: file.filename,
-              file_path: file.file_path,
-              content_type: file.content_type || undefined,
-              size: file.size || undefined
-            }));
-            setExistingFiles(mappedFiles);
-          }
+          await fetchAndSetExistingFiles(currentEventId, user.id);
         } catch (error) {
           console.error('Error loading event data:', error);
+        } finally {
+          setDataLoading(false);
         }
       }
     };
@@ -437,6 +431,12 @@ export const EventDialog = ({
           });
           
         if (result.error) throw result.error;
+        
+        // Upload new files if any
+        if (files.length > 0) {
+          await uploadFiles(eventId || initialData?.id);
+          await fetchAndSetExistingFiles(eventId || initialData?.id, user.id);
+        }
         
         toast({
           title: "Success",
@@ -625,6 +625,7 @@ export const EventDialog = ({
             isNewEvent={isNewEvent}
             additionalPersons={additionalPersons}
             setAdditionalPersons={setAdditionalPersons}
+            dataLoading={dataLoading}
           />
 
           <div className="flex justify-between">
