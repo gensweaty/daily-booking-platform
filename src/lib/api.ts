@@ -149,7 +149,7 @@ const getBusinessProfileWithFallbacks = async () => {
   }
 };
 
-// Enhanced booking confirmation email function with detailed logging
+// Consolidated email sending utility using supabase.functions.invoke()
 export const sendBookingConfirmationEmail = async (
   recipientEmail: string, 
   fullName: string = '', 
@@ -164,19 +164,18 @@ export const sendBookingConfirmationEmail = async (
   eventNotes?: string
 ) => {
   try {
-    console.log("=== SENDING BOOKING CONFIRMATION EMAIL ===");
-    console.log(`🔔 To: ${recipientEmail}`);
-    console.log(`📧 Business: ${businessName}`);
-    console.log(`📅 Date: ${startDate} - ${endDate}`);
+    console.log("=== ATTEMPTING TO SEND BOOKING CONFIRMATION ===");
+    console.log(`🔔 Sending booking confirmation email to ${recipientEmail}`);
     
     if (!recipientEmail || !recipientEmail.includes('@')) {
-      console.log("❌ Invalid email format:", recipientEmail);
+      console.log("NOT SENDING EMAIL: Invalid email format or missing email:", recipientEmail);
       return { success: false, error: "Invalid email format" };
     }
     
-    // Get business profile with fallbacks
+    // Get business profile with fallbacks - NEVER block email sending
     const businessProfile = await getBusinessProfileWithFallbacks();
     
+    // Use provided businessName or fallback to profile business name
     const effectiveBusinessName = businessName || businessProfile.business_name || "SmartBookly";
     const effectiveBusinessAddress = businessAddress || businessProfile.contact_address || "";
     
@@ -185,6 +184,7 @@ export const sendBookingConfirmationEmail = async (
       businessAddress: effectiveBusinessAddress ? "provided" : "empty"
     });
     
+    // Create the request payload
     const payload = {
       recipientEmail: recipientEmail.trim(),
       fullName: fullName || "",
@@ -195,16 +195,17 @@ export const sendBookingConfirmationEmail = async (
       paymentAmount,
       businessAddress: effectiveBusinessAddress,
       eventId,
-      source: 'booking-approval',
+      source: 'booking-approval', // Use booking-approval for booking confirmations
       language: language || 'en',
       eventNotes
     };
     
-    console.log("📧 Email payload:", {
+    console.log("📧 Email request payload:", {
       ...payload,
-      recipientEmail: recipientEmail.trim().substring(0, 3) + '***'
+      recipientEmail: recipientEmail.trim().substring(0, 3) + '***' // Mask email for privacy
     });
     
+    // Use supabase.functions.invoke() instead of direct fetch
     console.log("🌐 Invoking Edge Function: send-booking-approval-email");
     
     const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
@@ -225,7 +226,7 @@ export const sendBookingConfirmationEmail = async (
   }
 };
 
-// Enhanced event creation email function
+// New function specifically for event creation emails using supabase.functions.invoke()
 export const sendEventCreationEmail = async (
   recipientEmail: string, 
   fullName: string = '', 
@@ -240,19 +241,18 @@ export const sendEventCreationEmail = async (
   eventNotes?: string
 ) => {
   try {
-    console.log("=== SENDING EVENT CREATION EMAIL ===");
-    console.log(`🔔 To: ${recipientEmail}`);
-    console.log(`📧 Business: ${businessName}`);
-    console.log(`📅 Date: ${startDate} - ${endDate}`);
+    console.log("=== ATTEMPTING TO SEND EVENT CREATION EMAIL ===");
+    console.log(`🔔 Sending event creation email to ${recipientEmail}`);
     
     if (!recipientEmail || !recipientEmail.includes('@')) {
-      console.log("❌ Invalid email format:", recipientEmail);
+      console.log("NOT SENDING EMAIL: Invalid email format or missing email:", recipientEmail);
       return { success: false, error: "Invalid email format" };
     }
     
-    // Get business profile with fallbacks
+    // Get business profile with fallbacks - NEVER block email sending
     const businessProfile = await getBusinessProfileWithFallbacks();
     
+    // Use provided businessName or fallback to profile business name
     const effectiveBusinessName = businessName || businessProfile.business_name || "SmartBookly";
     const effectiveBusinessAddress = businessAddress || businessProfile.contact_address || "";
     
@@ -261,6 +261,7 @@ export const sendEventCreationEmail = async (
       businessAddress: effectiveBusinessAddress ? "provided" : "empty"
     });
     
+    // Create the request payload
     const payload = {
       recipientEmail: recipientEmail.trim(),
       fullName: fullName || "",
@@ -271,16 +272,17 @@ export const sendEventCreationEmail = async (
       paymentAmount,
       businessAddress: effectiveBusinessAddress,
       eventId,
-      source: 'event-creation',
+      source: 'event-creation', // Use event-creation for event creation emails
       language: language || 'en',
       eventNotes
     };
     
-    console.log("📧 Email payload:", {
+    console.log("📧 Email request payload:", {
       ...payload,
-      recipientEmail: recipientEmail.trim().substring(0, 3) + '***'
+      recipientEmail: recipientEmail.trim().substring(0, 3) + '***' // Mask email for privacy
     });
     
+    // Use supabase.functions.invoke() instead of direct fetch
     console.log("🌐 Invoking Edge Function: send-booking-approval-email");
     
     const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
@@ -292,7 +294,7 @@ export const sendEventCreationEmail = async (
       return { success: false, error: error.message || "Failed to send email" };
     }
     
-    console.log("✅ Event creation email sent successfully:", data);
+    console.log("✅ Email sent successfully:", data);
     return { success: true, data };
     
   } catch (error) {
@@ -301,7 +303,7 @@ export const sendEventCreationEmail = async (
   }
 };
 
-// Enhanced multiple recipients function
+// Helper function to send emails to multiple recipients using supabase.functions.invoke()
 export const sendBookingConfirmationToMultipleRecipients = async (
   recipients: Array<{
     email: string;
@@ -317,11 +319,11 @@ export const sendBookingConfirmationToMultipleRecipients = async (
   language?: string,
   eventNotes?: string
 ) => {
-  console.log("=== SENDING MULTIPLE BOOKING CONFIRMATIONS ===");
-  console.log(`📧 Sending to ${recipients.length} recipients`);
+  console.log("=== ATTEMPTING TO SEND MULTIPLE BOOKING CONFIRMATIONS ===");
+  console.log(`📧 Sending booking confirmations to ${recipients.length} recipients`);
   
   if (recipients.length === 0) {
-    console.log("❌ No valid email addresses found");
+    console.log("NOT SENDING EMAIL: No valid email addresses found for sending notifications");
     return {
       total: 0,
       successful: 0,
@@ -332,7 +334,7 @@ export const sendBookingConfirmationToMultipleRecipients = async (
   
   const results = await Promise.allSettled(
     recipients.map(recipient => 
-      sendEventCreationEmail(
+      sendBookingConfirmationEmail(
         recipient.email,
         recipient.name,
         businessName,
@@ -354,7 +356,7 @@ export const sendBookingConfirmationToMultipleRecipients = async (
   
   const failed = results.length - successful;
   
-  console.log(`📊 Email results: ${successful} successful, ${failed} failed`);
+  console.log(`📊 Email sending results: ${successful} successful, ${failed} failed`);
   
   return {
     total: recipients.length,
