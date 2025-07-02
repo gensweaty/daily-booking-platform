@@ -1,4 +1,3 @@
-
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
@@ -95,6 +94,61 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
   }
 };
 
+// Enhanced function to get business profile with better fallbacks
+const getBusinessProfileWithFallbacks = async () => {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) {
+      console.log("📋 No authenticated user found, using system defaults");
+      return {
+        business_name: "SmartBookly",
+        contact_email: null,
+        contact_address: null
+      };
+    }
+
+    console.log("📋 Fetching business profile for user:", userData.user.id);
+    
+    const { data: profile, error } = await supabase
+      .from("business_profiles")
+      .select("business_name, contact_email, contact_address")
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.warn("📋 Error fetching business profile:", error);
+      return {
+        business_name: "SmartBookly",
+        contact_email: null,
+        contact_address: null
+      };
+    }
+
+    if (!profile) {
+      console.log("📋 No business profile found, using defaults");
+      return {
+        business_name: "SmartBookly",
+        contact_email: null,
+        contact_address: null
+      };
+    }
+
+    console.log("📋 Business profile found:", profile);
+    return {
+      business_name: profile.business_name || "SmartBookly",
+      contact_email: profile.contact_email,
+      contact_address: profile.contact_address
+    };
+  } catch (error) {
+    console.error("📋 Error in getBusinessProfileWithFallbacks:", error);
+    return {
+      business_name: "SmartBookly",
+      contact_email: null,
+      contact_address: null
+    };
+  }
+};
+
 // Consolidated email sending utility with improved fallback handling
 export const sendBookingConfirmationEmail = async (
   recipientEmail: string, 
@@ -121,18 +175,30 @@ export const sendBookingConfirmationEmail = async (
       return { success: false, error: "Invalid email format" };
     }
     
+    // Get business profile with fallbacks - NEVER block email sending
+    const businessProfile = await getBusinessProfileWithFallbacks();
+    
+    // Use provided businessName or fallback to profile business name
+    const effectiveBusinessName = businessName || businessProfile.business_name || "SmartBookly";
+    const effectiveBusinessAddress = businessAddress || businessProfile.contact_address || "";
+    
+    console.log("📋 Using business data:", {
+      businessName: effectiveBusinessName,
+      businessAddress: effectiveBusinessAddress ? "provided" : "empty"
+    });
+    
     // Create the request payload
     const payload = {
       recipientEmail: recipientEmail.trim(),
       fullName: fullName || "",
-      businessName: businessName || "Our Business",
+      businessName: effectiveBusinessName,
       startDate,
       endDate,
       paymentStatus,
       paymentAmount,
-      businessAddress: businessAddress || "",
+      businessAddress: effectiveBusinessAddress,
       eventId,
-      source: 'booking-approval', // CRITICAL FIX: Use correct source for booking confirmations
+      source: 'booking-approval', // Use booking-approval for booking confirmations
       language: language || 'en',
       eventNotes
     };
@@ -173,6 +239,100 @@ export const sendBookingConfirmationEmail = async (
     return await handleEmailResponse(response);
   } catch (error) {
     console.error("❌ Error in sendBookingConfirmationEmail:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+  }
+};
+
+// New function specifically for event creation emails
+export const sendEventCreationEmail = async (
+  recipientEmail: string, 
+  fullName: string = '', 
+  businessName: string = '',
+  startDate: string = new Date().toISOString(),
+  endDate: string = new Date().toISOString(),
+  paymentStatus?: string | null,
+  paymentAmount?: number | null,
+  businessAddress?: string,
+  eventId?: string,
+  language?: string,
+  eventNotes?: string
+) => {
+  try {
+    console.log(`🔔 Sending event creation email to ${recipientEmail}`);
+    console.log("=== ATTEMPTING TO SEND EVENT CREATION EMAIL ===");
+    
+    // Always use production Edge Function URL to avoid localhost issues
+    const FUNCTION_BASE_URL = "https://mrueqpffzauvdxmuwhfa.supabase.co";
+    
+    if (!recipientEmail || !recipientEmail.includes('@')) {
+      console.error("Invalid email format or missing email:", recipientEmail);
+      return { success: false, error: "Invalid email format" };
+    }
+    
+    // Get business profile with fallbacks - NEVER block email sending
+    const businessProfile = await getBusinessProfileWithFallbacks();
+    
+    // Use provided businessName or fallback to profile business name
+    const effectiveBusinessName = businessName || businessProfile.business_name || "SmartBookly";
+    const effectiveBusinessAddress = businessAddress || businessProfile.contact_address || "";
+    
+    console.log("📋 Using business data:", {
+      businessName: effectiveBusinessName,
+      businessAddress: effectiveBusinessAddress ? "provided" : "empty"
+    });
+    
+    // Create the request payload
+    const payload = {
+      recipientEmail: recipientEmail.trim(),
+      fullName: fullName || "",
+      businessName: effectiveBusinessName,
+      startDate,
+      endDate,
+      paymentStatus,
+      paymentAmount,
+      businessAddress: effectiveBusinessAddress,
+      eventId,
+      source: 'event-creation', // Use event-creation for event creation emails
+      language: language || 'en',
+      eventNotes
+    };
+    
+    console.log("📧 Email request payload:", {
+      ...payload,
+      recipientEmail: recipientEmail.trim().substring(0, 3) + '***' // Mask email for privacy
+    });
+    
+    let headers: Record<string, string> = { "Content-Type": "application/json" };
+
+    // Try with token first (if available, for dashboard)
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (accessToken) {
+        console.log("✅ Using authenticated request with access token");
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+    } catch (authError) {
+      console.log("⚠️ No authentication available, sending without token");
+    }
+
+    console.log("🌐 Making POST request to:", `${FUNCTION_BASE_URL}/functions/v1/send-booking-approval-email`);
+    
+    const response = await fetch(
+      `${FUNCTION_BASE_URL}/functions/v1/send-booking-approval-email`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload)
+      }
+    );
+    
+    console.log("📨 Response status:", response.status, response.statusText);
+    
+    return await handleEmailResponse(response);
+  } catch (error) {
+    console.error("❌ Error in sendEventCreationEmail:", error);
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 };

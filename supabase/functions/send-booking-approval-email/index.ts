@@ -64,8 +64,9 @@ function getCurrencySymbolByLanguage(language?: string): string {
   }
 }
 
-// Function to get email content based on language
+// Function to get proper email content based on source and language
 function getEmailContent(
+  source: string,
   language: string, 
   fullName: string, 
   businessName: string, 
@@ -74,87 +75,181 @@ function getEmailContent(
   paymentInfo: string,
   addressInfo: string,
   eventNotesInfo: string
-): string {
+): { subject: string; content: string } {
   // Normalize language to lowercase and handle undefined
   const normalizedLang = (language || 'en').toLowerCase();
+  const normalizedSource = (source || 'booking-approval').toLowerCase();
   
-  console.log(`Creating email content in language: ${normalizedLang}`);
+  console.log(`Creating email content - Source: ${normalizedSource}, Language: ${normalizedLang}`);
   
   // Normalize business name
   const displayBusinessName = businessName && businessName !== "null" && businessName !== "undefined" 
     ? businessName 
     : 'SmartBookly';
-  
-  switch (normalizedLang) {
-    case 'ka': // Georgian
-      return `
-        <!DOCTYPE html>
-        <html lang="ka">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>ჯავშანი დადასტურებულია</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-          <h2 style="color: #333;">გამარჯობა ${fullName},</h2>
-          <p>თქვენი ჯავშანი დადასტურდა <b>${displayBusinessName}</b>-ში.</p>
-          <p style="margin: 8px 0;"><strong>დაჯავშნის თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-          ${addressInfo}
-          ${paymentInfo}
-          ${eventNotesInfo}
-          <p>ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
-          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-          <p style="color: #777; font-size: 14px;"><i>ეს არის ავტომატური შეტყობინება.</i></p>
-        </body>
-        </html>
-      `;
-      
-    case 'es': // Spanish
-      return `
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Reserva Aprobada</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-          <h2 style="color: #333;">Hola ${fullName},</h2>
-          <p>Su reserva ha sido <b style="color: #4CAF50;">aprobada</b> en <b>${displayBusinessName}</b>.</p>
-          <p style="margin: 8px 0;"><strong>Fecha y hora de la reserva:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-          ${addressInfo}
-          ${paymentInfo}
-          ${eventNotesInfo}
-          <p>¡Esperamos verle pronto!</p>
-          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-          <p style="color: #777; font-size: 14px;"><i>Este es un mensaje automático.</i></p>
-        </body>
-        </html>
-      `;
-      
-    default: // English (default)
-      return `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Booking Approved</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-          <h2 style="color: #333;">Hello ${fullName},</h2>
-          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${displayBusinessName}</b>.</p>
-          <p style="margin: 8px 0;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-          ${addressInfo}
-          ${paymentInfo}
-          ${eventNotesInfo}
-          <p>We look forward to seeing you!</p>
-          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-          <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
-        </body>
-        </html>
-      `;
+
+  // Get subject and content based on source and language
+  let subject = '';
+  let content = '';
+
+  if (normalizedSource === 'event-creation') {
+    // Event creation emails
+    switch (normalizedLang) {
+      case 'ka': // Georgian
+        subject = `ღონისძიება შეიქმნა ${displayBusinessName}-ში`;
+        content = `
+          <!DOCTYPE html>
+          <html lang="ka">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>ღონისძიება შეიქმნა</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+            <h2 style="color: #333;">გამარჯობა ${fullName},</h2>
+            <p>თქვენი ღონისძიება <b style="color: #4CAF50;">შეიქმნა</b> <b>${displayBusinessName}</b>-ში.</p>
+            <p style="margin: 8px 0;"><strong>ღონისძიების თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+            ${addressInfo}
+            ${paymentInfo}
+            ${eventNotesInfo}
+            <p>ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
+            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+            <p style="color: #777; font-size: 14px;"><i>ეს არის ავტომატური შეტყობინება.</i></p>
+          </body>
+          </html>
+        `;
+        break;
+        
+      case 'es': // Spanish
+        subject = `Evento Creado en ${displayBusinessName}`;
+        content = `
+          <!DOCTYPE html>
+          <html lang="es">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Evento Creado</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+            <h2 style="color: #333;">Hola ${fullName},</h2>
+            <p>Su evento ha sido <b style="color: #4CAF50;">creado</b> en <b>${displayBusinessName}</b>.</p>
+            <p style="margin: 8px 0;"><strong>Fecha y hora del evento:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+            ${addressInfo}
+            ${paymentInfo}
+            ${eventNotesInfo}
+            <p>¡Esperamos verle pronto!</p>
+            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+            <p style="color: #777; font-size: 14px;"><i>Este es un mensaje automático.</i></p>
+          </body>
+          </html>
+        `;
+        break;
+        
+      default: // English (default)
+        subject = `Event Created at ${displayBusinessName}`;
+        content = `
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Event Created</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+            <h2 style="color: #333;">Hello ${fullName},</h2>
+            <p>Your event has been <b style="color: #4CAF50;">created</b> at <b>${displayBusinessName}</b>.</p>
+            <p style="margin: 8px 0;"><strong>Event date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+            ${addressInfo}
+            ${paymentInfo}
+            ${eventNotesInfo}
+            <p>We look forward to seeing you!</p>
+            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+            <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
+          </body>
+          </html>
+        `;
+        break;
+    }
+  } else {
+    // Booking approval emails (default)
+    switch (normalizedLang) {
+      case 'ka': // Georgian
+        subject = `ჯავშანი დადასტურებულია ${displayBusinessName}-ში`;
+        content = `
+          <!DOCTYPE html>
+          <html lang="ka">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>ჯავშანი დადასტურებულია</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+            <h2 style="color: #333;">გამარჯობა ${fullName},</h2>
+            <p>თქვენი ჯავშანი <b style="color: #4CAF50;">დადასტურდა</b> <b>${displayBusinessName}</b>-ში.</p>
+            <p style="margin: 8px 0;"><strong>დაჯავშნის თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+            ${addressInfo}
+            ${paymentInfo}
+            ${eventNotesInfo}
+            <p>ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
+            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+            <p style="color: #777; font-size: 14px;"><i>ეს არის ავტომატური შეტყობინება.</i></p>
+          </body>
+          </html>
+        `;
+        break;
+        
+      case 'es': // Spanish
+        subject = `Reserva Aprobada en ${displayBusinessName}`;
+        content = `
+          <!DOCTYPE html>
+          <html lang="es">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Reserva Aprobada</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+            <h2 style="color: #333;">Hola ${fullName},</h2>
+            <p>Su reserva ha sido <b style="color: #4CAF50;">aprobada</b> en <b>${displayBusinessName}</b>.</p>
+            <p style="margin: 8px 0;"><strong>Fecha y hora de la reserva:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+            ${addressInfo}
+            ${paymentInfo}
+            ${eventNotesInfo}
+            <p>¡Esperamos verle pronto!</p>
+            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+            <p style="color: #777; font-size: 14px;"><i>Este es un mensaje automático.</i></p>
+          </body>
+          </html>
+        `;
+        break;
+        
+      default: // English (default)
+        subject = `Booking Approved at ${displayBusinessName}`;
+        content = `
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Booking Approved</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+            <h2 style="color: #333;">Hello ${fullName},</h2>
+            <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${displayBusinessName}</b>.</p>
+            <p style="margin: 8px 0;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+            ${addressInfo}
+            ${paymentInfo}
+            ${eventNotesInfo}
+            <p>We look forward to seeing you!</p>
+            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+            <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
+          </body>
+          </html>
+        `;
+        break;
+    }
   }
+
+  return { subject, content };
 }
 
 // Format payment status for different languages
@@ -234,6 +329,7 @@ const handler = async (req: Request): Promise<Response> => {
       paymentAmount,
       language,
       eventNotes,
+      source,
       hasBusinessAddress: !!businessAddress
     });
 
@@ -312,7 +408,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       
-      // Prepare address section with fallback
+      // Prepare address section with fallback - NEVER block email sending
       let addressInfo = "";
       let addressDisplay = businessAddress?.trim() || "";
       
@@ -324,12 +420,12 @@ const handler = async (req: Request): Promise<Response> => {
       if (addressDisplay) {
         addressInfo = `<p style="margin: 8px 0;"><strong>${addressLabel}:</strong> ${addressDisplay}</p>`;
       } else {
-        // Provide fallback for missing address
+        // Provide fallback for missing address - but still send email
         const defaultAddress = language === 'ka' 
-          ? "მისამართმი დაზუსტდება"
+          ? "მისამართი დაზუსტდება"
           : (language === 'es' ? "Dirección por confirmar" : "Address to be confirmed");
         addressInfo = `<p style="margin: 8px 0;"><strong>${addressLabel}:</strong> ${defaultAddress}</p>`;
-        console.log("Using fallback address as business address is missing");
+        console.log("Using fallback address as business address is missing - but continuing with email");
       }
       
       // Prepare event notes section
@@ -343,11 +439,12 @@ const handler = async (req: Request): Promise<Response> => {
         eventNotesInfo = `<p style="margin: 8px 0;"><strong>${notesLabel}:</strong> ${eventNotes.trim()}</p>`;
       }
       
-      // Create HTML email content based on language
-      const htmlContent = getEmailContent(
+      // Create HTML email content based on source and language
+      const emailData = getEmailContent(
+        source || 'booking-approval',
         language || 'en', 
         fullName, 
-        businessName, 
+        businessName || 'SmartBookly', 
         formattedStartDate,
         formattedEndDate,
         paymentInfo,
@@ -363,18 +460,13 @@ const handler = async (req: Request): Promise<Response> => {
       
       const resend = new Resend(resendApiKey);
       
-      // Email subjects based on language
-      const emailSubject = language === 'ka' 
-        ? `ჯავშანი დადასტურებულია ${businessName || 'SmartBookly'}-ში` 
-        : (language === 'es' 
-            ? `Reserva Aprobada en ${businessName || 'SmartBookly'}` 
-            : `Booking Approved at ${businessName || 'SmartBookly'}`);
+      console.log("Sending email with subject:", emailData.subject);
       
       const emailResult = await resend.emails.send({
         from: `${businessName || 'SmartBookly'} <info@smartbookly.com>`,
         to: [recipientEmail],
-        subject: emailSubject,
-        html: htmlContent,
+        subject: emailData.subject,
+        html: emailData.content,
       });
 
       if (emailResult.error) {
@@ -400,7 +492,8 @@ const handler = async (req: Request): Promise<Response> => {
           dedupeKey: dedupeKey,
           language: language, // Log the language used for verification
           currencySymbol: currencySymbol, // Log the currency symbol used
-          hasEventNotes: !!eventNotesInfo // Log whether event notes were included
+          hasEventNotes: !!eventNotesInfo, // Log whether event notes were included
+          emailSubject: emailData.subject // Log the actual subject used
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
