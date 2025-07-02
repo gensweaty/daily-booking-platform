@@ -402,25 +402,41 @@ export const EventDialog = ({
     setIsLoading(true);
 
     try {
+      // Prepare event data with proper format for the database function
       const eventData = {
-        title,
-        user_surname: userSurname,
-        user_number: userNumber,
-        social_network_link: socialNetworkLink,
-        event_notes: eventNotes,
-        event_name: eventName,
+        title: userSurname || title || 'Untitled Event',
+        user_surname: userSurname || title || 'Unknown',
+        user_number: userNumber || '',
+        social_network_link: socialNetworkLink || '',
+        event_notes: eventNotes || '',
+        event_name: eventName || '',
         start_date: startDate,
         end_date: endDate,
-        payment_status: paymentStatus,
-        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+        payment_status: paymentStatus || 'not_paid',
+        payment_amount: paymentAmount || '',
+        type: 'event',
         is_recurring: isRecurring,
         repeat_pattern: isRecurring ? repeatPattern : null,
-        repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
+        repeat_until: (isRecurring && repeatUntil) ? repeatUntil : null
       };
+
+      // Enhanced logging for debugging
+      console.log("🔄 EventDialog - Submitting event data:");
+      console.log("📋 Event Data:", JSON.stringify(eventData, null, 2));
+      console.log("👥 Additional Persons:", JSON.stringify(additionalPersons, null, 2));
+      console.log("🔁 Recurring Info:", {
+        isRecurring,
+        repeatPattern,
+        repeatUntil,
+        actualPattern: isRecurring ? repeatPattern : null,
+        actualUntil: (isRecurring && repeatUntil) ? repeatUntil : null
+      });
 
       let result;
       
       if (eventId || initialData) {
+        console.log("🔄 Updating existing event:", eventId || initialData?.id);
+        
         // Update existing event
         result = await supabase
           .rpc('save_event_with_persons', {
@@ -430,7 +446,12 @@ export const EventDialog = ({
             p_event_id: eventId || initialData?.id
           });
           
-        if (result.error) throw result.error;
+        if (result.error) {
+          console.error("❌ RPC Error (Update):", result.error);
+          throw result.error;
+        }
+        
+        console.log("✅ Event updated successfully:", result.data);
         
         // Upload new files if any
         if (files.length > 0) {
@@ -445,6 +466,8 @@ export const EventDialog = ({
         
         onEventUpdated?.();
       } else {
+        console.log("🆕 Creating new event");
+        
         // Create new event
         result = await supabase
           .rpc('save_event_with_persons', {
@@ -453,9 +476,33 @@ export const EventDialog = ({
             p_user_id: user.id
           });
 
-        if (result.error) throw result.error;
+        if (result.error) {
+          console.error("❌ RPC Error (Create):", result.error);
+          throw result.error;
+        }
 
         const newEventId = result.data;
+        console.log("✅ Event created successfully with ID:", newEventId);
+
+        // If this was a recurring event, let's verify that child events were created
+        if (isRecurring && repeatPattern && repeatPattern !== 'none') {
+          console.log("🔍 Verifying recurring events were created...");
+          
+          // Wait a moment for the database function to complete
+          setTimeout(async () => {
+            const { data: childEvents, error: childError } = await supabase
+              .from('events')
+              .select('*')
+              .eq('parent_event_id', newEventId);
+            
+            if (childError) {
+              console.error("❌ Error checking child events:", childError);
+            } else {
+              console.log(`✅ Found ${childEvents?.length || 0} child events created`);
+              console.log("🔍 Child events:", childEvents);
+            }
+          }, 1000);
+        }
         
         // Upload files for new event
         if (files.length > 0) {
@@ -519,7 +566,7 @@ export const EventDialog = ({
       resetForm();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error saving event:', error);
+      console.error('❌ Error saving event:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to save event",

@@ -3,7 +3,6 @@ import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { isVirtualInstance } from "@/lib/recurringEvents";
 
 interface UseEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
@@ -34,19 +33,19 @@ export const useEventDialog = ({
         language: data.language || language || 'en'
       };
       
-      console.log("Creating event with language:", eventData.language);
+      console.log("🔄 Creating event with language:", eventData.language);
       
       if (!createEvent) throw new Error("Create event function not provided");
       
-      console.log("Creating event with data:", eventData);
+      console.log("🔄 Creating event with data:", eventData);
       const createdEvent = await createEvent(eventData);
       
       setIsNewEventDialogOpen(false);
-      console.log("Event created successfully:", createdEvent);
+      console.log("✅ Event created successfully:", createdEvent);
       
       return createdEvent;
     } catch (error: any) {
-      console.error("Failed to create event:", error);
+      console.error("❌ Failed to create event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to create event",
@@ -71,8 +70,8 @@ export const useEventDialog = ({
         language: data.language || selectedEvent.language || language || 'en'
       };
       
-      console.log("Updating event with language:", eventData.language);
-      console.log("Updating event with data:", eventData);
+      console.log("🔄 Updating event with language:", eventData.language);
+      console.log("🔄 Updating event with data:", eventData);
       
       const updatedEvent = await updateEvent({
         ...eventData,
@@ -80,11 +79,11 @@ export const useEventDialog = ({
       });
       
       setSelectedEvent(null);
-      console.log("Event updated successfully:", updatedEvent);
+      console.log("✅ Event updated successfully:", updatedEvent);
       
       return updatedEvent;
     } catch (error: any) {
-      console.error("Failed to update event:", error);
+      console.error("❌ Failed to update event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to update event",
@@ -101,11 +100,11 @@ export const useEventDialog = ({
       const result = await deleteEvent({ id: selectedEvent.id, deleteChoice });
       
       setSelectedEvent(null);
-      console.log("Event deleted successfully:", selectedEvent.id);
+      console.log("✅ Event deleted successfully:", selectedEvent.id);
       
       return result;
     } catch (error: any) {
-      console.error("Failed to delete event:", error);
+      console.error("❌ Failed to delete event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete event",
@@ -119,7 +118,7 @@ export const useEventDialog = ({
   const normalizePaymentStatus = (status: string | undefined): string | undefined => {
     if (!status) return undefined;
     
-    console.log("Normalizing payment status:", status);
+    console.log("🔄 Normalizing payment status:", status);
     
     if (status.includes('partly')) return 'partly_paid';
     if (status.includes('fully')) return 'fully_paid';

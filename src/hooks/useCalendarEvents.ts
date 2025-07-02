@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { generateRecurringInstances, filterDeletedInstances } from '@/lib/recurringEvents';
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string) => {
   const { user } = useAuth();
@@ -21,9 +20,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         return [];
       }
 
-      console.log("Fetching events for user:", targetUserId, "business:", businessId);
+      console.log("🔄 Fetching events for user:", targetUserId, "business:", businessId);
 
-      // Fetch events from the events table
+      // Fetch ALL events from the events table (including recurring child events)
       const { data: events, error: eventsError } = await supabase
         .from('events')
         .select('*')
@@ -32,7 +31,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         .order('start_date', { ascending: true });
 
       if (eventsError) {
-        console.error("Error fetching events:", eventsError);
+        console.error("❌ Error fetching events:", eventsError);
         throw eventsError;
       }
 
@@ -47,7 +46,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           .order('start_date', { ascending: true });
 
         if (bookingsError) {
-          console.error("Error fetching booking requests:", bookingsError);
+          console.error("❌ Error fetching booking requests:", bookingsError);
         } else {
           bookingRequests = bookings || [];
         }
@@ -76,15 +75,21 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       // Convert all data to CalendarEventType format
       const allEvents: CalendarEventType[] = [];
 
-      // Add regular events
+      // Add ALL regular events (both parent and child recurring events)
       for (const event of regularEvents) {
-        if (event.is_recurring && event.repeat_pattern) {
-          // Generate recurring instances
-          const instances = generateRecurringInstances(event);
-          // Filter out deleted instances
-          const filteredInstances = filterDeletedInstances(instances, deletionExceptions);
-          allEvents.push(...filteredInstances);
-        } else {
+        // Check if this is a deleted instance
+        const eventDate = event.start_date.split('T')[0];
+        const isDeleted = deletionExceptions.some(exception => {
+          const exceptionDate = exception.start_date.split('T')[0];
+          return exceptionDate === eventDate && (
+            // Check if it's for the same parent event
+            exception.parent_event_id === event.parent_event_id ||
+            exception.parent_event_id === event.id ||
+            (event.parent_event_id && exception.parent_event_id === event.parent_event_id)
+          );
+        });
+
+        if (!isDeleted) {
           allEvents.push({
             id: event.id,
             title: event.title,
@@ -102,6 +107,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             is_recurring: event.is_recurring || false,
             repeat_pattern: event.repeat_pattern,
             repeat_until: event.repeat_until,
+            parent_event_id: event.parent_event_id,
             language: event.language,
             created_at: event.created_at || new Date().toISOString(),
           });
@@ -128,11 +134,39 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         });
       }
 
+      // Log recurring events info
+      const parentEvents = allEvents.filter(e => e.is_recurring && !e.parent_event_id);
+      const childEvents = allEvents.filter(e => e.parent_event_id);
+      
+      console.log("🔁 Recurring events summary:", {
+        parentRecurringEvents: parentEvents.length,
+        childRecurringEvents: childEvents.length,
+        totalEvents: allEvents.length
+      });
+
+      if (parentEvents.length > 0) {
+        console.log("👨‍👩‍👧‍👦 Parent recurring events:", parentEvents.map(e => ({
+          id: e.id,
+          title: e.title,
+          pattern: e.repeat_pattern,
+          start: e.start_date
+        })));
+      }
+
+      if (childEvents.length > 0) {
+        console.log("👶 Child recurring events:", childEvents.map(e => ({
+          id: e.id,
+          title: e.title,
+          parent_id: e.parent_event_id,
+          start: e.start_date
+        })));
+      }
+
       console.log(`✅ Loaded ${allEvents.length} total events (${regularEvents.length} regular + ${bookingRequests.length} bookings, filtered ${deletionExceptions.length} exceptions)`);
       return allEvents;
 
     } catch (error) {
-      console.error("Error in fetchEvents:", error);
+      console.error("❌ Error in fetchEvents:", error);
       throw error;
     }
   };
@@ -153,7 +187,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     mutationFn: async (eventData: Partial<CalendarEventType>) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("Creating event with data:", eventData);
+      console.log("🔄 Creating event with data:", eventData);
 
       // Use the new database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
@@ -204,7 +238,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       });
     },
     onError: (error: any) => {
-      console.error("Error creating event:", error);
+      console.error("❌ Error creating event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to create event",
@@ -217,7 +251,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     mutationFn: async (eventData: Partial<CalendarEventType> & { id: string }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("Updating event with data:", eventData);
+      console.log("🔄 Updating event with data:", eventData);
 
       // Use the new database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
@@ -268,7 +302,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       });
     },
     onError: (error: any) => {
-      console.error("Error updating event:", error);
+      console.error("❌ Error updating event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to update event",
@@ -281,7 +315,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("Deleting event:", id, deleteChoice);
+      console.log("🗑️ Deleting event:", id, deleteChoice);
 
       const { error } = await supabase
         .from('events')
@@ -305,7 +339,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       });
     },
     onError: (error: any) => {
-      console.error("Error deleting event:", error);
+      console.error("❌ Error deleting event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete event",
