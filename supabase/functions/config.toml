@@ -9,3 +9,6 @@ RESEND_API_KEY = "env(RESEND_API_KEY)"
 
 [functions.verify-stripe-subscription]
 verify_jwt = false
+
+[functions.send-booking-approval-email]
+verify_jwt = false

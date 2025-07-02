@@ -1,4 +1,3 @@
-
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
@@ -95,7 +94,7 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
   }
 };
 
-// Consolidated email sending utility with proper authentication
+// Consolidated email sending utility with improved fallback handling
 export const sendBookingConfirmationEmail = async (
   recipientEmail: string, 
   fullName: string = '', 
@@ -117,18 +116,6 @@ export const sendBookingConfirmationEmail = async (
       return { success: false, error: "Invalid email format" };
     }
     
-    // Import supabase client to get auth token
-    const { supabase } = await import("@/integrations/supabase/client");
-    
-    // Get access token for authenticated request
-    const { data: sessionData } = await supabase.auth.getSession();
-    const accessToken = sessionData.session?.access_token;
-    
-    if (!accessToken) {
-      console.error("❌ No access token available for authenticated request");
-      return { success: false, error: "Authentication error - no access token" };
-    }
-    
     // Create the request payload
     const payload = {
       recipientEmail: recipientEmail.trim(),
@@ -138,7 +125,7 @@ export const sendBookingConfirmationEmail = async (
       endDate,
       paymentStatus,
       paymentAmount,
-      businessAddress,
+      businessAddress: businessAddress || "", // Allow empty but defined
       eventId,
       source: 'event-creation',
       language: language || 'en',
@@ -150,43 +137,76 @@ export const sendBookingConfirmationEmail = async (
       recipientEmail: recipientEmail.trim().substring(0, 3) + '***' // Mask email for privacy
     });
     
-    // Make the API call with proper authentication
-    const response = await fetch(
-      "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}` // Include auth token
-        },
-        body: JSON.stringify(payload)
-      }
-    );
-    
-    // Read the response as text first
-    const responseText = await response.text();
-    
-    let data;
+    // Try authenticated request first
     try {
-      data = responseText ? JSON.parse(responseText) : {};
-    } catch (e) {
-      console.error("Failed to parse response JSON:", e);
-      if (!response.ok) {
-        return { success: false, error: `Invalid response (status ${response.status})` };
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
+      if (accessToken) {
+        console.log("✅ Using authenticated request with access token");
+        
+        const response = await fetch(
+          "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${accessToken}`
+            },
+            body: JSON.stringify(payload)
+          }
+        );
+        
+        return await handleEmailResponse(response);
+      } else {
+        throw new Error("No access token available");
       }
-      return { success: true, message: "Email notification processed (response parsing error)" };
-    }
-    
-    if (!response.ok) {
-      console.error("❌ Failed to send booking confirmation email:", data);
-      return { success: false, error: data.error || data.details || "Failed to send email" };
-    } else {
-      console.log("✅ Email API response success:", data);
-      return { success: true, data };
+    } catch (authError) {
+      console.log("⚠️ Authenticated request failed, trying unauthenticated:", authError);
+      
+      // Fallback to unauthenticated request since JWT verification is now disabled
+      const response = await fetch(
+        "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ydWVxcGZmemF1dmR4bXV3aGZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM0OTU5MTgsImV4cCI6MjA0OTA3MTkxOH0.tntt0C1AgzJN-x3XrmIKb4j9iow8m4DZq3imEhJt9-0"
+          },
+          body: JSON.stringify(payload)
+        }
+      );
+      
+      return await handleEmailResponse(response);
     }
   } catch (error) {
     console.error("❌ Error in sendBookingConfirmationEmail:", error);
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+  }
+};
+
+// Helper function to handle email response
+const handleEmailResponse = async (response: Response) => {
+  // Read the response as text first
+  const responseText = await response.text();
+  
+  let data;
+  try {
+    data = responseText ? JSON.parse(responseText) : {};
+  } catch (e) {
+    console.error("Failed to parse response JSON:", e);
+    if (!response.ok) {
+      return { success: false, error: `Invalid response (status ${response.status})` };
+    }
+    return { success: true, message: "Email notification processed (response parsing error)" };
+  }
+  
+  if (!response.ok) {
+    console.error("❌ Failed to send booking confirmation email:", data);
+    return { success: false, error: data.error || data.details || "Failed to send email" };
+  } else {
+    console.log("✅ Email API response success:", data);
+    return { success: true, data };
   }
 };
 

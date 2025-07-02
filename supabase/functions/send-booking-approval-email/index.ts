@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -232,7 +233,8 @@ const handler = async (req: Request): Promise<Response> => {
       paymentStatus,
       paymentAmount,
       language,
-      eventNotes
+      eventNotes,
+      hasBusinessAddress: !!businessAddress
     });
 
     // Build a standardized deduplication key that ignores the source
@@ -242,24 +244,28 @@ const handler = async (req: Request): Promise<Response> => {
     if (eventId) {
       dedupeKey = `${eventId}_${recipientEmail}`;
       
-      // Check if we already sent an email for this event/recipient
+      // Check if we already sent an email for this event/recipient (only block if very recent)
       const now = Date.now();
       if (recentlySentEmails.has(dedupeKey)) {
         const lastSent = recentlySentEmails.get(dedupeKey);
         const timeAgo = now - (lastSent || 0);
-        console.log(`Duplicate email detected for key ${dedupeKey}. Last sent ${timeAgo}ms ago. Skipping.`);
         
-        return new Response(
-          JSON.stringify({ 
-            message: "Email request was identified as a duplicate and skipped",
-            to: recipientEmail,
-            id: null,
-            isDuplicate: true,
-            dedupeKey: dedupeKey,
-            timeAgo: timeAgo
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
-        );
+        // Only block if sent within last 2 minutes to prevent spam
+        if (timeAgo < 120000) {
+          console.log(`Recent duplicate email detected for key ${dedupeKey}. Last sent ${timeAgo}ms ago. Skipping.`);
+          
+          return new Response(
+            JSON.stringify({ 
+              message: "Email request was identified as a recent duplicate and skipped",
+              to: recipientEmail,
+              id: null,
+              isDuplicate: true,
+              dedupeKey: dedupeKey,
+              timeAgo: timeAgo
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+          );
+        }
       }
     } else {
       // If no eventId, use a combination of email and timestamps as a fallback
@@ -273,22 +279,6 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response(
         JSON.stringify({ error: "Invalid email format" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
-      );
-    }
-    
-    // If there's no business address, reject the request
-    // This ensures we only send emails that include the address
-    if (!businessAddress || businessAddress.trim() === '') {
-      console.log(`Request without business address rejected for ${recipientEmail}`);
-      return new Response(
-        JSON.stringify({ 
-          message: "Email request rejected due to missing business address",
-          to: recipientEmail,
-          id: null,
-          skipped: true,
-          reason: "Missing business address"
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
     }
     
@@ -322,7 +312,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       
-      // Prepare address section
+      // Prepare address section with fallback
       let addressInfo = "";
       let addressDisplay = businessAddress?.trim() || "";
       
@@ -333,6 +323,13 @@ const handler = async (req: Request): Promise<Response> => {
       
       if (addressDisplay) {
         addressInfo = `<p style="margin: 8px 0;"><strong>${addressLabel}:</strong> ${addressDisplay}</p>`;
+      } else {
+        // Provide fallback for missing address
+        const defaultAddress = language === 'ka' 
+          ? "მისამართმი დაზუსტდება"
+          : (language === 'es' ? "Dirección por confirmar" : "Address to be confirmed");
+        addressInfo = `<p style="margin: 8px 0;"><strong>${addressLabel}:</strong> ${defaultAddress}</p>`;
+        console.log("Using fallback address as business address is missing");
       }
       
       // Prepare event notes section
@@ -397,7 +394,7 @@ const handler = async (req: Request): Promise<Response> => {
           message: "Email sent successfully",
           to: recipientEmail,
           id: emailResult.data?.id,
-          included_address: addressDisplay,
+          included_address: addressDisplay || "fallback address used",
           business_name_used: businessName || 'SmartBookly',
           source: source || 'unknown',
           dedupeKey: dedupeKey,
