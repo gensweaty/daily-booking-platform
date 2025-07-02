@@ -336,7 +336,7 @@ export const Calendar = ({
               open={!!selectedEvent}
               onOpenChange={() => setSelectedEvent(null)}
               selectedDate={new Date(selectedEvent.start_date)}
-              event={selectedEvent}
+              initialData={selectedEvent}
               onEventUpdated={handleEventUpdated}
               onEventDeleted={handleEventDeleted}
             />

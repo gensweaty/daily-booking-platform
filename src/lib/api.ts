@@ -1,3 +1,4 @@
+
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
@@ -95,7 +96,11 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
 };
 
 // Enhanced function to get business profile with better fallbacks
-const getBusinessProfileWithFallbacks = async () => {
+const getBusinessProfileWithFallbacks = async (): Promise<{
+  business_name: string;
+  contact_email: string | null;
+  contact_address: string | null;
+}> => {
   try {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData?.user) {
@@ -149,7 +154,25 @@ const getBusinessProfileWithFallbacks = async () => {
   }
 };
 
-// Consolidated email sending utility using supabase.functions.invoke()
+// Helper function to get authenticated session and token
+const getAuthenticatedSession = async () => {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    
+    if (!accessToken) {
+      console.error("No access token available for authenticated request");
+      return { success: false, error: "Authentication error", token: null };
+    }
+    
+    return { success: true, token: accessToken, error: null };
+  } catch (error) {
+    console.error("Error getting session:", error);
+    return { success: false, error: "Failed to get authentication session", token: null };
+  }
+};
+
+// Consolidated email sending function using direct fetch with authentication
 export const sendBookingConfirmationEmail = async (
   recipientEmail: string, 
   fullName: string = '', 
@@ -170,6 +193,12 @@ export const sendBookingConfirmationEmail = async (
     if (!recipientEmail || !recipientEmail.includes('@')) {
       console.log("NOT SENDING EMAIL: Invalid email format or missing email:", recipientEmail);
       return { success: false, error: "Invalid email format" };
+    }
+    
+    // Get authenticated session
+    const authResult = await getAuthenticatedSession();
+    if (!authResult.success) {
+      return { success: false, error: authResult.error };
     }
     
     // Get business profile with fallbacks - NEVER block email sending
@@ -205,20 +234,42 @@ export const sendBookingConfirmationEmail = async (
       recipientEmail: recipientEmail.trim().substring(0, 3) + '***' // Mask email for privacy
     });
     
-    // Use supabase.functions.invoke() instead of direct fetch
-    console.log("🌐 Invoking Edge Function: send-booking-approval-email");
+    // Use direct fetch with authentication headers (matching working booking approval pattern)
+    console.log("🌐 Calling Edge Function: send-booking-approval-email");
     
-    const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
-      body: payload
-    });
+    const response = await fetch(
+      "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
+      {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${authResult.token}`
+        },
+        body: JSON.stringify(payload),
+      }
+    );
     
-    if (error) {
-      console.error("❌ Error from supabase.functions.invoke:", error);
-      return { success: false, error: error.message || "Failed to send email" };
+    // Read the response as text first
+    const responseText = await response.text();
+    
+    let data;
+    try {
+      data = responseText ? JSON.parse(responseText) : {};
+    } catch (e) {
+      console.error("Failed to parse response JSON:", e);
+      if (!response.ok) {
+        return { success: false, error: `Invalid response (status ${response.status})` };
+      }
+      return { success: true, message: "Email notification processed (response parsing error)" };
     }
     
-    console.log("✅ Email sent successfully:", data);
-    return { success: true, data };
+    if (!response.ok) {
+      console.error("Failed to send booking confirmation email:", data);
+      return { success: false, error: data.error || data.details || "Failed to send email" };
+    } else {
+      console.log("✅ Email sent successfully:", data);
+      return { success: true, data };
+    }
     
   } catch (error) {
     console.error("❌ Error in sendBookingConfirmationEmail:", error);
@@ -226,7 +277,7 @@ export const sendBookingConfirmationEmail = async (
   }
 };
 
-// New function specifically for event creation emails using supabase.functions.invoke()
+// New function specifically for event creation emails using direct fetch with authentication
 export const sendEventCreationEmail = async (
   recipientEmail: string, 
   fullName: string = '', 
@@ -247,6 +298,12 @@ export const sendEventCreationEmail = async (
     if (!recipientEmail || !recipientEmail.includes('@')) {
       console.log("NOT SENDING EMAIL: Invalid email format or missing email:", recipientEmail);
       return { success: false, error: "Invalid email format" };
+    }
+    
+    // Get authenticated session
+    const authResult = await getAuthenticatedSession();
+    if (!authResult.success) {
+      return { success: false, error: authResult.error };
     }
     
     // Get business profile with fallbacks - NEVER block email sending
@@ -282,20 +339,42 @@ export const sendEventCreationEmail = async (
       recipientEmail: recipientEmail.trim().substring(0, 3) + '***' // Mask email for privacy
     });
     
-    // Use supabase.functions.invoke() instead of direct fetch
-    console.log("🌐 Invoking Edge Function: send-booking-approval-email");
+    // Use direct fetch with authentication headers (matching working booking approval pattern)
+    console.log("🌐 Calling Edge Function: send-booking-approval-email");
     
-    const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
-      body: payload
-    });
+    const response = await fetch(
+      "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
+      {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${authResult.token}`
+        },
+        body: JSON.stringify(payload),
+      }
+    );
     
-    if (error) {
-      console.error("❌ Error from supabase.functions.invoke:", error);
-      return { success: false, error: error.message || "Failed to send email" };
+    // Read the response as text first
+    const responseText = await response.text();
+    
+    let data;
+    try {
+      data = responseText ? JSON.parse(responseText) : {};
+    } catch (e) {
+      console.error("Failed to parse response JSON:", e);
+      if (!response.ok) {
+        return { success: false, error: `Invalid response (status ${response.status})` };
+      }
+      return { success: true, message: "Email notification processed (response parsing error)" };
     }
     
-    console.log("✅ Email sent successfully:", data);
-    return { success: true, data };
+    if (!response.ok) {
+      console.error("Failed to send event creation email:", data);
+      return { success: false, error: data.error || data.details || "Failed to send email" };
+    } else {
+      console.log("✅ Event creation email sent successfully:", data);
+      return { success: true, data };
+    }
     
   } catch (error) {
     console.error("❌ Error in sendEventCreationEmail:", error);
@@ -303,7 +382,7 @@ export const sendEventCreationEmail = async (
   }
 };
 
-// Helper function to send emails to multiple recipients using supabase.functions.invoke()
+// Helper function to send emails to multiple recipients using direct fetch
 export const sendBookingConfirmationToMultipleRecipients = async (
   recipients: Array<{
     email: string;
