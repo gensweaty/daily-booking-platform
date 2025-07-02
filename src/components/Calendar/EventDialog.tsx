@@ -171,6 +171,9 @@ export const EventDialog = ({
 
   // Determine if this is a new event (not editing an existing one)
   const isNewEvent = !eventId && !initialData;
+  
+  // Check if this is a recurring event (parent or child)
+  const isRecurringEvent = initialData?.is_recurring || !!initialData?.parent_event_id;
 
   // Combined useEffect for loading all event data - runs FIRST
   useEffect(() => {
@@ -483,9 +486,12 @@ export const EventDialog = ({
             
             if (emailResults.successCount > 0) {
               console.log(`✅ Successfully sent ${emailResults.successCount}/${emailResults.totalCount} event creation emails`);
+              
+              // Show success message based on whether it's recurring
+              const eventCount = isRecurring ? "recurring event series" : "event";
               toast({
                 title: "Success",
-                description: `Event created and confirmation emails sent to ${emailResults.successCount} attendee${emailResults.successCount > 1 ? 's' : ''}!`,
+                description: `${eventCount} created and confirmation emails sent to ${emailResults.successCount} attendee${emailResults.successCount > 1 ? 's' : ''}!`,
               });
             }
             
@@ -501,15 +507,17 @@ export const EventDialog = ({
             }
           } catch (emailError) {
             console.error("❌ Error sending event creation emails:", emailError);
+            const eventCount = isRecurring ? "recurring event series" : "event";
             toast({
               title: "Event Created", 
-              description: "Event created successfully, but email notifications failed to send.",
+              description: `${eventCount} created successfully, but email notifications failed to send.`,
             });
           }
         } else {
+          const eventCount = isRecurring ? "recurring event series" : "event";
           toast({
             title: "Success",
-            description: "Event created successfully",
+            description: `${eventCount} created successfully`,
           });
         }
         
@@ -536,17 +544,45 @@ export const EventDialog = ({
     setIsLoading(true);
     
     try {
-      const { error } = await supabase
-        .from('events')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', eventId || initialData?.id);
+      if (isRecurringEvent) {
+        // For recurring events, ask user what to delete
+        const choice = window.confirm(
+          "This is a recurring event. Click OK to delete the entire series, or Cancel to delete only this occurrence."
+        );
         
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: "Event deleted successfully",
-      });
+        const deleteChoice = choice ? 'series' : 'this';
+        
+        const { data, error } = await supabase.rpc('delete_recurring_series', {
+          p_event_id: eventId || initialData?.id,
+          p_user_id: user?.id,
+          p_delete_choice: deleteChoice
+        });
+        
+        if (error) throw error;
+        
+        const deletedCount = data || 1;
+        const message = deleteChoice === 'series' 
+          ? `Deleted ${deletedCount} events from the series`
+          : "Event deleted successfully";
+        
+        toast({
+          title: "Success",
+          description: message,
+        });
+      } else {
+        // Single event deletion
+        const { error } = await supabase
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', eventId || initialData?.id);
+          
+        if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Event deleted successfully",
+        });
+      }
       
       onEventDeleted?.();
       onOpenChange(false);
@@ -587,6 +623,11 @@ export const EventDialog = ({
         <DialogHeader>
           <DialogTitle>
             {eventId || initialData ? "Edit Event" : "Create New Event"}
+            {isRecurringEvent && (
+              <span className="ml-2 text-sm text-muted-foreground">
+                (Recurring Event)
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -637,7 +678,7 @@ export const EventDialog = ({
                   onClick={handleDelete}
                   disabled={isLoading}
                 >
-                  Delete Event
+                  Delete Event{isRecurringEvent ? " / Series" : ""}
                 </Button>
               )}
             </div>

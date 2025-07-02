@@ -3,7 +3,6 @@ import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { isVirtualInstance } from "@/lib/recurringEvents";
 
 interface UseEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
@@ -19,6 +18,7 @@ export const useEventDialog = ({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [deleteChoice, setDeleteChoice] = useState<"this" | "series">("this");
   const { toast } = useToast();
   const { language } = useLanguage();
 
@@ -94,11 +94,12 @@ export const useEventDialog = ({
     }
   };
 
-  const handleDeleteEvent = async (deleteChoice?: "this" | "series") => {
+  const handleDeleteEvent = async (choice?: "this" | "series") => {
     try {
       if (!deleteEvent || !selectedEvent) throw new Error("Delete event function not provided or no event selected");
       
-      const result = await deleteEvent({ id: selectedEvent.id, deleteChoice });
+      const finalChoice = choice || deleteChoice;
+      const result = await deleteEvent({ id: selectedEvent.id, deleteChoice: finalChoice });
       
       setSelectedEvent(null);
       console.log("Event deleted successfully:", selectedEvent.id);
@@ -128,6 +129,12 @@ export const useEventDialog = ({
     return status;
   };
 
+  // Helper function to check if event is part of a recurring series
+  const isRecurringEvent = (event: CalendarEventType | null): boolean => {
+    if (!event) return false;
+    return event.is_recurring || !!event.parent_event_id;
+  };
+
   return {
     selectedEvent,
     setSelectedEvent,
@@ -135,8 +142,11 @@ export const useEventDialog = ({
     setIsNewEventDialogOpen,
     selectedDate,
     setSelectedDate,
+    deleteChoice,
+    setDeleteChoice,
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
+    isRecurringEvent,
   };
 };
