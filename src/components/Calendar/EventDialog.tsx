@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,10 @@ interface EventDialogProps {
   eventId?: string | null;
   initialData?: any;
   selectedDate?: Date;
+  event?: any;
+  onEventCreated?: () => void;
+  onEventUpdated?: () => void;
+  onEventDeleted?: () => void;
 }
 
 export const EventDialog = ({
@@ -35,6 +40,10 @@ export const EventDialog = ({
   eventId,
   initialData,
   selectedDate,
+  event,
+  onEventCreated,
+  onEventUpdated,
+  onEventDeleted,
 }: EventDialogProps) => {
   const { t, language } = useLanguage();
   const { user } = useAuth();
@@ -42,32 +51,47 @@ export const EventDialog = ({
   const queryClient = useQueryClient();
   const { businessProfile } = useBusinessProfile();
   
+  // Use event data if provided, otherwise use initialData
+  const eventData = event || initialData;
+  const currentEventId = eventId || event?.id;
+  
   const [formData, setFormData] = useState({
     title: "",
     user_surname: "",
     user_number: "",
     social_network_link: "",
     event_notes: "",
+    eventName: "",
     payment_status: "not_paid",
     payment_amount: "",
     startDate: selectedDate ? selectedDate.toISOString() : "",
     endDate: selectedDate ? selectedDate.toISOString() : "",
+    repeatPattern: "none",
+    repeatUntil: undefined as Date | undefined,
+    additionalPersons: [] as any[],
   });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
+  const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   useEffect(() => {
-    if (initialData) {
+    if (eventData) {
       setFormData({
-        title: initialData.title || "",
-        user_surname: initialData.user_surname || "",
-        user_number: initialData.user_number || "",
-        social_network_link: initialData.social_network_link || "",
-        event_notes: initialData.event_notes || "",
-        payment_status: initialData.payment_status || "not_paid",
-        payment_amount: initialData.payment_amount?.toString() || "",
-        startDate: initialData.start_date || "",
-        endDate: initialData.end_date || "",
+        title: eventData.title || "",
+        user_surname: eventData.user_surname || "",
+        user_number: eventData.user_number || "",
+        social_network_link: eventData.social_network_link || "",
+        event_notes: eventData.event_notes || "",
+        eventName: eventData.event_name || "",
+        payment_status: eventData.payment_status || "not_paid",
+        payment_amount: eventData.payment_amount?.toString() || "",
+        startDate: eventData.start_date || "",
+        endDate: eventData.end_date || "",
+        repeatPattern: "none",
+        repeatUntil: undefined,
+        additionalPersons: [],
       });
     } else if (selectedDate) {
       setFormData({
@@ -76,10 +100,14 @@ export const EventDialog = ({
         user_number: "",
         social_network_link: "",
         event_notes: "",
+        eventName: "",
         payment_status: "not_paid",
         payment_amount: "",
         startDate: selectedDate.toISOString(),
         endDate: selectedDate.toISOString(),
+        repeatPattern: "none",
+        repeatUntil: undefined,
+        additionalPersons: [],
       });
     } else {
       setFormData({
@@ -88,13 +116,17 @@ export const EventDialog = ({
         user_number: "",
         social_network_link: "",
         event_notes: "",
+        eventName: "",
         payment_status: "not_paid",
         payment_amount: "",
         startDate: "",
         endDate: "",
+        repeatPattern: "none",
+        repeatUntil: undefined,
+        additionalPersons: [],
       });
     }
-  }, [initialData, selectedDate]);
+  }, [eventData, selectedDate]);
 
   const isValidEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -222,10 +254,10 @@ export const EventDialog = ({
 
     setIsLoading(true);
     try {
-      const { title, user_surname, user_number, social_network_link, event_notes, payment_status, payment_amount, startDate, endDate } = formData;
+      const { title, user_surname, user_number, social_network_link, event_notes, eventName, payment_status, payment_amount, startDate, endDate } = formData;
 
       const updates = {
-        title,
+        title: eventName || title,
         user_surname,
         user_number,
         social_network_link,
@@ -237,11 +269,11 @@ export const EventDialog = ({
         end_date: endDate,
       };
 
-      if (eventId) {
+      if (currentEventId) {
         const { data, error } = await supabase
           .from('events')
           .update(updates)
-          .eq('id', eventId)
+          .eq('id', currentEventId)
           .eq('user_id', user.id)
           .select()
           .single();
@@ -250,11 +282,13 @@ export const EventDialog = ({
 
         // Send email notification after updating the event
         if (data) {
-          await sendEventNotification(data);
+          await sendEventNotification(data, formData.additionalPersons);
         }
+
+        onEventUpdated?.();
       } else {
         const newEvent = {
-          title,
+          title: eventName || title,
           user_surname,
           user_number,
           social_network_link,
@@ -276,14 +310,16 @@ export const EventDialog = ({
 
         // Send email notification after creating the event
         if (data) {
-          await sendEventNotification(data);
+          await sendEventNotification(data, formData.additionalPersons);
         }
+
+        onEventCreated?.();
       }
 
       await queryClient.invalidateQueries({ queryKey: ['events'] });
       toast({
         title: t("common.success"),
-        description: eventId ? t("crm.eventUpdated") : t("crm.eventCreated")
+        description: currentEventId ? t("crm.eventUpdated") : t("crm.eventCreated")
       });
       onOpenChange(false);
     } catch (error: any) {
@@ -303,7 +339,7 @@ export const EventDialog = ({
   };
 
   const handleConfirmDelete = async () => {
-    if (!eventId || !user?.id) return;
+    if (!currentEventId || !user?.id) return;
 
     try {
       setIsLoading(true);
@@ -311,7 +347,7 @@ export const EventDialog = ({
       const { error } = await supabase
         .from('events')
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', eventId)
+        .eq('id', currentEventId)
         .eq('user_id', user.id);
 
       if (error) throw error;
@@ -322,6 +358,7 @@ export const EventDialog = ({
         description: t("common.deleteSuccess"),
       });
 
+      onEventDeleted?.();
       onOpenChange(false);
       setIsDeleteConfirmOpen(false);
     } catch (error: any) {
@@ -341,7 +378,7 @@ export const EventDialog = ({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl">
           <DialogTitle>
-            {eventId ? t("crm.editEvent") : t("crm.addEvent")}
+            {currentEventId ? t("crm.editEvent") : t("crm.addEvent")}
           </DialogTitle>
           <form onSubmit={handleSubmit} className="space-y-4">
             <EventDialogFields
@@ -357,12 +394,55 @@ export const EventDialog = ({
               setPaymentStatus={(value) => setFormData({ ...formData, payment_status: value })}
               paymentAmount={formData.payment_amount}
               setPaymentAmount={(value) => setFormData({ ...formData, payment_amount: value })}
-              customerNotes={formData.event_notes}
-              setCustomerNotes={(value) => setFormData({ ...formData, event_notes: value })}
+              eventNotes={formData.event_notes}
+              setEventNotes={(value) => setFormData({ ...formData, event_notes: value })}
+              eventName={formData.eventName}
+              setEventName={(value) => setFormData({ ...formData, eventName: value })}
               startDate={formData.startDate}
               setStartDate={(value) => setFormData({ ...formData, startDate: value })}
               endDate={formData.endDate}
               setEndDate={(value) => setFormData({ ...formData, endDate: value })}
+              selectedFile={selectedFile}
+              setSelectedFile={setSelectedFile}
+              fileError={fileError}
+              setFileError={setFileError}
+              eventId={currentEventId}
+              displayedFiles={displayedFiles}
+              onFileDeleted={(fileId) => {
+                setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
+              }}
+              repeatPattern={formData.repeatPattern}
+              setRepeatPattern={(value) => setFormData({ ...formData, repeatPattern: value })}
+              repeatUntil={formData.repeatUntil}
+              setRepeatUntil={(value) => setFormData({ ...formData, repeatUntil: value })}
+              isNewEvent={!currentEventId}
+              additionalPersons={formData.additionalPersons}
+              onAddPerson={() => {
+                const newPerson = {
+                  id: crypto.randomUUID(),
+                  userSurname: "",
+                  userNumber: "",
+                  socialNetworkLink: "",
+                  eventNotes: "",
+                  paymentStatus: "not_paid",
+                  paymentAmount: "",
+                };
+                setFormData({ ...formData, additionalPersons: [...formData.additionalPersons, newPerson] });
+              }}
+              onRemovePerson={(personId) => {
+                setFormData({ 
+                  ...formData, 
+                  additionalPersons: formData.additionalPersons.filter(p => p.id !== personId) 
+                });
+              }}
+              onUpdatePerson={(personId, field, value) => {
+                setFormData({
+                  ...formData,
+                  additionalPersons: formData.additionalPersons.map(p => 
+                    p.id === personId ? { ...p, [field]: value } : p
+                  )
+                });
+              }}
             />
 
             <div className="flex justify-between">
@@ -371,9 +451,9 @@ export const EventDialog = ({
                 disabled={isLoading}
                 className="flex-1 mr-2"
               >
-                {eventId ? t("common.update") : t("common.add")}
+                {currentEventId ? t("common.update") : t("common.add")}
               </Button>
-              {eventId && (
+              {currentEventId && (
                 <Button
                   type="button"
                   variant="destructive"
