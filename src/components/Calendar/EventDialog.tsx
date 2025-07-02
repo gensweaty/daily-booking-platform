@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -333,7 +332,7 @@ export const EventDialog = ({
     }
   };
 
-  // Convert selectedDate to the proper format for EventDialogFields
+  // Helper functions to convert between Date and string formats
   const handleStartDateChange = (date: Date) => {
     const formatDateTime = (date: Date) => {
       const year = date.getFullYear();
@@ -356,6 +355,22 @@ export const EventDialog = ({
       return `${year}-${month}-${day}T${hours}:${minutes}`;
     };
     setEndDate(formatDateTime(date));
+  };
+
+  // Helper functions to convert string to Date for the fields component
+  const getStartDateAsDate = (): Date => {
+    if (startDate) {
+      return new Date(startDate);
+    }
+    return selectedDate || new Date();
+  };
+
+  const getEndDateAsDate = (): Date => {
+    if (endDate) {
+      return new Date(endDate);
+    }
+    const baseDate = selectedDate || new Date();
+    return new Date(baseDate.getTime() + 60 * 60 * 1000);
   };
 
   return (
@@ -385,9 +400,9 @@ export const EventDialog = ({
             setPaymentStatus={setPaymentStatus}
             paymentAmount={paymentAmount}
             setPaymentAmount={setPaymentAmount}
-            startDate={selectedDate || new Date()}
+            startDate={getStartDateAsDate()}
             setStartDate={handleStartDateChange}
-            endDate={selectedDate ? new Date(selectedDate.getTime() + 60 * 60 * 1000) : new Date()}
+            endDate={getEndDateAsDate()}
             setEndDate={handleEndDateChange}
             isRecurring={isRecurring}
             setIsRecurring={setIsRecurring}
