@@ -164,14 +164,14 @@ export const sendBookingConfirmationEmail = async (
   eventNotes?: string
 ) => {
   try {
-    console.log(`🔔 Sending booking confirmation email to ${recipientEmail}`);
     console.log("=== ATTEMPTING TO SEND BOOKING CONFIRMATION ===");
+    console.log(`🔔 Sending booking confirmation email to ${recipientEmail}`);
     
-    // Always use production Edge Function URL to avoid localhost issues
+    // FORCE PRODUCTION EDGE FUNCTION ALWAYS - NO MORE LOCALHOST
     const FUNCTION_BASE_URL = "https://mrueqpffzauvdxmuwhfa.supabase.co";
     
     if (!recipientEmail || !recipientEmail.includes('@')) {
-      console.error("Invalid email format or missing email:", recipientEmail);
+      console.log("NOT SENDING EMAIL: Invalid email format or missing email:", recipientEmail);
       return { success: false, error: "Invalid email format" };
     }
     
@@ -203,6 +203,7 @@ export const sendBookingConfirmationEmail = async (
       eventNotes
     };
     
+    console.log("SENDING EMAIL", payload);
     console.log("📧 Email request payload:", {
       ...payload,
       recipientEmail: recipientEmail.trim().substring(0, 3) + '***' // Mask email for privacy
@@ -258,14 +259,14 @@ export const sendEventCreationEmail = async (
   eventNotes?: string
 ) => {
   try {
-    console.log(`🔔 Sending event creation email to ${recipientEmail}`);
     console.log("=== ATTEMPTING TO SEND EVENT CREATION EMAIL ===");
+    console.log(`🔔 Sending event creation email to ${recipientEmail}`);
     
-    // Always use production Edge Function URL to avoid localhost issues
+    // FORCE PRODUCTION EDGE FUNCTION ALWAYS - NO MORE LOCALHOST
     const FUNCTION_BASE_URL = "https://mrueqpffzauvdxmuwhfa.supabase.co";
     
     if (!recipientEmail || !recipientEmail.includes('@')) {
-      console.error("Invalid email format or missing email:", recipientEmail);
+      console.log("NOT SENDING EMAIL: Invalid email format or missing email:", recipientEmail);
       return { success: false, error: "Invalid email format" };
     }
     
@@ -297,6 +298,7 @@ export const sendEventCreationEmail = async (
       eventNotes
     };
     
+    console.log("SENDING EMAIL", payload);
     console.log("📧 Email request payload:", {
       ...payload,
       recipientEmail: recipientEmail.trim().substring(0, 3) + '***' // Mask email for privacy
@@ -379,7 +381,18 @@ export const sendBookingConfirmationToMultipleRecipients = async (
   language?: string,
   eventNotes?: string
 ) => {
+  console.log("=== ATTEMPTING TO SEND MULTIPLE BOOKING CONFIRMATIONS ===");
   console.log(`📧 Sending booking confirmations to ${recipients.length} recipients`);
+  
+  if (recipients.length === 0) {
+    console.log("NOT SENDING EMAIL: No valid email addresses found for sending notifications");
+    return {
+      total: 0,
+      successful: 0,
+      failed: 0,
+      results: []
+    };
+  }
   
   const results = await Promise.allSettled(
     recipients.map(recipient => 
