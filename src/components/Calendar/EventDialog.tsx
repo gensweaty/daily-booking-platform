@@ -409,11 +409,12 @@ export const EventDialog = ({
       const safeUserSurname = (userSurname || eventTitle).trim();
       
       // STEP 2: Defensive Fix - Ensure repeat_until is always a string in YYYY-MM-DD format
-      let safeRepeatUntil = null;
+      let safeRepeatUntil: string | null = null;
       if (isRecurring && repeatUntil) {
+        // Fix: Explicitly type repeatUntil and handle both string and Date cases
         if (typeof repeatUntil === "string") {
           safeRepeatUntil = repeatUntil;
-        } else {
+        } else if (repeatUntil instanceof Date) {
           safeRepeatUntil = repeatUntil.toISOString().slice(0, 10);
         }
       }
