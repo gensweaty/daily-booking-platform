@@ -19,6 +19,97 @@ interface EventDialogProps {
   onEventDeleted?: () => void;
 }
 
+interface PersonData {
+  id: string;
+  userSurname: string;
+  userNumber: string;
+  socialNetworkLink: string;
+  eventNotes: string;
+  paymentStatus: string;
+  paymentAmount: string;
+}
+
+// Helper function to validate email format
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+// Helper function to collect all attendees with valid emails
+const collectAttendeesWithEmails = (
+  mainCustomerEmail: string,
+  mainCustomerName: string,
+  additionalPersons: PersonData[]
+): Array<{ email: string; name: string }> => {
+  const attendees: Array<{ email: string; name: string }> = [];
+  
+  // Add main customer if they have a valid email
+  if (mainCustomerEmail && isValidEmail(mainCustomerEmail)) {
+    attendees.push({
+      email: mainCustomerEmail,
+      name: mainCustomerName || ''
+    });
+  }
+  
+  // Add additional persons with valid emails
+  if (additionalPersons && additionalPersons.length > 0) {
+    additionalPersons.forEach(person => {
+      if (person.socialNetworkLink && isValidEmail(person.socialNetworkLink)) {
+        attendees.push({
+          email: person.socialNetworkLink,
+          name: person.userSurname || ''
+        });
+      }
+    });
+  }
+  
+  return attendees;
+};
+
+// Helper function to send emails to all attendees
+const sendEmailsToAllAttendees = async (
+  attendees: Array<{ email: string; name: string }>,
+  eventData: any
+) => {
+  console.log(`🔔 Starting email notification process for ${attendees.length} attendees`);
+  
+  let successCount = 0;
+  let failureCount = 0;
+  
+  for (const attendee of attendees) {
+    try {
+      console.log(`📧 Sending email to: ${attendee.email} (${attendee.name})`);
+      
+      const emailResult = await sendEventCreationEmail(
+        attendee.email,
+        attendee.name,
+        "", // businessName will be resolved from user's business profile
+        eventData.start_date,
+        eventData.end_date,
+        eventData.payment_status || null,
+        eventData.payment_amount ? parseFloat(eventData.payment_amount) : null,
+        "", // businessAddress will be resolved from user's business profile  
+        eventData.id,
+        'en', // Default language
+        eventData.event_notes
+      );
+      
+      if (emailResult.success) {
+        console.log(`✅ Email sent successfully to: ${attendee.email}`);
+        successCount++;
+      } else {
+        console.error(`❌ Failed to send email to ${attendee.email}:`, emailResult.error);
+        failureCount++;
+      }
+    } catch (emailError) {
+      console.error(`❌ Error sending email to ${attendee.email}:`, emailError);
+      failureCount++;
+    }
+  }
+  
+  return { successCount, failureCount, totalCount: attendees.length };
+};
+
 export const EventDialog = ({ 
   open, 
   onOpenChange, 
@@ -43,20 +134,15 @@ export const EventDialog = ({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [isRecurring, setIsRecurring] = useState(false);
-  const [repeatPattern, setRepeatPattern] = useState("");
+  const [repeatPattern, setRepeatPattern] = useState("none");
   const [repeatUntil, setRepeatUntil] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   
   const [isLoading, setIsLoading] = useState(false);
-  const [additionalPersons, setAdditionalPersons] = useState<Array<{
-    id: string;
-    userSurname: string;
-    userNumber: string;
-    socialNetworkLink: string;
-    eventNotes: string;
-    paymentStatus: string;
-    paymentAmount: string;
-  }>>([]);
+  const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
+
+  // Determine if this is a new event (not editing an existing one)
+  const isNewEvent = !eventId && !initialData;
 
   useEffect(() => {
     if (open) {
@@ -75,7 +161,7 @@ export const EventDialog = ({
           setStartDate(eventData.start_date || "");
           setEndDate(eventData.end_date || "");
           setIsRecurring(eventData.is_recurring || false);
-          setRepeatPattern(eventData.repeat_pattern || "");
+          setRepeatPattern(eventData.repeat_pattern || "none");
           setRepeatUntil(eventData.repeat_until || "");
         }
       } else if (selectedDate) {
@@ -105,7 +191,7 @@ export const EventDialog = ({
         setPaymentStatus("");
         setPaymentAmount("");
         setIsRecurring(false);
-        setRepeatPattern("");
+        setRepeatPattern("none");
         setRepeatUntil("");
         setAdditionalPersons([]);
         setFiles([]);
@@ -125,7 +211,7 @@ export const EventDialog = ({
     setStartDate("");
     setEndDate("");
     setIsRecurring(false);
-    setRepeatPattern("");
+    setRepeatPattern("none");
     setRepeatUntil("");
     setAdditionalPersons([]);
     setFiles([]);
@@ -238,42 +324,47 @@ export const EventDialog = ({
           await uploadFiles(newEventId);
         }
 
-        // Send email notification for new event creation
-        console.log("🔔 Attempting to send event creation email for internal event");
-        if (socialNetworkLink && socialNetworkLink.includes('@')) {
+        // Enhanced email sending to all attendees
+        console.log("🔔 Attempting to send event creation emails to all attendees");
+        const attendees = collectAttendeesWithEmails(socialNetworkLink, userSurname || title, additionalPersons);
+        
+        if (attendees.length > 0) {
           try {
-            const emailResult = await sendEventCreationEmail(
-              socialNetworkLink,
-              userSurname || title,
-              "", // businessName will be resolved from user's business profile
-              startDate,
-              endDate,
-              paymentStatus || null,
-              paymentAmount ? parseFloat(paymentAmount) : null,
-              "", // businessAddress will be resolved from user's business profile  
-              newEventId,
-              'en', // Default language
-              eventNotes
-            );
+            const emailResults = await sendEmailsToAllAttendees(attendees, {
+              id: newEventId,
+              title,
+              user_surname: userSurname,
+              social_network_link: socialNetworkLink,
+              start_date: startDate,
+              end_date: endDate,
+              payment_status: paymentStatus,
+              payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+              event_notes: eventNotes
+            });
             
-            if (emailResult.success) {
-              console.log("✅ Event creation email sent successfully");
+            if (emailResults.successCount > 0) {
+              console.log(`✅ Successfully sent ${emailResults.successCount}/${emailResults.totalCount} event creation emails`);
               toast({
                 title: "Success",
-                description: "Event created and confirmation email sent!",
+                description: `Event created and confirmation emails sent to ${emailResults.successCount} attendee${emailResults.successCount > 1 ? 's' : ''}!`,
               });
-            } else {
-              console.error("❌ Failed to send event creation email:", emailResult.error);
+            }
+            
+            if (emailResults.failureCount > 0) {
+              console.warn(`❌ Failed to send ${emailResults.failureCount}/${emailResults.totalCount} event creation emails`);
               toast({
-                title: "Event Created",
-                description: "Event created successfully, but email notification failed to send.",
+                title: emailResults.successCount > 0 ? "Partial Success" : "Event Created",
+                description: emailResults.successCount > 0 
+                  ? `Event created with ${emailResults.failureCount} email notification failures`
+                  : "Event created successfully, but email notifications failed to send.",
+                variant: emailResults.successCount > 0 ? "default" : "destructive"
               });
             }
           } catch (emailError) {
-            console.error("❌ Error sending event creation email:", emailError);
+            console.error("❌ Error sending event creation emails:", emailError);
             toast({
               title: "Event Created", 
-              description: "Event created successfully, but email notification failed to send.",
+              description: "Event created successfully, but email notifications failed to send.",
             });
           }
         } else {
@@ -344,16 +435,16 @@ export const EventDialog = ({
   };
 
   // Helper function to convert repeatUntil string to Date
-  const getRepeatUntilAsDate = (): Date => {
+  const getRepeatUntilAsDate = (): Date | undefined => {
     if (repeatUntil) {
       return new Date(repeatUntil);
     }
-    return new Date();
+    return undefined;
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {eventId || initialData ? "Edit Event" : "Create New Event"}
@@ -386,14 +477,12 @@ export const EventDialog = ({
             setIsRecurring={setIsRecurring}
             repeatPattern={repeatPattern}
             setRepeatPattern={setRepeatPattern}
-            repeatUntil={repeatUntil ? getRepeatUntilAsDate() : undefined}
+            repeatUntil={getRepeatUntilAsDate()}
             setRepeatUntil={handleRepeatUntilChange}
             files={files}
             setFiles={setFiles}
-            additionalPersons={additionalPersons.map(person => ({
-              ...person,
-              id: person.id || crypto.randomUUID()
-            }))}
+            isNewEvent={isNewEvent}
+            additionalPersons={additionalPersons}
             setAdditionalPersons={setAdditionalPersons}
           />
 

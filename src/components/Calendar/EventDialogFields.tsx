@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,7 +55,7 @@ interface EventDialogFieldsProps {
   setFiles: (files: File[]) => void;
   eventId?: string;
   isBookingRequest?: boolean;
-  // Add repeat props
+  // Recurring event props
   isRecurring: boolean;
   setIsRecurring: (value: boolean) => void;
   repeatPattern: string;
@@ -64,7 +63,7 @@ interface EventDialogFieldsProps {
   repeatUntil: Date | undefined;
   setRepeatUntil: (date: Date) => void;
   isNewEvent?: boolean;
-  // New props for additional persons management
+  // Additional persons props
   additionalPersons: PersonData[];
   setAdditionalPersons: (persons: PersonData[]) => void;
 }
