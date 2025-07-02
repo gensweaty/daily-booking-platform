@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -21,6 +20,7 @@ interface BookingApprovalEmailRequest {
   source?: string;
   language?: string;
   eventNotes?: string;
+  forceSend?: boolean; // **NEW: Allow bypassing deduplication for admin actions**
 }
 
 // For deduplication: Store a map of recently sent emails with expiring entries
@@ -216,7 +216,8 @@ const handler = async (req: Request): Promise<Response> => {
       eventId,
       source,
       language,
-      eventNotes
+      eventNotes,
+      forceSend = false // **NEW: Default to false**
     } = parsedBody;
 
     console.log("📧 [EMAIL] Parsed request body:", {
@@ -228,8 +229,23 @@ const handler = async (req: Request): Promise<Response> => {
       language,
       eventNotes: eventNotes ? "Present" : "Not present",
       businessAddress: businessAddress ? "Present" : "Not present",
-      source
+      source,
+      forceSend
     });
+
+    // **NEW: Validate business address first**
+    const trimmedAddress = businessAddress?.trim();
+    if (!trimmedAddress || trimmedAddress === "" || trimmedAddress === "Address not provided") {
+      console.error("📧 [EMAIL] Invalid or missing business address:", businessAddress);
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid business address",
+          details: "A valid business address is required to send booking confirmation emails",
+          businessAddress: businessAddress
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+      );
+    }
 
     // Build deduplication key
     let dedupeKey: string;
@@ -237,11 +253,10 @@ const handler = async (req: Request): Promise<Response> => {
     if (eventId) {
       dedupeKey = `${eventId}_${recipientEmail}`;
       
-      // Check if we already sent an email for this event/recipient
-      const now = Date.now();
-      if (recentlySentEmails.has(dedupeKey)) {
+      // **UPDATED: Check deduplication only if not forced**
+      if (!forceSend && recentlySentEmails.has(dedupeKey)) {
         const lastSent = recentlySentEmails.get(dedupeKey);
-        const timeAgo = now - (lastSent || 0);
+        const timeAgo = Date.now() - (lastSent || 0);
         console.log(`📧 [EMAIL] Duplicate email detected for key ${dedupeKey}. Last sent ${timeAgo}ms ago. Skipping.`);
         
         return new Response(
@@ -251,13 +266,19 @@ const handler = async (req: Request): Promise<Response> => {
             id: null,
             isDuplicate: true,
             dedupeKey: dedupeKey,
-            timeAgo: timeAgo
+            timeAgo: timeAgo,
+            canForceResend: true
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
         );
       }
     } else {
       dedupeKey = `${recipientEmail}_${startDate}_${endDate}`;
+    }
+
+    // **NEW: Log force send status**
+    if (forceSend) {
+      console.log(`📧 [EMAIL] Force send enabled, bypassing deduplication for key: ${dedupeKey}`);
     }
     
     // Validate email format
@@ -303,8 +324,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       // Prepare address section
       let addressInfo = "";
-      const trimmedAddress = businessAddress?.trim();
-      let addressDisplay = trimmedAddress || "Address not provided";
+      let addressDisplay = trimmedAddress;
       
       const addressLabel = language === 'ka' 
         ? "მისამართი" 
@@ -383,7 +403,8 @@ const handler = async (req: Request): Promise<Response> => {
           dedupeKey: dedupeKey,
           language: language,
           currencySymbol: currencySymbol,
-          hasEventNotes: !!eventNotesInfo
+          hasEventNotes: !!eventNotesInfo,
+          forceSend: forceSend
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );

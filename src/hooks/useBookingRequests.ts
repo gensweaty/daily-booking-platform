@@ -201,6 +201,23 @@ export const useBookingRequests = () => {
         language: booking.language || 'not set',
         payment_status: booking.payment_status
       });
+
+      // **NEW: Validate business address before proceeding**
+      const contactAddress = booking.business_address ||
+                             businessProfile?.contact_address ||
+                             null;
+
+      if (!contactAddress || contactAddress.trim() === "" || contactAddress === "Address not provided") {
+        console.error('[APPROVAL] Missing business address for email notification');
+        toast({
+          variant: "destructive",
+          title: "Missing Business Address",
+          description: "Please provide a valid business address in your business profile before approving bookings."
+        });
+        throw new Error("Missing business address for email notification");
+      }
+
+      console.log('[APPROVAL] Business address validated:', contactAddress);
       
       // Check for conflicts
       const { data: conflictingEvents } = await supabase
@@ -240,7 +257,6 @@ export const useBookingRequests = () => {
       // Step 2: Create event using RPC function for atomic operation
       console.log('[APPROVAL] Step 2: Creating event using RPC function');
       
-      // Prepare data for RPC function
       const eventData = {
         title: booking.title,
         user_surname: booking.requester_name,
@@ -258,7 +274,6 @@ export const useBookingRequests = () => {
         repeat_until: null
       };
       
-      // Additional persons data (empty for single bookings)
       const additionalPersons: any[] = [];
       
       console.log('[APPROVAL] Event data for RPC:', eventData);
@@ -294,20 +309,17 @@ export const useBookingRequests = () => {
         // Don't throw here, as the event is created successfully
       }
       
-      // Step 3: Send email notification using Supabase function invoke
-      console.log('[APPROVAL] Step 3: Sending email notification via supabase.functions.invoke');
+      // Step 3: Send email notification with improved error handling
+      console.log('[APPROVAL] Step 3: Sending email notification');
       
       if (booking.requester_email) {
-        const contactAddress = booking.business_address || 
-                             businessProfile?.contact_address || 
-                             "Address not provided";
-        
         const businessName = businessProfile?.business_name || "Our Business";
         
         console.log('[APPROVAL] Email details:', {
           eventId: eventId,
           recipientEmail: booking.requester_email,
-          businessAddress: contactAddress
+          businessAddress: contactAddress,
+          businessName: businessName
         });
         
         try {
@@ -320,15 +332,16 @@ export const useBookingRequests = () => {
             paymentStatus: booking.payment_status || 'not_paid',
             paymentAmount: booking.payment_amount || null,
             businessAddress: contactAddress,
-            eventId: eventId, // Use the event ID from RPC
+            eventId: eventId,
             source: 'booking-approval',
             language: booking.language || language,
-            eventNotes: booking.description || ''
+            eventNotes: booking.description || '',
+            // **NEW: Add force flag for admin approvals to bypass deduplication if needed**
+            forceSend: false
           };
 
-          console.log("[APPROVAL] Request payload:", requestBody);
+          console.log("[APPROVAL] Email request payload:", requestBody);
 
-          // Use Supabase function invoke instead of manual fetch
           const { data: emailResult, error: emailError } = await supabase.functions.invoke(
             'send-booking-approval-email',
             {
@@ -338,14 +351,50 @@ export const useBookingRequests = () => {
 
           if (emailError) {
             console.error("[APPROVAL] Failed to send approval email:", emailError);
-            // Don't throw - email failure shouldn't break approval
+            toast({
+              title: "Warning",
+              description: `Booking approved but email notification failed: ${emailError.message}`,
+              variant: "destructive"
+            });
           } else {
-            console.log("[APPROVAL] Approval email sent successfully:", emailResult);
+            console.log("[APPROVAL] Email function response:", emailResult);
+            
+            // **NEW: Handle different email response scenarios**
+            if (emailResult?.isDuplicate) {
+              console.warn("[APPROVAL] Email skipped due to deduplication");
+              toast({
+                title: "Booking Approved",
+                description: "Booking approved successfully. Email notification was skipped (already sent previously).",
+              });
+            } else if (emailResult?.error) {
+              console.error("[APPROVAL] Email function returned error:", emailResult.error);
+              toast({
+                title: "Warning",
+                description: `Booking approved but email notification failed: ${emailResult.error}`,
+                variant: "destructive"
+              });
+            } else {
+              console.log("[APPROVAL] Email sent successfully:", emailResult);
+              toast({
+                title: "Success",
+                description: "Booking approved and notification email sent successfully!",
+              });
+            }
           }
         } catch (emailError) {
-          console.error("[APPROVAL] Error sending approval email:", emailError);
-          // Don't throw - email failure shouldn't break approval
+          console.error("[APPROVAL] Error in email sending process:", emailError);
+          toast({
+            title: "Warning",
+            description: `Booking approved but email notification failed: ${emailError instanceof Error ? emailError.message : 'Unknown error'}`,
+            variant: "destructive"
+          });
         }
+      } else {
+        console.warn("[APPROVAL] No email address provided for notification");
+        toast({
+          title: "Booking Approved",
+          description: "Booking approved successfully. No email notification sent (no email address provided).",
+        });
       }
 
       // Step 4: Process files asynchronously (don't block the approval)
@@ -483,12 +532,7 @@ export const useBookingRequests = () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
       queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
-      toast({
-        translateKeys: {
-          titleKey: "common.success",
-          descriptionKey: "bookings.requestApproved"
-        }
-      });
+      // Note: Success toast is now handled in the mutation function based on email result
     },
     onError: (error: Error) => {
       console.error('[APPROVAL] Error in approval mutation:', error);
