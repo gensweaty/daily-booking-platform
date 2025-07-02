@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -276,99 +277,6 @@ export const CustomerDialog = ({
         description: `Email sending failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive"
       });
-    }
-  };
-
-  useEffect(() => {
-    const loadFiles = async () => {
-      if (!customerId) {
-        setDisplayedFiles([]);
-        return;
-      }
-
-      try {
-        let filesData: any[] = [];
-        if (customerId.startsWith('event-')) {
-          const eventId = customerId.replace('event-', '');
-          const { data: eventFiles, error: eventFilesError } = await supabase
-            .from('event_files')
-            .select('*')
-            .eq('event_id', eventId);
-
-          if (eventFilesError) {
-            console.error("Error loading event files:", eventFilesError);
-          } else {
-            filesData = eventFiles || [];
-          }
-        } else {
-          const { data: customerFiles, error: customerFilesError } = await supabase
-            .from('customer_files_new')
-            .select('*')
-            .eq('customer_id', customerId);
-
-          if (customerFilesError) {
-            console.error("Error loading customer files:", customerFilesError);
-          } else {
-            filesData = customerFiles || [];
-          }
-        }
-
-        console.log("Files loaded for customer/event:", filesData);
-        setDisplayedFiles(filesData);
-      } catch (error) {
-        console.error("Error loading files:", error);
-        setDisplayedFiles([]);
-      }
-    };
-
-    if (open) {
-      loadFiles();
-      setSelectedFile(null);
-      setFileError("");
-    }
-  }, [open, customerId]);
-
-  const uploadFile = async (customerId: string, file: File) => {
-    try {
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${customerId}/${crypto.randomUUID()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('customer_attachments')
-        .upload(filePath, file);
-
-      if (uploadError) {
-        console.error('Error uploading file:', uploadError);
-        throw uploadError;
-      }
-
-      const fileData = {
-        filename: file.name,
-        file_path: filePath,
-        content_type: file.type,
-        size: file.size,
-        user_id: user?.id,
-        customer_id: customerId,
-      };
-
-      const { error: fileRecordError } = await supabase
-        .from('customer_files_new')
-        .insert(fileData);
-
-      if (fileRecordError) {
-        console.error('Error creating file record:', fileRecordError);
-        throw fileRecordError;
-      }
-
-      return fileData;
-    } catch (error: any) {
-      console.error("Error during file upload:", error);
-      toast({
-        title: t("common.error"),
-        description: error.message || t("common.uploadError"),
-        variant: "destructive",
-      });
-      throw error;
     }
   };
 
