@@ -434,8 +434,8 @@ export const EventDialogFields = ({
         </div>
       </div>
 
-      {/* Repeat Options - Only show for new events */}
-      {isNewEvent && (
+      {/* Repeat Options - Show for new events OR when editing existing recurring events */}
+      {(isNewEvent || isRecurring) && (
         <div>
           <Label 
             htmlFor="repeatPattern" 

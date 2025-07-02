@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -143,6 +144,62 @@ export const EventDialog = ({
 
   // Determine if this is a new event (not editing an existing one)
   const isNewEvent = !eventId && !initialData;
+
+  // Fetch additional persons and files when editing an existing event
+  useEffect(() => {
+    const fetchEventData = async () => {
+      if (!open || isNewEvent || !user) return;
+      
+      const currentEventId = eventId || initialData?.id;
+      if (!currentEventId) return;
+
+      try {
+        // Fetch additional persons
+        const { data: personsData, error: personsError } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('event_id', currentEventId)
+          .eq('user_id', user.id);
+
+        if (personsError) {
+          console.error('Error fetching additional persons:', personsError);
+        } else if (personsData) {
+          const mappedPersons: PersonData[] = personsData.map(person => ({
+            id: person.id,
+            userSurname: person.user_surname || '',
+            userNumber: person.user_number || '',
+            socialNetworkLink: person.social_network_link || '',
+            eventNotes: person.event_notes || '',
+            paymentStatus: person.payment_status || 'not_paid',
+            paymentAmount: person.payment_amount?.toString() || ''
+          }));
+          setAdditionalPersons(mappedPersons);
+        }
+
+        // Fetch event files
+        const { data: filesData, error: filesError } = await supabase
+          .from('event_files')
+          .select('*')
+          .eq('event_id', currentEventId)
+          .eq('user_id', user.id);
+
+        if (filesError) {
+          console.error('Error fetching event files:', filesError);
+        } else if (filesData && filesData.length > 0) {
+          // For existing files, we'll need to create a representation
+          // Since we can't recreate File objects from stored files,
+          // we'll show them in a different way or store them separately
+          console.log('Event files found:', filesData);
+          // Note: We can't directly convert database records to File objects
+          // This would require a different approach for displaying existing files
+        }
+      } catch (error) {
+        console.error('Error fetching event data:', error);
+      }
+    };
+
+    fetchEventData();
+  }, [open, eventId, initialData, isNewEvent, user]);
 
   useEffect(() => {
     if (open) {
