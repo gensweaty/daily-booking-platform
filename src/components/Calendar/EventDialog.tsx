@@ -501,36 +501,37 @@ export const EventDialog = ({
               console.log(`✅ Successfully sent ${emailResults.successCount}/${emailResults.totalCount} event creation emails`);
               
               // Show success message based on whether it's recurring
-              const eventCount = isRecurring ? "recurring event series" : "event";
+              const eventTypeMessage = isRecurring ? "recurring event series" : "event";
               toast({
                 title: "Success",
-                description: `${eventCount} created and confirmation emails sent to ${emailResults.successCount} attendee${emailResults.successCount > 1 ? 's' : ''}!`,
+                description: `${eventTypeMessage} created and confirmation emails sent to ${emailResults.successCount} attendee${emailResults.successCount > 1 ? 's' : ''}!`,
               });
             }
             
             if (emailResults.failureCount > 0) {
               console.warn(`❌ Failed to send ${emailResults.failureCount}/${emailResults.totalCount} event creation emails`);
+              const eventTypeMessage = isRecurring ? "recurring event series" : "event";
               toast({
                 title: emailResults.successCount > 0 ? "Partial Success" : "Event Created",
                 description: emailResults.successCount > 0 
-                  ? `Event created with ${emailResults.failureCount} email notification failures`
-                  : "Event created successfully, but email notifications failed to send.",
+                  ? `${eventTypeMessage} created with ${emailResults.failureCount} email notification failures`
+                  : `${eventTypeMessage} created successfully, but email notifications failed to send.`,
                 variant: emailResults.successCount > 0 ? "default" : "destructive"
               });
             }
           } catch (emailError) {
             console.error("❌ Error sending event creation emails:", emailError);
-            const eventCount = isRecurring ? "recurring event series" : "event";
+            const eventTypeMessage = isRecurring ? "recurring event series" : "event";
             toast({
               title: "Event Created", 
-              description: `${eventCount} created successfully, but email notifications failed to send.`,
+              description: `${eventTypeMessage} created successfully, but email notifications failed to send.`,
             });
           }
         } else {
-          const eventCount = isRecurring ? "recurring event series" : "event";
+          const eventTypeMessage = isRecurring ? "recurring event series" : "event";
           toast({
             title: "Success",
-            description: `${eventCount} created successfully`,
+            description: `${eventTypeMessage} created successfully`,
           });
         }
         
@@ -541,9 +542,22 @@ export const EventDialog = ({
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error saving event:', error);
+      
+      // Provide specific error messages for recurring events
+      let errorMessage = "Failed to save event";
+      if (isRecurring && error.message) {
+        if (error.message.includes('title')) {
+          errorMessage = "Failed to create recurring events - title validation error";
+        } else if (error.message.includes('recurring')) {
+          errorMessage = "Failed to generate recurring event instances";
+        } else {
+          errorMessage = `Failed to save recurring event: ${error.message}`;
+        }
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to save event",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -706,7 +720,11 @@ export const EventDialog = ({
                 Cancel
               </Button>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Saving..." : eventId || initialData ? "Update Event" : "Create Event"}
+                {isLoading ? (
+                  isRecurring ? "Creating Series..." : "Saving..."
+                ) : (
+                  eventId || initialData ? "Update Event" : "Create Event"
+                )}
               </Button>
             </div>
           </div>

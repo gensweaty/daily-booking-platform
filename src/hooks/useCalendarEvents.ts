@@ -127,10 +127,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("Creating event with data:", eventData);
 
+      // Ensure title is never empty - use user_surname as fallback
+      const eventTitle = eventData.title?.trim() || eventData.user_surname?.trim() || "Untitled Event";
+
       // Prepare event data with proper recurring settings
       const preparedEventData = {
-        title: eventData.user_surname || eventData.title,
-        user_surname: eventData.user_surname,
+        title: eventTitle,
+        user_surname: eventData.user_surname || eventTitle,
         user_number: eventData.user_number,
         social_network_link: eventData.social_network_link,
         event_notes: eventData.event_notes,
@@ -165,7 +168,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       // Return a complete CalendarEventType object
       return {
         id: savedEventId,
-        title: eventData.user_surname || eventData.title || 'Untitled Event',
+        title: eventTitle,
         start_date: eventData.start_date || new Date().toISOString(),
         end_date: eventData.end_date || new Date().toISOString(),
         user_id: user.id,
@@ -174,22 +177,35 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         ...eventData
       } as CalendarEventType;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
       }
       
+      const eventTypeMessage = variables.is_recurring ? "recurring event series" : "event";
       toast({
         title: "Success",
-        description: "Event created successfully",
+        description: `${eventTypeMessage} created successfully`,
       });
     },
     onError: (error: any) => {
       console.error("Error creating event:", error);
+      
+      let errorMessage = "Failed to create event";
+      if (error.message) {
+        if (error.message.includes('title')) {
+          errorMessage = "Failed to create event - title validation error";
+        } else if (error.message.includes('recurring')) {
+          errorMessage = "Failed to generate recurring event instances";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to create event",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -201,10 +217,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("Updating event with data:", eventData);
 
+      // Ensure title is never empty - use user_surname as fallback
+      const eventTitle = eventData.title?.trim() || eventData.user_surname?.trim() || "Untitled Event";
+
       // Prepare event data with proper recurring settings
       const preparedEventData = {
-        title: eventData.user_surname || eventData.title,
-        user_surname: eventData.user_surname,
+        title: eventTitle,
+        user_surname: eventData.user_surname || eventTitle,
         user_number: eventData.user_number,
         social_network_link: eventData.social_network_link,
         event_notes: eventData.event_notes,
@@ -234,7 +253,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       return {
         id: savedEventId,
-        title: eventData.user_surname || eventData.title || 'Untitled Event',
+        title: eventTitle,
         start_date: eventData.start_date || new Date().toISOString(),
         end_date: eventData.end_date || new Date().toISOString(),
         user_id: user.id,
@@ -256,9 +275,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     },
     onError: (error: any) => {
       console.error("Error updating event:", error);
+      
+      let errorMessage = "Failed to update event";
+      if (error.message && error.message.includes('title')) {
+        errorMessage = "Failed to update event - title validation error";
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to update event",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -284,15 +309,20 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       return { success: true, deletedCount };
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
       }
       
+      const deleteChoice = variables.deleteChoice || 'this';
+      const message = deleteChoice === 'series' 
+        ? `Deleted ${data.deletedCount} events from the series`
+        : "Event deleted successfully";
+      
       toast({
         title: "Success",
-        description: "Event deleted successfully",
+        description: message,
       });
     },
     onError: (error: any) => {
