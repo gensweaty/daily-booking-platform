@@ -129,6 +129,9 @@ export const useBookingRequests = () => {
             filesMap.set(bookingId, new Map<string, EventFile>());
           }
           
+          // Get the file map for this booking ID
+          const fileMap = filesMap.get(bookingId)!;
+          
           // Use file path as key to prevent duplicates
           const fileKey = `${file.filename}:${file.file_path}`;
           
