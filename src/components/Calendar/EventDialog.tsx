@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -373,6 +374,25 @@ export const EventDialog = ({
     return new Date(baseDate.getTime() + 60 * 60 * 1000);
   };
 
+  // Helper function to handle repeat until date changes
+  const handleRepeatUntilChange = (date: Date) => {
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    setRepeatUntil(formatDate(date));
+  };
+
+  // Helper function to convert repeatUntil string to Date
+  const getRepeatUntilAsDate = (): Date => {
+    if (repeatUntil) {
+      return new Date(repeatUntil);
+    }
+    return new Date();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -408,8 +428,8 @@ export const EventDialog = ({
             setIsRecurring={setIsRecurring}
             repeatPattern={repeatPattern}
             setRepeatPattern={setRepeatPattern}
-            repeatUntil={repeatUntil}
-            setRepeatUntil={setRepeatUntil}
+            repeatUntil={repeatUntil ? getRepeatUntilAsDate() : undefined}
+            setRepeatUntil={handleRepeatUntilChange}
             files={files}
             setFiles={setFiles}
             additionalPersons={additionalPersons.map(person => ({
