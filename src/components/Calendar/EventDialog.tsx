@@ -454,15 +454,14 @@ export const EventDialog = ({
               paymentAmount: ""
             }))}
             onAddPerson={handleAddPerson}
-            onPersonChange={(personId: string, field: string, value: string) => {
-              const index = parseInt(personId);
-              handlePersonChange(index, field, value);
-            }}
             onRemovePerson={(personId: string) => {
               const index = parseInt(personId);
               handleRemovePerson(index);
             }}
-            onUpdatePerson={() => {}}
+            onUpdatePerson={(personId: string, field: string, value: string) => {
+              const index = parseInt(personId);
+              handlePersonChange(index, field, value);
+            }}
           />
 
           <div className="flex justify-between">
