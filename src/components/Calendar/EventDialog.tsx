@@ -219,7 +219,7 @@ export const EventDialog = ({
         try {
           // Set main event data first
           if (initialData) {
-            console.log("Setting initial data:", initialData);
+            console.log("🔍 Setting initial data:", initialData);
             setTitle(initialData.title || "");
             setUserSurname(initialData.user_surname || "");  
             setUserNumber(initialData.user_number || "");
@@ -230,15 +230,24 @@ export const EventDialog = ({
             setPaymentAmount(initialData.payment_amount?.toString() || "");
             setStartDate(formatDatetimeLocal(initialData.start_date));
             setEndDate(formatDatetimeLocal(initialData.end_date));
-            setIsRecurring(initialData.is_recurring || false);
-            setRepeatPattern(initialData.repeat_pattern || "none");
-            setRepeatUntil(initialData.repeat_until ? formatDateOnly(initialData.repeat_until) : "");
             
-            console.log("Set recurring state:", {
-              isRecurring: initialData.is_recurring,
-              repeatPattern: initialData.repeat_pattern,
-              repeatUntil: initialData.repeat_until
+            // Enhanced recurring state debugging
+            const isRecurringValue = Boolean(initialData.is_recurring);
+            const repeatPatternValue = initialData.repeat_pattern || "none";
+            const repeatUntilValue = initialData.repeat_until ? formatDateOnly(initialData.repeat_until) : "";
+            
+            console.log("🔁 RECURRING DEBUG - Initial data:", {
+              is_recurring: initialData.is_recurring,
+              repeat_pattern: initialData.repeat_pattern,
+              repeat_until: initialData.repeat_until,
+              computed_isRecurring: isRecurringValue,
+              computed_repeatPattern: repeatPatternValue,
+              computed_repeatUntil: repeatUntilValue
             });
+            
+            setIsRecurring(isRecurringValue);
+            setRepeatPattern(repeatPatternValue);
+            setRepeatUntil(repeatUntilValue);
           }
 
           // Fetch additional persons
@@ -260,7 +269,7 @@ export const EventDialog = ({
               paymentStatus: person.payment_status || 'not_paid',
               paymentAmount: person.payment_amount?.toString() || ''
             }));
-            console.log("Setting additional persons:", mappedPersons);
+            console.log("👥 Setting additional persons:", mappedPersons);
             setAdditionalPersons(mappedPersons);
           }
 
@@ -402,6 +411,15 @@ export const EventDialog = ({
     setIsLoading(true);
 
     try {
+      // Enhanced data preparation with comprehensive logging
+      console.log("🔄 SUBMIT DEBUG - Form state before processing:", {
+        isRecurring,
+        repeatPattern,
+        repeatUntil,
+        startDate,
+        endDate
+      });
+
       // Prepare event data with proper format for the database function
       const eventData = {
         title: userSurname || title || 'Untitled Event',
@@ -416,20 +434,21 @@ export const EventDialog = ({
         payment_amount: paymentAmount || '',
         type: 'event',
         is_recurring: isRecurring,
-        repeat_pattern: isRecurring ? repeatPattern : null,
+        repeat_pattern: isRecurring && repeatPattern !== "none" ? repeatPattern : null,
         repeat_until: (isRecurring && repeatUntil) ? repeatUntil : null
       };
 
       // Enhanced logging for debugging
-      console.log("🔄 EventDialog - Submitting event data:");
-      console.log("📋 Event Data:", JSON.stringify(eventData, null, 2));
-      console.log("👥 Additional Persons:", JSON.stringify(additionalPersons, null, 2));
-      console.log("🔁 Recurring Info:", {
-        isRecurring,
-        repeatPattern,
-        repeatUntil,
-        actualPattern: isRecurring ? repeatPattern : null,
-        actualUntil: (isRecurring && repeatUntil) ? repeatUntil : null
+      console.log("🔄 SUBMIT DEBUG - Final event data being sent:", {
+        eventData: JSON.stringify(eventData, null, 2),
+        additionalPersons: JSON.stringify(additionalPersons, null, 2),
+        recurringInfo: {
+          isRecurring,
+          repeatPattern,
+          repeatUntil,
+          processedPattern: isRecurring && repeatPattern !== "none" ? repeatPattern : null,
+          processedUntil: (isRecurring && repeatUntil) ? repeatUntil : null
+        }
       });
 
       let result;
@@ -466,7 +485,11 @@ export const EventDialog = ({
         
         onEventUpdated?.();
       } else {
-        console.log("🆕 Creating new event");
+        console.log("🆕 Creating new event with recurring settings:", {
+          isRecurring,
+          repeatPattern,
+          will_generate_recurring: isRecurring && repeatPattern !== "none"
+        });
         
         // Create new event
         result = await supabase
@@ -484,24 +507,38 @@ export const EventDialog = ({
         const newEventId = result.data;
         console.log("✅ Event created successfully with ID:", newEventId);
 
-        // If this was a recurring event, let's verify that child events were created
+        // Enhanced verification for recurring events
         if (isRecurring && repeatPattern && repeatPattern !== 'none') {
           console.log("🔍 Verifying recurring events were created...");
           
-          // Wait a moment for the database function to complete
+          // Wait for database function to complete
           setTimeout(async () => {
-            const { data: childEvents, error: childError } = await supabase
-              .from('events')
-              .select('*')
-              .eq('parent_event_id', newEventId);
-            
-            if (childError) {
-              console.error("❌ Error checking child events:", childError);
-            } else {
-              console.log(`✅ Found ${childEvents?.length || 0} child events created`);
-              console.log("🔍 Child events:", childEvents);
+            try {
+              const { data: childEvents, error: childError } = await supabase
+                .from('events')
+                .select('*')
+                .eq('parent_event_id', newEventId)
+                .eq('user_id', user.id);
+              
+              if (childError) {
+                console.error("❌ Error checking child events:", childError);
+              } else {
+                console.log(`✅ RECURRING VERIFICATION: Found ${childEvents?.length || 0} child events created`);
+                if (childEvents && childEvents.length > 0) {
+                  console.log("🔍 Child events details:", childEvents.map(e => ({
+                    id: e.id,
+                    title: e.title,
+                    start_date: e.start_date,
+                    parent_event_id: e.parent_event_id
+                  })));
+                } else {
+                  console.error("❌ WARNING: No child events found for recurring event!");
+                }
+              }
+            } catch (verificationError) {
+              console.error("❌ Error during recurring events verification:", verificationError);
             }
-          }, 1000);
+          }, 2000);
         }
         
         // Upload files for new event
@@ -617,16 +654,29 @@ export const EventDialog = ({
       const day = String(date.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
     };
-    setRepeatUntil(formatDate(date));
+    const formattedDate = formatDate(date);
+    console.log("📅 Repeat until changed:", { date, formattedDate });
+    setRepeatUntil(formattedDate);
   };
 
   // Helper function to convert repeatUntil string to Date
   const getRepeatUntilAsDate = (): Date | undefined => {
     if (repeatUntil) {
-      return new Date(repeatUntil);
+      const date = new Date(repeatUntil);
+      console.log("📅 Converting repeatUntil to Date:", { repeatUntil, date });
+      return date;
     }
     return undefined;
   };
+
+  // Add debug logging for state changes
+  useEffect(() => {
+    console.log("🔁 RECURRING STATE CHANGE:", {
+      isRecurring,
+      repeatPattern,
+      repeatUntil
+    });
+  }, [isRecurring, repeatPattern, repeatUntil]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
