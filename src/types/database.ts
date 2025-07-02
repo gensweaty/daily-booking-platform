@@ -1,4 +1,3 @@
-
 export interface Task {
   id: string;
   title: string;
@@ -65,8 +64,6 @@ export interface BookingRequest {
   payment_status?: string;
   payment_amount?: number | null;
   language?: string; // Add language field to BookingRequest interface
-  // FIXED: Add additional_persons field to handle multiple attendees
-  additional_persons?: any[] | string;
   // File fields explicitly defined
   file_path?: string;
   filename?: string;

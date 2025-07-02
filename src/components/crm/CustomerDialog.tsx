@@ -18,6 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { testEmailSending } from "@/lib/api"; // Import the email sending function
 
 interface CustomerDialogProps {
   open: boolean;
@@ -50,7 +51,10 @@ export const CustomerDialog = ({
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  // Add state for delete confirmation dialog
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+  // Add state for event date/time pickers
   const [eventStartDate, setEventStartDate] = useState<Date>(new Date());
   const [eventEndDate, setEventEndDate] = useState<Date>(new Date());
   const [createEvent, setCreateEvent] = useState(false);
@@ -101,43 +105,36 @@ export const CustomerDialog = ({
       }
 
       try {
-        console.log("[FILES] Loading files for ID:", customerId);
         let filesData: any[] = [];
-        
         if (customerId.startsWith('event-')) {
           const eventId = customerId.replace('event-', '');
-          console.log("[FILES] Loading event files for event ID:", eventId);
-          
           const { data: eventFiles, error: eventFilesError } = await supabase
             .from('event_files')
             .select('*')
             .eq('event_id', eventId);
 
           if (eventFilesError) {
-            console.error("[FILES] Error loading event files:", eventFilesError);
+            console.error("Error loading event files:", eventFilesError);
           } else {
             filesData = eventFiles || [];
-            console.log("[FILES] Event files loaded:", filesData.length);
           }
         } else {
-          console.log("[FILES] Loading customer files for customer ID:", customerId);
-          
           const { data: customerFiles, error: customerFilesError } = await supabase
             .from('customer_files_new')
             .select('*')
             .eq('customer_id', customerId);
 
           if (customerFilesError) {
-            console.error("[FILES] Error loading customer files:", customerFilesError);
+            console.error("Error loading customer files:", customerFilesError);
           } else {
             filesData = customerFiles || [];
-            console.log("[FILES] Customer files loaded:", filesData.length);
           }
         }
 
+        console.log("Files loaded for customer/event:", filesData);
         setDisplayedFiles(filesData);
       } catch (error) {
-        console.error("[FILES] Error loading files:", error);
+        console.error("Error loading files:", error);
         setDisplayedFiles([]);
       }
     };
@@ -149,22 +146,17 @@ export const CustomerDialog = ({
     }
   }, [open, customerId]);
 
-  const uploadFile = async (entityId: string, file: File, isEvent: boolean = false) => {
+  const uploadFile = async (customerId: string, file: File) => {
     try {
-      console.log("[UPLOAD] Starting file upload for:", { entityId, fileName: file.name, isEvent });
-      
       const fileExt = file.name.split('.').pop();
-      const filePath = `${entityId}/${crypto.randomUUID()}.${fileExt}`;
-      const bucketName = isEvent ? 'event_attachments' : 'customer_attachments';
-      
-      console.log("[UPLOAD] Uploading to bucket:", bucketName, "path:", filePath);
+      const filePath = `${customerId}/${crypto.randomUUID()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
-        .from(bucketName)
+        .from('customer_attachments')
         .upload(filePath, file);
 
       if (uploadError) {
-        console.error('[UPLOAD] Error uploading file:', uploadError);
+        console.error('Error uploading file:', uploadError);
         throw uploadError;
       }
 
@@ -174,25 +166,21 @@ export const CustomerDialog = ({
         content_type: file.type,
         size: file.size,
         user_id: user?.id,
-        ...(isEvent ? { event_id: entityId } : { customer_id: entityId }),
+        customer_id: customerId,
       };
 
-      console.log("[UPLOAD] Creating file record:", fileData);
-
-      const tableName = isEvent ? 'event_files' : 'customer_files_new';
       const { error: fileRecordError } = await supabase
-        .from(tableName)
+        .from('customer_files_new')
         .insert(fileData);
 
       if (fileRecordError) {
-        console.error('[UPLOAD] Error creating file record:', fileRecordError);
+        console.error('Error creating file record:', fileRecordError);
         throw fileRecordError;
       }
 
-      console.log("[UPLOAD] File upload completed successfully");
       return fileData;
     } catch (error: any) {
-      console.error("[UPLOAD] Error during file upload:", error);
+      console.error("Error during file upload:", error);
       toast({
         title: t("common.error"),
         description: error.message || t("common.uploadError"),
@@ -208,113 +196,55 @@ export const CustomerDialog = ({
     return emailRegex.test(email);
   };
 
-  // Enhanced email sending function with comprehensive logging
+  // Helper function to send email notification for new event
   const sendEventCreationEmail = async (eventData: any) => {
     try {
-      console.log("[EMAIL] ========== STARTING EMAIL SENDING PROCESS ==========");
-      console.log("[EMAIL] Event data received:", {
-        id: eventData.id,
-        title: eventData.title,
-        email: eventData.social_network_link,
-        startDate: eventData.start_date,
-        endDate: eventData.end_date,
-        paymentStatus: eventData.payment_status,
-        paymentAmount: eventData.payment_amount,
-        eventNotes: eventData.event_notes
-      });
-      
       // Check if we have a valid customer email to send to
       const customerEmail = eventData.social_network_link;
       if (!customerEmail || !isValidEmail(customerEmail)) {
-        console.warn("[EMAIL] No valid customer email found:", customerEmail);
-        toast({
-          title: t("common.warning"),
-          description: "No valid email address provided - notification not sent",
-          variant: "destructive"
-        });
+        console.warn("No valid customer email found for sending notification");
         return;
       }
       
-      console.log("[EMAIL] Valid email address confirmed:", customerEmail);
-      
       // Get user's business profile for the email
-      console.log("[EMAIL] Fetching business profile for user:", user?.id);
-      const { data: businessData, error: businessError } = await supabase
+      const { data: businessData } = await supabase
         .from('business_profiles')
         .select('*')
         .eq('user_id', user?.id)
         .maybeSingle();
       
-      if (businessError) {
-        console.error("[EMAIL] Error fetching business profile:", businessError);
-        toast({
-          title: t("common.warning"),
-          description: "Could not load business profile for email",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      console.log("[EMAIL] Business profile loaded:", {
-        businessName: businessData?.business_name,
-        contactAddress: businessData?.contact_address
-      });
+      console.log("Business data for email:", businessData);
       
       if (businessData) {
-        const emailPayload = {
-          recipientEmail: customerEmail,
-          fullName: eventData.title || eventData.user_surname || '',
-          businessName: businessData.business_name || 'Our Business',
-          startDate: eventData.start_date,
-          endDate: eventData.end_date,
-          paymentStatus: eventData.payment_status || 'not_paid',
-          paymentAmount: eventData.payment_amount || null,
-          businessAddress: businessData.contact_address || 'Address not provided',
-          eventId: eventData.id,
-          source: 'event-creation',
-          language: language || 'en',
-          eventNotes: eventData.event_notes || ''
-        };
-        
-        console.log("[EMAIL] Sending email with payload:", emailPayload);
-        
-        // Use Supabase function invoke
-        const { data: emailResult, error: emailError } = await supabase.functions.invoke(
-          'send-booking-approval-email',
-          {
-            body: emailPayload
-          }
+        // Send email notification to the customer's email address
+        // Use the same email format/template as the calendar event emails
+        const emailResult = await testEmailSending(
+          customerEmail, // Customer's email
+          eventData.title || eventData.user_surname || '', // Customer name
+          businessData.business_name || '', // Business name from profile
+          eventData.start_date,
+          eventData.end_date,
+          eventData.payment_status || 'not_paid',
+          eventData.payment_amount || null,
+          businessData.contact_address || '',
+          eventData.id,
+          null, // language parameter
+          eventData.event_notes || '' // Pass event notes to the email function
         );
         
-        if (emailError) {
-          console.error("[EMAIL] Failed to send event creation email:", emailError);
-          toast({
-            title: t("common.warning"),
-            description: `Email sending failed: ${emailError.message}`,
-            variant: "destructive"
-          });
+        console.log("Event creation email result:", emailResult);
+        
+        if (emailResult?.error) {
+          console.warn("Failed to send event creation email:", emailResult.error);
         } else {
-          console.log("[EMAIL] Event creation email sent successfully:", emailResult);
-          toast({
-            title: t("common.success"),
-            description: "Event created and notification email sent successfully!",
-          });
+          console.log("Event creation email sent successfully to customer:", customerEmail);
         }
       } else {
-        console.warn("[EMAIL] Missing business data for event notification");
-        toast({
-          title: t("common.warning"),
-          description: "Event created but email notification failed - missing business profile",
-          variant: "destructive"
-        });
+        console.warn("Missing business data for event notification");
       }
     } catch (error) {
-      console.error("[EMAIL] Error in email sending process:", error);
-      toast({
-        title: t("common.warning"),
-        description: `Email sending failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        variant: "destructive"
-      });
+      console.error("Error sending event creation email:", error);
+      // Don't throw - we don't want to break the main flow if just the email fails
     }
   };
 
@@ -334,18 +264,8 @@ export const CustomerDialog = ({
     try {
       const { title, user_number, social_network_link, event_notes, payment_status, payment_amount } = formData;
 
-      console.log("[SUBMIT] Starting form submission:", {
-        customerId,
-        title,
-        createEvent,
-        hasEmail: !!social_network_link,
-        isValidEmail: social_network_link ? isValidEmail(social_network_link) : false
-      });
-
       // For existing customers/events (update operation)
       if (customerId) {
-        console.log("[SUBMIT] Updating existing entity:", customerId);
-        
         const updates = {
           title,
           user_number,
@@ -354,22 +274,18 @@ export const CustomerDialog = ({
           payment_status,
           payment_amount: payment_amount ? parseFloat(payment_amount) : null,
           user_id: user.id,
-          create_event: createEvent,
+          create_event: createEvent, // Make sure to update the create_event flag
           start_date: createEvent ? eventStartDate.toISOString() : null,
           end_date: createEvent ? eventEndDate.toISOString() : null
         };
 
         let tableToUpdate = 'customers';
         let id = customerId;
-        let isEventEntity = false;
 
         if (customerId.startsWith('event-')) {
           tableToUpdate = 'events';
           id = customerId.replace('event-', '');
-          isEventEntity = true;
         }
-
-        console.log("[SUBMIT] Updating table:", tableToUpdate, "ID:", id);
 
         const { data, error } = await supabase
           .from(tableToUpdate)
@@ -381,41 +297,8 @@ export const CustomerDialog = ({
 
         if (error) throw error;
 
-        console.log("[SUBMIT] Entity updated successfully:", data);
-
-        // Handle file upload for existing entity
-        if (selectedFile) {
-          try {
-            console.log("[SUBMIT] Uploading file for existing entity");
-            await uploadFile(isEventEntity ? id : customerId, selectedFile, isEventEntity);
-            
-            // Reload files after upload
-            setDisplayedFiles(prev => [...prev]);
-          } catch (uploadError) {
-            console.error("[SUBMIT] File upload failed:", uploadError);
-          }
-        }
-
-        // Send email for event updates if it's an event with a valid email
-        if (isEventEntity && social_network_link && isValidEmail(social_network_link)) {
-          console.log("[SUBMIT] Sending email for updated event");
-          await sendEventCreationEmail({
-            id: id,
-            title: title,
-            user_surname: title,
-            social_network_link: social_network_link,
-            start_date: eventStartDate.toISOString(),
-            end_date: eventEndDate.toISOString(),
-            payment_status: payment_status,
-            payment_amount: payment_amount ? parseFloat(payment_amount) : null,
-            event_notes: event_notes
-          });
-        }
-
         // If this is a customer and create_event is checked, create or update the corresponding event
         if (tableToUpdate === 'customers' && createEvent) {
-          console.log("[SUBMIT] Creating/updating event for customer");
-          
           // Check if there's already an event with this title
           const { data: existingEvents, error: eventCheckError } = await supabase
             .from('events')
@@ -425,15 +308,15 @@ export const CustomerDialog = ({
             .is('deleted_at', null);
             
           if (eventCheckError) {
-            console.error("[SUBMIT] Error checking for existing events:", eventCheckError);
+            console.error("Error checking for existing events:", eventCheckError);
           }
           
           const eventData = {
             title: title,
-            user_surname: title,
+            user_surname: title, // Fix: use title as user_surname instead of user_number
             user_number: user_number,
             social_network_link: social_network_link,
-            event_notes: event_notes,
+            event_notes: event_notes, // Ensure event_notes is included
             payment_status: payment_status,
             payment_amount: payment_amount ? parseFloat(payment_amount) : null,
             user_id: user.id,
@@ -444,8 +327,7 @@ export const CustomerDialog = ({
           let createdEventId: string | null = null;
 
           if (existingEvents && existingEvents.length > 0) {
-            console.log("[SUBMIT] Updating existing event:", existingEvents[0].id);
-            
+            // Update existing event
             const { data: updatedEvent, error: eventUpdateError } = await supabase
               .from('events')
               .update(eventData)
@@ -454,7 +336,7 @@ export const CustomerDialog = ({
               .single();
 
             if (eventUpdateError) {
-              console.error("[SUBMIT] Error updating event:", eventUpdateError);
+              console.error("Error updating event:", eventUpdateError);
               toast({
                 title: t("common.warning"),
                 description: t("crm.eventUpdateFailed"),
@@ -462,15 +344,15 @@ export const CustomerDialog = ({
               });
             } else {
               createdEventId = updatedEvent.id;
-              console.log("[SUBMIT] Event updated, sending email");
+              
+              // Make sure to send email notification with updated event data including notes
               await sendEventCreationEmail({
                 ...updatedEvent,
-                event_notes: event_notes
+                event_notes: event_notes // Explicitly ensure notes are included
               });
             }
           } else {
-            console.log("[SUBMIT] Creating new event for customer");
-            
+            // Create new event
             const { data: newEvent, error: eventCreateError } = await supabase
               .from('events')
               .insert(eventData)
@@ -478,7 +360,7 @@ export const CustomerDialog = ({
               .single();
 
             if (eventCreateError) {
-              console.error("[SUBMIT] Error creating event:", eventCreateError);
+              console.error("Error creating event:", eventCreateError);
               toast({
                 title: t("common.warning"),
                 description: t("crm.eventCreationFailed"),
@@ -486,19 +368,26 @@ export const CustomerDialog = ({
               });
             } else {
               createdEventId = newEvent.id;
-              console.log("[SUBMIT] New event created, sending email");
+              
+              // Send email notification for the newly created event
               await sendEventCreationEmail({
                 ...newEvent,
-                event_notes: event_notes
+                event_notes: event_notes // Explicitly ensure notes are included 
               });
             }
+          }
+        }
+
+        if (selectedFile && customerId && !customerId.startsWith('event-')) {
+          try {
+            await uploadFile(customerId, selectedFile);
+          } catch (uploadError) {
+            console.error("File upload failed:", uploadError);
           }
         }
       } 
       // For new customers (insert operation)
       else {
-        console.log("[SUBMIT] Creating new customer");
-        
         const newCustomer = {
           title,
           user_number,
@@ -512,6 +401,8 @@ export const CustomerDialog = ({
           end_date: createEvent ? eventEndDate.toISOString() : null
         };
 
+        console.log("Creating new customer:", newCustomer);
+        
         const { data: customerData, error: customerError } = await supabase
           .from('customers')
           .insert(newCustomer)
@@ -519,38 +410,39 @@ export const CustomerDialog = ({
           .single();
 
         if (customerError) {
-          console.error("[SUBMIT] Error creating customer:", customerError);
+          console.error("Error creating customer:", customerError);
           throw customerError;
         }
 
-        console.log("[SUBMIT] Customer created:", customerData.id);
+        console.log("Customer created:", customerData);
 
         // Handle file upload for the new customer if a file was selected
+        let uploadedFileData = null;
         if (selectedFile && customerData) {
           try {
-            console.log("[SUBMIT] Uploading file for new customer");
-            await uploadFile(customerData.id, selectedFile, false);
+            uploadedFileData = await uploadFile(customerData.id, selectedFile);
+            console.log("File uploaded for customer:", uploadedFileData);
           } catch (uploadError) {
-            console.error("[SUBMIT] File upload failed:", uploadError);
+            console.error("File upload failed:", uploadError);
           }
         }
 
         // Create corresponding event if checkbox was checked
         if (createEvent && customerData) {
-          console.log("[SUBMIT] Creating event from new customer");
-          
           const eventData = {
             title: title,
-            user_surname: title,
+            user_surname: title, // Use title as user_surname instead of user_number
             user_number: user_number,
-            social_network_link: social_network_link,
-            event_notes: event_notes,
+            social_network_link: social_network_link, // This contains the email address
+            event_notes: event_notes, // Ensure event_notes is included
             payment_status: payment_status,
             payment_amount: payment_amount ? parseFloat(payment_amount) : null,
             user_id: user.id,
             start_date: eventStartDate.toISOString(),
             end_date: eventEndDate.toISOString(),
           };
+
+          console.log("Creating event from customer:", eventData);
 
           const { data: eventResult, error: eventError } = await supabase
             .from('events')
@@ -559,18 +451,17 @@ export const CustomerDialog = ({
             .single();
 
           if (eventError) {
-            console.error("[SUBMIT] Error creating event:", eventError);
+            console.error("Error creating event:", eventError);
             toast({
               title: t("common.warning"),
               description: t("crm.eventCreationFailed"),
               variant: "destructive"
             });
           } else {
-            console.log("[SUBMIT] Event created successfully:", eventResult.id);
+            console.log("Event created successfully:", eventResult);
             
             // Send email notification to customer's email when creating a new event
             if (social_network_link && isValidEmail(social_network_link)) {
-              console.log("[SUBMIT] Sending email for new customer event");
               await sendEventCreationEmail({
                 id: eventResult.id,
                 title: title,
@@ -580,14 +471,66 @@ export const CustomerDialog = ({
                 end_date: eventEndDate.toISOString(),
                 payment_status: payment_status,
                 payment_amount: payment_amount ? parseFloat(payment_amount) : null,
-                event_notes: event_notes
+                event_notes: event_notes // Explicitly include event notes
               });
+            }
+            
+            // If we have a file, also associate it with the new event
+            if (uploadedFileData && eventResult) {
+              try {
+                // Download the file from customer_attachments
+                const { data: fileData, error: fetchError } = await supabase.storage
+                  .from('customer_attachments')
+                  .download(uploadedFileData.file_path);
+                  
+                if (fetchError) {
+                  console.error("Error downloading file for copying:", fetchError);
+                  throw fetchError;
+                }
+                
+                // Create a new path for the event file
+                const newFilePath = `${eventResult.id}/${uploadedFileData.filename}`;
+                
+                // Upload the file to the event_attachments bucket
+                const { error: uploadError } = await supabase.storage
+                  .from('event_attachments')
+                  .upload(newFilePath, fileData);
+                  
+                if (uploadError) {
+                  console.error("Error uploading file to event bucket:", uploadError);
+                  throw uploadError;
+                }
+                
+                // Create the event_files record with proper information
+                const eventFileData = {
+                  event_id: eventResult.id,
+                  filename: uploadedFileData.filename,
+                  file_path: newFilePath,
+                  content_type: uploadedFileData.content_type,
+                  size: uploadedFileData.size,
+                  user_id: user.id
+                };
+                
+                console.log("Creating event file record:", eventFileData);
+                
+                const { error: eventFileError } = await supabase
+                  .from('event_files')
+                  .insert(eventFileData);
+                  
+                if (eventFileError) {
+                  console.error("Error associating file with event:", eventFileError);
+                } else {
+                  console.log("File associated with event successfully");
+                }
+              } catch (fileAssociationError) {
+                console.error("Error associating file with event:", fileAssociationError);
+              }
             }
           }
         }
       }
 
-      // Invalidate queries to refresh the UI
+      // Make sure to invalidate all the relevant queries
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       await queryClient.invalidateQueries({ queryKey: ['events'] });
       await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
@@ -597,11 +540,9 @@ export const CustomerDialog = ({
         title: t("common.success"),
         description: customerId ? t("crm.customerUpdated") : t("crm.customerCreated")
       });
-      
-      console.log("[SUBMIT] Form submission completed successfully");
       onOpenChange(false);
     } catch (error: any) {
-      console.error("[SUBMIT] Error in form submission:", error);
+      console.error("Error updating data:", error);
       toast({
         title: t("common.error"),
         description: t("common.errorOccurred"),
