@@ -411,8 +411,8 @@ export const EventDialog = ({
       // STEP 2: Defensive Fix - Ensure repeat_until is always a string in YYYY-MM-DD format
       let safeRepeatUntil: string | null = null;
       if (isRecurring && repeatUntil) {
-        // Fix: repeatUntil is always a Date object from the date picker
-        safeRepeatUntil = repeatUntil.toISOString().slice(0, 10);
+        // Fix: repeatUntil is already a string in YYYY-MM-DD format from the state
+        safeRepeatUntil = repeatUntil;
       }
 
       // STEP 2: Defensive Fix - Ensure repeat_pattern is never "none" when recurring
