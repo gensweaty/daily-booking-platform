@@ -9,6 +9,15 @@ import { EventDialogFields } from "./EventDialogFields";
 import { useToast } from "@/hooks/use-toast";
 import { sendEventCreationEmail } from "@/lib/api";
 
+// Helper function to format datetime for datetime-local input
+const formatDatetimeLocal = (dt: string | Date | null | undefined): string => {
+  if (!dt) return '';
+  // Handles ISO strings or Date objects
+  const d = typeof dt === 'string' ? new Date(dt) : dt;
+  const pad = (v: number) => String(v).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 interface EventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -209,8 +218,8 @@ export const EventDialog = ({
             setEventName(initialData.event_name || "");
             setPaymentStatus(initialData.payment_status || "");
             setPaymentAmount(initialData.payment_amount?.toString() || "");
-            setStartDate(initialData.start_date || "");
-            setEndDate(initialData.end_date || "");
+            setStartDate(formatDatetimeLocal(initialData.start_date));
+            setEndDate(formatDatetimeLocal(initialData.end_date));
             setIsRecurring(initialData.is_recurring || false);
             setRepeatPattern(initialData.repeat_pattern || "none");
             setRepeatUntil(initialData.repeat_until || "");
@@ -293,6 +302,26 @@ export const EventDialog = ({
     setExistingFiles([]);
   };
 
+  const fetchAndSetExistingFiles = async (eventId: string, userId: string) => {
+    const { data: filesData, error: filesError } = await supabase
+      .from('event_files')
+      .select('*')
+      .eq('event_id', eventId)
+      .eq('user_id', userId);
+    if (filesError) {
+      console.error('Error fetching event files:', filesError);
+    } else {
+      const mappedFiles: ExistingFile[] = (filesData || []).map(file => ({
+        id: file.id,
+        filename: file.filename,
+        file_path: file.file_path,
+        content_type: file.content_type || undefined,
+        size: file.size || undefined
+      }));
+      setExistingFiles(mappedFiles);
+    }
+  };
+
   const uploadFiles = async (eventId: string) => {
     if (files.length === 0) return;
 
@@ -354,6 +383,11 @@ export const EventDialog = ({
         title: "Success",
         description: "File removed successfully",
       });
+      
+      // Re-fetch files to ensure sync
+      if (eventId || initialData?.id) {
+        await fetchAndSetExistingFiles(eventId || initialData?.id, user.id);
+      }
     } catch (error) {
       console.error('Error removing file:', error);
     }
@@ -426,6 +460,7 @@ export const EventDialog = ({
         // Upload files for new event
         if (files.length > 0) {
           await uploadFiles(newEventId);
+          await fetchAndSetExistingFiles(newEventId, user.id);
         }
 
         // Enhanced email sending to all attendees
