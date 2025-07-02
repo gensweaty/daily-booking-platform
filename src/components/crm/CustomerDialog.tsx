@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { testEmailSending } from "@/lib/api"; // Import the email sending function
+import { sendBookingConfirmationEmail, sendBookingConfirmationToMultipleRecipients } from "@/lib/api"; // Import the consolidated email sending function
 
 interface CustomerDialogProps {
   open: boolean;
@@ -196,15 +196,10 @@ export const CustomerDialog = ({
     return emailRegex.test(email);
   };
 
-  // Helper function to send email notification for new event
-  const sendEventCreationEmail = async (eventData: any) => {
+  // Enhanced helper function to send email notifications for new events
+  const sendEventCreationEmail = async (eventData: any, additionalPersons: any[] = []) => {
     try {
-      // Check if we have a valid customer email to send to
-      const customerEmail = eventData.social_network_link;
-      if (!customerEmail || !isValidEmail(customerEmail)) {
-        console.warn("No valid customer email found for sending notification");
-        return;
-      }
+      console.log(`🔔 Starting email notification process for event: ${eventData.title || eventData.user_surname}`);
       
       // Get user's business profile for the email
       const { data: businessData } = await supabase
@@ -213,37 +208,118 @@ export const CustomerDialog = ({
         .eq('user_id', user?.id)
         .maybeSingle();
       
-      console.log("Business data for email:", businessData);
+      console.log("📊 Business data for email:", businessData);
       
-      if (businessData) {
-        // Send email notification to the customer's email address
-        // Use the same email format/template as the calendar event emails
-        const emailResult = await testEmailSending(
-          customerEmail, // Customer's email
-          eventData.title || eventData.user_surname || '', // Customer name
-          businessData.business_name || '', // Business name from profile
+      if (!businessData) {
+        console.warn("❌ Missing business data for event notification - skipping email");
+        return;
+      }
+
+      // Collect all recipients (main customer + additional persons)
+      const recipients: Array<{ email: string; name: string }> = [];
+      
+      // Add main customer if they have a valid email
+      const mainCustomerEmail = eventData.social_network_link;
+      if (mainCustomerEmail && isValidEmail(mainCustomerEmail)) {
+        recipients.push({
+          email: mainCustomerEmail,
+          name: eventData.title || eventData.user_surname || ''
+        });
+      }
+      
+      // Add additional persons with valid emails
+      if (additionalPersons && additionalPersons.length > 0) {
+        additionalPersons.forEach(person => {
+          if (person.socialNetworkLink && isValidEmail(person.socialNetworkLink)) {
+            recipients.push({
+              email: person.socialNetworkLink,
+              name: person.userSurname || person.title || ''
+            });
+          }
+        });
+      }
+      
+      if (recipients.length === 0) {
+        console.warn("❌ No valid email addresses found for sending notifications");
+        return;
+      }
+      
+      console.log(`📧 Found ${recipients.length} recipients for email notifications`);
+      
+      // Send emails to all recipients
+      if (recipients.length === 1) {
+        // Single recipient - use the direct email function
+        const emailResult = await sendBookingConfirmationEmail(
+          recipients[0].email,
+          recipients[0].name,
+          businessData.business_name || '',
           eventData.start_date,
           eventData.end_date,
           eventData.payment_status || 'not_paid',
           eventData.payment_amount || null,
           businessData.contact_address || '',
           eventData.id,
-          null, // language parameter
-          eventData.event_notes || '' // Pass event notes to the email function
+          'en', // TODO: Get language from user preferences
+          eventData.event_notes || ''
         );
         
-        console.log("Event creation email result:", emailResult);
+        console.log("📧 Single email result:", emailResult);
         
-        if (emailResult?.error) {
-          console.warn("Failed to send event creation email:", emailResult.error);
+        if (emailResult?.success) {
+          console.log(`✅ Event creation email sent successfully to: ${recipients[0].email}`);
+          toast({
+            title: "Notification Sent",
+            description: `Booking confirmation sent to ${recipients[0].email}`
+          });
         } else {
-          console.log("Event creation email sent successfully to customer:", customerEmail);
+          console.warn(`❌ Failed to send event creation email to ${recipients[0].email}:`, emailResult.error);
+          toast({
+            variant: "destructive",
+            title: "Email Failed",
+            description: `Failed to send confirmation to ${recipients[0].email}`
+          });
         }
       } else {
-        console.warn("Missing business data for event notification");
+        // Multiple recipients - use the batch email function
+        const emailResults = await sendBookingConfirmationToMultipleRecipients(
+          recipients,
+          businessData.business_name || '',
+          eventData.start_date,
+          eventData.end_date,
+          eventData.payment_status || 'not_paid',
+          eventData.payment_amount || null,
+          businessData.contact_address || '',
+          eventData.id,
+          'en', // TODO: Get language from user preferences
+          eventData.event_notes || ''
+        );
+        
+        console.log("📧 Multiple email results:", emailResults);
+        
+        if (emailResults.successful > 0) {
+          console.log(`✅ Successfully sent ${emailResults.successful}/${emailResults.total} event creation emails`);
+          toast({
+            title: "Notifications Sent",
+            description: `Booking confirmations sent to ${emailResults.successful} of ${emailResults.total} recipients`
+          });
+        }
+        
+        if (emailResults.failed > 0) {
+          console.warn(`❌ Failed to send ${emailResults.failed}/${emailResults.total} event creation emails`);
+          toast({
+            variant: "destructive",
+            title: "Some Emails Failed",
+            description: `${emailResults.failed} email notifications failed to send`
+          });
+        }
       }
     } catch (error) {
-      console.error("Error sending event creation email:", error);
+      console.error("❌ Error sending event creation email:", error);
+      toast({
+        variant: "destructive",
+        title: "Email Error",
+        description: "Failed to send booking confirmation emails"
+      });
       // Don't throw - we don't want to break the main flow if just the email fails
     }
   };
@@ -349,7 +425,7 @@ export const CustomerDialog = ({
               await sendEventCreationEmail({
                 ...updatedEvent,
                 event_notes: event_notes // Explicitly ensure notes are included
-              });
+              }, []); // No additional persons in CustomerDialog context
             }
           } else {
             // Create new event
@@ -373,7 +449,7 @@ export const CustomerDialog = ({
               await sendEventCreationEmail({
                 ...newEvent,
                 event_notes: event_notes // Explicitly ensure notes are included 
-              });
+              }, []); // No additional persons in CustomerDialog context
             }
           }
         }

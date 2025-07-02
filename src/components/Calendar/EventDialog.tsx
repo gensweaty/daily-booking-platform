@@ -13,6 +13,7 @@ import { EventDialogFields } from "./EventDialogFields";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { generateRecurringInstances, isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
+import { sendBookingConfirmationEmail, sendBookingConfirmationToMultipleRecipients } from "@/lib/api";
 import { Trash } from "lucide-react";
 
 interface EventDialogProps {
@@ -100,6 +101,137 @@ export const EventDialog = ({
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
   const isNewEvent = !event;
+
+  // Helper function to validate email format
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Function to send email notifications for events
+  const sendEmailNotificationsForEvent = async (eventId: string, eventData: any, additionalPersonsData: any[]) => {
+    try {
+      console.log(`🔔 Starting email notification process for event ID: ${eventId}`);
+      
+      // Get user's business profile for the email
+      const { data: businessData } = await supabase
+        .from('business_profiles')
+        .select('*')
+        .eq('user_id', eventData.user_id || eventData.userId)
+        .maybeSingle();
+      
+      if (!businessData) {
+        console.warn("❌ Missing business data for event notification - skipping email");
+        return;
+      }
+
+      // Collect all recipients (main customer + additional persons)
+      const recipients: Array<{ email: string; name: string }> = [];
+      
+      // Add main customer if they have a valid email
+      if (eventData.social_network_link && isValidEmail(eventData.social_network_link)) {
+        recipients.push({
+          email: eventData.social_network_link,
+          name: eventData.user_surname || eventData.title || ''
+        });
+      }
+      
+      // Add additional persons with valid emails
+      if (additionalPersonsData && additionalPersonsData.length > 0) {
+        additionalPersonsData.forEach(person => {
+          if (person.socialNetworkLink && isValidEmail(person.socialNetworkLink)) {
+            recipients.push({
+              email: person.socialNetworkLink,
+              name: person.userSurname || ''
+            });
+          }
+        });
+      }
+      
+      if (recipients.length === 0) {
+        console.warn("❌ No valid email addresses found for sending notifications");
+        return;
+      }
+      
+      console.log(`📧 Found ${recipients.length} recipients for email notifications`);
+      
+      // Send emails to all recipients
+      if (recipients.length === 1) {
+        // Single recipient - use the direct email function
+        const emailResult = await sendBookingConfirmationEmail(
+          recipients[0].email,
+          recipients[0].name,
+          businessData.business_name || '',
+          eventData.start_date,
+          eventData.end_date,
+          eventData.payment_status || 'not_paid',
+          eventData.payment_amount || null,
+          businessData.contact_address || '',
+          eventId,
+          language || 'en',
+          eventData.event_notes || ''
+        );
+        
+        console.log("📧 Single email result:", emailResult);
+        
+        if (emailResult?.success) {
+          console.log(`✅ Event creation email sent successfully to: ${recipients[0].email}`);
+          toast({
+            title: "Notification Sent",
+            description: `Booking confirmation sent to ${recipients[0].email}`
+          });
+        } else {
+          console.warn(`❌ Failed to send event creation email to ${recipients[0].email}:`, emailResult.error);
+          toast({
+            variant: "destructive",
+            title: "Email Failed",
+            description: `Failed to send confirmation to ${recipients[0].email}`
+          });
+        }
+      } else {
+        // Multiple recipients - use the batch email function
+        const emailResults = await sendBookingConfirmationToMultipleRecipients(
+          recipients,
+          businessData.business_name || '',
+          eventData.start_date,
+          eventData.end_date,
+          eventData.payment_status || 'not_paid',
+          eventData.payment_amount || null,
+          businessData.contact_address || '',
+          eventId,
+          language || 'en',
+          eventData.event_notes || ''
+        );
+        
+        console.log("📧 Multiple email results:", emailResults);
+        
+        if (emailResults.successful > 0) {
+          console.log(`✅ Successfully sent ${emailResults.successful}/${emailResults.total} event creation emails`);
+          toast({
+            title: "Notifications Sent",
+            description: `Booking confirmations sent to ${emailResults.successful} of ${emailResults.total} recipients`
+          });
+        }
+        
+        if (emailResults.failed > 0) {
+          console.warn(`❌ Failed to send ${emailResults.failed}/${emailResults.total} event creation emails`);
+          toast({
+            variant: "destructive",
+            title: "Some Emails Failed",
+            description: `${emailResults.failed} email notifications failed to send`
+          });
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error sending event creation email:", error);
+      toast({
+        variant: "destructive",
+        title: "Email Error",
+        description: "Failed to send booking confirmation emails"
+      });
+      // Don't throw - we don't want to break the main flow if just the email fails
+    }
+  };
 
   // Check if this is a recurring event that needs delete confirmation
   const isRecurringEvent = event && (event.is_recurring || isVirtualInstance(event.id));
@@ -404,6 +536,9 @@ export const EventDialog = ({
           }
         }
       }
+
+      // Send email notifications to all attendees BEFORE showing success message
+      await sendEmailNotificationsForEvent(savedEventId, eventData, additionalPersonsData);
 
       toast({
         title: isGeorgian ? "წარმატება" : "Success",

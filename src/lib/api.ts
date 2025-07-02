@@ -95,8 +95,8 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
   }
 };
 
-// Test sending email (will be replaced with real email sending)
-export const testEmailSending = async (
+// Consolidated email sending utility with proper authentication
+export const sendBookingConfirmationEmail = async (
   recipientEmail: string, 
   fullName: string = '', 
   businessName: string = '',
@@ -107,60 +107,143 @@ export const testEmailSending = async (
   businessAddress?: string,
   eventId?: string,
   language?: string,
-  eventNotes?: string // Add event notes parameter
+  eventNotes?: string
 ) => {
   try {
-    console.log(`Testing email sending to ${recipientEmail}`);
+    console.log(`🔔 Sending booking confirmation email to ${recipientEmail}`);
     
-    // Get the API URL from environment variables with fallback
-    const apiUrl = import.meta.env.VITE_SUPABASE_URL || '';
-    
-    if (!apiUrl) {
-      console.error('Missing SUPABASE_URL in environment variables');
-      return { error: 'Missing SUPABASE_URL configuration' };
+    if (!recipientEmail || !recipientEmail.includes('@')) {
+      console.error("Invalid email format or missing email:", recipientEmail);
+      return { success: false, error: "Invalid email format" };
     }
     
-    // Construct the URL for the Supabase Edge Function
-    const url = `${apiUrl}/functions/v1/send-booking-approval-email`;
-    console.log(`Calling function at: ${url}`);
+    // Import supabase client to get auth token
+    const { supabase } = await import("@/integrations/supabase/client");
+    
+    // Get access token for authenticated request
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    
+    if (!accessToken) {
+      console.error("❌ No access token available for authenticated request");
+      return { success: false, error: "Authentication error - no access token" };
+    }
     
     // Create the request payload
     const payload = {
-      recipientEmail,
-      fullName,
-      businessName,
+      recipientEmail: recipientEmail.trim(),
+      fullName: fullName || "",
+      businessName: businessName || "Our Business",
       startDate,
       endDate,
       paymentStatus,
       paymentAmount,
       businessAddress,
       eventId,
-      source: 'direct-api-call',
+      source: 'event-creation',
       language: language || 'en',
-      eventNotes // Include event notes in the payload
+      eventNotes
     };
     
-    console.log('Sending payload:', payload);
-    
-    // Make the API call
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
+    console.log("📧 Email request payload:", {
+      ...payload,
+      recipientEmail: recipientEmail.trim().substring(0, 3) + '***' // Mask email for privacy
     });
     
-    // Parse the response
-    const data = await response.json();
-    console.log('Response data:', data);
+    // Make the API call with proper authentication
+    const response = await fetch(
+      "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}` // Include auth token
+        },
+        body: JSON.stringify(payload)
+      }
+    );
     
-    return data;
+    // Read the response as text first
+    const responseText = await response.text();
+    
+    let data;
+    try {
+      data = responseText ? JSON.parse(responseText) : {};
+    } catch (e) {
+      console.error("Failed to parse response JSON:", e);
+      if (!response.ok) {
+        return { success: false, error: `Invalid response (status ${response.status})` };
+      }
+      return { success: true, message: "Email notification processed (response parsing error)" };
+    }
+    
+    if (!response.ok) {
+      console.error("❌ Failed to send booking confirmation email:", data);
+      return { success: false, error: data.error || data.details || "Failed to send email" };
+    } else {
+      console.log("✅ Email API response success:", data);
+      return { success: true, data };
+    }
   } catch (error) {
-    console.error('Error in testEmailSending:', error);
-    return { error: 'Failed to send email' };
+    console.error("❌ Error in sendBookingConfirmationEmail:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 };
+
+// Helper function to send emails to multiple recipients (for events with multiple attendees)
+export const sendBookingConfirmationToMultipleRecipients = async (
+  recipients: Array<{
+    email: string;
+    name: string;
+  }>,
+  businessName: string,
+  startDate: string,
+  endDate: string,
+  paymentStatus?: string,
+  paymentAmount?: number,
+  businessAddress?: string,
+  eventId?: string,
+  language?: string,
+  eventNotes?: string
+) => {
+  console.log(`📧 Sending booking confirmations to ${recipients.length} recipients`);
+  
+  const results = await Promise.allSettled(
+    recipients.map(recipient => 
+      sendBookingConfirmationEmail(
+        recipient.email,
+        recipient.name,
+        businessName,
+        startDate,
+        endDate,
+        paymentStatus,
+        paymentAmount,
+        businessAddress,
+        eventId,
+        language,
+        eventNotes
+      )
+    )
+  );
+  
+  const successful = results.filter(result => 
+    result.status === 'fulfilled' && result.value.success
+  ).length;
+  
+  const failed = results.length - successful;
+  
+  console.log(`📊 Email sending results: ${successful} successful, ${failed} failed`);
+  
+  return {
+    total: recipients.length,
+    successful,
+    failed,
+    results
+  };
+};
+
+// Legacy function name for backward compatibility
+export const testEmailSending = sendBookingConfirmationEmail;
 
 // Task related functions
 export const getTasks = async (): Promise<Task[]> => {
