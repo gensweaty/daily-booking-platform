@@ -30,6 +30,14 @@ interface PersonData {
   paymentAmount: string;
 }
 
+interface ExistingFile {
+  id: string;
+  filename: string;
+  file_path: string;
+  content_type?: string;
+  size?: number;
+}
+
 interface EventDialogFieldsProps {
   title: string;
   setTitle: (value: string) => void;
@@ -53,6 +61,8 @@ interface EventDialogFieldsProps {
   setPaymentAmount: (value: string) => void;
   files: File[];
   setFiles: (files: File[]) => void;
+  existingFiles?: ExistingFile[];
+  onRemoveExistingFile?: (fileId: string) => void;
   eventId?: string;
   isBookingRequest?: boolean;
   // Recurring event props
@@ -91,6 +101,8 @@ export const EventDialogFields = ({
   setPaymentAmount,
   files,
   setFiles,
+  existingFiles = [],
+  onRemoveExistingFile,
   eventId,
   isBookingRequest = false,
   isRecurring,
@@ -594,10 +606,32 @@ export const EventDialogFields = ({
           hideLabel={true} 
         />
       </div>
+
+      {/* Display existing files */}
+      {existingFiles.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="text-sm font-medium">Existing Files:</div>
+          {existingFiles.map((file) => (
+            <div key={file.id} className="flex items-center justify-between p-2 border rounded bg-muted/50">
+              <span className="text-sm">{file.filename}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onRemoveExistingFile?.(file.id)}
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
       
+      {/* Display new files to be uploaded */}
       {files.length > 0 && (
         <div className="flex flex-col gap-2">
-          <div className="text-sm font-medium">Selected Files:</div>
+          <div className="text-sm font-medium">New Files:</div>
           {files.map((file, index) => (
             <div key={index} className="flex items-center justify-between p-2 border rounded">
               <span className="text-sm">{file.name}</span>

@@ -30,6 +30,14 @@ interface PersonData {
   paymentAmount: string;
 }
 
+interface ExistingFile {
+  id: string;
+  filename: string;
+  file_path: string;
+  content_type?: string;
+  size?: number;
+}
+
 // Helper function to validate email format
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -138,6 +146,7 @@ export const EventDialog = ({
   const [repeatPattern, setRepeatPattern] = useState("none");
   const [repeatUntil, setRepeatUntil] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [existingFiles, setExistingFiles] = useState<ExistingFile[]>([]);
   
   const [isLoading, setIsLoading] = useState(false);
   const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
@@ -145,84 +154,13 @@ export const EventDialog = ({
   // Determine if this is a new event (not editing an existing one)
   const isNewEvent = !eventId && !initialData;
 
-  // Fetch additional persons and files when editing an existing event
+  // Combined useEffect for loading all event data - runs FIRST
   useEffect(() => {
-    const fetchEventData = async () => {
-      if (!open || isNewEvent || !user) return;
+    const loadEventData = async () => {
+      if (!open) return;
       
-      const currentEventId = eventId || initialData?.id;
-      if (!currentEventId) return;
-
-      try {
-        // Fetch additional persons
-        const { data: personsData, error: personsError } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('event_id', currentEventId)
-          .eq('user_id', user.id);
-
-        if (personsError) {
-          console.error('Error fetching additional persons:', personsError);
-        } else if (personsData) {
-          const mappedPersons: PersonData[] = personsData.map(person => ({
-            id: person.id,
-            userSurname: person.user_surname || '',
-            userNumber: person.user_number || '',
-            socialNetworkLink: person.social_network_link || '',
-            eventNotes: person.event_notes || '',
-            paymentStatus: person.payment_status || 'not_paid',
-            paymentAmount: person.payment_amount?.toString() || ''
-          }));
-          setAdditionalPersons(mappedPersons);
-        }
-
-        // Fetch event files
-        const { data: filesData, error: filesError } = await supabase
-          .from('event_files')
-          .select('*')
-          .eq('event_id', currentEventId)
-          .eq('user_id', user.id);
-
-        if (filesError) {
-          console.error('Error fetching event files:', filesError);
-        } else if (filesData && filesData.length > 0) {
-          // For existing files, we'll need to create a representation
-          // Since we can't recreate File objects from stored files,
-          // we'll show them in a different way or store them separately
-          console.log('Event files found:', filesData);
-          // Note: We can't directly convert database records to File objects
-          // This would require a different approach for displaying existing files
-        }
-      } catch (error) {
-        console.error('Error fetching event data:', error);
-      }
-    };
-
-    fetchEventData();
-  }, [open, eventId, initialData, isNewEvent, user]);
-
-  useEffect(() => {
-    if (open) {
-      if (initialData || eventId) {
-        // Editing existing event
-        const eventData = initialData;
-        if (eventData) {
-          setTitle(eventData.title || "");
-          setUserSurname(eventData.user_surname || "");  
-          setUserNumber(eventData.user_number || "");
-          setSocialNetworkLink(eventData.social_network_link || "");
-          setEventNotes(eventData.event_notes || "");
-          setEventName(eventData.event_name || "");
-          setPaymentStatus(eventData.payment_status || "");
-          setPaymentAmount(eventData.payment_amount?.toString() || "");
-          setStartDate(eventData.start_date || "");
-          setEndDate(eventData.end_date || "");
-          setIsRecurring(eventData.is_recurring || false);
-          setRepeatPattern(eventData.repeat_pattern || "none");
-          setRepeatUntil(eventData.repeat_until || "");
-        }
-      } else if (selectedDate) {
-        // Creating new event
+      if (selectedDate && isNewEvent) {
+        // Creating new event - set up defaults
         const formatDateTime = (date: Date) => {
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -252,9 +190,89 @@ export const EventDialog = ({
         setRepeatUntil("");
         setAdditionalPersons([]);
         setFiles([]);
+        setExistingFiles([]);
+        
+      } else if ((eventId || initialData) && !isNewEvent && user) {
+        // Editing existing event - load all data
+        const currentEventId = eventId || initialData?.id;
+        if (!currentEventId) return;
+
+        try {
+          // Set main event data first
+          if (initialData) {
+            console.log("Setting initial data:", initialData);
+            setTitle(initialData.title || "");
+            setUserSurname(initialData.user_surname || "");  
+            setUserNumber(initialData.user_number || "");
+            setSocialNetworkLink(initialData.social_network_link || "");
+            setEventNotes(initialData.event_notes || "");
+            setEventName(initialData.event_name || "");
+            setPaymentStatus(initialData.payment_status || "");
+            setPaymentAmount(initialData.payment_amount?.toString() || "");
+            setStartDate(initialData.start_date || "");
+            setEndDate(initialData.end_date || "");
+            setIsRecurring(initialData.is_recurring || false);
+            setRepeatPattern(initialData.repeat_pattern || "none");
+            setRepeatUntil(initialData.repeat_until || "");
+            
+            console.log("Set recurring state:", {
+              isRecurring: initialData.is_recurring,
+              repeatPattern: initialData.repeat_pattern,
+              repeatUntil: initialData.repeat_until
+            });
+          }
+
+          // Fetch additional persons
+          const { data: personsData, error: personsError } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('event_id', currentEventId)
+            .eq('user_id', user.id);
+
+          if (personsError) {
+            console.error('Error fetching additional persons:', personsError);
+          } else if (personsData) {
+            const mappedPersons: PersonData[] = personsData.map(person => ({
+              id: person.id,
+              userSurname: person.user_surname || '',
+              userNumber: person.user_number || '',
+              socialNetworkLink: person.social_network_link || '',
+              eventNotes: person.event_notes || '',
+              paymentStatus: person.payment_status || 'not_paid',
+              paymentAmount: person.payment_amount?.toString() || ''
+            }));
+            console.log("Setting additional persons:", mappedPersons);
+            setAdditionalPersons(mappedPersons);
+          }
+
+          // Fetch event files
+          const { data: filesData, error: filesError } = await supabase
+            .from('event_files')
+            .select('*')
+            .eq('event_id', currentEventId)
+            .eq('user_id', user.id);
+
+          if (filesError) {
+            console.error('Error fetching event files:', filesError);
+          } else if (filesData && filesData.length > 0) {
+            console.log('Event files found:', filesData);
+            const mappedFiles: ExistingFile[] = filesData.map(file => ({
+              id: file.id,
+              filename: file.filename,
+              file_path: file.file_path,
+              content_type: file.content_type || undefined,
+              size: file.size || undefined
+            }));
+            setExistingFiles(mappedFiles);
+          }
+        } catch (error) {
+          console.error('Error loading event data:', error);
+        }
       }
-    }
-  }, [open, selectedDate, initialData, eventId]);
+    };
+
+    loadEventData();
+  }, [open, selectedDate, eventId, initialData, isNewEvent, user]);
 
   const resetForm = () => {
     setTitle("");
@@ -272,6 +290,7 @@ export const EventDialog = ({
     setRepeatUntil("");
     setAdditionalPersons([]);
     setFiles([]);
+    setExistingFiles([]);
   };
 
   const uploadFiles = async (eventId: string) => {
@@ -310,6 +329,34 @@ export const EventDialog = ({
     });
 
     await Promise.all(uploadPromises);
+  };
+
+  const removeExistingFile = async (fileId: string) => {
+    try {
+      const { error } = await supabase
+        .from('event_files')
+        .delete()
+        .eq('id', fileId)
+        .eq('user_id', user?.id);
+
+      if (error) {
+        console.error('Error removing file:', error);
+        toast({
+          title: "Error",
+          description: "Failed to remove file",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setExistingFiles(prev => prev.filter(f => f.id !== fileId));
+      toast({
+        title: "Success",
+        description: "File removed successfully",
+      });
+    } catch (error) {
+      console.error('Error removing file:', error);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -538,6 +585,8 @@ export const EventDialog = ({
             setRepeatUntil={handleRepeatUntilChange}
             files={files}
             setFiles={setFiles}
+            existingFiles={existingFiles}
+            onRemoveExistingFile={removeExistingFile}
             isNewEvent={isNewEvent}
             additionalPersons={additionalPersons}
             setAdditionalPersons={setAdditionalPersons}
