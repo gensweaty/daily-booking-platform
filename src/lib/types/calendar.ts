@@ -34,6 +34,12 @@ export interface CalendarEventType {
   repeat_pattern?: string;
   repeat_until?: string;
   parent_event_id?: string;
+  // Add additional_persons property
+  additional_persons?: string | Array<{
+    title: string;
+    userSurname: string;
+    socialNetworkLink: string;
+  }>;
   files?: Array<{
     id: string;
     event_id: string;

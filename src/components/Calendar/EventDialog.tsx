@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -401,20 +402,35 @@ export const EventDialog = ({ open, onOpenChange, event, onSave, onDelete }: Eve
             setUserNumber={setUserNumber}
             socialNetworkLink={socialNetworkLink}
             setSocialNetworkLink={setSocialNetworkLink}
-            startDate={startDate}
-            setStartDate={setStartDate}
-            endDate={endDate}
-            setEndDate={setEndDate}
+            startDate={startDate.toISOString()}
+            setStartDate={(dateString: string) => setStartDate(new Date(dateString))}
+            endDate={endDate.toISOString()}
+            setEndDate={(dateString: string) => setEndDate(new Date(dateString))}
             paymentStatus={paymentStatus}
             setPaymentStatus={setPaymentStatus}
             paymentAmount={paymentAmount}
             setPaymentAmount={setPaymentAmount}
             customerNotes={eventNotes}
             setCustomerNotes={setEventNotes}
-            additionalPersons={additionalPersons}
+            additionalPersons={additionalPersons.map((person, index) => ({
+              id: index.toString(),
+              title: person.title,
+              userSurname: person.userSurname,
+              userNumber: "",
+              socialNetworkLink: person.socialNetworkLink,
+              eventNotes: "",
+              paymentStatus: "not_paid",
+              paymentAmount: ""
+            }))}
             onAddPerson={handleAddPerson}
-            onPersonChange={handlePersonChange}
-            onRemovePerson={handleRemovePerson}
+            onPersonChange={(personId: string, field: string, value: string) => {
+              const index = parseInt(personId);
+              handlePersonChange(index, field, value);
+            }}
+            onRemovePerson={(personId: string) => {
+              const index = parseInt(personId);
+              handleRemovePerson(index);
+            }}
           />
 
           <div className="flex justify-between">
