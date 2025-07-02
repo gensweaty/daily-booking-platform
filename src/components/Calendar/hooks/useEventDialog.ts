@@ -24,11 +24,14 @@ export const useEventDialog = ({
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
+      // Ensure title is never empty - use user_surname as fallback
+      const eventTitle = data.title?.trim() || data.user_surname?.trim() || "Untitled Event";
+      
       const eventData = {
         ...data,
         type: 'event',
-        title: data.user_surname || data.title,
-        user_surname: data.user_surname || data.title,
+        title: eventTitle,
+        user_surname: data.user_surname || eventTitle,
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
         checkAvailability: false,
         language: data.language || language || 'en',
@@ -71,11 +74,14 @@ export const useEventDialog = ({
         throw new Error("Update event function not provided or no event selected");
       }
       
+      // Ensure title is never empty - use user_surname as fallback
+      const eventTitle = data.title?.trim() || data.user_surname?.trim() || selectedEvent.title || "Untitled Event";
+      
       const eventData = {
         ...data,
         type: selectedEvent.type || 'event',
-        title: data.user_surname || data.title || selectedEvent.title,
-        user_surname: data.user_surname || data.title || selectedEvent.user_surname,
+        title: eventTitle,
+        user_surname: data.user_surname || eventTitle,
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
         language: data.language || selectedEvent.language || language || 'en',
         // Ensure recurring fields are properly handled

@@ -404,9 +404,12 @@ export const EventDialog = ({
     setIsLoading(true);
 
     try {
+      // Ensure title is never empty - use userSurname as fallback
+      const eventTitle = title.trim() || userSurname.trim() || "Untitled Event";
+      
       const eventData = {
-        title,
-        user_surname: userSurname,
+        title: eventTitle,
+        user_surname: userSurname || eventTitle,
         user_number: userNumber,
         social_network_link: socialNetworkLink,
         event_notes: eventNotes,
@@ -478,14 +481,14 @@ export const EventDialog = ({
 
         // Enhanced email sending to all attendees
         console.log("🔔 Attempting to send event creation emails to all attendees");
-        const attendees = collectAttendeesWithEmails(socialNetworkLink, userSurname || title, additionalPersons);
+        const attendees = collectAttendeesWithEmails(socialNetworkLink, userSurname || eventTitle, additionalPersons);
         
         if (attendees.length > 0) {
           try {
             const emailResults = await sendEmailsToAllAttendees(attendees, {
               id: newEventId,
-              title,
-              user_surname: userSurname,
+              title: eventTitle,
+              user_surname: userSurname || eventTitle,
               social_network_link: socialNetworkLink,
               start_date: startDate,
               end_date: endDate,
