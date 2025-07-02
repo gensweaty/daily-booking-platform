@@ -1,4 +1,3 @@
-
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
@@ -95,7 +94,7 @@ export const createBookingRequest = async (request: Omit<BookingRequest, "id" | 
   }
 };
 
-// Consolidated email sending utility with proper authentication
+// Consolidated email sending utility with proper authentication and fallback
 export const sendBookingConfirmationEmail = async (
   recipientEmail: string, 
   fullName: string = '', 
@@ -107,7 +106,8 @@ export const sendBookingConfirmationEmail = async (
   businessAddress?: string,
   eventId?: string,
   language?: string,
-  eventNotes?: string
+  eventNotes?: string,
+  source: 'booking-approval' | 'event-creation' = 'booking-approval'
 ) => {
   try {
     console.log(`🔔 Sending booking confirmation email to ${recipientEmail}`);
@@ -117,17 +117,9 @@ export const sendBookingConfirmationEmail = async (
       return { success: false, error: "Invalid email format" };
     }
     
-    // Import supabase client to get auth token
-    const { supabase } = await import("@/integrations/supabase/client");
-    
-    // Get access token for authenticated request
-    const { data: sessionData } = await supabase.auth.getSession();
-    const accessToken = sessionData.session?.access_token;
-    
-    if (!accessToken) {
-      console.error("❌ No access token available for authenticated request");
-      return { success: false, error: "Authentication error - no access token" };
-    }
+    // Validate and normalize language
+    const validLanguages = ['en', 'ka', 'es'];
+    const normalizedLanguage = validLanguages.includes(language || '') ? language : 'en';
     
     // Create the request payload
     const payload = {
@@ -140,8 +132,8 @@ export const sendBookingConfirmationEmail = async (
       paymentAmount,
       businessAddress,
       eventId,
-      source: 'event-creation',
-      language: language || 'en',
+      source,
+      language: normalizedLanguage,
       eventNotes
     };
     
@@ -150,27 +142,50 @@ export const sendBookingConfirmationEmail = async (
       recipientEmail: recipientEmail.trim().substring(0, 3) + '***' // Mask email for privacy
     });
     
-    // Make the API call with proper authentication
-    const response = await fetch(
-      "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
-      {
+    // Import supabase client to get auth token
+    const { supabase } = await import("@/integrations/supabase/client");
+    
+    // Get access token for authenticated request
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    
+    const apiUrl = "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email";
+    
+    let response;
+    let responseText;
+    
+    if (!accessToken) {
+      console.warn("⚠️ No access token, trying unauthenticated call (public booking flow)");
+      
+      // Fallback to unauthenticated call for public bookings
+      response = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    } else {
+      console.log("🔐 Using authenticated call with access token");
+      
+      // Make authenticated API call
+      response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}` // Include auth token
+          "Authorization": `Bearer ${accessToken}`
         },
         body: JSON.stringify(payload)
-      }
-    );
+      });
+    }
     
     // Read the response as text first
-    const responseText = await response.text();
+    responseText = await response.text();
     
     let data;
     try {
       data = responseText ? JSON.parse(responseText) : {};
     } catch (e) {
       console.error("Failed to parse response JSON:", e);
+      console.error("Raw response:", responseText);
       if (!response.ok) {
         return { success: false, error: `Invalid response (status ${response.status})` };
       }
@@ -178,6 +193,8 @@ export const sendBookingConfirmationEmail = async (
     }
     
     if (!response.ok) {
+      console.error("❌ Email send failed with status", response.status);
+      console.error("Response text:", responseText);
       console.error("❌ Failed to send booking confirmation email:", data);
       return { success: false, error: data.error || data.details || "Failed to send email" };
     } else {
@@ -204,7 +221,8 @@ export const sendBookingConfirmationToMultipleRecipients = async (
   businessAddress?: string,
   eventId?: string,
   language?: string,
-  eventNotes?: string
+  eventNotes?: string,
+  source: 'booking-approval' | 'event-creation' = 'booking-approval'
 ) => {
   console.log(`📧 Sending booking confirmations to ${recipients.length} recipients`);
   
@@ -221,7 +239,8 @@ export const sendBookingConfirmationToMultipleRecipients = async (
         businessAddress,
         eventId,
         language,
-        eventNotes
+        eventNotes,
+        source
       )
     )
   );

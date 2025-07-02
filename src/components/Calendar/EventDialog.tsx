@@ -25,6 +25,7 @@ interface EventDialogProps {
   onEventUpdated?: () => void;
   onEventDeleted?: () => void;
   isBookingRequest?: boolean;
+  onSave?: () => void;
 }
 
 interface PersonData {
@@ -72,7 +73,8 @@ export const EventDialog = ({
   onEventCreated,
   onEventUpdated,
   onEventDeleted,
-  isBookingRequest = false
+  isBookingRequest = false,
+  onSave
 }: EventDialogProps) => {
   
   const [title, setTitle] = useState("");
@@ -109,40 +111,43 @@ export const EventDialog = ({
   };
 
   // Function to send email notifications for events
-  const sendEmailNotificationsForEvent = async (eventId: string, eventData: any, additionalPersonsData: any[]) => {
+  const sendEventCreationEmail = async (eventData: any, additionalPersons: any[] = []) => {
     try {
-      console.log(`🔔 Starting email notification process for event ID: ${eventId}`);
+      console.log(`🔔 Starting email notification process for event: ${eventData.title}`);
       
       // Get user's business profile for the email
       const { data: businessData } = await supabase
         .from('business_profiles')
         .select('*')
-        .eq('user_id', eventData.user_id || eventData.userId)
+        .eq('user_id', user?.id)
         .maybeSingle();
+      
+      console.log("📊 Business data for email:", businessData);
       
       if (!businessData) {
         console.warn("❌ Missing business data for event notification - skipping email");
         return;
       }
 
-      // Collect all recipients (main customer + additional persons)
+      // Collect all recipients (main attendee + additional persons)
       const recipients: Array<{ email: string; name: string }> = [];
       
-      // Add main customer if they have a valid email
-      if (eventData.social_network_link && isValidEmail(eventData.social_network_link)) {
+      // Add main attendee if they have a valid email
+      const mainAttendeeEmail = eventData.social_network_link;
+      if (mainAttendeeEmail && isValidEmail(mainAttendeeEmail)) {
         recipients.push({
-          email: eventData.social_network_link,
+          email: mainAttendeeEmail,
           name: eventData.user_surname || eventData.title || ''
         });
       }
       
       // Add additional persons with valid emails
-      if (additionalPersonsData && additionalPersonsData.length > 0) {
-        additionalPersonsData.forEach(person => {
+      if (additionalPersons && additionalPersons.length > 0) {
+        additionalPersons.forEach(person => {
           if (person.socialNetworkLink && isValidEmail(person.socialNetworkLink)) {
             recipients.push({
               email: person.socialNetworkLink,
-              name: person.userSurname || ''
+              name: person.userSurname || person.title || ''
             });
           }
         });
@@ -155,9 +160,8 @@ export const EventDialog = ({
       
       console.log(`📧 Found ${recipients.length} recipients for email notifications`);
       
-      // Send emails to all recipients
+      // Send emails to all recipients with 'event-creation' source
       if (recipients.length === 1) {
-        // Single recipient - use the direct email function
         const emailResult = await sendBookingConfirmationEmail(
           recipients[0].email,
           recipients[0].name,
@@ -167,9 +171,10 @@ export const EventDialog = ({
           eventData.payment_status || 'not_paid',
           eventData.payment_amount || null,
           businessData.contact_address || '',
-          eventId,
-          language || 'en',
-          eventData.event_notes || ''
+          eventData.id,
+          'en',
+          eventData.event_notes || '',
+          'event-creation'
         );
         
         console.log("📧 Single email result:", emailResult);
@@ -189,7 +194,6 @@ export const EventDialog = ({
           });
         }
       } else {
-        // Multiple recipients - use the batch email function
         const emailResults = await sendBookingConfirmationToMultipleRecipients(
           recipients,
           businessData.business_name || '',
@@ -198,9 +202,10 @@ export const EventDialog = ({
           eventData.payment_status || 'not_paid',
           eventData.payment_amount || null,
           businessData.contact_address || '',
-          eventId,
-          language || 'en',
-          eventData.event_notes || ''
+          eventData.id,
+          'en',
+          eventData.event_notes || '',
+          'event-creation'
         );
         
         console.log("📧 Multiple email results:", emailResults);
@@ -229,7 +234,6 @@ export const EventDialog = ({
         title: "Email Error",
         description: "Failed to send booking confirmation emails"
       });
-      // Don't throw - we don't want to break the main flow if just the email fails
     }
   };
 
@@ -538,7 +542,7 @@ export const EventDialog = ({
       }
 
       // Send email notifications to all attendees BEFORE showing success message
-      await sendEmailNotificationsForEvent(savedEventId, eventData, additionalPersonsData);
+      await sendEventCreationEmail(savedEventId, additionalPersonsData);
 
       toast({
         title: isGeorgian ? "წარმატება" : "Success",

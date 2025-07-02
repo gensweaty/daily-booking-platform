@@ -246,7 +246,7 @@ export const CustomerDialog = ({
       
       console.log(`📧 Found ${recipients.length} recipients for email notifications`);
       
-      // Send emails to all recipients
+      // Send emails to all recipients with 'event-creation' source
       if (recipients.length === 1) {
         // Single recipient - use the direct email function
         const emailResult = await sendBookingConfirmationEmail(
@@ -260,7 +260,8 @@ export const CustomerDialog = ({
           businessData.contact_address || '',
           eventData.id,
           'en', // TODO: Get language from user preferences
-          eventData.event_notes || ''
+          eventData.event_notes || '',
+          'event-creation'
         );
         
         console.log("📧 Single email result:", emailResult);
@@ -291,7 +292,8 @@ export const CustomerDialog = ({
           businessData.contact_address || '',
           eventData.id,
           'en', // TODO: Get language from user preferences
-          eventData.event_notes || ''
+          eventData.event_notes || '',
+          'event-creation'
         );
         
         console.log("📧 Multiple email results:", emailResults);
