@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -170,9 +171,6 @@ export const EventDialog = ({
 
   // Determine if this is a new event (not editing an existing one)
   const isNewEvent = !eventId && !initialData;
-  
-  // Check if this is a recurring event (parent or child)
-  const isRecurringEvent = initialData?.is_recurring || !!initialData?.parent_event_id;
 
   // Combined useEffect for loading all event data - runs FIRST
   useEffect(() => {
@@ -404,91 +402,35 @@ export const EventDialog = ({
     setIsLoading(true);
 
     try {
-      // STEP 2: Defensive Fix - Ensure title is never empty with proper fallback
-      const eventTitle = (title || userSurname || "Untitled Event").trim();
-      const safeUserSurname = (userSurname || eventTitle).trim();
-      
-      // STEP 2: Defensive Fix - Ensure repeat_until is always a string in YYYY-MM-DD format
-      let safeRepeatUntil: string | null = null;
-      if (isRecurring && repeatUntil) {
-        // Fix: repeatUntil is already a string in YYYY-MM-DD format from the state
-        safeRepeatUntil = repeatUntil;
-      }
-
-      // STEP 2: Defensive Fix - Ensure repeat_pattern is never "none" when recurring
-      const safeRepeatPattern = isRecurring && repeatPattern !== "none" ? repeatPattern : null;
-      
       const eventData = {
-        title: eventTitle,
-        user_surname: safeUserSurname,
-        user_number: userNumber || "",
-        social_network_link: socialNetworkLink || "",
-        event_notes: eventNotes || "",
-        event_name: eventName || "",
+        title,
+        user_surname: userSurname,
+        user_number: userNumber,
+        social_network_link: socialNetworkLink,
+        event_notes: eventNotes,
+        event_name: eventName,
         start_date: startDate,
         end_date: endDate,
-        payment_status: paymentStatus || "not_paid",
+        payment_status: paymentStatus,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         is_recurring: isRecurring,
-        repeat_pattern: safeRepeatPattern,
-        repeat_until: safeRepeatUntil,
+        repeat_pattern: isRecurring ? repeatPattern : null,
+        repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
       };
-
-      // STEP 1: Debug logging - Log what we're about to send
-      console.log('🔍 STEP 1 DEBUG - eventData:', eventData);
-      console.log('🔍 STEP 1 DEBUG - additionalPersons:', additionalPersons);
-      console.log('🔍 STEP 1 DEBUG - Recurring settings:', {
-        isRecurring,
-        repeatPattern,
-        safeRepeatPattern,
-        repeatUntil,
-        safeRepeatUntil
-      });
-
-      // Frontend validation before sending
-      if (isRecurring && !safeRepeatPattern) {
-        toast({
-          title: "Validation Error",
-          description: "Please select a repeat pattern for recurring events",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      if (isRecurring && !safeRepeatUntil) {
-        toast({
-          title: "Validation Error", 
-          description: "Please set an end date for recurring events",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
 
       let result;
       
       if (eventId || initialData) {
-        // Update existing event with JSON stringification
-        console.log('🔍 STEP 1 DEBUG - Updating existing event with ID:', eventId || initialData?.id);
+        // Update existing event
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: JSON.stringify(eventData),
-            p_additional_persons: JSON.stringify(additionalPersons),
+            p_event_data: eventData,
+            p_additional_persons: additionalPersons,
             p_user_id: user.id,
             p_event_id: eventId || initialData?.id
           });
           
-        if (result.error) {
-          console.error('🚨 STEP 3 DEBUG - RPC Error Details:', {
-            error: result.error,
-            message: result.error?.message,
-            details: result.error?.details,
-            hint: result.error?.hint,
-            code: result.error?.code
-          });
-          throw result.error;
-        }
+        if (result.error) throw result.error;
         
         // Upload new files if any
         if (files.length > 0) {
@@ -503,34 +445,17 @@ export const EventDialog = ({
         
         onEventUpdated?.();
       } else {
-        // Create new event with JSON stringification
-        console.log('🔍 STEP 1 DEBUG - Creating new event');
-        console.log('🔍 STEP 1 DEBUG - Final RPC payload:', {
-          p_event_data: JSON.stringify(eventData),
-          p_additional_persons: JSON.stringify(additionalPersons),
-          p_user_id: user.id
-        });
-        
+        // Create new event
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: JSON.stringify(eventData),
-            p_additional_persons: JSON.stringify(additionalPersons),
+            p_event_data: eventData,
+            p_additional_persons: additionalPersons,
             p_user_id: user.id
           });
 
-        if (result.error) {
-          console.error('🚨 STEP 3 DEBUG - RPC Error Details:', {
-            error: result.error,
-            message: result.error?.message,
-            details: result.error?.details,
-            hint: result.error?.hint,
-            code: result.error?.code
-          });
-          throw result.error;
-        }
+        if (result.error) throw result.error;
 
         const newEventId = result.data;
-        console.log("✅ Event created with ID:", newEventId);
         
         // Upload files for new event
         if (files.length > 0) {
@@ -540,14 +465,14 @@ export const EventDialog = ({
 
         // Enhanced email sending to all attendees
         console.log("🔔 Attempting to send event creation emails to all attendees");
-        const attendees = collectAttendeesWithEmails(socialNetworkLink, safeUserSurname, additionalPersons);
+        const attendees = collectAttendeesWithEmails(socialNetworkLink, userSurname || title, additionalPersons);
         
         if (attendees.length > 0) {
           try {
             const emailResults = await sendEmailsToAllAttendees(attendees, {
               id: newEventId,
-              title: eventTitle,
-              user_surname: safeUserSurname,
+              title,
+              user_surname: userSurname,
               social_network_link: socialNetworkLink,
               start_date: startDate,
               end_date: endDate,
@@ -558,39 +483,33 @@ export const EventDialog = ({
             
             if (emailResults.successCount > 0) {
               console.log(`✅ Successfully sent ${emailResults.successCount}/${emailResults.totalCount} event creation emails`);
-              
-              // Show success message based on whether it's recurring
-              const eventTypeMessage = isRecurring ? "recurring event series" : "event";
               toast({
                 title: "Success",
-                description: `${eventTypeMessage} created and confirmation emails sent to ${emailResults.successCount} attendee${emailResults.successCount > 1 ? 's' : ''}!`,
+                description: `Event created and confirmation emails sent to ${emailResults.successCount} attendee${emailResults.successCount > 1 ? 's' : ''}!`,
               });
             }
             
             if (emailResults.failureCount > 0) {
               console.warn(`❌ Failed to send ${emailResults.failureCount}/${emailResults.totalCount} event creation emails`);
-              const eventTypeMessage = isRecurring ? "recurring event series" : "event";
               toast({
                 title: emailResults.successCount > 0 ? "Partial Success" : "Event Created",
                 description: emailResults.successCount > 0 
-                  ? `${eventTypeMessage} created with ${emailResults.failureCount} email notification failures`
-                  : `${eventTypeMessage} created successfully, but email notifications failed to send.`,
+                  ? `Event created with ${emailResults.failureCount} email notification failures`
+                  : "Event created successfully, but email notifications failed to send.",
                 variant: emailResults.successCount > 0 ? "default" : "destructive"
               });
             }
           } catch (emailError) {
             console.error("❌ Error sending event creation emails:", emailError);
-            const eventTypeMessage = isRecurring ? "recurring event series" : "event";
             toast({
               title: "Event Created", 
-              description: `${eventTypeMessage} created successfully, but email notifications failed to send.`,
+              description: "Event created successfully, but email notifications failed to send.",
             });
           }
         } else {
-          const eventTypeMessage = isRecurring ? "recurring event series" : "event";
           toast({
             title: "Success",
-            description: `${eventTypeMessage} created successfully`,
+            description: "Event created successfully",
           });
         }
         
@@ -600,31 +519,10 @@ export const EventDialog = ({
       resetForm();
       onOpenChange(false);
     } catch (error: any) {
-      // STEP 3: Enhanced error logging with full details
-      console.error('🚨 STEP 3 DEBUG - Complete Error Details:', {
-        error,
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code,
-        stack: error?.stack
-      });
-      
-      // STEP 3: Show detailed error message to user
-      let errorMessage = "Failed to save event";
-      if (error?.message) {
-        errorMessage = error.message;
-      }
-      if (error?.details) {
-        errorMessage += " (" + error.details + ")";
-      }
-      if (error?.hint) {
-        errorMessage += " Hint: " + error.hint;
-      }
-      
+      console.error('Error saving event:', error);
       toast({
         title: "Error",
-        description: errorMessage,
+        description: error.message || "Failed to save event",
         variant: "destructive",
       });
     } finally {
@@ -638,45 +536,17 @@ export const EventDialog = ({
     setIsLoading(true);
     
     try {
-      if (isRecurringEvent) {
-        // For recurring events, ask user what to delete
-        const choice = window.confirm(
-          "This is a recurring event. Click OK to delete the entire series, or Cancel to delete only this occurrence."
-        );
+      const { error } = await supabase
+        .from('events')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', eventId || initialData?.id);
         
-        const deleteChoice = choice ? 'series' : 'this';
-        
-        const { data, error } = await supabase.rpc('delete_recurring_series', {
-          p_event_id: eventId || initialData?.id,
-          p_user_id: user?.id,
-          p_delete_choice: deleteChoice
-        });
-        
-        if (error) throw error;
-        
-        const deletedCount = data || 1;
-        const message = deleteChoice === 'series' 
-          ? `Deleted ${deletedCount} events from the series`
-          : "Event deleted successfully";
-        
-        toast({
-          title: "Success",
-          description: message,
-        });
-      } else {
-        // Single event deletion
-        const { error } = await supabase
-          .from('events')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('id', eventId || initialData?.id);
-          
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Event deleted successfully",
-        });
-      }
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Event deleted successfully",
+      });
       
       onEventDeleted?.();
       onOpenChange(false);
@@ -717,11 +587,6 @@ export const EventDialog = ({
         <DialogHeader>
           <DialogTitle>
             {eventId || initialData ? "Edit Event" : "Create New Event"}
-            {isRecurringEvent && (
-              <span className="ml-2 text-sm text-muted-foreground">
-                (Recurring Event)
-              </span>
-            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -772,7 +637,7 @@ export const EventDialog = ({
                   onClick={handleDelete}
                   disabled={isLoading}
                 >
-                  Delete Event{isRecurringEvent ? " / Series" : ""}
+                  Delete Event
                 </Button>
               )}
             </div>
@@ -787,11 +652,7 @@ export const EventDialog = ({
                 Cancel
               </Button>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? (
-                  isRecurring ? "Creating Series..." : "Saving..."
-                ) : (
-                  eventId || initialData ? "Update Event" : "Create Event"
-                )}
+                {isLoading ? "Saving..." : eventId || initialData ? "Update Event" : "Create Event"}
               </Button>
             </div>
           </div>

@@ -1032,28 +1032,9 @@ export type Database = {
         }
         Returns: string
       }
-      delete_recurring_series: {
-        Args: {
-          p_event_id: string
-          p_user_id: string
-          p_delete_choice?: string
-        }
-        Returns: number
-      }
       generate_code_number: {
         Args: { n: number }
         Returns: string
-      }
-      generate_recurring_events: {
-        Args: {
-          p_parent_event_id: string
-          p_start_date: string
-          p_end_date: string
-          p_repeat_pattern: string
-          p_repeat_until: string
-          p_user_id: string
-        }
-        Returns: number
       }
       get_all_related_files: {
         Args: {

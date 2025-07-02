@@ -3,6 +3,7 @@ import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { isVirtualInstance } from "@/lib/recurringEvents";
 
 interface UseEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
@@ -18,35 +19,22 @@ export const useEventDialog = ({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [deleteChoice, setDeleteChoice] = useState<"this" | "series">("this");
   const { toast } = useToast();
   const { language } = useLanguage();
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
-      // Ensure title is never empty - use user_surname as fallback
-      const eventTitle = data.title?.trim() || data.user_surname?.trim() || "Untitled Event";
-      
       const eventData = {
         ...data,
         type: 'event',
-        title: eventTitle,
-        user_surname: data.user_surname || eventTitle,
+        title: data.user_surname || data.title,
+        user_surname: data.user_surname || data.title,
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
         checkAvailability: false,
-        language: data.language || language || 'en',
-        // Ensure recurring fields are properly set
-        is_recurring: data.is_recurring || false,
-        repeat_pattern: data.is_recurring ? data.repeat_pattern : null,
-        repeat_until: data.is_recurring && data.repeat_until ? data.repeat_until : null
+        language: data.language || language || 'en'
       };
       
       console.log("Creating event with language:", eventData.language);
-      console.log("Creating recurring event:", {
-        is_recurring: eventData.is_recurring,
-        repeat_pattern: eventData.repeat_pattern,
-        repeat_until: eventData.repeat_until
-      });
       
       if (!createEvent) throw new Error("Create event function not provided");
       
@@ -74,20 +62,13 @@ export const useEventDialog = ({
         throw new Error("Update event function not provided or no event selected");
       }
       
-      // Ensure title is never empty - use user_surname as fallback
-      const eventTitle = data.title?.trim() || data.user_surname?.trim() || selectedEvent.title || "Untitled Event";
-      
       const eventData = {
         ...data,
         type: selectedEvent.type || 'event',
-        title: eventTitle,
-        user_surname: data.user_surname || eventTitle,
+        title: data.user_surname || data.title || selectedEvent.title,
+        user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
-        language: data.language || selectedEvent.language || language || 'en',
-        // Ensure recurring fields are properly handled
-        is_recurring: data.is_recurring !== undefined ? data.is_recurring : selectedEvent.is_recurring,
-        repeat_pattern: data.is_recurring ? data.repeat_pattern : null,
-        repeat_until: data.is_recurring && data.repeat_until ? data.repeat_until : null
+        language: data.language || selectedEvent.language || language || 'en'
       };
       
       console.log("Updating event with language:", eventData.language);
@@ -113,14 +94,11 @@ export const useEventDialog = ({
     }
   };
 
-  const handleDeleteEvent = async (choice?: "this" | "series") => {
+  const handleDeleteEvent = async (deleteChoice?: "this" | "series") => {
     try {
       if (!deleteEvent || !selectedEvent) throw new Error("Delete event function not provided or no event selected");
       
-      const finalChoice = choice || deleteChoice;
-      console.log("Deleting event with choice:", finalChoice);
-      
-      const result = await deleteEvent({ id: selectedEvent.id, deleteChoice: finalChoice });
+      const result = await deleteEvent({ id: selectedEvent.id, deleteChoice });
       
       setSelectedEvent(null);
       console.log("Event deleted successfully:", selectedEvent.id);
@@ -150,12 +128,6 @@ export const useEventDialog = ({
     return status;
   };
 
-  // Helper function to check if event is part of a recurring series
-  const isRecurringEvent = (event: CalendarEventType | null): boolean => {
-    if (!event) return false;
-    return event.is_recurring || !!event.parent_event_id;
-  };
-
   return {
     selectedEvent,
     setSelectedEvent,
@@ -163,11 +135,8 @@ export const useEventDialog = ({
     setIsNewEventDialogOpen,
     selectedDate,
     setSelectedDate,
-    deleteChoice,
-    setDeleteChoice,
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
-    isRecurringEvent,
   };
 };
