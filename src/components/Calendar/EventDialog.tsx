@@ -404,39 +404,76 @@ export const EventDialog = ({
     setIsLoading(true);
 
     try {
-      // Ensure title is never empty - use userSurname as fallback
-      const eventTitle = title.trim() || userSurname.trim() || "Untitled Event";
+      // STEP 2: Defensive Fix - Ensure title is never empty with proper fallback
+      const eventTitle = (title || userSurname || "Untitled Event").trim();
+      const safeUserSurname = (userSurname || eventTitle).trim();
+      
+      // STEP 2: Defensive Fix - Ensure repeat_until is always a string in YYYY-MM-DD format
+      let safeRepeatUntil = null;
+      if (isRecurring && repeatUntil) {
+        if (typeof repeatUntil === "string") {
+          safeRepeatUntil = repeatUntil;
+        } else {
+          safeRepeatUntil = repeatUntil.toISOString().slice(0, 10);
+        }
+      }
+
+      // STEP 2: Defensive Fix - Ensure repeat_pattern is never "none" when recurring
+      const safeRepeatPattern = isRecurring && repeatPattern !== "none" ? repeatPattern : null;
       
       const eventData = {
         title: eventTitle,
-        user_surname: userSurname || eventTitle,
-        user_number: userNumber,
-        social_network_link: socialNetworkLink,
-        event_notes: eventNotes,
-        event_name: eventName,
+        user_surname: safeUserSurname,
+        user_number: userNumber || "",
+        social_network_link: socialNetworkLink || "",
+        event_notes: eventNotes || "",
+        event_name: eventName || "",
         start_date: startDate,
         end_date: endDate,
-        payment_status: paymentStatus,
+        payment_status: paymentStatus || "not_paid",
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         is_recurring: isRecurring,
-        repeat_pattern: isRecurring ? repeatPattern : null,
-        repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
+        repeat_pattern: safeRepeatPattern,
+        repeat_until: safeRepeatUntil,
       };
 
-      // Log the data being sent for debugging
-      console.log('eventData:', eventData);
-      console.log('additionalPersons:', additionalPersons);
-      console.log('Calling save_event_with_persons with:', {
-        p_event_data: eventData,
-        p_additional_persons: additionalPersons,
-        p_user_id: user.id,
-        p_event_id: eventId || initialData?.id
+      // STEP 1: Debug logging - Log what we're about to send
+      console.log('🔍 STEP 1 DEBUG - eventData:', eventData);
+      console.log('🔍 STEP 1 DEBUG - additionalPersons:', additionalPersons);
+      console.log('🔍 STEP 1 DEBUG - Recurring settings:', {
+        isRecurring,
+        repeatPattern,
+        safeRepeatPattern,
+        repeatUntil,
+        safeRepeatUntil
       });
+
+      // Frontend validation before sending
+      if (isRecurring && !safeRepeatPattern) {
+        toast({
+          title: "Validation Error",
+          description: "Please select a repeat pattern for recurring events",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      if (isRecurring && !safeRepeatUntil) {
+        toast({
+          title: "Validation Error", 
+          description: "Please set an end date for recurring events",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
 
       let result;
       
       if (eventId || initialData) {
         // Update existing event with JSON stringification
+        console.log('🔍 STEP 1 DEBUG - Updating existing event with ID:', eventId || initialData?.id);
         result = await supabase
           .rpc('save_event_with_persons', {
             p_event_data: JSON.stringify(eventData),
@@ -445,7 +482,16 @@ export const EventDialog = ({
             p_event_id: eventId || initialData?.id
           });
           
-        if (result.error) throw result.error;
+        if (result.error) {
+          console.error('🚨 STEP 3 DEBUG - RPC Error Details:', {
+            error: result.error,
+            message: result.error?.message,
+            details: result.error?.details,
+            hint: result.error?.hint,
+            code: result.error?.code
+          });
+          throw result.error;
+        }
         
         // Upload new files if any
         if (files.length > 0) {
@@ -461,6 +507,13 @@ export const EventDialog = ({
         onEventUpdated?.();
       } else {
         // Create new event with JSON stringification
+        console.log('🔍 STEP 1 DEBUG - Creating new event');
+        console.log('🔍 STEP 1 DEBUG - Final RPC payload:', {
+          p_event_data: JSON.stringify(eventData),
+          p_additional_persons: JSON.stringify(additionalPersons),
+          p_user_id: user.id
+        });
+        
         result = await supabase
           .rpc('save_event_with_persons', {
             p_event_data: JSON.stringify(eventData),
@@ -468,10 +521,19 @@ export const EventDialog = ({
             p_user_id: user.id
           });
 
-        if (result.error) throw result.error;
+        if (result.error) {
+          console.error('🚨 STEP 3 DEBUG - RPC Error Details:', {
+            error: result.error,
+            message: result.error?.message,
+            details: result.error?.details,
+            hint: result.error?.hint,
+            code: result.error?.code
+          });
+          throw result.error;
+        }
 
         const newEventId = result.data;
-        console.log("Event created with ID:", newEventId);
+        console.log("✅ Event created with ID:", newEventId);
         
         // Upload files for new event
         if (files.length > 0) {
@@ -481,14 +543,14 @@ export const EventDialog = ({
 
         // Enhanced email sending to all attendees
         console.log("🔔 Attempting to send event creation emails to all attendees");
-        const attendees = collectAttendeesWithEmails(socialNetworkLink, userSurname || eventTitle, additionalPersons);
+        const attendees = collectAttendeesWithEmails(socialNetworkLink, safeUserSurname, additionalPersons);
         
         if (attendees.length > 0) {
           try {
             const emailResults = await sendEmailsToAllAttendees(attendees, {
               id: newEventId,
               title: eventTitle,
-              user_surname: userSurname || eventTitle,
+              user_surname: safeUserSurname,
               social_network_link: socialNetworkLink,
               start_date: startDate,
               end_date: endDate,
@@ -541,18 +603,26 @@ export const EventDialog = ({
       resetForm();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error saving event:', error);
+      // STEP 3: Enhanced error logging with full details
+      console.error('🚨 STEP 3 DEBUG - Complete Error Details:', {
+        error,
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+        code: error?.code,
+        stack: error?.stack
+      });
       
-      // Provide specific error messages for recurring events
+      // STEP 3: Show detailed error message to user
       let errorMessage = "Failed to save event";
-      if (isRecurring && error.message) {
-        if (error.message.includes('title')) {
-          errorMessage = "Failed to create recurring events - title validation error";
-        } else if (error.message.includes('recurring')) {
-          errorMessage = "Failed to generate recurring event instances";
-        } else {
-          errorMessage = `Failed to save recurring event: ${error.message}`;
-        }
+      if (error?.message) {
+        errorMessage = error.message;
+      }
+      if (error?.details) {
+        errorMessage += " (" + error.details + ")";
+      }
+      if (error?.hint) {
+        errorMessage += " Hint: " + error.hint;
       }
       
       toast({
