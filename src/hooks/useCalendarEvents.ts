@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { debugRecurringEvent } from '@/utils/recurringEventDebug';
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string) => {
   const { user } = useAuth();
@@ -38,33 +37,32 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log(`📊 Raw events fetched: ${events?.length || 0}`);
 
-      // Enhanced logging for recurring events
+      // Enhanced logging for recurring events analysis
       const parentEvents = events?.filter(e => e.is_recurring && !e.parent_event_id) || [];
       const childEvents = events?.filter(e => e.parent_event_id) || [];
       
       console.log("🔁 RECURRING EVENTS ANALYSIS:", {
         totalEvents: events?.length || 0,
         parentRecurringEvents: parentEvents.length,
-        childRecurringEvents: childEvents.length
+        childRecurringEvents: childEvents.length,
+        regularEvents: (events?.length || 0) - parentEvents.length - childEvents.length
       });
 
+      // Log details of parent recurring events
       if (parentEvents.length > 0) {
-        console.log("👨‍👩‍👧‍👦 Parent recurring events found:", parentEvents.map(e => ({
+        console.log("👨‍👩‍👧‍👦 Parent recurring events:", parentEvents.map(e => ({
           id: e.id,
           title: e.title,
           repeat_pattern: e.repeat_pattern,
+          repeat_until: e.repeat_until,
           start_date: e.start_date,
           is_recurring: e.is_recurring
         })));
-        
-        // Debug each parent recurring event
-        for (const parentEvent of parentEvents) {
-          await debugRecurringEvent(parentEvent.id, targetUserId);
-        }
       }
 
+      // Log details of child recurring events
       if (childEvents.length > 0) {
-        console.log("👶 Child recurring events found:", childEvents.map(e => ({
+        console.log("👶 Child recurring events:", childEvents.map(e => ({
           id: e.id,
           title: e.title,
           parent_id: e.parent_event_id,
@@ -86,6 +84,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           console.error("❌ Error fetching booking requests:", bookingsError);
         } else {
           bookingRequests = bookings || [];
+          console.log(`📋 Booking requests fetched: ${bookingRequests.length}`);
         }
       }
 
@@ -94,7 +93,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       // Add ALL events (both parent and child recurring events)
       for (const event of events || []) {
-        allEvents.push({
+        const calendarEvent: CalendarEventType = {
           id: event.id,
           title: event.title,
           start_date: event.start_date,
@@ -114,12 +113,14 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           parent_event_id: event.parent_event_id,
           language: event.language,
           created_at: event.created_at || new Date().toISOString(),
-        });
+        };
+        
+        allEvents.push(calendarEvent);
       }
 
       // Add booking requests
       for (const booking of bookingRequests) {
-        allEvents.push({
+        const bookingEvent: CalendarEventType = {
           id: booking.id,
           title: booking.title,
           start_date: booking.start_date,
@@ -134,20 +135,23 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           type: 'booking_request',
           language: booking.language,
           created_at: booking.created_at || new Date().toISOString(),
-        });
+        };
+        
+        allEvents.push(bookingEvent);
       }
 
-      console.log(`✅ Final events count: ${allEvents.length} (${events?.length || 0} regular + ${bookingRequests.length} bookings)`);
+      console.log(`✅ Final events processed: ${allEvents.length} (${events?.length || 0} events + ${bookingRequests.length} bookings)`);
       
-      // Log recurring events in final result
+      // Enhanced logging for final recurring events in result
       const finalRecurringEvents = allEvents.filter(e => e.is_recurring || e.parent_event_id);
       if (finalRecurringEvents.length > 0) {
-        console.log("🔁 Final recurring events in result:", finalRecurringEvents.map(e => ({
+        console.log("🔁 Final recurring events ready for display:", finalRecurringEvents.map(e => ({
           id: e.id,
           title: e.title,
           is_recurring: e.is_recurring,
           parent_event_id: e.parent_event_id,
-          start_date: e.start_date
+          start_date: e.start_date,
+          repeat_pattern: e.repeat_pattern
         })));
       }
       
@@ -177,7 +181,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("🔄 Creating event with data:", eventData);
 
-      // Use the new database function for atomic operations
+      // Use the database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
         p_event_data: {
           title: eventData.user_surname || eventData.title,
@@ -200,7 +204,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         p_event_id: null
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ RPC Error during event creation:", error);
+        throw error;
+      }
+
+      console.log("✅ Event created successfully with ID:", savedEventId);
 
       // Return a complete CalendarEventType object
       return {
@@ -215,6 +224,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       } as CalendarEventType;
     },
     onSuccess: () => {
+      // Invalidate queries to refetch events
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
@@ -241,7 +251,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("🔄 Updating event with data:", eventData);
 
-      // Use the new database function for atomic operations
+      // Use the database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
         p_event_data: {
           title: eventData.user_surname || eventData.title,
@@ -264,7 +274,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         p_event_id: eventData.id
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ RPC Error during event update:", error);
+        throw error;
+      }
+
+      console.log("✅ Event updated successfully with ID:", savedEventId);
 
       // Return a complete CalendarEventType object
       return {
@@ -279,6 +294,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       } as CalendarEventType;
     },
     onSuccess: () => {
+      // Invalidate queries to refetch events
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
@@ -311,11 +327,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         .eq('id', id)
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Error deleting event:", error);
+        throw error;
+      }
 
+      console.log("✅ Event deleted successfully:", id);
       return { success: true };
     },
     onSuccess: () => {
+      // Invalidate queries to refetch events
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
