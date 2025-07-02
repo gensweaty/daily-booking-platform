@@ -1,3 +1,4 @@
+
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
@@ -110,11 +111,10 @@ export const sendBookingConfirmationEmail = async (
 ) => {
   try {
     console.log(`🔔 Sending booking confirmation email to ${recipientEmail}`);
+    console.log("=== ATTEMPTING TO SEND BOOKING CONFIRMATION ===");
     
-    const IS_DEV = !!(import.meta.env.DEV);
-    const FUNCTION_BASE_URL = IS_DEV 
-      ? "http://localhost:54321"
-      : "https://mrueqpffzauvdxmuwhfa.supabase.co";
+    // Always use production Edge Function URL to avoid localhost issues
+    const FUNCTION_BASE_URL = "https://mrueqpffzauvdxmuwhfa.supabase.co";
     
     if (!recipientEmail || !recipientEmail.includes('@')) {
       console.error("Invalid email format or missing email:", recipientEmail);
@@ -157,6 +157,8 @@ export const sendBookingConfirmationEmail = async (
       console.log("⚠️ No authentication available, sending without token");
     }
 
+    console.log("🌐 Making POST request to:", `${FUNCTION_BASE_URL}/functions/v1/send-booking-approval-email`);
+    
     const response = await fetch(
       `${FUNCTION_BASE_URL}/functions/v1/send-booking-approval-email`,
       {
@@ -165,6 +167,8 @@ export const sendBookingConfirmationEmail = async (
         body: JSON.stringify(payload)
       }
     );
+    
+    console.log("📨 Response status:", response.status, response.statusText);
     
     return await handleEmailResponse(response);
   } catch (error) {
@@ -177,6 +181,7 @@ export const sendBookingConfirmationEmail = async (
 const handleEmailResponse = async (response: Response) => {
   // Read the response as text first
   const responseText = await response.text();
+  console.log("📧 Raw response text:", responseText);
   
   let data;
   try {
