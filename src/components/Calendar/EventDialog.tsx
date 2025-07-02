@@ -14,11 +14,25 @@ interface EventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   event?: CalendarEvent | null;
-  onSave: (event: CalendarEvent) => void;
-  onDelete: (id: string) => void;
+  selectedDate?: Date;
+  onSave?: (event: CalendarEvent) => void;
+  onDelete?: (id: string) => void;
+  onEventCreated?: () => void;
+  onEventUpdated?: () => void;
+  onEventDeleted?: () => void;
 }
 
-export const EventDialog = ({ open, onOpenChange, event, onSave, onDelete }: EventDialogProps) => {
+export const EventDialog = ({ 
+  open, 
+  onOpenChange, 
+  event, 
+  selectedDate: propSelectedDate,
+  onSave, 
+  onDelete,
+  onEventCreated,
+  onEventUpdated,
+  onEventDeleted
+}: EventDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { t, language } = useLanguage();
@@ -27,8 +41,8 @@ export const EventDialog = ({ open, onOpenChange, event, onSave, onDelete }: Eve
   const [userSurname, setUserSurname] = useState("");
   const [userNumber, setUserNumber] = useState("");
   const [socialNetworkLink, setSocialNetworkLink] = useState("");
-  const [startDate, setStartDate] = useState<Date>(new Date());
-  const [endDate, setEndDate] = useState<Date>(new Date());
+  const [startDate, setStartDate] = useState<Date>(propSelectedDate || new Date());
+  const [endDate, setEndDate] = useState<Date>(propSelectedDate || new Date());
   const [paymentStatus, setPaymentStatus] = useState<string>("not_paid");
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [eventNotes, setEventNotes] = useState<string>("");
@@ -68,14 +82,14 @@ export const EventDialog = ({ open, onOpenChange, event, onSave, onDelete }: Eve
       setUserSurname("");
       setUserNumber("");
       setSocialNetworkLink("");
-      setStartDate(new Date());
-      setEndDate(new Date());
+      setStartDate(propSelectedDate || new Date());
+      setEndDate(propSelectedDate || new Date());
       setPaymentStatus("not_paid");
       setPaymentAmount("");
       setEventNotes("");
       setAdditionalPersons([]);
     }
-  }, [event]);
+  }, [event, propSelectedDate]);
 
   const handleAddPerson = () => {
     setAdditionalPersons([
@@ -292,7 +306,8 @@ export const EventDialog = ({ open, onOpenChange, event, onSave, onDelete }: Eve
               title: t("common.success"),
               description: t("crm.eventUpdated"),
             });
-            onSave(data);
+            onSave?.(data);
+            onEventUpdated?.();
             onOpenChange(false);
           }
         } else {
@@ -321,7 +336,8 @@ export const EventDialog = ({ open, onOpenChange, event, onSave, onDelete }: Eve
               title: t("common.success"),
               description: t("crm.eventCreated"),
             });
-            onSave(data);
+            onSave?.(data);
+            onEventCreated?.();
             onOpenChange(false);
           }
         }
@@ -351,6 +367,8 @@ export const EventDialog = ({ open, onOpenChange, event, onSave, onDelete }: Eve
       toast,
       t,
       onSave,
+      onEventCreated,
+      onEventUpdated,
       onOpenChange,
       language
     ]
@@ -372,7 +390,8 @@ export const EventDialog = ({ open, onOpenChange, event, onSave, onDelete }: Eve
         title: t("common.success"),
         description: t("common.deleteSuccess"),
       });
-      onDelete(event.id);
+      onDelete?.(event.id);
+      onEventDeleted?.();
       onOpenChange(false);
     } catch (error: any) {
       console.error("Error deleting event:", error);
@@ -402,6 +421,10 @@ export const EventDialog = ({ open, onOpenChange, event, onSave, onDelete }: Eve
             setUserNumber={setUserNumber}
             socialNetworkLink={socialNetworkLink}
             setSocialNetworkLink={setSocialNetworkLink}
+            eventNotes={eventNotes}
+            setEventNotes={setEventNotes}
+            eventName=""
+            setEventName={() => {}}
             startDate={startDate.toISOString()}
             setStartDate={(dateString: string) => setStartDate(new Date(dateString))}
             endDate={endDate.toISOString()}
@@ -410,8 +433,17 @@ export const EventDialog = ({ open, onOpenChange, event, onSave, onDelete }: Eve
             setPaymentStatus={setPaymentStatus}
             paymentAmount={paymentAmount}
             setPaymentAmount={setPaymentAmount}
-            customerNotes={eventNotes}
-            setCustomerNotes={setEventNotes}
+            selectedFile={null}
+            setSelectedFile={() => {}}
+            fileError=""
+            setFileError={() => {}}
+            displayedFiles={[]}
+            onFileDeleted={() => {}}
+            repeatPattern="none"
+            setRepeatPattern={() => {}}
+            repeatUntil={undefined}
+            setRepeatUntil={() => {}}
+            isNewEvent={!event}
             additionalPersons={additionalPersons.map((person, index) => ({
               id: index.toString(),
               title: person.title,
@@ -431,6 +463,7 @@ export const EventDialog = ({ open, onOpenChange, event, onSave, onDelete }: Eve
               const index = parseInt(personId);
               handleRemovePerson(index);
             }}
+            onUpdatePerson={() => {}}
           />
 
           <div className="flex justify-between">
