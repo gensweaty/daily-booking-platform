@@ -18,7 +18,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { testEmailSending } from "@/lib/api"; // Import the email sending function
 
 interface CustomerDialogProps {
   open: boolean;
@@ -199,52 +198,177 @@ export const CustomerDialog = ({
   // Helper function to send email notification for new event
   const sendEventCreationEmail = async (eventData: any) => {
     try {
+      console.log("[EMAIL] Starting email sending process for event:", eventData.id);
+      
       // Check if we have a valid customer email to send to
       const customerEmail = eventData.social_network_link;
       if (!customerEmail || !isValidEmail(customerEmail)) {
-        console.warn("No valid customer email found for sending notification");
+        console.warn("[EMAIL] No valid customer email found:", customerEmail);
         return;
       }
       
       // Get user's business profile for the email
-      const { data: businessData } = await supabase
+      const { data: businessData, error: businessError } = await supabase
         .from('business_profiles')
         .select('*')
         .eq('user_id', user?.id)
         .maybeSingle();
       
-      console.log("Business data for email:", businessData);
+      if (businessError) {
+        console.error("[EMAIL] Error fetching business profile:", businessError);
+        return;
+      }
+      
+      console.log("[EMAIL] Business data loaded:", businessData?.business_name);
       
       if (businessData) {
-        // Send email notification to the customer's email address
-        // Use the same email format/template as the calendar event emails
-        const emailResult = await testEmailSending(
-          customerEmail, // Customer's email
-          eventData.title || eventData.user_surname || '', // Customer name
-          businessData.business_name || '', // Business name from profile
-          eventData.start_date,
-          eventData.end_date,
-          eventData.payment_status || 'not_paid',
-          eventData.payment_amount || null,
-          businessData.contact_address || '',
-          eventData.id,
-          null, // language parameter
-          eventData.event_notes || '' // Pass event notes to the email function
+        const emailPayload = {
+          recipientEmail: customerEmail,
+          fullName: eventData.title || eventData.user_surname || '',
+          businessName: businessData.business_name || 'Our Business',
+          startDate: eventData.start_date,
+          endDate: eventData.end_date,
+          paymentStatus: eventData.payment_status || 'not_paid',
+          paymentAmount: eventData.payment_amount || null,
+          businessAddress: businessData.contact_address || 'Address not provided',
+          eventId: eventData.id,
+          source: 'event-creation',
+          language: language || 'en',
+          eventNotes: eventData.event_notes || ''
+        };
+        
+        console.log("[EMAIL] Sending email with payload:", emailPayload);
+        
+        // Use Supabase function invoke instead of fetch
+        const { data: emailResult, error: emailError } = await supabase.functions.invoke(
+          'send-booking-approval-email',
+          {
+            body: emailPayload
+          }
         );
         
-        console.log("Event creation email result:", emailResult);
-        
-        if (emailResult?.error) {
-          console.warn("Failed to send event creation email:", emailResult.error);
+        if (emailError) {
+          console.error("[EMAIL] Failed to send event creation email:", emailError);
+          toast({
+            title: t("common.warning"),
+            description: `Email sending failed: ${emailError.message}`,
+            variant: "destructive"
+          });
         } else {
-          console.log("Event creation email sent successfully to customer:", customerEmail);
+          console.log("[EMAIL] Event creation email sent successfully:", emailResult);
+          toast({
+            title: t("common.success"),
+            description: "Event created and notification email sent successfully!",
+          });
         }
       } else {
-        console.warn("Missing business data for event notification");
+        console.warn("[EMAIL] Missing business data for event notification");
+        toast({
+          title: t("common.warning"),
+          description: "Event created but email notification failed - missing business profile",
+          variant: "destructive"
+        });
       }
     } catch (error) {
-      console.error("Error sending event creation email:", error);
-      // Don't throw - we don't want to break the main flow if just the email fails
+      console.error("[EMAIL] Error in email sending process:", error);
+      toast({
+        title: t("common.warning"),
+        description: `Email sending failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive"
+      });
+    }
+  };
+
+  useEffect(() => {
+    const loadFiles = async () => {
+      if (!customerId) {
+        setDisplayedFiles([]);
+        return;
+      }
+
+      try {
+        let filesData: any[] = [];
+        if (customerId.startsWith('event-')) {
+          const eventId = customerId.replace('event-', '');
+          const { data: eventFiles, error: eventFilesError } = await supabase
+            .from('event_files')
+            .select('*')
+            .eq('event_id', eventId);
+
+          if (eventFilesError) {
+            console.error("Error loading event files:", eventFilesError);
+          } else {
+            filesData = eventFiles || [];
+          }
+        } else {
+          const { data: customerFiles, error: customerFilesError } = await supabase
+            .from('customer_files_new')
+            .select('*')
+            .eq('customer_id', customerId);
+
+          if (customerFilesError) {
+            console.error("Error loading customer files:", customerFilesError);
+          } else {
+            filesData = customerFiles || [];
+          }
+        }
+
+        console.log("Files loaded for customer/event:", filesData);
+        setDisplayedFiles(filesData);
+      } catch (error) {
+        console.error("Error loading files:", error);
+        setDisplayedFiles([]);
+      }
+    };
+
+    if (open) {
+      loadFiles();
+      setSelectedFile(null);
+      setFileError("");
+    }
+  }, [open, customerId]);
+
+  const uploadFile = async (customerId: string, file: File) => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${customerId}/${crypto.randomUUID()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('customer_attachments')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error('Error uploading file:', uploadError);
+        throw uploadError;
+      }
+
+      const fileData = {
+        filename: file.name,
+        file_path: filePath,
+        content_type: file.type,
+        size: file.size,
+        user_id: user?.id,
+        customer_id: customerId,
+      };
+
+      const { error: fileRecordError } = await supabase
+        .from('customer_files_new')
+        .insert(fileData);
+
+      if (fileRecordError) {
+        console.error('Error creating file record:', fileRecordError);
+        throw fileRecordError;
+      }
+
+      return fileData;
+    } catch (error: any) {
+      console.error("Error during file upload:", error);
+      toast({
+        title: t("common.error"),
+        description: error.message || t("common.uploadError"),
+        variant: "destructive",
+      });
+      throw error;
     }
   };
 
@@ -274,7 +398,7 @@ export const CustomerDialog = ({
           payment_status,
           payment_amount: payment_amount ? parseFloat(payment_amount) : null,
           user_id: user.id,
-          create_event: createEvent, // Make sure to update the create_event flag
+          create_event: createEvent,
           start_date: createEvent ? eventStartDate.toISOString() : null,
           end_date: createEvent ? eventEndDate.toISOString() : null
         };
@@ -431,10 +555,10 @@ export const CustomerDialog = ({
         if (createEvent && customerData) {
           const eventData = {
             title: title,
-            user_surname: title, // Use title as user_surname instead of user_number
+            user_surname: title,
             user_number: user_number,
-            social_network_link: social_network_link, // This contains the email address
-            event_notes: event_notes, // Ensure event_notes is included
+            social_network_link: social_network_link,
+            event_notes: event_notes,
             payment_status: payment_status,
             payment_amount: payment_amount ? parseFloat(payment_amount) : null,
             user_id: user.id,
@@ -471,7 +595,7 @@ export const CustomerDialog = ({
                 end_date: eventEndDate.toISOString(),
                 payment_status: payment_status,
                 payment_amount: payment_amount ? parseFloat(payment_amount) : null,
-                event_notes: event_notes // Explicitly include event notes
+                event_notes: event_notes
               });
             }
             
