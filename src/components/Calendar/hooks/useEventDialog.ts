@@ -23,7 +23,6 @@ export const useEventDialog = ({
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
-      // Enhanced data preparation with proper date handling
       const eventData = {
         ...data,
         type: 'event',
@@ -31,22 +30,14 @@ export const useEventDialog = ({
         user_surname: data.user_surname || data.title,
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
         checkAvailability: false,
-        language: data.language || language || 'en',
-        // Ensure proper date format for recurring events
-        repeat_until: data.repeat_until ? (typeof data.repeat_until === 'string' ? data.repeat_until : data.repeat_until) : undefined
+        language: data.language || language || 'en'
       };
       
-      console.log("🔄 Creating event with enhanced data:", {
-        ...eventData,
-        recurringSettings: {
-          is_recurring: eventData.is_recurring,
-          repeat_pattern: eventData.repeat_pattern,
-          repeat_until: eventData.repeat_until
-        }
-      });
+      console.log("🔄 Creating event with language:", eventData.language);
       
       if (!createEvent) throw new Error("Create event function not provided");
       
+      console.log("🔄 Creating event with data:", eventData);
       const createdEvent = await createEvent(eventData);
       
       setIsNewEventDialogOpen(false);
@@ -70,26 +61,17 @@ export const useEventDialog = ({
         throw new Error("Update event function not provided or no event selected");
       }
       
-      // Enhanced data preparation with proper date handling
       const eventData = {
         ...data,
         type: selectedEvent.type || 'event',
         title: data.user_surname || data.title || selectedEvent.title,
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
-        language: data.language || selectedEvent.language || language || 'en',
-        // Ensure proper date format for recurring events
-        repeat_until: data.repeat_until ? (typeof data.repeat_until === 'string' ? data.repeat_until : data.repeat_until) : undefined
+        language: data.language || selectedEvent.language || language || 'en'
       };
       
-      console.log("🔄 Updating event with enhanced data:", {
-        ...eventData,
-        recurringSettings: {
-          is_recurring: eventData.is_recurring,
-          repeat_pattern: eventData.repeat_pattern,
-          repeat_until: eventData.repeat_until
-        }
-      });
+      console.log("🔄 Updating event with language:", eventData.language);
+      console.log("🔄 Updating event with data:", eventData);
       
       const updatedEvent = await updateEvent({
         ...eventData,
@@ -114,8 +96,6 @@ export const useEventDialog = ({
   const handleDeleteEvent = async (deleteChoice?: "this" | "series") => {
     try {
       if (!deleteEvent || !selectedEvent) throw new Error("Delete event function not provided or no event selected");
-      
-      console.log("🗑️ Deleting event:", selectedEvent.id, deleteChoice);
       
       const result = await deleteEvent({ id: selectedEvent.id, deleteChoice });
       

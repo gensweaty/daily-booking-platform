@@ -35,41 +35,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         throw eventsError;
       }
 
-      console.log(`📊 Raw events fetched: ${events?.length || 0}`);
-
-      // Enhanced logging for recurring events analysis
-      const parentEvents = events?.filter(e => e.is_recurring && !e.parent_event_id) || [];
-      const childEvents = events?.filter(e => e.parent_event_id) || [];
-      
-      console.log("🔁 RECURRING EVENTS ANALYSIS:", {
-        totalEvents: events?.length || 0,
-        parentRecurringEvents: parentEvents.length,
-        childRecurringEvents: childEvents.length,
-        regularEvents: (events?.length || 0) - parentEvents.length - childEvents.length
-      });
-
-      // Log details of parent recurring events
-      if (parentEvents.length > 0) {
-        console.log("👨‍👩‍👧‍👦 Parent recurring events:", parentEvents.map(e => ({
-          id: e.id,
-          title: e.title,
-          repeat_pattern: e.repeat_pattern,
-          repeat_until: e.repeat_until,
-          start_date: e.start_date,
-          is_recurring: e.is_recurring
-        })));
-      }
-
-      // Log details of child recurring events
-      if (childEvents.length > 0) {
-        console.log("👶 Child recurring events:", childEvents.map(e => ({
-          id: e.id,
-          title: e.title,
-          parent_id: e.parent_event_id,
-          start_date: e.start_date
-        })));
-      }
-
       // Fetch booking requests if we have a business ID
       let bookingRequests: any[] = [];
       if (businessId) {
@@ -84,43 +49,74 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           console.error("❌ Error fetching booking requests:", bookingsError);
         } else {
           bookingRequests = bookings || [];
-          console.log(`📋 Booking requests fetched: ${bookingRequests.length}`);
         }
       }
+
+      // Separate regular events from deletion exceptions
+      const regularEvents = events?.filter(event => 
+        event.type !== 'deletion_exception' && 
+        !event.title?.startsWith('__DELETED_') && 
+        event.user_surname !== '__SYSTEM_DELETION_EXCEPTION__'
+      ) || [];
+      
+      const deletionExceptions = events?.filter(event => 
+        event.type === 'deletion_exception' || 
+        event.title?.startsWith('__DELETED_') || 
+        event.user_surname === '__SYSTEM_DELETION_EXCEPTION__'
+      ) || [];
+
+      console.log("📊 Event breakdown:", {
+        totalEvents: events?.length || 0,
+        regularEvents: regularEvents.length,
+        deletionExceptions: deletionExceptions.length,
+        bookingRequests: bookingRequests.length
+      });
 
       // Convert all data to CalendarEventType format
       const allEvents: CalendarEventType[] = [];
 
-      // Add ALL events (both parent and child recurring events)
-      for (const event of events || []) {
-        const calendarEvent: CalendarEventType = {
-          id: event.id,
-          title: event.title,
-          start_date: event.start_date,
-          end_date: event.end_date,
-          user_id: event.user_id,
-          user_surname: event.user_surname,
-          user_number: event.user_number,
-          social_network_link: event.social_network_link,
-          event_notes: event.event_notes,
-          event_name: event.event_name,
-          payment_status: event.payment_status,
-          payment_amount: event.payment_amount,
-          type: event.type || 'event',
-          is_recurring: event.is_recurring || false,
-          repeat_pattern: event.repeat_pattern,
-          repeat_until: event.repeat_until,
-          parent_event_id: event.parent_event_id,
-          language: event.language,
-          created_at: event.created_at || new Date().toISOString(),
-        };
-        
-        allEvents.push(calendarEvent);
+      // Add ALL regular events (both parent and child recurring events)
+      for (const event of regularEvents) {
+        // Check if this is a deleted instance
+        const eventDate = event.start_date.split('T')[0];
+        const isDeleted = deletionExceptions.some(exception => {
+          const exceptionDate = exception.start_date.split('T')[0];
+          return exceptionDate === eventDate && (
+            // Check if it's for the same parent event
+            exception.parent_event_id === event.parent_event_id ||
+            exception.parent_event_id === event.id ||
+            (event.parent_event_id && exception.parent_event_id === event.parent_event_id)
+          );
+        });
+
+        if (!isDeleted) {
+          allEvents.push({
+            id: event.id,
+            title: event.title,
+            start_date: event.start_date,
+            end_date: event.end_date,
+            user_id: event.user_id,
+            user_surname: event.user_surname,
+            user_number: event.user_number,
+            social_network_link: event.social_network_link,
+            event_notes: event.event_notes,
+            event_name: event.event_name,
+            payment_status: event.payment_status,
+            payment_amount: event.payment_amount,
+            type: event.type || 'event',
+            is_recurring: event.is_recurring || false,
+            repeat_pattern: event.repeat_pattern,
+            repeat_until: event.repeat_until,
+            parent_event_id: event.parent_event_id,
+            language: event.language,
+            created_at: event.created_at || new Date().toISOString(),
+          });
+        }
       }
 
       // Add booking requests
       for (const booking of bookingRequests) {
-        const bookingEvent: CalendarEventType = {
+        allEvents.push({
           id: booking.id,
           title: booking.title,
           start_date: booking.start_date,
@@ -135,26 +131,38 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           type: 'booking_request',
           language: booking.language,
           created_at: booking.created_at || new Date().toISOString(),
-        };
-        
-        allEvents.push(bookingEvent);
+        });
       }
 
-      console.log(`✅ Final events processed: ${allEvents.length} (${events?.length || 0} events + ${bookingRequests.length} bookings)`);
+      // Log recurring events info
+      const parentEvents = allEvents.filter(e => e.is_recurring && !e.parent_event_id);
+      const childEvents = allEvents.filter(e => e.parent_event_id);
       
-      // Enhanced logging for final recurring events in result
-      const finalRecurringEvents = allEvents.filter(e => e.is_recurring || e.parent_event_id);
-      if (finalRecurringEvents.length > 0) {
-        console.log("🔁 Final recurring events ready for display:", finalRecurringEvents.map(e => ({
+      console.log("🔁 Recurring events summary:", {
+        parentRecurringEvents: parentEvents.length,
+        childRecurringEvents: childEvents.length,
+        totalEvents: allEvents.length
+      });
+
+      if (parentEvents.length > 0) {
+        console.log("👨‍👩‍👧‍👦 Parent recurring events:", parentEvents.map(e => ({
           id: e.id,
           title: e.title,
-          is_recurring: e.is_recurring,
-          parent_event_id: e.parent_event_id,
-          start_date: e.start_date,
-          repeat_pattern: e.repeat_pattern
+          pattern: e.repeat_pattern,
+          start: e.start_date
         })));
       }
-      
+
+      if (childEvents.length > 0) {
+        console.log("👶 Child recurring events:", childEvents.map(e => ({
+          id: e.id,
+          title: e.title,
+          parent_id: e.parent_event_id,
+          start: e.start_date
+        })));
+      }
+
+      console.log(`✅ Loaded ${allEvents.length} total events (${regularEvents.length} regular + ${bookingRequests.length} bookings, filtered ${deletionExceptions.length} exceptions)`);
       return allEvents;
 
     } catch (error) {
@@ -181,7 +189,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("🔄 Creating event with data:", eventData);
 
-      // Use the database function for atomic operations
+      // Use the new database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
         p_event_data: {
           title: eventData.user_surname || eventData.title,
@@ -204,12 +212,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         p_event_id: null
       });
 
-      if (error) {
-        console.error("❌ RPC Error during event creation:", error);
-        throw error;
-      }
-
-      console.log("✅ Event created successfully with ID:", savedEventId);
+      if (error) throw error;
 
       // Return a complete CalendarEventType object
       return {
@@ -224,7 +227,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       } as CalendarEventType;
     },
     onSuccess: () => {
-      // Invalidate queries to refetch events
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
@@ -251,7 +253,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("🔄 Updating event with data:", eventData);
 
-      // Use the database function for atomic operations
+      // Use the new database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
         p_event_data: {
           title: eventData.user_surname || eventData.title,
@@ -274,12 +276,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         p_event_id: eventData.id
       });
 
-      if (error) {
-        console.error("❌ RPC Error during event update:", error);
-        throw error;
-      }
-
-      console.log("✅ Event updated successfully with ID:", savedEventId);
+      if (error) throw error;
 
       // Return a complete CalendarEventType object
       return {
@@ -294,7 +291,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       } as CalendarEventType;
     },
     onSuccess: () => {
-      // Invalidate queries to refetch events
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
@@ -327,16 +323,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         .eq('id', id)
         .eq('user_id', user.id);
 
-      if (error) {
-        console.error("❌ Error deleting event:", error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log("✅ Event deleted successfully:", id);
       return { success: true };
     },
     onSuccess: () => {
-      // Invalidate queries to refetch events
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
