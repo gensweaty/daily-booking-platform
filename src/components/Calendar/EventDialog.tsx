@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -421,14 +420,24 @@ export const EventDialog = ({
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
       };
 
+      // Log the data being sent for debugging
+      console.log('eventData:', eventData);
+      console.log('additionalPersons:', additionalPersons);
+      console.log('Calling save_event_with_persons with:', {
+        p_event_data: eventData,
+        p_additional_persons: additionalPersons,
+        p_user_id: user.id,
+        p_event_id: eventId || initialData?.id
+      });
+
       let result;
       
       if (eventId || initialData) {
-        // Update existing event
+        // Update existing event with JSON stringification
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: eventData,
-            p_additional_persons: additionalPersons,
+            p_event_data: JSON.stringify(eventData),
+            p_additional_persons: JSON.stringify(additionalPersons),
             p_user_id: user.id,
             p_event_id: eventId || initialData?.id
           });
@@ -448,17 +457,18 @@ export const EventDialog = ({
         
         onEventUpdated?.();
       } else {
-        // Create new event
+        // Create new event with JSON stringification
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: eventData,
-            p_additional_persons: additionalPersons,
+            p_event_data: JSON.stringify(eventData),
+            p_additional_persons: JSON.stringify(additionalPersons),
             p_user_id: user.id
           });
 
         if (result.error) throw result.error;
 
         const newEventId = result.data;
+        console.log("Event created with ID:", newEventId);
         
         // Upload files for new event
         if (files.length > 0) {

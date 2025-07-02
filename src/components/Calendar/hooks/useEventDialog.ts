@@ -31,10 +31,19 @@ export const useEventDialog = ({
         user_surname: data.user_surname || data.title,
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
         checkAvailability: false,
-        language: data.language || language || 'en'
+        language: data.language || language || 'en',
+        // Ensure recurring fields are properly set
+        is_recurring: data.is_recurring || false,
+        repeat_pattern: data.is_recurring ? data.repeat_pattern : null,
+        repeat_until: data.is_recurring && data.repeat_until ? data.repeat_until : null
       };
       
       console.log("Creating event with language:", eventData.language);
+      console.log("Creating recurring event:", {
+        is_recurring: eventData.is_recurring,
+        repeat_pattern: eventData.repeat_pattern,
+        repeat_until: eventData.repeat_until
+      });
       
       if (!createEvent) throw new Error("Create event function not provided");
       
@@ -68,7 +77,11 @@ export const useEventDialog = ({
         title: data.user_surname || data.title || selectedEvent.title,
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
-        language: data.language || selectedEvent.language || language || 'en'
+        language: data.language || selectedEvent.language || language || 'en',
+        // Ensure recurring fields are properly handled
+        is_recurring: data.is_recurring !== undefined ? data.is_recurring : selectedEvent.is_recurring,
+        repeat_pattern: data.is_recurring ? data.repeat_pattern : null,
+        repeat_until: data.is_recurring && data.repeat_until ? data.repeat_until : null
       };
       
       console.log("Updating event with language:", eventData.language);
@@ -99,6 +112,8 @@ export const useEventDialog = ({
       if (!deleteEvent || !selectedEvent) throw new Error("Delete event function not provided or no event selected");
       
       const finalChoice = choice || deleteChoice;
+      console.log("Deleting event with choice:", finalChoice);
+      
       const result = await deleteEvent({ id: selectedEvent.id, deleteChoice: finalChoice });
       
       setSelectedEvent(null);

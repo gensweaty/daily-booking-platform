@@ -127,30 +127,40 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("Creating event with data:", eventData);
 
-      // Use the database function for atomic operations
+      // Prepare event data with proper recurring settings
+      const preparedEventData = {
+        title: eventData.user_surname || eventData.title,
+        user_surname: eventData.user_surname,
+        user_number: eventData.user_number,
+        social_network_link: eventData.social_network_link,
+        event_notes: eventData.event_notes,
+        event_name: eventData.event_name,
+        start_date: eventData.start_date,
+        end_date: eventData.end_date,
+        payment_status: eventData.payment_status || 'not_paid',
+        payment_amount: eventData.payment_amount?.toString() || '',
+        type: eventData.type || 'event',
+        is_recurring: eventData.is_recurring || false,
+        repeat_pattern: eventData.is_recurring ? eventData.repeat_pattern : null,
+        repeat_until: eventData.is_recurring && eventData.repeat_until ? eventData.repeat_until : null
+      };
+
+      console.log("Prepared event data for RPC:", preparedEventData);
+
+      // Use the database function for atomic operations with JSON stringification
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: {
-          title: eventData.user_surname || eventData.title,
-          user_surname: eventData.user_surname,
-          user_number: eventData.user_number,
-          social_network_link: eventData.social_network_link,
-          event_notes: eventData.event_notes,
-          event_name: eventData.event_name,
-          start_date: eventData.start_date,
-          end_date: eventData.end_date,
-          payment_status: eventData.payment_status || 'not_paid',
-          payment_amount: eventData.payment_amount?.toString() || '',
-          type: eventData.type || 'event',
-          is_recurring: eventData.is_recurring || false,
-          repeat_pattern: eventData.repeat_pattern,
-          repeat_until: eventData.repeat_until
-        },
-        p_additional_persons: [], // No additional persons for direct creation
+        p_event_data: JSON.stringify(preparedEventData),
+        p_additional_persons: JSON.stringify([]), // No additional persons for direct creation
         p_user_id: user.id,
         p_event_id: null
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("RPC Error:", error);
+        throw error;
+      }
+
+      console.log("Event created successfully with ID:", savedEventId);
 
       // Return a complete CalendarEventType object
       return {
@@ -191,30 +201,36 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("Updating event with data:", eventData);
 
-      // Use the database function for atomic operations
+      // Prepare event data with proper recurring settings
+      const preparedEventData = {
+        title: eventData.user_surname || eventData.title,
+        user_surname: eventData.user_surname,
+        user_number: eventData.user_number,
+        social_network_link: eventData.social_network_link,
+        event_notes: eventData.event_notes,
+        event_name: eventData.event_name,
+        start_date: eventData.start_date,
+        end_date: eventData.end_date,
+        payment_status: eventData.payment_status || 'not_paid',
+        payment_amount: eventData.payment_amount?.toString() || '',
+        type: eventData.type || 'event',
+        is_recurring: eventData.is_recurring || false,
+        repeat_pattern: eventData.is_recurring ? eventData.repeat_pattern : null,
+        repeat_until: eventData.is_recurring && eventData.repeat_until ? eventData.repeat_until : null
+      };
+
+      // Use the database function for atomic operations with JSON stringification
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: {
-          title: eventData.user_surname || eventData.title,
-          user_surname: eventData.user_surname,
-          user_number: eventData.user_number,
-          social_network_link: eventData.social_network_link,
-          event_notes: eventData.event_notes,
-          event_name: eventData.event_name,
-          start_date: eventData.start_date,
-          end_date: eventData.end_date,
-          payment_status: eventData.payment_status || 'not_paid',
-          payment_amount: eventData.payment_amount?.toString() || '',
-          type: eventData.type || 'event',
-          is_recurring: eventData.is_recurring || false,
-          repeat_pattern: eventData.repeat_pattern,
-          repeat_until: eventData.repeat_until
-        },
-        p_additional_persons: [], // Additional persons handled in EventDialog
+        p_event_data: JSON.stringify(preparedEventData),
+        p_additional_persons: JSON.stringify([]), // Additional persons handled in EventDialog
         p_user_id: user.id,
         p_event_id: eventData.id
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("RPC Error:", error);
+        throw error;
+      }
 
       return {
         id: savedEventId,
@@ -261,7 +277,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         p_delete_choice: deleteChoice || 'this'
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Delete RPC Error:", error);
+        throw error;
+      }
 
       return { success: true, deletedCount };
     },
