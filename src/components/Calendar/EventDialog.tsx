@@ -332,47 +332,6 @@ export const EventDialog = ({
     }
   };
 
-  // Helper functions to convert between Date and string formats
-  const handleStartDateChange = (date: Date) => {
-    const formatDateTime = (date: Date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      return `${year}-${month}-${day}T${hours}:${minutes}`;
-    };
-    setStartDate(formatDateTime(date));
-  };
-
-  const handleEndDateChange = (date: Date) => {
-    const formatDateTime = (date: Date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      return `${year}-${month}-${day}T${hours}:${minutes}`;
-    };
-    setEndDate(formatDateTime(date));
-  };
-
-  // Helper functions to convert string to Date for the fields component
-  const getStartDateAsDate = (): Date => {
-    if (startDate) {
-      return new Date(startDate);
-    }
-    return selectedDate || new Date();
-  };
-
-  const getEndDateAsDate = (): Date => {
-    if (endDate) {
-      return new Date(endDate);
-    }
-    const baseDate = selectedDate || new Date();
-    return new Date(baseDate.getTime() + 60 * 60 * 1000);
-  };
-
   // Helper function to handle repeat until date changes
   const handleRepeatUntilChange = (date: Date) => {
     const formatDate = (date: Date) => {
@@ -427,8 +386,8 @@ export const EventDialog = ({
             setIsRecurring={setIsRecurring}
             repeatPattern={repeatPattern}
             setRepeatPattern={setRepeatPattern}
-            repeatUntil={repeatUntil}
-            setRepeatUntil={setRepeatUntil}
+            repeatUntil={repeatUntil ? getRepeatUntilAsDate() : undefined}
+            setRepeatUntil={handleRepeatUntilChange}
             files={files}
             setFiles={setFiles}
             additionalPersons={additionalPersons.map(person => ({
