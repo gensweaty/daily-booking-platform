@@ -149,7 +149,7 @@ const getBusinessProfileWithFallbacks = async () => {
   }
 };
 
-// Consolidated email sending utility with improved fallback handling
+// Consolidated email sending utility using supabase.functions.invoke()
 export const sendBookingConfirmationEmail = async (
   recipientEmail: string, 
   fullName: string = '', 
@@ -166,9 +166,6 @@ export const sendBookingConfirmationEmail = async (
   try {
     console.log("=== ATTEMPTING TO SEND BOOKING CONFIRMATION ===");
     console.log(`🔔 Sending booking confirmation email to ${recipientEmail}`);
-    
-    // FORCE PRODUCTION EDGE FUNCTION ALWAYS - NO MORE LOCALHOST
-    const FUNCTION_BASE_URL = "https://mrueqpffzauvdxmuwhfa.supabase.co";
     
     if (!recipientEmail || !recipientEmail.includes('@')) {
       console.log("NOT SENDING EMAIL: Invalid email format or missing email:", recipientEmail);
@@ -203,48 +200,33 @@ export const sendBookingConfirmationEmail = async (
       eventNotes
     };
     
-    console.log("SENDING EMAIL", payload);
     console.log("📧 Email request payload:", {
       ...payload,
       recipientEmail: recipientEmail.trim().substring(0, 3) + '***' // Mask email for privacy
     });
     
-    let headers: Record<string, string> = { "Content-Type": "application/json" };
-
-    // Try with token first (if available, for dashboard)
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-
-      if (accessToken) {
-        console.log("✅ Using authenticated request with access token");
-        headers["Authorization"] = `Bearer ${accessToken}`;
-      }
-    } catch (authError) {
-      console.log("⚠️ No authentication available, sending without token");
+    // Use supabase.functions.invoke() instead of direct fetch
+    console.log("🌐 Invoking Edge Function: send-booking-approval-email");
+    
+    const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
+      body: payload
+    });
+    
+    if (error) {
+      console.error("❌ Error from supabase.functions.invoke:", error);
+      return { success: false, error: error.message || "Failed to send email" };
     }
-
-    console.log("🌐 Making POST request to:", `${FUNCTION_BASE_URL}/functions/v1/send-booking-approval-email`);
     
-    const response = await fetch(
-      `${FUNCTION_BASE_URL}/functions/v1/send-booking-approval-email`,
-      {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload)
-      }
-    );
+    console.log("✅ Email sent successfully:", data);
+    return { success: true, data };
     
-    console.log("📨 Response status:", response.status, response.statusText);
-    
-    return await handleEmailResponse(response);
   } catch (error) {
     console.error("❌ Error in sendBookingConfirmationEmail:", error);
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 };
 
-// New function specifically for event creation emails
+// New function specifically for event creation emails using supabase.functions.invoke()
 export const sendEventCreationEmail = async (
   recipientEmail: string, 
   fullName: string = '', 
@@ -261,9 +243,6 @@ export const sendEventCreationEmail = async (
   try {
     console.log("=== ATTEMPTING TO SEND EVENT CREATION EMAIL ===");
     console.log(`🔔 Sending event creation email to ${recipientEmail}`);
-    
-    // FORCE PRODUCTION EDGE FUNCTION ALWAYS - NO MORE LOCALHOST
-    const FUNCTION_BASE_URL = "https://mrueqpffzauvdxmuwhfa.supabase.co";
     
     if (!recipientEmail || !recipientEmail.includes('@')) {
       console.log("NOT SENDING EMAIL: Invalid email format or missing email:", recipientEmail);
@@ -298,74 +277,33 @@ export const sendEventCreationEmail = async (
       eventNotes
     };
     
-    console.log("SENDING EMAIL", payload);
     console.log("📧 Email request payload:", {
       ...payload,
       recipientEmail: recipientEmail.trim().substring(0, 3) + '***' // Mask email for privacy
     });
     
-    let headers: Record<string, string> = { "Content-Type": "application/json" };
-
-    // Try with token first (if available, for dashboard)
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-
-      if (accessToken) {
-        console.log("✅ Using authenticated request with access token");
-        headers["Authorization"] = `Bearer ${accessToken}`;
-      }
-    } catch (authError) {
-      console.log("⚠️ No authentication available, sending without token");
+    // Use supabase.functions.invoke() instead of direct fetch
+    console.log("🌐 Invoking Edge Function: send-booking-approval-email");
+    
+    const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
+      body: payload
+    });
+    
+    if (error) {
+      console.error("❌ Error from supabase.functions.invoke:", error);
+      return { success: false, error: error.message || "Failed to send email" };
     }
-
-    console.log("🌐 Making POST request to:", `${FUNCTION_BASE_URL}/functions/v1/send-booking-approval-email`);
     
-    const response = await fetch(
-      `${FUNCTION_BASE_URL}/functions/v1/send-booking-approval-email`,
-      {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload)
-      }
-    );
+    console.log("✅ Email sent successfully:", data);
+    return { success: true, data };
     
-    console.log("📨 Response status:", response.status, response.statusText);
-    
-    return await handleEmailResponse(response);
   } catch (error) {
     console.error("❌ Error in sendEventCreationEmail:", error);
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 };
 
-// Helper function to handle email response
-const handleEmailResponse = async (response: Response) => {
-  // Read the response as text first
-  const responseText = await response.text();
-  console.log("📧 Raw response text:", responseText);
-  
-  let data;
-  try {
-    data = responseText ? JSON.parse(responseText) : {};
-  } catch (e) {
-    console.error("Failed to parse response JSON:", e);
-    if (!response.ok) {
-      return { success: false, error: `Invalid response (status ${response.status})` };
-    }
-    return { success: true, message: "Email notification processed (response parsing error)" };
-  }
-  
-  if (!response.ok) {
-    console.error("❌ Failed to send booking confirmation email:", data);
-    return { success: false, error: data.error || data.details || "Failed to send email" };
-  } else {
-    console.log("✅ Email API response success:", data);
-    return { success: true, data };
-  }
-};
-
-// Helper function to send emails to multiple recipients (for events with multiple attendees)
+// Helper function to send emails to multiple recipients using supabase.functions.invoke()
 export const sendBookingConfirmationToMultipleRecipients = async (
   recipients: Array<{
     email: string;
