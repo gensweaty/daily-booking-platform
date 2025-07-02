@@ -16,25 +16,26 @@ interface BookingApprovalEmailRequest {
   paymentStatus?: string; 
   paymentAmount?: number;
   businessAddress?: string;
-  eventId?: string;
-  source?: string;
-  language?: string;
-  eventNotes?: string;
-  forceSend?: boolean; // **NEW: Allow bypassing deduplication for admin actions**
+  eventId?: string; // Used for deduplication
+  source?: string; // Used to track source of request
+  language?: string; // Used to determine email language
+  eventNotes?: string; // Added event notes field
 }
 
 // For deduplication: Store a map of recently sent emails with expiring entries
+// The key format is eventId_recipientEmail
 const recentlySentEmails = new Map<string, number>();
 
 // Clean up old entries from the deduplication map every 5 minutes
 setInterval(() => {
   const now = Date.now();
   for (const [key, timestamp] of recentlySentEmails.entries()) {
+    // Remove entries older than 10 minutes to be extra safe
     if (now - timestamp > 600000) {
       recentlySentEmails.delete(key);
     }
   }
-}, 300000);
+}, 300000); // Run every 5 minutes
 
 // Helper function to get currency symbol based on language
 function getCurrencySymbolByLanguage(language?: string): string {
@@ -73,16 +74,18 @@ function getEmailContent(
   addressInfo: string,
   eventNotesInfo: string
 ): string {
+  // Normalize language to lowercase and handle undefined
   const normalizedLang = (language || 'en').toLowerCase();
   
   console.log(`Creating email content in language: ${normalizedLang}`);
   
+  // Normalize business name
   const displayBusinessName = businessName && businessName !== "null" && businessName !== "undefined" 
     ? businessName 
     : 'SmartBookly';
   
   switch (normalizedLang) {
-    case 'ka':
+    case 'ka': // Georgian
       return `
         <!DOCTYPE html>
         <html lang="ka">
@@ -93,8 +96,8 @@ function getEmailContent(
         </head>
         <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
           <h2 style="color: #333;">გამარჯობა ${fullName},</h2>
-          <p>თქვენი ღონისძიება დაიწყება <b>${displayBusinessName}</b>-ში.</p>
-          <p style="margin: 8px 0;"><strong>ღონისძიების თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+          <p>თქვენი ჯავშანი დადასტურდა <b>${displayBusinessName}</b>-ში.</p>
+          <p style="margin: 8px 0;"><strong>დაჯავშნის თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
           ${addressInfo}
           ${paymentInfo}
           ${eventNotesInfo}
@@ -105,19 +108,19 @@ function getEmailContent(
         </html>
       `;
       
-    case 'es':
+    case 'es': // Spanish
       return `
         <!DOCTYPE html>
         <html lang="es">
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Evento Confirmado</title>
+          <title>Reserva Aprobada</title>
         </head>
         <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
           <h2 style="color: #333;">Hola ${fullName},</h2>
-          <p>Su evento ha sido <b style="color: #4CAF50;">confirmado</b> en <b>${displayBusinessName}</b>.</p>
-          <p style="margin: 8px 0;"><strong>Fecha y hora del evento:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+          <p>Su reserva ha sido <b style="color: #4CAF50;">aprobada</b> en <b>${displayBusinessName}</b>.</p>
+          <p style="margin: 8px 0;"><strong>Fecha y hora de la reserva:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
           ${addressInfo}
           ${paymentInfo}
           ${eventNotesInfo}
@@ -128,19 +131,19 @@ function getEmailContent(
         </html>
       `;
       
-    default:
+    default: // English (default)
       return `
         <!DOCTYPE html>
         <html lang="en">
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Event Confirmed</title>
+          <title>Booking Approved</title>
         </head>
         <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
           <h2 style="color: #333;">Hello ${fullName},</h2>
-          <p>Your event has been <b style="color: #4CAF50;">confirmed</b> at <b>${displayBusinessName}</b>.</p>
-          <p style="margin: 8px 0;"><strong>Event date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${displayBusinessName}</b>.</p>
+          <p style="margin: 8px 0;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
           ${addressInfo}
           ${paymentInfo}
           ${eventNotesInfo}
@@ -155,27 +158,32 @@ function getEmailContent(
 
 // Format payment status for different languages
 function formatPaymentStatus(status: string, language?: string): string {
+  // Normalize language to lowercase and handle undefined
   const normalizedLang = (language || 'en').toLowerCase();
   
   switch (status) {
     case "not_paid":
+      // Return translated payment status based on language
       if (normalizedLang === 'ka') return "გადაუხდელი";
       if (normalizedLang === 'es') return "No Pagado";
       return "Not Paid";
       
     case "partly_paid":
     case "partly":
+      // Return translated payment status based on language
       if (normalizedLang === 'ka') return "ნაწილობრივ გადახდილი";
       if (normalizedLang === 'es') return "Pagado Parcialmente";
       return "Partly Paid";
       
     case "fully_paid":
     case "fully":
+      // Return translated payment status based on language
       if (normalizedLang === 'ka') return "სრულად გადახდილი";
       if (normalizedLang === 'es') return "Pagado Totalmente";
       return "Fully Paid";
       
     default:
+      // For any other status, just capitalize and format
       const formatted = status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
       return formatted;
   }
@@ -186,18 +194,16 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log("📧 [EMAIL] Received request to send email via Resend API");
-  console.log("📧 [EMAIL] RESEND_API_KEY present:", !!Deno.env.get("RESEND_API_KEY"));
+  console.log("Received request to send booking approval email via Resend API");
 
   try {
     const requestBody = await req.text();
-    console.log("📧 [EMAIL] Raw request body:", requestBody);
     
     let parsedBody: BookingApprovalEmailRequest;
     try {
       parsedBody = JSON.parse(requestBody);
     } catch (parseError) {
-      console.error("📧 [EMAIL] Failed to parse JSON request:", parseError);
+      console.error("Failed to parse JSON request:", parseError);
       return new Response(
         JSON.stringify({ error: "Invalid JSON in request body" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
@@ -216,48 +222,32 @@ const handler = async (req: Request): Promise<Response> => {
       eventId,
       source,
       language,
-      eventNotes,
-      forceSend = false // **NEW: Default to false**
+      eventNotes
     } = parsedBody;
 
-    console.log("📧 [EMAIL] Parsed request body:", {
+    console.log("Request body:", {
       recipientEmail,
       fullName,
       businessName,
       paymentStatus,
       paymentAmount,
       language,
-      eventNotes: eventNotes ? "Present" : "Not present",
-      businessAddress: businessAddress ? "Present" : "Not present",
-      source,
-      forceSend
+      eventNotes
     });
 
-    // **NEW: Validate business address first**
-    const trimmedAddress = businessAddress?.trim();
-    if (!trimmedAddress || trimmedAddress === "" || trimmedAddress === "Address not provided") {
-      console.error("📧 [EMAIL] Invalid or missing business address:", businessAddress);
-      return new Response(
-        JSON.stringify({ 
-          error: "Invalid business address",
-          details: "A valid business address is required to send booking confirmation emails",
-          businessAddress: businessAddress
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
-      );
-    }
-
-    // Build deduplication key
+    // Build a standardized deduplication key that ignores the source
+    // This ensures we don't send duplicate emails just because they come from different sources
     let dedupeKey: string;
     
     if (eventId) {
       dedupeKey = `${eventId}_${recipientEmail}`;
       
-      // **UPDATED: Check deduplication only if not forced**
-      if (!forceSend && recentlySentEmails.has(dedupeKey)) {
+      // Check if we already sent an email for this event/recipient
+      const now = Date.now();
+      if (recentlySentEmails.has(dedupeKey)) {
         const lastSent = recentlySentEmails.get(dedupeKey);
-        const timeAgo = Date.now() - (lastSent || 0);
-        console.log(`📧 [EMAIL] Duplicate email detected for key ${dedupeKey}. Last sent ${timeAgo}ms ago. Skipping.`);
+        const timeAgo = now - (lastSent || 0);
+        console.log(`Duplicate email detected for key ${dedupeKey}. Last sent ${timeAgo}ms ago. Skipping.`);
         
         return new Response(
           JSON.stringify({ 
@@ -266,28 +256,39 @@ const handler = async (req: Request): Promise<Response> => {
             id: null,
             isDuplicate: true,
             dedupeKey: dedupeKey,
-            timeAgo: timeAgo,
-            canForceResend: true
+            timeAgo: timeAgo
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
         );
       }
     } else {
+      // If no eventId, use a combination of email and timestamps as a fallback
       dedupeKey = `${recipientEmail}_${startDate}_${endDate}`;
-    }
-
-    // **NEW: Log force send status**
-    if (forceSend) {
-      console.log(`📧 [EMAIL] Force send enabled, bypassing deduplication for key: ${dedupeKey}`);
     }
     
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(recipientEmail)) {
-      console.error("📧 [EMAIL] Invalid email format:", recipientEmail);
+      console.error("Invalid email format:", recipientEmail);
       return new Response(
         JSON.stringify({ error: "Invalid email format" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+      );
+    }
+    
+    // If there's no business address, reject the request
+    // This ensures we only send emails that include the address
+    if (!businessAddress || businessAddress.trim() === '') {
+      console.log(`Request without business address rejected for ${recipientEmail}`);
+      return new Response(
+        JSON.stringify({ 
+          message: "Email request rejected due to missing business address",
+          to: recipientEmail,
+          id: null,
+          skipped: true,
+          reason: "Missing business address"
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
     }
     
@@ -295,18 +296,17 @@ const handler = async (req: Request): Promise<Response> => {
     const formattedStartDate = formatDateTime(startDate, language);
     const formattedEndDate = formatDateTime(endDate, language);
     
-    console.log("📧 [EMAIL] Formatted dates:", { formattedStartDate, formattedEndDate });
-
     try {
       // Get the currency symbol based on language
       const currencySymbol = getCurrencySymbolByLanguage(language);
-      console.log(`📧 [EMAIL] Using currency symbol: ${currencySymbol} for language: ${language}`);
+      console.log(`Using currency symbol: ${currencySymbol} for language: ${language}`);
       
       // Format payment information if available based on language
       let paymentInfo = "";
       if (paymentStatus) {
         const formattedStatus = formatPaymentStatus(paymentStatus, language);
         
+        // Payment information label translations
         const paymentStatusLabel = language === 'ka' 
           ? "გადახდის სტატუსი" 
           : (language === 'es' ? "Estado del pago" : "Payment status");
@@ -324,17 +324,21 @@ const handler = async (req: Request): Promise<Response> => {
       
       // Prepare address section
       let addressInfo = "";
-      let addressDisplay = trimmedAddress;
+      let addressDisplay = businessAddress?.trim() || "";
       
+      // Address label translations
       const addressLabel = language === 'ka' 
         ? "მისამართი" 
         : (language === 'es' ? "Dirección" : "Address");
       
-      addressInfo = `<p style="margin: 8px 0;"><strong>${addressLabel}:</strong> ${addressDisplay}</p>`;
+      if (addressDisplay) {
+        addressInfo = `<p style="margin: 8px 0;"><strong>${addressLabel}:</strong> ${addressDisplay}</p>`;
+      }
       
       // Prepare event notes section
       let eventNotesInfo = "";
       if (eventNotes && typeof eventNotes === 'string' && eventNotes.trim() !== "") {
+        // Event notes label translations
         const notesLabel = language === 'ka'
           ? "შენიშვნა ღონისძიებაზე"
           : (language === 'es' ? "Notas del evento" : "Event notes");
@@ -357,7 +361,6 @@ const handler = async (req: Request): Promise<Response> => {
       // Use Resend API to send the email
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       if (!resendApiKey) {
-        console.error("📧 [EMAIL] Missing RESEND_API_KEY");
         throw new Error("Missing RESEND_API_KEY");
       }
       
@@ -365,15 +368,11 @@ const handler = async (req: Request): Promise<Response> => {
       
       // Email subjects based on language
       const emailSubject = language === 'ka' 
-        ? `ღონისძიება დადასტურებულია ${businessName || 'SmartBookly'}-ში` 
+        ? `ჯავშანი დადასტურებულია ${businessName || 'SmartBookly'}-ში` 
         : (language === 'es' 
-            ? `Evento Confirmado en ${businessName || 'SmartBookly'}` 
-            : `Event Confirmed at ${businessName || 'SmartBookly'}`);
+            ? `Reserva Aprobada en ${businessName || 'SmartBookly'}` 
+            : `Booking Approved at ${businessName || 'SmartBookly'}`);
       
-      console.log("📧 [EMAIL] Sending email with subject:", emailSubject);
-      console.log("📧 [EMAIL] From address:", `${businessName || 'SmartBookly'} <info@smartbookly.com>`);
-      console.log("📧 [EMAIL] To address:", recipientEmail);
-
       const emailResult = await resend.emails.send({
         from: `${businessName || 'SmartBookly'} <info@smartbookly.com>`,
         to: [recipientEmail],
@@ -382,15 +381,16 @@ const handler = async (req: Request): Promise<Response> => {
       });
 
       if (emailResult.error) {
-        console.error("📧 [EMAIL] Error from Resend API:", emailResult.error);
+        console.error("Error from Resend API:", emailResult.error);
         throw new Error(emailResult.error.message || "Unknown Resend API error");
       }
 
-      console.log(`📧 [EMAIL] Email successfully sent via Resend API to ${recipientEmail}, ID: ${emailResult.data?.id}`);
+      console.log(`Email successfully sent via Resend API to ${recipientEmail}, ID: ${emailResult.data?.id}`);
       
       // Mark as recently sent ONLY if the email was successfully sent
+      // This prevents failed attempts from blocking future retries
       recentlySentEmails.set(dedupeKey, Date.now());
-      console.log(`📧 [EMAIL] Setting deduplication key: ${dedupeKey} (tracking ${recentlySentEmails.size} emails)`);
+      console.log(`Setting deduplication key: ${dedupeKey} (tracking ${recentlySentEmails.size} emails)`);
       
       return new Response(
         JSON.stringify({ 
@@ -401,16 +401,16 @@ const handler = async (req: Request): Promise<Response> => {
           business_name_used: businessName || 'SmartBookly',
           source: source || 'unknown',
           dedupeKey: dedupeKey,
-          language: language,
-          currencySymbol: currencySymbol,
-          hasEventNotes: !!eventNotesInfo,
-          forceSend: forceSend
+          language: language, // Log the language used for verification
+          currencySymbol: currencySymbol, // Log the currency symbol used
+          hasEventNotes: !!eventNotesInfo // Log whether event notes were included
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
       
     } catch (emailError: any) {
-      console.error("📧 [EMAIL] Error sending email via Resend API:", emailError);
+      // Catch errors specifically from resend.emails.send
+      console.error("Error sending email via Resend API:", emailError);
       return new Response(
         JSON.stringify({
           error: "Failed to send email via Resend API",
@@ -421,7 +421,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
   } catch (error: any) {
-    console.error("📧 [EMAIL] Unhandled error in send-booking-approval-email:", error);
+    console.error("Unhandled error in send-booking-approval-email:", error);
     return new Response(
       JSON.stringify({ 
         error: error?.message || "Unknown error", 
@@ -436,6 +436,7 @@ const handler = async (req: Request): Promise<Response> => {
 // Format dates with timezone awareness using Intl.DateTimeFormat
 function formatDateTime(isoString: string, language?: string): string {
   try {
+    // Determine locale based on language
     let locale = 'en-US';
     if (language === 'ka') {
       locale = 'ka-GE';
@@ -443,14 +444,15 @@ function formatDateTime(isoString: string, language?: string): string {
       locale = 'es-ES';
     }
     
+    // Use Intl.DateTimeFormat with explicit timezone to ensure correct time display
     const formatter = new Intl.DateTimeFormat(locale, {
-      timeZone: 'Asia/Tbilisi',
+      timeZone: 'Asia/Tbilisi', // Set this to your local business timezone
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-      hour12: language !== 'ka',
+      hour12: language !== 'ka', // Georgian typically uses 24-hour format
     });
     
     const date = new Date(isoString);
@@ -458,8 +460,8 @@ function formatDateTime(isoString: string, language?: string): string {
     
     return formatted;
   } catch (error) {
-    console.error(`📧 [EMAIL] Error formatting date with timezone: ${error}`);
-    return isoString;
+    console.error(`Error formatting date with timezone: ${error}`);
+    return isoString; // Return original string if any error occurs
   }
 }
 
