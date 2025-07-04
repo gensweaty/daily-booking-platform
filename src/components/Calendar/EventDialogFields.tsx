@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -433,7 +434,11 @@ export const EventDialogFields = ({
         )}
         {existingFiles.length > 0 && (
           <div className="mt-2">
-            <SimpleFileDisplay files={convertedExistingFiles} onFileDeleted={onRemoveExistingFile} />
+            <SimpleFileDisplay 
+              files={convertedExistingFiles} 
+              parentType="event"
+              onFileDeleted={onRemoveExistingFile} 
+            />
           </div>
         )}
       </div>
