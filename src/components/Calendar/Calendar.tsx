@@ -204,19 +204,16 @@ export const Calendar = ({
     }
   };
 
-  // Filter events to show only those in the current view range
+  // CRITICAL FIX: Instead of filtering events by date range here, 
+  // pass ALL events to CalendarView and let it handle the filtering
+  // This matches how the debugger works - it shows all events and lets the view filter them
   const getEventsForView = () => {
     if (!events || events.length === 0) return [];
     
-    const { start: viewStart, end: viewEnd } = getViewDateRange();
-    
-    const filteredEvents = events.filter(event => {
-      const eventDate = new Date(event.start_date);
-      return isWithinInterval(eventDate, { start: viewStart, end: viewEnd });
-    });
-    
-    console.log(`[Calendar] Filtering events for view. Total: ${events.length}, In view: ${filteredEvents.length}`);
-    return filteredEvents;
+    // Don't filter by date range here - pass all events to the view
+    // The view will handle displaying only relevant events for the current time period
+    console.log(`[Calendar] Passing all ${events.length} events to CalendarView for filtering`);
+    return events;
   };
 
   const handlePrevious = () => {
@@ -361,7 +358,7 @@ export const Calendar = ({
   const gridBgClass = isDarkTheme ? "bg-gray-900" : "bg-white";
   const textClass = isDarkTheme ? "text-white" : "text-foreground";
 
-  // Get events for current view
+  // Get events for current view - now passing all events
   const eventsForView = getEventsForView();
 
   return (
@@ -370,7 +367,7 @@ export const Calendar = ({
       {!isExternalCalendar && (
         <div className="flex justify-between items-center">
           <div className="text-sm text-gray-500">
-            Showing {eventsForView.length} of {events?.length || 0} events
+            Showing {eventsForView.length} total events
           </div>
           <button
             onClick={() => setShowDebugger(!showDebugger)}
