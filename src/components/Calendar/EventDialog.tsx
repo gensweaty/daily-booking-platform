@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { EventDialogFields } from "./EventDialogFields";
 import { useToast } from "@/hooks/use-toast";
 import { sendEventCreationEmail } from "@/lib/api";
+import { validateEventData, EventFormData } from "@/lib/eventValidation";
 
 // Helper function to format datetime for datetime-local input with validation
 const formatDatetimeLocal = (dt: string | Date | null | undefined): string => {
@@ -499,57 +500,43 @@ export const EventDialog = ({
       return;
     }
 
-    // CRITICAL: Pre-submission validation
-    console.log("📋 Pre-submission validation:", {
+    // CRITICAL: Use new validation approach
+    const formData: EventFormData = {
       startDate,
       endDate,
       userSurname,
       title,
-      hasStart: !!startDate,
-      hasEnd: !!endDate,
-      hasTitle: !!(userSurname || title)
-    });
+      userNumber,
+      socialNetworkLink,
+      eventNotes,
+      eventName,
+      paymentStatus,
+      paymentAmount,
+      isRecurring,
+      repeatPattern,
+      repeatUntil
+    };
 
-    // CRITICAL: Validate required fields before submission
-    if (!startDate || !endDate) {
-      console.error("❌ Missing required dates on submission:", { startDate, endDate });
-      toast({
-        title: "Error",
-        description: "Start date and end date are required",
-        variant: "destructive",
-      });
-      return;
-    }
+    console.log("🔄 EventDialog - Validating form data:", formData);
 
-    if (!userSurname && !title) {
-      console.error("❌ Missing title on submission");
-      toast({
-        title: "Error",
-        description: "Event title is required",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // CRITICAL: Validate date format
-    const startDateObj = new Date(startDate);
-    const endDateObj = new Date(endDate);
+    // Validate using the new validation service
+    const validation = validateEventData(formData);
     
-    if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
-      console.error("❌ Invalid date format on submission:", { startDate, endDate });
+    if (!validation.isValid) {
+      console.error("❌ Form validation failed:", validation.errors);
       toast({
-        title: "Error",
-        description: "Invalid date format. Please check your dates.",
+        title: "Validation Error",
+        description: validation.errors.join(", "),
         variant: "destructive",
       });
       return;
     }
 
-    if (endDateObj <= startDateObj) {
-      console.error("❌ End date before start date:", { startDateObj, endDateObj });
+    if (!validation.sanitizedData) {
+      console.error("❌ No sanitized data from validation");
       toast({
         title: "Error",
-        description: "End date must be after start date",
+        description: "Failed to process form data",
         variant: "destructive",
       });
       return;
@@ -558,45 +545,17 @@ export const EventDialog = ({
     setIsLoading(true);
 
     try {
-      // Prepare event data with proper format for the database function
-      const eventData = {
-        title: userSurname || title || 'Untitled Event',
-        user_surname: userSurname || title || 'Unknown',
-        user_number: userNumber || '',
-        social_network_link: socialNetworkLink || '',
-        event_notes: eventNotes || '',
-        event_name: eventName || '',
-        start_date: startDateObj.toISOString(),
-        end_date: endDateObj.toISOString(),
-        payment_status: paymentStatus || 'not_paid',
-        payment_amount: paymentAmount || '',
-        type: 'event',
-        is_recurring: isRecurring,
-        repeat_pattern: isRecurring ? repeatPattern : null,
-        repeat_until: (isRecurring && repeatUntil) ? repeatUntil : null
-      };
-
-      // Enhanced logging for debugging
-      console.log("🔄 EventDialog - Submitting event data:");
-      console.log("📋 Event Data:", JSON.stringify(eventData, null, 2));
-      console.log("👥 Additional Persons:", JSON.stringify(additionalPersons, null, 2));
-      console.log("🔁 Recurring Info:", {
-        isRecurring,
-        repeatPattern,
-        repeatUntil,
-        actualPattern: isRecurring ? repeatPattern : null,
-        actualUntil: (isRecurring && repeatUntil) ? repeatUntil : null
-      });
+      console.log("🔄 EventDialog - Submitting validated data:", validation.sanitizedData);
+      console.log("👥 EventDialog - With additional persons:", additionalPersons);
 
       let result;
       
       if (eventId || initialData) {
         console.log("🔄 Updating existing event:", eventId || initialData?.id);
         
-        // ENHANCED: Stringify JSON parameters for PostgreSQL JSONB
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: JSON.stringify(eventData),
+            p_event_data: JSON.stringify(validation.sanitizedData),
             p_additional_persons: JSON.stringify(additionalPersons),
             p_user_id: user.id,
             p_event_id: eventId || initialData?.id
@@ -624,10 +583,9 @@ export const EventDialog = ({
       } else {
         console.log("🆕 Creating new event");
         
-        // ENHANCED: Stringify JSON parameters for PostgreSQL JSONB
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: JSON.stringify(eventData),
+            p_event_data: JSON.stringify(validation.sanitizedData),
             p_additional_persons: JSON.stringify(additionalPersons),
             p_user_id: user.id
           });
