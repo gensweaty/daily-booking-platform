@@ -36,6 +36,38 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("📊 Raw events fetched:", events?.length || 0);
 
+      // Enhanced logging for recurring events debugging
+      const parentEvents = events?.filter(e => e.is_recurring && !e.parent_event_id) || [];
+      const childEvents = events?.filter(e => e.parent_event_id) || [];
+      const regularEvents = events?.filter(e => !e.is_recurring && !e.parent_event_id) || [];
+      
+      console.log("🔁✅ Recurring events detailed breakdown:", {
+        totalEvents: events?.length || 0,
+        parentRecurringEvents: parentEvents.length,
+        childRecurringEvents: childEvents.length,
+        regularEvents: regularEvents.length
+      });
+
+      if (parentEvents.length > 0) {
+        console.log("👨‍👩‍👧‍👦 Parent recurring events:", parentEvents.map(e => ({
+          id: e.id,
+          title: e.title,
+          pattern: e.repeat_pattern,
+          start: e.start_date,
+          until: e.repeat_until,
+          isRecurring: e.is_recurring
+        })));
+      }
+
+      if (childEvents.length > 0) {
+        console.log("👶✅ Child recurring events:", childEvents.map(e => ({
+          id: e.id,
+          title: e.title,
+          parent_id: e.parent_event_id,
+          start: e.start_date
+        })));
+      }
+
       // Fetch booking requests if we have a business ID
       let bookingRequests: any[] = [];
       if (businessId) {
@@ -54,7 +86,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       }
 
       // Separate regular events from deletion exceptions
-      const regularEvents = events?.filter(event => 
+      const regularEventsFiltered = events?.filter(event => 
         event.type !== 'deletion_exception' && 
         !event.title?.startsWith('__DELETED_') && 
         event.user_surname !== '__SYSTEM_DELETION_EXCEPTION__'
@@ -66,9 +98,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         event.user_surname === '__SYSTEM_DELETION_EXCEPTION__'
       ) || [];
 
-      console.log("📊 Event breakdown:", {
+      console.log("📊 Event breakdown after filtering:", {
         totalEvents: events?.length || 0,
-        regularEvents: regularEvents.length,
+        regularEventsFiltered: regularEventsFiltered.length,
         deletionExceptions: deletionExceptions.length,
         bookingRequests: bookingRequests.length
       });
@@ -77,7 +109,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       const allEvents: CalendarEventType[] = [];
 
       // Add ALL regular events (both parent and child recurring events)
-      for (const event of regularEvents) {
+      for (const event of regularEventsFiltered) {
         // Check if this is a deleted instance
         const eventDate = event.start_date.split('T')[0];
         const isDeleted = deletionExceptions.some(exception => {
@@ -135,36 +167,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         });
       }
 
-      // Enhanced logging for recurring events
-      const parentEvents = allEvents.filter(e => e.is_recurring && !e.parent_event_id);
-      const childEvents = allEvents.filter(e => e.parent_event_id);
+      console.log(`✅ Loaded ${allEvents.length} total events (${regularEventsFiltered.length} regular + ${bookingRequests.length} bookings, filtered ${deletionExceptions.length} exceptions)`);
       
-      console.log("🔁✅ Recurring events summary:", {
-        parentRecurringEvents: parentEvents.length,
-        childRecurringEvents: childEvents.length,
+      // Final verification log for recurring events
+      const finalParentEvents = allEvents.filter(e => e.is_recurring && !e.parent_event_id);
+      const finalChildEvents = allEvents.filter(e => e.parent_event_id);
+      console.log("🔍 Final recurring events check:", {
+        parentEvents: finalParentEvents.length,
+        childEvents: finalChildEvents.length,
         totalEvents: allEvents.length
       });
 
-      if (parentEvents.length > 0) {
-        console.log("👨‍👩‍👧‍👦 Parent recurring events:", parentEvents.map(e => ({
-          id: e.id,
-          title: e.title,
-          pattern: e.repeat_pattern,
-          start: e.start_date,
-          until: e.repeat_until
-        })));
-      }
-
-      if (childEvents.length > 0) {
-        console.log("👶✅ Child recurring events:", childEvents.map(e => ({
-          id: e.id,
-          title: e.title,
-          parent_id: e.parent_event_id,
-          start: e.start_date
-        })));
-      }
-
-      console.log(`✅ Loaded ${allEvents.length} total events (${regularEvents.length} regular + ${bookingRequests.length} bookings, filtered ${deletionExceptions.length} exceptions)`);
       return allEvents;
 
     } catch (error) {

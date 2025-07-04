@@ -416,6 +416,12 @@ export const EventDialog = ({
     setIsLoading(true);
 
     try {
+      // Map biweekly to the correct database pattern
+      let dbRepeatPattern = repeatPattern;
+      if (repeatPattern === 'biweekly') {
+        dbRepeatPattern = 'weekly'; // We'll handle biweekly as weekly with custom logic
+      }
+
       // Prepare event data with proper recurring settings
       const eventData = {
         title: userSurname || title || 'Untitled Event',
@@ -430,8 +436,8 @@ export const EventDialog = ({
         payment_amount: paymentAmount || '',
         type: 'event',
         is_recurring: isRecurring,
-        repeat_pattern: isRecurring && repeatPattern !== 'none' ? repeatPattern : null,
-        repeat_until: (isRecurring && repeatUntil) ? repeatUntil : null
+        repeat_pattern: isRecurring && repeatPattern !== 'none' ? dbRepeatPattern : null,
+        repeat_until: (isRecurring && repeatUntil) ? format(repeatUntil, 'yyyy-MM-dd') : null
       };
 
       // Enhanced logging for debugging recurring events
@@ -441,7 +447,8 @@ export const EventDialog = ({
       console.log("🔁 Recurring Info:", {
         isRecurring,
         repeatPattern,
-        repeatUntil,
+        dbRepeatPattern,
+        repeatUntil: repeatUntil ? format(repeatUntil, 'yyyy-MM-dd') : null,
         finalRecurringValue: eventData.is_recurring,
         finalPattern: eventData.repeat_pattern,
         finalUntil: eventData.repeat_until
@@ -455,8 +462,8 @@ export const EventDialog = ({
         // Update existing event
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: eventData,
-            p_additional_persons: additionalPersons,
+            p_event_data: eventData, // Pass as object, not stringified
+            p_additional_persons: additionalPersons, // Pass as array, not stringified
             p_user_id: user.id,
             p_event_id: eventId || initialData?.id
           });
@@ -486,8 +493,8 @@ export const EventDialog = ({
         // Create new event
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: eventData,
-            p_additional_persons: additionalPersons,
+            p_event_data: eventData, // Pass as object, not stringified
+            p_additional_persons: additionalPersons, // Pass as array, not stringified
             p_user_id: user.id
           });
 
@@ -524,12 +531,17 @@ export const EventDialog = ({
                   });
                 } else {
                   console.warn("⚠️ No child events found - recurring event creation may have failed");
+                  toast({
+                    title: "Warning",
+                    description: "Event created but recurring instances may not have been generated properly.",
+                    variant: "destructive",
+                  });
                 }
               }
             } catch (verifyError) {
               console.error("❌ Error verifying child events:", verifyError);
             }
-          }, 1000);
+          }, 2000); // Wait 2 seconds for database operations to complete
         }
         
         // Upload files for new event
