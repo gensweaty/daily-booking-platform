@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -315,12 +314,12 @@ export const Calendar = ({
     toast.event.bookingSubmitted();
   };
 
-  // Functions to handle event operations and refresh calendar
+  // CRITICAL: Use the same aggressive refresh pattern as test event creation
   const refreshCalendar = () => {
     const queryKey = businessId ? ['business-events', businessId] : ['events', user?.id];
     queryClient.invalidateQueries({ queryKey });
     
-    // Also trigger a direct refetch with multiple attempts
+    // CRITICAL: Use the EXACT same pattern as test event creation
     setTimeout(() => {
       console.log("🔄 First refetch attempt...");
       refetch();
@@ -338,7 +337,7 @@ export const Calendar = ({
   };
 
   const handleEventCreated = () => {
-    console.log("Event created, refreshing calendar...");
+    console.log("🔄 Event created, using aggressive refresh pattern...");
     refreshCalendar();
   };
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -406,12 +407,12 @@ export const EventDialog = ({
           await uploadFiles(newEventId);
         }
 
-        // CRITICAL: For recurring events, wait for child events and force multiple refreshes
+        // CRITICAL: For recurring events, use the same aggressive refresh pattern as test events
         if (isRecurring) {
-          console.log("🔄 Waiting for recurring instances to be created...");
+          console.log("🔄 RECURRING EVENT: Using aggressive refresh pattern like test events...");
           
-          // Wait longer for SQL function to complete
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          // Wait longer for SQL function to complete (same as test events)
+          await new Promise(resolve => setTimeout(resolve, 2000));
           
           // Verify child events were created
           const { data: childEvents, error: childError } = await supabase
@@ -433,17 +434,24 @@ export const EventDialog = ({
             }
           }
           
-          // Force multiple refreshes to ensure events appear
-          console.log("🔄 Force refreshing calendar after recurring creation...");
+          // CRITICAL: Use the EXACT same aggressive refresh pattern as test events
+          console.log("🔄 Force refreshing calendar with test event pattern...");
+          
+          // First refresh - immediate
           setTimeout(() => {
+            console.log("🔄 First refetch attempt...");
             onEventCreated?.();
           }, 500);
           
+          // Second refresh - delayed
           setTimeout(() => {
+            console.log("🔄 Second refetch attempt...");
             onEventCreated?.();
           }, 1500);
           
+          // Third refresh - final
           setTimeout(() => {
+            console.log("🔄 Third refetch attempt...");
             onEventCreated?.();
           }, 3000);
         }
@@ -501,7 +509,7 @@ export const EventDialog = ({
           });
         }
         
-        // Always call onEventCreated for regular events too
+        // Always call onEventCreated for regular events too (but not with delays)
         if (!isRecurring) {
           onEventCreated?.();
         }
