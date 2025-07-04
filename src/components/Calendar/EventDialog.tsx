@@ -420,7 +420,7 @@ export const EventDialog = ({
         repeat_until: (isRecurring && repeatUntil) ? repeatUntil : null
       };
 
-      // Enhanced logging for debugging
+      // Enhanced logging for debugging recurring events
       console.log("🔄 EventDialog - Submitting event data:");
       console.log("📋 Event Data:", JSON.stringify(eventData, null, 2));
       console.log("👥 Additional Persons:", JSON.stringify(additionalPersons, null, 2));
@@ -437,14 +437,13 @@ export const EventDialog = ({
       if (eventId || initialData) {
         console.log("🔄 Updating existing event:", eventId || initialData?.id);
         
-        // Update existing event
-        result = await supabase
-          .rpc('save_event_with_persons', {
-            p_event_data: eventData,
-            p_additional_persons: additionalPersons,
-            p_user_id: user.id,
-            p_event_id: eventId || initialData?.id
-          });
+        // Update existing event - CRITICAL FIX: Pass data as JSON objects, not strings
+        result = await supabase.rpc('save_event_with_persons', {
+          p_event_data: eventData, // Pass as object - Supabase will convert to JSONB
+          p_additional_persons: additionalPersons, // Pass as array - Supabase will convert to JSONB
+          p_user_id: user.id,
+          p_event_id: eventId || initialData?.id
+        });
           
         if (result.error) {
           console.error("❌ RPC Error (Update):", result.error);
@@ -467,14 +466,19 @@ export const EventDialog = ({
         onEventUpdated?.();
       } else {
         console.log("🆕 Creating new event");
+        console.log("🔍 Pre-RPC validation:");
+        console.log("- is_recurring:", eventData.is_recurring);
+        console.log("- repeat_pattern:", eventData.repeat_pattern);
+        console.log("- repeat_until:", eventData.repeat_until);
+        console.log("- start_date:", eventData.start_date);
+        console.log("- end_date:", eventData.end_date);
         
-        // Create new event
-        result = await supabase
-          .rpc('save_event_with_persons', {
-            p_event_data: eventData,
-            p_additional_persons: additionalPersons,
-            p_user_id: user.id
-          });
+        // Create new event - CRITICAL FIX: Pass data as JSON objects, not strings
+        result = await supabase.rpc('save_event_with_persons', {
+          p_event_data: eventData, // Pass as object - Supabase will convert to JSONB
+          p_additional_persons: additionalPersons, // Pass as array - Supabase will convert to JSONB
+          p_user_id: user.id
+        });
 
         if (result.error) {
           console.error("❌ RPC Error (Create):", result.error);
