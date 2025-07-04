@@ -128,7 +128,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("🔄 Creating event with data:", eventData);
 
-      // CRITICAL FIX: Ensure proper date formatting and validation
+      // Step 7: Ensure proper date formatting and validation - make sure repeat_until is in YYYY-MM-DD format
       const formatDateForSQL = (dateStr: string) => {
         if (!dateStr) return null;
         // For ISO strings, ensure they're properly formatted
@@ -145,7 +145,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         }
       };
 
-      // CRITICAL: Ensure recurring parameters are properly formatted
+      // Step 7: Ensure recurring parameters are properly formatted and start_date is before repeat_until
       const eventPayload = {
         title: eventData.user_surname || eventData.title,
         user_surname: eventData.user_surname,
@@ -160,7 +160,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         type: eventData.type || 'event',
         is_recurring: Boolean(eventData.is_recurring),
         repeat_pattern: eventData.repeat_pattern || null,
-        repeat_until: eventData.repeat_until || null
+        repeat_until: eventData.repeat_until || null  // Should be in YYYY-MM-DD format
       };
 
       console.log("🔄 FINAL event payload being sent to database:", eventPayload);

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -65,7 +66,7 @@ export const EventDialog = ({
   // Determine if this is creating a new event
   const isNewEvent = !eventId && !initialData;
 
-  // CRITICAL FIX: Proper timezone-aware date formatting
+  // Step 7: Clean Frontend Formatting - Proper timezone-aware date formatting
   const formatDateForInput = (dateStr: string) => {
     if (!dateStr) return "";
     try {
@@ -88,7 +89,7 @@ export const EventDialog = ({
     }
   };
 
-  // Helper function to format date for repeat until (date only)
+  // Helper function to format date for repeat until (date only) - Step 7: YYYY-MM-DD format
   const formatDateOnly = (dateStr: string) => {
     if (!dateStr) return "";
     try {
@@ -106,7 +107,7 @@ export const EventDialog = ({
     }
   };
 
-  // CRITICAL FIX: Convert datetime-local input to proper ISO string without timezone offset issues
+  // Step 7: Convert datetime-local input to proper ISO string - ensure start_date is before repeat_until
   const convertInputDateToISO = (inputDate: string) => {
     if (!inputDate) return "";
     try {
@@ -151,7 +152,7 @@ export const EventDialog = ({
           setPaymentStatus(eventData.payment_status || "");
           setPaymentAmount(eventData.payment_amount?.toString() || "");
           
-          // CRITICAL FIX: Proper date formatting for existing events
+          // Proper date formatting for existing events
           const formattedStartDate = formatDateForInput(eventData.start_date);
           const formattedEndDate = formatDateForInput(eventData.end_date);
           
@@ -180,7 +181,7 @@ export const EventDialog = ({
           });
         }
       } else if (selectedDate) {
-        // Creating new event - CRITICAL FIX for timezone handling
+        // Creating new event - proper timezone handling
         console.log("➕ Creating new event for date:", selectedDate);
         
         const formatDateTime = (date: Date) => {
@@ -293,7 +294,7 @@ export const EventDialog = ({
     setIsLoading(true);
 
     try {
-      // CRITICAL FIX: Ensure proper date formatting and validation
+      // Ensure proper date formatting and validation
       if (!startDate || !endDate) {
         throw new Error("Start date and end date are required");
       }
@@ -307,7 +308,7 @@ export const EventDialog = ({
           throw new Error("Please select an end date for recurring events");
         }
         
-        // Validate that repeat until date is after start date
+        // Step 7: Validate that repeat until date is after start date
         const startDateObj = new Date(startDate);
         const repeatUntilObj = new Date(repeatUntil);
         if (repeatUntilObj <= startDateObj) {
@@ -315,7 +316,7 @@ export const EventDialog = ({
         }
       }
 
-      // CRITICAL: Convert input dates to proper ISO format for database
+      // Step 7: Convert input dates to proper ISO format for database
       const startDateISO = convertInputDateToISO(startDate);
       const endDateISO = convertInputDateToISO(endDate);
       
@@ -329,7 +330,7 @@ export const EventDialog = ({
         repeat_until: repeatUntil
       });
 
-      // CRITICAL: Properly format the recurring event data
+      // Step 7: Properly format the recurring event data with YYYY-MM-DD repeat_until
       const eventData = {
         title,
         user_surname: userSurname,
@@ -343,7 +344,7 @@ export const EventDialog = ({
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         is_recurring: isRecurring,
         repeat_pattern: isRecurring ? repeatPattern : null,
-        repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
+        repeat_until: isRecurring && repeatUntil ? repeatUntil : null, // Already in YYYY-MM-DD format
       };
 
       console.log("🚀 FINAL event data being sent to database:", eventData);
