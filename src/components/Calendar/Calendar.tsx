@@ -28,6 +28,7 @@ import { BookingRequestForm } from "../business/BookingRequestForm";
 import { useToast } from "@/hooks/use-toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
+import { RecurringEventDebugger } from "../debug/RecurringEventDebugger";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -54,6 +55,7 @@ export const Calendar = ({
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
+  const [showDebugger, setShowDebugger] = useState(false); // Add debug mode
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
   
@@ -295,6 +297,21 @@ export const Calendar = ({
 
   return (
     <div className={`h-full flex flex-col ${isMobile ? 'gap-2 -mx-4' : 'gap-4'}`}>
+      {/* Add debug toggle button */}
+      {!isExternalCalendar && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setShowDebugger(!showDebugger)}
+            className="text-xs px-2 py-1 bg-gray-200 rounded"
+          >
+            {showDebugger ? "Hide" : "Show"} Debug
+          </button>
+        </div>
+      )}
+      
+      {/* Show debugger if enabled */}
+      {showDebugger && <RecurringEventDebugger />}
+      
       <CalendarHeader
         selectedDate={selectedDate}
         view={view}
