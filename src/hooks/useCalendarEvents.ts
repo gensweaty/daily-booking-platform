@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { generateRecurringInstances, filterDeletedInstances } from '@/lib/recurringEvents';
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string) => {
   const { user } = useAuth();
@@ -128,10 +127,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("🔄 Creating event with data:", eventData);
 
-      // Step 7: Ensure proper date formatting and validation - make sure repeat_until is in YYYY-MM-DD format
+      // CRITICAL: Ensure proper date formatting and repeat_until in YYYY-MM-DD format
       const formatDateForSQL = (dateStr: string) => {
         if (!dateStr) return null;
-        // For ISO strings, ensure they're properly formatted
         try {
           const date = new Date(dateStr);
           if (isNaN(date.getTime())) {
@@ -145,7 +143,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         }
       };
 
-      // Step 7: Ensure recurring parameters are properly formatted and start_date is before repeat_until
+      // CRITICAL: Ensure repeat_until is YYYY-MM-DD format
+      const formatRepeatUntil = (val: any) => {
+        if (!val) return null;
+        // Handles string with time or Date object
+        if (typeof val === 'string') return val.slice(0, 10);
+        if (val instanceof Date) return val.toISOString().slice(0, 10);
+        return val;
+      };
+
+      // CRITICAL: Build the payload with proper data consistency
       const eventPayload = {
         title: eventData.user_surname || eventData.title,
         user_surname: eventData.user_surname,
@@ -158,9 +165,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         payment_status: eventData.payment_status || 'not_paid',
         payment_amount: eventData.payment_amount?.toString() || '',
         type: eventData.type || 'event',
-        is_recurring: Boolean(eventData.is_recurring),
-        repeat_pattern: eventData.repeat_pattern || null,
-        repeat_until: eventData.repeat_until || null  // Should be in YYYY-MM-DD format
+        is_recurring: !!eventData.is_recurring,
+        repeat_pattern: eventData.is_recurring ? eventData.repeat_pattern : null,
+        repeat_until: eventData.is_recurring ? formatRepeatUntil(eventData.repeat_until) : null
       };
 
       console.log("🔄 FINAL event payload being sent to database:", eventPayload);
@@ -231,6 +238,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         }
       };
 
+      // CRITICAL: Ensure repeat_until is YYYY-MM-DD format
+      const formatRepeatUntil = (val: any) => {
+        if (!val) return null;
+        // Handles string with time or Date object
+        if (typeof val === 'string') return val.slice(0, 10);
+        if (val instanceof Date) return val.toISOString().slice(0, 10);
+        return val;
+      };
+
       const eventPayload = {
         title: eventData.user_surname || eventData.title,
         user_surname: eventData.user_surname,
@@ -243,9 +259,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         payment_status: eventData.payment_status || 'not_paid',
         payment_amount: eventData.payment_amount?.toString() || '',
         type: eventData.type || 'event',
-        is_recurring: eventData.is_recurring || false,
-        repeat_pattern: eventData.repeat_pattern,
-        repeat_until: eventData.repeat_until
+        is_recurring: !!eventData.is_recurring,
+        repeat_pattern: eventData.is_recurring ? eventData.repeat_pattern : null,
+        repeat_until: eventData.is_recurring ? formatRepeatUntil(eventData.repeat_until) : null
       };
 
       // Use the database function for atomic operations

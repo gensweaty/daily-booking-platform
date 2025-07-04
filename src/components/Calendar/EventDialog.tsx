@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -66,7 +65,7 @@ export const EventDialog = ({
   // Determine if this is creating a new event
   const isNewEvent = !eventId && !initialData;
 
-  // Step 7: Clean Frontend Formatting - Proper timezone-aware date formatting
+  // Proper timezone-aware date formatting
   const formatDateForInput = (dateStr: string) => {
     if (!dateStr) return "";
     try {
@@ -89,7 +88,7 @@ export const EventDialog = ({
     }
   };
 
-  // Helper function to format date for repeat until (date only) - Step 7: YYYY-MM-DD format
+  // Helper function to format date for repeat until (date only) - YYYY-MM-DD format
   const formatDateOnly = (dateStr: string) => {
     if (!dateStr) return "";
     try {
@@ -107,7 +106,7 @@ export const EventDialog = ({
     }
   };
 
-  // Step 7: Convert datetime-local input to proper ISO string - ensure start_date is before repeat_until
+  // Convert datetime-local input to proper ISO string
   const convertInputDateToISO = (inputDate: string) => {
     if (!inputDate) return "";
     try {
@@ -131,6 +130,15 @@ export const EventDialog = ({
       console.error("Error converting input date to ISO:", error);
       return inputDate;
     }
+  };
+
+  // CRITICAL: Ensure repeat_until is YYYY-MM-DD format
+  const formatRepeatUntil = (val: any) => {
+    if (!val) return null;
+    // Handles string with time or Date object
+    if (typeof val === 'string') return val.slice(0, 10);
+    if (val instanceof Date) return val.toISOString().slice(0, 10);
+    return val;
   };
 
   useEffect(() => {
@@ -299,24 +307,24 @@ export const EventDialog = ({
         throw new Error("Start date and end date are required");
       }
 
-      // Validate recurring event requirements
+      // CRITICAL: Validate recurring event requirements
       if (isRecurring) {
         if (!repeatPattern || repeatPattern === 'none') {
-          throw new Error("Please select a repeat pattern for recurring events");
+          throw new Error("Select a repeat pattern!");
         }
         if (!repeatUntil) {
-          throw new Error("Please select an end date for recurring events");
+          throw new Error("Select a repeat until date!");
         }
         
-        // Step 7: Validate that repeat until date is after start date
-        const startDateObj = new Date(startDate);
-        const repeatUntilObj = new Date(repeatUntil);
-        if (repeatUntilObj <= startDateObj) {
-          throw new Error("Repeat until date must be after the start date");
+        // Check that repeat_until > start_date
+        const start = new Date(startDate);
+        const until = new Date(formatRepeatUntil(repeatUntil));
+        if (until <= start) {
+          throw new Error("Repeat until must be after start date!");
         }
       }
 
-      // Step 7: Convert input dates to proper ISO format for database
+      // Convert input dates to proper ISO format for database
       const startDateISO = convertInputDateToISO(startDate);
       const endDateISO = convertInputDateToISO(endDate);
       
@@ -330,8 +338,8 @@ export const EventDialog = ({
         repeat_until: repeatUntil
       });
 
-      // Step 7: Properly format the recurring event data with YYYY-MM-DD repeat_until
-      const eventData = {
+      // CRITICAL: Properly format the payload with correct data types
+      const payload = {
         title,
         user_surname: userSurname,
         user_number: userNumber,
@@ -342,12 +350,12 @@ export const EventDialog = ({
         end_date: endDateISO,
         payment_status: paymentStatus,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-        is_recurring: isRecurring,
+        is_recurring: !!isRecurring,
         repeat_pattern: isRecurring ? repeatPattern : null,
-        repeat_until: isRecurring && repeatUntil ? repeatUntil : null, // Already in YYYY-MM-DD format
+        repeat_until: isRecurring ? formatRepeatUntil(repeatUntil) : null,
       };
 
-      console.log("🚀 FINAL event data being sent to database:", eventData);
+      console.log("🚀 FINAL payload being sent to database:", payload);
 
       let result;
       
@@ -355,7 +363,7 @@ export const EventDialog = ({
         // Update existing event
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: eventData,
+            p_event_data: payload,
             p_additional_persons: additionalPersons,
             p_user_id: user.id,
             p_event_id: eventId || initialData?.id
@@ -380,7 +388,7 @@ export const EventDialog = ({
         
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: eventData,
+            p_event_data: payload,
             p_additional_persons: additionalPersons,
             p_user_id: user.id
           });
