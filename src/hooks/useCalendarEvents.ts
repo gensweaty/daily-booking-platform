@@ -22,7 +22,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       console.log("🔍 Fetching events for user:", targetUserId, "business:", businessId);
 
       // Fetch ALL events from the events table (both parent and child events)
-      // CRITICAL: Do NOT filter by parent_event_id - we need ALL events
       const { data: events, error: eventsError } = await supabase
         .from('events')
         .select('*')
@@ -35,13 +34,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         throw eventsError;
       }
 
-      // DEBUG: Comprehensive logging for recurring events
+      // Enhanced logging for recurring events
       console.log("📊 RAW fetched events:", events);
-      console.log(
-        "📈 Fetched events count:", events?.length,
-        "\n📝 Sample (first 5):",
-        (events || []).slice(0, 5)
-      );
+      console.log("📈 Fetched events count:", events?.length);
       
       const parentEvents = (events || []).filter(ev => !ev.parent_event_id);
       const childEvents = (events || []).filter(ev => !!ev.parent_event_id);
@@ -51,7 +46,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       console.log("👶 Child events (recurring instances):", childEvents.length);
       console.log("🔄 Recurring parent events:", recurringParents.length);
       
-      // Log detailed info about recurring events
+      // Enhanced logging for recurring events
       if (recurringParents.length > 0) {
         console.log("🔍 Recurring parents details:", recurringParents.map(ev => ({
           id: ev.id,
@@ -64,20 +59,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         })));
       }
       
-      // Check for any events on July 4th, 2025 specifically
-      const july4Events = (events || []).filter(ev => {
-        const eventDate = new Date(ev.start_date);
-        return eventDate.getMonth() === 6 && eventDate.getDate() === 4 && eventDate.getFullYear() === 2025;
-      });
-      
-      if (july4Events.length > 0) {
-        console.log("🎆 July 4th events found:", july4Events.map(ev => ({
+      // Log all recurring event instances for debugging
+      if (childEvents.length > 0) {
+        console.log("👶 All child event instances:", childEvents.map(ev => ({
           id: ev.id,
           title: ev.title,
-          parent_event_id: ev.parent_event_id,
-          is_recurring: ev.is_recurring,
-          repeat_pattern: ev.repeat_pattern,
-          repeat_until: ev.repeat_until
+          start_date: ev.start_date,
+          parent_event_id: ev.parent_event_id
         })));
       }
 
@@ -101,7 +89,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       // Convert all data to CalendarEventType format
       const allEvents: CalendarEventType[] = [];
 
-      // Add ALL events (both parent and child recurring events) - DO NOT filter by parent_event_id
+      // Add ALL events (both parent and child recurring events)
       for (const event of events || []) {
         allEvents.push({
           id: event.id,
@@ -120,7 +108,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           is_recurring: event.is_recurring || false,
           repeat_pattern: event.repeat_pattern,
           repeat_until: event.repeat_until,
-          parent_event_id: event.parent_event_id, // Include parent_event_id for child events
+          parent_event_id: event.parent_event_id,
           language: event.language,
           created_at: event.created_at || new Date().toISOString(),
         });
@@ -147,9 +135,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       }
 
       console.log(`✅ Final events count: ${allEvents.length} (${events?.length || 0} events + ${bookingRequests.length} bookings)`);
-      console.log("🔍 Final allEvents sample:", allEvents.slice(0, 3));
       
-      // Return ALL events - including both parent and child events
       return allEvents;
 
     } catch (error) {
@@ -168,15 +154,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     queryFn: fetchEvents,
     enabled: !!(businessUserId || user?.id),
     staleTime: 30 * 1000, // 30 seconds
+    refetchOnWindowFocus: true, // Enhanced refetch behavior
   });
 
   const createEventMutation = useMutation({
     mutationFn: async (eventData: Partial<CalendarEventType>) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("🔄 Creating event with data:", eventData);
+      console.log("🔄 Creating event with enhanced data validation:", eventData);
 
-      // CRITICAL: Ensure proper date formatting and repeat_until in YYYY-MM-DD format
+      // Enhanced date formatting
       const formatDateForSQL = (dateStr: string) => {
         if (!dateStr) return null;
         try {
@@ -192,19 +179,18 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         }
       };
 
-      // CRITICAL: Ensure repeat_until is YYYY-MM-DD format
+      // Enhanced repeat_until formatting
       const formatRepeatUntil = (val: any) => {
         if (!val) return null;
-        // Handles string with time or Date object
         if (typeof val === 'string') return val.slice(0, 10);
         if (val instanceof Date) return val.toISOString().slice(0, 10);
         return val;
       };
 
-      // CRITICAL: Build the payload with proper data consistency
+      // Enhanced payload with strict validation
       const eventPayload = {
-        title: eventData.user_surname || eventData.title,
-        user_surname: eventData.user_surname,
+        title: eventData.user_surname || eventData.title || 'Untitled Event',
+        user_surname: eventData.user_surname || eventData.title || 'Unknown',
         user_number: eventData.user_number,
         social_network_link: eventData.social_network_link,
         event_notes: eventData.event_notes,
@@ -215,15 +201,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         payment_amount: eventData.payment_amount?.toString() || '',
         type: eventData.type || 'event',
         is_recurring: !!eventData.is_recurring,
-        repeat_pattern: eventData.is_recurring ? eventData.repeat_pattern : null,
-        repeat_until: eventData.is_recurring ? formatRepeatUntil(eventData.repeat_until) : null
+        repeat_pattern: eventData.is_recurring && eventData.repeat_pattern && eventData.repeat_pattern !== 'none' ? eventData.repeat_pattern : null,
+        repeat_until: eventData.is_recurring && eventData.repeat_until ? formatRepeatUntil(eventData.repeat_until) : null
       };
 
-      console.log("🔄 FINAL event payload being sent to database:", eventPayload);
+      console.log("🔄 ENHANCED event payload:", eventPayload);
       
-      // Special debug for recurring events
+      // Enhanced debug for recurring events
       if (eventData.is_recurring) {
-        console.log("🔄 RECURRING EVENT DEBUG:", {
+        console.log("🔄 RECURRING EVENT HOOK DEBUG:", {
           is_recurring: eventPayload.is_recurring,
           repeat_pattern: eventPayload.repeat_pattern,
           repeat_until: eventPayload.repeat_until,
@@ -235,7 +221,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       // Use the database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
         p_event_data: eventPayload,
-        p_additional_persons: [], // No additional persons for direct creation
+        p_additional_persons: [],
         p_user_id: user.id,
         p_event_id: null
       });
@@ -247,39 +233,35 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("✅ Event created successfully with ID:", savedEventId);
       
-      // If it's a recurring event, wait for child events to be created
+      // Enhanced handling for recurring events
       if (eventData.is_recurring) {
-        console.log("🔍 Waiting for recurring instances to be created...");
+        console.log("🔍 Enhanced waiting for recurring instances...");
         
-        // Wait a moment for the SQL function to complete
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 3000));
         
-        // Force refetch to get the new events
-        setTimeout(() => {
-          console.log("🔄 Force refetching events after recurring creation...");
-          refetch();
-        }, 1000);
+        // Enhanced child event verification
+        const { data: childEvents } = await supabase
+          .from('events')
+          .select('*')
+          .eq('parent_event_id', savedEventId)
+          .eq('user_id', user.id);
         
-        // Verify child events were created
-        setTimeout(async () => {
-          const { data: childEvents } = await supabase
-            .from('events')
-            .select('*')
-            .eq('parent_event_id', savedEventId)
-            .eq('user_id', user.id);
-          
-          console.log("👶 Child events created:", childEvents?.length || 0);
-          if (childEvents && childEvents.length > 0) {
-            console.log("👶 Child events details:", childEvents.map(e => ({
-              id: e.id,
-              start_date: e.start_date,
-              parent_event_id: e.parent_event_id
-            })));
-          }
-        }, 3000);
+        console.log("👶 Enhanced child events verification:", {
+          parent_id: savedEventId,
+          child_count: childEvents?.length || 0,
+          children: childEvents?.map(e => ({
+            id: e.id,
+            start_date: e.start_date,
+            parent_event_id: e.parent_event_id
+          })) || []
+        });
+        
+        // Enhanced force refetch sequence
+        setTimeout(() => refetch(), 1000);
+        setTimeout(() => refetch(), 3000);
+        setTimeout(() => refetch(), 5000);
       }
 
-      // Return a complete CalendarEventType object
       return {
         id: savedEventId,
         title: eventData.user_surname || eventData.title || 'Untitled Event',
@@ -292,16 +274,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       } as CalendarEventType;
     },
     onSuccess: () => {
-      // Invalidate queries to trigger refetch
+      // Enhanced invalidation and refetch
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
       }
       
-      // Force refetch after a short delay
-      setTimeout(() => {
-        refetch();
-      }, 1500);
+      // Multiple staged refreshes
+      setTimeout(() => refetch(), 500);
+      setTimeout(() => refetch(), 2000);
       
       toast({
         title: "Success",

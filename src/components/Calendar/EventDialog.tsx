@@ -308,21 +308,30 @@ export const EventDialog = ({
         throw new Error("Start date and end date are required");
       }
 
-      // CRITICAL: Validate recurring event requirements
+      // CRITICAL: Enhanced validation for recurring events
       if (isRecurring) {
-        if (!repeatPattern || repeatPattern === 'none') {
-          throw new Error("Select a repeat pattern!");
+        console.log("🔍 Validating recurring event:", {
+          repeatPattern,
+          repeatUntil,
+          startDate,
+          isRecurring
+        });
+
+        if (!repeatPattern || repeatPattern === 'none' || repeatPattern === '') {
+          throw new Error("Please select a repeat pattern for recurring events!");
         }
         if (!repeatUntil) {
-          throw new Error("Select a repeat until date!");
+          throw new Error("Please select an end date for recurring events!");
         }
         
         // Check that repeat_until > start_date
         const start = new Date(startDate);
-        const until = new Date(formatRepeatUntil(repeatUntil));
+        const until = new Date(repeatUntil);
         if (until <= start) {
-          throw new Error("Repeat until must be after start date!");
+          throw new Error("End date must be after start date for recurring events!");
         }
+
+        console.log("✅ Recurring event validation passed");
       }
 
       // Convert input dates to proper ISO format for database
@@ -339,24 +348,37 @@ export const EventDialog = ({
         repeat_until: repeatUntil
       });
 
-      // CRITICAL: Properly format the payload with correct data types
+      // CRITICAL: Enhanced payload with strict validation
       const payload = {
-        title,
-        user_surname: userSurname,
+        title: title || userSurname || 'Untitled Event',
+        user_surname: userSurname || title || 'Unknown',
         user_number: userNumber,
         social_network_link: socialNetworkLink,
         event_notes: eventNotes,
         event_name: eventName,
         start_date: startDateISO,
         end_date: endDateISO,
-        payment_status: paymentStatus,
+        payment_status: paymentStatus || 'not_paid',
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+        type: 'event',
         is_recurring: !!isRecurring,
-        repeat_pattern: isRecurring ? repeatPattern : null,
-        repeat_until: isRecurring ? formatRepeatUntil(repeatUntil) : null,
+        repeat_pattern: isRecurring && repeatPattern && repeatPattern !== 'none' ? repeatPattern : null,
+        repeat_until: isRecurring && repeatUntil ? formatRepeatUntil(repeatUntil) : null,
       };
 
-      console.log("🚀 FINAL payload being sent to database:", payload);
+      console.log("🚀 FINAL enhanced payload being sent to database:", payload);
+      
+      // Special debug for recurring events
+      if (isRecurring) {
+        console.log("🔄 RECURRING EVENT CREATION DEBUG:", {
+          is_recurring: payload.is_recurring,
+          repeat_pattern: payload.repeat_pattern,
+          repeat_until: payload.repeat_until,
+          start_date: payload.start_date,
+          user_id: user.id,
+          validation_passed: true
+        });
+      }
 
       let result;
       
@@ -380,11 +402,11 @@ export const EventDialog = ({
         onEventUpdated?.();
       } else {
         // Create new event - this is where the recurring magic should happen
-        console.log("🔄 Creating NEW EVENT with recurring settings:", {
+        console.log("🔄 Creating NEW EVENT with enhanced recurring settings:", {
           is_recurring: isRecurring,
           repeat_pattern: repeatPattern,
           repeat_until: repeatUntil,
-          title: title
+          title: title || userSurname
         });
         
         result = await supabase
@@ -407,53 +429,61 @@ export const EventDialog = ({
           await uploadFiles(newEventId);
         }
 
-        // CRITICAL: For recurring events, use the same aggressive refresh pattern as test events
+        // CRITICAL: For recurring events, use enhanced verification and refresh
         if (isRecurring) {
-          console.log("🔄 RECURRING EVENT: Using aggressive refresh pattern like test events...");
+          console.log("🔄 RECURRING EVENT: Using enhanced verification and refresh...");
           
-          // Wait longer for SQL function to complete (same as test events)
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Wait for SQL function to complete
+          await new Promise(resolve => setTimeout(resolve, 3000));
           
-          // Verify child events were created
+          // Enhanced verification of child events
           const { data: childEvents, error: childError } = await supabase
             .from('events')
             .select('*')
             .eq('parent_event_id', newEventId)
-            .eq('user_id', user.id);
+            .eq('user_id', user.id)
+            .order('start_date', { ascending: true });
           
           if (childError) {
             console.error("❌ Error checking child events:", childError);
           } else {
-            console.log("👶 Child events created:", childEvents?.length || 0);
-            if (childEvents && childEvents.length > 0) {
-              console.log("👶 Child events details:", childEvents.map(e => ({
+            console.log("👶 Child events verification:", {
+              parent_id: newEventId,
+              child_count: childEvents?.length || 0,
+              children: childEvents?.map(e => ({
                 id: e.id,
                 start_date: e.start_date,
                 parent_event_id: e.parent_event_id
-              })));
-            }
+              })) || []
+            });
           }
           
-          // CRITICAL: Use the EXACT same aggressive refresh pattern as test events
-          console.log("🔄 Force refreshing calendar with test event pattern...");
+          // CRITICAL: Enhanced multi-stage refresh pattern
+          console.log("🔄 Starting enhanced refresh sequence...");
           
-          // First refresh - immediate
+          // Immediate refresh
           setTimeout(() => {
-            console.log("🔄 First refetch attempt...");
+            console.log("🔄 Stage 1: Immediate refresh...");
             onEventCreated?.();
           }, 500);
           
-          // Second refresh - delayed
+          // Early refresh
           setTimeout(() => {
-            console.log("🔄 Second refetch attempt...");
+            console.log("🔄 Stage 2: Early refresh...");
             onEventCreated?.();
           }, 1500);
           
-          // Third refresh - final
+          // Standard refresh
           setTimeout(() => {
-            console.log("🔄 Third refetch attempt...");
+            console.log("🔄 Stage 3: Standard refresh...");
             onEventCreated?.();
           }, 3000);
+          
+          // Late refresh for stubborn cases
+          setTimeout(() => {
+            console.log("🔄 Stage 4: Late refresh...");
+            onEventCreated?.();
+          }, 5000);
         }
 
         // Send email notification for new event creation
@@ -509,7 +539,7 @@ export const EventDialog = ({
           });
         }
         
-        // Always call onEventCreated for regular events too (but not with delays)
+        // Always call onEventCreated for regular events too (but without delays)
         if (!isRecurring) {
           onEventCreated?.();
         }
