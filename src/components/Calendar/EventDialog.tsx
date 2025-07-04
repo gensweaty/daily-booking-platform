@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { EventDialogFields } from "./EventDialogFields";
 import { useToast } from "@/hooks/use-toast";
 import { sendEventCreationEmail } from "@/lib/api";
+import { format } from "date-fns";
 
 // Helper function to format datetime for datetime-local input
 const formatDatetimeLocal = (dt: string | Date | null | undefined): string => {
@@ -419,7 +420,7 @@ export const EventDialog = ({
       // Map biweekly to the correct database pattern
       let dbRepeatPattern = repeatPattern;
       if (repeatPattern === 'biweekly') {
-        dbRepeatPattern = 'weekly'; // We'll handle biweekly as weekly with custom logic
+        dbRepeatPattern = 'weekly';
       }
 
       // Prepare event data with proper recurring settings
@@ -462,8 +463,8 @@ export const EventDialog = ({
         // Update existing event
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: eventData, // Pass as object, not stringified
-            p_additional_persons: additionalPersons, // Pass as array, not stringified
+            p_event_data: eventData,
+            p_additional_persons: additionalPersons,
             p_user_id: user.id,
             p_event_id: eventId || initialData?.id
           });
@@ -493,8 +494,8 @@ export const EventDialog = ({
         // Create new event
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: eventData, // Pass as object, not stringified
-            p_additional_persons: additionalPersons, // Pass as array, not stringified
+            p_event_data: eventData,
+            p_additional_persons: additionalPersons,
             p_user_id: user.id
           });
 
@@ -541,7 +542,7 @@ export const EventDialog = ({
             } catch (verifyError) {
               console.error("❌ Error verifying child events:", verifyError);
             }
-          }, 2000); // Wait 2 seconds for database operations to complete
+          }, 2000);
         }
         
         // Upload files for new event

@@ -175,6 +175,21 @@ export const EventDialogFields = ({
     }
   };
 
+  // Convert ExistingFile to FileRecord format
+  const convertedExistingFiles = existingFiles.map(file => ({
+    id: file.id,
+    filename: file.filename,
+    file_path: file.file_path,
+    content_type: file.content_type || null,
+    size: file.size || null,
+    created_at: new Date().toISOString(), // Add missing field with current timestamp
+    user_id: null, // Add missing field as nullable
+    event_id: null,
+    customer_id: null,
+    source: 'event',
+    parentType: 'event'
+  }));
+
   return (
     <div className="space-y-4">
       {/* Title and Customer Info */}
@@ -418,7 +433,7 @@ export const EventDialogFields = ({
         )}
         {existingFiles.length > 0 && (
           <div className="mt-2">
-            <SimpleFileDisplay files={existingFiles} onFileDeleted={onRemoveExistingFile} />
+            <SimpleFileDisplay files={convertedExistingFiles} onFileDeleted={onRemoveExistingFile} />
           </div>
         )}
       </div>
