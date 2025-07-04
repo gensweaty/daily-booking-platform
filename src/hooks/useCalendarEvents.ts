@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -33,8 +34,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         console.error("❌ Error fetching events:", eventsError);
         throw eventsError;
       }
-
-      console.log("📊 Raw events fetched:", events?.length || 0);
 
       // Fetch booking requests if we have a business ID
       let bookingRequests: any[] = [];
@@ -135,11 +134,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         });
       }
 
-      // Enhanced logging for recurring events
+      // Log recurring events info
       const parentEvents = allEvents.filter(e => e.is_recurring && !e.parent_event_id);
       const childEvents = allEvents.filter(e => e.parent_event_id);
       
-      console.log("🔁✅ Recurring events summary:", {
+      console.log("🔁 Recurring events summary:", {
         parentRecurringEvents: parentEvents.length,
         childRecurringEvents: childEvents.length,
         totalEvents: allEvents.length
@@ -150,13 +149,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           id: e.id,
           title: e.title,
           pattern: e.repeat_pattern,
-          start: e.start_date,
-          until: e.repeat_until
+          start: e.start_date
         })));
       }
 
       if (childEvents.length > 0) {
-        console.log("👶✅ Child recurring events:", childEvents.map(e => ({
+        console.log("👶 Child recurring events:", childEvents.map(e => ({
           id: e.id,
           title: e.title,
           parent_id: e.parent_event_id,
@@ -190,11 +188,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       if (!user?.id) throw new Error("User not authenticated");
 
       console.log("🔄 Creating event with data:", eventData);
-      console.log("🔁 Recurring info:", {
-        is_recurring: eventData.is_recurring,
-        repeat_pattern: eventData.repeat_pattern,
-        repeat_until: eventData.repeat_until
-      });
 
       // Use the new database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
@@ -219,12 +212,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         p_event_id: null
       });
 
-      if (error) {
-        console.error("❌ RPC Error in createEventMutation:", error);
-        throw error;
-      }
-
-      console.log("✅ Event created with ID:", savedEventId);
+      if (error) throw error;
 
       // Return a complete CalendarEventType object
       return {
@@ -239,7 +227,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       } as CalendarEventType;
     },
     onSuccess: () => {
-      console.log("🔄 Invalidating queries after event creation");
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });

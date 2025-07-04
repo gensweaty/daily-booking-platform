@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -170,21 +171,6 @@ export const EventDialog = ({
 
   // Determine if this is a new event (not editing an existing one)
   const isNewEvent = !eventId && !initialData;
-
-  // Ensure isRecurring is properly synchronized with repeatPattern
-  useEffect(() => {
-    if (repeatPattern && repeatPattern !== 'none') {
-      if (!isRecurring) {
-        console.log("🔄 Auto-setting isRecurring to true based on repeatPattern:", repeatPattern);
-        setIsRecurring(true);
-      }
-    } else if (repeatPattern === 'none' || !repeatPattern) {
-      if (isRecurring) {
-        console.log("🔄 Auto-setting isRecurring to false based on repeatPattern:", repeatPattern);
-        setIsRecurring(false);
-      }
-    }
-  }, [repeatPattern, isRecurring]);
 
   // Combined useEffect for loading all event data - runs FIRST
   useEffect(() => {
@@ -416,7 +402,7 @@ export const EventDialog = ({
     setIsLoading(true);
 
     try {
-      // Prepare event data with proper recurring settings
+      // Prepare event data with proper format for the database function
       const eventData = {
         title: userSurname || title || 'Untitled Event',
         user_surname: userSurname || title || 'Unknown',
@@ -430,21 +416,20 @@ export const EventDialog = ({
         payment_amount: paymentAmount || '',
         type: 'event',
         is_recurring: isRecurring,
-        repeat_pattern: isRecurring && repeatPattern !== 'none' ? repeatPattern : null,
+        repeat_pattern: isRecurring ? repeatPattern : null,
         repeat_until: (isRecurring && repeatUntil) ? repeatUntil : null
       };
 
-      // Enhanced logging for debugging recurring events
-      console.log("🔄 EventDialog - Submitting event with recurring data:");
+      // Enhanced logging for debugging
+      console.log("🔄 EventDialog - Submitting event data:");
       console.log("📋 Event Data:", JSON.stringify(eventData, null, 2));
       console.log("👥 Additional Persons:", JSON.stringify(additionalPersons, null, 2));
       console.log("🔁 Recurring Info:", {
         isRecurring,
         repeatPattern,
         repeatUntil,
-        finalRecurringValue: eventData.is_recurring,
-        finalPattern: eventData.repeat_pattern,
-        finalUntil: eventData.repeat_until
+        actualPattern: isRecurring ? repeatPattern : null,
+        actualUntil: (isRecurring && repeatUntil) ? repeatUntil : null
       });
 
       let result;
@@ -481,7 +466,7 @@ export const EventDialog = ({
         
         onEventUpdated?.();
       } else {
-        console.log("🆕 Creating new event with recurring settings");
+        console.log("🆕 Creating new event");
         
         // Create new event
         result = await supabase
@@ -505,29 +490,16 @@ export const EventDialog = ({
           
           // Wait a moment for the database function to complete
           setTimeout(async () => {
-            try {
-              const { data: childEvents, error: childError } = await supabase
-                .from('events')
-                .select('*')
-                .eq('parent_event_id', newEventId);
-              
-              if (childError) {
-                console.error("❌ Error checking child events:", childError);
-              } else {
-                console.log(`✅ Found ${childEvents?.length || 0} child events created`);
-                console.log("🔍 Child events:", childEvents);
-                
-                if (childEvents && childEvents.length > 0) {
-                  toast({
-                    title: "Success",
-                    description: `Recurring event created with ${childEvents.length + 1} instances!`,
-                  });
-                } else {
-                  console.warn("⚠️ No child events found - recurring event creation may have failed");
-                }
-              }
-            } catch (verifyError) {
-              console.error("❌ Error verifying child events:", verifyError);
+            const { data: childEvents, error: childError } = await supabase
+              .from('events')
+              .select('*')
+              .eq('parent_event_id', newEventId);
+            
+            if (childError) {
+              console.error("❌ Error checking child events:", childError);
+            } else {
+              console.log(`✅ Found ${childEvents?.length || 0} child events created`);
+              console.log("🔍 Child events:", childEvents);
             }
           }, 1000);
         }
@@ -584,7 +556,7 @@ export const EventDialog = ({
         } else {
           toast({
             title: "Success",
-            description: isRecurring ? "Recurring event created successfully" : "Event created successfully",
+            description: "Event created successfully",
           });
         }
         
