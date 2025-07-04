@@ -126,39 +126,59 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     mutationFn: async (eventData: Partial<CalendarEventType>) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("Creating event with data:", eventData);
+      console.log("🔄 Creating event with data:", eventData);
+
+      // Ensure proper date formatting and validation
+      const formatDateForSQL = (dateStr: string) => {
+        if (!dateStr) return null;
+        // If it's already an ISO string, use it. Otherwise, convert from datetime-local format
+        if (dateStr.includes('T') && dateStr.endsWith('Z')) {
+          return dateStr;
+        }
+        // Convert from datetime-local format (YYYY-MM-DDTHH:mm) to ISO
+        return new Date(dateStr).toISOString();
+      };
+
+      const eventPayload = {
+        title: eventData.user_surname || eventData.title,
+        user_surname: eventData.user_surname,
+        user_number: eventData.user_number,
+        social_network_link: eventData.social_network_link,
+        event_notes: eventData.event_notes,
+        event_name: eventData.event_name,
+        start_date: formatDateForSQL(eventData.start_date || ''),
+        end_date: formatDateForSQL(eventData.end_date || ''),
+        payment_status: eventData.payment_status || 'not_paid',
+        payment_amount: eventData.payment_amount?.toString() || '',
+        type: eventData.type || 'event',
+        is_recurring: eventData.is_recurring || false,
+        repeat_pattern: eventData.repeat_pattern,
+        repeat_until: eventData.repeat_until
+      };
+
+      console.log("🔄 Formatted event payload:", eventPayload);
 
       // Use the database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: {
-          title: eventData.user_surname || eventData.title,
-          user_surname: eventData.user_surname,
-          user_number: eventData.user_number,
-          social_network_link: eventData.social_network_link,
-          event_notes: eventData.event_notes,
-          event_name: eventData.event_name,
-          start_date: eventData.start_date,
-          end_date: eventData.end_date,
-          payment_status: eventData.payment_status || 'not_paid',
-          payment_amount: eventData.payment_amount?.toString() || '',
-          type: eventData.type || 'event',
-          is_recurring: eventData.is_recurring || false,
-          repeat_pattern: eventData.repeat_pattern,
-          repeat_until: eventData.repeat_until
-        },
+        p_event_data: eventPayload,
         p_additional_persons: [], // No additional persons for direct creation
         p_user_id: user.id,
         p_event_id: null
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Database function error:", error);
+        throw error;
+      }
+
+      console.log("✅ Event created successfully with ID:", savedEventId);
 
       // Return a complete CalendarEventType object
       return {
         id: savedEventId,
         title: eventData.user_surname || eventData.title || 'Untitled Event',
-        start_date: eventData.start_date || new Date().toISOString(),
-        end_date: eventData.end_date || new Date().toISOString(),
+        start_date: eventPayload.start_date || new Date().toISOString(),
+        end_date: eventPayload.end_date || new Date().toISOString(),
         user_id: user.id,
         type: eventData.type || 'event',
         created_at: new Date().toISOString(),
@@ -190,26 +210,37 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     mutationFn: async (eventData: Partial<CalendarEventType> & { id: string }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("Updating event with data:", eventData);
+      console.log("🔄 Updating event with data:", eventData);
+
+      // Ensure proper date formatting
+      const formatDateForSQL = (dateStr: string) => {
+        if (!dateStr) return null;
+        if (dateStr.includes('T') && dateStr.endsWith('Z')) {
+          return dateStr;
+        }
+        return new Date(dateStr).toISOString();
+      };
+
+      const eventPayload = {
+        title: eventData.user_surname || eventData.title,
+        user_surname: eventData.user_surname,
+        user_number: eventData.user_number,
+        social_network_link: eventData.social_network_link,
+        event_notes: eventData.event_notes,
+        event_name: eventData.event_name,
+        start_date: formatDateForSQL(eventData.start_date || ''),
+        end_date: formatDateForSQL(eventData.end_date || ''),
+        payment_status: eventData.payment_status || 'not_paid',
+        payment_amount: eventData.payment_amount?.toString() || '',
+        type: eventData.type || 'event',
+        is_recurring: eventData.is_recurring || false,
+        repeat_pattern: eventData.repeat_pattern,
+        repeat_until: eventData.repeat_until
+      };
 
       // Use the database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: {
-          title: eventData.user_surname || eventData.title,
-          user_surname: eventData.user_surname,
-          user_number: eventData.user_number,
-          social_network_link: eventData.social_network_link,
-          event_notes: eventData.event_notes,
-          event_name: eventData.event_name,
-          start_date: eventData.start_date,
-          end_date: eventData.end_date,
-          payment_status: eventData.payment_status || 'not_paid',
-          payment_amount: eventData.payment_amount?.toString() || '',
-          type: eventData.type || 'event',
-          is_recurring: eventData.is_recurring || false,
-          repeat_pattern: eventData.repeat_pattern,
-          repeat_until: eventData.repeat_until
-        },
+        p_event_data: eventPayload,
         p_additional_persons: [], // Additional persons handled in EventDialog
         p_user_id: user.id,
         p_event_id: eventData.id
@@ -221,8 +252,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       return {
         id: savedEventId,
         title: eventData.user_surname || eventData.title || 'Untitled Event',
-        start_date: eventData.start_date || new Date().toISOString(),
-        end_date: eventData.end_date || new Date().toISOString(),
+        start_date: eventPayload.start_date || new Date().toISOString(),
+        end_date: eventPayload.end_date || new Date().toISOString(),
         user_id: user.id,
         type: eventData.type || 'event',
         created_at: eventData.created_at || new Date().toISOString(),
@@ -254,7 +285,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("Deleting event:", id, deleteChoice);
+      console.log("🔄 Deleting event:", id, deleteChoice);
 
       if (deleteChoice === "series") {
         // Use the delete_recurring_series function for series deletion

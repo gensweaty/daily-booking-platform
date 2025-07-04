@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -65,12 +66,55 @@ export const EventDialog = ({
   // Determine if this is creating a new event
   const isNewEvent = !eventId && !initialData;
 
+  // Helper function to format date for datetime-local input
+  const formatDateForInput = (dateStr: string) => {
+    if (!dateStr) return "";
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return "";
+      
+      // Format as YYYY-MM-DDTHH:mm for datetime-local input
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "";
+    }
+  };
+
+  // Helper function to format date for repeat until (date only)
+  const formatDateOnly = (dateStr: string) => {
+    if (!dateStr) return "";
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return "";
+      
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}`;
+    } catch (error) {
+      console.error("Error formatting date only:", error);
+      return "";
+    }
+  };
+
   useEffect(() => {
     if (open) {
+      console.log("🔄 EventDialog opened with:", { eventId, initialData, selectedDate });
+      
       if (initialData || eventId) {
-        // Editing existing event
+        // Editing existing event - ensure proper date formatting
         const eventData = initialData;
         if (eventData) {
+          console.log("📅 Loading existing event data:", eventData);
+          
           setTitle(eventData.title || "");
           setUserSurname(eventData.user_surname || "");  
           setUserNumber(eventData.user_number || "");
@@ -79,14 +123,39 @@ export const EventDialog = ({
           setEventName(eventData.event_name || "");
           setPaymentStatus(eventData.payment_status || "");
           setPaymentAmount(eventData.payment_amount?.toString() || "");
-          setStartDate(eventData.start_date || "");
-          setEndDate(eventData.end_date || "");
+          
+          // CRITICAL FIX: Proper date formatting for existing events
+          const formattedStartDate = formatDateForInput(eventData.start_date);
+          const formattedEndDate = formatDateForInput(eventData.end_date);
+          
+          console.log("📅 Formatted dates:", { 
+            original_start: eventData.start_date, 
+            formatted_start: formattedStartDate,
+            original_end: eventData.end_date,
+            formatted_end: formattedEndDate
+          });
+          
+          setStartDate(formattedStartDate);
+          setEndDate(formattedEndDate);
+          
           setIsRecurring(eventData.is_recurring || false);
           setRepeatPattern(eventData.repeat_pattern || "");
-          setRepeatUntil(eventData.repeat_until || "");
+          
+          // Format repeat_until for date input
+          const formattedRepeatUntil = eventData.repeat_until ? formatDateOnly(eventData.repeat_until) : "";
+          setRepeatUntil(formattedRepeatUntil);
+          
+          console.log("🔄 Recurring settings:", {
+            is_recurring: eventData.is_recurring,
+            repeat_pattern: eventData.repeat_pattern,
+            repeat_until: eventData.repeat_until,
+            formatted_repeat_until: formattedRepeatUntil
+          });
         }
       } else if (selectedDate) {
         // Creating new event
+        console.log("➕ Creating new event for date:", selectedDate);
+        
         const formatDateTime = (date: Date) => {
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -191,6 +260,28 @@ export const EventDialog = ({
     setIsLoading(true);
 
     try {
+      // CRITICAL FIX: Ensure proper date formatting and validation
+      if (!startDate || !endDate) {
+        throw new Error("Start date and end date are required");
+      }
+
+      // Validate recurring event requirements
+      if (isRecurring) {
+        if (!repeatPattern || repeatPattern === 'none') {
+          throw new Error("Please select a repeat pattern for recurring events");
+        }
+        if (!repeatUntil) {
+          throw new Error("Please select an end date for recurring events");
+        }
+        
+        // Validate that repeat until date is after start date
+        const startDateObj = new Date(startDate);
+        const repeatUntilObj = new Date(repeatUntil);
+        if (repeatUntilObj <= startDateObj) {
+          throw new Error("Repeat until date must be after the start date");
+        }
+      }
+
       const eventData = {
         title,
         user_surname: userSurname,
@@ -206,6 +297,8 @@ export const EventDialog = ({
         repeat_pattern: isRecurring ? repeatPattern : null,
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
       };
+
+      console.log("🚀 Submitting event data:", eventData);
 
       let result;
       
@@ -229,6 +322,12 @@ export const EventDialog = ({
         onEventUpdated?.();
       } else {
         // Create new event
+        console.log("🔄 Creating new event with recurring settings:", {
+          is_recurring: isRecurring,
+          repeat_pattern: repeatPattern,
+          repeat_until: repeatUntil
+        });
+        
         result = await supabase
           .rpc('save_event_with_persons', {
             p_event_data: eventData,
@@ -236,9 +335,13 @@ export const EventDialog = ({
             p_user_id: user.id
           });
 
-        if (result.error) throw result.error;
+        if (result.error) {
+          console.error("❌ Database function error:", result.error);
+          throw result.error;
+        }
 
         const newEventId = result.data;
+        console.log("✅ Event created with ID:", newEventId);
         
         // Upload files for new event
         if (files.length > 0) {
@@ -267,26 +370,34 @@ export const EventDialog = ({
               console.log("✅ Event creation email sent successfully");
               toast({
                 title: "Success",
-                description: "Event created and confirmation email sent!",
+                description: isRecurring ? 
+                  "Recurring event series created and confirmation email sent!" :
+                  "Event created and confirmation email sent!",
               });
             } else {
               console.error("❌ Failed to send event creation email:", emailResult.error);
               toast({
                 title: "Event Created",
-                description: "Event created successfully, but email notification failed to send.",
+                description: isRecurring ?
+                  "Recurring event series created successfully, but email notification failed to send." :
+                  "Event created successfully, but email notification failed to send.",
               });
             }
           } catch (emailError) {
             console.error("❌ Error sending event creation email:", emailError);
             toast({
               title: "Event Created", 
-              description: "Event created successfully, but email notification failed to send.",
+              description: isRecurring ?
+                "Recurring event series created successfully, but email notification failed to send." :
+                "Event created successfully, but email notification failed to send.",
             });
           }
         } else {
           toast({
             title: "Success",
-            description: "Event created successfully",
+            description: isRecurring ?
+              "Recurring event series created successfully" :
+              "Event created successfully",
           });
         }
         
@@ -296,7 +407,7 @@ export const EventDialog = ({
       resetForm();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error saving event:', error);
+      console.error('❌ Error saving event:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to save event",
