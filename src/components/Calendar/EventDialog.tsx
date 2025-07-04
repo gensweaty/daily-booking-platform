@@ -406,6 +406,48 @@ export const EventDialog = ({
           await uploadFiles(newEventId);
         }
 
+        // CRITICAL: For recurring events, wait for child events and force multiple refreshes
+        if (isRecurring) {
+          console.log("🔄 Waiting for recurring instances to be created...");
+          
+          // Wait longer for SQL function to complete
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          
+          // Verify child events were created
+          const { data: childEvents, error: childError } = await supabase
+            .from('events')
+            .select('*')
+            .eq('parent_event_id', newEventId)
+            .eq('user_id', user.id);
+          
+          if (childError) {
+            console.error("❌ Error checking child events:", childError);
+          } else {
+            console.log("👶 Child events created:", childEvents?.length || 0);
+            if (childEvents && childEvents.length > 0) {
+              console.log("👶 Child events details:", childEvents.map(e => ({
+                id: e.id,
+                start_date: e.start_date,
+                parent_event_id: e.parent_event_id
+              })));
+            }
+          }
+          
+          // Force multiple refreshes to ensure events appear
+          console.log("🔄 Force refreshing calendar after recurring creation...");
+          setTimeout(() => {
+            onEventCreated?.();
+          }, 500);
+          
+          setTimeout(() => {
+            onEventCreated?.();
+          }, 1500);
+          
+          setTimeout(() => {
+            onEventCreated?.();
+          }, 3000);
+        }
+
         // Send email notification for new event creation
         console.log("🔔 Attempting to send event creation email for internal event");
         if (socialNetworkLink && socialNetworkLink.includes('@')) {
@@ -459,7 +501,10 @@ export const EventDialog = ({
           });
         }
         
-        onEventCreated?.();
+        // Always call onEventCreated for regular events too
+        if (!isRecurring) {
+          onEventCreated?.();
+        }
       }
 
       resetForm();

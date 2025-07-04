@@ -320,10 +320,21 @@ export const Calendar = ({
     const queryKey = businessId ? ['business-events', businessId] : ['events', user?.id];
     queryClient.invalidateQueries({ queryKey });
     
-    // Also trigger a direct refetch
+    // Also trigger a direct refetch with multiple attempts
     setTimeout(() => {
+      console.log("🔄 First refetch attempt...");
       refetch();
-    }, 1000);
+    }, 500);
+    
+    setTimeout(() => {
+      console.log("🔄 Second refetch attempt...");
+      refetch();
+    }, 1500);
+    
+    setTimeout(() => {
+      console.log("🔄 Third refetch attempt...");
+      refetch();
+    }, 3000);
   };
 
   const handleEventCreated = () => {
@@ -376,7 +387,7 @@ export const Calendar = ({
           </div>
           <button
             onClick={() => setShowDebugger(!showDebugger)}
-            className="text-xs px-2 py-1 bg-gray-200 rounded"
+            className="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
           >
             {showDebugger ? "Hide" : "Show"} Debug
           </button>
