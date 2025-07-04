@@ -415,9 +415,9 @@ export const EventDialog = ({
         payment_status: paymentStatus || 'not_paid',
         payment_amount: paymentAmount || '',
         type: 'event',
-        is_recurring: isRecurring, // This is now properly managed by the useEffect in EventDialogFields
+        is_recurring: isRecurring,
         repeat_pattern: isRecurring ? repeatPattern : null,
-        repeat_until: (isRecurring && repeatUntil) ? repeatUntil.toISOString().split('T')[0] : null
+        repeat_until: (isRecurring && repeatUntil) ? repeatUntil : null // repeatUntil is already a string in YYYY-MM-DD format
       };
 
       // Enhanced logging for debugging
@@ -427,7 +427,7 @@ export const EventDialog = ({
       console.log("🔁 Recurring Info:", {
         isRecurring,
         repeatPattern,
-        repeatUntil: repeatUntil ? repeatUntil.toISOString().split('T')[0] : null,
+        repeatUntil: repeatUntil || null, // Already a string
         finalIsRecurring: eventData.is_recurring,
         finalRepeatPattern: eventData.repeat_pattern,
         finalRepeatUntil: eventData.repeat_until
