@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -57,6 +58,10 @@ export const EventDialog = ({
     paymentStatus: string;
     paymentAmount: string;
   }>>([]);
+
+  // Check if this is a recurring event (parent or child)
+  const isRecurringEvent = initialData?.is_recurring || initialData?.parent_event_id;
+  const isChildEvent = !!initialData?.parent_event_id;
 
   useEffect(() => {
     if (open) {
@@ -300,23 +305,40 @@ export const EventDialog = ({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (deleteChoice?: "this" | "series") => {
     if (!eventId && !initialData?.id) return;
     
     setIsLoading(true);
     
     try {
-      const { error } = await supabase
-        .from('events')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', eventId || initialData?.id);
+      if (isRecurringEvent && deleteChoice === "series") {
+        // Delete entire series using the database function
+        const { error } = await supabase.rpc('delete_recurring_series', {
+          p_event_id: eventId || initialData?.id,
+          p_user_id: user?.id,
+          p_delete_choice: 'series'
+        });
         
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: "Event deleted successfully",
-      });
+        if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Entire event series deleted successfully",
+        });
+      } else {
+        // Delete single event
+        const { error } = await supabase
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', eventId || initialData?.id);
+          
+        if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Event deleted successfully",
+        });
+      }
       
       onEventDeleted?.();
       onOpenChange(false);
@@ -356,7 +378,10 @@ export const EventDialog = ({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {eventId || initialData ? "Edit Event" : "Create New Event"}
+            {eventId || initialData ? 
+              `${isChildEvent ? "Edit Instance" : "Edit Event"}${isRecurringEvent ? " (Recurring)" : ""}` : 
+              "Create New Event"
+            }
           </DialogTitle>
         </DialogHeader>
 
@@ -400,14 +425,26 @@ export const EventDialog = ({
           <div className="flex justify-between">
             <div className="flex gap-2">
               {(eventId || initialData) && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={handleDelete}
-                  disabled={isLoading}
-                >
-                  Delete Event
-                </Button>
+                <>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => handleDelete("this")}
+                    disabled={isLoading}
+                  >
+                    Delete {isChildEvent ? "Instance" : "Event"}
+                  </Button>
+                  {isRecurringEvent && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={() => handleDelete("series")}
+                      disabled={isLoading}
+                    >
+                      Delete Series
+                    </Button>
+                  )}
+                </>
               )}
             </div>
             

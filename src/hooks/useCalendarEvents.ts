@@ -53,59 +53,32 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         }
       }
 
-      // Separate regular events from deletion exceptions
-      const regularEvents = events?.filter(event => 
-        event.type !== 'deletion_exception' && 
-        !event.title?.startsWith('__DELETED_') && 
-        event.user_surname !== '__SYSTEM_DELETION_EXCEPTION__'
-      ) || [];
-      
-      const deletionExceptions = events?.filter(event => 
-        event.type === 'deletion_exception' || 
-        event.title?.startsWith('__DELETED_') || 
-        event.user_surname === '__SYSTEM_DELETION_EXCEPTION__'
-      ) || [];
-
-      console.log("📊 Event breakdown:", {
-        totalEvents: events?.length || 0,
-        regularEvents: regularEvents.length,
-        deletionExceptions: deletionExceptions.length,
-        bookingRequests: bookingRequests.length
-      });
-
       // Convert all data to CalendarEventType format
       const allEvents: CalendarEventType[] = [];
 
-      // Add regular events
-      for (const event of regularEvents) {
-        if (event.is_recurring && event.repeat_pattern) {
-          // Generate recurring instances
-          const instances = generateRecurringInstances(event);
-          // Filter out deleted instances
-          const filteredInstances = filterDeletedInstances(instances, deletionExceptions);
-          allEvents.push(...filteredInstances);
-        } else {
-          allEvents.push({
-            id: event.id,
-            title: event.title,
-            start_date: event.start_date,
-            end_date: event.end_date,
-            user_id: event.user_id,
-            user_surname: event.user_surname,
-            user_number: event.user_number,
-            social_network_link: event.social_network_link,
-            event_notes: event.event_notes,
-            event_name: event.event_name,
-            payment_status: event.payment_status,
-            payment_amount: event.payment_amount,
-            type: event.type || 'event',
-            is_recurring: event.is_recurring || false,
-            repeat_pattern: event.repeat_pattern,
-            repeat_until: event.repeat_until,
-            language: event.language,
-            created_at: event.created_at || new Date().toISOString(),
-          });
-        }
+      // Add events (now including both parent and child recurring events)
+      for (const event of events || []) {
+        allEvents.push({
+          id: event.id,
+          title: event.title,
+          start_date: event.start_date,
+          end_date: event.end_date,
+          user_id: event.user_id,
+          user_surname: event.user_surname,
+          user_number: event.user_number,
+          social_network_link: event.social_network_link,
+          event_notes: event.event_notes,
+          event_name: event.event_name,
+          payment_status: event.payment_status,
+          payment_amount: event.payment_amount,
+          type: event.type || 'event',
+          is_recurring: event.is_recurring || false,
+          repeat_pattern: event.repeat_pattern,
+          repeat_until: event.repeat_until,
+          parent_event_id: event.parent_event_id,
+          language: event.language,
+          created_at: event.created_at || new Date().toISOString(),
+        });
       }
 
       // Add booking requests
@@ -128,7 +101,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         });
       }
 
-      console.log(`✅ Loaded ${allEvents.length} total events (${regularEvents.length} regular + ${bookingRequests.length} bookings, filtered ${deletionExceptions.length} exceptions)`);
+      console.log(`✅ Loaded ${allEvents.length} total events (${events?.length || 0} events + ${bookingRequests.length} bookings)`);
       return allEvents;
 
     } catch (error) {
@@ -155,7 +128,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("Creating event with data:", eventData);
 
-      // Use the new database function for atomic operations
+      // Use the database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
         p_event_data: {
           title: eventData.user_surname || eventData.title,
@@ -219,7 +192,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("Updating event with data:", eventData);
 
-      // Use the new database function for atomic operations
+      // Use the database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
         p_event_data: {
           title: eventData.user_surname || eventData.title,
@@ -283,15 +256,27 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("Deleting event:", id, deleteChoice);
 
-      const { error } = await supabase
-        .from('events')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', id)
-        .eq('user_id', user.id);
+      if (deleteChoice === "series") {
+        // Use the delete_recurring_series function for series deletion
+        const { data, error } = await supabase.rpc('delete_recurring_series', {
+          p_event_id: id,
+          p_user_id: user.id,
+          p_delete_choice: 'series'
+        });
 
-      if (error) throw error;
+        if (error) throw error;
+        return { success: true, deletedCount: data };
+      } else {
+        // Single event deletion
+        const { error } = await supabase
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', id)
+          .eq('user_id', user.id);
 
-      return { success: true };
+        if (error) throw error;
+        return { success: true };
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
