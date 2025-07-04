@@ -134,7 +134,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         });
       }
 
-      // Enhanced logging for recurring events info
+      // Log recurring events info
       const parentEvents = allEvents.filter(e => e.is_recurring && !e.parent_event_id);
       const childEvents = allEvents.filter(e => e.parent_event_id);
       

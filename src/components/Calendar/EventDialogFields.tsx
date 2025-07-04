@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -137,15 +136,6 @@ export const EventDialogFields = ({
     const selectedDateTime = startDate ? new Date(startDate) : undefined;
     return getRepeatOptions(selectedDateTime, t);
   }, [startDate, t]);
-
-  // CRITICAL FIX: Auto-sync isRecurring with repeatPattern changes
-  useEffect(() => {
-    if (repeatPattern === "none") {
-      setIsRecurring(false);
-    } else {
-      setIsRecurring(true);
-    }
-  }, [repeatPattern, setIsRecurring]);
   
   const georgianStyle = isGeorgian ? {
     fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
