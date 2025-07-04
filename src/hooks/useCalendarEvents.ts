@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -22,7 +21,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("Fetching events for user:", targetUserId, "business:", businessId);
 
-      // Fetch events from the events table
+      // Fetch ALL events from the events table (both parent and child events)
       const { data: events, error: eventsError } = await supabase
         .from('events')
         .select('*')
@@ -34,6 +33,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         console.error("Error fetching events:", eventsError);
         throw eventsError;
       }
+
+      // DEBUG: Log raw fetched events
+      console.log("RAW fetched events:", events);
+      console.log(
+        "Fetched events count:", events?.length,
+        "\nSample (first 5):",
+        (events || []).slice(0, 5)
+      );
+      const countParents = (events || []).filter(ev => !ev.parent_event_id).length;
+      const countChildren = (events || []).filter(ev => !!ev.parent_event_id).length;
+      console.log("Parents:", countParents, "Children:", countChildren);
 
       // Fetch booking requests if we have a business ID
       let bookingRequests: any[] = [];
@@ -55,7 +65,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       // Convert all data to CalendarEventType format
       const allEvents: CalendarEventType[] = [];
 
-      // Add events (now including both parent and child recurring events)
+      // Add ALL events (both parent and child recurring events) - DO NOT filter by parent_event_id
       for (const event of events || []) {
         allEvents.push({
           id: event.id,
@@ -74,7 +84,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           is_recurring: event.is_recurring || false,
           repeat_pattern: event.repeat_pattern,
           repeat_until: event.repeat_until,
-          parent_event_id: event.parent_event_id,
+          parent_event_id: event.parent_event_id, // Include parent_event_id for child events
           language: event.language,
           created_at: event.created_at || new Date().toISOString(),
         });
@@ -101,6 +111,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       }
 
       console.log(`✅ Loaded ${allEvents.length} total events (${events?.length || 0} events + ${bookingRequests.length} bookings)`);
+      console.log("Final allEvents (first 5):", allEvents.slice(0, 5));
+      
+      // Return ALL events - no filtering by parent_event_id
       return allEvents;
 
     } catch (error) {

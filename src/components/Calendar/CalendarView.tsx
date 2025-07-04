@@ -87,7 +87,8 @@ export function CalendarView({
   
   const daysToRender = view === 'month' ? getDaysWithSurroundingMonths() : days;
   
-  // Strictly filter events to make sure deleted events don't show up
+  // Filter events to make sure deleted events don't show up - DO NOT filter by parent_event_id!
+  // Show ALL events (both parent and child events) that are not deleted
   const filteredEvents = events.filter(event => {
     // First check if deleted_at is undefined or null
     if (event.deleted_at === undefined || event.deleted_at === null) {
@@ -100,15 +101,24 @@ export function CalendarView({
   
   // Add debug log for events in CalendarView
   useEffect(() => {
-    if (isExternalCalendar) {
-      console.log(`[CalendarView] Rendering external calendar with ${events.length} events, ${filteredEvents.length} after filtering deleted`);
-      if (events.length > filteredEvents.length) {
-        console.log("[CalendarView] Filtered out deleted events:", events.filter(e => e.deleted_at));
-      }
-      if (filteredEvents.length > 0) {
-        console.log("[CalendarView] First event sample:", filteredEvents[0]);
-      }
+    console.log(`[CalendarView] Rendering calendar with ${events.length} total events, ${filteredEvents.length} after filtering deleted`);
+    
+    // Count parent vs child events for debugging
+    const parentEvents = filteredEvents.filter(e => !e.parent_event_id);
+    const childEvents = filteredEvents.filter(e => !!e.parent_event_id);
+    console.log(`[CalendarView] Parent events: ${parentEvents.length}, Child events (recurring instances): ${childEvents.length}`);
+    
+    if (events.length > filteredEvents.length) {
+      console.log("[CalendarView] Filtered out deleted events:", events.filter(e => e.deleted_at));
     }
+    if (filteredEvents.length > 0) {
+      console.log("[CalendarView] Sample events to display:", filteredEvents.slice(0, 3));
+    }
+    
+    if (isExternalCalendar) {
+      console.log(`[CalendarView] External calendar mode with ${filteredEvents.length} events`);
+    }
+    
     // Debug theme state
     console.log("[CalendarView] Current theme state:", { 
       theme, 
@@ -124,7 +134,7 @@ export function CalendarView({
     <div className="h-full">
       <CalendarGrid
         days={daysToRender}
-        events={filteredEvents} // Use the filtered events
+        events={filteredEvents} // Pass ALL events (parent and child) that are not deleted
         formattedSelectedDate={formattedSelectedDate}
         view={view}
         onDayClick={onDayClick}
