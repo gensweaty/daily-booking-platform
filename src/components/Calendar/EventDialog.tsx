@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -107,15 +106,25 @@ export const EventDialog = ({
     }
   };
 
-  // CRITICAL FIX: Convert datetime-local input to proper ISO string
+  // CRITICAL FIX: Convert datetime-local input to proper ISO string without timezone offset issues
   const convertInputDateToISO = (inputDate: string) => {
     if (!inputDate) return "";
     try {
       // Input format: "2025-07-11T21:00" (datetime-local)
-      // We need to treat this as local time and convert to ISO
-      const date = new Date(inputDate);
-      const isoString = date.toISOString();
-      console.log("🔄 Converting input date:", { input: inputDate, iso: isoString });
+      // Create date treating input as local time, then convert to UTC for database
+      const [datePart, timePart] = inputDate.split('T');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hours, minutes] = timePart.split(':').map(Number);
+      
+      // Create date in local timezone
+      const localDate = new Date(year, month - 1, day, hours, minutes);
+      const isoString = localDate.toISOString();
+      
+      console.log("🔄 Converting input date:", { 
+        input: inputDate, 
+        localDate: localDate.toString(),
+        iso: isoString 
+      });
       return isoString;
     } catch (error) {
       console.error("Error converting input date to ISO:", error);
@@ -310,11 +319,14 @@ export const EventDialog = ({
       const startDateISO = convertInputDateToISO(startDate);
       const endDateISO = convertInputDateToISO(endDate);
       
-      console.log("🚀 Date conversion for database:", {
+      console.log("🚀 FINAL Date conversion for database:", {
         input_start: startDate,
         input_end: endDate,
         iso_start: startDateISO,
-        iso_end: endDateISO
+        iso_end: endDateISO,
+        is_recurring: isRecurring,
+        repeat_pattern: repeatPattern,
+        repeat_until: repeatUntil
       });
 
       // CRITICAL: Properly format the recurring event data
@@ -334,14 +346,7 @@ export const EventDialog = ({
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
       };
 
-      console.log("🚀 Submitting event data with FIXED recurring info:", {
-        is_recurring: eventData.is_recurring,
-        repeat_pattern: eventData.repeat_pattern,
-        repeat_until: eventData.repeat_until,
-        start_date: eventData.start_date,
-        end_date: eventData.end_date,
-        title: eventData.title
-      });
+      console.log("🚀 FINAL event data being sent to database:", eventData);
 
       let result;
       

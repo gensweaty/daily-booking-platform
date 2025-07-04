@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -130,9 +131,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       // CRITICAL FIX: Ensure proper date formatting and validation
       const formatDateForSQL = (dateStr: string) => {
         if (!dateStr) return null;
-        // Convert datetime-local input to proper ISO string
+        // For ISO strings, ensure they're properly formatted
         try {
           const date = new Date(dateStr);
+          if (isNaN(date.getTime())) {
+            console.error("Invalid date:", dateStr);
+            return null;
+          }
           return date.toISOString();
         } catch (error) {
           console.error("Error formatting date for SQL:", error);
@@ -158,14 +163,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         repeat_until: eventData.repeat_until || null
       };
 
-      console.log("🔄 FINAL event payload with recurring data:", {
-        is_recurring: eventPayload.is_recurring,
-        repeat_pattern: eventPayload.repeat_pattern,
-        repeat_until: eventPayload.repeat_until,
-        start_date: eventPayload.start_date,
-        end_date: eventPayload.end_date,
-        title: eventPayload.title
-      });
+      console.log("🔄 FINAL event payload being sent to database:", eventPayload);
 
       // Use the database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
