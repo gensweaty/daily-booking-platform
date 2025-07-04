@@ -22,6 +22,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       console.log("🔍 Fetching events for user:", targetUserId, "business:", businessId);
 
       // Fetch ALL events from the events table (both parent and child events)
+      // CRITICAL: Do NOT filter by parent_event_id - we need ALL events
       const { data: events, error: eventsError } = await supabase
         .from('events')
         .select('*')
@@ -148,7 +149,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       console.log(`✅ Final events count: ${allEvents.length} (${events?.length || 0} events + ${bookingRequests.length} bookings)`);
       console.log("🔍 Final allEvents sample:", allEvents.slice(0, 3));
       
-      // Return ALL events - no filtering by parent_event_id
+      // Return ALL events - including both parent and child events
       return allEvents;
 
     } catch (error) {
@@ -246,9 +247,20 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("✅ Event created successfully with ID:", savedEventId);
       
-      // If it's a recurring event, let's verify the children were created
+      // If it's a recurring event, wait for child events to be created
       if (eventData.is_recurring) {
-        console.log("🔍 Checking for child events...");
+        console.log("🔍 Waiting for recurring instances to be created...");
+        
+        // Wait a moment for the SQL function to complete
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Force refetch to get the new events
+        setTimeout(() => {
+          console.log("🔄 Force refetching events after recurring creation...");
+          refetch();
+        }, 1000);
+        
+        // Verify child events were created
         setTimeout(async () => {
           const { data: childEvents } = await supabase
             .from('events')
@@ -264,7 +276,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
               parent_event_id: e.parent_event_id
             })));
           }
-        }, 1000);
+        }, 3000);
       }
 
       // Return a complete CalendarEventType object
@@ -280,10 +292,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       } as CalendarEventType;
     },
     onSuccess: () => {
+      // Invalidate queries to trigger refetch
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
       }
+      
+      // Force refetch after a short delay
+      setTimeout(() => {
+        refetch();
+      }, 1500);
       
       toast({
         title: "Success",

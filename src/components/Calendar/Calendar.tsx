@@ -63,7 +63,7 @@ export const Calendar = ({
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
   
-  const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
+  const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent, refetch } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
     !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
   );
@@ -117,7 +117,8 @@ export const Calendar = ({
         id: e.id,
         title: e.title,
         start_date: e.start_date,
-        parent_event_id: e.parent_event_id
+        parent_event_id: e.parent_event_id,
+        type: e.parent_event_id ? 'CHILD' : 'PARENT'
       })));
     }
   }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents, selectedDate]);
@@ -204,15 +205,14 @@ export const Calendar = ({
     }
   };
 
-  // CRITICAL FIX: Instead of filtering events by date range here, 
-  // pass ALL events to CalendarView and let it handle the filtering
-  // This matches how the debugger works - it shows all events and lets the view filter them
+  // CRITICAL: Pass ALL events to CalendarView - let it handle the filtering
+  // This ensures both parent and child recurring events are available for display
   const getEventsForView = () => {
     if (!events || events.length === 0) return [];
     
-    // Don't filter by date range here - pass all events to the view
+    // Pass ALL events to the view - don't filter here
     // The view will handle displaying only relevant events for the current time period
-    console.log(`[Calendar] Passing all ${events.length} events to CalendarView for filtering`);
+    console.log(`[Calendar] Passing all ${events.length} events to CalendarView (${events.filter(e => !e.parent_event_id).length} parent, ${events.filter(e => !!e.parent_event_id).length} child)`);
     return events;
   };
 
@@ -319,6 +319,11 @@ export const Calendar = ({
   const refreshCalendar = () => {
     const queryKey = businessId ? ['business-events', businessId] : ['events', user?.id];
     queryClient.invalidateQueries({ queryKey });
+    
+    // Also trigger a direct refetch
+    setTimeout(() => {
+      refetch();
+    }, 1000);
   };
 
   const handleEventCreated = () => {
@@ -367,7 +372,7 @@ export const Calendar = ({
       {!isExternalCalendar && (
         <div className="flex justify-between items-center">
           <div className="text-sm text-gray-500">
-            Showing {eventsForView.length} total events
+            Showing {eventsForView.length} total events ({eventsForView.filter(e => !e.parent_event_id).length} parent, {eventsForView.filter(e => !!e.parent_event_id).length} child)
           </div>
           <button
             onClick={() => setShowDebugger(!showDebugger)}

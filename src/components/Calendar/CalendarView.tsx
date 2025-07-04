@@ -105,7 +105,8 @@ export function CalendarView({
       viewEnd.setHours(23, 59, 59, 999);
     }
     
-    // First filter out deleted events
+    // CRITICAL: Only filter out deleted events - NOT recurring instances
+    // Show ALL events (parent and child) that fall within the view range
     const nonDeletedEvents = events.filter(event => {
       if (event.deleted_at === undefined || event.deleted_at === null) {
         return true;
@@ -119,7 +120,7 @@ export function CalendarView({
       const isInRange = isWithinInterval(eventDate, { start: viewStart, end: viewEnd });
       
       if (isInRange) {
-        console.log(`[CalendarView] Event "${event.title}" (${event.start_date}) is in view range`);
+        console.log(`[CalendarView] Event "${event.title}" (${event.start_date}) is in view range - Parent ID: ${event.parent_event_id || 'none'}`);
       }
       
       return isInRange;
@@ -127,6 +128,12 @@ export function CalendarView({
     
     console.log(`[CalendarView] View range: ${viewStart.toISOString()} to ${viewEnd.toISOString()}`);
     console.log(`[CalendarView] Filtered events for view: ${eventsInView.length}/${events.length}`);
+    console.log(`[CalendarView] Events by type:`, {
+      total: eventsInView.length,
+      parent: eventsInView.filter(e => !e.parent_event_id).length,
+      child: eventsInView.filter(e => !!e.parent_event_id).length,
+      recurring: eventsInView.filter(e => e.is_recurring).length
+    });
     
     return eventsInView;
   };
@@ -163,7 +170,7 @@ export function CalendarView({
     // CRITICAL DEBUG: Log each event that will be displayed
     filteredEvents.forEach(event => {
       const eventDate = new Date(event.start_date);
-      console.log(`[CalendarView] Displaying event "${event.title}" on ${eventDate.toDateString()} - Parent ID: ${event.parent_event_id || 'none'}`);
+      console.log(`[CalendarView] Displaying event "${event.title}" on ${eventDate.toDateString()} - Parent ID: ${event.parent_event_id || 'none'} - Type: ${event.parent_event_id ? 'CHILD' : 'PARENT'}`);
     });
   }, [events, filteredEvents, isExternalCalendar, theme, resolvedTheme, currentTheme, view, selectedDate]);
 
