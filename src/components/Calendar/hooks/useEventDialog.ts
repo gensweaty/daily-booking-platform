@@ -21,23 +21,57 @@ export const useEventDialog = ({
   const { toast } = useToast();
   const { language } = useLanguage();
 
+  // CRUCIAL FIX: Validate event data before calling database functions
+  const validateEventData = (data: Partial<CalendarEventType>) => {
+    console.log("🔍 Validating event data in dialog:", data);
+    
+    // Ensure we have required dates
+    if (!data.start_date || !data.end_date) {
+      throw new Error("Start date and end date are required");
+    }
+
+    // Ensure dates are valid
+    const startDate = new Date(data.start_date);
+    const endDate = new Date(data.end_date);
+    
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      throw new Error("Invalid date format");
+    }
+
+    // Ensure we have a title
+    const title = data.user_surname || data.title;
+    if (!title || title.trim() === '') {
+      throw new Error("Event title is required");
+    }
+
+    return {
+      ...data,
+      start_date: startDate.toISOString(),
+      end_date: endDate.toISOString(),
+      title: title.trim(),
+      user_surname: title.trim(),
+      payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
+      language: data.language || language || 'en'
+    };
+  };
+
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
+      console.log("🔄 Creating event with raw data:", data);
+      
+      // CRUCIAL FIX: Validate data before processing
+      const validatedData = validateEventData(data);
+      
       const eventData = {
-        ...data,
+        ...validatedData,
         type: 'event',
-        title: data.user_surname || data.title,
-        user_surname: data.user_surname || data.title,
-        payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
         checkAvailability: false,
-        language: data.language || language || 'en'
       };
       
-      console.log("🔄 Creating event with language:", eventData.language);
+      console.log("🔄 Creating event with validated data:", eventData);
       
       if (!createEvent) throw new Error("Create event function not provided");
       
-      console.log("🔄 Creating event with data:", eventData);
       const createdEvent = await createEvent(eventData);
       
       setIsNewEventDialogOpen(false);
@@ -61,17 +95,23 @@ export const useEventDialog = ({
         throw new Error("Update event function not provided or no event selected");
       }
       
-      const eventData = {
+      console.log("🔄 Updating event with raw data:", data);
+      
+      // CRUCIAL FIX: Validate data before processing
+      const validatedData = validateEventData({
         ...data,
-        type: selectedEvent.type || 'event',
+        start_date: data.start_date || selectedEvent.start_date,
+        end_date: data.end_date || selectedEvent.end_date,
         title: data.user_surname || data.title || selectedEvent.title,
-        user_surname: data.user_surname || data.title || selectedEvent.user_surname,
-        payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
-        language: data.language || selectedEvent.language || language || 'en'
+      });
+      
+      const eventData = {
+        ...validatedData,
+        type: selectedEvent.type || 'event',
+        language: validatedData.language || selectedEvent.language || language || 'en'
       };
       
-      console.log("🔄 Updating event with language:", eventData.language);
-      console.log("🔄 Updating event with data:", eventData);
+      console.log("🔄 Updating event with validated data:", eventData);
       
       const updatedEvent = await updateEvent({
         ...eventData,

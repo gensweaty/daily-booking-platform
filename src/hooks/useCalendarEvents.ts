@@ -183,47 +183,86 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     staleTime: 30 * 1000, // 30 seconds
   });
 
+  // CRUCIAL FIX: Validate event data before sending to database
+  const validateEventData = (eventData: Partial<CalendarEventType>) => {
+    console.log("🔍 Validating event data:", eventData);
+    
+    // Ensure required dates are present and valid
+    if (!eventData.start_date || !eventData.end_date) {
+      throw new Error("Start date and end date are required");
+    }
+
+    // Ensure dates are proper ISO strings
+    const startDate = new Date(eventData.start_date);
+    const endDate = new Date(eventData.end_date);
+    
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      throw new Error("Invalid date format");
+    }
+
+    // Ensure we have a title or user_surname
+    if (!eventData.title && !eventData.user_surname) {
+      throw new Error("Title or user surname is required");
+    }
+
+    return {
+      ...eventData,
+      start_date: startDate.toISOString(),
+      end_date: endDate.toISOString(),
+      title: eventData.user_surname || eventData.title || 'Untitled Event',
+      user_surname: eventData.user_surname || eventData.title || 'Unknown',
+    };
+  };
+
   const createEventMutation = useMutation({
     mutationFn: async (eventData: Partial<CalendarEventType>) => {
       if (!user?.id) throw new Error("User not authenticated");
 
       console.log("🔄 Creating event with data:", eventData);
 
+      // CRUCIAL FIX: Validate data before sending to database
+      const validatedData = validateEventData(eventData);
+
       // CRUCIAL FIX: Stringify JSON parameters for PostgreSQL JSONB
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
         p_event_data: JSON.stringify({
-          title: eventData.user_surname || eventData.title,
-          user_surname: eventData.user_surname,
-          user_number: eventData.user_number,
-          social_network_link: eventData.social_network_link,
-          event_notes: eventData.event_notes,
-          event_name: eventData.event_name,
-          start_date: eventData.start_date,
-          end_date: eventData.end_date,
-          payment_status: eventData.payment_status || 'not_paid',
-          payment_amount: eventData.payment_amount?.toString() || '',
-          type: eventData.type || 'event',
-          is_recurring: eventData.is_recurring || false,
-          repeat_pattern: eventData.repeat_pattern,
-          repeat_until: eventData.repeat_until
+          title: validatedData.user_surname || validatedData.title,
+          user_surname: validatedData.user_surname,
+          user_number: validatedData.user_number || '',
+          social_network_link: validatedData.social_network_link || '',
+          event_notes: validatedData.event_notes || '',
+          event_name: validatedData.event_name || '',
+          start_date: validatedData.start_date,
+          end_date: validatedData.end_date,
+          payment_status: validatedData.payment_status || 'not_paid',
+          payment_amount: validatedData.payment_amount?.toString() || '',
+          type: validatedData.type || 'event',
+          is_recurring: validatedData.is_recurring || false,
+          repeat_pattern: validatedData.repeat_pattern || null,
+          repeat_until: validatedData.repeat_until || null
         }),
         p_additional_persons: JSON.stringify([]), // No additional persons for direct creation
         p_user_id: user.id,
         p_event_id: null
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Database error:", error);
+        throw error;
+      }
+
+      console.log("✅ Event created with ID:", savedEventId);
 
       // Return a complete CalendarEventType object
       return {
         id: savedEventId,
-        title: eventData.user_surname || eventData.title || 'Untitled Event',
-        start_date: eventData.start_date || new Date().toISOString(),
-        end_date: eventData.end_date || new Date().toISOString(),
+        title: validatedData.user_surname || validatedData.title || 'Untitled Event',
+        start_date: validatedData.start_date,
+        end_date: validatedData.end_date,
         user_id: user.id,
-        type: eventData.type || 'event',
+        type: validatedData.type || 'event',
         created_at: new Date().toISOString(),
-        ...eventData
+        ...validatedData
       } as CalendarEventType;
     },
     onSuccess: () => {
@@ -253,41 +292,49 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("🔄 Updating event with data:", eventData);
 
+      // CRUCIAL FIX: Validate data before sending to database
+      const validatedData = validateEventData(eventData);
+
       // CRUCIAL FIX: Stringify JSON parameters for PostgreSQL JSONB
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
         p_event_data: JSON.stringify({
-          title: eventData.user_surname || eventData.title,
-          user_surname: eventData.user_surname,
-          user_number: eventData.user_number,
-          social_network_link: eventData.social_network_link,
-          event_notes: eventData.event_notes,
-          event_name: eventData.event_name,
-          start_date: eventData.start_date,
-          end_date: eventData.end_date,
-          payment_status: eventData.payment_status || 'not_paid',
-          payment_amount: eventData.payment_amount?.toString() || '',
-          type: eventData.type || 'event',
-          is_recurring: eventData.is_recurring || false,
-          repeat_pattern: eventData.repeat_pattern,
-          repeat_until: eventData.repeat_until
+          title: validatedData.user_surname || validatedData.title,
+          user_surname: validatedData.user_surname,
+          user_number: validatedData.user_number || '',
+          social_network_link: validatedData.social_network_link || '',
+          event_notes: validatedData.event_notes || '',
+          event_name: validatedData.event_name || '',
+          start_date: validatedData.start_date,
+          end_date: validatedData.end_date,
+          payment_status: validatedData.payment_status || 'not_paid',
+          payment_amount: validatedData.payment_amount?.toString() || '',
+          type: validatedData.type || 'event',
+          is_recurring: validatedData.is_recurring || false,
+          repeat_pattern: validatedData.repeat_pattern || null,
+          repeat_until: validatedData.repeat_until || null
         }),
         p_additional_persons: JSON.stringify([]), // Additional persons handled in EventDialog
         p_user_id: user.id,
         p_event_id: eventData.id
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Database error:", error);
+        throw error;
+      }
+
+      console.log("✅ Event updated with ID:", savedEventId);
 
       // Return a complete CalendarEventType object
       return {
         id: savedEventId,
-        title: eventData.user_surname || eventData.title || 'Untitled Event',
-        start_date: eventData.start_date || new Date().toISOString(),
-        end_date: eventData.end_date || new Date().toISOString(),
+        title: validatedData.user_surname || validatedData.title || 'Untitled Event',
+        start_date: validatedData.start_date,
+        end_date: validatedData.end_date,
         user_id: user.id,
-        type: eventData.type || 'event',
-        created_at: eventData.created_at || new Date().toISOString(),
-        ...eventData
+        type: validatedData.type || 'event',
+        created_at: validatedData.created_at || new Date().toISOString(),
+        ...validatedData
       } as CalendarEventType;
     },
     onSuccess: () => {
