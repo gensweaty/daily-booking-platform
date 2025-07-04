@@ -1,19 +1,10 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { validateEventData } from '@/lib/eventValidation';
-
-interface PersonData {
-  id: string;
-  userSurname: string;
-  userNumber: string;
-  socialNetworkLink: string;
-  eventNotes: string;
-  paymentStatus: string;
-  paymentAmount: string;
-}
+import { generateRecurringInstances, filterDeletedInstances } from '@/lib/recurringEvents';
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string) => {
   const { user } = useAuth();
@@ -30,9 +21,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         return [];
       }
 
-      console.log("🔄 Fetching events for user:", targetUserId, "business:", businessId);
+      console.log("Fetching events for user:", targetUserId, "business:", businessId);
 
-      // Fetch ALL events from the events table (including recurring child events)
+      // Fetch events from the events table
       const { data: events, error: eventsError } = await supabase
         .from('events')
         .select('*')
@@ -41,7 +32,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         .order('start_date', { ascending: true });
 
       if (eventsError) {
-        console.error("❌ Error fetching events:", eventsError);
+        console.error("Error fetching events:", eventsError);
         throw eventsError;
       }
 
@@ -56,7 +47,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           .order('start_date', { ascending: true });
 
         if (bookingsError) {
-          console.error("❌ Error fetching booking requests:", bookingsError);
+          console.error("Error fetching booking requests:", bookingsError);
         } else {
           bookingRequests = bookings || [];
         }
@@ -85,21 +76,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       // Convert all data to CalendarEventType format
       const allEvents: CalendarEventType[] = [];
 
-      // Add ALL regular events (both parent and child recurring events)
+      // Add regular events
       for (const event of regularEvents) {
-        // Check if this is a deleted instance
-        const eventDate = event.start_date.split('T')[0];
-        const isDeleted = deletionExceptions.some(exception => {
-          const exceptionDate = exception.start_date.split('T')[0];
-          return exceptionDate === eventDate && (
-            // Check if it's for the same parent event
-            exception.parent_event_id === event.parent_event_id ||
-            exception.parent_event_id === event.id ||
-            (event.parent_event_id && exception.parent_event_id === event.parent_event_id)
-          );
-        });
-
-        if (!isDeleted) {
+        if (event.is_recurring && event.repeat_pattern) {
+          // Generate recurring instances
+          const instances = generateRecurringInstances(event);
+          // Filter out deleted instances
+          const filteredInstances = filterDeletedInstances(instances, deletionExceptions);
+          allEvents.push(...filteredInstances);
+        } else {
           allEvents.push({
             id: event.id,
             title: event.title,
@@ -117,7 +102,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             is_recurring: event.is_recurring || false,
             repeat_pattern: event.repeat_pattern,
             repeat_until: event.repeat_until,
-            parent_event_id: event.parent_event_id,
             language: event.language,
             created_at: event.created_at || new Date().toISOString(),
           });
@@ -144,39 +128,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         });
       }
 
-      // Log recurring events info
-      const parentEvents = allEvents.filter(e => e.is_recurring && !e.parent_event_id);
-      const childEvents = allEvents.filter(e => e.parent_event_id);
-      
-      console.log("🔁 Recurring events summary:", {
-        parentRecurringEvents: parentEvents.length,
-        childRecurringEvents: childEvents.length,
-        totalEvents: allEvents.length
-      });
-
-      if (parentEvents.length > 0) {
-        console.log("👨‍👩‍👧‍👦 Parent recurring events:", parentEvents.map(e => ({
-          id: e.id,
-          title: e.title,
-          pattern: e.repeat_pattern,
-          start: e.start_date
-        })));
-      }
-
-      if (childEvents.length > 0) {
-        console.log("👶 Child recurring events:", childEvents.map(e => ({
-          id: e.id,
-          title: e.title,
-          parent_id: e.parent_event_id,
-          start: e.start_date
-        })));
-      }
-
       console.log(`✅ Loaded ${allEvents.length} total events (${regularEvents.length} regular + ${bookingRequests.length} bookings, filtered ${deletionExceptions.length} exceptions)`);
       return allEvents;
 
     } catch (error) {
-      console.error("❌ Error in fetchEvents:", error);
+      console.error("Error in fetchEvents:", error);
       throw error;
     }
   };
@@ -194,74 +150,46 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
   });
 
   const createEventMutation = useMutation({
-    mutationFn: async (eventData: Partial<CalendarEventType> & { additionalPersons?: PersonData[] }) => {
+    mutationFn: async (eventData: Partial<CalendarEventType>) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("🔄 Creating event with raw data:", eventData);
+      console.log("Creating event with data:", eventData);
 
-      // Extract additional persons and remove from event data
-      const additionalPersons = eventData.additionalPersons || [];
-      const cleanEventData = { ...eventData };
-      delete cleanEventData.additionalPersons;
-
-      // CRITICAL: Use new validation approach
-      const formData = {
-        startDate: cleanEventData.start_date || '',
-        endDate: cleanEventData.end_date || '',
-        userSurname: cleanEventData.user_surname || cleanEventData.title || '',
-        title: cleanEventData.title || '',
-        userNumber: cleanEventData.user_number || '',
-        socialNetworkLink: cleanEventData.social_network_link || '',
-        eventNotes: cleanEventData.event_notes || '',
-        eventName: cleanEventData.event_name || '',
-        paymentStatus: cleanEventData.payment_status || '',
-        paymentAmount: cleanEventData.payment_amount?.toString() || '',
-        isRecurring: cleanEventData.is_recurring || false,
-        repeatPattern: cleanEventData.repeat_pattern || '',
-        repeatUntil: cleanEventData.repeat_until || ''
-      };
-
-      console.log("🔍 Validating event data with new service:", formData);
-
-      const validation = validateEventData(formData);
-      
-      if (!validation.isValid) {
-        console.error("❌ Event validation failed:", validation.errors);
-        throw new Error(`Validation failed: ${validation.errors.join(", ")}`);
-      }
-
-      if (!validation.sanitizedData) {
-        console.error("❌ No sanitized data from validation");
-        throw new Error("Failed to process event data");
-      }
-
-      console.log("🔄 Creating event with validated data:", validation.sanitizedData);
-      console.log("👥 With additional persons:", additionalPersons);
-
+      // Use the new database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: JSON.stringify(validation.sanitizedData),
-        p_additional_persons: JSON.stringify(additionalPersons),
+        p_event_data: {
+          title: eventData.user_surname || eventData.title,
+          user_surname: eventData.user_surname,
+          user_number: eventData.user_number,
+          social_network_link: eventData.social_network_link,
+          event_notes: eventData.event_notes,
+          event_name: eventData.event_name,
+          start_date: eventData.start_date,
+          end_date: eventData.end_date,
+          payment_status: eventData.payment_status || 'not_paid',
+          payment_amount: eventData.payment_amount?.toString() || '',
+          type: eventData.type || 'event',
+          is_recurring: eventData.is_recurring || false,
+          repeat_pattern: eventData.repeat_pattern,
+          repeat_until: eventData.repeat_until
+        },
+        p_additional_persons: [], // No additional persons for direct creation
         p_user_id: user.id,
         p_event_id: null
       });
 
-      if (error) {
-        console.error("❌ Database error:", error);
-        throw error;
-      }
-
-      console.log("✅ Event created with ID:", savedEventId);
+      if (error) throw error;
 
       // Return a complete CalendarEventType object
       return {
         id: savedEventId,
-        title: validation.sanitizedData.user_surname || validation.sanitizedData.title || 'Untitled Event',
-        start_date: validation.sanitizedData.start_date,
-        end_date: validation.sanitizedData.end_date,
+        title: eventData.user_surname || eventData.title || 'Untitled Event',
+        start_date: eventData.start_date || new Date().toISOString(),
+        end_date: eventData.end_date || new Date().toISOString(),
         user_id: user.id,
-        type: validation.sanitizedData.type || 'event',
+        type: eventData.type || 'event',
         created_at: new Date().toISOString(),
-        ...validation.sanitizedData
+        ...eventData
       } as CalendarEventType;
     },
     onSuccess: () => {
@@ -276,7 +204,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       });
     },
     onError: (error: any) => {
-      console.error("❌ Error creating event:", error);
+      console.error("Error creating event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to create event",
@@ -286,74 +214,46 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
   });
 
   const updateEventMutation = useMutation({
-    mutationFn: async (eventData: Partial<CalendarEventType> & { id: string; additionalPersons?: PersonData[] }) => {
+    mutationFn: async (eventData: Partial<CalendarEventType> & { id: string }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("🔄 Updating event with raw data:", eventData);
+      console.log("Updating event with data:", eventData);
 
-      // Extract additional persons and remove from event data
-      const additionalPersons = eventData.additionalPersons || [];
-      const cleanEventData = { ...eventData };
-      delete cleanEventData.additionalPersons;
-
-      // CRITICAL: Use new validation approach
-      const formData = {
-        startDate: cleanEventData.start_date || '',
-        endDate: cleanEventData.end_date || '',
-        userSurname: cleanEventData.user_surname || cleanEventData.title || '',
-        title: cleanEventData.title || '',
-        userNumber: cleanEventData.user_number || '',
-        socialNetworkLink: cleanEventData.social_network_link || '',
-        eventNotes: cleanEventData.event_notes || '',
-        eventName: cleanEventData.event_name || '',
-        paymentStatus: cleanEventData.payment_status || '',
-        paymentAmount: cleanEventData.payment_amount?.toString() || '',
-        isRecurring: cleanEventData.is_recurring || false,
-        repeatPattern: cleanEventData.repeat_pattern || '',
-        repeatUntil: cleanEventData.repeat_until || ''
-      };
-
-      console.log("🔍 Validating update data with new service:", formData);
-
-      const validation = validateEventData(formData);
-      
-      if (!validation.isValid) {
-        console.error("❌ Event validation failed:", validation.errors);
-        throw new Error(`Validation failed: ${validation.errors.join(", ")}`);
-      }
-
-      if (!validation.sanitizedData) {
-        console.error("❌ No sanitized data from validation");
-        throw new Error("Failed to process event data");
-      }
-
-      console.log("🔄 Updating event with validated data:", validation.sanitizedData);
-      console.log("👥 With additional persons:", additionalPersons);
-
+      // Use the new database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: JSON.stringify(validation.sanitizedData),
-        p_additional_persons: JSON.stringify(additionalPersons),
+        p_event_data: {
+          title: eventData.user_surname || eventData.title,
+          user_surname: eventData.user_surname,
+          user_number: eventData.user_number,
+          social_network_link: eventData.social_network_link,
+          event_notes: eventData.event_notes,
+          event_name: eventData.event_name,
+          start_date: eventData.start_date,
+          end_date: eventData.end_date,
+          payment_status: eventData.payment_status || 'not_paid',
+          payment_amount: eventData.payment_amount?.toString() || '',
+          type: eventData.type || 'event',
+          is_recurring: eventData.is_recurring || false,
+          repeat_pattern: eventData.repeat_pattern,
+          repeat_until: eventData.repeat_until
+        },
+        p_additional_persons: [], // Additional persons handled in EventDialog
         p_user_id: user.id,
         p_event_id: eventData.id
       });
 
-      if (error) {
-        console.error("❌ Database error:", error);
-        throw error;
-      }
-
-      console.log("✅ Event updated with ID:", savedEventId);
+      if (error) throw error;
 
       // Return a complete CalendarEventType object
       return {
         id: savedEventId,
-        title: validation.sanitizedData.user_surname || validation.sanitizedData.title || 'Untitled Event',
-        start_date: validation.sanitizedData.start_date,
-        end_date: validation.sanitizedData.end_date,
+        title: eventData.user_surname || eventData.title || 'Untitled Event',
+        start_date: eventData.start_date || new Date().toISOString(),
+        end_date: eventData.end_date || new Date().toISOString(),
         user_id: user.id,
-        type: validation.sanitizedData.type || 'event',
-        created_at: cleanEventData.created_at || new Date().toISOString(),
-        ...validation.sanitizedData
+        type: eventData.type || 'event',
+        created_at: eventData.created_at || new Date().toISOString(),
+        ...eventData
       } as CalendarEventType;
     },
     onSuccess: () => {
@@ -368,7 +268,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       });
     },
     onError: (error: any) => {
-      console.error("❌ Error updating event:", error);
+      console.error("Error updating event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to update event",
@@ -381,7 +281,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("🗑️ Deleting event:", id, deleteChoice);
+      console.log("Deleting event:", id, deleteChoice);
 
       const { error } = await supabase
         .from('events')
@@ -405,7 +305,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       });
     },
     onError: (error: any) => {
-      console.error("❌ Error deleting event:", error);
+      console.error("Error deleting event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete event",

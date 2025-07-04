@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,14 +31,6 @@ interface PersonData {
   paymentAmount: string;
 }
 
-interface ExistingFile {
-  id: string;
-  filename: string;
-  file_path: string;
-  content_type?: string;
-  size?: number;
-}
-
 interface EventDialogFieldsProps {
   title: string;
   setTitle: (value: string) => void;
@@ -61,11 +54,9 @@ interface EventDialogFieldsProps {
   setPaymentAmount: (value: string) => void;
   files: File[];
   setFiles: (files: File[]) => void;
-  existingFiles?: ExistingFile[];
-  onRemoveExistingFile?: (fileId: string) => void;
   eventId?: string;
   isBookingRequest?: boolean;
-  // Recurring event props
+  // Add repeat props
   isRecurring: boolean;
   setIsRecurring: (value: boolean) => void;
   repeatPattern: string;
@@ -73,10 +64,9 @@ interface EventDialogFieldsProps {
   repeatUntil: Date | undefined;
   setRepeatUntil: (date: Date) => void;
   isNewEvent?: boolean;
-  // Additional persons props
+  // New props for additional persons management
   additionalPersons: PersonData[];
   setAdditionalPersons: (persons: PersonData[]) => void;
-  dataLoading?: boolean;
 }
 
 export const EventDialogFields = ({
@@ -102,8 +92,6 @@ export const EventDialogFields = ({
   setPaymentAmount,
   files,
   setFiles,
-  existingFiles = [],
-  onRemoveExistingFile,
   eventId,
   isBookingRequest = false,
   isRecurring,
@@ -114,8 +102,7 @@ export const EventDialogFields = ({
   setRepeatUntil,
   isNewEvent = false,
   additionalPersons,
-  setAdditionalPersons,
-  dataLoading = false
+  setAdditionalPersons
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -394,20 +381,6 @@ export const EventDialogFields = ({
     );
   };
   
-  // Convert existing files to FileRecord format for FileDisplay component
-  const convertToFileRecords = (files: ExistingFile[]): FileRecord[] => {
-    return files.map(file => ({
-      id: file.id,
-      filename: file.filename,
-      file_path: file.file_path,
-      content_type: file.content_type,
-      size: file.size,
-      created_at: new Date().toISOString(), // Default value
-      user_id: '', // Will be handled by FileDisplay component
-      parentType: 'event'
-    }));
-  };
-  
   return <>
       {/* Date and Time - Moved to top */}
       <div>
@@ -462,8 +435,8 @@ export const EventDialogFields = ({
         </div>
       </div>
 
-      {/* Repeat Options - Always show, with loading state consideration */}
-      {!dataLoading && (
+      {/* Repeat Options - Only show for new events */}
+      {isNewEvent && (
         <div>
           <Label 
             htmlFor="repeatPattern" 
@@ -622,26 +595,10 @@ export const EventDialogFields = ({
           hideLabel={true} 
         />
       </div>
-
-      {/* Display existing files using FileDisplay component */}
-      {existingFiles.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-sm font-medium">Existing Files:</div>
-          <FileDisplay 
-            files={convertToFileRecords(existingFiles)}
-            bucketName="event_attachments"
-            allowDelete={true}
-            onFileDeleted={onRemoveExistingFile}
-            parentType="event"
-            fallbackBuckets={['customer_attachments', 'booking_attachments']}
-          />
-        </div>
-      )}
       
-      {/* Display new files to be uploaded */}
       {files.length > 0 && (
         <div className="flex flex-col gap-2">
-          <div className="text-sm font-medium">New Files:</div>
+          <div className="text-sm font-medium">Selected Files:</div>
           {files.map((file, index) => (
             <div key={index} className="flex items-center justify-between p-2 border rounded">
               <span className="text-sm">{file.name}</span>

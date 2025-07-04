@@ -7,56 +7,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { EventDialogFields } from "./EventDialogFields";
 import { useToast } from "@/hooks/use-toast";
 import { sendEventCreationEmail } from "@/lib/api";
-import { validateEventData, EventFormData } from "@/lib/eventValidation";
-
-// Helper function to format datetime for datetime-local input with validation
-const formatDatetimeLocal = (dt: string | Date | null | undefined): string => {
-  if (!dt) return '';
-  
-  try {
-    // Handles ISO strings or Date objects
-    const d = typeof dt === 'string' ? new Date(dt) : dt;
-    
-    // CRITICAL: Validate date before formatting
-    if (isNaN(d.getTime())) {
-      console.error("❌ Invalid date in formatDatetimeLocal:", dt);
-      return '';
-    }
-    
-    const pad = (v: number) => String(v).padStart(2, '0');
-    const formatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    
-    console.log("📅 Formatted datetime:", { input: dt, output: formatted });
-    return formatted;
-  } catch (error) {
-    console.error("❌ Error formatting datetime:", error, dt);
-    return '';
-  }
-};
-
-// Helper function to format date for date input (repeat until)
-const formatDateOnly = (dt: string | Date | null | undefined): string => {
-  if (!dt) return '';
-  
-  try {
-    const d = typeof dt === 'string' ? new Date(dt) : dt;
-    
-    // CRITICAL: Validate date before formatting
-    if (isNaN(d.getTime())) {
-      console.error("❌ Invalid date in formatDateOnly:", dt);
-      return '';
-    }
-    
-    const pad = (v: number) => String(v).padStart(2, '0');
-    const formatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    
-    console.log("📅 Formatted date only:", { input: dt, output: formatted });
-    return formatted;
-  } catch (error) {
-    console.error("❌ Error formatting date only:", error, dt);
-    return '';
-  }
-};
 
 interface EventDialogProps {
   open: boolean;
@@ -68,105 +18,6 @@ interface EventDialogProps {
   onEventUpdated?: () => void;
   onEventDeleted?: () => void;
 }
-
-interface PersonData {
-  id: string;
-  userSurname: string;
-  userNumber: string;
-  socialNetworkLink: string;
-  eventNotes: string;
-  paymentStatus: string;
-  paymentAmount: string;
-}
-
-interface ExistingFile {
-  id: string;
-  filename: string;
-  file_path: string;
-  content_type?: string;
-  size?: number;
-}
-
-// Helper function to validate email format
-const isValidEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-};
-
-// Helper function to collect all attendees with valid emails
-const collectAttendeesWithEmails = (
-  mainCustomerEmail: string,
-  mainCustomerName: string,
-  additionalPersons: PersonData[]
-): Array<{ email: string; name: string }> => {
-  const attendees: Array<{ email: string; name: string }> = [];
-  
-  // Add main customer if they have a valid email
-  if (mainCustomerEmail && isValidEmail(mainCustomerEmail)) {
-    attendees.push({
-      email: mainCustomerEmail,
-      name: mainCustomerName || ''
-    });
-  }
-  
-  // Add additional persons with valid emails
-  if (additionalPersons && additionalPersons.length > 0) {
-    additionalPersons.forEach(person => {
-      if (person.socialNetworkLink && isValidEmail(person.socialNetworkLink)) {
-        attendees.push({
-          email: person.socialNetworkLink,
-          name: person.userSurname || ''
-        });
-      }
-    });
-  }
-  
-  return attendees;
-};
-
-// Helper function to send emails to all attendees
-const sendEmailsToAllAttendees = async (
-  attendees: Array<{ email: string; name: string }>,
-  eventData: any
-) => {
-  console.log(`🔔 Starting email notification process for ${attendees.length} attendees`);
-  
-  let successCount = 0;
-  let failureCount = 0;
-  
-  for (const attendee of attendees) {
-    try {
-      console.log(`📧 Sending email to: ${attendee.email} (${attendee.name})`);
-      
-      const emailResult = await sendEventCreationEmail(
-        attendee.email,
-        attendee.name,
-        "", // businessName will be resolved from user's business profile
-        eventData.start_date,
-        eventData.end_date,
-        eventData.payment_status || null,
-        eventData.payment_amount ? parseFloat(eventData.payment_amount) : null,
-        "", // businessAddress will be resolved from user's business profile  
-        eventData.id,
-        'en', // Default language
-        eventData.event_notes
-      );
-      
-      if (emailResult.success) {
-        console.log(`✅ Email sent successfully to: ${attendee.email}`);
-        successCount++;
-      } else {
-        console.error(`❌ Failed to send email to ${attendee.email}:`, emailResult.error);
-        failureCount++;
-      }
-    } catch (emailError) {
-      console.error(`❌ Error sending email to ${attendee.email}:`, emailError);
-      failureCount++;
-    }
-  }
-  
-  return { successCount, failureCount, totalCount: attendees.length };
-};
 
 export const EventDialog = ({ 
   open, 
@@ -192,191 +43,75 @@ export const EventDialog = ({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [isRecurring, setIsRecurring] = useState(false);
-  const [repeatPattern, setRepeatPattern] = useState("none");
+  const [repeatPattern, setRepeatPattern] = useState("");
   const [repeatUntil, setRepeatUntil] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const [existingFiles, setExistingFiles] = useState<ExistingFile[]>([]);
   
   const [isLoading, setIsLoading] = useState(false);
-  const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
-  const [dataLoading, setDataLoading] = useState(false);
+  const [additionalPersons, setAdditionalPersons] = useState<Array<{
+    id: string;
+    userSurname: string;
+    userNumber: string;
+    socialNetworkLink: string;
+    eventNotes: string;
+    paymentStatus: string;
+    paymentAmount: string;
+  }>>([]);
 
-  // Determine if this is a new event (not editing an existing one)
-  const isNewEvent = !eventId && !initialData;
-
-  // ENHANCED: useEffect for loading all event data with better date handling
   useEffect(() => {
-    const loadEventData = async () => {
-      if (!open) return;
-      
-      if (selectedDate && isNewEvent) {
-        // Creating new event - set up defaults with enhanced validation
-        console.log("📅 Setting up new event with selected date:", selectedDate);
-        
-        try {
-          const formatDateTime = (date: Date) => {
-            if (!date || isNaN(date.getTime())) {
-              console.error("❌ Invalid date for formatting:", date);
-              return '';
-            }
-            
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            return `${year}-${month}-${day}T${hours}:${minutes}`;
-          };
-
-          const startDateTime = formatDateTime(selectedDate);
-          const endDateTime = new Date(selectedDate.getTime() + 60 * 60 * 1000);
-          const endDateTimeFormatted = formatDateTime(endDateTime);
-          
-          // CRITICAL: Validate formatted dates
-          if (!startDateTime || !endDateTimeFormatted) {
-            console.error("❌ Failed to format dates for new event");
-            toast({
-              title: "Error",
-              description: "Failed to set event dates. Please try again.",
-              variant: "destructive",
-            });
-            return;
-          }
-          
-          console.log("📅 Setting new event dates:", { start: startDateTime, end: endDateTimeFormatted });
-          
-          setStartDate(startDateTime);
-          setEndDate(endDateTimeFormatted);
-          
-          // Reset all other fields for new event
-          setTitle("");
-          setUserSurname("");
-          setUserNumber("");
-          setSocialNetworkLink("");
-          setEventNotes("");
-          setEventName("");
-          setPaymentStatus("");
-          setPaymentAmount("");
-          setIsRecurring(false);
-          setRepeatPattern("none");
-          setRepeatUntil("");
-          setAdditionalPersons([]);
-          setFiles([]);
-          setExistingFiles([]);
-          
-        } catch (error) {
-          console.error("❌ Error setting up new event:", error);
-          toast({
-            title: "Error",
-            description: "Failed to initialize event form",
-            variant: "destructive",
-          });
+    if (open) {
+      if (initialData || eventId) {
+        // Editing existing event
+        const eventData = initialData;
+        if (eventData) {
+          setTitle(eventData.title || "");
+          setUserSurname(eventData.user_surname || "");  
+          setUserNumber(eventData.user_number || "");
+          setSocialNetworkLink(eventData.social_network_link || "");
+          setEventNotes(eventData.event_notes || "");
+          setEventName(eventData.event_name || "");
+          setPaymentStatus(eventData.payment_status || "");
+          setPaymentAmount(eventData.payment_amount?.toString() || "");
+          setStartDate(eventData.start_date || "");
+          setEndDate(eventData.end_date || "");
+          setIsRecurring(eventData.is_recurring || false);
+          setRepeatPattern(eventData.repeat_pattern || "");
+          setRepeatUntil(eventData.repeat_until || "");
         }
+      } else if (selectedDate) {
+        // Creating new event
+        const formatDateTime = (date: Date) => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const hours = String(date.getHours()).padStart(2, '0');
+          const minutes = String(date.getMinutes()).padStart(2, '0');
+          return `${year}-${month}-${day}T${hours}:${minutes}`;
+        };
+
+        const startDateTime = formatDateTime(selectedDate);
+        const endDateTime = new Date(selectedDate.getTime() + 60 * 60 * 1000);
         
-      } else if ((eventId || initialData) && !isNewEvent && user) {
-        // Editing existing event - load all data
-        setDataLoading(true);
-        const currentEventId = eventId || initialData?.id;
-        if (!currentEventId) return;
-
-        try {
-          // CRUCIAL FIX: Load event data from database to get the most current information
-          const { data: eventData, error: eventError } = await supabase
-            .from('events')
-            .select('*')
-            .eq('id', currentEventId)
-            .eq('user_id', user.id)
-            .single();
-
-          if (eventError) {
-            console.error('Error fetching event data:', eventError);
-            // Fallback to initialData if database fetch fails
-            if (initialData) {
-              console.log("Using initialData as fallback:", initialData);
-              setTitle(initialData.title || "");
-              setUserSurname(initialData.user_surname || "");  
-              setUserNumber(initialData.user_number || "");
-              setSocialNetworkLink(initialData.social_network_link || "");
-              setEventNotes(initialData.event_notes || "");
-              setEventName(initialData.event_name || "");
-              setPaymentStatus(initialData.payment_status || "");
-              setPaymentAmount(initialData.payment_amount?.toString() || "");
-              setStartDate(formatDatetimeLocal(initialData.start_date));
-              setEndDate(formatDatetimeLocal(initialData.end_date));
-              setIsRecurring(initialData.is_recurring || false);
-              setRepeatPattern(initialData.repeat_pattern || "none");
-              setRepeatUntil(initialData.repeat_until ? formatDateOnly(initialData.repeat_until) : "");
-            }
-          } else {
-            // Use fresh data from database
-            console.log("Setting event data from database:", eventData);
-            setTitle(eventData.title || "");
-            setUserSurname(eventData.user_surname || "");  
-            setUserNumber(eventData.user_number || "");
-            setSocialNetworkLink(eventData.social_network_link || "");
-            setEventNotes(eventData.event_notes || "");
-            setEventName(eventData.event_name || "");
-            setPaymentStatus(eventData.payment_status || "");
-            setPaymentAmount(eventData.payment_amount?.toString() || "");
-            setStartDate(formatDatetimeLocal(eventData.start_date));
-            setEndDate(formatDatetimeLocal(eventData.end_date));
-            
-            // CRUCIAL FIX: Properly handle recurring settings
-            const isRecurringEvent = Boolean(eventData.is_recurring);
-            const repeatPatternValue = eventData.repeat_pattern || "none";
-            const repeatUntilValue = eventData.repeat_until ? formatDateOnly(eventData.repeat_until) : "";
-            
-            setIsRecurring(isRecurringEvent);
-            setRepeatPattern(repeatPatternValue);
-            setRepeatUntil(repeatUntilValue);
-            
-            console.log("Set recurring state:", {
-              isRecurring: isRecurringEvent,
-              repeatPattern: repeatPatternValue,
-              repeatUntil: repeatUntilValue,
-              originalData: {
-                is_recurring: eventData.is_recurring,
-                repeat_pattern: eventData.repeat_pattern,
-                repeat_until: eventData.repeat_until
-              }
-            });
-          }
-
-          // Fetch additional persons
-          const { data: personsData, error: personsError } = await supabase
-            .from('customers')
-            .select('*')
-            .eq('event_id', currentEventId)
-            .eq('user_id', user.id);
-
-          if (personsError) {
-            console.error('Error fetching additional persons:', personsError);
-          } else if (personsData) {
-            const mappedPersons: PersonData[] = personsData.map(person => ({
-              id: person.id,
-              userSurname: person.user_surname || '',
-              userNumber: person.user_number || '',
-              socialNetworkLink: person.social_network_link || '',
-              eventNotes: person.event_notes || '',
-              paymentStatus: person.payment_status || 'not_paid',
-              paymentAmount: person.payment_amount?.toString() || ''
-            }));
-            console.log("Setting additional persons:", mappedPersons);
-            setAdditionalPersons(mappedPersons);
-          }
-
-          // Fetch event files
-          await fetchAndSetExistingFiles(currentEventId, user.id);
-        } catch (error) {
-          console.error('Error loading event data:', error);
-        } finally {
-          setDataLoading(false);
-        }
+        setStartDate(startDateTime);
+        setEndDate(formatDateTime(endDateTime));
+        
+        // Reset all other fields for new event
+        setTitle("");
+        setUserSurname("");
+        setUserNumber("");
+        setSocialNetworkLink("");
+        setEventNotes("");
+        setEventName("");
+        setPaymentStatus("");
+        setPaymentAmount("");
+        setIsRecurring(false);
+        setRepeatPattern("");
+        setRepeatUntil("");
+        setAdditionalPersons([]);
+        setFiles([]);
       }
-    };
-
-    loadEventData();
-  }, [open, selectedDate, eventId, initialData, isNewEvent, user]);
+    }
+  }, [open, selectedDate, initialData, eventId]);
 
   const resetForm = () => {
     setTitle("");
@@ -390,31 +125,10 @@ export const EventDialog = ({
     setStartDate("");
     setEndDate("");
     setIsRecurring(false);
-    setRepeatPattern("none");
+    setRepeatPattern("");
     setRepeatUntil("");
     setAdditionalPersons([]);
     setFiles([]);
-    setExistingFiles([]);
-  };
-
-  const fetchAndSetExistingFiles = async (eventId: string, userId: string) => {
-    const { data: filesData, error: filesError } = await supabase
-      .from('event_files')
-      .select('*')
-      .eq('event_id', eventId)
-      .eq('user_id', userId);
-    if (filesError) {
-      console.error('Error fetching event files:', filesError);
-    } else {
-      const mappedFiles: ExistingFile[] = (filesData || []).map(file => ({
-        id: file.id,
-        filename: file.filename,
-        file_path: file.file_path,
-        content_type: file.content_type || undefined,
-        size: file.size || undefined
-      }));
-      setExistingFiles(mappedFiles);
-    }
   };
 
   const uploadFiles = async (eventId: string) => {
@@ -455,39 +169,6 @@ export const EventDialog = ({
     await Promise.all(uploadPromises);
   };
 
-  const removeExistingFile = async (fileId: string) => {
-    try {
-      const { error } = await supabase
-        .from('event_files')
-        .delete()
-        .eq('id', fileId)
-        .eq('user_id', user?.id);
-
-      if (error) {
-        console.error('Error removing file:', error);
-        toast({
-          title: "Error",
-          description: "Failed to remove file",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setExistingFiles(prev => prev.filter(f => f.id !== fileId));
-      toast({
-        title: "Success",
-        description: "File removed successfully",
-      });
-      
-      // Re-fetch files to ensure sync
-      if (eventId || initialData?.id) {
-        await fetchAndSetExistingFiles(eventId || initialData?.id, user.id);
-      }
-    } catch (error) {
-      console.error('Error removing file:', error);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -500,79 +181,38 @@ export const EventDialog = ({
       return;
     }
 
-    // CRITICAL: Use new validation approach
-    const formData: EventFormData = {
-      startDate,
-      endDate,
-      userSurname,
-      title,
-      userNumber,
-      socialNetworkLink,
-      eventNotes,
-      eventName,
-      paymentStatus,
-      paymentAmount,
-      isRecurring,
-      repeatPattern,
-      repeatUntil
-    };
-
-    console.log("🔄 EventDialog - Validating form data:", formData);
-
-    // Validate using the new validation service
-    const validation = validateEventData(formData);
-    
-    if (!validation.isValid) {
-      console.error("❌ Form validation failed:", validation.errors);
-      toast({
-        title: "Validation Error",
-        description: validation.errors.join(", "),
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!validation.sanitizedData) {
-      console.error("❌ No sanitized data from validation");
-      toast({
-        title: "Error",
-        description: "Failed to process form data",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsLoading(true);
 
     try {
-      console.log("🔄 EventDialog - Submitting validated data:", validation.sanitizedData);
-      console.log("👥 EventDialog - With additional persons:", additionalPersons);
+      const eventData = {
+        title,
+        user_surname: userSurname,
+        user_number: userNumber,
+        social_network_link: socialNetworkLink,
+        event_notes: eventNotes,
+        event_name: eventName,
+        start_date: startDate,
+        end_date: endDate,
+        payment_status: paymentStatus,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+        is_recurring: isRecurring,
+        repeat_pattern: isRecurring ? repeatPattern : null,
+        repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
+      };
 
       let result;
       
       if (eventId || initialData) {
-        console.log("🔄 Updating existing event:", eventId || initialData?.id);
-        
+        // Update existing event
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: JSON.stringify(validation.sanitizedData),
-            p_additional_persons: JSON.stringify(additionalPersons),
+            p_event_data: eventData,
+            p_additional_persons: additionalPersons,
             p_user_id: user.id,
             p_event_id: eventId || initialData?.id
           });
           
-        if (result.error) {
-          console.error("❌ RPC Error (Update):", result.error);
-          throw result.error;
-        }
-        
-        console.log("✅ Event updated successfully:", result.data);
-        
-        // Upload new files if any
-        if (files.length > 0) {
-          await uploadFiles(eventId || initialData?.id);
-          await fetchAndSetExistingFiles(eventId || initialData?.id, user.id);
-        }
+        if (result.error) throw result.error;
         
         toast({
           title: "Success",
@@ -581,90 +221,59 @@ export const EventDialog = ({
         
         onEventUpdated?.();
       } else {
-        console.log("🆕 Creating new event");
-        
+        // Create new event
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: JSON.stringify(validation.sanitizedData),
-            p_additional_persons: JSON.stringify(additionalPersons),
+            p_event_data: eventData,
+            p_additional_persons: additionalPersons,
             p_user_id: user.id
           });
 
-        if (result.error) {
-          console.error("❌ RPC Error (Create):", result.error);
-          throw result.error;
-        }
+        if (result.error) throw result.error;
 
         const newEventId = result.data;
-        console.log("✅ Event created successfully with ID:", newEventId);
-
-        // If this was a recurring event, let's verify that child events were created
-        if (isRecurring && repeatPattern && repeatPattern !== 'none') {
-          console.log("🔍 Verifying recurring events were created...");
-          
-          // Wait a moment for the database function to complete
-          setTimeout(async () => {
-            const { data: childEvents, error: childError } = await supabase
-              .from('events')
-              .select('*')
-              .eq('parent_event_id', newEventId);
-            
-            if (childError) {
-              console.error("❌ Error checking child events:", childError);
-            } else {
-              console.log(`✅ Found ${childEvents?.length || 0} child events created`);
-              console.log("🔍 Child events:", childEvents);
-            }
-          }, 1000);
-        }
         
         // Upload files for new event
         if (files.length > 0) {
           await uploadFiles(newEventId);
-          await fetchAndSetExistingFiles(newEventId, user.id);
         }
 
-        // Enhanced email sending to all attendees
-        console.log("🔔 Attempting to send event creation emails to all attendees");
-        const attendees = collectAttendeesWithEmails(socialNetworkLink, userSurname || title, additionalPersons);
-        
-        if (attendees.length > 0) {
+        // Send email notification for new event creation
+        console.log("🔔 Attempting to send event creation email for internal event");
+        if (socialNetworkLink && socialNetworkLink.includes('@')) {
           try {
-            const emailResults = await sendEmailsToAllAttendees(attendees, {
-              id: newEventId,
-              title,
-              user_surname: userSurname,
-              social_network_link: socialNetworkLink,
-              start_date: startDate,
-              end_date: endDate,
-              payment_status: paymentStatus,
-              payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-              event_notes: eventNotes
-            });
+            const emailResult = await sendEventCreationEmail(
+              socialNetworkLink,
+              userSurname || title,
+              "", // businessName will be resolved from user's business profile
+              startDate,
+              endDate,
+              paymentStatus || null,
+              paymentAmount ? parseFloat(paymentAmount) : null,
+              "", // businessAddress will be resolved from user's business profile  
+              newEventId,
+              'en', // Default language
+              eventNotes
+            );
             
-            if (emailResults.successCount > 0) {
-              console.log(`✅ Successfully sent ${emailResults.successCount}/${emailResults.totalCount} event creation emails`);
+            if (emailResult.success) {
+              console.log("✅ Event creation email sent successfully");
               toast({
                 title: "Success",
-                description: `Event created and confirmation emails sent to ${emailResults.successCount} attendee${emailResults.successCount > 1 ? 's' : ''}!`,
+                description: "Event created and confirmation email sent!",
               });
-            }
-            
-            if (emailResults.failureCount > 0) {
-              console.warn(`❌ Failed to send ${emailResults.failureCount}/${emailResults.totalCount} event creation emails`);
+            } else {
+              console.error("❌ Failed to send event creation email:", emailResult.error);
               toast({
-                title: emailResults.successCount > 0 ? "Partial Success" : "Event Created",
-                description: emailResults.successCount > 0 
-                  ? `Event created with ${emailResults.failureCount} email notification failures`
-                  : "Event created successfully, but email notifications failed to send.",
-                variant: emailResults.successCount > 0 ? "default" : "destructive"
+                title: "Event Created",
+                description: "Event created successfully, but email notification failed to send.",
               });
             }
           } catch (emailError) {
-            console.error("❌ Error sending event creation emails:", emailError);
+            console.error("❌ Error sending event creation email:", emailError);
             toast({
               title: "Event Created", 
-              description: "Event created successfully, but email notifications failed to send.",
+              description: "Event created successfully, but email notification failed to send.",
             });
           }
         } else {
@@ -680,7 +289,7 @@ export const EventDialog = ({
       resetForm();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('❌ Error saving event:', error);
+      console.error('Error saving event:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to save event",
@@ -735,16 +344,16 @@ export const EventDialog = ({
   };
 
   // Helper function to convert repeatUntil string to Date
-  const getRepeatUntilAsDate = (): Date | undefined => {
+  const getRepeatUntilAsDate = (): Date => {
     if (repeatUntil) {
       return new Date(repeatUntil);
     }
-    return undefined;
+    return new Date();
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {eventId || initialData ? "Edit Event" : "Create New Event"}
@@ -777,16 +386,15 @@ export const EventDialog = ({
             setIsRecurring={setIsRecurring}
             repeatPattern={repeatPattern}
             setRepeatPattern={setRepeatPattern}
-            repeatUntil={getRepeatUntilAsDate()}
+            repeatUntil={repeatUntil ? getRepeatUntilAsDate() : undefined}
             setRepeatUntil={handleRepeatUntilChange}
             files={files}
             setFiles={setFiles}
-            existingFiles={existingFiles}
-            onRemoveExistingFile={removeExistingFile}
-            isNewEvent={isNewEvent}
-            additionalPersons={additionalPersons}
+            additionalPersons={additionalPersons.map(person => ({
+              ...person,
+              id: person.id || crypto.randomUUID()
+            }))}
             setAdditionalPersons={setAdditionalPersons}
-            dataLoading={dataLoading}
           />
 
           <div className="flex justify-between">
