@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -11,6 +12,9 @@ import {
   setHours,
   startOfDay,
   format,
+  isWithinInterval,
+  startOfYear,
+  endOfYear,
 } from "date-fns";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
@@ -55,7 +59,7 @@ export const Calendar = ({
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
-  const [showDebugger, setShowDebugger] = useState(false); // Add debug mode
+  const [showDebugger, setShowDebugger] = useState(false);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
   
@@ -96,9 +100,27 @@ export const Calendar = ({
     
     if (events?.length > 0) {
       console.log("[Calendar] First event:", events[0]);
-      console.log("[Calendar] All events:", events); // Log all events to debug
+      console.log("[Calendar] All events:", events);
+      
+      // Debug: Check which events are in current view range
+      const viewStart = getViewDateRange().start;
+      const viewEnd = getViewDateRange().end;
+      
+      const eventsInView = events.filter(event => {
+        const eventDate = new Date(event.start_date);
+        return isWithinInterval(eventDate, { start: viewStart, end: viewEnd });
+      });
+      
+      console.log(`[Calendar] View range: ${viewStart.toISOString()} to ${viewEnd.toISOString()}`);
+      console.log(`[Calendar] Events in current view: ${eventsInView.length}/${events.length}`);
+      console.log("[Calendar] Events in view:", eventsInView.map(e => ({
+        id: e.id,
+        title: e.title,
+        start_date: e.start_date,
+        parent_event_id: e.parent_event_id
+      })));
     }
-  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
+  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents, selectedDate]);
 
   const {
     selectedEvent,
@@ -122,7 +144,7 @@ export const Calendar = ({
       const result = await updateEvent?.({
         ...data,
         id: selectedEvent.id,
-        type: selectedEvent.type  // Make sure to pass the type from the selected event
+        type: selectedEvent.type
       });
       return result;
     },
@@ -133,6 +155,35 @@ export const Calendar = ({
     navigate("/signin");
     return null;
   }
+
+  const getViewDateRange = () => {
+    switch (view) {
+      case "month": {
+        const monthStart = startOfMonth(selectedDate);
+        const monthEnd = endOfMonth(selectedDate);
+        // Extend range to include full weeks for month view
+        return {
+          start: startOfWeek(monthStart),
+          end: endOfWeek(monthEnd)
+        };
+      }
+      case "week":
+        return {
+          start: startOfWeek(selectedDate),
+          end: endOfWeek(selectedDate)
+        };
+      case "day":
+        return {
+          start: startOfDay(selectedDate),
+          end: startOfDay(addDays(selectedDate, 1))
+        };
+      default:
+        return {
+          start: startOfYear(selectedDate),
+          end: endOfYear(selectedDate)
+        };
+    }
+  };
 
   const getDaysForView = () => {
     switch (view) {
@@ -151,6 +202,21 @@ export const Calendar = ({
       case "day":
         return [startOfDay(selectedDate)];
     }
+  };
+
+  // Filter events to show only those in the current view range
+  const getEventsForView = () => {
+    if (!events || events.length === 0) return [];
+    
+    const { start: viewStart, end: viewEnd } = getViewDateRange();
+    
+    const filteredEvents = events.filter(event => {
+      const eventDate = new Date(event.start_date);
+      return isWithinInterval(eventDate, { start: viewStart, end: viewEnd });
+    });
+    
+    console.log(`[Calendar] Filtering events for view. Total: ${events.length}, In view: ${filteredEvents.length}`);
+    return filteredEvents;
   };
 
   const handlePrevious = () => {
@@ -295,11 +361,17 @@ export const Calendar = ({
   const gridBgClass = isDarkTheme ? "bg-gray-900" : "bg-white";
   const textClass = isDarkTheme ? "text-white" : "text-foreground";
 
+  // Get events for current view
+  const eventsForView = getEventsForView();
+
   return (
     <div className={`h-full flex flex-col ${isMobile ? 'gap-2 -mx-4' : 'gap-4'}`}>
       {/* Add debug toggle button */}
       {!isExternalCalendar && (
-        <div className="flex justify-end">
+        <div className="flex justify-between items-center">
+          <div className="text-sm text-gray-500">
+            Showing {eventsForView.length} of {events?.length || 0} events
+          </div>
           <button
             onClick={() => setShowDebugger(!showDebugger)}
             className="text-xs px-2 py-1 bg-gray-200 rounded"
@@ -327,7 +399,7 @@ export const Calendar = ({
         <div className={`flex-1 ${gridBgClass} ${textClass}`}>
           <CalendarView
             days={getDaysForView()}
-            events={events || []}
+            events={eventsForView}
             selectedDate={selectedDate}
             view={view}
             onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}

@@ -28,13 +28,11 @@ export function CalendarView({
   const { t } = useLanguage();
   const { theme, resolvedTheme } = useTheme();
   const [currentTheme, setCurrentTheme] = useState<string | undefined>(
-    // Initialize with resolvedTheme first, fallback to theme, then check document class
     resolvedTheme || theme || (typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light')
   );
   
   // Listen for theme changes
   useEffect(() => {
-    // Update state when theme changes from context
     const newTheme = resolvedTheme || theme;
     if (newTheme) {
       setCurrentTheme(newTheme);
@@ -48,7 +46,6 @@ export function CalendarView({
       setCurrentTheme(event.detail.theme);
     };
     
-    // Initial theme check from HTML class
     const checkInitialTheme = () => {
       if (typeof document !== 'undefined') {
         if (document.documentElement.classList.contains('dark')) {
@@ -57,15 +54,12 @@ export function CalendarView({
       }
     };
     
-    // Check on mount
     checkInitialTheme();
     
-    // Add event listeners
     document.addEventListener('themeChanged', handleThemeChange as EventListener);
     document.addEventListener('themeInit', handleThemeInit as EventListener);
     
     return () => {
-      // Remove event listeners
       document.removeEventListener('themeChanged', handleThemeChange as EventListener);
       document.removeEventListener('themeInit', handleThemeInit as EventListener);
     };
@@ -87,23 +81,17 @@ export function CalendarView({
   
   const daysToRender = view === 'month' ? getDaysWithSurroundingMonths() : days;
   
-  // Filter events to make sure deleted events don't show up - DO NOT filter by parent_event_id!
-  // Show ALL events (both parent and child events) that are not deleted
+  // Filter events to make sure deleted events don't show up
   const filteredEvents = events.filter(event => {
-    // First check if deleted_at is undefined or null
     if (event.deleted_at === undefined || event.deleted_at === null) {
-      return true; // Keep events that don't have deleted_at field or it's null
+      return true;
     }
-    
-    // If deleted_at has a value (a timestamp), filter out this deleted event
     return false;
   });
   
-  // Add debug log for events in CalendarView
   useEffect(() => {
     console.log(`[CalendarView] Rendering calendar with ${events.length} total events, ${filteredEvents.length} after filtering deleted`);
     
-    // Count parent vs child events for debugging
     const parentEvents = filteredEvents.filter(e => !e.parent_event_id);
     const childEvents = filteredEvents.filter(e => !!e.parent_event_id);
     console.log(`[CalendarView] Parent events: ${parentEvents.length}, Child events (recurring instances): ${childEvents.length}`);
@@ -119,12 +107,17 @@ export function CalendarView({
       console.log(`[CalendarView] External calendar mode with ${filteredEvents.length} events`);
     }
     
-    // Debug theme state
     console.log("[CalendarView] Current theme state:", { 
       theme, 
       resolvedTheme, 
       currentTheme,
       isDarkClass: typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+    });
+
+    // CRITICAL DEBUG: Log each event that will be displayed
+    filteredEvents.forEach(event => {
+      const eventDate = new Date(event.start_date);
+      console.log(`[CalendarView] Event "${event.title}" on ${eventDate.toDateString()} - Parent ID: ${event.parent_event_id || 'none'}`);
     });
   }, [events, filteredEvents, isExternalCalendar, theme, resolvedTheme, currentTheme]);
 
@@ -134,7 +127,7 @@ export function CalendarView({
     <div className="h-full">
       <CalendarGrid
         days={daysToRender}
-        events={filteredEvents} // Pass ALL events (parent and child) that are not deleted
+        events={filteredEvents}
         formattedSelectedDate={formattedSelectedDate}
         view={view}
         onDayClick={onDayClick}
