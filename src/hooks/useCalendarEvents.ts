@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -192,73 +193,121 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     staleTime: 30 * 1000, // 30 seconds
   });
 
-  // CRUCIAL FIX: Validate event data before sending to database
+  // ENHANCED: Comprehensive event data validation
   const validateEventData = (eventData: Partial<CalendarEventType>) => {
     console.log("🔍 Validating event data:", eventData);
     
-    // Ensure required dates are present and valid
+    // CRITICAL: Validate required dates
     if (!eventData.start_date || !eventData.end_date) {
+      console.error("❌ Missing required dates:", { start_date: eventData.start_date, end_date: eventData.end_date });
       throw new Error("Start date and end date are required");
     }
 
-    // Ensure dates are proper ISO strings
+    // CRITICAL: Ensure dates are valid strings and not empty
+    if (typeof eventData.start_date !== 'string' || eventData.start_date.trim() === '') {
+      console.error("❌ Invalid start_date format:", eventData.start_date);
+      throw new Error("Start date must be a valid date string");
+    }
+
+    if (typeof eventData.end_date !== 'string' || eventData.end_date.trim() === '') {
+      console.error("❌ Invalid end_date format:", eventData.end_date);
+      throw new Error("End date must be a valid date string");
+    }
+
+    // CRITICAL: Validate date parsing
     const startDate = new Date(eventData.start_date);
     const endDate = new Date(eventData.end_date);
     
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      throw new Error("Invalid date format");
+      console.error("❌ Invalid date values:", { 
+        start_date: eventData.start_date, 
+        end_date: eventData.end_date,
+        parsed_start: startDate,
+        parsed_end: endDate
+      });
+      throw new Error("Invalid date format - dates must be valid ISO strings");
     }
 
-    // Ensure we have a title or user_surname
+    // CRITICAL: Ensure end date is after start date
+    if (endDate <= startDate) {
+      console.error("❌ End date must be after start date:", { startDate, endDate });
+      throw new Error("End date must be after start date");
+    }
+
+    // CRITICAL: Ensure we have a title or user_surname
     if (!eventData.title && !eventData.user_surname) {
+      console.error("❌ Missing title and user_surname");
       throw new Error("Title or user surname is required");
     }
 
-    return {
+    const validatedData = {
       ...eventData,
       start_date: startDate.toISOString(),
       end_date: endDate.toISOString(),
       title: eventData.user_surname || eventData.title || 'Untitled Event',
       user_surname: eventData.user_surname || eventData.title || 'Unknown',
     };
+
+    console.log("✅ Event data validation passed:", validatedData);
+    return validatedData;
   };
 
   const createEventMutation = useMutation({
     mutationFn: async (eventData: Partial<CalendarEventType> & { additionalPersons?: PersonData[] }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("🔄 Creating event with data:", eventData);
+      console.log("🔄 Creating event with raw data:", eventData);
 
-      // CRUCIAL FIX: Extract additional persons and remove from event data
+      // CRITICAL: Pre-validation logging
+      console.log("📋 Pre-validation check:", {
+        has_start_date: !!eventData.start_date,
+        has_end_date: !!eventData.end_date,
+        start_date_value: eventData.start_date,
+        end_date_value: eventData.end_date,
+        start_date_type: typeof eventData.start_date,
+        end_date_type: typeof eventData.end_date
+      });
+
+      // ENHANCED: Extract additional persons and remove from event data
       const additionalPersons = eventData.additionalPersons || [];
       const cleanEventData = { ...eventData };
       delete cleanEventData.additionalPersons;
 
-      // Validate data before sending to database
+      // CRITICAL: Validate data before sending to database
       const validatedData = validateEventData(cleanEventData);
 
       console.log("🔄 Creating event with validated data:", validatedData);
       console.log("👥 With additional persons:", additionalPersons);
 
-      // CRUCIAL FIX: Stringify JSON parameters for PostgreSQL JSONB
+      // ENHANCED: Final safety check before database call
+      if (!validatedData.start_date || !validatedData.end_date) {
+        console.error("❌ CRITICAL: Validated data missing dates!", validatedData);
+        throw new Error("Critical validation failure: missing dates after validation");
+      }
+
+      // ENHANCED: Stringify JSON parameters for PostgreSQL JSONB with additional safety
+      const eventPayload = {
+        title: validatedData.user_surname || validatedData.title,
+        user_surname: validatedData.user_surname,
+        user_number: validatedData.user_number || '',
+        social_network_link: validatedData.social_network_link || '',
+        event_notes: validatedData.event_notes || '',
+        event_name: validatedData.event_name || '',
+        start_date: validatedData.start_date,
+        end_date: validatedData.end_date,
+        payment_status: validatedData.payment_status || 'not_paid',
+        payment_amount: validatedData.payment_amount?.toString() || '',
+        type: validatedData.type || 'event',
+        is_recurring: validatedData.is_recurring || false,
+        repeat_pattern: validatedData.repeat_pattern || null,
+        repeat_until: validatedData.repeat_until || null
+      };
+
+      console.log("📤 Final payload to database:", eventPayload);
+
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: JSON.stringify({
-          title: validatedData.user_surname || validatedData.title,
-          user_surname: validatedData.user_surname,
-          user_number: validatedData.user_number || '',
-          social_network_link: validatedData.social_network_link || '',
-          event_notes: validatedData.event_notes || '',
-          event_name: validatedData.event_name || '',
-          start_date: validatedData.start_date,
-          end_date: validatedData.end_date,
-          payment_status: validatedData.payment_status || 'not_paid',
-          payment_amount: validatedData.payment_amount?.toString() || '',
-          type: validatedData.type || 'event',
-          is_recurring: validatedData.is_recurring || false,
-          repeat_pattern: validatedData.repeat_pattern || null,
-          repeat_until: validatedData.repeat_until || null
-        }),
-        p_additional_persons: JSON.stringify(additionalPersons), // CRUCIAL FIX: Pass actual persons array
+        p_event_data: JSON.stringify(eventPayload),
+        p_additional_persons: JSON.stringify(additionalPersons),
         p_user_id: user.id,
         p_event_id: null
       });
@@ -307,38 +356,56 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     mutationFn: async (eventData: Partial<CalendarEventType> & { id: string; additionalPersons?: PersonData[] }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("🔄 Updating event with data:", eventData);
+      console.log("🔄 Updating event with raw data:", eventData);
 
-      // CRUCIAL FIX: Extract additional persons and remove from event data
+      // CRITICAL: Pre-validation logging
+      console.log("📋 Update pre-validation check:", {
+        has_start_date: !!eventData.start_date,
+        has_end_date: !!eventData.end_date,
+        start_date_value: eventData.start_date,
+        end_date_value: eventData.end_date
+      });
+
+      // ENHANCED: Extract additional persons and remove from event data
       const additionalPersons = eventData.additionalPersons || [];
       const cleanEventData = { ...eventData };
       delete cleanEventData.additionalPersons;
 
-      // Validate data before sending to database
+      // CRITICAL: Validate data before sending to database
       const validatedData = validateEventData(cleanEventData);
 
       console.log("🔄 Updating event with validated data:", validatedData);
       console.log("👥 With additional persons:", additionalPersons);
 
-      // CRUCIAL FIX: Stringify JSON parameters for PostgreSQL JSONB
+      // ENHANCED: Final safety check before database call
+      if (!validatedData.start_date || !validatedData.end_date) {
+        console.error("❌ CRITICAL: Validated data missing dates!", validatedData);
+        throw new Error("Critical validation failure: missing dates after validation");
+      }
+
+      // ENHANCED: Stringify JSON parameters for PostgreSQL JSONB with additional safety
+      const eventPayload = {
+        title: validatedData.user_surname || validatedData.title,
+        user_surname: validatedData.user_surname,
+        user_number: validatedData.user_number || '',
+        social_network_link: validatedData.social_network_link || '',
+        event_notes: validatedData.event_notes || '',
+        event_name: validatedData.event_name || '',
+        start_date: validatedData.start_date,
+        end_date: validatedData.end_date,
+        payment_status: validatedData.payment_status || 'not_paid',
+        payment_amount: validatedData.payment_amount?.toString() || '',
+        type: validatedData.type || 'event',
+        is_recurring: validatedData.is_recurring || false,
+        repeat_pattern: validatedData.repeat_pattern || null,
+        repeat_until: validatedData.repeat_until || null
+      };
+
+      console.log("📤 Final update payload to database:", eventPayload);
+
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: JSON.stringify({
-          title: validatedData.user_surname || validatedData.title,
-          user_surname: validatedData.user_surname,
-          user_number: validatedData.user_number || '',
-          social_network_link: validatedData.social_network_link || '',
-          event_notes: validatedData.event_notes || '',
-          event_name: validatedData.event_name || '',
-          start_date: validatedData.start_date,
-          end_date: validatedData.end_date,
-          payment_status: validatedData.payment_status || 'not_paid',
-          payment_amount: validatedData.payment_amount?.toString() || '',
-          type: validatedData.type || 'event',
-          is_recurring: validatedData.is_recurring || false,
-          repeat_pattern: validatedData.repeat_pattern || null,
-          repeat_until: validatedData.repeat_until || null
-        }),
-        p_additional_persons: JSON.stringify(additionalPersons), // CRUCIAL FIX: Pass actual persons array
+        p_event_data: JSON.stringify(eventPayload),
+        p_additional_persons: JSON.stringify(additionalPersons),
         p_user_id: user.id,
         p_event_id: eventData.id
       });

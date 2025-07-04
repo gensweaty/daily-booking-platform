@@ -8,21 +8,53 @@ import { EventDialogFields } from "./EventDialogFields";
 import { useToast } from "@/hooks/use-toast";
 import { sendEventCreationEmail } from "@/lib/api";
 
-// Helper function to format datetime for datetime-local input
+// Helper function to format datetime for datetime-local input with validation
 const formatDatetimeLocal = (dt: string | Date | null | undefined): string => {
   if (!dt) return '';
-  // Handles ISO strings or Date objects
-  const d = typeof dt === 'string' ? new Date(dt) : dt;
-  const pad = (v: number) => String(v).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  
+  try {
+    // Handles ISO strings or Date objects
+    const d = typeof dt === 'string' ? new Date(dt) : dt;
+    
+    // CRITICAL: Validate date before formatting
+    if (isNaN(d.getTime())) {
+      console.error("❌ Invalid date in formatDatetimeLocal:", dt);
+      return '';
+    }
+    
+    const pad = (v: number) => String(v).padStart(2, '0');
+    const formatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    
+    console.log("📅 Formatted datetime:", { input: dt, output: formatted });
+    return formatted;
+  } catch (error) {
+    console.error("❌ Error formatting datetime:", error, dt);
+    return '';
+  }
 };
 
 // Helper function to format date for date input (repeat until)
 const formatDateOnly = (dt: string | Date | null | undefined): string => {
   if (!dt) return '';
-  const d = typeof dt === 'string' ? new Date(dt) : dt;
-  const pad = (v: number) => String(v).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  
+  try {
+    const d = typeof dt === 'string' ? new Date(dt) : dt;
+    
+    // CRITICAL: Validate date before formatting
+    if (isNaN(d.getTime())) {
+      console.error("❌ Invalid date in formatDateOnly:", dt);
+      return '';
+    }
+    
+    const pad = (v: number) => String(v).padStart(2, '0');
+    const formatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    
+    console.log("📅 Formatted date only:", { input: dt, output: formatted });
+    return formatted;
+  } catch (error) {
+    console.error("❌ Error formatting date only:", error, dt);
+    return '';
+  }
 };
 
 interface EventDialogProps {
@@ -171,43 +203,74 @@ export const EventDialog = ({
   // Determine if this is a new event (not editing an existing one)
   const isNewEvent = !eventId && !initialData;
 
-  // FIXED: Enhanced useEffect for loading all event data
+  // ENHANCED: useEffect for loading all event data with better date handling
   useEffect(() => {
     const loadEventData = async () => {
       if (!open) return;
       
       if (selectedDate && isNewEvent) {
-        // Creating new event - set up defaults
-        const formatDateTime = (date: Date) => {
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const hours = String(date.getHours()).padStart(2, '0');
-          const minutes = String(date.getMinutes()).padStart(2, '0');
-          return `${year}-${month}-${day}T${hours}:${minutes}`;
-        };
+        // Creating new event - set up defaults with enhanced validation
+        console.log("📅 Setting up new event with selected date:", selectedDate);
+        
+        try {
+          const formatDateTime = (date: Date) => {
+            if (!date || isNaN(date.getTime())) {
+              console.error("❌ Invalid date for formatting:", date);
+              return '';
+            }
+            
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+          };
 
-        const startDateTime = formatDateTime(selectedDate);
-        const endDateTime = new Date(selectedDate.getTime() + 60 * 60 * 1000);
-        
-        setStartDate(startDateTime);
-        setEndDate(formatDateTime(endDateTime));
-        
-        // Reset all other fields for new event
-        setTitle("");
-        setUserSurname("");
-        setUserNumber("");
-        setSocialNetworkLink("");
-        setEventNotes("");
-        setEventName("");
-        setPaymentStatus("");
-        setPaymentAmount("");
-        setIsRecurring(false);
-        setRepeatPattern("none");
-        setRepeatUntil("");
-        setAdditionalPersons([]);
-        setFiles([]);
-        setExistingFiles([]);
+          const startDateTime = formatDateTime(selectedDate);
+          const endDateTime = new Date(selectedDate.getTime() + 60 * 60 * 1000);
+          const endDateTimeFormatted = formatDateTime(endDateTime);
+          
+          // CRITICAL: Validate formatted dates
+          if (!startDateTime || !endDateTimeFormatted) {
+            console.error("❌ Failed to format dates for new event");
+            toast({
+              title: "Error",
+              description: "Failed to set event dates. Please try again.",
+              variant: "destructive",
+            });
+            return;
+          }
+          
+          console.log("📅 Setting new event dates:", { start: startDateTime, end: endDateTimeFormatted });
+          
+          setStartDate(startDateTime);
+          setEndDate(endDateTimeFormatted);
+          
+          // Reset all other fields for new event
+          setTitle("");
+          setUserSurname("");
+          setUserNumber("");
+          setSocialNetworkLink("");
+          setEventNotes("");
+          setEventName("");
+          setPaymentStatus("");
+          setPaymentAmount("");
+          setIsRecurring(false);
+          setRepeatPattern("none");
+          setRepeatUntil("");
+          setAdditionalPersons([]);
+          setFiles([]);
+          setExistingFiles([]);
+          
+        } catch (error) {
+          console.error("❌ Error setting up new event:", error);
+          toast({
+            title: "Error",
+            description: "Failed to initialize event form",
+            variant: "destructive",
+          });
+        }
         
       } else if ((eventId || initialData) && !isNewEvent && user) {
         // Editing existing event - load all data
@@ -436,6 +499,62 @@ export const EventDialog = ({
       return;
     }
 
+    // CRITICAL: Pre-submission validation
+    console.log("📋 Pre-submission validation:", {
+      startDate,
+      endDate,
+      userSurname,
+      title,
+      hasStart: !!startDate,
+      hasEnd: !!endDate,
+      hasTitle: !!(userSurname || title)
+    });
+
+    // CRITICAL: Validate required fields before submission
+    if (!startDate || !endDate) {
+      console.error("❌ Missing required dates on submission:", { startDate, endDate });
+      toast({
+        title: "Error",
+        description: "Start date and end date are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!userSurname && !title) {
+      console.error("❌ Missing title on submission");
+      toast({
+        title: "Error",
+        description: "Event title is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // CRITICAL: Validate date format
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    
+    if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
+      console.error("❌ Invalid date format on submission:", { startDate, endDate });
+      toast({
+        title: "Error",
+        description: "Invalid date format. Please check your dates.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (endDateObj <= startDateObj) {
+      console.error("❌ End date before start date:", { startDateObj, endDateObj });
+      toast({
+        title: "Error",
+        description: "End date must be after start date",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -447,8 +566,8 @@ export const EventDialog = ({
         social_network_link: socialNetworkLink || '',
         event_notes: eventNotes || '',
         event_name: eventName || '',
-        start_date: startDate,
-        end_date: endDate,
+        start_date: startDateObj.toISOString(),
+        end_date: endDateObj.toISOString(),
         payment_status: paymentStatus || 'not_paid',
         payment_amount: paymentAmount || '',
         type: 'event',
@@ -474,11 +593,11 @@ export const EventDialog = ({
       if (eventId || initialData) {
         console.log("🔄 Updating existing event:", eventId || initialData?.id);
         
-        // CRUCIAL FIX: Stringify JSON parameters for PostgreSQL JSONB
+        // ENHANCED: Stringify JSON parameters for PostgreSQL JSONB
         result = await supabase
           .rpc('save_event_with_persons', {
             p_event_data: JSON.stringify(eventData),
-            p_additional_persons: JSON.stringify(additionalPersons), // CRUCIAL FIX: Pass actual persons
+            p_additional_persons: JSON.stringify(additionalPersons),
             p_user_id: user.id,
             p_event_id: eventId || initialData?.id
           });
@@ -505,11 +624,11 @@ export const EventDialog = ({
       } else {
         console.log("🆕 Creating new event");
         
-        // CRUCIAL FIX: Stringify JSON parameters for PostgreSQL JSONB
+        // ENHANCED: Stringify JSON parameters for PostgreSQL JSONB
         result = await supabase
           .rpc('save_event_with_persons', {
             p_event_data: JSON.stringify(eventData),
-            p_additional_persons: JSON.stringify(additionalPersons), // CRUCIAL FIX: Pass actual persons
+            p_additional_persons: JSON.stringify(additionalPersons),
             p_user_id: user.id
           });
 

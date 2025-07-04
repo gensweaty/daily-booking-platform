@@ -31,30 +31,57 @@ export const useEventDialog = ({
   const { toast } = useToast();
   const { language } = useLanguage();
 
-  // CRUCIAL FIX: Validate event data before calling database functions
+  // ENHANCED: Comprehensive event data validation with detailed logging
   const validateEventData = (data: Partial<CalendarEventType>) => {
-    console.log("🔍 Validating event data in dialog:", data);
+    console.log("🔍 Dialog validation - Raw data:", data);
     
-    // Ensure we have required dates
+    // CRITICAL: Check for required dates
     if (!data.start_date || !data.end_date) {
+      console.error("❌ Dialog validation failed - Missing dates:", {
+        start_date: data.start_date,
+        end_date: data.end_date,
+        has_start: !!data.start_date,
+        has_end: !!data.end_date
+      });
       throw new Error("Start date and end date are required");
     }
 
-    // Ensure dates are valid
+    // CRITICAL: Validate date format and content
+    if (typeof data.start_date !== 'string' || data.start_date.trim() === '') {
+      console.error("❌ Dialog validation failed - Invalid start_date:", data.start_date);
+      throw new Error("Start date must be a valid date string");
+    }
+
+    if (typeof data.end_date !== 'string' || data.end_date.trim() === '') {
+      console.error("❌ Dialog validation failed - Invalid end_date:", data.end_date);
+      throw new Error("End date must be a valid date string");
+    }
+
+    // CRITICAL: Ensure dates are valid
     const startDate = new Date(data.start_date);
     const endDate = new Date(data.end_date);
     
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      console.error("❌ Dialog validation failed - Invalid date parsing:", {
+        start_date: data.start_date,
+        end_date: data.end_date,
+        parsed_start: startDate,
+        parsed_end: endDate
+      });
       throw new Error("Invalid date format");
     }
 
-    // Ensure we have a title
+    // CRITICAL: Ensure we have a title
     const title = data.user_surname || data.title;
     if (!title || title.trim() === '') {
+      console.error("❌ Dialog validation failed - Missing title:", {
+        title: data.title,
+        user_surname: data.user_surname
+      });
       throw new Error("Event title is required");
     }
 
-    return {
+    const validatedData = {
       ...data,
       start_date: startDate.toISOString(),
       end_date: endDate.toISOString(),
@@ -63,35 +90,38 @@ export const useEventDialog = ({
       payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
       language: data.language || language || 'en'
     };
+
+    console.log("✅ Dialog validation passed:", validatedData);
+    return validatedData;
   };
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>, additionalPersons: PersonData[] = []) => {
     try {
-      console.log("🔄 Creating event with raw data:", data);
-      console.log("👥 Creating event with additional persons:", additionalPersons);
+      console.log("🔄 Dialog creating event with raw data:", data);
+      console.log("👥 Dialog creating event with additional persons:", additionalPersons);
       
-      // CRUCIAL FIX: Validate data before processing
+      // CRITICAL: Validate data before processing
       const validatedData = validateEventData(data);
       
       const eventData = {
         ...validatedData,
         type: 'event',
         checkAvailability: false,
-        additionalPersons, // CRUCIAL FIX: Pass the actual persons array
+        additionalPersons,
       };
       
-      console.log("🔄 Creating event with validated data:", eventData);
+      console.log("🔄 Dialog creating event with validated data:", eventData);
       
       if (!createEvent) throw new Error("Create event function not provided");
       
       const createdEvent = await createEvent(eventData);
       
       setIsNewEventDialogOpen(false);
-      console.log("✅ Event created successfully:", createdEvent);
+      console.log("✅ Dialog event created successfully:", createdEvent);
       
       return createdEvent;
     } catch (error: any) {
-      console.error("❌ Failed to create event:", error);
+      console.error("❌ Dialog failed to create event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to create event",
@@ -107,10 +137,10 @@ export const useEventDialog = ({
         throw new Error("Update event function not provided or no event selected");
       }
       
-      console.log("🔄 Updating event with raw data:", data);
-      console.log("👥 Updating event with additional persons:", additionalPersons);
+      console.log("🔄 Dialog updating event with raw data:", data);
+      console.log("👥 Dialog updating event with additional persons:", additionalPersons);
       
-      // CRUCIAL FIX: Validate data before processing
+      // CRITICAL: Validate data before processing with fallbacks to selected event
       const validatedData = validateEventData({
         ...data,
         start_date: data.start_date || selectedEvent.start_date,
@@ -122,10 +152,10 @@ export const useEventDialog = ({
         ...validatedData,
         type: selectedEvent.type || 'event',
         language: validatedData.language || selectedEvent.language || language || 'en',
-        additionalPersons, // CRUCIAL FIX: Pass the actual persons array
+        additionalPersons,
       };
       
-      console.log("🔄 Updating event with validated data:", eventData);
+      console.log("🔄 Dialog updating event with validated data:", eventData);
       
       const updatedEvent = await updateEvent({
         ...eventData,
@@ -133,11 +163,11 @@ export const useEventDialog = ({
       });
       
       setSelectedEvent(null);
-      console.log("✅ Event updated successfully:", updatedEvent);
+      console.log("✅ Dialog event updated successfully:", updatedEvent);
       
       return updatedEvent;
     } catch (error: any) {
-      console.error("❌ Failed to update event:", error);
+      console.error("❌ Dialog failed to update event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to update event",
@@ -154,11 +184,11 @@ export const useEventDialog = ({
       const result = await deleteEvent({ id: selectedEvent.id, deleteChoice });
       
       setSelectedEvent(null);
-      console.log("✅ Event deleted successfully:", selectedEvent.id);
+      console.log("✅ Dialog event deleted successfully:", selectedEvent.id);
       
       return result;
     } catch (error: any) {
-      console.error("❌ Failed to delete event:", error);
+      console.error("❌ Dialog failed to delete event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete event",
