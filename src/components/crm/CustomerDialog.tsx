@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { sendBookingConfirmationEmail, sendBookingConfirmationToMultipleRecipients } from "@/lib/api"; // Import the consolidated email sending function
+import { sendBookingConfirmationEmail, sendBookingConfirmationToMultipleRecipients } from "@/lib/api";
 
 interface CustomerDialogProps {
   open: boolean;
@@ -51,10 +51,8 @@ export const CustomerDialog = ({
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  // Add state for delete confirmation dialog
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
-  // Add state for event date/time pickers
   const [eventStartDate, setEventStartDate] = useState<Date>(new Date());
   const [eventEndDate, setEventEndDate] = useState<Date>(new Date());
   const [createEvent, setCreateEvent] = useState(false);
@@ -72,10 +70,8 @@ export const CustomerDialog = ({
         endDate: initialData.endDate || "",
       });
       
-      // Set the create_event checkbox state from initialData
       setCreateEvent(initialData.create_event || false);
       
-      // Set event dates if they exist in initialData
       if (initialData.start_date) {
         setEventStartDate(new Date(initialData.start_date));
       }
@@ -190,18 +186,15 @@ export const CustomerDialog = ({
     }
   };
 
-  // Helper function to validate email format
   const isValidEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  // Enhanced helper function to send email notifications for new events
   const sendEventCreationEmail = async (eventData: any, additionalPersons: any[] = []) => {
     try {
       console.log(`🔔 Starting email notification process for event: ${eventData.title || eventData.user_surname}`);
       
-      // Get user's business profile for the email
       const { data: businessData } = await supabase
         .from('business_profiles')
         .select('*')
@@ -215,10 +208,8 @@ export const CustomerDialog = ({
         return;
       }
 
-      // Collect all recipients (main customer + additional persons)
       const recipients: Array<{ email: string; name: string }> = [];
       
-      // Add main customer if they have a valid email
       const mainCustomerEmail = eventData.social_network_link;
       if (mainCustomerEmail && isValidEmail(mainCustomerEmail)) {
         recipients.push({
@@ -227,7 +218,6 @@ export const CustomerDialog = ({
         });
       }
       
-      // Add additional persons with valid emails
       if (additionalPersons && additionalPersons.length > 0) {
         additionalPersons.forEach(person => {
           if (person.socialNetworkLink && isValidEmail(person.socialNetworkLink)) {
@@ -246,9 +236,7 @@ export const CustomerDialog = ({
       
       console.log(`📧 Found ${recipients.length} recipients for email notifications`);
       
-      // Send emails to all recipients
       if (recipients.length === 1) {
-        // Single recipient - use the direct email function
         const emailResult = await sendBookingConfirmationEmail(
           recipients[0].email,
           recipients[0].name,
@@ -259,7 +247,7 @@ export const CustomerDialog = ({
           eventData.payment_amount || null,
           businessData.contact_address || '',
           eventData.id,
-          'en', // TODO: Get language from user preferences
+          'en',
           eventData.event_notes || ''
         );
         
@@ -280,7 +268,6 @@ export const CustomerDialog = ({
           });
         }
       } else {
-        // Multiple recipients - use the batch email function
         const emailResults = await sendBookingConfirmationToMultipleRecipients(
           recipients,
           businessData.business_name || '',
@@ -290,7 +277,7 @@ export const CustomerDialog = ({
           eventData.payment_amount || null,
           businessData.contact_address || '',
           eventData.id,
-          'en', // TODO: Get language from user preferences
+          'en',
           eventData.event_notes || ''
         );
         
@@ -320,7 +307,6 @@ export const CustomerDialog = ({
         title: "Email Error",
         description: "Failed to send booking confirmation emails"
       });
-      // Don't throw - we don't want to break the main flow if just the email fails
     }
   };
 
@@ -340,7 +326,6 @@ export const CustomerDialog = ({
     try {
       const { title, user_number, social_network_link, event_notes, payment_status, payment_amount } = formData;
 
-      // For existing customers/events (update operation)
       if (customerId) {
         const updates = {
           title,
@@ -350,7 +335,7 @@ export const CustomerDialog = ({
           payment_status,
           payment_amount: payment_amount ? parseFloat(payment_amount) : null,
           user_id: user.id,
-          create_event: createEvent, // Make sure to update the create_event flag
+          create_event: createEvent,
           start_date: createEvent ? eventStartDate.toISOString() : null,
           end_date: createEvent ? eventEndDate.toISOString() : null
         };
@@ -373,9 +358,7 @@ export const CustomerDialog = ({
 
         if (error) throw error;
 
-        // If this is a customer and create_event is checked, create or update the corresponding event
         if (tableToUpdate === 'customers' && createEvent) {
-          // Check if there's already an event with this title
           const { data: existingEvents, error: eventCheckError } = await supabase
             .from('events')
             .select('id')
@@ -389,10 +372,10 @@ export const CustomerDialog = ({
           
           const eventData = {
             title: title,
-            user_surname: title, // Fix: use title as user_surname instead of user_number
+            user_surname: title,
             user_number: user_number,
             social_network_link: social_network_link,
-            event_notes: event_notes, // Ensure event_notes is included
+            event_notes: event_notes,
             payment_status: payment_status,
             payment_amount: payment_amount ? parseFloat(payment_amount) : null,
             user_id: user.id,
@@ -403,13 +386,12 @@ export const CustomerDialog = ({
           let createdEventId: string | null = null;
 
           if (existingEvents && existingEvents.length > 0) {
-            // Update existing event
-            const { data: updatedEvent, error: eventUpdateError } = await supabase
-              .from('events')
-              .update(eventData)
-              .eq('id', existingEvents[0].id)
-              .select()
-              .single();
+            const { data: updatedEventId, error: eventUpdateError } = await supabase.rpc('save_event_with_persons', {
+              p_event_data: JSON.stringify(eventData),
+              p_additional_persons: JSON.stringify([]),
+              p_user_id: user.id,
+              p_event_id: existingEvents[0].id
+            });
 
             if (eventUpdateError) {
               console.error("Error updating event:", eventUpdateError);
@@ -419,21 +401,27 @@ export const CustomerDialog = ({
                 variant: "destructive"
               });
             } else {
-              createdEventId = updatedEvent.id;
+              createdEventId = updatedEventId;
               
-              // Make sure to send email notification with updated event data including notes
-              await sendEventCreationEmail({
-                ...updatedEvent,
-                event_notes: event_notes // Explicitly ensure notes are included
-              }, []); // No additional persons in CustomerDialog context
+              const { data: updatedEvent } = await supabase
+                .from('events')
+                .select('*')
+                .eq('id', updatedEventId)
+                .single();
+              
+              if (updatedEvent) {
+                await sendEventCreationEmail({
+                  ...updatedEvent,
+                  event_notes: event_notes
+                }, []);
+              }
             }
           } else {
-            // Create new event
-            const { data: newEvent, error: eventCreateError } = await supabase
-              .from('events')
-              .insert(eventData)
-              .select()
-              .single();
+            const { data: newEventId, error: eventCreateError } = await supabase.rpc('save_event_with_persons', {
+              p_event_data: JSON.stringify(eventData),
+              p_additional_persons: JSON.stringify([]),
+              p_user_id: user.id
+            });
 
             if (eventCreateError) {
               console.error("Error creating event:", eventCreateError);
@@ -443,13 +431,20 @@ export const CustomerDialog = ({
                 variant: "destructive"
               });
             } else {
-              createdEventId = newEvent.id;
+              createdEventId = newEventId;
               
-              // Send email notification for the newly created event
-              await sendEventCreationEmail({
-                ...newEvent,
-                event_notes: event_notes // Explicitly ensure notes are included 
-              }, []); // No additional persons in CustomerDialog context
+              const { data: newEvent } = await supabase
+                .from('events')
+                .select('*')
+                .eq('id', newEventId)
+                .single();
+              
+              if (newEvent) {
+                await sendEventCreationEmail({
+                  ...newEvent,
+                  event_notes: event_notes
+                }, []);
+              }
             }
           }
         }
@@ -462,7 +457,6 @@ export const CustomerDialog = ({
           }
         }
       } 
-      // For new customers (insert operation)
       else {
         const newCustomer = {
           title,
@@ -492,7 +486,6 @@ export const CustomerDialog = ({
 
         console.log("Customer created:", customerData);
 
-        // Handle file upload for the new customer if a file was selected
         let uploadedFileData = null;
         if (selectedFile && customerData) {
           try {
@@ -503,14 +496,13 @@ export const CustomerDialog = ({
           }
         }
 
-        // Create corresponding event if checkbox was checked
         if (createEvent && customerData) {
           const eventData = {
             title: title,
-            user_surname: title, // Use title as user_surname instead of user_number
+            user_surname: title,
             user_number: user_number,
-            social_network_link: social_network_link, // This contains the email address
-            event_notes: event_notes, // Ensure event_notes is included
+            social_network_link: social_network_link,
+            event_notes: event_notes,
             payment_status: payment_status,
             payment_amount: payment_amount ? parseFloat(payment_amount) : null,
             user_id: user.id,
@@ -520,11 +512,11 @@ export const CustomerDialog = ({
 
           console.log("Creating event from customer:", eventData);
 
-          const { data: eventResult, error: eventError } = await supabase
-            .from('events')
-            .insert(eventData)
-            .select()
-            .single();
+          const { data: eventResult, error: eventError } = await supabase.rpc('save_event_with_persons', {
+            p_event_data: JSON.stringify(eventData),
+            p_additional_persons: JSON.stringify([]),
+            p_user_id: user.id
+          });
 
           if (eventError) {
             console.error("Error creating event:", eventError);
@@ -536,10 +528,15 @@ export const CustomerDialog = ({
           } else {
             console.log("Event created successfully:", eventResult);
             
-            // Send email notification to customer's email when creating a new event
-            if (social_network_link && isValidEmail(social_network_link)) {
+            const { data: newEvent } = await supabase
+              .from('events')
+              .select('*')
+              .eq('id', eventResult)
+              .single();
+            
+            if (newEvent && social_network_link && isValidEmail(social_network_link)) {
               await sendEventCreationEmail({
-                id: eventResult.id,
+                id: newEvent.id,
                 title: title,
                 user_surname: title,
                 social_network_link: social_network_link,
@@ -547,14 +544,12 @@ export const CustomerDialog = ({
                 end_date: eventEndDate.toISOString(),
                 payment_status: payment_status,
                 payment_amount: payment_amount ? parseFloat(payment_amount) : null,
-                event_notes: event_notes // Explicitly include event notes
+                event_notes: event_notes
               });
             }
             
-            // If we have a file, also associate it with the new event
             if (uploadedFileData && eventResult) {
               try {
-                // Download the file from customer_attachments
                 const { data: fileData, error: fetchError } = await supabase.storage
                   .from('customer_attachments')
                   .download(uploadedFileData.file_path);
@@ -564,10 +559,8 @@ export const CustomerDialog = ({
                   throw fetchError;
                 }
                 
-                // Create a new path for the event file
-                const newFilePath = `${eventResult.id}/${uploadedFileData.filename}`;
+                const newFilePath = `${eventResult}/${uploadedFileData.filename}`;
                 
-                // Upload the file to the event_attachments bucket
                 const { error: uploadError } = await supabase.storage
                   .from('event_attachments')
                   .upload(newFilePath, fileData);
@@ -577,9 +570,8 @@ export const CustomerDialog = ({
                   throw uploadError;
                 }
                 
-                // Create the event_files record with proper information
                 const eventFileData = {
-                  event_id: eventResult.id,
+                  event_id: eventResult,
                   filename: uploadedFileData.filename,
                   file_path: newFilePath,
                   content_type: uploadedFileData.content_type,
@@ -606,7 +598,6 @@ export const CustomerDialog = ({
         }
       }
 
-      // Make sure to invalidate all the relevant queries
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       await queryClient.invalidateQueries({ queryKey: ['events'] });
       await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
@@ -630,11 +621,9 @@ export const CustomerDialog = ({
   };
 
   const handleDelete = async () => {
-    // Open confirmation dialog instead of deleting immediately
     setIsDeleteConfirmOpen(true);
   };
 
-  // Add new function to handle confirmed deletion
   const handleConfirmDelete = async () => {
     if (!customerId || !user?.id) return;
 
@@ -668,7 +657,6 @@ export const CustomerDialog = ({
       });
 
       onOpenChange(false);
-      // Close delete confirmation dialog
       setIsDeleteConfirmOpen(false);
     } catch (error: any) {
       console.error('Error deleting:', error);
@@ -751,7 +739,6 @@ export const CustomerDialog = ({
         </DialogContent>
       </Dialog>
       
-      {/* Add deletion confirmation dialog */}
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>

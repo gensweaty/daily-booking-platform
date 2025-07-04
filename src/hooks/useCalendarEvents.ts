@@ -189,9 +189,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("🔄 Creating event with data:", eventData);
 
-      // Use the new database function for atomic operations
+      // CRUCIAL FIX: Stringify JSON parameters for PostgreSQL JSONB
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: {
+        p_event_data: JSON.stringify({
           title: eventData.user_surname || eventData.title,
           user_surname: eventData.user_surname,
           user_number: eventData.user_number,
@@ -206,8 +206,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           is_recurring: eventData.is_recurring || false,
           repeat_pattern: eventData.repeat_pattern,
           repeat_until: eventData.repeat_until
-        },
-        p_additional_persons: [], // No additional persons for direct creation
+        }),
+        p_additional_persons: JSON.stringify([]), // No additional persons for direct creation
         p_user_id: user.id,
         p_event_id: null
       });
@@ -253,9 +253,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("🔄 Updating event with data:", eventData);
 
-      // Use the new database function for atomic operations
+      // CRUCIAL FIX: Stringify JSON parameters for PostgreSQL JSONB
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: {
+        p_event_data: JSON.stringify({
           title: eventData.user_surname || eventData.title,
           user_surname: eventData.user_surname,
           user_number: eventData.user_number,
@@ -270,8 +270,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           is_recurring: eventData.is_recurring || false,
           repeat_pattern: eventData.repeat_pattern,
           repeat_until: eventData.repeat_until
-        },
-        p_additional_persons: [], // Additional persons handled in EventDialog
+        }),
+        p_additional_persons: JSON.stringify([]), // Additional persons handled in EventDialog
         p_user_id: user.id,
         p_event_id: eventData.id
       });

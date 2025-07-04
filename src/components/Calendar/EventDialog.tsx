@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -475,11 +474,11 @@ export const EventDialog = ({
       if (eventId || initialData) {
         console.log("🔄 Updating existing event:", eventId || initialData?.id);
         
-        // Update existing event
+        // CRUCIAL FIX: Stringify JSON parameters for PostgreSQL JSONB
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: eventData,
-            p_additional_persons: additionalPersons,
+            p_event_data: JSON.stringify(eventData),
+            p_additional_persons: JSON.stringify(additionalPersons),
             p_user_id: user.id,
             p_event_id: eventId || initialData?.id
           });
@@ -506,11 +505,11 @@ export const EventDialog = ({
       } else {
         console.log("🆕 Creating new event");
         
-        // Create new event
+        // CRUCIAL FIX: Stringify JSON parameters for PostgreSQL JSONB
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: eventData,
-            p_additional_persons: additionalPersons,
+            p_event_data: JSON.stringify(eventData),
+            p_additional_persons: JSON.stringify(additionalPersons),
             p_user_id: user.id
           });
 
