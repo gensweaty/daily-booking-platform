@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -282,6 +281,7 @@ export const EventDialog = ({
         }
       }
 
+      // CRITICAL: Properly format the recurring event data
       const eventData = {
         title,
         user_surname: userSurname,
@@ -298,7 +298,13 @@ export const EventDialog = ({
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
       };
 
-      console.log("🚀 Submitting event data:", eventData);
+      console.log("🚀 Submitting event data with recurring info:", {
+        is_recurring: eventData.is_recurring,
+        repeat_pattern: eventData.repeat_pattern,
+        repeat_until: eventData.repeat_until,
+        start_date: eventData.start_date,
+        end_date: eventData.end_date
+      });
 
       let result;
       

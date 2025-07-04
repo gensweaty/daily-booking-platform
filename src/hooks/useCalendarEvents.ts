@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -139,6 +138,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         return new Date(dateStr).toISOString();
       };
 
+      // CRITICAL: Ensure recurring parameters are properly formatted
       const eventPayload = {
         title: eventData.user_surname || eventData.title,
         user_surname: eventData.user_surname,
@@ -151,12 +151,18 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         payment_status: eventData.payment_status || 'not_paid',
         payment_amount: eventData.payment_amount?.toString() || '',
         type: eventData.type || 'event',
-        is_recurring: eventData.is_recurring || false,
-        repeat_pattern: eventData.repeat_pattern,
-        repeat_until: eventData.repeat_until
+        is_recurring: Boolean(eventData.is_recurring),
+        repeat_pattern: eventData.repeat_pattern || null,
+        repeat_until: eventData.repeat_until || null
       };
 
-      console.log("🔄 Formatted event payload:", eventPayload);
+      console.log("🔄 Formatted event payload with recurring data:", {
+        is_recurring: eventPayload.is_recurring,
+        repeat_pattern: eventPayload.repeat_pattern,
+        repeat_until: eventPayload.repeat_until,
+        start_date: eventPayload.start_date,
+        end_date: eventPayload.end_date
+      });
 
       // Use the database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
