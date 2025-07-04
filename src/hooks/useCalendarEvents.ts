@@ -134,7 +134,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         });
       }
 
-      // Log recurring events info
+      // Enhanced logging for recurring events
       const parentEvents = allEvents.filter(e => e.is_recurring && !e.parent_event_id);
       const childEvents = allEvents.filter(e => e.parent_event_id);
       
@@ -149,7 +149,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           id: e.id,
           title: e.title,
           pattern: e.repeat_pattern,
-          start: e.start_date
+          start: e.start_date,
+          is_recurring: e.is_recurring
         })));
       }
 
@@ -158,8 +159,22 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           id: e.id,
           title: e.title,
           parent_id: e.parent_event_id,
-          start: e.start_date
+          start: e.start_date,
+          is_recurring: e.is_recurring
         })));
+      }
+
+      // Log any events that might be problematic
+      const problematicEvents = regularEvents.filter(e => 
+        e.is_recurring === true && 
+        (!e.repeat_pattern || e.repeat_pattern === 'none') &&
+        !e.parent_event_id
+      );
+      
+      if (problematicEvents.length > 0) {
+        console.warn("⚠️ Found problematic recurring events (is_recurring=true but no repeat_pattern):", 
+          problematicEvents.map(e => ({ id: e.id, title: e.title, is_recurring: e.is_recurring, repeat_pattern: e.repeat_pattern }))
+        );
       }
 
       console.log(`✅ Loaded ${allEvents.length} total events (${regularEvents.length} regular + ${bookingRequests.length} bookings, filtered ${deletionExceptions.length} exceptions)`);

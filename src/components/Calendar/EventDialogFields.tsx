@@ -137,6 +137,23 @@ export const EventDialogFields = ({
     return getRepeatOptions(selectedDateTime, t);
   }, [startDate, t]);
   
+  // Automatically sync isRecurring with repeatPattern - THIS IS THE KEY FIX
+  useEffect(() => {
+    console.log("🔄 Syncing recurring state:", { repeatPattern, currentIsRecurring: isRecurring });
+    
+    if (repeatPattern && repeatPattern !== "none") {
+      if (!isRecurring) {
+        console.log("✅ Setting isRecurring to true because repeatPattern is:", repeatPattern);
+        setIsRecurring(true);
+      }
+    } else if (repeatPattern === "none" || !repeatPattern) {
+      if (isRecurring) {
+        console.log("✅ Setting isRecurring to false because repeatPattern is:", repeatPattern);
+        setIsRecurring(false);
+      }
+    }
+  }, [repeatPattern, isRecurring, setIsRecurring]);
+  
   const georgianStyle = isGeorgian ? {
     fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
     letterSpacing: '-0.2px',
@@ -475,7 +492,14 @@ export const EventDialogFields = ({
           </Label>
           <div className="flex gap-2">
             <div className="flex-1">
-              <Select value={repeatPattern} onValueChange={setRepeatPattern}>
+              <Select 
+                value={repeatPattern} 
+                onValueChange={(value) => {
+                  console.log("🔄 User selected repeat pattern:", value);
+                  setRepeatPattern(value);
+                  // The useEffect above will automatically update isRecurring
+                }}
+              >
                 <SelectTrigger id="repeatPattern" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                   <SelectValue placeholder={isGeorgian ? "განმეორების რეჟიმი" : t("recurring.doesNotRepeat")} />
                 </SelectTrigger>
@@ -540,6 +564,15 @@ export const EventDialogFields = ({
               </Popover>
             )}
           </div>
+          
+          {/* Debug info - show current state */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-2 p-2 bg-muted rounded text-xs">
+              <div>repeatPattern: {repeatPattern}</div>
+              <div>isRecurring: {isRecurring.toString()}</div>
+              <div>repeatUntil: {repeatUntil ? repeatUntil.toISOString().split('T')[0] : 'null'}</div>
+            </div>
+          )}
         </div>
       )}
 
@@ -576,12 +609,7 @@ export const EventDialogFields = ({
           <Label 
             htmlFor="eventName"
             className={cn(isGeorgian ? "font-georgian" : "")}
-            style={isGeorgian ? {
-              fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-              letterSpacing: '-0.2px',
-              WebkitFontSmoothing: 'antialiased',
-              MozOsxFontSmoothing: 'grayscale'
-            } : undefined}
+            style={georgianStyle}
           >
             {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">მოვლენის სახელი</GeorgianAuthText> : <LanguageText>Event Name</LanguageText>}
           </Label>
@@ -591,12 +619,7 @@ export const EventDialogFields = ({
             onChange={e => setEventName(e.target.value)} 
             placeholder={isGeorgian ? "მოვლენის სახელი" : "Event Name"} 
             className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
-            style={isGeorgian ? {
-              fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-              letterSpacing: '-0.2px',
-              WebkitFontSmoothing: 'antialiased',
-              MozOsxFontSmoothing: 'grayscale'
-            } : undefined} 
+            style={georgianStyle} 
           />
         </div>
       )}
