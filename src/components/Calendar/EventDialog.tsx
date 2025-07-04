@@ -7,7 +7,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { EventDialogFields } from "./EventDialogFields";
 import { useToast } from "@/hooks/use-toast";
 import { sendEventCreationEmail } from "@/lib/api";
-import { format } from "date-fns";
 
 // Helper function to format datetime for datetime-local input
 const formatDatetimeLocal = (dt: string | Date | null | undefined): string => {
@@ -417,12 +416,6 @@ export const EventDialog = ({
     setIsLoading(true);
 
     try {
-      // Map biweekly to the correct database pattern
-      let dbRepeatPattern = repeatPattern;
-      if (repeatPattern === 'biweekly') {
-        dbRepeatPattern = 'weekly';
-      }
-
       // Prepare event data with proper recurring settings
       const eventData = {
         title: userSurname || title || 'Untitled Event',
@@ -437,8 +430,8 @@ export const EventDialog = ({
         payment_amount: paymentAmount || '',
         type: 'event',
         is_recurring: isRecurring,
-        repeat_pattern: isRecurring && repeatPattern !== 'none' ? dbRepeatPattern : null,
-        repeat_until: (isRecurring && repeatUntil) ? format(repeatUntil, 'yyyy-MM-dd') : null
+        repeat_pattern: isRecurring && repeatPattern !== 'none' ? repeatPattern : null,
+        repeat_until: (isRecurring && repeatUntil) ? repeatUntil : null
       };
 
       // Enhanced logging for debugging recurring events
@@ -448,8 +441,7 @@ export const EventDialog = ({
       console.log("🔁 Recurring Info:", {
         isRecurring,
         repeatPattern,
-        dbRepeatPattern,
-        repeatUntil: repeatUntil ? format(repeatUntil, 'yyyy-MM-dd') : null,
+        repeatUntil,
         finalRecurringValue: eventData.is_recurring,
         finalPattern: eventData.repeat_pattern,
         finalUntil: eventData.repeat_until
@@ -532,17 +524,12 @@ export const EventDialog = ({
                   });
                 } else {
                   console.warn("⚠️ No child events found - recurring event creation may have failed");
-                  toast({
-                    title: "Warning",
-                    description: "Event created but recurring instances may not have been generated properly.",
-                    variant: "destructive",
-                  });
                 }
               }
             } catch (verifyError) {
               console.error("❌ Error verifying child events:", verifyError);
             }
-          }, 2000);
+          }, 1000);
         }
         
         // Upload files for new event
