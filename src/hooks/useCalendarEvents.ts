@@ -127,15 +127,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("🔄 Creating event with data:", eventData);
 
-      // Ensure proper date formatting and validation
+      // CRITICAL FIX: Ensure proper date formatting and validation
       const formatDateForSQL = (dateStr: string) => {
         if (!dateStr) return null;
-        // If it's already an ISO string, use it. Otherwise, convert from datetime-local format
-        if (dateStr.includes('T') && dateStr.endsWith('Z')) {
+        // Convert datetime-local input to proper ISO string
+        try {
+          const date = new Date(dateStr);
+          return date.toISOString();
+        } catch (error) {
+          console.error("Error formatting date for SQL:", error);
           return dateStr;
         }
-        // Convert from datetime-local format (YYYY-MM-DDTHH:mm) to ISO
-        return new Date(dateStr).toISOString();
       };
 
       // CRITICAL: Ensure recurring parameters are properly formatted
@@ -156,12 +158,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         repeat_until: eventData.repeat_until || null
       };
 
-      console.log("🔄 Formatted event payload with recurring data:", {
+      console.log("🔄 FINAL event payload with recurring data:", {
         is_recurring: eventPayload.is_recurring,
         repeat_pattern: eventPayload.repeat_pattern,
         repeat_until: eventPayload.repeat_until,
         start_date: eventPayload.start_date,
-        end_date: eventPayload.end_date
+        end_date: eventPayload.end_date,
+        title: eventPayload.title
       });
 
       // Use the database function for atomic operations
@@ -221,10 +224,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       // Ensure proper date formatting
       const formatDateForSQL = (dateStr: string) => {
         if (!dateStr) return null;
-        if (dateStr.includes('T') && dateStr.endsWith('Z')) {
+        try {
+          const date = new Date(dateStr);
+          return date.toISOString();
+        } catch (error) {
+          console.error("Error formatting date for SQL:", error);
           return dateStr;
         }
-        return new Date(dateStr).toISOString();
       };
 
       const eventPayload = {

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -65,21 +66,23 @@ export const EventDialog = ({
   // Determine if this is creating a new event
   const isNewEvent = !eventId && !initialData;
 
-  // Helper function to format date for datetime-local input
+  // CRITICAL FIX: Proper timezone-aware date formatting
   const formatDateForInput = (dateStr: string) => {
     if (!dateStr) return "";
     try {
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) return "";
       
-      // Format as YYYY-MM-DDTHH:mm for datetime-local input
+      // Convert to local timezone and format for datetime-local input
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       const hours = String(date.getHours()).padStart(2, '0');
       const minutes = String(date.getMinutes()).padStart(2, '0');
       
-      return `${year}-${month}-${day}T${hours}:${minutes}`;
+      const formatted = `${year}-${month}-${day}T${hours}:${minutes}`;
+      console.log("📅 Date formatting:", { input: dateStr, output: formatted });
+      return formatted;
     } catch (error) {
       console.error("Error formatting date:", error);
       return "";
@@ -101,6 +104,22 @@ export const EventDialog = ({
     } catch (error) {
       console.error("Error formatting date only:", error);
       return "";
+    }
+  };
+
+  // CRITICAL FIX: Convert datetime-local input to proper ISO string
+  const convertInputDateToISO = (inputDate: string) => {
+    if (!inputDate) return "";
+    try {
+      // Input format: "2025-07-11T21:00" (datetime-local)
+      // We need to treat this as local time and convert to ISO
+      const date = new Date(inputDate);
+      const isoString = date.toISOString();
+      console.log("🔄 Converting input date:", { input: inputDate, iso: isoString });
+      return isoString;
+    } catch (error) {
+      console.error("Error converting input date to ISO:", error);
+      return inputDate;
     }
   };
 
@@ -152,7 +171,7 @@ export const EventDialog = ({
           });
         }
       } else if (selectedDate) {
-        // Creating new event
+        // Creating new event - CRITICAL FIX for timezone handling
         console.log("➕ Creating new event for date:", selectedDate);
         
         const formatDateTime = (date: Date) => {
@@ -166,6 +185,12 @@ export const EventDialog = ({
 
         const startDateTime = formatDateTime(selectedDate);
         const endDateTime = new Date(selectedDate.getTime() + 60 * 60 * 1000);
+        
+        console.log("📅 New event times:", { 
+          selectedDate: selectedDate.toISOString(),
+          startDateTime,
+          endDateTime: formatDateTime(endDateTime)
+        });
         
         setStartDate(startDateTime);
         setEndDate(formatDateTime(endDateTime));
@@ -281,6 +306,17 @@ export const EventDialog = ({
         }
       }
 
+      // CRITICAL: Convert input dates to proper ISO format for database
+      const startDateISO = convertInputDateToISO(startDate);
+      const endDateISO = convertInputDateToISO(endDate);
+      
+      console.log("🚀 Date conversion for database:", {
+        input_start: startDate,
+        input_end: endDate,
+        iso_start: startDateISO,
+        iso_end: endDateISO
+      });
+
       // CRITICAL: Properly format the recurring event data
       const eventData = {
         title,
@@ -289,8 +325,8 @@ export const EventDialog = ({
         social_network_link: socialNetworkLink,
         event_notes: eventNotes,
         event_name: eventName,
-        start_date: startDate,
-        end_date: endDate,
+        start_date: startDateISO,
+        end_date: endDateISO,
         payment_status: paymentStatus,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         is_recurring: isRecurring,
@@ -298,12 +334,13 @@ export const EventDialog = ({
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
       };
 
-      console.log("🚀 Submitting event data with recurring info:", {
+      console.log("🚀 Submitting event data with FIXED recurring info:", {
         is_recurring: eventData.is_recurring,
         repeat_pattern: eventData.repeat_pattern,
         repeat_until: eventData.repeat_until,
         start_date: eventData.start_date,
-        end_date: eventData.end_date
+        end_date: eventData.end_date,
+        title: eventData.title
       });
 
       let result;
@@ -327,11 +364,12 @@ export const EventDialog = ({
         
         onEventUpdated?.();
       } else {
-        // Create new event
-        console.log("🔄 Creating new event with recurring settings:", {
+        // Create new event - this is where the recurring magic should happen
+        console.log("🔄 Creating NEW EVENT with recurring settings:", {
           is_recurring: isRecurring,
           repeat_pattern: repeatPattern,
-          repeat_until: repeatUntil
+          repeat_until: repeatUntil,
+          title: title
         });
         
         result = await supabase
@@ -362,8 +400,8 @@ export const EventDialog = ({
               socialNetworkLink,
               userSurname || title,
               "", // businessName will be resolved from user's business profile
-              startDate,
-              endDate,
+              startDateISO,
+              endDateISO,
               paymentStatus || null,
               paymentAmount ? parseFloat(paymentAmount) : null,
               "", // businessAddress will be resolved from user's business profile  
