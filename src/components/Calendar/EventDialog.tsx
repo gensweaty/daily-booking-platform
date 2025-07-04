@@ -172,7 +172,7 @@ export const EventDialog = ({
   // Determine if this is a new event (not editing an existing one)
   const isNewEvent = !eventId && !initialData;
 
-  // Combined useEffect for loading all event data - runs FIRST
+  // FIXED: Enhanced useEffect for loading all event data
   useEffect(() => {
     const loadEventData = async () => {
       if (!open) return;
@@ -217,27 +217,65 @@ export const EventDialog = ({
         if (!currentEventId) return;
 
         try {
-          // Set main event data first
-          if (initialData) {
-            console.log("Setting initial data:", initialData);
-            setTitle(initialData.title || "");
-            setUserSurname(initialData.user_surname || "");  
-            setUserNumber(initialData.user_number || "");
-            setSocialNetworkLink(initialData.social_network_link || "");
-            setEventNotes(initialData.event_notes || "");
-            setEventName(initialData.event_name || "");
-            setPaymentStatus(initialData.payment_status || "");
-            setPaymentAmount(initialData.payment_amount?.toString() || "");
-            setStartDate(formatDatetimeLocal(initialData.start_date));
-            setEndDate(formatDatetimeLocal(initialData.end_date));
-            setIsRecurring(initialData.is_recurring || false);
-            setRepeatPattern(initialData.repeat_pattern || "none");
-            setRepeatUntil(initialData.repeat_until ? formatDateOnly(initialData.repeat_until) : "");
+          // CRUCIAL FIX: Load event data from database to get the most current information
+          const { data: eventData, error: eventError } = await supabase
+            .from('events')
+            .select('*')
+            .eq('id', currentEventId)
+            .eq('user_id', user.id)
+            .single();
+
+          if (eventError) {
+            console.error('Error fetching event data:', eventError);
+            // Fallback to initialData if database fetch fails
+            if (initialData) {
+              console.log("Using initialData as fallback:", initialData);
+              setTitle(initialData.title || "");
+              setUserSurname(initialData.user_surname || "");  
+              setUserNumber(initialData.user_number || "");
+              setSocialNetworkLink(initialData.social_network_link || "");
+              setEventNotes(initialData.event_notes || "");
+              setEventName(initialData.event_name || "");
+              setPaymentStatus(initialData.payment_status || "");
+              setPaymentAmount(initialData.payment_amount?.toString() || "");
+              setStartDate(formatDatetimeLocal(initialData.start_date));
+              setEndDate(formatDatetimeLocal(initialData.end_date));
+              setIsRecurring(initialData.is_recurring || false);
+              setRepeatPattern(initialData.repeat_pattern || "none");
+              setRepeatUntil(initialData.repeat_until ? formatDateOnly(initialData.repeat_until) : "");
+            }
+          } else {
+            // Use fresh data from database
+            console.log("Setting event data from database:", eventData);
+            setTitle(eventData.title || "");
+            setUserSurname(eventData.user_surname || "");  
+            setUserNumber(eventData.user_number || "");
+            setSocialNetworkLink(eventData.social_network_link || "");
+            setEventNotes(eventData.event_notes || "");
+            setEventName(eventData.event_name || "");
+            setPaymentStatus(eventData.payment_status || "");
+            setPaymentAmount(eventData.payment_amount?.toString() || "");
+            setStartDate(formatDatetimeLocal(eventData.start_date));
+            setEndDate(formatDatetimeLocal(eventData.end_date));
+            
+            // CRUCIAL FIX: Properly handle recurring settings
+            const isRecurringEvent = Boolean(eventData.is_recurring);
+            const repeatPatternValue = eventData.repeat_pattern || "none";
+            const repeatUntilValue = eventData.repeat_until ? formatDateOnly(eventData.repeat_until) : "";
+            
+            setIsRecurring(isRecurringEvent);
+            setRepeatPattern(repeatPatternValue);
+            setRepeatUntil(repeatUntilValue);
             
             console.log("Set recurring state:", {
-              isRecurring: initialData.is_recurring,
-              repeatPattern: initialData.repeat_pattern,
-              repeatUntil: initialData.repeat_until
+              isRecurring: isRecurringEvent,
+              repeatPattern: repeatPatternValue,
+              repeatUntil: repeatUntilValue,
+              originalData: {
+                is_recurring: eventData.is_recurring,
+                repeat_pattern: eventData.repeat_pattern,
+                repeat_until: eventData.repeat_until
+              }
             });
           }
 
