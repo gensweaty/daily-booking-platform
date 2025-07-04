@@ -393,7 +393,17 @@ export const EventDialogFields = ({
       </div>
     );
   };
-  
+
+  // Ensure recurring state is properly synchronized
+  useEffect(() => {
+    if (repeatPattern && repeatPattern !== 'none') {
+      if (!isRecurring) {
+        console.log("🔄 EventDialogFields: Auto-setting isRecurring to true based on repeatPattern:", repeatPattern);
+        setIsRecurring(true);
+      }
+    }
+  }, [repeatPattern, isRecurring, setIsRecurring]);
+
   // Convert existing files to FileRecord format for FileDisplay component
   const convertToFileRecords = (files: ExistingFile[]): FileRecord[] => {
     return files.map(file => ({
@@ -462,7 +472,7 @@ export const EventDialogFields = ({
         </div>
       </div>
 
-      {/* Repeat Options - Always show, with loading state consideration */}
+      {/* Repeat Options - Enhanced with better state management */}
       {!dataLoading && (
         <div>
           <Label 
@@ -475,7 +485,22 @@ export const EventDialogFields = ({
           </Label>
           <div className="flex gap-2">
             <div className="flex-1">
-              <Select value={repeatPattern} onValueChange={setRepeatPattern}>
+              <Select 
+                value={repeatPattern} 
+                onValueChange={(value) => {
+                  console.log("🔄 RepeatPattern changed to:", value);
+                  setRepeatPattern(value);
+                  
+                  // Auto-set isRecurring based on pattern
+                  if (value && value !== 'none') {
+                    console.log("🔄 Setting isRecurring to true");
+                    setIsRecurring(true);
+                  } else {
+                    console.log("🔄 Setting isRecurring to false");
+                    setIsRecurring(false);
+                  }
+                }}
+              >
                 <SelectTrigger id="repeatPattern" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                   <SelectValue placeholder={isGeorgian ? "განმეორების რეჟიმი" : t("recurring.doesNotRepeat")} />
                 </SelectTrigger>
@@ -489,7 +514,7 @@ export const EventDialogFields = ({
               </Select>
             </div>
             
-            {repeatPattern !== "none" && (
+            {repeatPattern !== "none" && isRecurring && (
               <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -521,6 +546,7 @@ export const EventDialogFields = ({
                     selected={repeatUntil}
                     onSelect={(date) => {
                       if (date) {
+                        console.log("🔄 RepeatUntil date selected:", date);
                         setRepeatUntil(date);
                       }
                       setIsDatePickerOpen(false);
@@ -540,6 +566,15 @@ export const EventDialogFields = ({
               </Popover>
             )}
           </div>
+          
+          {/* Debug info for recurring state */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-2 p-2 bg-muted/20 rounded text-xs">
+              <div>isRecurring: {isRecurring.toString()}</div>
+              <div>repeatPattern: {repeatPattern}</div>
+              <div>repeatUntil: {repeatUntil?.toDateString() || 'none'}</div>
+            </div>
+          )}
         </div>
       )}
 
