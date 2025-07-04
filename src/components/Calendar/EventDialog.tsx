@@ -402,7 +402,7 @@ export const EventDialog = ({
     setIsLoading(true);
 
     try {
-      // Prepare event data with comprehensive logging and validation
+      // Prepare event data with proper format for the database function
       const eventData = {
         title: userSurname || title || 'Untitled Event',
         user_surname: userSurname || title || 'Unknown',
@@ -417,7 +417,7 @@ export const EventDialog = ({
         type: 'event',
         is_recurring: isRecurring,
         repeat_pattern: isRecurring ? repeatPattern : null,
-        repeat_until: (isRecurring && repeatUntil) ? repeatUntil : null // repeatUntil is already a string in YYYY-MM-DD format
+        repeat_until: (isRecurring && repeatUntil) ? repeatUntil : null
       };
 
       // Enhanced logging for debugging
@@ -427,32 +427,10 @@ export const EventDialog = ({
       console.log("🔁 Recurring Info:", {
         isRecurring,
         repeatPattern,
-        repeatUntil: repeatUntil || null, // Already a string
-        finalIsRecurring: eventData.is_recurring,
-        finalRepeatPattern: eventData.repeat_pattern,
-        finalRepeatUntil: eventData.repeat_until
+        repeatUntil,
+        actualPattern: isRecurring ? repeatPattern : null,
+        actualUntil: (isRecurring && repeatUntil) ? repeatUntil : null
       });
-
-      // Validation to ensure consistency
-      if (eventData.is_recurring && (!eventData.repeat_pattern || eventData.repeat_pattern === 'none')) {
-        console.error("❌ Validation Error: is_recurring is true but repeat_pattern is invalid");
-        toast({
-          title: "Validation Error",
-          description: "Recurring events must have a valid repeat pattern",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!eventData.is_recurring && eventData.repeat_pattern && eventData.repeat_pattern !== 'none') {
-        console.error("❌ Validation Error: is_recurring is false but repeat_pattern is set");
-        toast({
-          title: "Validation Error", 
-          description: "Non-recurring events should not have a repeat pattern",
-          variant: "destructive",
-        });
-        return;
-      }
 
       let result;
       
@@ -489,11 +467,6 @@ export const EventDialog = ({
         onEventUpdated?.();
       } else {
         console.log("🆕 Creating new event");
-        console.log("🔄 Sending to save_event_with_persons:", {
-          p_event_data: eventData,
-          p_additional_persons: additionalPersons,
-          p_user_id: user.id
-        });
         
         // Create new event
         result = await supabase
@@ -512,37 +485,23 @@ export const EventDialog = ({
         console.log("✅ Event created successfully with ID:", newEventId);
 
         // If this was a recurring event, let's verify that child events were created
-        if (eventData.is_recurring && eventData.repeat_pattern && eventData.repeat_pattern !== 'none') {
+        if (isRecurring && repeatPattern && repeatPattern !== 'none') {
           console.log("🔍 Verifying recurring events were created...");
           
           // Wait a moment for the database function to complete
           setTimeout(async () => {
-            try {
-              const { data: childEvents, error: childError } = await supabase
-                .from('events')
-                .select('*')
-                .eq('parent_event_id', newEventId)
-                .is('deleted_at', null);
-              
-              if (childError) {
-                console.error("❌ Error checking child events:", childError);
-              } else {
-                console.log(`✅ Found ${childEvents?.length || 0} child events created`);
-                console.log("🔍 Child events:", childEvents);
-                
-                if (childEvents && childEvents.length > 0) {
-                  toast({
-                    title: "Success",
-                    description: `Recurring event created with ${childEvents.length} instances!`,
-                  });
-                } else {
-                  console.warn("⚠️ No child events found - recurring generation may have failed");
-                }
-              }
-            } catch (verificationError) {
-              console.error("❌ Error verifying child events:", verificationError);
+            const { data: childEvents, error: childError } = await supabase
+              .from('events')
+              .select('*')
+              .eq('parent_event_id', newEventId);
+            
+            if (childError) {
+              console.error("❌ Error checking child events:", childError);
+            } else {
+              console.log(`✅ Found ${childEvents?.length || 0} child events created`);
+              console.log("🔍 Child events:", childEvents);
             }
-          }, 2000);
+          }, 1000);
         }
         
         // Upload files for new event
@@ -704,8 +663,8 @@ export const EventDialog = ({
             setIsRecurring={setIsRecurring}
             repeatPattern={repeatPattern}
             setRepeatPattern={setRepeatPattern}
-            repeatUntil={repeatUntil}
-            setRepeatUntil={setRepeatUntil}
+            repeatUntil={getRepeatUntilAsDate()}
+            setRepeatUntil={handleRepeatUntilChange}
             files={files}
             setFiles={setFiles}
             existingFiles={existingFiles}
