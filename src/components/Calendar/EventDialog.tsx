@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -62,6 +61,9 @@ export const EventDialog = ({
   // Check if this is a recurring event (parent or child)
   const isRecurringEvent = initialData?.is_recurring || initialData?.parent_event_id;
   const isChildEvent = !!initialData?.parent_event_id;
+  
+  // Determine if this is creating a new event
+  const isNewEvent = !eventId && !initialData;
 
   useEffect(() => {
     if (open) {
@@ -420,6 +422,7 @@ export const EventDialog = ({
               id: person.id || crypto.randomUUID()
             }))}
             setAdditionalPersons={setAdditionalPersons}
+            isNewEvent={isNewEvent}
           />
 
           <div className="flex justify-between">
