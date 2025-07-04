@@ -478,7 +478,7 @@ export const EventDialog = ({
         result = await supabase
           .rpc('save_event_with_persons', {
             p_event_data: JSON.stringify(eventData),
-            p_additional_persons: JSON.stringify(additionalPersons),
+            p_additional_persons: JSON.stringify(additionalPersons), // CRUCIAL FIX: Pass actual persons
             p_user_id: user.id,
             p_event_id: eventId || initialData?.id
           });
@@ -509,7 +509,7 @@ export const EventDialog = ({
         result = await supabase
           .rpc('save_event_with_persons', {
             p_event_data: JSON.stringify(eventData),
-            p_additional_persons: JSON.stringify(additionalPersons),
+            p_additional_persons: JSON.stringify(additionalPersons), // CRUCIAL FIX: Pass actual persons
             p_user_id: user.id
           });
 

@@ -1,9 +1,18 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+
+interface PersonData {
+  id: string;
+  userSurname: string;
+  userNumber: string;
+  socialNetworkLink: string;
+  eventNotes: string;
+  paymentStatus: string;
+  paymentAmount: string;
+}
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string) => {
   const { user } = useAuth();
@@ -215,13 +224,21 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
   };
 
   const createEventMutation = useMutation({
-    mutationFn: async (eventData: Partial<CalendarEventType>) => {
+    mutationFn: async (eventData: Partial<CalendarEventType> & { additionalPersons?: PersonData[] }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
       console.log("🔄 Creating event with data:", eventData);
 
-      // CRUCIAL FIX: Validate data before sending to database
-      const validatedData = validateEventData(eventData);
+      // CRUCIAL FIX: Extract additional persons and remove from event data
+      const additionalPersons = eventData.additionalPersons || [];
+      const cleanEventData = { ...eventData };
+      delete cleanEventData.additionalPersons;
+
+      // Validate data before sending to database
+      const validatedData = validateEventData(cleanEventData);
+
+      console.log("🔄 Creating event with validated data:", validatedData);
+      console.log("👥 With additional persons:", additionalPersons);
 
       // CRUCIAL FIX: Stringify JSON parameters for PostgreSQL JSONB
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
@@ -241,7 +258,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           repeat_pattern: validatedData.repeat_pattern || null,
           repeat_until: validatedData.repeat_until || null
         }),
-        p_additional_persons: JSON.stringify([]), // No additional persons for direct creation
+        p_additional_persons: JSON.stringify(additionalPersons), // CRUCIAL FIX: Pass actual persons array
         p_user_id: user.id,
         p_event_id: null
       });
@@ -287,13 +304,21 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
   });
 
   const updateEventMutation = useMutation({
-    mutationFn: async (eventData: Partial<CalendarEventType> & { id: string }) => {
+    mutationFn: async (eventData: Partial<CalendarEventType> & { id: string; additionalPersons?: PersonData[] }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
       console.log("🔄 Updating event with data:", eventData);
 
-      // CRUCIAL FIX: Validate data before sending to database
-      const validatedData = validateEventData(eventData);
+      // CRUCIAL FIX: Extract additional persons and remove from event data
+      const additionalPersons = eventData.additionalPersons || [];
+      const cleanEventData = { ...eventData };
+      delete cleanEventData.additionalPersons;
+
+      // Validate data before sending to database
+      const validatedData = validateEventData(cleanEventData);
+
+      console.log("🔄 Updating event with validated data:", validatedData);
+      console.log("👥 With additional persons:", additionalPersons);
 
       // CRUCIAL FIX: Stringify JSON parameters for PostgreSQL JSONB
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
@@ -313,7 +338,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           repeat_pattern: validatedData.repeat_pattern || null,
           repeat_until: validatedData.repeat_until || null
         }),
-        p_additional_persons: JSON.stringify([]), // Additional persons handled in EventDialog
+        p_additional_persons: JSON.stringify(additionalPersons), // CRUCIAL FIX: Pass actual persons array
         p_user_id: user.id,
         p_event_id: eventData.id
       });

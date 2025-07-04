@@ -4,9 +4,19 @@ import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 
+interface PersonData {
+  id: string;
+  userSurname: string;
+  userNumber: string;
+  socialNetworkLink: string;
+  eventNotes: string;
+  paymentStatus: string;
+  paymentAmount: string;
+}
+
 interface UseEventDialogProps {
-  createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  updateEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
+  createEvent?: (data: Partial<CalendarEventType> & { additionalPersons?: PersonData[] }) => Promise<CalendarEventType>;
+  updateEvent?: (data: Partial<CalendarEventType> & { additionalPersons?: PersonData[] }) => Promise<CalendarEventType>;
   deleteEvent?: ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => Promise<{ success: boolean; }>;
 }
 
@@ -55,9 +65,10 @@ export const useEventDialog = ({
     };
   };
 
-  const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
+  const handleCreateEvent = async (data: Partial<CalendarEventType>, additionalPersons: PersonData[] = []) => {
     try {
       console.log("🔄 Creating event with raw data:", data);
+      console.log("👥 Creating event with additional persons:", additionalPersons);
       
       // CRUCIAL FIX: Validate data before processing
       const validatedData = validateEventData(data);
@@ -66,6 +77,7 @@ export const useEventDialog = ({
         ...validatedData,
         type: 'event',
         checkAvailability: false,
+        additionalPersons, // CRUCIAL FIX: Pass the actual persons array
       };
       
       console.log("🔄 Creating event with validated data:", eventData);
@@ -89,13 +101,14 @@ export const useEventDialog = ({
     }
   };
 
-  const handleUpdateEvent = async (data: Partial<CalendarEventType>) => {
+  const handleUpdateEvent = async (data: Partial<CalendarEventType>, additionalPersons: PersonData[] = []) => {
     try {
       if (!updateEvent || !selectedEvent) {
         throw new Error("Update event function not provided or no event selected");
       }
       
       console.log("🔄 Updating event with raw data:", data);
+      console.log("👥 Updating event with additional persons:", additionalPersons);
       
       // CRUCIAL FIX: Validate data before processing
       const validatedData = validateEventData({
@@ -108,7 +121,8 @@ export const useEventDialog = ({
       const eventData = {
         ...validatedData,
         type: selectedEvent.type || 'event',
-        language: validatedData.language || selectedEvent.language || language || 'en'
+        language: validatedData.language || selectedEvent.language || language || 'en',
+        additionalPersons, // CRUCIAL FIX: Pass the actual persons array
       };
       
       console.log("🔄 Updating event with validated data:", eventData);
