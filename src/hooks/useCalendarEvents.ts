@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { generateRecurringInstances, filterDeletedInstances } from '@/lib/recurringEvents';
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string) => {
   const { user } = useAuth();
@@ -23,7 +22,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("Fetching events for user:", targetUserId, "business:", businessId);
 
-      // Fetch events from the events table
+      // Fetch ALL events from the events table (including recurring instances)
       const { data: events, error: eventsError } = await supabase
         .from('events')
         .select('*')
@@ -53,59 +52,37 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         }
       }
 
-      // Separate regular events from deletion exceptions
-      const regularEvents = events?.filter(event => 
-        event.type !== 'deletion_exception' && 
-        !event.title?.startsWith('__DELETED_') && 
-        event.user_surname !== '__SYSTEM_DELETION_EXCEPTION__'
-      ) || [];
-      
-      const deletionExceptions = events?.filter(event => 
-        event.type === 'deletion_exception' || 
-        event.title?.startsWith('__DELETED_') || 
-        event.user_surname === '__SYSTEM_DELETION_EXCEPTION__'
-      ) || [];
-
       console.log("📊 Event breakdown:", {
         totalEvents: events?.length || 0,
-        regularEvents: regularEvents.length,
-        deletionExceptions: deletionExceptions.length,
         bookingRequests: bookingRequests.length
       });
 
       // Convert all data to CalendarEventType format
       const allEvents: CalendarEventType[] = [];
 
-      // Add regular events
-      for (const event of regularEvents) {
-        if (event.is_recurring && event.repeat_pattern) {
-          // Generate recurring instances
-          const instances = generateRecurringInstances(event);
-          // Filter out deleted instances
-          const filteredInstances = filterDeletedInstances(instances, deletionExceptions);
-          allEvents.push(...filteredInstances);
-        } else {
-          allEvents.push({
-            id: event.id,
-            title: event.title,
-            start_date: event.start_date,
-            end_date: event.end_date,
-            user_id: event.user_id,
-            user_surname: event.user_surname,
-            user_number: event.user_number,
-            social_network_link: event.social_network_link,
-            event_notes: event.event_notes,
-            event_name: event.event_name,
-            payment_status: event.payment_status,
-            payment_amount: event.payment_amount,
-            type: event.type || 'event',
-            is_recurring: event.is_recurring || false,
-            repeat_pattern: event.repeat_pattern,
-            repeat_until: event.repeat_until,
-            language: event.language,
-            created_at: event.created_at || new Date().toISOString(),
-          });
-        }
+      // Add all events (both parent and recurring instances)
+      for (const event of (events || [])) {
+        allEvents.push({
+          id: event.id,
+          title: event.title,
+          start_date: event.start_date,
+          end_date: event.end_date,
+          user_id: event.user_id,
+          user_surname: event.user_surname,
+          user_number: event.user_number,
+          social_network_link: event.social_network_link,
+          event_notes: event.event_notes,
+          event_name: event.event_name,
+          payment_status: event.payment_status,
+          payment_amount: event.payment_amount,
+          type: event.type || 'event',
+          is_recurring: event.is_recurring || false,
+          repeat_pattern: event.repeat_pattern,
+          repeat_until: event.repeat_until,
+          parent_event_id: event.parent_event_id,
+          language: event.language,
+          created_at: event.created_at || new Date().toISOString(),
+        });
       }
 
       // Add booking requests
@@ -128,7 +105,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         });
       }
 
-      console.log(`✅ Loaded ${allEvents.length} total events (${regularEvents.length} regular + ${bookingRequests.length} bookings, filtered ${deletionExceptions.length} exceptions)`);
+      console.log(`✅ Loaded ${allEvents.length} total events (${events?.length || 0} events + ${bookingRequests.length} bookings)`);
       return allEvents;
 
     } catch (error) {
@@ -192,7 +169,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         ...eventData
       } as CalendarEventType;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Wait a bit for recurring events to be generated
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
@@ -256,7 +236,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         ...eventData
       } as CalendarEventType;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Wait a bit for any changes to propagate
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
@@ -293,7 +276,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       return { success: true };
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Wait a bit for changes to propagate
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });

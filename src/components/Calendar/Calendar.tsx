@@ -251,24 +251,28 @@ export const Calendar = ({
   };
 
   // Functions to handle event operations and refresh calendar
-  const refreshCalendar = () => {
+  const refreshCalendar = async () => {
     const queryKey = businessId ? ['business-events', businessId] : ['events', user?.id];
+    
+    // Wait a bit for database operations to complete
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     queryClient.invalidateQueries({ queryKey });
   };
 
-  const handleEventCreated = () => {
+  const handleEventCreated = async () => {
     console.log("Event created, refreshing calendar...");
-    refreshCalendar();
+    await refreshCalendar();
   };
 
-  const handleEventUpdated = () => {
+  const handleEventUpdated = async () => {
     console.log("Event updated, refreshing calendar...");
-    refreshCalendar();
+    await refreshCalendar();
   };
 
-  const handleEventDeleted = () => {
+  const handleEventDeleted = async () => {
     console.log("Event deleted, refreshing calendar...");
-    refreshCalendar();
+    await refreshCalendar();
   };
 
   if (error && !directEvents) {
@@ -310,7 +314,7 @@ export const Calendar = ({
         <div className={`flex-1 ${gridBgClass} ${textClass}`}>
           <CalendarView
             days={getDaysForView()}
-            events={events || []}
+            events={events || []} // Pass all events (including recurring instances)
             selectedDate={selectedDate}
             view={view}
             onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}

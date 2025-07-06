@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -57,6 +58,8 @@ export const EventDialog = ({
     paymentStatus: string;
     paymentAmount: string;
   }>>([]);
+
+  const isNewEvent = !initialData && !eventId;
 
   useEffect(() => {
     if (open) {
@@ -181,6 +184,30 @@ export const EventDialog = ({
       return;
     }
 
+    // Validate recurring event data
+    if (isRecurring && isNewEvent) {
+      if (!repeatPattern || !repeatUntil) {
+        toast({
+          title: "Error",
+          description: "Please select a repeat pattern and end date for recurring events",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const startDateObj = new Date(startDate);
+      const repeatUntilObj = new Date(repeatUntil);
+      
+      if (repeatUntilObj <= startDateObj) {
+        toast({
+          title: "Error", 
+          description: "Repeat until date must be after the event start date",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     try {
@@ -194,10 +221,10 @@ export const EventDialog = ({
         start_date: startDate,
         end_date: endDate,
         payment_status: paymentStatus,
-        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-        is_recurring: isRecurring,
-        repeat_pattern: isRecurring ? repeatPattern : null,
-        repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
+        payment_amount: paymentAmount ? paymentAmount : null,
+        is_recurring: isRecurring && isNewEvent,
+        repeat_pattern: (isRecurring && isNewEvent && repeatPattern) ? repeatPattern : null,
+        repeat_until: (isRecurring && isNewEvent && repeatUntil) ? repeatUntil : null,
       };
 
       let result;
@@ -238,6 +265,11 @@ export const EventDialog = ({
           await uploadFiles(newEventId);
         }
 
+        // Wait a bit for recurring events to be generated
+        if (isRecurring) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
         // Send email notification for new event creation
         console.log("🔔 Attempting to send event creation email for internal event");
         if (socialNetworkLink && socialNetworkLink.includes('@')) {
@@ -260,26 +292,26 @@ export const EventDialog = ({
               console.log("✅ Event creation email sent successfully");
               toast({
                 title: "Success",
-                description: "Event created and confirmation email sent!",
+                description: isRecurring ? "Recurring event series created and confirmation email sent!" : "Event created and confirmation email sent!",
               });
             } else {
               console.error("❌ Failed to send event creation email:", emailResult.error);
               toast({
                 title: "Event Created",
-                description: "Event created successfully, but email notification failed to send.",
+                description: isRecurring ? "Recurring event series created successfully, but email notification failed to send." : "Event created successfully, but email notification failed to send.",
               });
             }
           } catch (emailError) {
             console.error("❌ Error sending event creation email:", emailError);
             toast({
               title: "Event Created", 
-              description: "Event created successfully, but email notification failed to send.",
+              description: isRecurring ? "Recurring event series created successfully, but email notification failed to send." : "Event created successfully, but email notification failed to send.",
             });
           }
         } else {
           toast({
             title: "Success",
-            description: "Event created successfully",
+            description: isRecurring ? "Recurring event series created successfully" : "Event created successfully",
           });
         }
         
@@ -332,25 +364,6 @@ export const EventDialog = ({
     }
   };
 
-  // Helper function to handle repeat until date changes
-  const handleRepeatUntilChange = (date: Date) => {
-    const formatDate = (date: Date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-    setRepeatUntil(formatDate(date));
-  };
-
-  // Helper function to convert repeatUntil string to Date
-  const getRepeatUntilAsDate = (): Date => {
-    if (repeatUntil) {
-      return new Date(repeatUntil);
-    }
-    return new Date();
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -386,8 +399,8 @@ export const EventDialog = ({
             setIsRecurring={setIsRecurring}
             repeatPattern={repeatPattern}
             setRepeatPattern={setRepeatPattern}
-            repeatUntil={repeatUntil ? getRepeatUntilAsDate() : undefined}
-            setRepeatUntil={handleRepeatUntilChange}
+            repeatUntil={repeatUntil}
+            setRepeatUntil={setRepeatUntil}
             files={files}
             setFiles={setFiles}
             additionalPersons={additionalPersons.map(person => ({
@@ -395,6 +408,7 @@ export const EventDialog = ({
               id: person.id || crypto.randomUUID()
             }))}
             setAdditionalPersons={setAdditionalPersons}
+            isNewEvent={isNewEvent}
           />
 
           <div className="flex justify-between">
