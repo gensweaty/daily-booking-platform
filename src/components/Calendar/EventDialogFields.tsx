@@ -661,45 +661,61 @@ export const EventDialogFields = ({
         />
       </div>
       
-      {/* Show existing files */}
+      {/* Show existing files with proper FileDisplay component */}
       {existingFiles.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <div className="text-sm font-medium">Existing Files:</div>
-          {existingFiles.map((file) => (
-            <div key={file.id} className="flex items-center justify-between p-2 border rounded">
-              <span className="text-sm">{file.filename}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => handleRemoveExistingFile(file.id)}
-                className="h-6 w-6 p-0"
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </div>
-          ))}
+        <div className="space-y-2">
+          <div className="text-sm font-medium">
+            {isGeorgian ? <GeorgianAuthText>არსებული ფაილები</GeorgianAuthText> : "Existing Files:"}
+          </div>
+          <div className="space-y-2">
+            {existingFiles.map((file) => (
+              <FileDisplay
+                key={file.id}
+                file={{
+                  id: file.id,
+                  filename: file.filename,
+                  file_path: file.file_path,
+                  content_type: file.content_type,
+                  size: file.size,
+                  created_at: new Date().toISOString(),
+                  user_id: '',
+                  source: 'event'
+                } as FileRecord}
+                onDelete={() => handleRemoveExistingFile(file.id)}
+                bucketName="event_attachments"
+              />
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Show new files to be uploaded */}
+      {/* Show new files to be uploaded with proper FileDisplay component */}
       {files.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <div className="text-sm font-medium">New Files to Upload:</div>
-          {files.map((file, index) => (
-            <div key={index} className="flex items-center justify-between p-2 border rounded">
-              <span className="text-sm">{file.name}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setFiles(files.filter((_, i) => i !== index))}
-                className="h-6 w-6 p-0"
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </div>
-          ))}
+        <div className="space-y-2">
+          <div className="text-sm font-medium">
+            {isGeorgian ? <GeorgianAuthText>ახალი ფაილები ატვირთვისთვის</GeorgianAuthText> : "New Files to Upload:"}
+          </div>
+          <div className="space-y-2">
+            {files.map((file, index) => (
+              <FileDisplay
+                key={index}
+                file={{
+                  id: `temp-${index}`,
+                  filename: file.name,
+                  file_path: '',
+                  content_type: file.type,
+                  size: file.size,
+                  created_at: new Date().toISOString(),
+                  user_id: '',
+                  source: 'event'
+                } as FileRecord}
+                onDelete={() => setFiles(files.filter((_, i) => i !== index))}
+                bucketName="event_attachments"
+                isTemporary={true}
+                tempFile={file}
+              />
+            ))}
+          </div>
         </div>
       )}
     </>;
