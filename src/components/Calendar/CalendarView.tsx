@@ -87,10 +87,9 @@ export function CalendarView({
   
   const daysToRender = view === 'month' ? getDaysWithSurroundingMonths() : days;
   
-  // Filter events to ensure we only show non-deleted events
-  // No longer filtering by parent_event_id - show ALL events (parent and children)
+  // Strictly filter events to make sure deleted events don't show up
   const filteredEvents = events.filter(event => {
-    // Only check if deleted_at is undefined or null
+    // First check if deleted_at is undefined or null
     if (event.deleted_at === undefined || event.deleted_at === null) {
       return true; // Keep events that don't have deleted_at field or it's null
     }
@@ -109,29 +108,7 @@ export function CalendarView({
       if (filteredEvents.length > 0) {
         console.log("[CalendarView] First event sample:", filteredEvents[0]);
       }
-    } else {
-      // Log recurring event information for internal calendars
-      const recurringEvents = filteredEvents.filter(e => e.is_recurring || e.parent_event_id);
-      const parentEvents = filteredEvents.filter(e => e.is_recurring && !e.parent_event_id);
-      const childEvents = filteredEvents.filter(e => e.parent_event_id);
-      
-      if (recurringEvents.length > 0) {
-        console.log(`[CalendarView] Found ${recurringEvents.length} recurring events:`, {
-          totalRecurring: recurringEvents.length,
-          parents: parentEvents.length,
-          children: childEvents.length,
-          examples: recurringEvents.slice(0, 3).map(e => ({
-            id: e.id,
-            title: e.title,
-            start_date: e.start_date,
-            is_recurring: e.is_recurring,
-            parent_event_id: e.parent_event_id,
-            repeat_pattern: e.repeat_pattern
-          }))
-        });
-      }
     }
-    
     // Debug theme state
     console.log("[CalendarView] Current theme state:", { 
       theme, 
@@ -147,7 +124,7 @@ export function CalendarView({
     <div className="h-full">
       <CalendarGrid
         days={daysToRender}
-        events={filteredEvents} // Use the filtered events (includes all parent and child events)
+        events={filteredEvents} // Use the filtered events
         formattedSelectedDate={formattedSelectedDate}
         view={view}
         onDayClick={onDayClick}

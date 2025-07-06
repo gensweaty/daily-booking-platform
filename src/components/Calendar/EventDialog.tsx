@@ -1,326 +1,427 @@
-
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CalendarEventType } from "@/lib/types/calendar";
-import { EventDialogFields } from "./EventDialogFields";
-import { useCalendarEvents } from "@/hooks/useCalendarEvents";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { EventDialogFields } from "./EventDialogFields";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { sendEventCreationEmail } from "@/lib/api";
 
 interface EventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate?: Date;
+  eventId?: string;
   initialData?: CalendarEventType;
   onEventCreated?: () => void;
   onEventUpdated?: () => void;
   onEventDeleted?: () => void;
 }
 
-export function EventDialog({
-  open,
-  onOpenChange,
+export const EventDialog = ({ 
+  open, 
+  onOpenChange, 
   selectedDate,
+  eventId,
   initialData,
   onEventCreated,
   onEventUpdated,
-  onEventDeleted,
-}: EventDialogProps) {
+  onEventDeleted
+}: EventDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { createEvent, updateEvent, deleteEvent } = useCalendarEvents();
   
-  const isNewEvent = !initialData;
-  const isChildEvent = initialData?.parent_event_id != null;
-  
-  // Form state
-  const [formData, setFormData] = useState({
-    user_surname: "",
-    user_number: "",
-    social_network_link: "",
-    event_notes: "",
-    event_name: "",
-    payment_status: "not_paid",
-    payment_amount: "",
-    start_date: "",
-    end_date: "",
-  });
-
-  // Recurring event state
+  const [title, setTitle] = useState("");
+  const [userSurname, setUserSurname] = useState("");
+  const [userNumber, setUserNumber] = useState("");
+  const [socialNetworkLink, setSocialNetworkLink] = useState("");
+  const [eventNotes, setEventNotes] = useState("");
+  const [eventName, setEventName] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [isRecurring, setIsRecurring] = useState(false);
-  const [repeatPattern, setRepeatPattern] = useState<string>("weekly");
+  const [repeatPattern, setRepeatPattern] = useState("");
   const [repeatUntil, setRepeatUntil] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [additionalPersons, setAdditionalPersons] = useState<Array<{
+    id: string;
+    userSurname: string;
+    userNumber: string;
+    socialNetworkLink: string;
+    eventNotes: string;
+    paymentStatus: string;
+    paymentAmount: string;
+  }>>([]);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Initialize form data
   useEffect(() => {
-    if (initialData) {
-      setFormData({
-        user_surname: initialData.user_surname || "",
-        user_number: initialData.user_number || "",
-        social_network_link: initialData.social_network_link || "",
-        event_notes: initialData.event_notes || "",
-        event_name: initialData.event_name || "",
-        payment_status: initialData.payment_status || "not_paid",
-        payment_amount: initialData.payment_amount?.toString() || "",
-        start_date: initialData.start_date,
-        end_date: initialData.end_date,
-      });
-      
-      // Set recurring fields if this is a parent recurring event
-      if (initialData.is_recurring && !isChildEvent) {
-        setIsRecurring(true);
-        setRepeatPattern(initialData.repeat_pattern || "weekly");
-        setRepeatUntil(initialData.repeat_until || "");
+    if (open) {
+      if (initialData || eventId) {
+        // Editing existing event
+        const eventData = initialData;
+        if (eventData) {
+          setTitle(eventData.title || "");
+          setUserSurname(eventData.user_surname || "");  
+          setUserNumber(eventData.user_number || "");
+          setSocialNetworkLink(eventData.social_network_link || "");
+          setEventNotes(eventData.event_notes || "");
+          setEventName(eventData.event_name || "");
+          setPaymentStatus(eventData.payment_status || "");
+          setPaymentAmount(eventData.payment_amount?.toString() || "");
+          setStartDate(eventData.start_date || "");
+          setEndDate(eventData.end_date || "");
+          setIsRecurring(eventData.is_recurring || false);
+          setRepeatPattern(eventData.repeat_pattern || "");
+          setRepeatUntil(eventData.repeat_until || "");
+        }
+      } else if (selectedDate) {
+        // Creating new event
+        const formatDateTime = (date: Date) => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const hours = String(date.getHours()).padStart(2, '0');
+          const minutes = String(date.getMinutes()).padStart(2, '0');
+          return `${year}-${month}-${day}T${hours}:${minutes}`;
+        };
+
+        const startDateTime = formatDateTime(selectedDate);
+        const endDateTime = new Date(selectedDate.getTime() + 60 * 60 * 1000);
+        
+        setStartDate(startDateTime);
+        setEndDate(formatDateTime(endDateTime));
+        
+        // Reset all other fields for new event
+        setTitle("");
+        setUserSurname("");
+        setUserNumber("");
+        setSocialNetworkLink("");
+        setEventNotes("");
+        setEventName("");
+        setPaymentStatus("");
+        setPaymentAmount("");
+        setIsRecurring(false);
+        setRepeatPattern("");
+        setRepeatUntil("");
+        setAdditionalPersons([]);
+        setFiles([]);
       }
-    } else if (selectedDate) {
-      const startDate = new Date(selectedDate);
-      const endDate = new Date(selectedDate);
-      endDate.setHours(startDate.getHours() + 1);
-
-      setFormData(prev => ({
-        ...prev,
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
-      }));
     }
-  }, [initialData, selectedDate, isChildEvent]);
+  }, [open, selectedDate, initialData, eventId]);
 
-  // Reset recurring state when dialog opens/closes
-  useEffect(() => {
-    if (!open) {
-      setIsRecurring(false);
-      setRepeatPattern("weekly");
-      setRepeatUntil("");
-    }
-  }, [open]);
+  const resetForm = () => {
+    setTitle("");
+    setUserSurname("");
+    setUserNumber("");
+    setSocialNetworkLink("");
+    setEventNotes("");
+    setEventName("");
+    setPaymentStatus("");
+    setPaymentAmount("");
+    setStartDate("");
+    setEndDate("");
+    setIsRecurring(false);
+    setRepeatPattern("");
+    setRepeatUntil("");
+    setAdditionalPersons([]);
+    setFiles([]);
+  };
+
+  const uploadFiles = async (eventId: string) => {
+    if (files.length === 0) return;
+
+    const uploadPromises = files.map(async (file) => {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${eventId}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('event_attachments')
+        .upload(fileName, file);
+
+      if (uploadError) {
+        console.error('Error uploading file:', uploadError);
+        return null;
+      }
+
+      const { error: dbError } = await supabase
+        .from('event_files')
+        .insert({
+          filename: file.name,
+          file_path: fileName,
+          content_type: file.type,
+          size: file.size,
+          user_id: user?.id,
+          event_id: eventId
+        });
+
+      if (dbError) {
+        console.error('Error saving file record:', dbError);
+        return null;
+      }
+
+      return fileName;
+    });
+
+    await Promise.all(uploadPromises);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user?.id) {
+    if (!user) {
       toast({
         title: "Error",
-        description: "You must be logged in to create events",
+        description: "User must be authenticated",
         variant: "destructive",
       });
       return;
     }
 
-    // Validate recurring event fields
-    if (isRecurring && isNewEvent) {
-      if (!repeatPattern || !["daily", "weekly", "monthly"].includes(repeatPattern)) {
-        toast({
-          title: "Error",
-          description: "Please select a valid repeat pattern",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!repeatUntil) {
-        toast({
-          title: "Error", 
-          description: "Please select an end date for the recurring event",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const startDate = new Date(formData.start_date);
-      const untilDate = new Date(repeatUntil);
-      
-      if (untilDate <= startDate) {
-        toast({
-          title: "Error",
-          description: "End date must be after the start date",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
-    setIsSubmitting(true);
+    setIsLoading(true);
 
     try {
       const eventData = {
-        ...formData,
-        type: "event",
-        payment_amount: formData.payment_amount ? parseFloat(formData.payment_amount) : undefined,
-        // Only include recurring fields for new events (not child events)
-        is_recurring: isNewEvent && isRecurring,
-        repeat_pattern: isNewEvent && isRecurring ? repeatPattern : null,
-        repeat_until: isNewEvent && isRecurring && repeatUntil 
-          ? repeatUntil.split('T')[0] // Ensure YYYY-MM-DD format
-          : null,
+        title,
+        user_surname: userSurname,
+        user_number: userNumber,
+        social_network_link: socialNetworkLink,
+        event_notes: eventNotes,
+        event_name: eventName,
+        start_date: startDate,
+        end_date: endDate,
+        payment_status: paymentStatus,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+        is_recurring: isRecurring,
+        repeat_pattern: isRecurring ? repeatPattern : null,
+        repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
       };
 
-      console.log("Submitting event data:", eventData);
-
-      if (initialData) {
-        // Update existing event - convert payment_amount to number for the API
-        const updateData = {
-          ...eventData,
-          id: initialData.id,
-        };
-        await updateEvent(updateData);
-        onEventUpdated?.();
+      let result;
+      
+      if (eventId || initialData) {
+        // Update existing event
+        result = await supabase
+          .rpc('save_event_with_persons', {
+            p_event_data: eventData,
+            p_additional_persons: additionalPersons,
+            p_user_id: user.id,
+            p_event_id: eventId || initialData?.id
+          });
+          
+        if (result.error) throw result.error;
+        
         toast({
           title: "Success",
           description: "Event updated successfully",
         });
+        
+        onEventUpdated?.();
       } else {
         // Create new event
-        await createEvent(eventData);
-        onEventCreated?.();
-        
-        if (isRecurring) {
-          toast({
-            title: "Success",
-            description: "Recurring event series created successfully",
+        result = await supabase
+          .rpc('save_event_with_persons', {
+            p_event_data: eventData,
+            p_additional_persons: additionalPersons,
+            p_user_id: user.id
           });
-          
-          // Multi-stage refresh for recurring events
-          setTimeout(() => window.location.reload(), 500);
-          setTimeout(() => window.location.reload(), 1500);
-          setTimeout(() => window.location.reload(), 3000);
+
+        if (result.error) throw result.error;
+
+        const newEventId = result.data;
+        
+        // Upload files for new event
+        if (files.length > 0) {
+          await uploadFiles(newEventId);
+        }
+
+        // Send email notification for new event creation
+        console.log("🔔 Attempting to send event creation email for internal event");
+        if (socialNetworkLink && socialNetworkLink.includes('@')) {
+          try {
+            const emailResult = await sendEventCreationEmail(
+              socialNetworkLink,
+              userSurname || title,
+              "", // businessName will be resolved from user's business profile
+              startDate,
+              endDate,
+              paymentStatus || null,
+              paymentAmount ? parseFloat(paymentAmount) : null,
+              "", // businessAddress will be resolved from user's business profile  
+              newEventId,
+              'en', // Default language
+              eventNotes
+            );
+            
+            if (emailResult.success) {
+              console.log("✅ Event creation email sent successfully");
+              toast({
+                title: "Success",
+                description: "Event created and confirmation email sent!",
+              });
+            } else {
+              console.error("❌ Failed to send event creation email:", emailResult.error);
+              toast({
+                title: "Event Created",
+                description: "Event created successfully, but email notification failed to send.",
+              });
+            }
+          } catch (emailError) {
+            console.error("❌ Error sending event creation email:", emailError);
+            toast({
+              title: "Event Created", 
+              description: "Event created successfully, but email notification failed to send.",
+            });
+          }
         } else {
           toast({
             title: "Success",
             description: "Event created successfully",
           });
         }
+        
+        onEventCreated?.();
       }
 
+      resetForm();
       onOpenChange(false);
     } catch (error: any) {
-      console.error("Error saving event:", error);
+      console.error('Error saving event:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to save event",
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!initialData) return;
-
+    if (!eventId && !initialData?.id) return;
+    
+    setIsLoading(true);
+    
     try {
-      await deleteEvent({ id: initialData.id });
-      onEventDeleted?.();
+      const { error } = await supabase
+        .from('events')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', eventId || initialData?.id);
+        
+      if (error) throw error;
+      
       toast({
         title: "Success",
         description: "Event deleted successfully",
       });
+      
+      onEventDeleted?.();
       onOpenChange(false);
     } catch (error: any) {
-      console.error("Error deleting event:", error);
+      console.error('Error deleting event:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete event",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  // Helper function to handle repeat until date changes
+  const handleRepeatUntilChange = (date: Date) => {
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    setRepeatUntil(formatDate(date));
+  };
+
+  // Helper function to convert repeatUntil string to Date
+  const getRepeatUntilAsDate = (): Date => {
+    if (repeatUntil) {
+      return new Date(repeatUntil);
+    }
+    return new Date();
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {initialData ? "Edit Event" : "Create New Event"}
-            {isChildEvent && " (Part of Series)"}
+            {eventId || initialData ? "Edit Event" : "Create New Event"}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <EventDialogFields
-            formData={formData}
-            setFormData={setFormData}
-            isRecurring={isRecurring && isNewEvent}
+            title={title}
+            setTitle={setTitle}
+            userSurname={userSurname}
+            setUserSurname={setUserSurname}
+            userNumber={userNumber}
+            setUserNumber={setUserNumber}
+            socialNetworkLink={socialNetworkLink}
+            setSocialNetworkLink={setSocialNetworkLink}
+            eventNotes={eventNotes}
+            setEventNotes={setEventNotes}
+            eventName={eventName}
+            setEventName={setEventName}
+            paymentStatus={paymentStatus}
+            setPaymentStatus={setPaymentStatus}
+            paymentAmount={paymentAmount}
+            setPaymentAmount={setPaymentAmount}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
+            isRecurring={isRecurring}
+            setIsRecurring={setIsRecurring}
+            repeatPattern={repeatPattern}
+            setRepeatPattern={setRepeatPattern}
+            repeatUntil={repeatUntil ? getRepeatUntilAsDate() : undefined}
+            setRepeatUntil={handleRepeatUntilChange}
+            files={files}
+            setFiles={setFiles}
+            additionalPersons={additionalPersons.map(person => ({
+              ...person,
+              id: person.id || crypto.randomUUID()
+            }))}
+            setAdditionalPersons={setAdditionalPersons}
           />
 
-          {/* Recurring Event Options - Only show for new events */}
-          {isNewEvent && !isChildEvent && (
-            <div className="space-y-4 p-4 border rounded-lg bg-gray-50 dark:bg-gray-800">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="recurring"
-                  checked={isRecurring}
-                  onCheckedChange={setIsRecurring}
-                />
-                <Label htmlFor="recurring">Make this a recurring event</Label>
-              </div>
-
-              {isRecurring && (
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="repeat-pattern">Repeat Pattern</Label>
-                    <Select value={repeatPattern} onValueChange={setRepeatPattern}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select repeat pattern" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="daily">Daily</SelectItem>
-                        <SelectItem value="weekly">Weekly</SelectItem>
-                        <SelectItem value="monthly">Monthly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="repeat-until">Repeat Until</Label>
-                    <Input
-                      id="repeat-until"
-                      type="date"
-                      value={repeatUntil}
-                      onChange={(e) => setRepeatUntil(e.target.value)}
-                      min={formData.start_date ? format(new Date(formData.start_date), "yyyy-MM-dd") : undefined}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="flex justify-between pt-4">
-            <div>
-              {initialData && (
+          <div className="flex justify-between">
+            <div className="flex gap-2">
+              {(eventId || initialData) && (
                 <Button
                   type="button"
                   variant="destructive"
                   onClick={handleDelete}
-                  disabled={isSubmitting}
+                  disabled={isLoading}
                 >
                   Delete Event
                 </Button>
               )}
             </div>
-            <div className="flex space-x-2">
+            
+            <div className="flex gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                disabled={isSubmitting}
+                disabled={isLoading}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting 
-                  ? (initialData ? "Updating..." : "Creating...") 
-                  : (initialData ? "Update Event" : "Create Event")
-                }
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Saving..." : eventId || initialData ? "Update Event" : "Create Event"}
               </Button>
             </div>
           </div>
@@ -328,4 +429,4 @@ export function EventDialog({
       </DialogContent>
     </Dialog>
   );
-}
+};

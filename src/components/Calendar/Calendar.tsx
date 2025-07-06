@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -58,7 +57,7 @@ export const Calendar = ({
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
   
-  const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent, refetch } = useCalendarEvents(
+  const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
     !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
   );
@@ -95,12 +94,7 @@ export const Calendar = ({
     
     if (events?.length > 0) {
       console.log("[Calendar] First event:", events[0]);
-      
-      // Log recurring events information
-      const recurringEvents = events.filter(e => e.is_recurring || e.parent_event_id);
-      if (recurringEvents.length > 0) {
-        console.log(`[Calendar] Found ${recurringEvents.length} recurring events out of ${events.length} total events`);
-      }
+      console.log("[Calendar] All events:", events); // Log all events to debug
     }
   }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
 
@@ -253,21 +247,13 @@ export const Calendar = ({
     setIsBookingFormOpen(false);
     queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
     
-    toast({
-      title: "Success",
-      description: "Booking request submitted successfully",
-    });
+    toast.event.bookingSubmitted();
   };
 
   // Functions to handle event operations and refresh calendar
   const refreshCalendar = () => {
     const queryKey = businessId ? ['business-events', businessId] : ['events', user?.id];
     queryClient.invalidateQueries({ queryKey });
-    
-    // Force refetch for recurring events
-    setTimeout(() => {
-      refetch();
-    }, 1000);
   };
 
   const handleEventCreated = () => {
