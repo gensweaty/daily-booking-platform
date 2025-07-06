@@ -37,6 +37,7 @@ const formatDateTimeLocal = (date: Date): string => {
   );
 };
 
+
 export const EventDialog = ({ 
   open, 
   onOpenChange, 
@@ -336,6 +337,12 @@ export const EventDialog = ({
         repeat_pattern: (isRecurring && isNewEvent && repeatPattern) ? repeatPattern : null,
         repeat_until: (isRecurring && isNewEvent && repeatUntil) ? repeatUntil : null,
       };
+
+      const eventData = {
+  ...
+  repeat_until: (isRecurring && isNewEvent && repeatUntil) ? repeatUntil.slice(0, 10) : null,
+  ...
+};
 
       console.log("📤 Sending event data to backend:", eventData);
 
