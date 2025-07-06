@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -32,25 +33,21 @@ export const EventDialog = ({
   const { user } = useAuth();
   const { toast } = useToast();
   
-  // Basic event fields
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
   const [userNumber, setUserNumber] = useState("");
   const [socialNetworkLink, setSocialNetworkLink] = useState("");
   const [eventNotes, setEventNotes] = useState("");
   const [eventName, setEventName] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("not_paid");
+  const [paymentStatus, setPaymentStatus] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  
-  // Recurring fields
   const [isRecurring, setIsRecurring] = useState(false);
   const [repeatPattern, setRepeatPattern] = useState("");
   const [repeatUntil, setRepeatUntil] = useState("");
-  
-  // Other fields
   const [files, setFiles] = useState<File[]>([]);
+  
   const [isLoading, setIsLoading] = useState(false);
   const [additionalPersons, setAdditionalPersons] = useState<Array<{
     id: string;
@@ -64,15 +61,8 @@ export const EventDialog = ({
 
   const isNewEvent = !initialData && !eventId;
 
-  console.log("EventDialog render - isRecurring:", isRecurring, "isNewEvent:", isNewEvent);
-
-  // Initialize form when dialog opens
   useEffect(() => {
-    console.log("EventDialog useEffect - open:", open, "initialData:", !!initialData, "selectedDate:", !!selectedDate);
-    
-    if (!open) return;
-
-    try {
+    if (open) {
       if (initialData || eventId) {
         // Editing existing event
         const eventData = initialData;
@@ -83,15 +73,13 @@ export const EventDialog = ({
           setSocialNetworkLink(eventData.social_network_link || "");
           setEventNotes(eventData.event_notes || "");
           setEventName(eventData.event_name || "");
-          setPaymentStatus(eventData.payment_status || "not_paid");
+          setPaymentStatus(eventData.payment_status || "");
           setPaymentAmount(eventData.payment_amount?.toString() || "");
           setStartDate(eventData.start_date || "");
           setEndDate(eventData.end_date || "");
-          
-          // For existing events, don't show recurring options
-          setIsRecurring(false);
-          setRepeatPattern("");
-          setRepeatUntil("");
+          setIsRecurring(eventData.is_recurring || false);
+          setRepeatPattern(eventData.repeat_pattern || "");
+          setRepeatUntil(eventData.repeat_until || "");
         }
       } else if (selectedDate) {
         // Creating new event
@@ -117,7 +105,7 @@ export const EventDialog = ({
         setSocialNetworkLink("");
         setEventNotes("");
         setEventName("");
-        setPaymentStatus("not_paid");
+        setPaymentStatus("");
         setPaymentAmount("");
         setIsRecurring(false);
         setRepeatPattern("");
@@ -125,8 +113,6 @@ export const EventDialog = ({
         setAdditionalPersons([]);
         setFiles([]);
       }
-    } catch (error) {
-      console.error("Error in EventDialog useEffect:", error);
     }
   }, [open, selectedDate, initialData, eventId]);
 
@@ -137,7 +123,7 @@ export const EventDialog = ({
     setSocialNetworkLink("");
     setEventNotes("");
     setEventName("");
-    setPaymentStatus("not_paid");
+    setPaymentStatus("");
     setPaymentAmount("");
     setStartDate("");
     setEndDate("");
@@ -189,8 +175,6 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log("Form submit - isRecurring:", isRecurring, "repeatPattern:", repeatPattern, "repeatUntil:", repeatUntil);
-    
     if (!user) {
       toast({
         title: "Error",
@@ -237,13 +221,11 @@ export const EventDialog = ({
         start_date: startDate,
         end_date: endDate,
         payment_status: paymentStatus,
-        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+        payment_amount: paymentAmount ? paymentAmount : null,
         is_recurring: isRecurring && isNewEvent,
         repeat_pattern: (isRecurring && isNewEvent && repeatPattern) ? repeatPattern : null,
         repeat_until: (isRecurring && isNewEvent && repeatUntil) ? repeatUntil : null,
       };
-
-      console.log("Submitting event data:", eventData);
 
       let result;
       
@@ -277,7 +259,6 @@ export const EventDialog = ({
         if (result.error) throw result.error;
 
         const newEventId = result.data;
-        console.log("Created event with ID:", newEventId);
         
         // Upload files for new event
         if (files.length > 0) {
@@ -290,19 +271,20 @@ export const EventDialog = ({
         }
 
         // Send email notification for new event creation
+        console.log("🔔 Attempting to send event creation email for internal event");
         if (socialNetworkLink && socialNetworkLink.includes('@')) {
           try {
             const emailResult = await sendEventCreationEmail(
               socialNetworkLink,
               userSurname || title,
-              "",
+              "", // businessName will be resolved from user's business profile
               startDate,
               endDate,
               paymentStatus || null,
               paymentAmount ? parseFloat(paymentAmount) : null,
-              "",
+              "", // businessAddress will be resolved from user's business profile  
               newEventId,
-              'en',
+              'en', // Default language
               eventNotes
             );
             
@@ -421,7 +403,10 @@ export const EventDialog = ({
             setRepeatUntil={setRepeatUntil}
             files={files}
             setFiles={setFiles}
-            additionalPersons={additionalPersons}
+            additionalPersons={additionalPersons.map(person => ({
+              ...person,
+              id: person.id || crypto.randomUUID()
+            }))}
             setAdditionalPersons={setAdditionalPersons}
             isNewEvent={isNewEvent}
           />
