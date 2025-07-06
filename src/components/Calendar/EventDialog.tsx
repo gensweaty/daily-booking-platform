@@ -7,7 +7,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { EventDialogFields } from "./EventDialogFields";
 import { useToast } from "@/hooks/use-toast";
 import { sendEventCreationEmail } from "@/lib/api";
-import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
+import { DeleteConfirmationDialog } from "./DeleteConfirmationDialog";
+import { getParentEventId, isVirtualInstance } from "@/lib/recurringEvents";
 
 interface EventDialogProps {
   open: boolean;
@@ -59,11 +60,12 @@ export const EventDialog = ({
     paymentAmount: string;
   }>>([]);
 
-  const [showRecurringDeleteDialog, setShowRecurringDeleteDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const isNewEvent = !initialData && !eventId;
 
-  const isRecurringEvent = initialData?.parent_event_id || initialData?.is_recurring;
+  // Check if this is a recurring event (either has parent_event_id or is_recurring)
+  const isRecurringEvent = Boolean(initialData?.parent_event_id || initialData?.is_recurring);
 
   useEffect(() => {
     if (open) {
@@ -327,15 +329,8 @@ export const EventDialog = ({
     }
   };
 
-  const handleDelete = async () => {
-    if (!eventId && !initialData?.id) return;
-    
-    if (isRecurringEvent) {
-      setShowRecurringDeleteDialog(true);
-      return;
-    }
-    
-    await handleDeleteSingle();
+  const handleDelete = () => {
+    setShowDeleteDialog(true);
   };
 
   const handleDeleteSingle = async () => {
@@ -344,12 +339,35 @@ export const EventDialog = ({
     setIsLoading(true);
     
     try {
-      const { error } = await supabase
-        .from('events')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', eventId || initialData?.id);
+      const currentEventId = eventId || initialData?.id;
+      
+      if (isVirtualInstance(currentEventId!)) {
+        // For virtual instances, create a deletion exception
+        const parentId = getParentEventId(currentEventId!);
+        const instanceDate = currentEventId!.split('-').slice(-3).join('-'); // Extract YYYY-MM-DD
         
-      if (error) throw error;
+        const { error } = await supabase
+          .from('events')
+          .insert({
+            title: `__DELETED_${instanceDate}`,
+            user_surname: '__SYSTEM_DELETION_EXCEPTION__',
+            start_date: instanceDate + 'T00:00:00',
+            end_date: instanceDate + 'T23:59:59',
+            parent_event_id: parentId,
+            type: 'deletion_exception',
+            user_id: user?.id
+          });
+          
+        if (error) throw error;
+      } else {
+        // For regular events, mark as deleted
+        const { error } = await supabase
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', currentEventId);
+          
+        if (error) throw error;
+      }
       
       toast({
         title: "Success",
@@ -484,12 +502,14 @@ export const EventDialog = ({
         </DialogContent>
       </Dialog>
 
-      <RecurringDeleteDialog
-        open={showRecurringDeleteDialog}
-        onOpenChange={setShowRecurringDeleteDialog}
+      <DeleteConfirmationDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirmDelete={handleDeleteSingle}
         onDeleteSingle={handleDeleteSingle}
         onDeleteSeries={handleDeleteSeries}
         eventTitle={title || userSurname || "Event"}
+        isRecurringEvent={isRecurringEvent}
       />
     </>
   );
