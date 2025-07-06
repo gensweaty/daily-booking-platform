@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,7 +8,7 @@ import { EventDialogFields } from "./EventDialogFields";
 import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
 import { sendEventCreationEmail } from "@/lib/api";
-import { isVirtualInstance, getParentEventId } from "@/lib/recurringEvents";
+import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
 
 interface EventDialogProps {
   open: boolean;
@@ -87,8 +86,30 @@ export const EventDialog = ({
           setEventName(eventData.event_name || "");
           setPaymentStatus(eventData.payment_status || "");
           setPaymentAmount(eventData.payment_amount?.toString() || "");
-          setStartDate(eventData.start_date || "");
-          setEndDate(eventData.end_date || "");
+          
+          // Handle date synchronization for virtual instances
+          if (isVirtualEvent && eventId) {
+            const instanceDate = getInstanceDate(eventId);
+            if (instanceDate && eventData) {
+              const baseStart = new Date(eventData.start_date);
+              const baseEnd = new Date(eventData.end_date);
+              
+              const [year, month, day] = instanceDate.split('-');
+              const newStart = new Date(baseStart);
+              newStart.setFullYear(+year, +month - 1, +day);
+              const newEnd = new Date(baseEnd);
+              newEnd.setFullYear(+year, +month - 1, +day);
+              
+              setStartDate(newStart.toISOString().slice(0, 16));
+              setEndDate(newEnd.toISOString().slice(0, 16));
+            } else {
+              setStartDate(eventData.start_date || "");
+              setEndDate(eventData.end_date || "");
+            }
+          } else {
+            setStartDate(eventData.start_date || "");
+            setEndDate(eventData.end_date || "");
+          }
           
           // For non-virtual events, use their recurrence settings
           if (!isVirtualEvent) {
@@ -130,7 +151,7 @@ export const EventDialog = ({
         setFiles([]);
       }
     }
-  }, [open, selectedDate, initialData, eventId]);
+  }, [open, selectedDate, initialData, eventId, isVirtualEvent]);
 
   const loadParentEventData = async (parentId: string) => {
     try {
