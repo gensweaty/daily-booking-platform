@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +18,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
+import { getRepeatOptions } from "@/lib/recurringEvents";
 
 // Define interface for person data
 interface PersonData {
@@ -110,6 +110,7 @@ export const EventDialogFields = ({
   } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isRepeatUntilPickerOpen, setIsRepeatUntilPickerOpen] = useState(false);
   const isGeorgian = language === 'ka';
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
@@ -118,13 +119,13 @@ export const EventDialogFields = ({
   // Show event name field only when there are multiple persons (additionalPersons.length > 0)
   const shouldShowEventNameField = additionalPersons.length > 0;
 
-  // Generate repeat options
-  const repeatOptions = [
-    { value: '', label: isGeorgian ? 'არ მეორდება' : 'Does not repeat' },
-    { value: 'daily', label: isGeorgian ? 'ყოველდღე' : 'Daily' },
-    { value: 'weekly', label: isGeorgian ? 'ყოველკვირა' : 'Weekly' },
-    { value: 'monthly', label: isGeorgian ? 'ყოველთვე' : 'Monthly' },
-  ];
+  // Generate repeat options using the dynamic function
+  const repeatOptions = useMemo(() => {
+    if (startDate) {
+      return getRepeatOptions(new Date(startDate), t);
+    }
+    return getRepeatOptions(undefined, t);
+  }, [startDate, t]);
   
   const georgianStyle = isGeorgian ? {
     fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
@@ -482,7 +483,7 @@ export const EventDialogFields = ({
                     <SelectValue placeholder={isGeorgian ? "აირჩიეთ..." : "Select..."} />
                   </SelectTrigger>
                   <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
-                    {repeatOptions.filter(option => option.value !== '').map((option) => (
+                    {repeatOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value} className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                         {option.label}
                       </SelectItem>
@@ -491,7 +492,7 @@ export const EventDialogFields = ({
                 </Select>
               </div>
               
-              {repeatPattern && (
+              {repeatPattern && repeatPattern !== 'none' && (
                 <div>
                   <Label 
                     htmlFor="repeatUntil" 
@@ -500,15 +501,40 @@ export const EventDialogFields = ({
                   >
                     {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორება მდე</GeorgianAuthText> : <LanguageText>Repeat until</LanguageText>}
                   </Label>
-                  <Input 
-                    id="repeatUntil"
-                    type="date"
-                    value={typeof repeatUntil === "string" ? repeatUntil : ""}
-                    onChange={(e) => setRepeatUntil(e.target.value)}
-                    min={startDate ? startDate.split('T')[0] : undefined}
-                    className="w-full dark:text-white dark:[color-scheme:dark]"
-                    style={{ colorScheme: 'auto' }}
-                  />
+                  <Popover open={isRepeatUntilPickerOpen} onOpenChange={setIsRepeatUntilPickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !repeatUntil && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {repeatUntil ? format(new Date(repeatUntil), "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={repeatUntil ? new Date(repeatUntil) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            const dateStr = format(date, "yyyy-MM-dd");
+                            setRepeatUntil(dateStr);
+                            setIsRepeatUntilPickerOpen(false);
+                          }
+                        }}
+                        disabled={(date) => {
+                          if (!startDate) return false;
+                          const startDateObj = new Date(startDate);
+                          return date <= startDateObj;
+                        }}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               )}
             </div>
