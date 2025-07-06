@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -520,6 +521,7 @@ export const EventDialogFields = ({
                         selected={repeatUntil ? new Date(repeatUntil) : undefined}
                         onSelect={(date) => {
                           if (date) {
+                            // Ensure we only send the date part (YYYY-MM-DD) to fix biweekly issue
                             const dateStr = format(date, "yyyy-MM-dd");
                             setRepeatUntil(dateStr);
                             setIsRepeatUntilPickerOpen(false);
