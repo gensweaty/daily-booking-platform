@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,8 +19,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getRepeatOptions } from "@/lib/recurringEvents";
 
+// Define interface for person data
 interface PersonData {
   id: string;
   userSurname: string;
@@ -117,11 +118,13 @@ export const EventDialogFields = ({
   // Show event name field only when there are multiple persons (additionalPersons.length > 0)
   const shouldShowEventNameField = additionalPersons.length > 0;
 
-  // Generate dynamic repeat options based on start date
-  const repeatOptions = useMemo(() => {
-    const startDateTime = startDate ? new Date(startDate) : new Date();
-    return getRepeatOptions(startDateTime, t);
-  }, [startDate, t]);
+  // Generate repeat options
+  const repeatOptions = [
+    { value: '', label: isGeorgian ? 'არ მეორდება' : 'Does not repeat' },
+    { value: 'daily', label: isGeorgian ? 'ყოველდღე' : 'Daily' },
+    { value: 'weekly', label: isGeorgian ? 'ყოველკვირა' : 'Weekly' },
+    { value: 'monthly', label: isGeorgian ? 'ყოველთვე' : 'Monthly' },
+  ];
   
   const georgianStyle = isGeorgian ? {
     fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
@@ -445,8 +448,8 @@ export const EventDialogFields = ({
         </div>
       </div>
 
-      {/* Repeat Options - Show for new events OR existing recurring events */}
-      {(isNewEvent || (!isNewEvent && (isRecurring || repeatPattern))) && (
+      {/* Repeat Options - Only show for new events */}
+      {isNewEvent && (
         <div className="space-y-4">
           <div className="flex items-center space-x-2">
             <Checkbox
@@ -479,7 +482,7 @@ export const EventDialogFields = ({
                     <SelectValue placeholder={isGeorgian ? "აირჩიეთ..." : "Select..."} />
                   </SelectTrigger>
                   <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
-                    {repeatOptions.filter(option => option.value !== '' && option.value !== 'none').map((option) => (
+                    {repeatOptions.filter(option => option.value !== '').map((option) => (
                       <SelectItem key={option.value} value={option.value} className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                         {option.label}
                       </SelectItem>
