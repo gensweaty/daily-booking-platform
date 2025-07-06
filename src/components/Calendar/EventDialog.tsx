@@ -21,6 +21,22 @@ interface EventDialogProps {
   onEventDeleted?: () => void;
 }
 
+// Helper function to format date for datetime-local input (in local time)
+function formatDateTimeLocal(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    date.getFullYear() +
+    '-' +
+    pad(date.getMonth() + 1) +
+    '-' +
+    pad(date.getDate()) +
+    'T' +
+    pad(date.getHours()) +
+    ':' +
+    pad(date.getMinutes())
+  );
+}
+
 export const EventDialog = ({ 
   open, 
   onOpenChange, 
@@ -100,40 +116,31 @@ export const EventDialog = ({
               const newEnd = new Date(baseEnd);
               newEnd.setFullYear(+year, +month - 1, +day);
               
-              setStartDate(newStart.toISOString().slice(0, 16));
-              setEndDate(newEnd.toISOString().slice(0, 16));
+              setStartDate(formatDateTimeLocal(newStart));
+              setEndDate(formatDateTimeLocal(newEnd));
             } else {
-              setStartDate(eventData.start_date || "");
-              setEndDate(eventData.end_date || "");
+              setStartDate(formatDateTimeLocal(new Date(eventData.start_date)));
+              setEndDate(formatDateTimeLocal(new Date(eventData.end_date)));
             }
           } else {
-            setStartDate(eventData.start_date || "");
-            setEndDate(eventData.end_date || "");
+            setStartDate(formatDateTimeLocal(new Date(eventData.start_date)));
+            setEndDate(formatDateTimeLocal(new Date(eventData.end_date)));
           }
           
           // For non-virtual events, use their recurrence settings
           if (!isVirtualEvent) {
             setIsRecurring(eventData.is_recurring || false);
             setRepeatPattern(eventData.repeat_pattern || "");
-            setRepeatUntil(eventData.repeat_until || "");
+            setRepeatUntil(eventData.repeat_until ? eventData.repeat_until.slice(0, 10) : "");
           }
         }
       } else if (selectedDate) {
         // Creating new event
-        const formatDateTime = (date: Date) => {
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const hours = String(date.getHours()).padStart(2, '0');
-          const minutes = String(date.getMinutes()).padStart(2, '0');
-          return `${year}-${month}-${day}T${hours}:${minutes}`;
-        };
-
-        const startDateTime = formatDateTime(selectedDate);
+        const startDateTime = formatDateTimeLocal(selectedDate);
         const endDateTime = new Date(selectedDate.getTime() + 60 * 60 * 1000);
         
         setStartDate(startDateTime);
-        setEndDate(formatDateTime(endDateTime));
+        setEndDate(formatDateTimeLocal(endDateTime));
         
         // Reset all other fields for new event
         setTitle("");
@@ -166,7 +173,7 @@ export const EventDialog = ({
       if (parentEvent) {
         setIsRecurring(parentEvent.is_recurring || false);
         setRepeatPattern(parentEvent.repeat_pattern || "");
-        setRepeatUntil(parentEvent.repeat_until || "");
+        setRepeatUntil(parentEvent.repeat_until ? parentEvent.repeat_until.slice(0, 10) : "");
       }
     } catch (error) {
       console.error('Error loading parent event:', error);
@@ -281,7 +288,7 @@ export const EventDialog = ({
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         is_recurring: isRecurring && isNewEvent,
         repeat_pattern: (isRecurring && isNewEvent && repeatPattern) ? repeatPattern : null,
-        repeat_until: (isRecurring && isNewEvent && repeatUntil) ? repeatUntil : null,
+        repeat_until: (isRecurring && isNewEvent && repeatUntil) ? repeatUntil.slice(0, 10) : null, // Ensure date format
       };
 
       let result;
