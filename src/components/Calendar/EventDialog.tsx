@@ -62,7 +62,7 @@ export const EventDialog = ({
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   const isNewEvent = !initialData && !eventId;
-  const isRecurringEvent = initialData?.parent_event_id || initialData?.is_recurring;
+  const isRecurringEvent = Boolean(initialData?.parent_event_id || initialData?.is_recurring);
 
   useEffect(() => {
     if (open) {
