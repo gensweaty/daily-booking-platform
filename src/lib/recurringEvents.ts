@@ -119,9 +119,7 @@ export const generateRecurringInstances = (baseEvent: CalendarEventType): Calend
         currentDate = addWeeks(currentDate, 1);
         break;
       case "biweekly":
-        // Fixed: Ensure biweekly correctly adds 2 weeks
         currentDate = addWeeks(currentDate, 2);
-        console.log("🔄 Biweekly pattern - adding 2 weeks:", format(currentDate, "yyyy-MM-dd"));
         break;
       case "monthly":
         currentDate = addMonths(currentDate, 1);

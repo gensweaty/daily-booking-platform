@@ -109,7 +109,6 @@ export const EventDialogFields = ({
   } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [isRepeatUntilPickerOpen, setIsRepeatUntilPickerOpen] = useState(false);
   const isGeorgian = language === 'ka';
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
@@ -498,45 +497,15 @@ export const EventDialogFields = ({
                   >
                     {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორება მდე</GeorgianAuthText> : <LanguageText>Repeat until</LanguageText>}
                   </Label>
-                  <Popover open={isRepeatUntilPickerOpen} onOpenChange={setIsRepeatUntilPickerOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !repeatUntil && "text-muted-foreground",
-                          isGeorgian ? "font-georgian" : ""
-                        )}
-                        style={georgianStyle}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {repeatUntil ? (
-                          format(new Date(repeatUntil), "PPP")
-                        ) : (
-                          <span>{isGeorgian ? "აირჩიეთ თარიღი" : "Pick a date"}</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={repeatUntil ? new Date(repeatUntil) : undefined}
-                        onSelect={(date) => {
-                          if (date) {
-                            setRepeatUntil(format(date, "yyyy-MM-dd"));
-                          }
-                          setIsRepeatUntilPickerOpen(false);
-                        }}
-                        disabled={(date) => {
-                          if (!startDate) return false;
-                          const startDateObj = new Date(startDate);
-                          return date <= startDateObj;
-                        }}
-                        initialFocus
-                        className={cn("p-3 pointer-events-auto")}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <Input 
+                    id="repeatUntil"
+                    type="date"
+                    value={typeof repeatUntil === "string" ? repeatUntil : ""}
+                    onChange={(e) => setRepeatUntil(e.target.value)}
+                    min={startDate ? startDate.split('T')[0] : undefined}
+                    className="w-full dark:text-white dark:[color-scheme:dark]"
+                    style={{ colorScheme: 'auto' }}
+                  />
                 </div>
               )}
             </div>
