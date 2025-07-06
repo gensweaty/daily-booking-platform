@@ -2,7 +2,7 @@
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { useState, useEffect } from "react";
 import { CalendarGrid } from "./CalendarGrid";
-import { formatDate, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isWithinInterval } from "date-fns";
+import { formatDate, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "next-themes";
 
@@ -28,11 +28,13 @@ export function CalendarView({
   const { t } = useLanguage();
   const { theme, resolvedTheme } = useTheme();
   const [currentTheme, setCurrentTheme] = useState<string | undefined>(
+    // Initialize with resolvedTheme first, fallback to theme, then check document class
     resolvedTheme || theme || (typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light')
   );
   
   // Listen for theme changes
   useEffect(() => {
+    // Update state when theme changes from context
     const newTheme = resolvedTheme || theme;
     if (newTheme) {
       setCurrentTheme(newTheme);
@@ -46,6 +48,7 @@ export function CalendarView({
       setCurrentTheme(event.detail.theme);
     };
     
+    // Initial theme check from HTML class
     const checkInitialTheme = () => {
       if (typeof document !== 'undefined') {
         if (document.documentElement.classList.contains('dark')) {
@@ -54,12 +57,15 @@ export function CalendarView({
       }
     };
     
+    // Check on mount
     checkInitialTheme();
     
+    // Add event listeners
     document.addEventListener('themeChanged', handleThemeChange as EventListener);
     document.addEventListener('themeInit', handleThemeInit as EventListener);
     
     return () => {
+      // Remove event listeners
       document.removeEventListener('themeChanged', handleThemeChange as EventListener);
       document.removeEventListener('themeInit', handleThemeInit as EventListener);
     };
@@ -81,98 +87,36 @@ export function CalendarView({
   
   const daysToRender = view === 'month' ? getDaysWithSurroundingMonths() : days;
   
-  // CRITICAL FIX: Filter events based on the current view's date range
-  // This matches how the debugger works - it filters events for the current view
-  const getEventsForCurrentView = () => {
-    if (!events || events.length === 0) return [];
-    
-    // Calculate the date range for the current view
-    let viewStart: Date;
-    let viewEnd: Date;
-    
-    if (view === 'month') {
-      const monthStart = startOfMonth(selectedDate);
-      const monthEnd = endOfMonth(selectedDate);
-      viewStart = startOfWeek(monthStart);
-      viewEnd = endOfWeek(monthEnd);
-    } else if (view === 'week') {
-      viewStart = startOfWeek(selectedDate);
-      viewEnd = endOfWeek(selectedDate);
-    } else { // day view
-      viewStart = new Date(selectedDate);
-      viewStart.setHours(0, 0, 0, 0);
-      viewEnd = new Date(selectedDate);
-      viewEnd.setHours(23, 59, 59, 999);
+  // Strictly filter events to make sure deleted events don't show up
+  const filteredEvents = events.filter(event => {
+    // First check if deleted_at is undefined or null
+    if (event.deleted_at === undefined || event.deleted_at === null) {
+      return true; // Keep events that don't have deleted_at field or it's null
     }
     
-    // CRITICAL: Only filter out deleted events - NOT recurring instances
-    // Show ALL events (parent and child) that fall within the view range
-    const nonDeletedEvents = events.filter(event => {
-      if (event.deleted_at === undefined || event.deleted_at === null) {
-        return true;
-      }
-      return false;
-    });
-    
-    // Then filter events that fall within the current view's date range
-    const eventsInView = nonDeletedEvents.filter(event => {
-      const eventDate = new Date(event.start_date);
-      const isInRange = isWithinInterval(eventDate, { start: viewStart, end: viewEnd });
-      
-      if (isInRange) {
-        console.log(`[CalendarView] Event "${event.title}" (${event.start_date}) is in view range - Parent ID: ${event.parent_event_id || 'none'}`);
-      }
-      
-      return isInRange;
-    });
-    
-    console.log(`[CalendarView] View range: ${viewStart.toISOString()} to ${viewEnd.toISOString()}`);
-    console.log(`[CalendarView] Filtered events for view: ${eventsInView.length}/${events.length}`);
-    console.log(`[CalendarView] Events by type:`, {
-      total: eventsInView.length,
-      parent: eventsInView.filter(e => !e.parent_event_id).length,
-      child: eventsInView.filter(e => !!e.parent_event_id).length,
-      recurring: eventsInView.filter(e => e.is_recurring).length
-    });
-    
-    return eventsInView;
-  };
+    // If deleted_at has a value (a timestamp), filter out this deleted event
+    return false;
+  });
   
-  const filteredEvents = getEventsForCurrentView();
-  
+  // Add debug log for events in CalendarView
   useEffect(() => {
-    console.log(`[CalendarView] Rendering calendar with ${events.length} total events, ${filteredEvents.length} after filtering`);
-    
-    if (events.length > 0) {
-      const parentEvents = events.filter(e => !e.parent_event_id);
-      const childEvents = events.filter(e => !!e.parent_event_id);
-      console.log(`[CalendarView] All events - Parent: ${parentEvents.length}, Child (recurring instances): ${childEvents.length}`);
-    }
-    
-    if (filteredEvents.length > 0) {
-      const parentInView = filteredEvents.filter(e => !e.parent_event_id);
-      const childInView = filteredEvents.filter(e => !!e.parent_event_id);
-      console.log(`[CalendarView] Events in view - Parent: ${parentInView.length}, Child (recurring instances): ${childInView.length}`);
-      console.log("[CalendarView] Sample events in view:", filteredEvents.slice(0, 3));
-    }
-    
     if (isExternalCalendar) {
-      console.log(`[CalendarView] External calendar mode with ${filteredEvents.length} events in view`);
+      console.log(`[CalendarView] Rendering external calendar with ${events.length} events, ${filteredEvents.length} after filtering deleted`);
+      if (events.length > filteredEvents.length) {
+        console.log("[CalendarView] Filtered out deleted events:", events.filter(e => e.deleted_at));
+      }
+      if (filteredEvents.length > 0) {
+        console.log("[CalendarView] First event sample:", filteredEvents[0]);
+      }
     }
-    
+    // Debug theme state
     console.log("[CalendarView] Current theme state:", { 
       theme, 
       resolvedTheme, 
       currentTheme,
       isDarkClass: typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
     });
-
-    // CRITICAL DEBUG: Log each event that will be displayed
-    filteredEvents.forEach(event => {
-      const eventDate = new Date(event.start_date);
-      console.log(`[CalendarView] Displaying event "${event.title}" on ${eventDate.toDateString()} - Parent ID: ${event.parent_event_id || 'none'} - Type: ${event.parent_event_id ? 'CHILD' : 'PARENT'}`);
-    });
-  }, [events, filteredEvents, isExternalCalendar, theme, resolvedTheme, currentTheme, view, selectedDate]);
+  }, [events, filteredEvents, isExternalCalendar, theme, resolvedTheme, currentTheme]);
 
   const formattedSelectedDate = formatDate(selectedDate, "yyyy-MM-dd");
 
@@ -180,7 +124,7 @@ export function CalendarView({
     <div className="h-full">
       <CalendarGrid
         days={daysToRender}
-        events={filteredEvents}
+        events={filteredEvents} // Use the filtered events
         formattedSelectedDate={formattedSelectedDate}
         view={view}
         onDayClick={onDayClick}

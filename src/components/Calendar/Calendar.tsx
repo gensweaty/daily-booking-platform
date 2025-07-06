@@ -11,9 +11,6 @@ import {
   setHours,
   startOfDay,
   format,
-  isWithinInterval,
-  startOfYear,
-  endOfYear,
 } from "date-fns";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { CalendarHeader } from "./CalendarHeader";
@@ -31,7 +28,6 @@ import { BookingRequestForm } from "../business/BookingRequestForm";
 import { useToast } from "@/hooks/use-toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
-import { RecurringEventDebugger } from "../debug/RecurringEventDebugger";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -58,11 +54,10 @@ export const Calendar = ({
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
-  const [showDebugger, setShowDebugger] = useState(false);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
   
-  const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent, refetch } = useCalendarEvents(
+  const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
     !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
     !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
   );
@@ -99,28 +94,9 @@ export const Calendar = ({
     
     if (events?.length > 0) {
       console.log("[Calendar] First event:", events[0]);
-      console.log("[Calendar] All events:", events);
-      
-      // Debug: Check which events are in current view range
-      const viewStart = getViewDateRange().start;
-      const viewEnd = getViewDateRange().end;
-      
-      const eventsInView = events.filter(event => {
-        const eventDate = new Date(event.start_date);
-        return isWithinInterval(eventDate, { start: viewStart, end: viewEnd });
-      });
-      
-      console.log(`[Calendar] View range: ${viewStart.toISOString()} to ${viewEnd.toISOString()}`);
-      console.log(`[Calendar] Events in current view: ${eventsInView.length}/${events.length}`);
-      console.log("[Calendar] Events in view:", eventsInView.map(e => ({
-        id: e.id,
-        title: e.title,
-        start_date: e.start_date,
-        parent_event_id: e.parent_event_id,
-        type: e.parent_event_id ? 'CHILD' : 'PARENT'
-      })));
+      console.log("[Calendar] All events:", events); // Log all events to debug
     }
-  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents, selectedDate]);
+  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
 
   const {
     selectedEvent,
@@ -144,7 +120,7 @@ export const Calendar = ({
       const result = await updateEvent?.({
         ...data,
         id: selectedEvent.id,
-        type: selectedEvent.type
+        type: selectedEvent.type  // Make sure to pass the type from the selected event
       });
       return result;
     },
@@ -155,35 +131,6 @@ export const Calendar = ({
     navigate("/signin");
     return null;
   }
-
-  const getViewDateRange = () => {
-    switch (view) {
-      case "month": {
-        const monthStart = startOfMonth(selectedDate);
-        const monthEnd = endOfMonth(selectedDate);
-        // Extend range to include full weeks for month view
-        return {
-          start: startOfWeek(monthStart),
-          end: endOfWeek(monthEnd)
-        };
-      }
-      case "week":
-        return {
-          start: startOfWeek(selectedDate),
-          end: endOfWeek(selectedDate)
-        };
-      case "day":
-        return {
-          start: startOfDay(selectedDate),
-          end: startOfDay(addDays(selectedDate, 1))
-        };
-      default:
-        return {
-          start: startOfYear(selectedDate),
-          end: endOfYear(selectedDate)
-        };
-    }
-  };
 
   const getDaysForView = () => {
     switch (view) {
@@ -202,17 +149,6 @@ export const Calendar = ({
       case "day":
         return [startOfDay(selectedDate)];
     }
-  };
-
-  // CRITICAL: Pass ALL events to CalendarView - let it handle the filtering
-  // This ensures both parent and child recurring events are available for display
-  const getEventsForView = () => {
-    if (!events || events.length === 0) return [];
-    
-    // Pass ALL events to the view - don't filter here
-    // The view will handle displaying only relevant events for the current time period
-    console.log(`[Calendar] Passing all ${events.length} events to CalendarView (${events.filter(e => !e.parent_event_id).length} parent, ${events.filter(e => !!e.parent_event_id).length} child)`);
-    return events;
   };
 
   const handlePrevious = () => {
@@ -314,30 +250,14 @@ export const Calendar = ({
     toast.event.bookingSubmitted();
   };
 
-  // CRITICAL: Use the same aggressive refresh pattern as test event creation
+  // Functions to handle event operations and refresh calendar
   const refreshCalendar = () => {
     const queryKey = businessId ? ['business-events', businessId] : ['events', user?.id];
     queryClient.invalidateQueries({ queryKey });
-    
-    // CRITICAL: Use the EXACT same pattern as test event creation
-    setTimeout(() => {
-      console.log("🔄 First refetch attempt...");
-      refetch();
-    }, 500);
-    
-    setTimeout(() => {
-      console.log("🔄 Second refetch attempt...");
-      refetch();
-    }, 1500);
-    
-    setTimeout(() => {
-      console.log("🔄 Third refetch attempt...");
-      refetch();
-    }, 3000);
   };
 
   const handleEventCreated = () => {
-    console.log("🔄 Event created, using aggressive refresh pattern...");
+    console.log("Event created, refreshing calendar...");
     refreshCalendar();
   };
 
@@ -373,29 +293,8 @@ export const Calendar = ({
   const gridBgClass = isDarkTheme ? "bg-gray-900" : "bg-white";
   const textClass = isDarkTheme ? "text-white" : "text-foreground";
 
-  // Get events for current view - now passing all events
-  const eventsForView = getEventsForView();
-
   return (
     <div className={`h-full flex flex-col ${isMobile ? 'gap-2 -mx-4' : 'gap-4'}`}>
-      {/* Add debug toggle button */}
-      {!isExternalCalendar && (
-        <div className="flex justify-between items-center">
-          <div className="text-sm text-gray-500">
-            Showing {eventsForView.length} total events ({eventsForView.filter(e => !e.parent_event_id).length} parent, {eventsForView.filter(e => !!e.parent_event_id).length} child)
-          </div>
-          <button
-            onClick={() => setShowDebugger(!showDebugger)}
-            className="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
-          >
-            {showDebugger ? "Hide" : "Show"} Debug
-          </button>
-        </div>
-      )}
-      
-      {/* Show debugger if enabled */}
-      {showDebugger && <RecurringEventDebugger />}
-      
       <CalendarHeader
         selectedDate={selectedDate}
         view={view}
@@ -411,7 +310,7 @@ export const Calendar = ({
         <div className={`flex-1 ${gridBgClass} ${textClass}`}>
           <CalendarView
             days={getDaysForView()}
-            events={eventsForView}
+            events={events || []}
             selectedDate={selectedDate}
             view={view}
             onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -59,99 +58,12 @@ export const EventDialog = ({
     paymentAmount: string;
   }>>([]);
 
-  // Check if this is a recurring event (parent or child)
-  const isRecurringEvent = initialData?.is_recurring || initialData?.parent_event_id;
-  const isChildEvent = !!initialData?.parent_event_id;
-  
-  // Determine if this is creating a new event
-  const isNewEvent = !eventId && !initialData;
-
-  // Proper timezone-aware date formatting
-  const formatDateForInput = (dateStr: string) => {
-    if (!dateStr) return "";
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return "";
-      
-      // Convert to local timezone and format for datetime-local input
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      
-      const formatted = `${year}-${month}-${day}T${hours}:${minutes}`;
-      console.log("📅 Date formatting:", { input: dateStr, output: formatted });
-      return formatted;
-    } catch (error) {
-      console.error("Error formatting date:", error);
-      return "";
-    }
-  };
-
-  // Helper function to format date for repeat until (date only) - YYYY-MM-DD format
-  const formatDateOnly = (dateStr: string) => {
-    if (!dateStr) return "";
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return "";
-      
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      
-      return `${year}-${month}-${day}`;
-    } catch (error) {
-      console.error("Error formatting date only:", error);
-      return "";
-    }
-  };
-
-  // Convert datetime-local input to proper ISO string
-  const convertInputDateToISO = (inputDate: string) => {
-    if (!inputDate) return "";
-    try {
-      // Input format: "2025-07-11T21:00" (datetime-local)
-      // Create date treating input as local time, then convert to UTC for database
-      const [datePart, timePart] = inputDate.split('T');
-      const [year, month, day] = datePart.split('-').map(Number);
-      const [hours, minutes] = timePart.split(':').map(Number);
-      
-      // Create date in local timezone
-      const localDate = new Date(year, month - 1, day, hours, minutes);
-      const isoString = localDate.toISOString();
-      
-      console.log("🔄 Converting input date:", { 
-        input: inputDate, 
-        localDate: localDate.toString(),
-        iso: isoString 
-      });
-      return isoString;
-    } catch (error) {
-      console.error("Error converting input date to ISO:", error);
-      return inputDate;
-    }
-  };
-
-  // CRITICAL: Ensure repeat_until is YYYY-MM-DD format
-  const formatRepeatUntil = (val: any) => {
-    if (!val) return null;
-    // Handles string with time or Date object
-    if (typeof val === 'string') return val.slice(0, 10);
-    if (val instanceof Date) return val.toISOString().slice(0, 10);
-    return val;
-  };
-
   useEffect(() => {
     if (open) {
-      console.log("🔄 EventDialog opened with:", { eventId, initialData, selectedDate });
-      
       if (initialData || eventId) {
-        // Editing existing event - ensure proper date formatting
+        // Editing existing event
         const eventData = initialData;
         if (eventData) {
-          console.log("📅 Loading existing event data:", eventData);
-          
           setTitle(eventData.title || "");
           setUserSurname(eventData.user_surname || "");  
           setUserNumber(eventData.user_number || "");
@@ -160,39 +72,14 @@ export const EventDialog = ({
           setEventName(eventData.event_name || "");
           setPaymentStatus(eventData.payment_status || "");
           setPaymentAmount(eventData.payment_amount?.toString() || "");
-          
-          // Proper date formatting for existing events
-          const formattedStartDate = formatDateForInput(eventData.start_date);
-          const formattedEndDate = formatDateForInput(eventData.end_date);
-          
-          console.log("📅 Formatted dates:", { 
-            original_start: eventData.start_date, 
-            formatted_start: formattedStartDate,
-            original_end: eventData.end_date,
-            formatted_end: formattedEndDate
-          });
-          
-          setStartDate(formattedStartDate);
-          setEndDate(formattedEndDate);
-          
+          setStartDate(eventData.start_date || "");
+          setEndDate(eventData.end_date || "");
           setIsRecurring(eventData.is_recurring || false);
           setRepeatPattern(eventData.repeat_pattern || "");
-          
-          // Format repeat_until for date input
-          const formattedRepeatUntil = eventData.repeat_until ? formatDateOnly(eventData.repeat_until) : "";
-          setRepeatUntil(formattedRepeatUntil);
-          
-          console.log("🔄 Recurring settings:", {
-            is_recurring: eventData.is_recurring,
-            repeat_pattern: eventData.repeat_pattern,
-            repeat_until: eventData.repeat_until,
-            formatted_repeat_until: formattedRepeatUntil
-          });
+          setRepeatUntil(eventData.repeat_until || "");
         }
       } else if (selectedDate) {
-        // Creating new event - proper timezone handling
-        console.log("➕ Creating new event for date:", selectedDate);
-        
+        // Creating new event
         const formatDateTime = (date: Date) => {
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -204,12 +91,6 @@ export const EventDialog = ({
 
         const startDateTime = formatDateTime(selectedDate);
         const endDateTime = new Date(selectedDate.getTime() + 60 * 60 * 1000);
-        
-        console.log("📅 New event times:", { 
-          selectedDate: selectedDate.toISOString(),
-          startDateTime,
-          endDateTime: formatDateTime(endDateTime)
-        });
         
         setStartDate(startDateTime);
         setEndDate(formatDateTime(endDateTime));
@@ -303,82 +184,21 @@ export const EventDialog = ({
     setIsLoading(true);
 
     try {
-      // Ensure proper date formatting and validation
-      if (!startDate || !endDate) {
-        throw new Error("Start date and end date are required");
-      }
-
-      // CRITICAL: Enhanced validation for recurring events
-      if (isRecurring) {
-        console.log("🔍 Validating recurring event:", {
-          repeatPattern,
-          repeatUntil,
-          startDate,
-          isRecurring
-        });
-
-        if (!repeatPattern || repeatPattern === 'none' || repeatPattern === '') {
-          throw new Error("Please select a repeat pattern for recurring events!");
-        }
-        if (!repeatUntil) {
-          throw new Error("Please select an end date for recurring events!");
-        }
-        
-        // Check that repeat_until > start_date
-        const start = new Date(startDate);
-        const until = new Date(repeatUntil);
-        if (until <= start) {
-          throw new Error("End date must be after start date for recurring events!");
-        }
-
-        console.log("✅ Recurring event validation passed");
-      }
-
-      // Convert input dates to proper ISO format for database
-      const startDateISO = convertInputDateToISO(startDate);
-      const endDateISO = convertInputDateToISO(endDate);
-      
-      console.log("🚀 FINAL Date conversion for database:", {
-        input_start: startDate,
-        input_end: endDate,
-        iso_start: startDateISO,
-        iso_end: endDateISO,
-        is_recurring: isRecurring,
-        repeat_pattern: repeatPattern,
-        repeat_until: repeatUntil
-      });
-
-      // CRITICAL: Enhanced payload with strict validation
-      const payload = {
-        title: title || userSurname || 'Untitled Event',
-        user_surname: userSurname || title || 'Unknown',
+      const eventData = {
+        title,
+        user_surname: userSurname,
         user_number: userNumber,
         social_network_link: socialNetworkLink,
         event_notes: eventNotes,
         event_name: eventName,
-        start_date: startDateISO,
-        end_date: endDateISO,
-        payment_status: paymentStatus || 'not_paid',
+        start_date: startDate,
+        end_date: endDate,
+        payment_status: paymentStatus,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-        type: 'event',
-        is_recurring: !!isRecurring,
-        repeat_pattern: isRecurring && repeatPattern && repeatPattern !== 'none' ? repeatPattern : null,
-        repeat_until: isRecurring && repeatUntil ? formatRepeatUntil(repeatUntil) : null,
+        is_recurring: isRecurring,
+        repeat_pattern: isRecurring ? repeatPattern : null,
+        repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
       };
-
-      console.log("🚀 FINAL enhanced payload being sent to database:", payload);
-      
-      // Special debug for recurring events
-      if (isRecurring) {
-        console.log("🔄 RECURRING EVENT CREATION DEBUG:", {
-          is_recurring: payload.is_recurring,
-          repeat_pattern: payload.repeat_pattern,
-          repeat_until: payload.repeat_until,
-          start_date: payload.start_date,
-          user_id: user.id,
-          validation_passed: true
-        });
-      }
 
       let result;
       
@@ -386,7 +206,7 @@ export const EventDialog = ({
         // Update existing event
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: payload,
+            p_event_data: eventData,
             p_additional_persons: additionalPersons,
             p_user_id: user.id,
             p_event_id: eventId || initialData?.id
@@ -401,89 +221,21 @@ export const EventDialog = ({
         
         onEventUpdated?.();
       } else {
-        // Create new event - this is where the recurring magic should happen
-        console.log("🔄 Creating NEW EVENT with enhanced recurring settings:", {
-          is_recurring: isRecurring,
-          repeat_pattern: repeatPattern,
-          repeat_until: repeatUntil,
-          title: title || userSurname
-        });
-        
+        // Create new event
         result = await supabase
           .rpc('save_event_with_persons', {
-            p_event_data: payload,
+            p_event_data: eventData,
             p_additional_persons: additionalPersons,
             p_user_id: user.id
           });
 
-        if (result.error) {
-          console.error("❌ Database function error:", result.error);
-          throw result.error;
-        }
+        if (result.error) throw result.error;
 
         const newEventId = result.data;
-        console.log("✅ Event created with ID:", newEventId);
         
         // Upload files for new event
         if (files.length > 0) {
           await uploadFiles(newEventId);
-        }
-
-        // CRITICAL: For recurring events, use enhanced verification and refresh
-        if (isRecurring) {
-          console.log("🔄 RECURRING EVENT: Using enhanced verification and refresh...");
-          
-          // Wait for SQL function to complete
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          
-          // Enhanced verification of child events
-          const { data: childEvents, error: childError } = await supabase
-            .from('events')
-            .select('*')
-            .eq('parent_event_id', newEventId)
-            .eq('user_id', user.id)
-            .order('start_date', { ascending: true });
-          
-          if (childError) {
-            console.error("❌ Error checking child events:", childError);
-          } else {
-            console.log("👶 Child events verification:", {
-              parent_id: newEventId,
-              child_count: childEvents?.length || 0,
-              children: childEvents?.map(e => ({
-                id: e.id,
-                start_date: e.start_date,
-                parent_event_id: e.parent_event_id
-              })) || []
-            });
-          }
-          
-          // CRITICAL: Enhanced multi-stage refresh pattern
-          console.log("🔄 Starting enhanced refresh sequence...");
-          
-          // Immediate refresh
-          setTimeout(() => {
-            console.log("🔄 Stage 1: Immediate refresh...");
-            onEventCreated?.();
-          }, 500);
-          
-          // Early refresh
-          setTimeout(() => {
-            console.log("🔄 Stage 2: Early refresh...");
-            onEventCreated?.();
-          }, 1500);
-          
-          // Standard refresh
-          setTimeout(() => {
-            console.log("🔄 Stage 3: Standard refresh...");
-            onEventCreated?.();
-          }, 3000);
-          
-          // Late refresh for stubborn cases
-          setTimeout(() => {
-            console.log("🔄 Stage 4: Late refresh...");
-            onEventCreated?.();
-          }, 5000);
         }
 
         // Send email notification for new event creation
@@ -494,8 +246,8 @@ export const EventDialog = ({
               socialNetworkLink,
               userSurname || title,
               "", // businessName will be resolved from user's business profile
-              startDateISO,
-              endDateISO,
+              startDate,
+              endDate,
               paymentStatus || null,
               paymentAmount ? parseFloat(paymentAmount) : null,
               "", // businessAddress will be resolved from user's business profile  
@@ -508,47 +260,36 @@ export const EventDialog = ({
               console.log("✅ Event creation email sent successfully");
               toast({
                 title: "Success",
-                description: isRecurring ? 
-                  "Recurring event series created and confirmation email sent!" :
-                  "Event created and confirmation email sent!",
+                description: "Event created and confirmation email sent!",
               });
             } else {
               console.error("❌ Failed to send event creation email:", emailResult.error);
               toast({
                 title: "Event Created",
-                description: isRecurring ?
-                  "Recurring event series created successfully, but email notification failed to send." :
-                  "Event created successfully, but email notification failed to send.",
+                description: "Event created successfully, but email notification failed to send.",
               });
             }
           } catch (emailError) {
             console.error("❌ Error sending event creation email:", emailError);
             toast({
               title: "Event Created", 
-              description: isRecurring ?
-                "Recurring event series created successfully, but email notification failed to send." :
-                "Event created successfully, but email notification failed to send.",
+              description: "Event created successfully, but email notification failed to send.",
             });
           }
         } else {
           toast({
             title: "Success",
-            description: isRecurring ?
-              "Recurring event series created successfully" :
-              "Event created successfully",
+            description: "Event created successfully",
           });
         }
         
-        // Always call onEventCreated for regular events too (but without delays)
-        if (!isRecurring) {
-          onEventCreated?.();
-        }
+        onEventCreated?.();
       }
 
       resetForm();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('❌ Error saving event:', error);
+      console.error('Error saving event:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to save event",
@@ -559,40 +300,23 @@ export const EventDialog = ({
     }
   };
 
-  const handleDelete = async (deleteChoice?: "this" | "series") => {
+  const handleDelete = async () => {
     if (!eventId && !initialData?.id) return;
     
     setIsLoading(true);
     
     try {
-      if (isRecurringEvent && deleteChoice === "series") {
-        // Delete entire series using the database function
-        const { error } = await supabase.rpc('delete_recurring_series', {
-          p_event_id: eventId || initialData?.id,
-          p_user_id: user?.id,
-          p_delete_choice: 'series'
-        });
+      const { error } = await supabase
+        .from('events')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', eventId || initialData?.id);
         
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Entire event series deleted successfully",
-        });
-      } else {
-        // Delete single event
-        const { error } = await supabase
-          .from('events')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('id', eventId || initialData?.id);
-          
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Event deleted successfully",
-        });
-      }
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Event deleted successfully",
+      });
       
       onEventDeleted?.();
       onOpenChange(false);
@@ -632,10 +356,7 @@ export const EventDialog = ({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {eventId || initialData ? 
-              `${isChildEvent ? "Edit Instance" : "Edit Event"}${isRecurringEvent ? " (Recurring)" : ""}` : 
-              "Create New Event"
-            }
+            {eventId || initialData ? "Edit Event" : "Create New Event"}
           </DialogTitle>
         </DialogHeader>
 
@@ -674,32 +395,19 @@ export const EventDialog = ({
               id: person.id || crypto.randomUUID()
             }))}
             setAdditionalPersons={setAdditionalPersons}
-            isNewEvent={isNewEvent}
           />
 
           <div className="flex justify-between">
             <div className="flex gap-2">
               {(eventId || initialData) && (
-                <>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={() => handleDelete("this")}
-                    disabled={isLoading}
-                  >
-                    Delete {isChildEvent ? "Instance" : "Event"}
-                  </Button>
-                  {isRecurringEvent && (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      onClick={() => handleDelete("series")}
-                      disabled={isLoading}
-                    >
-                      Delete Series
-                    </Button>
-                  )}
-                </>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleDelete}
+                  disabled={isLoading}
+                >
+                  Delete Event
+                </Button>
               )}
             </div>
             
