@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -8,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { EventDialogFields } from "./EventDialogFields";
 import { useToast } from "@/hooks/use-toast";
 import { sendEventCreationEmail } from "@/lib/api";
+import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
 
 interface EventDialogProps {
   open: boolean;
@@ -59,12 +59,15 @@ export const EventDialog = ({
     paymentAmount: string;
   }>>([]);
 
+  const [showRecurringDeleteDialog, setShowRecurringDeleteDialog] = useState(false);
+
   const isNewEvent = !initialData && !eventId;
+
+  const isRecurringEvent = initialData?.parent_event_id || initialData?.is_recurring;
 
   useEffect(() => {
     if (open) {
       if (initialData || eventId) {
-        // Editing existing event
         const eventData = initialData;
         if (eventData) {
           setTitle(eventData.title || "");
@@ -82,7 +85,6 @@ export const EventDialog = ({
           setRepeatUntil(eventData.repeat_until || "");
         }
       } else if (selectedDate) {
-        // Creating new event
         const formatDateTime = (date: Date) => {
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -98,7 +100,6 @@ export const EventDialog = ({
         setStartDate(startDateTime);
         setEndDate(formatDateTime(endDateTime));
         
-        // Reset all other fields for new event
         setTitle("");
         setUserSurname("");
         setUserNumber("");
@@ -184,7 +185,6 @@ export const EventDialog = ({
       return;
     }
 
-    // Validate recurring event data
     if (isRecurring && isNewEvent) {
       if (!repeatPattern || !repeatUntil) {
         toast({
@@ -230,7 +230,6 @@ export const EventDialog = ({
       let result;
       
       if (eventId || initialData) {
-        // Update existing event
         result = await supabase
           .rpc('save_event_with_persons', {
             p_event_data: eventData,
@@ -248,7 +247,6 @@ export const EventDialog = ({
         
         onEventUpdated?.();
       } else {
-        // Create new event
         result = await supabase
           .rpc('save_event_with_persons', {
             p_event_data: eventData,
@@ -260,31 +258,28 @@ export const EventDialog = ({
 
         const newEventId = result.data;
         
-        // Upload files for new event
         if (files.length > 0) {
           await uploadFiles(newEventId);
         }
 
-        // Wait a bit for recurring events to be generated
         if (isRecurring) {
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
 
-        // Send email notification for new event creation
         console.log("🔔 Attempting to send event creation email for internal event");
         if (socialNetworkLink && socialNetworkLink.includes('@')) {
           try {
             const emailResult = await sendEventCreationEmail(
               socialNetworkLink,
               userSurname || title,
-              "", // businessName will be resolved from user's business profile
+              "",
               startDate,
               endDate,
               paymentStatus || null,
               paymentAmount ? parseFloat(paymentAmount) : null,
-              "", // businessAddress will be resolved from user's business profile  
+              "",
               newEventId,
-              'en', // Default language
+              'en',
               eventNotes
             );
             
@@ -304,7 +299,7 @@ export const EventDialog = ({
           } catch (emailError) {
             console.error("❌ Error sending event creation email:", emailError);
             toast({
-              title: "Event Created", 
+              title: "Event Created",
               description: isRecurring ? "Recurring event series created successfully, but email notification failed to send." : "Event created successfully, but email notification failed to send.",
             });
           }
@@ -333,6 +328,17 @@ export const EventDialog = ({
   };
 
   const handleDelete = async () => {
+    if (!eventId && !initialData?.id) return;
+    
+    if (isRecurringEvent) {
+      setShowRecurringDeleteDialog(true);
+      return;
+    }
+    
+    await handleDeleteSingle();
+  };
+
+  const handleDeleteSingle = async () => {
     if (!eventId && !initialData?.id) return;
     
     setIsLoading(true);
@@ -364,83 +370,127 @@ export const EventDialog = ({
     }
   };
 
+  const handleDeleteSeries = async () => {
+    if (!eventId && !initialData?.id) return;
+    
+    setIsLoading(true);
+    
+    try {
+      const { data, error } = await supabase
+        .rpc('delete_recurring_series', {
+          p_event_id: eventId || initialData?.id,
+          p_user_id: user?.id,
+          p_delete_choice: 'series'
+        });
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: `Deleted ${data} events from the series`,
+      });
+      
+      onEventDeleted?.();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Error deleting event series:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete event series",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {eventId || initialData ? "Edit Event" : "Create New Event"}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {eventId || initialData ? "Edit Event" : "Create New Event"}
+            </DialogTitle>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <EventDialogFields
-            title={title}
-            setTitle={setTitle}
-            userSurname={userSurname}
-            setUserSurname={setUserSurname}
-            userNumber={userNumber}
-            setUserNumber={setUserNumber}
-            socialNetworkLink={socialNetworkLink}
-            setSocialNetworkLink={setSocialNetworkLink}
-            eventNotes={eventNotes}
-            setEventNotes={setEventNotes}
-            eventName={eventName}
-            setEventName={setEventName}
-            paymentStatus={paymentStatus}
-            setPaymentStatus={setPaymentStatus}
-            paymentAmount={paymentAmount}
-            setPaymentAmount={setPaymentAmount}
-            startDate={startDate}
-            setStartDate={setStartDate}
-            endDate={endDate}
-            setEndDate={setEndDate}
-            isRecurring={isRecurring}
-            setIsRecurring={setIsRecurring}
-            repeatPattern={repeatPattern}
-            setRepeatPattern={setRepeatPattern}
-            repeatUntil={repeatUntil}
-            setRepeatUntil={setRepeatUntil}
-            files={files}
-            setFiles={setFiles}
-            additionalPersons={additionalPersons.map(person => ({
-              ...person,
-              id: person.id || crypto.randomUUID()
-            }))}
-            setAdditionalPersons={setAdditionalPersons}
-            isNewEvent={isNewEvent}
-          />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <EventDialogFields
+              title={title}
+              setTitle={setTitle}
+              userSurname={userSurname}
+              setUserSurname={setUserSurname}
+              userNumber={userNumber}
+              setUserNumber={setUserNumber}
+              socialNetworkLink={socialNetworkLink}
+              setSocialNetworkLink={setSocialNetworkLink}
+              eventNotes={eventNotes}
+              setEventNotes={setEventNotes}
+              eventName={eventName}
+              setEventName={setEventName}
+              paymentStatus={paymentStatus}
+              setPaymentStatus={setPaymentStatus}
+              paymentAmount={paymentAmount}
+              setPaymentAmount={setPaymentAmount}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              isRecurring={isRecurring}
+              setIsRecurring={setIsRecurring}
+              repeatPattern={repeatPattern}
+              setRepeatPattern={setRepeatPattern}
+              repeatUntil={repeatUntil}
+              setRepeatUntil={setRepeatUntil}
+              files={files}
+              setFiles={setFiles}
+              additionalPersons={additionalPersons.map(person => ({
+                ...person,
+                id: person.id || crypto.randomUUID()
+              }))}
+              setAdditionalPersons={setAdditionalPersons}
+              isNewEvent={isNewEvent}
+            />
 
-          <div className="flex justify-between">
-            <div className="flex gap-2">
-              {(eventId || initialData) && (
+            <div className="flex justify-between">
+              <div className="flex gap-2">
+                {(eventId || initialData) && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={handleDelete}
+                    disabled={isLoading}
+                  >
+                    Delete Event
+                  </Button>
+                )}
+              </div>
+              
+              <div className="flex gap-2">
                 <Button
                   type="button"
-                  variant="destructive"
-                  onClick={handleDelete}
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
                   disabled={isLoading}
                 >
-                  Delete Event
+                  Cancel
                 </Button>
-              )}
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Saving..." : eventId || initialData ? "Update Event" : "Create Event"}
+                </Button>
+              </div>
             </div>
-            
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isLoading}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Saving..." : eventId || initialData ? "Update Event" : "Create Event"}
-              </Button>
-            </div>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <RecurringDeleteDialog
+        open={showRecurringDeleteDialog}
+        onOpenChange={setShowRecurringDeleteDialog}
+        onDeleteSingle={handleDeleteSingle}
+        onDeleteSeries={handleDeleteSeries}
+        eventTitle={title || userSurname || "Event"}
+      />
+    </>
   );
 };
