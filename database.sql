@@ -1,3 +1,4 @@
+
 -- Update the generate_recurring_events function to support biweekly pattern
 CREATE OR REPLACE FUNCTION public.generate_recurring_events(p_parent_event_id uuid, p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_repeat_pattern text, p_repeat_until date, p_user_id uuid)
  RETURNS integer
