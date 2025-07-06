@@ -33,8 +33,6 @@ interface FileUploadFieldProps {
   maxSizeMB?: number;
   selectedFile?: File | null;
   isUploading?: boolean; // Added to support the isUploading prop being passed from BusinessProfileForm
-  files?: File[]; // Added to support multiple files
-  setFiles?: (files: File[]) => void; // Added to support multiple files
 }
 
 export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps>(({
@@ -55,9 +53,7 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   noFileText,
   maxSizeMB,
   selectedFile,
-  isUploading,
-  files,
-  setFiles
+  isUploading
 }, ref) => {
   const { t, language } = useLanguage();
   const [localFileError, setLocalFileError] = useState("");
@@ -110,11 +106,6 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
       if (onChange) onChange(selectedFile);
       if (onFileChange) onFileChange(selectedFile);
       if (onFileSelect) onFileSelect(selectedFile); // Call onFileSelect if provided
-      
-      // Handle multiple files if setFiles is provided
-      if (setFiles && files) {
-        setFiles([...files, selectedFile]);
-      }
     } else {
       setFileSelected("");
     }

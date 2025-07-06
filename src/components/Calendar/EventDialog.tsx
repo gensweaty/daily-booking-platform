@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { EventDialogFields } from "./EventDialogFields";
 import { useToast } from "@/hooks/use-toast";
 import { sendEventCreationEmail } from "@/lib/api";
-import { DeleteConfirmationDialog } from "./DeleteConfirmationDialog";
+import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
 
 interface EventDialogProps {
   open: boolean;
@@ -59,10 +59,11 @@ export const EventDialog = ({
     paymentAmount: string;
   }>>([]);
 
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [showRecurringDeleteDialog, setShowRecurringDeleteDialog] = useState(false);
 
   const isNewEvent = !initialData && !eventId;
-  const isRecurringEvent = Boolean(initialData?.parent_event_id || initialData?.is_recurring);
+
+  const isRecurringEvent = initialData?.parent_event_id || initialData?.is_recurring;
 
   useEffect(() => {
     if (open) {
@@ -326,8 +327,15 @@ export const EventDialog = ({
     }
   };
 
-  const handleDelete = () => {
-    setShowDeleteConfirmation(true);
+  const handleDelete = async () => {
+    if (!eventId && !initialData?.id) return;
+    
+    if (isRecurringEvent) {
+      setShowRecurringDeleteDialog(true);
+      return;
+    }
+    
+    await handleDeleteSingle();
   };
 
   const handleDeleteSingle = async () => {
@@ -476,14 +484,12 @@ export const EventDialog = ({
         </DialogContent>
       </Dialog>
 
-      <DeleteConfirmationDialog
-        open={showDeleteConfirmation}
-        onOpenChange={setShowDeleteConfirmation}
-        onConfirm={handleDeleteSingle}
-        eventTitle={title || userSurname || "Event"}
-        isRecurring={isRecurringEvent}
+      <RecurringDeleteDialog
+        open={showRecurringDeleteDialog}
+        onOpenChange={setShowRecurringDeleteDialog}
         onDeleteSingle={handleDeleteSingle}
         onDeleteSeries={handleDeleteSeries}
+        eventTitle={title || userSurname || "Event"}
       />
     </>
   );
