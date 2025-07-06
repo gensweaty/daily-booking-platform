@@ -221,7 +221,7 @@ export const EventDialog = ({
         start_date: startDate,
         end_date: endDate,
         payment_status: paymentStatus,
-        payment_amount: paymentAmount ? paymentAmount : null,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         is_recurring: isRecurring && isNewEvent,
         repeat_pattern: (isRecurring && isNewEvent && repeatPattern) ? repeatPattern : null,
         repeat_until: (isRecurring && isNewEvent && repeatUntil) ? repeatUntil : null,

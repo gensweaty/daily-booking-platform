@@ -152,6 +152,17 @@ export const EventDialogFields = ({
     return t("events.addEventNotes");
   };
 
+  // Handle recurring checkbox change with proper state management
+  const handleRecurringToggle = (checked: boolean) => {
+    console.log('Recurring toggle clicked:', checked);
+    setIsRecurring(checked);
+    if (!checked) {
+      // Clear repeat settings when unchecked
+      setRepeatPattern('');
+      setRepeatUntil('');
+    }
+  };
+
   // Helper functions for additional persons management
   const onAddPerson = () => {
     const newPerson: PersonData = {
@@ -444,13 +455,7 @@ export const EventDialogFields = ({
             <Checkbox
               id="isRecurring"
               checked={isRecurring}
-              onCheckedChange={(checked) => {
-                setIsRecurring(checked as boolean);
-                if (!checked) {
-                  setRepeatPattern('');
-                  setRepeatUntil('');
-                }
-              }}
+              onCheckedChange={handleRecurringToggle}
             />
             <Label 
               htmlFor="isRecurring" 
@@ -472,12 +477,12 @@ export const EventDialogFields = ({
                 >
                   {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორების რეჟიმი</GeorgianAuthText> : <LanguageText>Repeat</LanguageText>}
                 </Label>
-                <Select value={repeatPattern} onValueChange={setRepeatPattern}>
+                <Select value={repeatPattern || ''} onValueChange={(value) => setRepeatPattern(value)}>
                   <SelectTrigger id="repeatPattern" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                     <SelectValue placeholder={isGeorgian ? "აირჩიეთ..." : "Select..."} />
                   </SelectTrigger>
                   <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
-                    {repeatOptions.map((option) => (
+                    {repeatOptions.filter(option => option.value !== '').map((option) => (
                       <SelectItem key={option.value} value={option.value} className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                         {option.label}
                       </SelectItem>
@@ -498,7 +503,7 @@ export const EventDialogFields = ({
                   <Input 
                     id="repeatUntil"
                     type="date"
-                    value={repeatUntil}
+                    value={typeof repeatUntil === "string" ? repeatUntil : ""}
                     onChange={(e) => setRepeatUntil(e.target.value)}
                     min={startDate ? startDate.split('T')[0] : undefined}
                     className="w-full dark:text-white dark:[color-scheme:dark]"
