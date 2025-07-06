@@ -312,6 +312,15 @@ export const EventDialog = ({
     setIsLoading(true);
 
     try {
+      // Debug logging for repeat pattern
+      console.log("🔄 Event creation debug:", {
+        isRecurring,
+        repeatPattern,
+        repeatUntil,
+        startDate,
+        endDate
+      });
+
       const eventData = {
         title,
         user_surname: userSurname,
@@ -327,6 +336,8 @@ export const EventDialog = ({
         repeat_pattern: (isRecurring && isNewEvent && repeatPattern) ? repeatPattern : null,
         repeat_until: (isRecurring && isNewEvent && repeatUntil) ? repeatUntil : null,
       };
+
+      console.log("📤 Sending event data to backend:", eventData);
 
       let result;
       
@@ -361,6 +372,8 @@ export const EventDialog = ({
 
         const newEventId = result.data;
         
+        console.log("✅ Event created with ID:", newEventId);
+        
         // Upload files for new event
         if (files.length > 0) {
           await uploadFiles(newEventId);
@@ -368,6 +381,7 @@ export const EventDialog = ({
 
         // Wait a bit for recurring events to be generated
         if (isRecurring) {
+          console.log("⏳ Waiting for recurring instances to be generated...");
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
 
