@@ -1,3 +1,4 @@
+
 import { CalendarEventType } from "@/lib/types/calendar";
 import { addDays, addWeeks, addMonths, addYears, endOfYear, isBefore, format, getDay, startOfDay } from "date-fns";
 
@@ -90,7 +91,7 @@ export const getRepeatOptions = (selectedDate?: Date, t?: (key: string, params?:
 };
 
 export const generateRecurringInstances = (baseEvent: CalendarEventType): CalendarEventType[] => {
-  if (!baseEvent.is_recurring || !baseEvent.repeat_pattern) {
+  if (!baseEvent.is_recurring || !baseEvent.repeat_pattern || baseEvent.repeat_pattern === "none") {
     return [baseEvent];
   }
 
@@ -99,8 +100,8 @@ export const generateRecurringInstances = (baseEvent: CalendarEventType): Calend
   const endDate = new Date(baseEvent.end_date);
   const eventDuration = endDate.getTime() - startDate.getTime();
   
-  // Generate instances until end of current year only
-  const yearEnd = endOfYear(startDate);
+  // Use repeat_until if provided, otherwise generate instances until end of current year
+  const endLimit = baseEvent.repeat_until ? new Date(baseEvent.repeat_until + 'T23:59:59') : endOfYear(startDate);
   let currentDate = new Date(startDate);
 
   // Limit to prevent infinite loops
@@ -119,7 +120,7 @@ export const generateRecurringInstances = (baseEvent: CalendarEventType): Calend
         currentDate = addWeeks(currentDate, 1);
         break;
       case "biweekly":
-        currentDate = addWeeks(currentDate, 2);
+        currentDate = addWeeks(currentDate, 2); // Fixed: was addDays(currentDate, 14), now uses addWeeks for proper biweekly calculation
         break;
       case "monthly":
         currentDate = addMonths(currentDate, 1);
@@ -128,11 +129,12 @@ export const generateRecurringInstances = (baseEvent: CalendarEventType): Calend
         currentDate = addYears(currentDate, 1);
         break;
       default:
+        console.warn(`Unknown repeat pattern: ${baseEvent.repeat_pattern}`);
         return instances; // Unknown pattern, return original
     }
 
-    // Stop if we've exceeded the year boundary
-    if (!isBefore(currentDate, yearEnd)) {
+    // Stop if we've exceeded the end limit
+    if (!isBefore(currentDate, endLimit)) {
       break;
     }
 
@@ -150,6 +152,7 @@ export const generateRecurringInstances = (baseEvent: CalendarEventType): Calend
     instances.push(virtualInstance);
   }
 
+  console.log(`Generated ${instances.length} instances for ${baseEvent.repeat_pattern} pattern`);
   return instances;
 };
 
