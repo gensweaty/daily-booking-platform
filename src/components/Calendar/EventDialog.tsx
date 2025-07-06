@@ -335,14 +335,8 @@ export const EventDialog = ({
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         is_recurring: isRecurring && isNewEvent,
         repeat_pattern: (isRecurring && isNewEvent && repeatPattern) ? repeatPattern : null,
-        repeat_until: (isRecurring && isNewEvent && repeatUntil) ? repeatUntil : null,
+        repeat_until: (isRecurring && isNewEvent && repeatUntil) ? repeatUntil.slice(0, 10) : null,
       };
-
-      const eventData = {
-  ...
-  repeat_until: (isRecurring && isNewEvent && repeatUntil) ? repeatUntil.slice(0, 10) : null,
-  ...
-};
 
       console.log("📤 Sending event data to backend:", eventData);
 
