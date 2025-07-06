@@ -64,6 +64,13 @@ export const EventDialog = ({
   const [repeatPattern, setRepeatPattern] = useState("");
   const [repeatUntil, setRepeatUntil] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [existingFiles, setExistingFiles] = useState<Array<{
+    id: string;
+    filename: string;
+    file_path: string;
+    content_type?: string;
+    size?: number;
+  }>>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   const [isLoading, setIsLoading] = useState(false);
@@ -81,9 +88,34 @@ export const EventDialog = ({
   const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
   const isRecurringEvent = initialData?.is_recurring || isVirtualEvent;
 
+  // Load existing files for the event
+  const loadExistingFiles = async (targetEventId: string) => {
+    try {
+      const { data: eventFiles, error } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', targetEventId);
+
+      if (error) {
+        console.error('Error loading event files:', error);
+        return;
+      }
+
+      setExistingFiles(eventFiles || []);
+    } catch (error) {
+      console.error('Error loading existing files:', error);
+    }
+  };
+
   useEffect(() => {
     if (open) {
       if (initialData || eventId) {
+        // Load existing files
+        const targetEventId = eventId || initialData?.id;
+        if (targetEventId) {
+          loadExistingFiles(targetEventId);
+        }
+
         // For virtual instances, we need to load parent event data for recurrence info
         if (isVirtualEvent && eventId) {
           const parentId = getParentEventId(eventId);
@@ -159,6 +191,7 @@ export const EventDialog = ({
         setRepeatUntil("");
         setAdditionalPersons([]);
         setFiles([]);
+        setExistingFiles([]);
       }
     }
   }, [open, selectedDate, initialData, eventId, isVirtualEvent]);
@@ -199,6 +232,7 @@ export const EventDialog = ({
     setRepeatUntil("");
     setAdditionalPersons([]);
     setFiles([]);
+    setExistingFiles([]);
   };
 
   const uploadFiles = async (eventId: string) => {
@@ -511,6 +545,8 @@ export const EventDialog = ({
               setRepeatUntil={setRepeatUntil}
               files={files}
               setFiles={setFiles}
+              existingFiles={existingFiles}
+              setExistingFiles={setExistingFiles}
               additionalPersons={additionalPersons.map(person => ({
                 ...person,
                 id: person.id || crypto.randomUUID()
