@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -667,25 +666,22 @@ export const EventDialogFields = ({
           <div className="text-sm font-medium">
             {isGeorgian ? <GeorgianAuthText>არსებული ფაილები</GeorgianAuthText> : "Existing Files:"}
           </div>
-          <div className="space-y-2">
-            {existingFiles.map((file) => (
-              <FileDisplay
-                key={file.id}
-                file={{
-                  id: file.id,
-                  filename: file.filename,
-                  file_path: file.file_path,
-                  content_type: file.content_type,
-                  size: file.size,
-                  created_at: new Date().toISOString(),
-                  user_id: '',
-                  source: 'event'
-                } as FileRecord}
-                onDelete={() => handleRemoveExistingFile(file.id)}
-                bucketName="event_attachments"
-              />
-            ))}
-          </div>
+          <FileDisplay 
+            files={existingFiles.map(file => ({
+              id: file.id,
+              filename: file.filename,
+              file_path: file.file_path,
+              content_type: file.content_type,
+              size: file.size,
+              created_at: new Date().toISOString(),
+              user_id: '',
+              source: 'event'
+            } as FileRecord))}
+            bucketName="event_attachments"
+            allowDelete={true}
+            onFileDeleted={handleRemoveExistingFile}
+            parentType="event"
+          />
         </div>
       )}
 
@@ -695,27 +691,25 @@ export const EventDialogFields = ({
           <div className="text-sm font-medium">
             {isGeorgian ? <GeorgianAuthText>ახალი ფაილები ატვირთვისთვის</GeorgianAuthText> : "New Files to Upload:"}
           </div>
-          <div className="space-y-2">
-            {files.map((file, index) => (
-              <FileDisplay
-                key={index}
-                file={{
-                  id: `temp-${index}`,
-                  filename: file.name,
-                  file_path: '',
-                  content_type: file.type,
-                  size: file.size,
-                  created_at: new Date().toISOString(),
-                  user_id: '',
-                  source: 'event'
-                } as FileRecord}
-                onDelete={() => setFiles(files.filter((_, i) => i !== index))}
-                bucketName="event_attachments"
-                isTemporary={true}
-                tempFile={file}
-              />
-            ))}
-          </div>
+          <FileDisplay 
+            files={files.map((file, index) => ({
+              id: `temp-${index}`,
+              filename: file.name,
+              file_path: '',
+              content_type: file.type,
+              size: file.size,
+              created_at: new Date().toISOString(),
+              user_id: '',
+              source: 'event'
+            } as FileRecord))}
+            bucketName="event_attachments"
+            allowDelete={true}
+            onFileDeleted={(fileId) => {
+              const index = parseInt(fileId.replace('temp-', ''));
+              setFiles(files.filter((_, i) => i !== index));
+            }}
+            parentType="event"
+          />
         </div>
       )}
     </>;
