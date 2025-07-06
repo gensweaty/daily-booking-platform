@@ -154,6 +154,7 @@ export function EventDialog({
       const eventData = {
         ...formData,
         type: "event",
+        payment_amount: formData.payment_amount ? parseFloat(formData.payment_amount) : undefined,
         // Only include recurring fields for new events (not child events)
         is_recurring: isNewEvent && isRecurring,
         repeat_pattern: isNewEvent && isRecurring ? repeatPattern : null,
@@ -165,11 +166,12 @@ export function EventDialog({
       console.log("Submitting event data:", eventData);
 
       if (initialData) {
-        // Update existing event
-        await updateEvent({
+        // Update existing event - convert payment_amount to number for the API
+        const updateData = {
           ...eventData,
           id: initialData.id,
-        });
+        };
+        await updateEvent(updateData);
         onEventUpdated?.();
         toast({
           title: "Success",
