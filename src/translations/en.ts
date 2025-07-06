@@ -40,7 +40,9 @@ export const en = {
     deleteRecurringEvent: "Delete Recurring Event",
     isRecurringEvent: "is a recurring event. What would you like to delete?",
     deleteThisEventOnly: "This event only",
-    deleteEntireSeries: "Entire series"
+    deleteEntireSeries: "Entire series",
+    repeatUntil: "Repeat until",
+    repeat: "Repeat"
   },
 
   months: {

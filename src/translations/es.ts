@@ -1,8 +1,8 @@
 export const es = {
   common: {
     save: "Guardar",
-    cancel: "Cancelar",
-    delete: "Eliminar", 
+    cancel: "Cancelar", 
+    delete: "Eliminar",
     edit: "Editar",
     add: "Añadir",
     remove: "Eliminar",
@@ -40,7 +40,9 @@ export const es = {
     deleteRecurringEvent: "Eliminar Evento Recurrente",
     isRecurringEvent: "es un evento recurrente. ¿Qué deseas eliminar?",
     deleteThisEventOnly: "Solo este evento",
-    deleteEntireSeries: "Serie completa"
+    deleteEntireSeries: "Serie completa",
+    repeatUntil: "Repetir hasta",
+    repeat: "Repetir"
   },
 
   months: {

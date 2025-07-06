@@ -1,7 +1,7 @@
 export const ka = {
   common: {
     save: "შენახვა",
-    cancel: "გაუქმება",
+    cancel: "გაუქმება", 
     delete: "წაშლა",
     edit: "რედაქტირება",
     add: "დამატება",
@@ -40,12 +40,14 @@ export const ka = {
     deleteRecurringEvent: "განმეორებადი მოვლენის წაშლა",
     isRecurringEvent: "არის განმეორებადი მოვლენა. რას გსურთ წაშლა?",
     deleteThisEventOnly: "მხოლოდ ეს მოვლენა",
-    deleteEntireSeries: "მთელი სერია"
+    deleteEntireSeries: "მთელი სერია",
+    repeatUntil: "გამეორება მდე",
+    repeat: "გამეორება"
   },
 
   months: {
     january: "იანვარი",
-    february: "თებერვალი",
+    february: "თებერვალი", 
     march: "მარტი",
     april: "აპრილი",
     may: "მაისი",
