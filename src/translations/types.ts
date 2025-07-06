@@ -617,6 +617,10 @@ export interface TranslationType {
     annuallyOn: string;
     repeatUntil: string;
     repeat: string;
+    deleteEventTitle: string;
+    deleteEventBody: string;
+    deleteOnlyThis: string;
+    deleteWholeSeries: string;
   };
   months: {
     january: string;

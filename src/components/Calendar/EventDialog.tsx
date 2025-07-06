@@ -6,8 +6,10 @@ import { CalendarEventType } from "@/lib/types/calendar";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { EventDialogFields } from "./EventDialogFields";
+import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
 import { sendEventCreationEmail } from "@/lib/api";
+import { isVirtualInstance, getParentEventId } from "@/lib/recurringEvents";
 
 interface EventDialogProps {
   open: boolean;
@@ -47,6 +49,7 @@ export const EventDialog = ({
   const [repeatPattern, setRepeatPattern] = useState("");
   const [repeatUntil, setRepeatUntil] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   const [isLoading, setIsLoading] = useState(false);
   const [additionalPersons, setAdditionalPersons] = useState<Array<{
@@ -60,11 +63,20 @@ export const EventDialog = ({
   }>>([]);
 
   const isNewEvent = !initialData && !eventId;
+  const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
+  const isRecurringEvent = initialData?.is_recurring || isVirtualEvent;
 
   useEffect(() => {
     if (open) {
       if (initialData || eventId) {
-        // Editing existing event
+        // For virtual instances, we need to load parent event data for recurrence info
+        if (isVirtualEvent && eventId) {
+          const parentId = getParentEventId(eventId);
+          // Load parent event for recurrence settings
+          loadParentEventData(parentId);
+        }
+        
+        // Set current event data
         const eventData = initialData;
         if (eventData) {
           setTitle(eventData.title || "");
@@ -77,9 +89,13 @@ export const EventDialog = ({
           setPaymentAmount(eventData.payment_amount?.toString() || "");
           setStartDate(eventData.start_date || "");
           setEndDate(eventData.end_date || "");
-          setIsRecurring(eventData.is_recurring || false);
-          setRepeatPattern(eventData.repeat_pattern || "");
-          setRepeatUntil(eventData.repeat_until || "");
+          
+          // For non-virtual events, use their recurrence settings
+          if (!isVirtualEvent) {
+            setIsRecurring(eventData.is_recurring || false);
+            setRepeatPattern(eventData.repeat_pattern || "");
+            setRepeatUntil(eventData.repeat_until || "");
+          }
         }
       } else if (selectedDate) {
         // Creating new event
@@ -115,6 +131,26 @@ export const EventDialog = ({
       }
     }
   }, [open, selectedDate, initialData, eventId]);
+
+  const loadParentEventData = async (parentId: string) => {
+    try {
+      const { data: parentEvent, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', parentId)
+        .single();
+
+      if (error) throw error;
+
+      if (parentEvent) {
+        setIsRecurring(parentEvent.is_recurring || false);
+        setRepeatPattern(parentEvent.repeat_pattern || "");
+        setRepeatUntil(parentEvent.repeat_until || "");
+      }
+    } catch (error) {
+      console.error('Error loading parent event:', error);
+    }
+  };
 
   const resetForm = () => {
     setTitle("");
@@ -332,7 +368,7 @@ export const EventDialog = ({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDeleteThis = async () => {
     if (!eventId && !initialData?.id) return;
     
     setIsLoading(true);
@@ -351,6 +387,7 @@ export const EventDialog = ({
       });
       
       onEventDeleted?.();
+      setShowDeleteDialog(false);
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error deleting event:', error);
@@ -364,83 +401,132 @@ export const EventDialog = ({
     }
   };
 
+  const handleDeleteSeries = async () => {
+    if (!eventId && !initialData?.id) return;
+    
+    setIsLoading(true);
+    
+    try {
+      const targetEventId = eventId || initialData?.id;
+      const parentId = isVirtualEvent && eventId ? getParentEventId(eventId) : targetEventId;
+      
+      // Use the delete_recurring_series function
+      const { error } = await supabase
+        .rpc('delete_recurring_series', {
+          p_event_id: parentId,
+          p_user_id: user?.id,
+          p_delete_choice: 'series'
+        });
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Event series deleted successfully",
+      });
+      
+      onEventDeleted?.();
+      setShowDeleteDialog(false);
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Error deleting event series:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete event series",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {eventId || initialData ? "Edit Event" : "Create New Event"}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {eventId || initialData ? "Edit Event" : "Create New Event"}
+            </DialogTitle>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <EventDialogFields
-            title={title}
-            setTitle={setTitle}
-            userSurname={userSurname}
-            setUserSurname={setUserSurname}
-            userNumber={userNumber}
-            setUserNumber={setUserNumber}
-            socialNetworkLink={socialNetworkLink}
-            setSocialNetworkLink={setSocialNetworkLink}
-            eventNotes={eventNotes}
-            setEventNotes={setEventNotes}
-            eventName={eventName}
-            setEventName={setEventName}
-            paymentStatus={paymentStatus}
-            setPaymentStatus={setPaymentStatus}
-            paymentAmount={paymentAmount}
-            setPaymentAmount={setPaymentAmount}
-            startDate={startDate}
-            setStartDate={setStartDate}
-            endDate={endDate}
-            setEndDate={setEndDate}
-            isRecurring={isRecurring}
-            setIsRecurring={setIsRecurring}
-            repeatPattern={repeatPattern}
-            setRepeatPattern={setRepeatPattern}
-            repeatUntil={repeatUntil}
-            setRepeatUntil={setRepeatUntil}
-            files={files}
-            setFiles={setFiles}
-            additionalPersons={additionalPersons.map(person => ({
-              ...person,
-              id: person.id || crypto.randomUUID()
-            }))}
-            setAdditionalPersons={setAdditionalPersons}
-            isNewEvent={isNewEvent}
-          />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <EventDialogFields
+              title={title}
+              setTitle={setTitle}
+              userSurname={userSurname}
+              setUserSurname={setUserSurname}
+              userNumber={userNumber}
+              setUserNumber={setUserNumber}
+              socialNetworkLink={socialNetworkLink}
+              setSocialNetworkLink={setSocialNetworkLink}
+              eventNotes={eventNotes}
+              setEventNotes={setEventNotes}
+              eventName={eventName}
+              setEventName={setEventName}
+              paymentStatus={paymentStatus}
+              setPaymentStatus={setPaymentStatus}
+              paymentAmount={paymentAmount}
+              setPaymentAmount={setPaymentAmount}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              isRecurring={isRecurring}
+              setIsRecurring={setIsRecurring}
+              repeatPattern={repeatPattern}
+              setRepeatPattern={setRepeatPattern}
+              repeatUntil={repeatUntil}
+              setRepeatUntil={setRepeatUntil}
+              files={files}
+              setFiles={setFiles}
+              additionalPersons={additionalPersons.map(person => ({
+                ...person,
+                id: person.id || crypto.randomUUID()
+              }))}
+              setAdditionalPersons={setAdditionalPersons}
+              isNewEvent={isNewEvent}
+            />
 
-          <div className="flex justify-between">
-            <div className="flex gap-2">
-              {(eventId || initialData) && (
+            <div className="flex justify-between">
+              <div className="flex gap-2">
+                {(eventId || initialData) && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                    disabled={isLoading}
+                  >
+                    Delete Event
+                  </Button>
+                )}
+              </div>
+              
+              <div className="flex gap-2">
                 <Button
                   type="button"
-                  variant="destructive"
-                  onClick={handleDelete}
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
                   disabled={isLoading}
                 >
-                  Delete Event
+                  Cancel
                 </Button>
-              )}
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Saving..." : eventId || initialData ? "Update Event" : "Create Event"}
+                </Button>
+              </div>
             </div>
-            
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isLoading}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Saving..." : eventId || initialData ? "Update Event" : "Create Event"}
-              </Button>
-            </div>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <RecurringDeleteDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onDeleteThis={handleDeleteThis}
+        onDeleteSeries={handleDeleteSeries}
+        isRecurringEvent={isRecurringEvent}
+      />
+    </>
   );
 };

@@ -3,7 +3,7 @@ import { TranslationType } from './types';
 export const translations: TranslationType = {
   nav: {
     signin: "Sign In",
-    startJourney: "Start Your Journey",
+    startJourney: "Start Your Journey", 
     contact: "Contact",
   },
   hero: {
@@ -15,7 +15,7 @@ export const translations: TranslationType = {
     title: "What We Offer",
     mainTitle: "Everything you need to make your business thrive",
     booking: "Bookings",
-    tasks: "Tasks",
+    tasks: "Tasks", 
     crm: "CRM",
     analytics: "Analytics",
     website: "Website",
@@ -619,7 +619,11 @@ export const translations: TranslationType = {
     monthlyOnDay: "Monthly on day",
     annuallyOn: "Annually on",
     repeatUntil: "Repeat until",
-    repeat: "Repeat"
+    repeat: "Repeat",
+    deleteEventTitle: "Delete Event",
+    deleteEventBody: "Do you want to delete only this event or the entire series?",
+    deleteOnlyThis: "Only this event",
+    deleteWholeSeries: "Entire series"
   },
   months: {
     january: "January",

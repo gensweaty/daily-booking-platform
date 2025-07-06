@@ -3,7 +3,7 @@ import { TranslationType } from './types';
 export const translations: TranslationType = {
   nav: {
     signin: "Iniciar sesión",
-    startJourney: "Comienza tu viaje",
+    startJourney: "Comienza tu viaje", 
     contact: "Contacto",
   },
   hero: {
@@ -609,30 +609,34 @@ export const translations: TranslationType = {
   },
   recurring: {
     doesNotRepeat: "No se repite",
-    daily: "Diariamente",
-    weekly: "Semanalmente",
+    daily: "Diario",
+    weekly: "Semanal",
     biweekly: "Cada 2 semanas",
-    monthly: "Mensualmente",
-    yearly: "Anualmente",
-    weeklyOn: "Semanalmente el",
-    biweeklyOn: "Cada 2 semanas el",
-    monthlyOnDay: "Mensualmente el día",
-    annuallyOn: "Anualmente el",
+    monthly: "Mensual",
+    yearly: "Anual",
+    weeklyOn: "Semanal, el",
+    biweeklyOn: "Cada 2 semanas, el",
+    monthlyOnDay: "Mensual, el día",
+    annuallyOn: "Anualmente, el",
     repeatUntil: "Repetir hasta",
-    repeat: "Repetir"
+    repeat: "Repetir",
+    deleteEventTitle: "Eliminar evento",
+    deleteEventBody: "¿Desea eliminar solo este evento o toda la serie?",
+    deleteOnlyThis: "Solo este evento",
+    deleteWholeSeries: "Toda la serie"
   },
   months: {
-    january: "Enero",
-    february: "Febrero",
-    march: "Marzo",
-    april: "Abril",
-    may: "Mayo",
-    june: "Junio",
-    july: "Julio",
-    august: "Agosto",
-    september: "Septiembre",
-    october: "Octubre",
-    november: "Noviembre",
-    december: "Diciembre"
+    january: "enero",
+    february: "febrero",
+    march: "marzo",
+    april: "abril",
+    may: "mayo",
+    june: "junio",
+    july: "julio",
+    august: "agosto",
+    september: "septiembre",
+    october: "octubre",
+    november: "noviembre",
+    december: "diciembre"
   }
 };

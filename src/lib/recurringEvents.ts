@@ -7,6 +7,15 @@ export interface RepeatOption {
   label: string;
 }
 
+// Day and month arrays for each language
+const daysEN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const daysKA = ["კვირა", "ორშაბათი", "სამშაბათი", "ოთხშაბათი", "ხუთშაბათი", "პარასკევი", "შაბათი"];
+const daysES = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+
+const monthsEN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const monthsKA = ["იანვარი", "თებერვალი", "მარტი", "აპრილი", "მაისი", "ივნისი", "ივლისი", "აგვისტო", "სექტემბერი", "ოქტომბერი", "ნოემბერი", "დეკემბერი"];
+const monthsES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
 export const getRepeatOptions = (selectedDate?: Date, t?: (key: string, params?: Record<string, string | number>) => string): RepeatOption[] => {
   const options: RepeatOption[] = [
     { value: "none", label: t ? t("recurring.doesNotRepeat") : "Does not repeat" },
@@ -14,62 +23,62 @@ export const getRepeatOptions = (selectedDate?: Date, t?: (key: string, params?:
   ];
 
   if (selectedDate && t) {
-    const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const georgianWeekdays = ["კვირა", "ორშაბათი", "სამშაბათი", "ოთხშაბათი", "ხუთშაბათი", "პარასკევი", "შაბათი"];
-    const spanishWeekdays = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-    
-    const dayIndex = getDay(selectedDate);
+    const weekdayIdx = getDay(selectedDate);
+    const dayOfMonth = selectedDate.getDate();
+    const monthIdx = selectedDate.getMonth();
+
+    // Determine language based on translation
     const language = t("recurring.weekly") === "ყოველკვირეულად" ? "ka" : 
-                   t("recurring.weekly") === "Semanalmente" ? "es" : "en";
+                   t("recurring.weekly") === "Semanal" ? "es" : "en";
     
-    let weekday = weekdays[dayIndex];
-    if (language === "ka") {
-      weekday = georgianWeekdays[dayIndex];
-    } else if (language === "es") {
-      weekday = spanishWeekdays[dayIndex];
-    }
-    
-    options.push({ value: "weekly", label: `${t("recurring.weeklyOn")} ${weekday}` });
-    options.push({ value: "biweekly", label: `${t("recurring.biweeklyOn")} ${weekday}` });
-    
-    // Monthly options
-    const date = selectedDate.getDate();
-    if (language === "ka") {
-      options.push({ value: "monthly", label: `${t("recurring.monthlyOnDay")} ${date} ში` });
-    } else {
-      options.push({ value: "monthly", label: `${t("recurring.monthlyOnDay")} ${date}` });
-    }
-    
-    // Yearly option
-    const monthIndex = selectedDate.getMonth();
-    const monthKeys = [
-      "months.january", "months.february", "months.march", "months.april",
-      "months.may", "months.june", "months.july", "months.august",
-      "months.september", "months.october", "months.november", "months.december"
-    ];
-    
-    const monthName = t(monthKeys[monthIndex]);
-    
-    if (language === "ka") {
-      // Georgian format: "ყოველწლიურად ივნისის 12"
-      const georgianMonthGenitive = monthName + "ის";
-      options.push({ value: "yearly", label: `${t("recurring.annuallyOn")} ${georgianMonthGenitive} ${date}` });
-    } else {
-      options.push({ value: "yearly", label: `${t("recurring.annuallyOn")} ${monthName} ${date}` });
-    }
+    const dayLabel = { en: daysEN, ka: daysKA, es: daysES }[language][weekdayIdx];
+    const monthLabel = { en: monthsEN, ka: monthsKA, es: monthsES }[language][monthIdx];
+
+    // Build dynamic labels based on language
+    const weeklyLabel = {
+      en: `Weekly on ${dayLabel}`,
+      ka: `ყოველ ${dayLabel}-ს`,
+      es: `Semanal, el ${dayLabel}`,
+    }[language];
+
+    const biweeklyLabel = {
+      en: `Every 2 weeks on ${dayLabel}`,
+      ka: `ყოველ 2 კვირაში, ${dayLabel}-ს`,
+      es: `Cada 2 semanas, el ${dayLabel}`,
+    }[language];
+
+    const monthlyLabel = {
+      en: `Monthly on day ${dayOfMonth}`,
+      ka: `ყოველთვე, თარიღი ${dayOfMonth}`,
+      es: `Mensual, el día ${dayOfMonth}`,
+    }[language];
+
+    const yearlyLabel = {
+      en: `Annually on ${monthLabel} ${dayOfMonth}`,
+      ka: `ყოველწლიურად ${monthLabel} ${dayOfMonth}-ზე`,
+      es: `Anualmente, el ${dayOfMonth} de ${monthLabel}`,
+    }[language];
+
+    options.push(
+      { value: "weekly", label: weeklyLabel },
+      { value: "biweekly", label: biweeklyLabel },
+      { value: "monthly", label: monthlyLabel },
+      { value: "yearly", label: yearlyLabel }
+    );
   } else if (selectedDate) {
+    // Fallback without translation function
     const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const weekday = weekdays[getDay(selectedDate)];
-    options.push({ value: "weekly", label: `Weekly on ${weekday}` });
-    options.push({ value: "biweekly", label: `Every 2 weeks on ${weekday}` });
-    
-    // Monthly options
     const date = selectedDate.getDate();
-    options.push({ value: "monthly", label: `Monthly on day ${date}` });
     
-    // Yearly option
-    options.push({ value: "yearly", label: `Annually on ${format(selectedDate, "MMMM d")}` });
+    options.push(
+      { value: "weekly", label: `Weekly on ${weekday}` },
+      { value: "biweekly", label: `Every 2 weeks on ${weekday}` },
+      { value: "monthly", label: `Monthly on day ${date}` },
+      { value: "yearly", label: `Annually on ${format(selectedDate, "MMMM d")}` }
+    );
   } else {
+    // Generic options without specific date
     if (t) {
       options.push(
         { value: "weekly", label: t("recurring.weekly") },
