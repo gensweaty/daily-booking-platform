@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -126,6 +127,14 @@ export const EventDialogFields = ({
         person.id === id ? { ...person, [field]: value } : person
       )
     );
+  };
+
+  const handleFileChange = (file: File | null) => {
+    if (file) {
+      setFiles([file]);
+    } else {
+      setFiles([]);
+    }
   };
 
   return (
@@ -306,9 +315,9 @@ export const EventDialogFields = ({
         </div>
 
         <FileUploadField
-          files={files}
-          onFilesChange={setFiles}
-          label="Event Attachments"
+          selectedFile={files.length > 0 ? files[0] : null}
+          onFileChange={handleFileChange}
+          uploadText="Event Attachments"
         />
 
         {/* Additional Persons Section */}
