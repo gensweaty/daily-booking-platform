@@ -92,7 +92,8 @@ export const EventDialog = ({
 
   const isNewEvent = !initialData && !eventId;
   const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
-  const isRecurringEvent = initialData?.is_recurring || isVirtualEvent;
+  // Fix: Check BOTH database is_recurring flag AND virtual instance status
+  const isRecurringEvent = initialData?.is_recurring || isVirtualEvent || isRecurring;
 
   // Load existing files for the event
   const loadExistingFiles = async (targetEventId: string) => {
@@ -168,12 +169,10 @@ export const EventDialog = ({
             setEndDate(isoToLocalDateTimeInput(eventData.end_date));
           }
           
-          // For non-virtual events, use their recurrence settings
-          if (!isVirtualEvent) {
-            setIsRecurring(eventData.is_recurring || false);
-            setRepeatPattern(eventData.repeat_pattern || "");
-            setRepeatUntil(eventData.repeat_until || "");
-          }
+          // Fix: Always load recurrence settings, not just for non-virtual events
+          setIsRecurring(eventData.is_recurring || false);
+          setRepeatPattern(eventData.repeat_pattern || "");
+          setRepeatUntil(eventData.repeat_until || "");
         }
       } else if (selectedDate) {
         // Creating new event - use proper timezone conversion
@@ -291,8 +290,8 @@ export const EventDialog = ({
       return;
     }
 
-    // Validate recurring event data
-    if (isRecurring && isNewEvent) {
+    // Fix: Validate recurring event data for BOTH new and existing events
+    if (isRecurring) {
       if (!repeatPattern || !repeatUntil) {
         toast({
           title: "Error",
@@ -341,9 +340,10 @@ export const EventDialog = ({
         end_date: localDateTimeToISOString(endDate), // Convert to proper ISO string
         payment_status: paymentStatus,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-        is_recurring: isRecurring && isNewEvent,
-        repeat_pattern: (isRecurring && isNewEvent && repeatPattern) ? repeatPattern : null,
-        repeat_until: (isRecurring && isNewEvent && repeatUntil) ? repeatUntil : null,
+        // Fix: Always send recurring data if it's set, regardless of isNewEvent
+        is_recurring: isRecurring,
+        repeat_pattern: (isRecurring && repeatPattern) ? repeatPattern : null,
+        repeat_until: (isRecurring && repeatUntil) ? repeatUntil : null,
       };
 
       console.log("📤 Sending event data to backend:", eventData);
