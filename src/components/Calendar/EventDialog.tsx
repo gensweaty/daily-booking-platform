@@ -312,13 +312,14 @@ export const EventDialog = ({
     setIsLoading(true);
 
     try {
-      // Debug logging for repeat pattern
+      // Enhanced debug logging for repeat pattern
       console.log("🔄 Event creation debug:", {
         isRecurring,
         repeatPattern,
         repeatUntil,
         startDate,
-        endDate
+        endDate,
+        isNewEvent
       });
 
       const eventData = {
@@ -380,7 +381,7 @@ export const EventDialog = ({
         }
 
         // Wait a bit for recurring events to be generated
-        if (isRecurring) {
+        if (isRecurring && repeatPattern) {
           console.log("⏳ Waiting for recurring instances to be generated...");
           await new Promise(resolve => setTimeout(resolve, 1000));
         }

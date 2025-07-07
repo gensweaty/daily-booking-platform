@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -34,6 +33,24 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         console.error("Error fetching events:", eventsError);
         throw eventsError;
       }
+
+      // Enhanced logging for biweekly events debugging
+      const biweeklyEvents = events?.filter(e => e.repeat_pattern === 'biweekly') || [];
+      const recurringEvents = events?.filter(e => e.is_recurring === true) || [];
+      
+      console.log("🔍 Event query results:", {
+        totalEvents: events?.length || 0,
+        recurringEvents: recurringEvents.length,
+        biweeklyEvents: biweeklyEvents.length,
+        biweeklyEventDetails: biweeklyEvents.map(e => ({
+          id: e.id,
+          title: e.title,
+          start_date: e.start_date,
+          is_recurring: e.is_recurring,
+          repeat_pattern: e.repeat_pattern,
+          parent_event_id: e.parent_event_id
+        }))
+      });
 
       // Fetch booking requests if we have a business ID
       let bookingRequests: any[] = [];

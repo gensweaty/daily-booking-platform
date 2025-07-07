@@ -1,80 +1,5 @@
 
--- Update the generate_recurring_events function to support biweekly pattern
-CREATE OR REPLACE FUNCTION public.generate_recurring_events(p_parent_event_id uuid, p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_repeat_pattern text, p_repeat_until date, p_user_id uuid)
- RETURNS integer
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-  v_current_start TIMESTAMPTZ := p_start_date;
-  v_current_end TIMESTAMPTZ := p_end_date;
-  v_counter INTEGER := 0;
-  v_duration INTERVAL;
-  v_max_iterations INTEGER := 1000; -- Safety limit
-BEGIN
-  -- Calculate duration between start and end
-  v_duration := p_end_date - p_start_date;
-  
-  RAISE NOTICE 'Starting recurring event generation: parent=%, pattern=%, until=%, duration=%', 
-               p_parent_event_id, p_repeat_pattern, p_repeat_until, v_duration;
-  
-  LOOP
-    -- Safety check to prevent infinite loops
-    IF v_counter >= v_max_iterations THEN
-      RAISE WARNING 'Reached maximum iterations (%) for recurring event generation', v_max_iterations;
-      EXIT;
-    END IF;
-
-    -- Calculate next occurrence
-    IF p_repeat_pattern = 'daily' THEN
-      v_current_start := v_current_start + INTERVAL '1 day';
-    ELSIF p_repeat_pattern = 'weekly' THEN
-      v_current_start := v_current_start + INTERVAL '1 week';
-    ELSIF p_repeat_pattern = 'biweekly' THEN
-      v_current_start := v_current_start + INTERVAL '2 weeks';
-    ELSIF p_repeat_pattern = 'monthly' THEN
-      v_current_start := v_current_start + INTERVAL '1 month';
-    ELSIF p_repeat_pattern = 'yearly' THEN
-      v_current_start := v_current_start + INTERVAL '1 year';
-    ELSE
-      RAISE WARNING 'Invalid repeat pattern: %', p_repeat_pattern;
-      EXIT;
-    END IF;
-    
-    -- Calculate new end time maintaining duration
-    v_current_end := v_current_start + v_duration;
-
-    -- Check if next start is beyond repeat_until (inclusive comparison)
-    IF v_current_start::date > p_repeat_until THEN
-      RAISE NOTICE 'Reached repeat_until date. Current start: %, repeat_until: %', 
-                   v_current_start::date, p_repeat_until;
-      EXIT;
-    END IF;
-
-    -- Insert the recurring instance
-    INSERT INTO events (
-      title, user_surname, user_number, social_network_link, event_notes, event_name,
-      start_date, end_date, payment_status, payment_amount,
-      user_id, type, is_recurring, repeat_pattern, repeat_until, parent_event_id,
-      created_at
-    )
-    SELECT
-      title, user_surname, user_number, social_network_link, event_notes, event_name,
-      v_current_start, v_current_end, payment_status, payment_amount,
-      user_id, type, is_recurring, repeat_pattern, repeat_until, id,
-      NOW()
-    FROM events WHERE id = p_parent_event_id;
-
-    v_counter := v_counter + 1;
-    
-    RAISE NOTICE 'Created recurring instance #% with start_date: %', v_counter, v_current_start;
-  END LOOP;
-
-  RAISE NOTICE 'Completed recurring event generation: created % instances', v_counter;
-  RETURN v_counter;
-END;
-$function$;
-
--- Also update the save_event_with_persons function to handle biweekly and yearly patterns
+-- Update the save_event_with_persons function to handle biweekly and yearly patterns
 CREATE OR REPLACE FUNCTION public.save_event_with_persons(p_event_data jsonb, p_additional_persons jsonb, p_user_id uuid, p_event_id uuid DEFAULT NULL::uuid)
  RETURNS uuid
  LANGUAGE plpgsql
@@ -113,6 +38,10 @@ BEGIN
   v_start_date := (p_event_data->>'start_date')::timestamptz;
   v_end_date := (p_event_data->>'end_date')::timestamptz;
 
+  -- Enhanced debug logging for biweekly issue
+  RAISE NOTICE '🔍 Event data received: is_recurring=%, repeat_pattern=%, repeat_until=%, start_date=%', 
+               v_is_recurring, v_repeat_pattern, v_repeat_until, v_start_date::date;
+
   -- Validate recurring event parameters
   IF v_is_recurring = true THEN
     -- Reset recurring flags if validation fails
@@ -121,12 +50,15 @@ BEGIN
        v_repeat_until IS NULL OR
        v_repeat_until <= v_start_date::date THEN
       
-      RAISE NOTICE 'Invalid recurring parameters, creating single event instead. Pattern: %, Until: %, Start: %', 
+      RAISE NOTICE '❌ Invalid recurring parameters, creating single event instead. Pattern: %, Until: %, Start: %', 
                    v_repeat_pattern, v_repeat_until, v_start_date::date;
       
       v_is_recurring := false;
       v_repeat_pattern := NULL;
       v_repeat_until := NULL;
+    ELSE
+      RAISE NOTICE '✅ Recurring event validation passed. Pattern: %, Until: %', 
+                   v_repeat_pattern, v_repeat_until;
     END IF;
   END IF;
 
@@ -170,7 +102,7 @@ BEGIN
       NOW()
     ) RETURNING id INTO v_event_id;
     
-    RAISE NOTICE 'Created parent event: % with recurring: %, pattern: %, until: %', 
+    RAISE NOTICE '📝 Created parent event: % with recurring: %, pattern: %, until: %', 
                  v_event_id, v_is_recurring, v_repeat_pattern, v_repeat_until;
     
     -- Generate recurring instances immediately if this is a valid recurring event
@@ -179,6 +111,8 @@ BEGIN
        v_repeat_pattern IN ('daily', 'weekly', 'biweekly', 'monthly', 'yearly') AND
        v_repeat_until IS NOT NULL THEN
 
+      RAISE NOTICE '🔄 About to call generate_recurring_events with pattern: %', v_repeat_pattern;
+      
       SELECT public.generate_recurring_events(
         v_event_id,
         v_start_date,
@@ -188,7 +122,10 @@ BEGIN
         p_user_id
       ) INTO v_instances_created;
       
-      RAISE NOTICE 'Generated % recurring instances for event %', v_instances_created, v_event_id;
+      RAISE NOTICE '✅ Generated % recurring instances for event %', v_instances_created, v_event_id;
+    ELSE
+      RAISE NOTICE '⚠️ Skipping recurring generation. is_recurring: %, pattern: %, until: %',
+                   v_is_recurring, v_repeat_pattern, v_repeat_until;
     END IF;
     
   ELSE
