@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,20 +22,25 @@ interface EventDialogProps {
   onEventDeleted?: () => void;
 }
 
-// Helper function to format datetime-local input values in local time
-const formatDateTimeLocal = (date: Date): string => {
+// Helper function to convert datetime-local input values to ISO string in local timezone
+const localDateTimeToISOString = (dtStr: string): string => {
+  if (!dtStr) return new Date().toISOString();
+  
+  const [datePart, timePart] = dtStr.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hour, minute] = timePart.split(':').map(Number);
+  // Create date in local timezone
+  const localDate = new Date(year, month - 1, day, hour, minute);
+  return localDate.toISOString();
+};
+
+// Helper function to convert ISO string from DB to datetime-local input format
+const isoToLocalDateTimeInput = (isoString: string): string => {
+  if (!isoString) return '';
+  
+  const date = new Date(isoString);
   const pad = (n: number) => String(n).padStart(2, '0');
-  return (
-    date.getFullYear() +
-    '-' +
-    pad(date.getMonth() + 1) +
-    '-' +
-    pad(date.getDate()) +
-    'T' +
-    pad(date.getHours()) +
-    ':' +
-    pad(date.getMinutes())
-  );
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
 export const EventDialog = ({ 
@@ -135,7 +141,7 @@ export const EventDialog = ({
           setPaymentStatus(eventData.payment_status || "");
           setPaymentAmount(eventData.payment_amount?.toString() || "");
           
-          // Handle date synchronization for virtual instances
+          // Handle date synchronization for virtual instances with proper timezone conversion
           if (isVirtualEvent && eventId) {
             const instanceDate = getInstanceDate(eventId);
             if (instanceDate && eventData) {
@@ -148,18 +154,18 @@ export const EventDialog = ({
               const newEnd = new Date(baseEnd);
               newEnd.setFullYear(+year, +month - 1, +day);
               
-              // Use local time formatting instead of UTC
-              setStartDate(formatDateTimeLocal(newStart));
-              setEndDate(formatDateTimeLocal(newEnd));
+              // Use proper timezone conversion
+              setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
+              setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
             } else {
-              // Use local time formatting for regular dates
-              setStartDate(formatDateTimeLocal(new Date(eventData.start_date)));
-              setEndDate(formatDateTimeLocal(new Date(eventData.end_date)));
+              // Use proper timezone conversion for regular dates
+              setStartDate(isoToLocalDateTimeInput(eventData.start_date));
+              setEndDate(isoToLocalDateTimeInput(eventData.end_date));
             }
           } else {
-            // Use local time formatting for all date inputs
-            setStartDate(formatDateTimeLocal(new Date(eventData.start_date)));
-            setEndDate(formatDateTimeLocal(new Date(eventData.end_date)));
+            // Use proper timezone conversion for all date inputs
+            setStartDate(isoToLocalDateTimeInput(eventData.start_date));
+            setEndDate(isoToLocalDateTimeInput(eventData.end_date));
           }
           
           // For non-virtual events, use their recurrence settings
@@ -170,12 +176,12 @@ export const EventDialog = ({
           }
         }
       } else if (selectedDate) {
-        // Creating new event - use local time formatting
-        const startDateTime = formatDateTimeLocal(selectedDate);
+        // Creating new event - use proper timezone conversion
+        const startDateTime = isoToLocalDateTimeInput(selectedDate.toISOString());
         const endDateTime = new Date(selectedDate.getTime() + 60 * 60 * 1000);
         
         setStartDate(startDateTime);
-        setEndDate(formatDateTimeLocal(endDateTime));
+        setEndDate(isoToLocalDateTimeInput(endDateTime.toISOString()));
         
         // Reset all other fields for new event
         setTitle("");
@@ -296,7 +302,7 @@ export const EventDialog = ({
         return;
       }
 
-      const startDateObj = new Date(startDate);
+      const startDateObj = new Date(localDateTimeToISOString(startDate));
       const repeatUntilObj = new Date(repeatUntil);
       
       if (repeatUntilObj <= startDateObj) {
@@ -319,7 +325,9 @@ export const EventDialog = ({
         repeatUntil,
         startDate,
         endDate,
-        isNewEvent
+        isNewEvent,
+        startDateConverted: localDateTimeToISOString(startDate),
+        endDateConverted: localDateTimeToISOString(endDate)
       });
 
       const eventData = {
@@ -329,8 +337,8 @@ export const EventDialog = ({
         social_network_link: socialNetworkLink,
         event_notes: eventNotes,
         event_name: eventName,
-        start_date: startDate,
-        end_date: endDate,
+        start_date: localDateTimeToISOString(startDate), // Convert to proper ISO string
+        end_date: localDateTimeToISOString(endDate), // Convert to proper ISO string
         payment_status: paymentStatus,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         is_recurring: isRecurring && isNewEvent,
@@ -394,8 +402,8 @@ export const EventDialog = ({
               socialNetworkLink,
               userSurname || title,
               "", // businessName will be resolved from user's business profile
-              startDate,
-              endDate,
+              localDateTimeToISOString(startDate), // Use converted date
+              localDateTimeToISOString(endDate), // Use converted date
               paymentStatus || null,
               paymentAmount ? parseFloat(paymentAmount) : null,
               "", // businessAddress will be resolved from user's business profile  
