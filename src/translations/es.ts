@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -300,14 +301,14 @@ export const translations: TranslationType = {
     endDateTime: "Fecha y hora de finalización",
     eventNotes: "Notas",
     addEventNotes: "Añadir notas sobre su solicitud de reserva",
-    editEvent: "Editar evento",
-    addNewEvent: "Añadir nuevo evento",
-    updateEvent: "Actualizar evento",
-    createEvent: "Crear evento",
-    deleteEvent: "Eliminar evento",
-    eventDeleted: "Evento eliminado con éxito",
-    eventUpdated: "Evento actualizado con éxito",
-    eventCreated: "Evento creado con éxito",
+    editEvent: "Editar Evento",
+    addNewEvent: "Crear Nuevo Evento",
+    updateEvent: "Actualizar Evento",
+    createEvent: "Crear Evento",
+    deleteEvent: "Eliminar Evento",
+    eventDeleted: "¡Éxito! Evento eliminado correctamente.",
+    eventUpdated: "¡Éxito! Evento actualizado correctamente.",
+    eventCreated: "¡Éxito! Evento creado y correo electrónico de confirmación enviado.",
     timeSlotUnavailable: "Franja horaria no disponible",
     timeSlotConflict: "Conflicto de franja horaria",
     timeSlotNotAvailable: "Esta franja horaria no está disponible",
