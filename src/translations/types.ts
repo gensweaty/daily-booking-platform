@@ -309,6 +309,8 @@ export interface TranslationType {
     eventDeleted: string;
     eventUpdated: string;
     eventCreated: string;
+    recurringEventCreated: string;
+    eventSeriesDeleted: string;
     timeSlotUnavailable: string;
     timeSlotConflict: string;
     timeSlotNotAvailable: string;
@@ -636,10 +638,4 @@ export interface TranslationType {
     november: string;
     december: string;
   };
-}
-
-export interface LanguageContextType {
-  language: Language;
-  setLanguage: (language: Language) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
 }
