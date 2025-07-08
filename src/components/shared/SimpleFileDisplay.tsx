@@ -28,7 +28,7 @@ export const SimpleFileDisplay = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
-  // Simple bucket mapping based on parent type
+  // Correct bucket mapping based on parent type
   const getBucketName = (type: string): string => {
     switch (type) {
       case 'task': return 'task_attachments';
@@ -65,6 +65,8 @@ export const SimpleFileDisplay = ({
   const generateSignedUrl = async (bucketName: string, filePath: string): Promise<string | null> => {
     try {
       const normalizedPath = normalizeFilePath(filePath);
+      console.log(`Generating signed URL for ${bucketName}:${normalizedPath}`);
+      
       const { data, error } = await supabase.storage
         .from(bucketName)
         .createSignedUrl(normalizedPath, 300);
@@ -74,6 +76,7 @@ export const SimpleFileDisplay = ({
         return null;
       }
       
+      console.log(`Successfully generated signed URL for ${bucketName}:${normalizedPath}`);
       return data.signedUrl;
     } catch (error) {
       console.error(`Error in generateSignedUrl:`, error);
@@ -84,6 +87,8 @@ export const SimpleFileDisplay = ({
   const handleDownload = async (file: FileRecord) => {
     try {
       const bucketName = getBucketName(parentType);
+      console.log(`Downloading file from ${bucketName}: ${file.filename}`);
+      
       const signedUrl = await generateSignedUrl(bucketName, file.file_path);
       
       if (!signedUrl) {
@@ -113,13 +118,13 @@ export const SimpleFileDisplay = ({
       
       toast({
         title: t("common.success"),
-        description: t("common.downloadStarted"),
+        description: t("common.downloadStarted") || "Download started",
       });
     } catch (error) {
       console.error('Download error:', error);
       toast({
         title: t("common.error"),
-        description: t("common.downloadError"),
+        description: t("common.downloadError") || "Download failed",
         variant: "destructive",
       });
     }
@@ -128,6 +133,8 @@ export const SimpleFileDisplay = ({
   const handleOpenFile = async (file: FileRecord) => {
     try {
       const bucketName = getBucketName(parentType);
+      console.log(`Opening file from ${bucketName}: ${file.filename}`);
+      
       const signedUrl = await generateSignedUrl(bucketName, file.file_path);
       
       if (!signedUrl) {
@@ -139,7 +146,7 @@ export const SimpleFileDisplay = ({
       console.error('Open file error:', error);
       toast({
         title: t("common.error"),
-        description: t("common.fileAccessError"),
+        description: t("common.fileAccessError") || "Cannot access file",
         variant: "destructive",
       });
     }
@@ -150,6 +157,7 @@ export const SimpleFileDisplay = ({
       setDeletingFileId(file.id);
       
       const bucketName = getBucketName(parentType);
+      console.log(`Deleting file from ${bucketName}: ${file.filename}`);
       
       // Delete from storage
       const { error: storageError } = await supabase.storage
@@ -208,13 +216,13 @@ export const SimpleFileDisplay = ({
       
       toast({
         title: t("common.success"),
-        description: t("common.fileDeleted"),
+        description: t("common.fileDeleted") || "File deleted",
       });
     } catch (error) {
       console.error('Delete error:', error);
       toast({
         title: t("common.error"),
-        description: t("common.deleteError"),
+        description: t("common.deleteError") || "Delete failed",
         variant: "destructive",
       });
     } finally {
@@ -225,6 +233,9 @@ export const SimpleFileDisplay = ({
   if (!files || files.length === 0) {
     return null;
   }
+
+  const bucketName = getBucketName(parentType);
+  console.log(`SimpleFileDisplay rendering ${files.length} files for ${parentType} using bucket: ${bucketName}`);
 
   return (
     <div className="space-y-2">
@@ -242,11 +253,11 @@ export const SimpleFileDisplay = ({
                 {isImage(file.filename) ? (
                   <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                     <img 
-                      src={`${getStorageUrl()}/object/public/${getBucketName(parentType)}/${normalizeFilePath(file.file_path)}`}
+                      src={`${getStorageUrl()}/object/public/${bucketName}/${normalizeFilePath(file.file_path)}`}
                       alt={file.filename}
                       className="h-full w-full object-cover"
                       onError={(e) => {
-                        console.error('Image failed to load');
+                        console.error('Image failed to load from:', `${getStorageUrl()}/object/public/${bucketName}/${normalizeFilePath(file.file_path)}`);
                         e.currentTarget.src = '/placeholder.svg';
                       }}
                     />
@@ -264,7 +275,7 @@ export const SimpleFileDisplay = ({
                   variant="ghost"
                   size="icon"
                   onClick={() => handleDownload(file)}
-                  title={t("common.download")}
+                  title={t("common.download") || "Download"}
                 >
                   <Download className="h-4 w-4" />
                 </Button>
@@ -275,7 +286,7 @@ export const SimpleFileDisplay = ({
                     size="icon"
                     onClick={() => handleDelete(file)}
                     disabled={deletingFileId === file.id}
-                    title={t("common.delete")}
+                    title={t("common.delete") || "Delete"}
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
                   </Button>
@@ -290,7 +301,7 @@ export const SimpleFileDisplay = ({
               onClick={() => handleOpenFile(file)}
             >
               <ExternalLink className="h-4 w-4" />
-              {t("crm.open")}
+              {t("crm.open") || "Open"}
             </Button>
           </div>
         );
