@@ -308,6 +308,8 @@ export const translations: TranslationType = {
     eventDeleted: "Event deleted successfully",
     eventUpdated: "Event updated successfully",
     eventCreated: "Event created successfully",
+    recurringEventCreated: "Recurring event series created successfully",
+    eventSeriesDeleted: "Event series deleted successfully",
     timeSlotUnavailable: "Time Slot Unavailable",
     timeSlotConflict: "Time Slot Conflict",
     timeSlotNotAvailable: "This time slot is not available",
