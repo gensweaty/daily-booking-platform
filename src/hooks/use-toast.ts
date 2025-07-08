@@ -245,6 +245,15 @@ toast.event = {
       }
     });
   },
+  createdRecurring: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "events.recurringEventCreated"
+      }
+    });
+  },
   updated: () => {
     return toast({
       variant: "default",
@@ -260,6 +269,15 @@ toast.event = {
       translateKeys: {
         titleKey: "common.success",
         descriptionKey: "events.eventDeleted"
+      }
+    });
+  },
+  seriesDeleted: () => {
+    return toast({
+      variant: "default",
+      translateKeys: {
+        titleKey: "common.success",
+        descriptionKey: "events.eventSeriesDeleted"
       }
     });
   },

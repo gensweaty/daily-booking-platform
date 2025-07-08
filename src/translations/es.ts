@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -309,6 +308,8 @@ export const translations: TranslationType = {
     eventDeleted: "¡Éxito! Evento eliminado correctamente.",
     eventUpdated: "¡Éxito! Evento actualizado correctamente.",
     eventCreated: "¡Éxito! Evento creado y correo electrónico de confirmación enviado.",
+    recurringEventCreated: "¡Éxito! Serie de eventos recurrentes creada y correo electrónico de confirmación enviado.",
+    eventSeriesDeleted: "¡Éxito! Serie de eventos eliminada correctamente.",
     timeSlotUnavailable: "Franja horaria no disponible",
     timeSlotConflict: "Conflicto de franja horaria",
     timeSlotNotAvailable: "Esta franja horaria no está disponible",
