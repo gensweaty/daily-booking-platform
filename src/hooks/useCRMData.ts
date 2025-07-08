@@ -1,4 +1,3 @@
-
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +8,7 @@ import type { FileRecord } from '@/types/files';
 interface EventWithCustomerId {
   id: string;
   customer_id?: string;
+  parent_event_id?: string; // Add parent_event_id to handle recurring events
   [key: string]: any; // Allow other properties
 }
 
@@ -181,6 +181,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     }
 
     // Process events - only add those that aren't represented by customers
+    // Also filter out recurring instances that already have parent events in CRM
     for (const event of events as EventWithCustomerId[]) {
       if (!event) continue;
       
@@ -188,6 +189,32 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       if (event.customer_id && customerIdMap.has(event.customer_id)) {
         console.log(`Skipping event ${event.id} because it's associated with customer ${event.customer_id}`);
         continue;
+      }
+      
+      // IMPORTANT FIX: Skip recurring instances if their parent event is already represented in customers
+      if (event.parent_event_id) {
+        // Check if there's already a customer for the parent event series
+        const parentEventSignature = generateItemSignature({
+          title: event.title,
+          user_number: event.user_number,
+          social_network_link: event.social_network_link,
+          start_date: '' // Don't include date for parent matching
+        });
+        
+        const hasParentCustomer = customers.some(customer => {
+          const customerSignature = generateItemSignature({
+            title: customer.title,
+            user_number: customer.user_number,
+            social_network_link: customer.social_network_link,
+            start_date: ''
+          });
+          return customerSignature === parentEventSignature;
+        });
+        
+        if (hasParentCustomer) {
+          console.log(`Skipping recurring instance ${event.id} because parent event is already in CRM`);
+          continue;
+        }
       }
       
       const signature = generateItemSignature(event);
