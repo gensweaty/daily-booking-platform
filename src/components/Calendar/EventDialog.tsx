@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -8,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { EventDialogFields } from "./EventDialogFields";
 import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { sendEventCreationEmail } from "@/lib/api";
 import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
 
@@ -55,6 +55,7 @@ export const EventDialog = ({
 }: EventDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
   
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
@@ -282,10 +283,9 @@ export const EventDialog = ({
     e.preventDefault();
     
     if (!user) {
-      toast({
-        title: "Error",
-        description: "User must be authenticated",
-        variant: "destructive",
+      toast.error({
+        title: t("common.error"),
+        description: t("common.authRequired")
       });
       return;
     }
@@ -293,10 +293,9 @@ export const EventDialog = ({
     // Fix: Validate recurring event data for BOTH new and existing events
     if (isRecurring) {
       if (!repeatPattern || !repeatUntil) {
-        toast({
-          title: "Error",
-          description: "Please select a repeat pattern and end date for recurring events",
-          variant: "destructive",
+        toast.error({
+          title: t("common.error"),
+          description: "Please select a repeat pattern and end date for recurring events"
         });
         return;
       }
@@ -305,10 +304,9 @@ export const EventDialog = ({
       const repeatUntilObj = new Date(repeatUntil);
       
       if (repeatUntilObj <= startDateObj) {
-        toast({
-          title: "Error", 
-          description: "Repeat until date must be after the event start date",
-          variant: "destructive",
+        toast.error({
+          title: t("common.error"), 
+          description: "Repeat until date must be after the event start date"
         });
         return;
       }
@@ -362,10 +360,7 @@ export const EventDialog = ({
           
         if (result.error) throw result.error;
         
-        toast({
-          title: "Success",
-          description: "Event updated successfully",
-        });
+        toast.event.updated();
         
         onEventUpdated?.();
       } else {
@@ -414,29 +409,31 @@ export const EventDialog = ({
             
             if (emailResult.success) {
               console.log("✅ Event creation email sent successfully");
-              toast({
-                title: "Success",
-                description: isRecurring ? "Recurring event series created and confirmation email sent!" : "Event created and confirmation email sent!",
-              });
+              if (isRecurring) {
+                toast.event.createdRecurring();
+              } else {
+                toast.event.created();
+              }
             } else {
               console.error("❌ Failed to send event creation email:", emailResult.error);
-              toast({
-                title: "Event Created",
-                description: isRecurring ? "Recurring event series created successfully, but email notification failed to send." : "Event created successfully, but email notification failed to send.",
+              toast.error({
+                title: t("events.eventCreated"),
+                description: isRecurring ? "Recurring event series created successfully, but email notification failed to send." : "Event created successfully, but email notification failed to send."
               });
             }
           } catch (emailError) {
             console.error("❌ Error sending event creation email:", emailError);
-            toast({
-              title: "Event Created", 
-              description: isRecurring ? "Recurring event series created successfully, but email notification failed to send." : "Event created successfully, but email notification failed to send.",
+            toast.error({
+              title: t("events.eventCreated"), 
+              description: isRecurring ? "Recurring event series created successfully, but email notification failed to send." : "Event created successfully, but email notification failed to send."
             });
           }
         } else {
-          toast({
-            title: "Success",
-            description: isRecurring ? "Recurring event series created successfully" : "Event created successfully",
-          });
+          if (isRecurring) {
+            toast.event.createdRecurring();
+          } else {
+            toast.event.created();
+          }
         }
         
         onEventCreated?.();
@@ -446,10 +443,9 @@ export const EventDialog = ({
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error saving event:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save event",
-        variant: "destructive",
+      toast.error({
+        title: t("common.error"),
+        description: error.message || "Failed to save event"
       });
     } finally {
       setIsLoading(false);
@@ -469,20 +465,16 @@ export const EventDialog = ({
         
       if (error) throw error;
       
-      toast({
-        title: "Success",
-        description: "Event deleted successfully",
-      });
+      toast.event.deleted();
       
       onEventDeleted?.();
       setShowDeleteDialog(false);
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error deleting event:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete event",
-        variant: "destructive",
+      toast.error({
+        title: t("common.error"),
+        description: error.message || "Failed to delete event"
       });
     } finally {
       setIsLoading(false);
@@ -508,20 +500,16 @@ export const EventDialog = ({
         
       if (error) throw error;
       
-      toast({
-        title: "Success",
-        description: "Event series deleted successfully",
-      });
+      toast.event.seriesDeleted();
       
       onEventDeleted?.();
       setShowDeleteDialog(false);
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error deleting event series:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete event series",
-        variant: "destructive",
+      toast.error({
+        title: t("common.error"),
+        description: error.message || "Failed to delete event series"
       });
     } finally {
       setIsLoading(false);
@@ -534,7 +522,7 @@ export const EventDialog = ({
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {eventId || initialData ? "Edit Event" : "Create New Event"}
+              {eventId || initialData ? t("events.editEvent") : t("events.addNewEvent")}
             </DialogTitle>
           </DialogHeader>
 
@@ -587,7 +575,7 @@ export const EventDialog = ({
                     onClick={() => setShowDeleteDialog(true)}
                     disabled={isLoading}
                   >
-                    Delete Event
+                    {t("events.deleteEvent")}
                   </Button>
                 )}
               </div>
@@ -599,10 +587,10 @@ export const EventDialog = ({
                   onClick={() => onOpenChange(false)}
                   disabled={isLoading}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Saving..." : eventId || initialData ? "Update Event" : "Create Event"}
+                  {isLoading ? t("common.loading") : eventId || initialData ? t("events.updateEvent") : t("events.createEvent")}
                 </Button>
               </div>
             </div>
