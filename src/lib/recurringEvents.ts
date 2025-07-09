@@ -1,4 +1,3 @@
-
 import { CalendarEventType } from "@/lib/types/calendar";
 import { addDays, addWeeks, addMonths, addYears, endOfYear, isBefore, format, getDay, startOfDay } from "date-fns";
 
@@ -34,36 +33,24 @@ export const getRepeatOptions = (selectedDate?: Date, t?: (key: string, params?:
     const dayLabel = { en: daysEN, ka: daysKA, es: daysES }[language][weekdayIdx];
     const monthLabel = { en: monthsEN, ka: monthsKA, es: monthsES }[language][monthIdx];
 
-    // Build dynamic labels based on language
-    const weeklyLabel = {
-      en: `Weekly on ${dayLabel}`,
-      ka: `ყოველ ${dayLabel}-ს`,
-      es: `Semanal, el ${dayLabel}`,
-    }[language];
-
-    const biweeklyLabel = {
-      en: `Every 2 weeks on ${dayLabel}`,
-      ka: `ყოველ 2 კვირაში, ${dayLabel}-ს`,
-      es: `Cada 2 semanas, el ${dayLabel}`,
-    }[language];
-
-    const monthlyLabel = {
-      en: `Monthly on day ${dayOfMonth}`,
-      ka: `ყოველთვე, თარიღი ${dayOfMonth}`,
-      es: `Mensual, el día ${dayOfMonth}`,
-    }[language];
-
-    const yearlyLabel = {
-      en: `Annually on ${monthLabel} ${dayOfMonth}`,
-      ka: `ყოველწლიურად ${monthLabel} ${dayOfMonth}-ზე`,
-      es: `Anualmente, el ${dayOfMonth} de ${monthLabel}`,
-    }[language];
-
+    // Use translation keys with parameters for dynamic options
     options.push(
-      { value: "weekly", label: weeklyLabel },
-      { value: "biweekly", label: biweeklyLabel },
-      { value: "monthly", label: monthlyLabel },
-      { value: "yearly", label: yearlyLabel }
+      { 
+        value: "weekly", 
+        label: t("recurring.weeklyOn", { day: dayLabel })
+      },
+      { 
+        value: "biweekly", 
+        label: t("recurring.biweeklyOn", { day: dayLabel })
+      },
+      { 
+        value: "monthly", 
+        label: t("recurring.monthlyOnDay", { day: dayOfMonth })
+      },
+      { 
+        value: "yearly", 
+        label: t("recurring.annuallyOn", { month: monthLabel, day: dayOfMonth })
+      }
     );
   } else if (selectedDate) {
     // Fallback without translation function
