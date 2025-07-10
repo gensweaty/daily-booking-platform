@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -65,6 +64,13 @@ export const DashboardContent = ({
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
 
+  // Show notification when pendingCount changes (new request arrives)
+  useEffect(() => {
+    if (pendingCount > 0 && activeTab !== "business") {
+      console.log('New pending booking requests detected, showing notification badge');
+    }
+  }, [pendingCount, activeTab]);
+
   // Handle tab changes and refresh data
   const handleTabChange = (value: string) => {
     setActiveTab(value)
@@ -101,6 +107,12 @@ export const DashboardContent = ({
       console.log("Switching to CRM tab - refreshing customers")
       queryClient.invalidateQueries({ queryKey: ['customers'] })
       queryClient.invalidateQueries({ queryKey: ['crm'] })
+    }
+    
+    // Refresh booking data when switching to business tab
+    if (value === "business") {
+      console.log("Switching to business tab - refreshing booking requests")
+      queryClient.invalidateQueries({ queryKey: ['booking_requests'] })
     }
   }
 
@@ -212,7 +224,7 @@ export const DashboardContent = ({
                 >
                   <Badge 
                     variant="destructive" 
-                    className="flex items-center justify-center h-5 min-w-5 p-1 text-xs rounded-full gap-1"
+                    className="flex items-center justify-center h-5 min-w-5 p-1 text-xs rounded-full gap-1 animate-pulse bg-orange-500 hover:bg-orange-600"
                   >
                     <Bell className="w-3 h-3" />
                     {pendingCount}

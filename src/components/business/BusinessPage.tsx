@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { BookingRequestsList } from "./BookingRequestsList";
 import { useBookingRequests } from "@/hooks/useBookingRequests";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, ExternalLink, QrCode, Share } from "lucide-react";
+import { MessageSquare, ExternalLink, QrCode, Share, Bell } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
@@ -55,7 +55,33 @@ export const BusinessPage = () => {
 
   // Handle new booking request notifications
   const handleNewBookingRequest = () => {
-    console.log('New booking request detected, refreshing data...');
+    console.log('New booking request detected, refreshing data and showing notification...');
+    
+    // Show immediate notification about new request
+    const isGeorgian = language === 'ka';
+    toast({
+      title: isGeorgian ? "ახალი ჯავშნის მოთხოვნა მოვიდა!" : "New Booking Request Received!",
+      description: isGeorgian 
+        ? "გადახედეთ და დაამტკიცეთ ახალი მოთხოვნა"
+        : "Please review and approve the new request",
+      duration: 12000,
+      className: "bg-orange-50 border-orange-200 text-orange-900 shadow-lg",
+      action: (
+        <div className="flex items-center gap-2">
+          <Bell className="h-4 w-4" />
+          <span className="font-medium">
+            {isGeorgian ? "იხილეთ" : "View"}
+          </span>
+        </div>
+      ),
+    });
+    
+    // Switch to bookings tab if not already there
+    if (activeTab !== "bookings") {
+      setActiveTab("bookings");
+    }
+    
+    // Refresh the booking requests data
     refetch();
   };
 
@@ -229,7 +255,7 @@ export const BusinessPage = () => {
             {pendingCount > 0 && (
               <Badge 
                 variant="orange" 
-                className="absolute -top-2 -right-2 flex items-center justify-center h-5 min-w-5 p-0 text-xs"
+                className="absolute -top-2 -right-2 flex items-center justify-center h-5 min-w-5 p-0 text-xs animate-pulse"
               >
                 {pendingCount}
               </Badge>
@@ -265,8 +291,8 @@ export const BusinessPage = () => {
                 <LanguageText>{t("business.bookingRequests")}</LanguageText>
               </h1>
               {pendingCount > 0 && (
-                <div className="flex items-center gap-2 text-destructive bg-destructive/10 px-3 py-1 rounded-full">
-                  <MessageSquare className="h-4 w-4" />
+                <div className="flex items-center gap-2 text-orange-600 bg-orange-50 border border-orange-200 px-3 py-1 rounded-full animate-pulse">
+                  <Bell className="h-4 w-4" />
                   <span className="font-medium">
                     {pendingCount} <LanguageText>{pendingCount === 1 ? t("common.new") : t("common.new")}</LanguageText>{" "}
                     <LanguageText>{pendingCount === 1 ? t("common.request") : t("common.requests")}</LanguageText>

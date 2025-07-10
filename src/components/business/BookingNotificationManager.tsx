@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from '@/components/ui/use-toast';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Bell } from 'lucide-react';
 
 interface BookingRequest {
   id: string;
@@ -12,6 +12,7 @@ interface BookingRequest {
   title: string;
   start_date: string;
   created_at: string;
+  status: string;
 }
 
 interface BookingNotificationManagerProps {
@@ -44,10 +45,11 @@ export const BookingNotificationManager = ({
   // Set up real-time subscription for booking requests
   useEffect(() => {
     if (!businessProfileId || !user?.id) {
+      console.log('BookingNotificationManager: Missing businessProfileId or user.id', { businessProfileId, userId: user?.id });
       return;
     }
 
-    console.log('Setting up real-time subscription for booking requests');
+    console.log('Setting up real-time subscription for booking requests, businessProfileId:', businessProfileId);
 
     // Create channel for real-time updates
     const channel = supabase
@@ -61,18 +63,25 @@ export const BookingNotificationManager = ({
           filter: `business_id=eq.${businessProfileId}`
         },
         (payload) => {
-          console.log('New booking request received:', payload);
+          console.log('New booking request received via realtime:', payload);
           const newRequest = payload.new as BookingRequest;
           
-          // Show toast notification
-          showToastNotification(newRequest);
-          
-          // Show browser notification
-          showBrowserNotification(newRequest);
-          
-          // Callback to parent component
-          if (onNewRequest) {
-            onNewRequest();
+          // Only show notification for pending requests
+          if (newRequest.status === 'pending') {
+            console.log('Showing notification for pending booking request:', newRequest.id);
+            
+            // Show toast notification
+            showNewRequestToast(newRequest);
+            
+            // Show browser notification
+            showBrowserNotification(newRequest);
+            
+            // Callback to parent component
+            if (onNewRequest) {
+              onNewRequest();
+            }
+          } else {
+            console.log('Skipping notification for non-pending request:', newRequest.status);
           }
         }
       )
@@ -91,22 +100,34 @@ export const BookingNotificationManager = ({
     };
   }, [businessProfileId, user?.id, onNewRequest]);
 
-  const showToastNotification = (request: BookingRequest) => {
+  const showNewRequestToast = (request: BookingRequest) => {
     const isGeorgian = language === 'ka';
+    
+    console.log('Showing toast notification for new booking request:', request.id);
     
     toast({
       title: isGeorgian ? "ახალი ჯავშნის მოთხოვნა!" : "New Booking Request!",
       description: isGeorgian 
         ? `${request.requester_name}-ისგან: ${request.title}`
         : `From ${request.requester_name}: ${request.title}`,
-      duration: 10000, // Show for 10 seconds
-      className: "bg-blue-50 border-blue-200 text-blue-900",
+      duration: 15000, // Show for 15 seconds to ensure visibility
+      className: "bg-orange-50 border-orange-200 text-orange-900 shadow-lg",
+      action: (
+        <div className="flex items-center gap-2">
+          <Bell className="h-4 w-4" />
+          <span className="font-medium">
+            {isGeorgian ? "შეამოწმეთ" : "Check Now"}
+          </span>
+        </div>
+      ),
     });
   };
 
   const showBrowserNotification = (request: BookingRequest) => {
     if (notificationPermission === 'granted' && 'Notification' in window) {
       const isGeorgian = language === 'ka';
+      
+      console.log('Showing browser notification for new booking request:', request.id);
       
       const notification = new Notification(
         isGeorgian ? "ახალი ჯავშნის მოთხოვნა!" : "New Booking Request!",
@@ -121,16 +142,21 @@ export const BookingNotificationManager = ({
         }
       );
 
-      // Auto-close after 10 seconds
+      // Auto-close after 15 seconds
       setTimeout(() => {
         notification.close();
-      }, 10000);
+      }, 15000);
 
       // Handle click to focus the window
       notification.onclick = () => {
         window.focus();
         notification.close();
       };
+    } else {
+      console.log('Browser notifications not available or not permitted:', { 
+        permission: notificationPermission, 
+        hasNotification: 'Notification' in window 
+      });
     }
   };
 
