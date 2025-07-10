@@ -55,7 +55,7 @@ export const EventDialog = ({
 }: EventDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
@@ -93,8 +93,44 @@ export const EventDialog = ({
 
   const isNewEvent = !initialData && !eventId;
   const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
-  // Fix: Check BOTH database is_recurring flag AND virtual instance status
   const isRecurringEvent = initialData?.is_recurring || isVirtualEvent || isRecurring;
+
+  // Load additional persons for existing events
+  const loadAdditionalPersons = async (targetEventId: string) => {
+    try {
+      // For virtual events, get the parent event ID for additional persons
+      const actualEventId = isVirtualEvent && eventId ? getParentEventId(eventId) : targetEventId;
+      
+      const { data: customers, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('event_id', actualEventId)
+        .eq('type', 'customer')
+        .is('deleted_at', null);
+
+      if (error) {
+        console.error('Error loading additional persons:', error);
+        return;
+      }
+
+      if (customers && customers.length > 0) {
+        const mappedPersons = customers.map(customer => ({
+          id: customer.id,
+          userSurname: customer.user_surname || customer.title || '',
+          userNumber: customer.user_number || '',
+          socialNetworkLink: customer.social_network_link || '',
+          eventNotes: customer.event_notes || '',
+          paymentStatus: customer.payment_status || '',
+          paymentAmount: customer.payment_amount?.toString() || ''
+        }));
+        
+        console.log('Loaded additional persons:', mappedPersons);
+        setAdditionalPersons(mappedPersons);
+      }
+    } catch (error) {
+      console.error('Error loading additional persons:', error);
+    }
+  };
 
   // Load existing files for the event
   const loadExistingFiles = async (targetEventId: string) => {
@@ -122,6 +158,8 @@ export const EventDialog = ({
         const targetEventId = eventId || initialData?.id;
         if (targetEventId) {
           loadExistingFiles(targetEventId);
+          // Load additional persons for existing events
+          loadAdditionalPersons(targetEventId);
         }
 
         // For virtual instances, we need to load parent event data for recurrence info
@@ -183,6 +221,8 @@ export const EventDialog = ({
         setStartDate(startDateTime);
         setEndDate(isoToLocalDateTimeInput(endDateTime.toISOString()));
         
+        // Reset additional persons for new event
+        setAdditionalPersons([]);
         // Reset all other fields for new event
         setTitle("");
         setUserSurname("");
@@ -195,7 +235,6 @@ export const EventDialog = ({
         setIsRecurring(false);
         setRepeatPattern("");
         setRepeatUntil("");
-        setAdditionalPersons([]);
         setFiles([]);
         setExistingFiles([]);
       }
@@ -279,11 +318,109 @@ export const EventDialog = ({
     await Promise.all(uploadPromises);
   };
 
+  // Enhanced email sending function that handles multiple recipients with proper language support
+  const sendEmailToAllPersons = async (eventData: any, additionalPersons: any[] = []) => {
+    try {
+      console.log(`🔔 Starting email notification process for event: ${eventData.title || eventData.user_surname}`);
+      
+      // Get user's business profile for the email
+      const { data: businessData } = await supabase
+        .from('business_profiles')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+      
+      if (!businessData) {
+        console.warn("❌ Missing business data for event notification - skipping email");
+        return;
+      }
+
+      // Collect all recipients (main customer + additional persons)
+      const recipients: Array<{ email: string; name: string }> = [];
+      
+      // Add main customer if they have a valid email
+      const mainCustomerEmail = eventData.social_network_link;
+      if (mainCustomerEmail && isValidEmail(mainCustomerEmail)) {
+        recipients.push({
+          email: mainCustomerEmail,
+          name: eventData.title || eventData.user_surname || ''
+        });
+      }
+      
+      // Add additional persons with valid emails
+      if (additionalPersons && additionalPersons.length > 0) {
+        additionalPersons.forEach(person => {
+          if (person.socialNetworkLink && isValidEmail(person.socialNetworkLink)) {
+            recipients.push({
+              email: person.socialNetworkLink,
+              name: person.userSurname || ''
+            });
+          }
+        });
+      }
+      
+      if (recipients.length === 0) {
+        console.warn("❌ No valid email addresses found for sending notifications");
+        return;
+      }
+      
+      console.log(`📧 Found ${recipients.length} recipients for email notifications with language: ${language}`);
+      
+      // Send emails to all recipients with proper language
+      for (const recipient of recipients) {
+        try {
+          const emailResult = await sendEventCreationEmail(
+            recipient.email,
+            recipient.name,
+            businessData.business_name || '',
+            eventData.start_date,
+            eventData.end_date,
+            eventData.payment_status || 'not_paid',
+            eventData.payment_amount || null,
+            businessData.contact_address || '',
+            eventData.id,
+            language || 'en', // Use current UI language
+            eventData.event_notes || ''
+          );
+          
+          if (emailResult?.success) {
+            console.log(`✅ Event creation email sent successfully to: ${recipient.email}`);
+          } else {
+            console.warn(`❌ Failed to send event creation email to ${recipient.email}:`, emailResult?.error);
+          }
+        } catch (emailError) {
+          console.error(`❌ Error sending email to ${recipient.email}:`, emailError);
+        }
+      }
+      
+      // Show success toast
+      if (recipients.length > 0) {
+        toast({
+          title: "Notifications Sent",
+          description: `Booking confirmations sent to ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}`
+        });
+      }
+    } catch (error) {
+      console.error("❌ Error sending event creation emails:", error);
+      toast({
+        variant: "destructive",
+        title: "Email Error",
+        description: "Failed to send booking confirmation emails"
+      });
+    }
+  };
+
+  // Helper function to validate email format
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!user) {
-      toast.error({
+      toast({
         title: t("common.error"),
         description: t("common.authRequired")
       });
@@ -362,6 +499,12 @@ export const EventDialog = ({
         
         toast.event.updated();
         
+        // Send emails to all persons for updated event
+        await sendEmailToAllPersons({
+          ...eventData,
+          id: eventId || initialData?.id
+        }, additionalPersons);
+        
         onEventUpdated?.();
       } else {
         // Create new event
@@ -389,51 +532,16 @@ export const EventDialog = ({
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
 
-        // Send email notification for new event creation
-        console.log("🔔 Attempting to send event creation email for internal event");
-        if (socialNetworkLink && socialNetworkLink.includes('@')) {
-          try {
-            const emailResult = await sendEventCreationEmail(
-              socialNetworkLink,
-              userSurname || title,
-              "", // businessName will be resolved from user's business profile
-              localDateTimeToISOString(startDate), // Use converted date
-              localDateTimeToISOString(endDate), // Use converted date
-              paymentStatus || null,
-              paymentAmount ? parseFloat(paymentAmount) : null,
-              "", // businessAddress will be resolved from user's business profile  
-              newEventId,
-              'en', // Default language
-              eventNotes
-            );
-            
-            if (emailResult.success) {
-              console.log("✅ Event creation email sent successfully");
-              if (isRecurring) {
-                toast.event.createdRecurring();
-              } else {
-                toast.event.created();
-              }
-            } else {
-              console.error("❌ Failed to send event creation email:", emailResult.error);
-              toast.error({
-                title: t("events.eventCreated"),
-                description: isRecurring ? "Recurring event series created successfully, but email notification failed to send." : "Event created successfully, but email notification failed to send."
-              });
-            }
-          } catch (emailError) {
-            console.error("❌ Error sending event creation email:", emailError);
-            toast.error({
-              title: t("events.eventCreated"), 
-              description: isRecurring ? "Recurring event series created successfully, but email notification failed to send." : "Event created successfully, but email notification failed to send."
-            });
-          }
+        // Send emails to all persons for new event
+        await sendEmailToAllPersons({
+          ...eventData,
+          id: newEventId
+        }, additionalPersons);
+
+        if (isRecurring) {
+          toast.event.createdRecurring();
         } else {
-          if (isRecurring) {
-            toast.event.createdRecurring();
-          } else {
-            toast.event.created();
-          }
+          toast.event.created();
         }
         
         onEventCreated?.();
@@ -443,7 +551,7 @@ export const EventDialog = ({
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error saving event:', error);
-      toast.error({
+      toast({
         title: t("common.error"),
         description: error.message || "Failed to save event"
       });
