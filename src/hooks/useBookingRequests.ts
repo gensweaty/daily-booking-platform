@@ -44,7 +44,7 @@ export const useBookingRequests = () => {
     fetchBusinessProfile();
   }, [user]);
   
-  const { data: bookingRequestsData = [], isLoading, error } = useQuery({
+  const { data: bookingRequestsData = [], isLoading, error, refetch } = useQuery({
     queryKey: ['booking_requests', businessId],
     queryFn: async () => {
       if (!businessId) return [];
@@ -248,9 +248,6 @@ export const useBookingRequests = () => {
       if (!user?.id) {
         throw new Error('User not authenticated');
       }
-      
-      // Remove the loading toast notification since we have button loading animations
-      // This was displaying "Processing approval... Please wait while we process your request."
       
       const { data: booking, error: fetchError } = await supabase
         .from('booking_requests')
@@ -647,6 +644,7 @@ export const useBookingRequests = () => {
     rejectedRequests,
     isLoading,
     error,
+    refetch,
     approveRequest: approveMutation.mutateAsync,
     rejectRequest: rejectMutation.mutateAsync,
     deleteBookingRequest: deleteMutation.mutateAsync,

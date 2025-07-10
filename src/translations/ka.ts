@@ -1,4 +1,5 @@
-export const ka = {
+
+export const translations = {
   common: {
     loading: "იტვირთება...",
     save: "შენახვა",
