@@ -1,4 +1,3 @@
-
 import { BusinessProfileForm } from "./BusinessProfileForm";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -14,20 +13,20 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import QRCode from "qrcode.react"; // Fixed import statement
+import QRCode from "qrcode.react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
+import { BookingNotificationManager } from "./BookingNotificationManager";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
   const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<"profile" | "bookings">("profile");
-  const { bookingRequests, pendingRequests, approvedRequests, rejectedRequests, approveRequest, rejectRequest, deleteBookingRequest } = useBookingRequests();
+  const { bookingRequests, pendingRequests, approvedRequests, rejectedRequests, approveRequest, rejectRequest, deleteBookingRequest, refetch } = useBookingRequests();
   const pendingCount = pendingRequests?.length || 0;
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');
-  // Add state for QR code dialog
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
 
   const { data: businessProfile, isLoading } = useQuery({
@@ -54,6 +53,12 @@ export const BusinessPage = () => {
     }
   }, [businessProfile]);
 
+  // Handle new booking request notifications
+  const handleNewBookingRequest = () => {
+    console.log('New booking request detected, refreshing data...');
+    refetch();
+  };
+
   if (isLoading) {
     return <div className="text-center p-8"><LanguageText>{t("common.loading")}</LanguageText></div>;
   }
@@ -62,18 +67,15 @@ export const BusinessPage = () => {
     ? `${window.location.protocol}//${window.location.host}/business/${businessProfile.slug}`
     : null;
 
-  // Create a type-safe handler for tab changes
   const handleTabChange = (value: string) => {
     if (value === "profile" || value === "bookings") {
       setActiveTab(value);
     }
   };
 
-  // Share handler for the QR code
   const handleShare = async () => {
     if (!publicUrl) return;
     
-    // Use Web Share API if available
     if (navigator.share) {
       try {
         await navigator.share({
@@ -83,16 +85,13 @@ export const BusinessPage = () => {
         });
       } catch (err) {
         console.error("Error sharing:", err);
-        // Fallback to clipboard if share fails
         copyToClipboard();
       }
     } else {
-      // Fallback to clipboard if Web Share API not available
       copyToClipboard();
     }
   };
 
-  // Helper function to copy to clipboard
   const copyToClipboard = () => {
     if (!publicUrl) return;
     
@@ -105,7 +104,6 @@ export const BusinessPage = () => {
     });
   };
 
-  // Helper function for the View Public Page button
   const renderViewPublicPageButton = () => {
     if (!publicUrl) return null;
     
@@ -125,7 +123,6 @@ export const BusinessPage = () => {
             <LanguageText>{t("business.scanQrCode")}</LanguageText>
           </div>
           
-          {/* QR Code with click to open dialog */}
           <div 
             onClick={() => setQrDialogOpen(true)}
             className="cursor-pointer transition-all hover:opacity-90"
@@ -141,7 +138,6 @@ export const BusinessPage = () => {
             />
           </div>
           
-          {/* Share button below QR code */}
           <Button
             onClick={handleShare}
             variant="secondary" 
@@ -156,7 +152,6 @@ export const BusinessPage = () => {
           </Button>
         </div>
         
-        {/* Dialog for enlarged QR code */}
         <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
           <DialogContent className="sm:max-w-md p-6">
             <div className="flex flex-col items-center justify-center">
@@ -170,7 +165,7 @@ export const BusinessPage = () => {
               <div className="bg-white p-4 rounded-md">
                 <QRCode 
                   value={publicUrl}
-                  size={240} // 2x the original size
+                  size={240}
                   bgColor={"#ffffff"}
                   fgColor={"#000000"}
                   level={"L"}
@@ -197,7 +192,6 @@ export const BusinessPage = () => {
     );
   };
 
-  // Helper to render proper Georgian text for section headings
   const renderSectionHeading = (key: string) => {
     if (isGeorgian) {
       if (key === "business.pendingRequests") return <GeorgianAuthText>მოთხოვნები მოლოდინში</GeorgianAuthText>;
@@ -210,6 +204,11 @@ export const BusinessPage = () => {
 
   return (
     <div className="space-y-6">
+      <BookingNotificationManager 
+        businessProfileId={businessProfile?.id || null}
+        onNewRequest={handleNewBookingRequest}
+      />
+      
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6 bg-background/80 border rounded-lg p-1 shadow-sm">
           <TabsTrigger 
@@ -250,7 +249,6 @@ export const BusinessPage = () => {
             {!isMobile && publicUrl && renderViewPublicPageButton()}
           </div>
           
-          {/* View Public Page button and QR code for mobile - positioned below heading */}
           {isMobile && publicUrl && (
             <div className="w-full mb-6">
               {renderViewPublicPageButton()}
@@ -260,9 +258,7 @@ export const BusinessPage = () => {
           <BusinessProfileForm />
         </TabsContent>
 
-        {/* Updated: Added sm:-mt-12 -mt-6 to the TabsContent container */}
         <TabsContent value="bookings" className="space-y-6 sm:-mt-12 -mt-6">
-          {/* Removed -mt-8 from this div since margin is now on parent */}
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold">
@@ -279,14 +275,12 @@ export const BusinessPage = () => {
               )}
             </div>
             
-            {/* View Public Page button for mobile - positioned below heading */}
             {isMobile && publicUrl && (
               <div className="w-full mt-3 mb-2">
                 {renderViewPublicPageButton()}
               </div>
             )}
             
-            {/* View Public Page button for desktop - positioned to the right */}
             {!isMobile && publicUrl && (
               <div className="min-w-[180px]">
                 {renderViewPublicPageButton()}
@@ -294,7 +288,6 @@ export const BusinessPage = () => {
             )}
           </div>
 
-          {/* Maintaining the -mt-1 on this div for slight adjustment */}
           <div className="space-y-4 -mt-1">
             <div>
               <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">

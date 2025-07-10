@@ -17,12 +17,12 @@ interface BookingNotificationRequest {
   notes?: string;
   businessName?: string;
   requesterEmail?: string;
-  businessEmail?: string; // Added to support direct email specification
+  businessEmail?: string;
   hasAttachment?: boolean;
   paymentStatus?: string;
   paymentAmount?: number;
-  businessAddress?: string; // Added for consistency
-  language?: string; // Added for currency symbol selection and email language
+  businessAddress?: string;
+  language?: string;
 }
 
 // Helper function to get currency symbol based on language
@@ -297,10 +297,7 @@ If you did not sign up for SmartBookly, please disregard this email.
 function formatPaymentStatus(status?: string, amount?: number, language?: string, currencySymbol?: string): string {
   if (!status) return language === 'ka' ? "არ არის მითითებული" : (language === 'es' ? "No especificado" : "Not specified");
   
-  // Default to $ if no currency symbol provided
   const currency = currencySymbol || '$';
-  
-  // Normalize language
   const normalizedLang = (language || 'en').toLowerCase();
   
   switch (status) {
@@ -345,7 +342,6 @@ function formatPaymentStatus(status?: string, amount?: number, language?: string
 // Format dates for different languages
 function formatDateTime(isoString: string, language?: string): string {
   try {
-    // Determine locale based on language
     let locale = 'en-US';
     if (language === 'ka') {
       locale = 'ka-GE';
@@ -353,7 +349,6 @@ function formatDateTime(isoString: string, language?: string): string {
       locale = 'es-ES';
     }
     
-    // Add date formatting based on locale
     const date = new Date(isoString);
     return date.toLocaleString(locale, {
       year: 'numeric',
@@ -361,10 +356,10 @@ function formatDateTime(isoString: string, language?: string): string {
       day: 'numeric',
       hour: 'numeric',
       minute: 'numeric',
-      hour12: language !== 'ka', // Georgian typically uses 24-hour format
+      hour12: language !== 'ka',
     });
   } catch (e) {
-    return isoString; // Fallback to the original string if parsing fails
+    return isoString;
   }
 }
 
@@ -452,148 +447,180 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get business owner email from RPC function if not directly provided
+    // Get business owner email from database function if not directly provided
     let businessEmail = requestData.businessEmail;
     
     if (!businessEmail && requestData.businessId) {
       try {
         console.log(`🔍 Looking up email for business ID: ${requestData.businessId}`);
         
-        // Make a direct request to our RPC function
+        // Use Supabase client to call the database function
+        const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+        
+        if (!supabaseUrl || !supabaseAnonKey) {
+          console.error("❌ Supabase configuration missing");
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "Database configuration missing" 
+            }),
+            { 
+              status: 500, 
+              headers: { 
+                "Content-Type": "application/json",
+                ...corsHeaders 
+              } 
+            }
+          );
+        }
+
         const response = await fetch(
-          `https://mrueqpffzauvdxmuwhfa.supabase.co/rest/v1/rpc/get_business_owner_email`,
+          `${supabaseUrl}/rest/v1/rpc/get_business_owner_email`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "apikey": Deno.env.get("SUPABASE_ANON_KEY") || "",
+              "apikey": supabaseAnonKey,
+              "Authorization": `Bearer ${supabaseAnonKey}`,
             },
             body: JSON.stringify({ business_id_param: requestData.businessId }),
           }
         );
         
-        if (!response.ok) {
-          console.error(`❌ Error from email lookup API: ${response.status}`);
-          
-          // Try a different approach - query business_profiles and auth.users directly
-          const { businessEmail: altEmail, error: altError } = await getBusinessOwnerEmailDirect(requestData.businessId);
-          
-          if (altEmail) {
-            businessEmail = altEmail;
-            console.log(`📧 Found business owner email (alternative method): ${businessEmail}`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result && result.length > 0 && result[0].email) {
+            businessEmail = result[0].email;
+            console.log(`📧 Found business owner email: ${businessEmail}`);
           } else {
-            console.error(`Email lookup failed: ${altError}`);
-            // Return success anyway since we'll continue in the background
+            console.error("❌ No email found in database response");
           }
         } else {
-          const result = await response.json();
-          if (result && result.email) {
-            businessEmail = result.email;
-            console.log(`📧 Found business owner email: ${businessEmail}`);
-          }
+          console.error(`❌ Error from email lookup API: ${response.status}`);
+          const errorText = await response.text();
+          console.error("Error details:", errorText);
         }
       } catch (error) {
         console.error("❌ Error getting business owner email:", error);
-        // Return success anyway, we'll try to send the email in the background
       }
     }
 
-    // Initialize resend early
+    // If we still don't have a business email, return an error
+    if (!businessEmail || !businessEmail.includes('@')) {
+      console.error("❌ No valid business email found");
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Business owner email not found" 
+        }),
+        { 
+          status: 400, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders 
+          } 
+        }
+      );
+    }
+
+    // Initialize resend
     console.log("🔄 Initializing Resend client");
     const resend = new Resend(resendApiKey);
     
-    // Return success early - we'll finish the email processing in the background
-    const successResponse = new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Email notification processing started",
-        email: businessEmail || "pending",
-        language: requestData.language || "en" // Include language in response
-      }),
-      { 
-        status: 200, 
-        headers: { 
-          "Content-Type": "application/json",
-          ...corsHeaders 
-        } 
-      }
+    // Prepare email content
+    const { requesterName, startDate, endDate, requesterPhone = "", notes = "", businessName = "Your Business", requesterEmail = "", businessAddress = "", language = "en" } = requestData;
+    
+    console.log(`Using language: ${language} for currency symbol and email content`);
+
+    // Get currency symbol based on language
+    const currencySymbol = getCurrencySymbolByLanguage(language);
+    console.log(`Using currency symbol: ${currencySymbol} for language: ${language}`);
+    
+    // Format dates for display in the appropriate language
+    const formattedStartDate = formatDateTime(startDate, language);
+    const formattedEndDate = formatDateTime(endDate, language);
+
+    // Format payment status for display in the appropriate language
+    const formattedPaymentStatus = formatPaymentStatus(
+      requestData.paymentStatus, 
+      requestData.paymentAmount,
+      language,
+      currencySymbol
     );
+    
+    // Generate email content based on language
+    const emailContent = getEmailContent(
+      language,
+      requesterName,
+      formattedStartDate,
+      formattedEndDate,
+      requesterPhone,
+      requesterEmail,
+      notes,
+      requestData.hasAttachment,
+      formattedPaymentStatus,
+      businessName
+    );
+    
+    // Email subjects based on language
+    const emailSubject = language === 'ka' 
+      ? "ახალი დაჯავშნის მოთხოვნა - საჭიროებს ქმედებას" 
+      : (language === 'es' 
+          ? "Nueva solicitud de reserva - Acción requerida" 
+          : "New Booking Request - Action Required");
+    
+    console.log("📧 Sending email to:", businessEmail);
+    
+    // Use your verified domain for the from address
+    const fromEmail = "SmartBookly <info@smartbookly.com>";
 
-    // Continue email processing in the background using EdgeRuntime.waitUntil
-    if (typeof EdgeRuntime !== 'undefined' && businessEmail && businessEmail.includes('@')) {
-      console.log("📧 Continuing email processing in background for:", businessEmail);
+    try {
+      const emailResult = await resend.emails.send({
+        from: fromEmail,
+        to: [businessEmail],
+        subject: emailSubject,
+        html: emailContent.html,
+        text: emailContent.text,
+        reply_to: "no-reply@smartbookly.com",
+      });
       
-      EdgeRuntime.waitUntil((async () => {
-        try {
-          const { requesterName, startDate, endDate, requesterPhone = "", notes = "", businessName = "Your Business", requesterEmail = "", businessAddress = "", language = "en" } = requestData;
-          
-          console.log(`Using language: ${language} for currency symbol and email content`);
-    
-          // Get currency symbol based on language
-          const currencySymbol = getCurrencySymbolByLanguage(language);
-          console.log(`Using currency symbol: ${currencySymbol} for language: ${language}`);
-          
-          // Format dates for display in the appropriate language
-          const formattedStartDate = formatDateTime(startDate, language);
-          const formattedEndDate = formatDateTime(endDate, language);
-    
-          // Format payment status for display in the appropriate language
-          const formattedPaymentStatus = formatPaymentStatus(
-            requestData.paymentStatus, 
-            requestData.paymentAmount,
-            language,
-            currencySymbol
-          );
-          
-          // Generate email content based on language
-          const emailContent = getEmailContent(
-            language,
-            requesterName,
-            formattedStartDate,
-            formattedEndDate,
-            requesterPhone,
-            requesterEmail,
-            notes,
-            requestData.hasAttachment,
-            formattedPaymentStatus,
-            businessName
-          );
-          
-          // Email subjects based on language
-          const emailSubject = language === 'ka' 
-            ? "ახალი დაჯავშნის მოთხოვნა - საჭიროებს ქმედებას" 
-            : (language === 'es' 
-                ? "Nueva solicitud de reserva - Acción requerida" 
-                : "New Booking Request - Action Required");
-          
-          console.log("📧 Sending email to:", businessEmail);
-          
-          // Use your verified domain for the from address
-          const fromEmail = "SmartBookly <info@smartbookly.com>";
-    
-          try {
-            const emailResult = await resend.emails.send({
-              from: fromEmail,
-              to: [businessEmail],
-              subject: emailSubject,
-              html: emailContent.html,
-              text: emailContent.text,
-              reply_to: "no-reply@smartbookly.com",
-            });
-            
-            console.log("✅ Email sent successfully with ID:", emailResult.data?.id);
-            
-          } catch (resendError) {
-            console.error("❌ Resend API error:", resendError);
-          }
-        } catch (error) {
-          console.error("❌ Background email processing error:", error);
+      console.log("✅ Email sent successfully with ID:", emailResult.data?.id);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Email notification sent successfully",
+          email: businessEmail,
+          language: language,
+          emailId: emailResult.data?.id
+        }),
+        { 
+          status: 200, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders 
+          } 
         }
-      })());
+      );
+      
+    } catch (resendError) {
+      console.error("❌ Resend API error:", resendError);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Failed to send email",
+          details: resendError.message
+        }),
+        { 
+          status: 500, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders 
+          } 
+        }
+      );
     }
-
-    // Return the success response
-    return successResponse;
     
   } catch (error) {
     console.error("❌ Unhandled error in send-booking-request-notification:", error);
@@ -614,64 +641,6 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 };
-
-// Helper function to get business email directly if the RPC function fails
-async function getBusinessOwnerEmailDirect(businessId: string): Promise<{businessEmail: string | null, error: string | null}> {
-  try {
-    console.log("🔍 Attempting alternative method to get business owner email");
-    
-    // First get the user_id from business_profiles
-    const businessProfileResponse = await fetch(
-      `https://mrueqpffzauvdxmuwhfa.supabase.co/rest/v1/business_profiles?id=eq.${businessId}&select=user_id`,
-      {
-        headers: {
-          "apikey": Deno.env.get("SUPABASE_ANON_KEY") || "",
-        }
-      }
-    );
-    
-    if (!businessProfileResponse.ok) {
-      return { businessEmail: null, error: `Business profile fetch failed: ${businessProfileResponse.status}` };
-    }
-    
-    const businessProfiles = await businessProfileResponse.json();
-    
-    if (!businessProfiles || businessProfiles.length === 0) {
-      return { businessEmail: null, error: "No business profile found" };
-    }
-    
-    const userId = businessProfiles[0].user_id;
-    
-    if (!userId) {
-      return { businessEmail: null, error: "No user ID associated with business profile" };
-    }
-    
-    // Use the Admin API with service role key to get user email directly
-    const userResponse = await fetch(
-      `https://mrueqpffzauvdxmuwhfa.supabase.co/auth/v1/admin/users/${userId}`,
-      {
-        headers: {
-          "apikey": Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
-          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""}`,
-        }
-      }
-    );
-    
-    if (!userResponse.ok) {
-      return { businessEmail: null, error: `User fetch failed: ${userResponse.status}` };
-    }
-    
-    const userData = await userResponse.json();
-    
-    if (!userData || !userData.email) {
-      return { businessEmail: null, error: "No email found in user data" };
-    }
-    
-    return { businessEmail: userData.email, error: null };
-  } catch (error) {
-    return { businessEmail: null, error: error instanceof Error ? error.message : "Unknown error" };
-  }
-}
 
 // Start server
 serve(handler);
