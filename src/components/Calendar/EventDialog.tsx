@@ -98,15 +98,17 @@ export const EventDialog = ({
   // Load additional persons for existing events
   const loadAdditionalPersons = async (targetEventId: string) => {
     try {
-      // FIX BUG 1: For virtual events, ALWAYS use the parent event ID for additional persons
+      // FIXED: For virtual events, ALWAYS use the parent event ID for additional persons
       // This ensures all recurring instances show the same additional persons
-      const actualEventId = isVirtualEvent && eventId ? getParentEventId(eventId) : targetEventId;
+      const actualEventId = isVirtualEvent && eventId ? getParentEventId(eventId) : 
+                            (isVirtualInstance(targetEventId) ? getParentEventId(targetEventId) : targetEventId);
       
       console.log('🔍 Loading additional persons:', {
         targetEventId,
         actualEventId,
         isVirtualEvent,
-        eventId
+        eventId,
+        isVirtualInstance: isVirtualInstance(targetEventId)
       });
       
       const { data: customers, error } = await supabase
@@ -146,16 +148,30 @@ export const EventDialog = ({
   // Load existing files for the event
   const loadExistingFiles = async (targetEventId: string) => {
     try {
+      // FIXED: For virtual events, ALWAYS use the parent event ID for files
+      // This ensures all recurring instances show the same files
+      const actualEventId = isVirtualEvent && eventId ? getParentEventId(eventId) : 
+                            (isVirtualInstance(targetEventId) ? getParentEventId(targetEventId) : targetEventId);
+      
+      console.log('📁 Loading existing files:', {
+        targetEventId,
+        actualEventId,
+        isVirtualEvent,
+        eventId,
+        isVirtualInstance: isVirtualInstance(targetEventId)
+      });
+
       const { data: eventFiles, error } = await supabase
         .from('event_files')
         .select('*')
-        .eq('event_id', targetEventId);
+        .eq('event_id', actualEventId);
 
       if (error) {
         console.error('Error loading event files:', error);
         return;
       }
 
+      console.log('✅ Loaded existing files:', eventFiles?.length || 0, 'files for actualEventId:', actualEventId);
       setExistingFiles(eventFiles || []);
     } catch (error) {
       console.error('Error loading existing files:', error);
@@ -165,7 +181,7 @@ export const EventDialog = ({
   useEffect(() => {
     if (open) {
       if (initialData || eventId) {
-        // Load existing files
+        // Load existing files and additional persons
         const targetEventId = eventId || initialData?.id;
         if (targetEventId) {
           loadExistingFiles(targetEventId);
@@ -497,13 +513,15 @@ export const EventDialog = ({
       let result;
       
       if (eventId || initialData) {
-        // Update existing event
+        // Update existing event - for virtual instances, we need to update the parent event
+        const actualEventId = isVirtualEvent && eventId ? getParentEventId(eventId) : (eventId || initialData?.id);
+        
         result = await supabase
           .rpc('save_event_with_persons', {
             p_event_data: eventData,
             p_additional_persons: additionalPersons,
             p_user_id: user.id,
-            p_event_id: eventId || initialData?.id
+            p_event_id: actualEventId
           });
           
         if (result.error) throw result.error;
@@ -513,7 +531,7 @@ export const EventDialog = ({
         // Send emails to all persons for updated event
         await sendEmailToAllPersons({
           ...eventData,
-          id: eventId || initialData?.id
+          id: actualEventId
         }, additionalPersons);
         
         onEventUpdated?.();
