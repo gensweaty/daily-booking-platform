@@ -98,17 +98,15 @@ export const EventDialog = ({
   // Load additional persons for existing events
   const loadAdditionalPersons = async (targetEventId: string) => {
     try {
-      // FIXED: For virtual events, ALWAYS use the parent event ID for additional persons
+      // CRITICAL FIX: Always use parent event ID for virtual instances
       // This ensures all recurring instances show the same additional persons
-      const actualEventId = isVirtualEvent && eventId ? getParentEventId(eventId) : 
-                            (isVirtualInstance(targetEventId) ? getParentEventId(targetEventId) : targetEventId);
+      const actualEventId = isVirtualInstance(targetEventId) ? getParentEventId(targetEventId) : targetEventId;
       
       console.log('🔍 Loading additional persons:', {
         targetEventId,
         actualEventId,
-        isVirtualEvent,
-        eventId,
-        isVirtualInstance: isVirtualInstance(targetEventId)
+        isVirtualInstance: isVirtualInstance(targetEventId),
+        eventId
       });
       
       const { data: customers, error } = await supabase
@@ -142,23 +140,22 @@ export const EventDialog = ({
       }
     } catch (error) {
       console.error('Error loading additional persons:', error);
+      setAdditionalPersons([]);
     }
   };
 
   // Load existing files for the event
   const loadExistingFiles = async (targetEventId: string) => {
     try {
-      // FIXED: For virtual events, ALWAYS use the parent event ID for files
+      // CRITICAL FIX: Always use parent event ID for virtual instances
       // This ensures all recurring instances show the same files
-      const actualEventId = isVirtualEvent && eventId ? getParentEventId(eventId) : 
-                            (isVirtualInstance(targetEventId) ? getParentEventId(targetEventId) : targetEventId);
+      const actualEventId = isVirtualInstance(targetEventId) ? getParentEventId(targetEventId) : targetEventId;
       
       console.log('📁 Loading existing files:', {
         targetEventId,
         actualEventId,
-        isVirtualEvent,
-        eventId,
-        isVirtualInstance: isVirtualInstance(targetEventId)
+        isVirtualInstance: isVirtualInstance(targetEventId),
+        eventId
       });
 
       const { data: eventFiles, error } = await supabase
@@ -175,45 +172,88 @@ export const EventDialog = ({
       setExistingFiles(eventFiles || []);
     } catch (error) {
       console.error('Error loading existing files:', error);
+      setExistingFiles([]);
+    }
+  };
+
+  // Load parent event data for virtual instances
+  const loadParentEventData = async (parentId: string) => {
+    try {
+      console.log('📊 Loading parent event data for ID:', parentId);
+      
+      const { data: parentEvent, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', parentId)
+        .single();
+
+      if (error) {
+        console.error('Error loading parent event:', error);
+        return null;
+      }
+
+      console.log('✅ Loaded parent event data:', parentEvent);
+      return parentEvent;
+    } catch (error) {
+      console.error('Error loading parent event:', error);
+      return null;
     }
   };
 
   useEffect(() => {
     if (open) {
       if (initialData || eventId) {
-        // Load existing files and additional persons
+        // Determine the target event ID and whether it's virtual
         const targetEventId = eventId || initialData?.id;
+        const isTargetVirtual = targetEventId ? isVirtualInstance(targetEventId) : false;
+        
+        console.log('🔄 EventDialog useEffect - Loading event data:', {
+          targetEventId,
+          isTargetVirtual,
+          eventId,
+          initialData: !!initialData
+        });
+        
         if (targetEventId) {
+          // Always load additional persons and files (using parent ID for virtual instances)
           loadExistingFiles(targetEventId);
-          // Load additional persons for existing events
           loadAdditionalPersons(targetEventId);
         }
 
-        // For virtual instances, we need to load parent event data for recurrence info
-        if (isVirtualEvent && eventId) {
+        // Handle form data initialization
+        if (isTargetVirtual && eventId) {
+          // For virtual instances, we need to load parent event data for form fields
+          // but use the virtual instance date
           const parentId = getParentEventId(eventId);
-          // Load parent event for recurrence settings
-          loadParentEventData(parentId);
-        }
-        
-        // Set current event data
-        const eventData = initialData;
-        if (eventData) {
-          setTitle(eventData.title || "");
-          setUserSurname(eventData.user_surname || "");  
-          setUserNumber(eventData.user_number || "");
-          setSocialNetworkLink(eventData.social_network_link || "");
-          setEventNotes(eventData.event_notes || "");
-          setEventName(eventData.event_name || "");
-          setPaymentStatus(eventData.payment_status || "");
-          setPaymentAmount(eventData.payment_amount?.toString() || "");
+          const instanceDate = getInstanceDate(eventId);
           
-          // Handle date synchronization for virtual instances with proper timezone conversion
-          if (isVirtualEvent && eventId) {
-            const instanceDate = getInstanceDate(eventId);
-            if (instanceDate && eventData) {
-              const baseStart = new Date(eventData.start_date);
-              const baseEnd = new Date(eventData.end_date);
+          console.log('🔍 Virtual instance detected:', {
+            virtualId: eventId,
+            parentId,
+            instanceDate
+          });
+          
+          // Load parent event data for form initialization
+          loadParentEventData(parentId).then(parentData => {
+            if (parentData && instanceDate) {
+              // Set form fields from parent event
+              setTitle(parentData.title || "");
+              setUserSurname(parentData.user_surname || "");  
+              setUserNumber(parentData.user_number || "");
+              setSocialNetworkLink(parentData.social_network_link || "");
+              setEventNotes(parentData.event_notes || "");
+              setEventName(parentData.event_name || "");
+              setPaymentStatus(parentData.payment_status || "");
+              setPaymentAmount(parentData.payment_amount?.toString() || "");
+              
+              // Set recurrence info from parent
+              setIsRecurring(parentData.is_recurring || false);
+              setRepeatPattern(parentData.repeat_pattern || "");
+              setRepeatUntil(parentData.repeat_until || "");
+              
+              // Calculate instance-specific dates
+              const baseStart = new Date(parentData.start_date);
+              const baseEnd = new Date(parentData.end_date);
               
               const [year, month, day] = instanceDate.split('-');
               const newStart = new Date(baseStart);
@@ -221,36 +261,44 @@ export const EventDialog = ({
               const newEnd = new Date(baseEnd);
               newEnd.setFullYear(+year, +month - 1, +day);
               
-              // Use proper timezone conversion
               setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
               setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
-            } else {
-              // Use proper timezone conversion for regular dates
-              setStartDate(isoToLocalDateTimeInput(eventData.start_date));
-              setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+              
+              console.log('✅ Virtual instance form initialized with parent data');
             }
-          } else {
-            // Use proper timezone conversion for all date inputs
-            setStartDate(isoToLocalDateTimeInput(eventData.start_date));
-            setEndDate(isoToLocalDateTimeInput(eventData.end_date));
-          }
+          });
           
-          // Fix: Always load recurrence settings, not just for non-virtual events
-          setIsRecurring(eventData.is_recurring || false);
-          setRepeatPattern(eventData.repeat_pattern || "");
-          setRepeatUntil(eventData.repeat_until || "");
+        } else if (initialData) {
+          // Regular event data initialization
+          setTitle(initialData.title || "");
+          setUserSurname(initialData.user_surname || "");  
+          setUserNumber(initialData.user_number || "");
+          setSocialNetworkLink(initialData.social_network_link || "");
+          setEventNotes(initialData.event_notes || "");
+          setEventName(initialData.event_name || "");
+          setPaymentStatus(initialData.payment_status || "");
+          setPaymentAmount(initialData.payment_amount?.toString() || "");
+          
+          // Use proper timezone conversion for all date inputs
+          setStartDate(isoToLocalDateTimeInput(initialData.start_date));
+          setEndDate(isoToLocalDateTimeInput(initialData.end_date));
+          
+          // Set recurrence settings
+          setIsRecurring(initialData.is_recurring || false);
+          setRepeatPattern(initialData.repeat_pattern || "");
+          setRepeatUntil(initialData.repeat_until || "");
+          
+          console.log('✅ Regular event form initialized');
         }
       } else if (selectedDate) {
-        // Creating new event - use proper timezone conversion
+        // Creating new event - reset all fields
         const startDateTime = isoToLocalDateTimeInput(selectedDate.toISOString());
         const endDateTime = new Date(selectedDate.getTime() + 60 * 60 * 1000);
         
         setStartDate(startDateTime);
         setEndDate(isoToLocalDateTimeInput(endDateTime.toISOString()));
         
-        // Reset additional persons for new event
-        setAdditionalPersons([]);
-        // Reset all other fields for new event
+        // Reset all fields for new event
         setTitle("");
         setUserSurname("");
         setUserNumber("");
@@ -264,29 +312,12 @@ export const EventDialog = ({
         setRepeatUntil("");
         setFiles([]);
         setExistingFiles([]);
+        setAdditionalPersons([]);
+        
+        console.log('✅ New event form initialized');
       }
     }
   }, [open, selectedDate, initialData, eventId, isVirtualEvent]);
-
-  const loadParentEventData = async (parentId: string) => {
-    try {
-      const { data: parentEvent, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', parentId)
-        .single();
-
-      if (error) throw error;
-
-      if (parentEvent) {
-        setIsRecurring(parentEvent.is_recurring || false);
-        setRepeatPattern(parentEvent.repeat_pattern || "");
-        setRepeatUntil(parentEvent.repeat_until || "");
-      }
-    } catch (error) {
-      console.error('Error loading parent event:', error);
-    }
-  };
 
   const resetForm = () => {
     setTitle("");
@@ -345,7 +376,6 @@ export const EventDialog = ({
     await Promise.all(uploadPromises);
   };
 
-  // Enhanced email sending function that handles multiple recipients with proper language support
   const sendEmailToAllPersons = async (eventData: any, additionalPersons: any[] = []) => {
     try {
       console.log(`🔔 Starting email notification process for event: ${eventData.title || eventData.user_surname}`);
@@ -437,7 +467,6 @@ export const EventDialog = ({
     }
   };
 
-  // Helper function to validate email format
   const isValidEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
@@ -457,9 +486,10 @@ export const EventDialog = ({
     // Fix: Validate recurring event data for BOTH new and existing events
     if (isRecurring) {
       if (!repeatPattern || !repeatUntil) {
-        toast.error({
+        toast({
           title: t("common.error"),
-          description: "Please select a repeat pattern and end date for recurring events"
+          description: "Please select a repeat pattern and end date for recurring events",
+          variant: "destructive"
         });
         return;
       }
@@ -468,9 +498,10 @@ export const EventDialog = ({
       const repeatUntilObj = new Date(repeatUntil);
       
       if (repeatUntilObj <= startDateObj) {
-        toast.error({
+        toast({
           title: t("common.error"), 
-          description: "Repeat until date must be after the event start date"
+          description: "Repeat until date must be after the event start date",
+          variant: "destructive"
         });
         return;
       }
@@ -513,8 +544,14 @@ export const EventDialog = ({
       let result;
       
       if (eventId || initialData) {
-        // Update existing event - for virtual instances, we need to update the parent event
-        const actualEventId = isVirtualEvent && eventId ? getParentEventId(eventId) : (eventId || initialData?.id);
+        // CRITICAL FIX: For virtual instances, always update the parent event
+        const actualEventId = (isVirtualEvent && eventId) ? getParentEventId(eventId) : (eventId || initialData?.id);
+        
+        console.log('🔄 Updating event:', {
+          originalEventId: eventId || initialData?.id,
+          actualEventId,
+          isVirtualEvent
+        });
         
         result = await supabase
           .rpc('save_event_with_persons', {
@@ -526,7 +563,10 @@ export const EventDialog = ({
           
         if (result.error) throw result.error;
         
-        toast.event.updated();
+        toast({
+          title: t("events.eventUpdated"),
+          description: t("events.eventUpdatedDescription")
+        });
         
         // Send emails to all persons for updated event
         await sendEmailToAllPersons({
@@ -568,9 +608,15 @@ export const EventDialog = ({
         }, additionalPersons);
 
         if (isRecurring) {
-          toast.event.createdRecurring();
+          toast({
+            title: t("events.recurringEventCreated"),
+            description: t("events.recurringEventCreatedDescription")
+          });
         } else {
-          toast.event.created();
+          toast({
+            title: t("events.eventCreated"),
+            description: t("events.eventCreatedDescription")
+          });
         }
         
         onEventCreated?.();
@@ -582,7 +628,8 @@ export const EventDialog = ({
       console.error('Error saving event:', error);
       toast({
         title: t("common.error"),
-        description: error.message || "Failed to save event"
+        description: error.message || "Failed to save event",
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);
@@ -602,16 +649,20 @@ export const EventDialog = ({
         
       if (error) throw error;
       
-      toast.event.deleted();
+      toast({
+        title: t("events.eventDeleted"),
+        description: t("events.eventDeletedDescription")
+      });
       
       onEventDeleted?.();
       setShowDeleteDialog(false);
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error deleting event:', error);
-      toast.error({
+      toast({
         title: t("common.error"),
-        description: error.message || "Failed to delete event"
+        description: error.message || "Failed to delete event",
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);
@@ -637,16 +688,20 @@ export const EventDialog = ({
         
       if (error) throw error;
       
-      toast.event.seriesDeleted();
+      toast({
+        title: t("events.eventSeriesDeleted"),
+        description: t("events.eventSeriesDeletedDescription")
+      });
       
       onEventDeleted?.();
       setShowDeleteDialog(false);
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error deleting event series:', error);
-      toast.error({
+      toast({
         title: t("common.error"),
-        description: error.message || "Failed to delete event series"
+        description: error.message || "Failed to delete event series",
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);
