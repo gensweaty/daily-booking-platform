@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format, parseISO, startOfMonth, endOfMonth, addMonths } from 'date-fns';
@@ -75,7 +76,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
     gcTime: 10 * 60 * 1000, // 10 minutes - reduced from 30
   });
 
-  // Fixed event stats query with proper unique customer and event counting
+  // Fixed event stats query with proper payment counting for recurring events
   const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
     queryKey: ['optimized-event-stats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async (): Promise<OptimizedEventStats> => {
@@ -116,7 +117,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         };
       }
 
-      // Get additional persons for all events (only for parent events to avoid duplicates)
+      // FIX BUG 2: Get additional persons only for parent events (not child instances)
+      // This prevents payment double counting
       const parentEventIds = allEvents
         ?.filter(event => !event.parent_event_id) // Only parent events
         .map(event => event.id) || [];
@@ -145,6 +147,9 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const dailyBookings = new Map<string, number>();
       const monthlyIncomeMap = new Map<string, number>();
 
+      // FIX BUG 2: Create a map to track which parent events we've already processed for payment
+      const processedParentEvents = new Set<string>();
+
       // Process each event individually
       allEvents?.forEach(event => {
         // Count payment status per event
@@ -157,33 +162,45 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           fullyPaid++;
         }
 
-        // Calculate income for this event (main person + additional persons if it's a parent event)
+        // FIX BUG 2: Calculate income only once per parent event (not per recurring instance)
         let eventIncome = 0;
+        const eventIdForPayment = event.parent_event_id || event.id; // Use parent ID if child, otherwise use own ID
         
-        // Add main person income
-        if ((paymentStatus.includes('partly') || paymentStatus.includes('fully')) && event.payment_amount) {
-          const amount = typeof event.payment_amount === 'number' 
-            ? event.payment_amount 
-            : parseFloat(String(event.payment_amount));
-          if (!isNaN(amount) && amount > 0) {
-            eventIncome += amount;
-          }
-        }
-
-        // Add additional persons income (only for parent events to avoid double counting)
-        if (!event.parent_event_id) {
-          const eventAdditionalPersons = additionalPersons.filter(person => person.event_id === event.id);
-          eventAdditionalPersons.forEach(person => {
-            const personPaymentStatus = person.payment_status || '';
-            if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
-              const amount = typeof person.payment_amount === 'number' 
-                ? person.payment_amount 
-                : parseFloat(String(person.payment_amount));
-              if (!isNaN(amount) && amount > 0) {
-                eventIncome += amount;
-              }
+        // Only process payment if we haven't already processed this parent event
+        if (!processedParentEvents.has(eventIdForPayment)) {
+          processedParentEvents.add(eventIdForPayment);
+          
+          // Add main person income (only from parent event or standalone event)
+          const eventToProcessForPayment = event.parent_event_id 
+            ? allEvents?.find(e => e.id === event.parent_event_id) || event
+            : event;
+            
+          if ((eventToProcessForPayment.payment_status?.includes('partly') || 
+               eventToProcessForPayment.payment_status?.includes('fully')) && 
+              eventToProcessForPayment.payment_amount) {
+            const amount = typeof eventToProcessForPayment.payment_amount === 'number' 
+              ? eventToProcessForPayment.payment_amount 
+              : parseFloat(String(eventToProcessForPayment.payment_amount));
+            if (!isNaN(amount) && amount > 0) {
+              eventIncome += amount;
             }
-          });
+          }
+
+          // Add additional persons income (only for parent events)
+          if (!event.parent_event_id) {
+            const eventAdditionalPersons = additionalPersons.filter(person => person.event_id === event.id);
+            eventAdditionalPersons.forEach(person => {
+              const personPaymentStatus = person.payment_status || '';
+              if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
+                const amount = typeof person.payment_amount === 'number' 
+                  ? person.payment_amount 
+                  : parseFloat(String(person.payment_amount));
+                if (!isNaN(amount) && amount > 0) {
+                  eventIncome += amount;
+                }
+              }
+            });
+          }
         }
 
         totalIncome += eventIncome;
@@ -195,7 +212,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
             const day = format(eventDate, 'yyyy-MM-dd');
             dailyBookings.set(day, (dailyBookings.get(day) || 0) + 1);
 
-            // Monthly income aggregation
+            // Monthly income aggregation (only add income if we processed payment for this event)
             if (eventIncome > 0) {
               const month = format(eventDate, 'MMM yyyy');
               monthlyIncomeMap.set(month, (monthlyIncomeMap.get(month) || 0) + eventIncome);
@@ -232,12 +249,13 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         events: allEvents || []
       };
 
-      console.log('Fixed event stats result:', {
+      console.log('🔧 Fixed event stats result (Bug 2 - No payment double counting):', {
         total: result.total,
         partlyPaid: result.partlyPaid,
         fullyPaid: result.fullyPaid,
         totalIncome: result.totalIncome,
-        additionalPersonsCount: additionalPersons.length
+        additionalPersonsCount: additionalPersons.length,
+        processedParentEventsCount: processedParentEvents.size
       });
 
       return result;

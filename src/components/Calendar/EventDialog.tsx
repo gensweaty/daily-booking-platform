@@ -98,8 +98,16 @@ export const EventDialog = ({
   // Load additional persons for existing events
   const loadAdditionalPersons = async (targetEventId: string) => {
     try {
-      // For virtual events, get the parent event ID for additional persons
+      // FIX BUG 1: For virtual events, ALWAYS use the parent event ID for additional persons
+      // This ensures all recurring instances show the same additional persons
       const actualEventId = isVirtualEvent && eventId ? getParentEventId(eventId) : targetEventId;
+      
+      console.log('🔍 Loading additional persons:', {
+        targetEventId,
+        actualEventId,
+        isVirtualEvent,
+        eventId
+      });
       
       const { data: customers, error } = await supabase
         .from('customers')
@@ -124,8 +132,11 @@ export const EventDialog = ({
           paymentAmount: customer.payment_amount?.toString() || ''
         }));
         
-        console.log('Loaded additional persons:', mappedPersons);
+        console.log('✅ Loaded additional persons:', mappedPersons.length, 'persons for actualEventId:', actualEventId);
         setAdditionalPersons(mappedPersons);
+      } else {
+        console.log('ℹ️ No additional persons found for actualEventId:', actualEventId);
+        setAdditionalPersons([]);
       }
     } catch (error) {
       console.error('Error loading additional persons:', error);
