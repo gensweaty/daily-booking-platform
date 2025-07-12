@@ -1,6 +1,4 @@
 
-
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -17,7 +15,6 @@ export const translations: TranslationType = {
     waitTimeRemaining: "დარჩენილი დრო: {{minutes}} წუთი {{seconds}} წამი",
     save: "შენახვა",
     delete: "წაშლა",
-    next: "შემდეგი",
     previous: "წინა",
     search: "ძიება",
     filter: "ფილტრი",
@@ -51,7 +48,6 @@ export const translations: TranslationType = {
     forgotPassword: "დაგავიწყდათ პაროლი?",
     noAccount: "არ გაქვთ ანგარიში?",
     haveAccount: "უკვე გაქვთ ანგარიში?",
-    signOut: "გასვლა",
     resetPassword: "პაროლის აღდგენა",
     confirmPassword: "პაროლის დადასტურება",
     sendResetEmail: "აღდგენის ელ. ფოსტის გაგზავნა",
@@ -104,7 +100,6 @@ export const translations: TranslationType = {
     totalEvents: "მოვლენების რაოდენობა",
     totalTasks: "ამოცანების რაოდენობა",
     totalCustomers: "კლიენტების რაოდენობა",
-    quickActions: "სწრაფი მოქმედებები",
     addEvent: "მოვლენის დამატება",
     addTask: "ამოცანის დამატება",
     addNote: "შენიშვნის დამატება",
@@ -204,7 +199,6 @@ export const translations: TranslationType = {
     newCustomer: "ახალი კლიენტი",
     paymentStatus: "გადახდის სტატუსი",
     paymentAmount: "გადახდის თანხა",
-    eventTime: "მოვლენის დრო",
     eventType: "მოვლენის ტიპი",
     socialNetworkLink: "სოციალური ქსელის ბმული",
     attachFiles: "ფაილების ატვირთვა",
@@ -259,7 +253,6 @@ export const translations: TranslationType = {
     editTask: "ამოცანის რედაქტირება",
     titlePlaceholder: "ამოცანის სათაური...",
     descriptionLabel: "აღწერა",
-    attachFilesLabel: "ფაილების ატვირთვა",
     saveTask: "ამოცანის შენახვა",
     updateTask: "ამოცანის განახლება",
     deleteTask: "ამოცანის წაშლა",
