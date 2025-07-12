@@ -371,7 +371,7 @@ export const EventDialog = ({
     await Promise.all(uploadPromises);
   };
 
-  // Enhanced email sending function that handles multiple recipients with proper language support
+  // FIXED: Enhanced email sending function that sends individual payment status and notes for each person
   const sendEmailToAllPersons = async (eventData: any, additionalPersons: any[] = []) => {
     try {
       console.log(`🔔 Starting email notification process for event: ${eventData.title || eventData.user_surname}`);
@@ -388,25 +388,37 @@ export const EventDialog = ({
         return;
       }
 
-      // Collect all recipients (main customer + additional persons)
-      const recipients: Array<{ email: string; name: string }> = [];
+      // Collect all recipients with their individual data
+      const recipients: Array<{ 
+        email: string; 
+        name: string; 
+        paymentStatus: string;
+        paymentAmount: number | null;
+        eventNotes: string;
+      }> = [];
       
-      // Add main customer if they have a valid email
+      // Add main customer if they have a valid email with their individual data
       const mainCustomerEmail = eventData.social_network_link;
       if (mainCustomerEmail && isValidEmail(mainCustomerEmail)) {
         recipients.push({
           email: mainCustomerEmail,
-          name: eventData.title || eventData.user_surname || ''
+          name: eventData.title || eventData.user_surname || '',
+          paymentStatus: eventData.payment_status || 'not_paid',
+          paymentAmount: eventData.payment_amount || null,
+          eventNotes: eventData.event_notes || ''
         });
       }
       
-      // Add additional persons with valid emails
+      // Add additional persons with valid emails and their individual data
       if (additionalPersons && additionalPersons.length > 0) {
         additionalPersons.forEach(person => {
           if (person.socialNetworkLink && isValidEmail(person.socialNetworkLink)) {
             recipients.push({
               email: person.socialNetworkLink,
-              name: person.userSurname || ''
+              name: person.userSurname || '',
+              paymentStatus: person.paymentStatus || 'not_paid',
+              paymentAmount: person.paymentAmount ? parseFloat(person.paymentAmount) : null,
+              eventNotes: person.eventNotes || ''
             });
           }
         });
@@ -419,25 +431,31 @@ export const EventDialog = ({
       
       console.log(`📧 Found ${recipients.length} recipients for email notifications with language: ${language}`);
       
-      // Send emails to all recipients with proper language
+      // Send emails to all recipients with their individual payment status and notes
       for (const recipient of recipients) {
         try {
+          console.log(`📧 Sending email to ${recipient.email} with individual data:`, {
+            paymentStatus: recipient.paymentStatus,
+            paymentAmount: recipient.paymentAmount,
+            eventNotes: recipient.eventNotes
+          });
+
           const emailResult = await sendEventCreationEmail(
             recipient.email,
             recipient.name,
             businessData.business_name || '',
             eventData.start_date,
             eventData.end_date,
-            eventData.payment_status || 'not_paid',
-            eventData.payment_amount || null,
+            recipient.paymentStatus, // Use individual payment status
+            recipient.paymentAmount, // Use individual payment amount
             businessData.contact_address || '',
             eventData.id,
             language || 'en', // Use current UI language
-            eventData.event_notes || ''
+            recipient.eventNotes // Use individual event notes
           );
           
           if (emailResult?.success) {
-            console.log(`✅ Event creation email sent successfully to: ${recipient.email}`);
+            console.log(`✅ Event creation email sent successfully to: ${recipient.email} with individual data`);
           } else {
             console.warn(`❌ Failed to send event creation email to ${recipient.email}:`, emailResult?.error);
           }
@@ -569,7 +587,7 @@ export const EventDialog = ({
           description: t("events.eventUpdated")
         });
         
-        // Send emails to all persons for updated event
+        // Send emails to all persons for updated event with individual data
         await sendEmailToAllPersons({
           ...eventData,
           id: actualEventId
@@ -602,7 +620,7 @@ export const EventDialog = ({
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
 
-        // Send emails to all persons for new event
+        // Send emails to all persons for new event with individual data
         await sendEmailToAllPersons({
           ...eventData,
           id: newEventId
@@ -715,11 +733,11 @@ export const EventDialog = ({
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
           <DialogHeader>
             <DialogTitle>
-              {eventId || initialData ? t("events.editEvent") : t("events.addNewEvent")}
+              {eventId || initialData ? t("events.editEvent") : t("events.addEvent")}
             </DialogTitle>
           </DialogHeader>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
             <EventDialogFields
               title={title}
               setTitle={setTitle}
@@ -751,41 +769,32 @@ export const EventDialog = ({
               setFiles={setFiles}
               existingFiles={existingFiles}
               setExistingFiles={setExistingFiles}
-              additionalPersons={additionalPersons.map(person => ({
-                ...person,
-                id: person.id || crypto.randomUUID()
-              }))}
+              additionalPersons={additionalPersons}
               setAdditionalPersons={setAdditionalPersons}
+              isVirtualEvent={isVirtualEvent}
               isNewEvent={isNewEvent}
             />
-
-            <div className="flex justify-between">
-              <div className="flex gap-2">
-                {(eventId || initialData) && (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={() => setShowDeleteDialog(true)}
-                    disabled={isLoading}
-                  >
-                    {t("events.deleteEvent")}
-                  </Button>
-                )}
-              </div>
+            
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="flex-1"
+              >
+                {isLoading ? t("common.loading") : (eventId || initialData ? t("common.update") : t("common.add"))}
+              </Button>
               
-              <div className="flex gap-2">
+              {(eventId || initialData) && (
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={() => onOpenChange(false)}
+                  variant="destructive"
+                  onClick={() => setShowDeleteDialog(true)}
                   disabled={isLoading}
+                  className="flex-1 sm:flex-none"
                 >
-                  {t("common.cancel")}
+                  {t("common.delete")}
                 </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? t("common.loading") : eventId || initialData ? t("events.updateEvent") : t("events.createEvent")}
-                </Button>
-              </div>
+              )}
             </div>
           </form>
         </DialogContent>
@@ -796,7 +805,8 @@ export const EventDialog = ({
         onOpenChange={setShowDeleteDialog}
         onDeleteThis={handleDeleteThis}
         onDeleteSeries={handleDeleteSeries}
-        isRecurringEvent={isRecurringEvent}
+        isRecurring={isRecurringEvent}
+        isLoading={isLoading}
       />
     </>
   );
