@@ -1,3 +1,4 @@
+
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -59,7 +60,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     return data || [];
   }, [userId, dateRange.start, dateRange.end]);
 
-  // Fetch events with optimized query
+  // Fetch events with optimized query - ONLY fetch parent events to avoid duplicates
   const fetchEvents = useCallback(async () => {
     if (!userId) return [];
     
@@ -71,6 +72,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       .gte('start_date', dateRange.start.toISOString())
       .lte('start_date', endOfDay(dateRange.end).toISOString())
       .is('deleted_at', null)
+      .is('parent_event_id', null) // ONLY fetch parent events, not child instances
       .order('created_at', { ascending: false });
 
     if (eventsError) {
@@ -102,7 +104,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       };
     }));
 
-    console.log("Retrieved events:", eventsWithFiles.length);
+    console.log("Retrieved parent events:", eventsWithFiles.length);
     return eventsWithFiles;
   }, [userId, dateRange.start, dateRange.end]);
 
@@ -137,7 +139,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     // Return empty array quickly if still loading initial data
     if (isLoadingCustomers || isLoadingEvents) return [];
     
-    console.log("Processing combined data from", customers.length, "customers and", events.length, "events");
+    console.log("Processing combined data from", customers.length, "customers and", events.length, "parent events");
     
     const combined = [];
     
@@ -181,40 +183,14 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     }
 
     // Process events - only add those that aren't represented by customers
-    // Also filter out recurring instances that already have parent events in CRM
-    for (const event of events as EventWithCustomerId[]) {
+    // Since we only fetch parent events now, we don't need to worry about child instances
+    for (const event of (events as EventWithCustomerId[])) {
       if (!event) continue;
       
       // Skip events that have a customer_id that matches one we've already included
       if (event.customer_id && customerIdMap.has(event.customer_id)) {
         console.log(`Skipping event ${event.id} because it's associated with customer ${event.customer_id}`);
         continue;
-      }
-      
-      // IMPORTANT FIX: Skip recurring instances if their parent event is already represented in customers
-      if (event.parent_event_id) {
-        // Check if there's already a customer for the parent event series
-        const parentEventSignature = generateItemSignature({
-          title: event.title,
-          user_number: event.user_number,
-          social_network_link: event.social_network_link,
-          start_date: '' // Don't include date for parent matching
-        });
-        
-        const hasParentCustomer = customers.some(customer => {
-          const customerSignature = generateItemSignature({
-            title: customer.title,
-            user_number: customer.user_number,
-            social_network_link: customer.social_network_link,
-            start_date: ''
-          });
-          return customerSignature === parentEventSignature;
-        });
-        
-        if (hasParentCustomer) {
-          console.log(`Skipping recurring instance ${event.id} because parent event is already in CRM`);
-          continue;
-        }
       }
       
       const signature = generateItemSignature(event);
