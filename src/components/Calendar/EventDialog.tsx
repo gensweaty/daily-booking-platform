@@ -8,7 +8,7 @@ import { EventDialogFields } from "./EventDialogFields";
 import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { sendEventCreationEmail } from "@/lib/api";
+import { sendBookingConfirmationEmail, sendBookingConfirmationToMultipleRecipients } from "@/lib/api";
 import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
 
 interface EventDialogProps {
@@ -371,7 +371,7 @@ export const EventDialog = ({
     await Promise.all(uploadPromises);
   };
 
-  // Enhanced email sending function that handles multiple recipients with proper language support
+  // Enhanced email sending function that sends individual payment data to each recipient
   const sendEmailToAllPersons = async (eventData: any, additionalPersons: any[] = []) => {
     try {
       console.log(`🔔 Starting email notification process for event: ${eventData.title || eventData.user_surname}`);
@@ -383,30 +383,44 @@ export const EventDialog = ({
         .eq('user_id', user?.id)
         .maybeSingle();
       
+      console.log("📊 Business data for email:", businessData);
+      
       if (!businessData) {
         console.warn("❌ Missing business data for event notification - skipping email");
         return;
       }
 
-      // Collect all recipients (main customer + additional persons)
-      const recipients: Array<{ email: string; name: string }> = [];
+      // Collect all recipients with their individual payment data
+      const recipients: Array<{ 
+        email: string; 
+        name: string; 
+        paymentStatus: string; 
+        paymentAmount: number | null;
+        notes: string;
+      }> = [];
       
       // Add main customer if they have a valid email
       const mainCustomerEmail = eventData.social_network_link;
       if (mainCustomerEmail && isValidEmail(mainCustomerEmail)) {
         recipients.push({
           email: mainCustomerEmail,
-          name: eventData.title || eventData.user_surname || ''
+          name: eventData.title || eventData.user_surname || '',
+          paymentStatus: eventData.payment_status || 'not_paid',
+          paymentAmount: eventData.payment_amount || null,
+          notes: eventData.event_notes || ''
         });
       }
       
-      // Add additional persons with valid emails
+      // Add additional persons with their individual payment data
       if (additionalPersons && additionalPersons.length > 0) {
         additionalPersons.forEach(person => {
           if (person.socialNetworkLink && isValidEmail(person.socialNetworkLink)) {
             recipients.push({
               email: person.socialNetworkLink,
-              name: person.userSurname || ''
+              name: person.userSurname || '',
+              paymentStatus: person.paymentStatus || 'not_paid',
+              paymentAmount: person.paymentAmount ? parseFloat(person.paymentAmount) : null,
+              notes: person.eventNotes || ''
             });
           }
         });
@@ -419,21 +433,23 @@ export const EventDialog = ({
       
       console.log(`📧 Found ${recipients.length} recipients for email notifications with language: ${language}`);
       
-      // Send emails to all recipients with proper language
+      // Send individual emails with their own payment data
       for (const recipient of recipients) {
         try {
-          const emailResult = await sendEventCreationEmail(
+          console.log(`📧 Sending email to ${recipient.email} with payment status: ${recipient.paymentStatus}, amount: ${recipient.paymentAmount}, notes: ${recipient.notes}`);
+          
+          const emailResult = await sendBookingConfirmationEmail(
             recipient.email,
             recipient.name,
             businessData.business_name || '',
             eventData.start_date,
             eventData.end_date,
-            eventData.payment_status || 'not_paid',
-            eventData.payment_amount || null,
+            recipient.paymentStatus, // Use individual payment status
+            recipient.paymentAmount, // Use individual payment amount
             businessData.contact_address || '',
             eventData.id,
-            language || 'en', // Use current UI language
-            eventData.event_notes || ''
+            language || 'en',
+            recipient.notes // Use individual notes
           );
           
           if (emailResult?.success) {
@@ -712,7 +728,7 @@ export const EventDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
           <DialogHeader>
             <DialogTitle>
               {eventId || initialData ? t("events.editEvent") : t("events.addNewEvent")}
