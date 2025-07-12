@@ -1,5 +1,6 @@
 
 
+
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -16,7 +17,6 @@ export const translations: TranslationType = {
     waitTimeRemaining: "დარჩენილი დრო: {{minutes}} წუთი {{seconds}} წამი",
     save: "შენახვა",
     delete: "წაშლა",
-    confirm: "დადასტურება",
     back: "უკან",
     next: "შემდეგი",
     previous: "წინა",
@@ -52,7 +52,6 @@ export const translations: TranslationType = {
     forgotPassword: "დაგავიწყდათ პაროლი?",
     noAccount: "არ გაქვთ ანგარიში?",
     haveAccount: "უკვე გაქვთ ანგარიში?",
-    signIn: "შესვლა",
     signUp: "რეგისტრაცია",
     signOut: "გასვლა",
     resetPassword: "პაროლის აღდგენა",
@@ -107,7 +106,6 @@ export const translations: TranslationType = {
     totalEvents: "მოვლენების რაოდენობა",
     totalTasks: "ამოცანების რაოდენობა",
     totalCustomers: "კლიენტების რაოდენობა",
-    totalNotes: "შენიშვნების რაოდენობა",
     recentActivity: "ბოლო აქტივობა",
     quickActions: "სწრაფი მოქმედებები",
     addEvent: "მოვლენის დამატება",
@@ -207,7 +205,6 @@ export const translations: TranslationType = {
     paidPartly: "ნაწილობრივ გადახდილი",
     paidFully: "სრულად გადახდილი",
     newCustomer: "ახალი კლიენტი",
-    customerNotes: "კლიენტის შენიშვნები",
     paymentStatus: "გადახდის სტატუსი",
     paymentAmount: "გადახდის თანხა",
     eventDate: "მოვლენის თარიღი",
@@ -266,7 +263,6 @@ export const translations: TranslationType = {
     editTask: "ამოცანის რედაქტირება",
     titlePlaceholder: "ამოცანის სათაური...",
     descriptionLabel: "აღწერა",
-    priorityLabel: "პრიორიტეტი",
     statusLabel: "სტატუსი",
     attachFilesLabel: "ფაილების ატვირთვა",
     saveTask: "ამოცანის შენახვა",
@@ -308,4 +304,3 @@ export const translations: TranslationType = {
     deleteTaskConfirmation: "ნამდვილად გსურთ ამ ამოცანის წაშლა?"
   }
 };
-
