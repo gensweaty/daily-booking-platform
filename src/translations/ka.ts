@@ -1,4 +1,5 @@
 
+
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -15,7 +16,6 @@ export const translations: TranslationType = {
     waitTimeRemaining: "დარჩენილი დრო: {{minutes}} წუთი {{seconds}} წამი",
     save: "შენახვა",
     delete: "წაშლა",
-    download: "ჩამოტვირთვა",
     upload: "ატვირთვა",
     copy: "კოპირება",
     yes: "კი",
@@ -67,7 +67,6 @@ export const translations: TranslationType = {
     resetPassword: "პაროლის აღდგენა",
     confirmPassword: "პაროლის დადასტურება",
     backToSignIn: "უკან შესვლისკენ",
-    passwordRequired: "პაროლი სავალდებულოა",
     usernameRequired: "მომხმარებლის სახელი სავალდებულოა",
     passwordTooShort: "პაროლი უნდა იყოს მინიმუმ 6 სიმბოლო",
     passwordsDoNotMatch: "პაროლები არ ემთხვევა",
@@ -144,7 +143,6 @@ export const translations: TranslationType = {
     totalTasks: "ამოცანების რაოდენობა",
     totalCustomers: "კლიენტების რაოდენობა",
     addEvent: "მოვლენის დამატება",
-    noRecentActivity: "ბოლო აქტივობა არ არის",
     businessProfile: "ბიზნეს პროფილი",
     businessPage: "ბიზნეს გვერდი",
     bookingRequests: "დაჯავშნის მოთხოვნები",
@@ -270,8 +268,6 @@ export const translations: TranslationType = {
     paymentAmount: "გადახდის თანხა",
     addCustomer: "კლიენტის დამატება",
     editCustomer: "კლიენტის რედაქტირება",
-    saveCustomer: "კლიენტის შენახვა",
-    customerSaved: "კლიენტი შენახულია",
     customerDeleted: "კლიენტი წაშლილია",
     deleteCustomerConfirm: "ნამდვილად გსურთ ამ კლიენტის წაშლა?",
     searchCustomers: "კლიენტების ძიება",
@@ -334,7 +330,6 @@ export const translations: TranslationType = {
     missingUserInfo: "მომხმარებლის ინფორმაცია არ არის",
     customerCreated: "კლიენტი შეიქმნა",
     customerUpdated: "კლიენტი განახლდა",
-    customerDeleted: "კლიენტი წაიშალა",
     noDataToExport: "ექსპორტისთვის მონაცემები არ არის"
   },
   tasks: {
@@ -352,7 +347,6 @@ export const translations: TranslationType = {
     deleteTask: "ამოცანის წაშლა",
     archiveTask: "ამოცანის არქივირება",
     restoreTask: "ამოცანის აღდგენა",
-    assignTask: "ამოცანის მინიჭება",
     unassignTask: "მინიჭების გაუქმება",
     markComplete: "დასრულებულად მონიშვნა",
     markIncomplete: "დაუსრულებლად მონიშვნა",
