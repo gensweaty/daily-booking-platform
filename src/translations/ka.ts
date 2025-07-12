@@ -1,4 +1,5 @@
 
+
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -13,7 +14,6 @@ export const translations: TranslationType = {
     waitBeforeBooking: "გთხოვთ, მოიცადოთ ჯავშნის შემდეგ მოთხოვნამდე",
     rateLimitMessage: "ძალიან ბევრი მოთხოვნა. გთხოვთ, სცადოთ {{waitTime}} წუთის შემდეგ.",
     waitTimeRemaining: "დარჩენილი დრო: {{minutes}} წუთი {{seconds}} წამი",
-    close: "დახურვა",
     save: "შენახვა",
     edit: "რედაქტირება",
     delete: "წაშლა",
@@ -52,7 +52,7 @@ export const translations: TranslationType = {
     usernameLabel: "მომხმარებლის სახელი",
     forgotPassword: "დაგავიწყდათ პაროლი?",
     noAccount: "არ გაქვთ ანგარიში?",
-    hasAccount: "უკვე გაქვთ ანგარიში?",
+    haveAccount: "უკვე გაქვთ ანგარიში?",
     createAccount: "ანგარიშის შექმნა",
     signIn: "შესვლა",
     signUp: "რეგისტრაცია",
@@ -105,7 +105,6 @@ export const translations: TranslationType = {
     tasks: "ამოცანები",
     notes: "შენიშვნები",
     profile: "პროფილი",
-    settings: "პარამეტრები",
     logout: "გასვლა",
     stats: "სტატისტიკა",
     totalEvents: "მოვლენების რაოდენობა",
@@ -211,7 +210,6 @@ export const translations: TranslationType = {
     paidPartly: "ნაწილობრივ გადახდილი",
     paidFully: "სრულად გადახდილი",
     newCustomer: "ახალი კლიენტი",
-    customerEmail: "კლიენტის ელ. ფოსტა",
     customerPhone: "კლიენტის ტელეფონი",
     customerNotes: "კლიენტის შენიშვნები",
     paymentStatus: "გადახდის სტატუსი",
@@ -272,7 +270,6 @@ export const translations: TranslationType = {
     editTask: "ამოცანის რედაქტირება",
     titlePlaceholder: "ამოცანის სათაური...",
     descriptionLabel: "აღწერა",
-    dueDateLabel: "ვადის თარიღი",
     reminderLabel: "შეხსენების დრო",
     priorityLabel: "პრიორიტეტი",
     statusLabel: "სტატუსი",
@@ -316,3 +313,4 @@ export const translations: TranslationType = {
     deleteTaskConfirmation: "ნამდვილად გსურთ ამ ამოცანის წაშლა?"
   }
 };
+
