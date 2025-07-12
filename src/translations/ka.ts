@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -14,7 +15,6 @@ export const translations: TranslationType = {
     waitTimeRemaining: "დარჩენილი დრო: {{minutes}} წუთი {{seconds}} წამი",
     save: "შენახვა",
     delete: "წაშლა",
-    search: "ძიება",
     filter: "ფილტრი",
     clear: "გასუფთავება",
     view: "ნახვა",
@@ -33,8 +33,6 @@ export const translations: TranslationType = {
     all: "ყველა",
     selectFile: "ფაილის არჩევა",
     fileUploaded: "ფაილი ატვირთულია",
-    fileDeleted: "ფაილი წაიშალა",
-    previous: "წინა",
     of: "დან",
     attachments: "დანართები",
     refreshing: "განახლება...",
@@ -55,7 +53,8 @@ export const translations: TranslationType = {
     successMessage: "წარმატებული ოპერაცია",
     authRequired: "ავტორიზაცია საჭიროა",
     saving: "შენახვა...",
-    select: "აირჩიეთ"
+    select: "აირჩიეთ",
+    fileDeleted: "ფაილი წაიშალა"
   },
   auth: {
     welcome: "კეთილი იყოს თქვენი მობრძანება!",
@@ -71,7 +70,6 @@ export const translations: TranslationType = {
     resetPassword: "პაროლის აღდგენა",
     confirmPassword: "პაროლის დადასტურება",
     backToSignIn: "უკან შესვლისკენ",
-    checkEmail: "შეამოწმეთ თქვენი ელ. ფოსტა",
     resetEmailSent: "პაროლის აღდგენის ინსტრუქციები გამოგზავნილია",
     invalidCredentials: "არასწორი მონაცემები",
     emailRequired: "ელ. ფოსტა სავალდებულოა",
@@ -101,7 +99,6 @@ export const translations: TranslationType = {
     twoFactorRequired: "ორფაქტორიანი ავთენტიფიკაცია საჭიროა",
     twoFactorCode: "ორფაქტორიანი კოდი",
     invalidTwoFactorCode: "არასწორი ორფაქტორიანი კოდი",
-    sendResetEmail: "აღდგენის ელ. ფოსტის გაგზავნა",
     signInCta: "შესვლა",
     signUpCta: "რეგისტრაცია",
     agreeToTerms: "ვეთანხმები წესებს",
@@ -153,7 +150,6 @@ export const translations: TranslationType = {
     totalTasks: "ამოცანების რაოდენობა",
     totalCustomers: "კლიენტების რაოდენობა",
     addEvent: "მოვლენის დამატება",
-    addTask: "ამოცანის დამატება",
     addNote: "შენიშვნის დამატება",
     addCustomer: "კლიენტის დამატება",
     viewAll: "ყველას ნახვა",
@@ -216,7 +212,6 @@ export const translations: TranslationType = {
     exportSuccessMessage: "მონაცემები წარმატებით ექსპორტირებულია",
     changePassword: "პაროლის შეცვლა",
     subtitle: "ქვეთავსატარი",
-    profile: "პროფილი",
     category: "კატეგორია",
     details: "დეტალები",
     additionalInfo: "დამატებითი ინფორმაცია",
@@ -225,7 +220,6 @@ export const translations: TranslationType = {
     financialSummary: "ფინანსური შედეგები",
     summaryStatistics: "შემაჯამებელი სტატისტიკა",
     eventsData: "მოვლენების მონაცემები",
-    totalCustomers: "კლიენტების რაოდენობა",
     withBooking: "დაჯავშნით"
   },
   bookingCalendar: {
@@ -238,7 +232,6 @@ export const translations: TranslationType = {
     paymentAmount: "გადახდის თანხა",
     startDateTime: "დაწყების თარიღი და დრო",
     endDateTime: "დასრულების თარიღი და დრო",
-    eventType: "მოვლენის ტიპი",
     eventNotes: "მოვლენის შენიშვნები",
     notPaid: "არ არის გადახდილი",
     paidPartly: "ნაწილობრივ გადახდილი",
@@ -269,7 +262,8 @@ export const translations: TranslationType = {
     minutes: "წუთი",
     hours: "საათი",
     days: "დღე",
-    deleteEventConfirmMessage: "ნამდვილად გსურთ ამ მოვლენის წაშლა?"
+    deleteEventConfirmMessage: "ნამდვილად გსურთ ამ მოვლენის წაშლა?",
+    eventType: "მოვლენის ტიპი"
   },
   crm: {
     title: "კლიენტები",
@@ -285,7 +279,6 @@ export const translations: TranslationType = {
     newCustomer: "ახალი კლიენტი",
     paymentStatus: "გადახდის სტატუსი",
     paymentAmount: "გადახდის თანხა",
-    eventType: "მოვლენის ტიპი",
     socialNetworkLink: "სოციალური ქსელის ბმული",
     attachFiles: "ფაილების ატვირთვა",
     createEvent: "მოვლენის შექმნა",
@@ -370,7 +363,6 @@ export const translations: TranslationType = {
     editTask: "ამოცანის რედაქტირება",
     titlePlaceholder: "ამოცანის სათაური...",
     descriptionLabel: "აღწერა",
-    saveTask: "ამოცანის შენახვა",
     updateTask: "ამოცანის განახლება",
     deleteTask: "ამოცანის წაშლა",
     archiveTask: "ამოცანის არქივირება",
@@ -417,7 +409,6 @@ export const translations: TranslationType = {
     deadline: "ვადა",
     reminder: "შეხსენება",
     setDeadline: "ვადის დაყენება",
-    setReminder: "შეხსენების დაყენება",
     deadlineSet: "ვადა დაყენდა",
     reminderSet: "შეხსენება დაყენდა",
     reminderBeforeDeadline: "შეხსენება ვადამდე",
