@@ -95,20 +95,33 @@ export const EventDialog = ({
   const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
   const isRecurringEvent = initialData?.is_recurring || isVirtualEvent || isRecurring;
 
-  // Load additional persons for existing events
+  // FIXED: Load additional persons for existing events - always use parent event ID for recurring events
   const loadAdditionalPersons = async (targetEventId: string) => {
     try {
-      // FIXED: For virtual events, ALWAYS use the parent event ID for additional persons
-      // This ensures all recurring instances show the same additional persons
-      const actualEventId = isVirtualEvent && eventId ? getParentEventId(eventId) : 
-                            (isVirtualInstance(targetEventId) ? getParentEventId(targetEventId) : targetEventId);
+      // For ANY recurring event (virtual or real child), ALWAYS use the parent event ID
+      // This ensures we load additional persons from the parent event where they're stored
+      let actualEventId = targetEventId;
+      
+      // If it's a virtual instance, extract parent ID
+      if (isVirtualInstance(targetEventId)) {
+        actualEventId = getParentEventId(targetEventId);
+        console.log('🔍 Virtual instance detected, using parent ID:', actualEventId);
+      } else if (initialData?.parent_event_id) {
+        // If it's a real child instance with parent_event_id, use the parent
+        actualEventId = initialData.parent_event_id;
+        console.log('🔍 Child instance detected, using parent ID:', actualEventId);
+      } else if (initialData?.is_recurring && !initialData?.parent_event_id) {
+        // If it's the parent event itself, use its own ID
+        actualEventId = targetEventId;
+        console.log('🔍 Parent recurring event, using own ID:', actualEventId);
+      }
       
       console.log('🔍 Loading additional persons:', {
         targetEventId,
         actualEventId,
         isVirtualEvent,
-        eventId,
-        isVirtualInstance: isVirtualInstance(targetEventId)
+        parentEventId: initialData?.parent_event_id,
+        isRecurring: initialData?.is_recurring
       });
       
       const { data: customers, error } = await supabase
@@ -145,20 +158,33 @@ export const EventDialog = ({
     }
   };
 
-  // Load existing files for the event
+  // FIXED: Load existing files for the event - always use parent event ID for recurring events
   const loadExistingFiles = async (targetEventId: string) => {
     try {
-      // FIXED: For virtual events, ALWAYS use the parent event ID for files
-      // This ensures all recurring instances show the same files
-      const actualEventId = isVirtualEvent && eventId ? getParentEventId(eventId) : 
-                            (isVirtualInstance(targetEventId) ? getParentEventId(targetEventId) : targetEventId);
+      // For ANY recurring event (virtual or real child), ALWAYS use the parent event ID
+      // This ensures we load files from the parent event where they're stored
+      let actualEventId = targetEventId;
+      
+      // If it's a virtual instance, extract parent ID
+      if (isVirtualInstance(targetEventId)) {
+        actualEventId = getParentEventId(targetEventId);
+        console.log('📁 Virtual instance detected, using parent ID for files:', actualEventId);
+      } else if (initialData?.parent_event_id) {
+        // If it's a real child instance with parent_event_id, use the parent
+        actualEventId = initialData.parent_event_id;
+        console.log('📁 Child instance detected, using parent ID for files:', actualEventId);
+      } else if (initialData?.is_recurring && !initialData?.parent_event_id) {
+        // If it's the parent event itself, use its own ID
+        actualEventId = targetEventId;
+        console.log('📁 Parent recurring event, using own ID for files:', actualEventId);
+      }
       
       console.log('📁 Loading existing files:', {
         targetEventId,
         actualEventId,
         isVirtualEvent,
-        eventId,
-        isVirtualInstance: isVirtualInstance(targetEventId)
+        parentEventId: initialData?.parent_event_id,
+        isRecurring: initialData?.is_recurring
       });
 
       const { data: eventFiles, error } = await supabase
@@ -457,9 +483,10 @@ export const EventDialog = ({
     // Fix: Validate recurring event data for BOTH new and existing events
     if (isRecurring) {
       if (!repeatPattern || !repeatUntil) {
-        toast.error({
+        toast({
           title: t("common.error"),
-          description: "Please select a repeat pattern and end date for recurring events"
+          description: "Please select a repeat pattern and end date for recurring events",
+          variant: "destructive"
         });
         return;
       }
@@ -468,9 +495,10 @@ export const EventDialog = ({
       const repeatUntilObj = new Date(repeatUntil);
       
       if (repeatUntilObj <= startDateObj) {
-        toast.error({
+        toast({
           title: t("common.error"), 
-          description: "Repeat until date must be after the event start date"
+          description: "Repeat until date must be after the event start date",
+          variant: "destructive"
         });
         return;
       }
@@ -513,8 +541,18 @@ export const EventDialog = ({
       let result;
       
       if (eventId || initialData) {
-        // Update existing event - for virtual instances, we need to update the parent event
-        const actualEventId = isVirtualEvent && eventId ? getParentEventId(eventId) : (eventId || initialData?.id);
+        // FIXED: Update existing event - for virtual instances AND child instances, update the parent event
+        let actualEventId = eventId || initialData?.id;
+        
+        if (isVirtualEvent && eventId) {
+          // Virtual instance - update parent
+          actualEventId = getParentEventId(eventId);
+          console.log('🔄 Virtual instance update - using parent ID:', actualEventId);
+        } else if (initialData?.parent_event_id) {
+          // Real child instance - update parent
+          actualEventId = initialData.parent_event_id;
+          console.log('🔄 Child instance update - using parent ID:', actualEventId);
+        }
         
         result = await supabase
           .rpc('save_event_with_persons', {
@@ -526,7 +564,10 @@ export const EventDialog = ({
           
         if (result.error) throw result.error;
         
-        toast.event.updated();
+        toast({
+          title: t("common.success"),
+          description: t("events.eventUpdated")
+        });
         
         // Send emails to all persons for updated event
         await sendEmailToAllPersons({
@@ -568,9 +609,15 @@ export const EventDialog = ({
         }, additionalPersons);
 
         if (isRecurring) {
-          toast.event.createdRecurring();
+          toast({
+            title: t("common.success"),
+            description: t("events.recurringEventCreated")
+          });
         } else {
-          toast.event.created();
+          toast({
+            title: t("common.success"),
+            description: t("events.eventCreated")
+          });
         }
         
         onEventCreated?.();
@@ -582,7 +629,8 @@ export const EventDialog = ({
       console.error('Error saving event:', error);
       toast({
         title: t("common.error"),
-        description: error.message || "Failed to save event"
+        description: error.message || "Failed to save event",
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);
@@ -602,16 +650,20 @@ export const EventDialog = ({
         
       if (error) throw error;
       
-      toast.event.deleted();
+      toast({
+        title: t("common.success"),
+        description: t("events.eventDeleted")
+      });
       
       onEventDeleted?.();
       setShowDeleteDialog(false);
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error deleting event:', error);
-      toast.error({
+      toast({
         title: t("common.error"),
-        description: error.message || "Failed to delete event"
+        description: error.message || "Failed to delete event",
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);
@@ -637,16 +689,20 @@ export const EventDialog = ({
         
       if (error) throw error;
       
-      toast.event.seriesDeleted();
+      toast({
+        title: t("common.success"),
+        description: t("events.seriesDeleted")
+      });
       
       onEventDeleted?.();
       setShowDeleteDialog(false);
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error deleting event series:', error);
-      toast.error({
+      toast({
         title: t("common.error"),
-        description: error.message || "Failed to delete event series"
+        description: error.message || "Failed to delete event series",
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);
