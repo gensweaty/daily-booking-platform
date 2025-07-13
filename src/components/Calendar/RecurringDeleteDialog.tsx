@@ -10,6 +10,7 @@ interface RecurringDeleteDialogProps {
   onDeleteThis: () => void;
   onDeleteSeries: () => void;
   isRecurringEvent: boolean;
+  isLoading?: boolean;
 }
 
 export const RecurringDeleteDialog = ({
@@ -17,7 +18,8 @@ export const RecurringDeleteDialog = ({
   onOpenChange,
   onDeleteThis,
   onDeleteSeries,
-  isRecurringEvent
+  isRecurringEvent,
+  isLoading = false
 }: RecurringDeleteDialogProps) => {
   const { t } = useLanguage();
 
@@ -37,14 +39,16 @@ export const RecurringDeleteDialog = ({
               <Button
                 variant="outline"
                 onClick={() => onOpenChange(false)}
+                disabled={isLoading}
               >
                 {t("common.cancel")}
               </Button>
               <Button
                 variant="destructive"
                 onClick={onDeleteThis}
+                disabled={isLoading}
               >
-                {t("events.deleteEvent")}
+                {isLoading ? t("common.loading") : t("events.deleteEvent")}
               </Button>
             </div>
           </div>
@@ -69,20 +73,23 @@ export const RecurringDeleteDialog = ({
               variant="outline"
               onClick={onDeleteThis}
               className="w-full"
+              disabled={isLoading}
             >
-              {t("recurring.deleteOnlyThis")}
+              {isLoading ? t("common.loading") : t("recurring.deleteOnlyThis")}
             </Button>
             <Button
               variant="destructive"
               onClick={onDeleteSeries}
               className="w-full"
+              disabled={isLoading}
             >
-              {t("recurring.deleteWholeSeries")}
+              {isLoading ? t("common.loading") : t("recurring.deleteWholeSeries")}
             </Button>
             <Button
               variant="ghost"
               onClick={() => onOpenChange(false)}
               className="w-full"
+              disabled={isLoading}
             >
               {t("common.cancel")}
             </Button>

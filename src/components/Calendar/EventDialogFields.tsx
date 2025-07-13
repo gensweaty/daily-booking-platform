@@ -81,6 +81,8 @@ interface EventDialogFieldsProps {
   // New props for additional persons management
   additionalPersons: PersonData[];
   setAdditionalPersons: (persons: PersonData[]) => void;
+  // Add missing prop
+  isVirtualEvent?: boolean;
 }
 
 export const EventDialogFields = ({
@@ -118,7 +120,8 @@ export const EventDialogFields = ({
   setRepeatUntil,
   isNewEvent = false,
   additionalPersons,
-  setAdditionalPersons
+  setAdditionalPersons,
+  isVirtualEvent = false
 }: EventDialogFieldsProps) => {
   const {
     t,
