@@ -805,7 +805,7 @@ export const EventDialog = ({
         onOpenChange={setShowDeleteDialog}
         onDeleteThis={handleDeleteThis}
         onDeleteSeries={handleDeleteSeries}
-        isRecurring={isRecurringEvent}
+        isRecurringEvent={isRecurringEvent}
         isLoading={isLoading}
       />
     </>
