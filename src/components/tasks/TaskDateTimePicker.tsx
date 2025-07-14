@@ -130,7 +130,7 @@ export const TaskDateTimePicker = ({
               {placeholder}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
+          <PopoverContent className="w-auto p-0 max-w-[95vw]" align="start" side="bottom" sideOffset={8}>
             <div className="p-3">
               {/* Current time display */}
               <div className="mb-3 p-2 bg-muted rounded-md">
@@ -151,35 +151,39 @@ export const TaskDateTimePicker = ({
                 className="pointer-events-auto"
               />
               
-              <div className="flex gap-2 mt-3">
-                <Select value={selectedHour} onValueChange={setSelectedHour}>
-                  <SelectTrigger className="w-20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {hours.map((hour) => (
-                      <SelectItem key={hour} value={hour}>
-                        {hour}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={selectedMinute} onValueChange={setSelectedMinute}>
-                  <SelectTrigger className="w-20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {minutes.map((minute) => (
-                      <SelectItem key={minute} value={minute}>
-                        {minute}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {/* Responsive time selection */}
+              <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                <div className="flex gap-2 flex-1">
+                  <Select value={selectedHour} onValueChange={setSelectedHour}>
+                    <SelectTrigger className="w-full sm:w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[200px]" position="popper" side="bottom" sideOffset={4}>
+                      {hours.map((hour) => (
+                        <SelectItem key={hour} value={hour}>
+                          {hour}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={selectedMinute} onValueChange={setSelectedMinute}>
+                    <SelectTrigger className="w-full sm:w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[200px]" position="popper" side="bottom" sideOffset={4}>
+                      {minutes.map((minute) => (
+                        <SelectItem key={minute} value={minute}>
+                          {minute}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button 
                   onClick={handleDateTimeChange} 
                   disabled={!selectedDate || isValidating}
                   size="sm"
+                  className="w-full sm:w-auto"
                 >
                   {isValidating ? "Validating..." : "Set"}
                 </Button>
