@@ -133,7 +133,7 @@ export const TaskDateTimePicker = ({
           <PopoverContent 
             className="w-auto p-0 min-w-[300px] max-w-[95vw]" 
             align="start" 
-            side="bottom" 
+            side="top" 
             sideOffset={8}
             avoidCollisions={true}
             collisionPadding={10}
@@ -168,7 +168,7 @@ export const TaskDateTimePicker = ({
                     <SelectContent 
                       className="max-h-[200px] z-[100]" 
                       position="popper" 
-                      side="bottom" 
+                      side="top" 
                       sideOffset={4}
                       avoidCollisions={true}
                       collisionPadding={8}
@@ -187,7 +187,7 @@ export const TaskDateTimePicker = ({
                     <SelectContent 
                       className="max-h-[200px] z-[100]" 
                       position="popper" 
-                      side="bottom" 
+                      side="top" 
                       sideOffset={4}
                       avoidCollisions={true}
                       collisionPadding={8}
