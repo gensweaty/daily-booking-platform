@@ -733,7 +733,12 @@ export const EventDialog = ({
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
           <DialogHeader>
             <DialogTitle>
-              {eventId || initialData ? t("events.editEvent") : t("events.addEvent")}
+              {eventId || initialData 
+                ? t("events.editEvent") 
+                : language === 'ka' 
+                  ? "მოვლენის დამატება" 
+                  : t("events.addEvent")
+              }
             </DialogTitle>
           </DialogHeader>
           
