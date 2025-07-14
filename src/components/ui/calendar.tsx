@@ -7,18 +7,18 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { useTheme } from "next-themes";
-import { georgianMonths, georgianWeekdays } from "@/lib/dateLocalization";
+import { georgianMonths, georgianWeekdaysShort } from "@/lib/dateLocalization";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
-// Enhanced Georgian locale object with proper month and weekday support
+// Enhanced Georgian locale object with proper month and weekday support using SHORT weekday names
 const georgianLocale = {
   localize: {
     month: (monthIndex: number) => {
       return georgianMonths[monthIndex];
     },
     day: (dayIndex: number) => {
-      return georgianWeekdays[dayIndex];
+      return georgianWeekdaysShort[dayIndex]; // Changed to use short names
     }
   },
   formatLong: {
@@ -128,7 +128,9 @@ function Calendar({
         head_row: "flex",
         head_cell: cn(
           "rounded-md w-9 font-normal text-[0.8rem]",
-          isDarkTheme ? "text-gray-300" : "text-gray-600"
+          isDarkTheme ? "text-gray-300" : "text-gray-600",
+          // Add better spacing for Georgian short names
+          isGeorgian ? "text-center overflow-hidden" : ""
         ),
         row: "flex w-full mt-2",
         cell: cn(

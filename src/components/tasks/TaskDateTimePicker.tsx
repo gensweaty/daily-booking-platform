@@ -130,7 +130,14 @@ export const TaskDateTimePicker = ({
               {placeholder}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0 max-w-[95vw]" align="start" side="bottom" sideOffset={8}>
+          <PopoverContent 
+            className="w-auto p-0 min-w-[300px] max-w-[95vw]" 
+            align="start" 
+            side="bottom" 
+            sideOffset={8}
+            avoidCollisions={true}
+            collisionPadding={10}
+          >
             <div className="p-3">
               {/* Current time display */}
               <div className="mb-3 p-2 bg-muted rounded-md">
@@ -158,7 +165,14 @@ export const TaskDateTimePicker = ({
                     <SelectTrigger className="w-full sm:w-20">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="max-h-[200px]" position="popper" side="bottom" sideOffset={4}>
+                    <SelectContent 
+                      className="max-h-[200px] z-[100]" 
+                      position="popper" 
+                      side="bottom" 
+                      sideOffset={4}
+                      avoidCollisions={true}
+                      collisionPadding={8}
+                    >
                       {hours.map((hour) => (
                         <SelectItem key={hour} value={hour}>
                           {hour}
@@ -170,7 +184,14 @@ export const TaskDateTimePicker = ({
                     <SelectTrigger className="w-full sm:w-20">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="max-h-[200px]" position="popper" side="bottom" sideOffset={4}>
+                    <SelectContent 
+                      className="max-h-[200px] z-[100]" 
+                      position="popper" 
+                      side="bottom" 
+                      sideOffset={4}
+                      avoidCollisions={true}
+                      collisionPadding={8}
+                    >
                       {minutes.map((minute) => (
                         <SelectItem key={minute} value={minute}>
                           {minute}
