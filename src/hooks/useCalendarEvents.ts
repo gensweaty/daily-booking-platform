@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { getUnifiedCalendarEvents, deleteCalendarEvent, clearCalendarCache } from '@/services/calendarService';
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string) => {
   const { user } = useAuth();
@@ -22,108 +23,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("Fetching events for user:", targetUserId, "business:", businessId);
 
-      // Fetch ALL events from the events table (including recurring instances)
-      const { data: events, error: eventsError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('user_id', targetUserId)
-        .is('deleted_at', null)
-        .order('start_date', { ascending: true });
-
-      if (eventsError) {
-        console.error("Error fetching events:", eventsError);
-        throw eventsError;
-      }
-
-      // Enhanced logging for biweekly events debugging
-      const biweeklyEvents = events?.filter(e => e.repeat_pattern === 'biweekly') || [];
-      const recurringEvents = events?.filter(e => e.is_recurring === true) || [];
+      // Use the unified calendar service
+      const { events, bookings } = await getUnifiedCalendarEvents(businessId, targetUserId);
       
-      console.log("🔍 Event query results:", {
-        totalEvents: events?.length || 0,
-        recurringEvents: recurringEvents.length,
-        biweeklyEvents: biweeklyEvents.length,
-        biweeklyEventDetails: biweeklyEvents.map(e => ({
-          id: e.id,
-          title: e.title,
-          start_date: e.start_date,
-          is_recurring: e.is_recurring,
-          repeat_pattern: e.repeat_pattern,
-          parent_event_id: e.parent_event_id
-        }))
-      });
+      // Combine all events
+      const allEvents: CalendarEventType[] = [...events, ...bookings];
 
-      // Fetch booking requests if we have a business ID
-      let bookingRequests: any[] = [];
-      if (businessId) {
-        const { data: bookings, error: bookingsError } = await supabase
-          .from('booking_requests')
-          .select('*')
-          .eq('business_id', businessId)
-          .is('deleted_at', null)
-          .order('start_date', { ascending: true });
-
-        if (bookingsError) {
-          console.error("Error fetching booking requests:", bookingsError);
-        } else {
-          bookingRequests = bookings || [];
-        }
-      }
-
-      console.log("📊 Event breakdown:", {
-        totalEvents: events?.length || 0,
-        bookingRequests: bookingRequests.length
-      });
-
-      // Convert all data to CalendarEventType format
-      const allEvents: CalendarEventType[] = [];
-
-      // Add all events (both parent and recurring instances)
-      for (const event of (events || [])) {
-        allEvents.push({
-          id: event.id,
-          title: event.title,
-          start_date: event.start_date,
-          end_date: event.end_date,
-          user_id: event.user_id,
-          user_surname: event.user_surname,
-          user_number: event.user_number,
-          social_network_link: event.social_network_link,
-          event_notes: event.event_notes,
-          event_name: event.event_name,
-          payment_status: event.payment_status,
-          payment_amount: event.payment_amount,
-          type: event.type || 'event',
-          is_recurring: event.is_recurring || false,
-          repeat_pattern: event.repeat_pattern,
-          repeat_until: event.repeat_until,
-          parent_event_id: event.parent_event_id,
-          language: event.language,
-          created_at: event.created_at || new Date().toISOString(),
-        });
-      }
-
-      // Add booking requests
-      for (const booking of bookingRequests) {
-        allEvents.push({
-          id: booking.id,
-          title: booking.title,
-          start_date: booking.start_date,
-          end_date: booking.end_date,
-          user_id: booking.user_id,
-          user_surname: booking.requester_name,
-          user_number: booking.requester_phone,
-          social_network_link: booking.requester_email,
-          event_notes: booking.description,
-          payment_status: booking.payment_status,
-          payment_amount: booking.payment_amount,
-          type: 'booking_request',
-          language: booking.language,
-          created_at: booking.created_at || new Date().toISOString(),
-        });
-      }
-
-      console.log(`✅ Loaded ${allEvents.length} total events (${events?.length || 0} events + ${bookingRequests.length} bookings)`);
+      console.log(`✅ Loaded ${allEvents.length} total events (${events.length} events + ${bookings.length} bookings)`);
       return allEvents;
 
     } catch (error) {
@@ -174,6 +80,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       });
 
       if (error) throw error;
+
+      // Clear cache after creation
+      clearCalendarCache();
 
       // Return a complete CalendarEventType object
       return {
@@ -242,6 +151,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       if (error) throw error;
 
+      // Clear cache after update
+      clearCalendarCache();
+
       // Return a complete CalendarEventType object
       return {
         id: savedEventId,
@@ -284,13 +196,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("Deleting event:", id, deleteChoice);
 
-      const { error } = await supabase
-        .from('events')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', id)
-        .eq('user_id', user.id);
+      // Determine the event type from the current events
+      const eventToDelete = events.find(e => e.id === id);
+      const eventType = eventToDelete?.type === 'booking_request' ? 'booking_request' : 'event';
 
-      if (error) throw error;
+      // Use the unified delete function
+      await deleteCalendarEvent(id, eventType, user.id);
 
       return { success: true };
     },
