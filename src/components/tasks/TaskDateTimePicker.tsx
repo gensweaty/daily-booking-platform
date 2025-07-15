@@ -133,9 +133,9 @@ export const TaskDateTimePicker = ({
           <PopoverContent 
             className="w-auto p-0 min-w-[300px] max-w-[95vw]" 
             align="start" 
-            side="top" 
+            side="top"
             sideOffset={8}
-            avoidCollisions={true}
+            avoidCollisions={false}
             collisionPadding={10}
           >
             <div className="p-3">
@@ -170,7 +170,7 @@ export const TaskDateTimePicker = ({
                       position="popper" 
                       side="top" 
                       sideOffset={4}
-                      avoidCollisions={true}
+                      avoidCollisions={false}
                       collisionPadding={8}
                     >
                       {hours.map((hour) => (
@@ -189,7 +189,7 @@ export const TaskDateTimePicker = ({
                       position="popper" 
                       side="top" 
                       sideOffset={4}
-                      avoidCollisions={true}
+                      avoidCollisions={false}
                       collisionPadding={8}
                     >
                       {minutes.map((minute) => (
