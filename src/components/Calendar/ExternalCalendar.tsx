@@ -22,7 +22,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
 
   // Diagnostic logging for businessId
   useEffect(() => {
-    console.log("External Calendar mounted with business ID:", businessId);
+    console.log("[External Calendar] Mounted with business ID:", businessId);
     
     // Reset error state when business ID changes
     setLoadingError(null);
@@ -97,43 +97,45 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       console.log("[External Calendar] Starting to fetch events for business ID:", businessId, "user ID:", businessUserId);
       
       try {
-        // Use the unified calendar service
+        // Use the unified calendar service - this ensures we get the SAME data as the internal calendar
         const { events: unifiedEvents, bookings: unifiedBookings } = await getUnifiedCalendarEvents(businessId, businessUserId);
         
         console.log(`[External Calendar] Fetched ${unifiedEvents.length} events and ${unifiedBookings.length} bookings`);
+        console.log('[External Calendar] Unified events details:', unifiedEvents.map(e => ({ 
+          id: e.id, 
+          title: e.title, 
+          start: e.start_date, 
+          type: e.type 
+        })));
         
-        // Combine all events
+        // Combine all events - this should match exactly what the internal calendar shows
         const allEvents: CalendarEventType[] = [...unifiedEvents, ...unifiedBookings];
         
         // Additional validation to ensure no deleted events
         const validEvents = allEvents.filter(event => !event.deleted_at);
         
         if (validEvents.length !== allEvents.length) {
-          console.warn(`Filtered out ${allEvents.length - validEvents.length} deleted events`);
+          console.warn(`[External Calendar] Filtered out ${allEvents.length - validEvents.length} deleted events`);
         }
         
-        // Remove duplicate events (same time slot)
-        const eventMap = new Map();
-        validEvents.forEach(event => {
-          const key = `${event.start_date}-${event.end_date}`;
-          // Prioritize booking_request type events
-          if (!eventMap.has(key) || event.type === 'booking_request') {
-            eventMap.set(key, event);
-          }
-        });
-        
-        const uniqueEvents = Array.from(eventMap.values());
-        console.log(`[External Calendar] Final unique events: ${uniqueEvents.length}`);
+        console.log(`[External Calendar] Final events to display: ${validEvents.length}`);
+        console.log('[External Calendar] Final events details:', validEvents.map(e => ({ 
+          id: e.id, 
+          title: e.title, 
+          start: e.start_date, 
+          type: e.type,
+          deleted_at: e.deleted_at
+        })));
         
         // Store events in session storage for recovery
         try {
-          sessionStorage.setItem(`calendar_events_${businessId}`, JSON.stringify(uniqueEvents));
+          sessionStorage.setItem(`calendar_events_${businessId}`, JSON.stringify(validEvents));
         } catch (e) {
           console.warn("Failed to store events in session storage:", e);
         }
         
         // Update state with fetched events
-        setEvents(uniqueEvents);
+        setEvents(validEvents);
         setLoadingError(null);
       } catch (error) {
         console.error("Exception in ExternalCalendar.fetchAllEvents:", error);
@@ -165,7 +167,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       console.log("[External Calendar] Have business ID and user ID, fetching events");
       fetchAllEvents();
       
-      // Set up polling to refresh data every 30 seconds
+      // Set up polling to refresh data every 30 seconds to ensure sync
       const intervalId = setInterval(fetchAllEvents, 30000);
       return () => {
         clearInterval(intervalId);
@@ -173,7 +175,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     }
   }, [businessId, businessUserId, toast, t, retryCount]);
 
-  // Real-time subscription for changes
+  // Real-time subscription for changes - this ensures immediate sync with internal calendar
   useEffect(() => {
     if (!businessId || !businessUserId) return;
 
@@ -192,7 +194,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         },
         (payload) => {
           console.log('[External Calendar] Events table changed:', payload);
-          // Clear cache and refetch
+          // Clear cache and refetch immediately
           clearCalendarCache();
           setRetryCount(prev => prev + 1);
         }
@@ -212,7 +214,27 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         },
         (payload) => {
           console.log('[External Calendar] Booking requests table changed:', payload);
-          // Clear cache and refetch
+          // Clear cache and refetch immediately
+          clearCalendarCache();
+          setRetryCount(prev => prev + 1);
+        }
+      )
+      .subscribe();
+
+    // Subscribe to changes in customers table (for CRM-created events)
+    const customersChannel = supabase
+      .channel(`external_calendar_customers_${businessId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'customers',
+          filter: `user_id=eq.${businessUserId}`
+        },
+        (payload) => {
+          console.log('[External Calendar] Customers table changed:', payload);
+          // Clear cache and refetch immediately
           clearCalendarCache();
           setRetryCount(prev => prev + 1);
         }
@@ -222,6 +244,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     return () => {
       supabase.removeChannel(eventsChannel);
       supabase.removeChannel(bookingsChannel);
+      supabase.removeChannel(customersChannel);
     };
   }, [businessId, businessUserId]);
 
@@ -236,6 +259,12 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   }
   
   console.log("[ExternalCalendar] Rendering with events:", events.length);
+  console.log("[ExternalCalendar] Events being passed to Calendar component:", events.map(e => ({ 
+    id: e.id, 
+    title: e.title, 
+    start: e.start_date, 
+    type: e.type 
+  })));
   
   return (
     <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">

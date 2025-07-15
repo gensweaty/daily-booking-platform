@@ -23,7 +23,7 @@ export const getUnifiedCalendarEvents = async (
     }
 
     // Fetch ALL events from the events table (including recurring instances)
-    // Apply consistent filtering for deleted events
+    // This should include ALL event types: regular events, recurring events, CRM-created events
     const { data: events, error: eventsError } = await supabase
       .from('events')
       .select('*')
@@ -36,16 +36,17 @@ export const getUnifiedCalendarEvents = async (
       throw eventsError;
     }
 
-    console.log(`[CalendarService] Fetched ${events?.length || 0} events`);
+    console.log(`[CalendarService] Fetched ${events?.length || 0} events from events table`);
 
-    // Fetch booking requests if we have a business ID
-    // Apply the same deleted_at filtering
+    // Fetch approved booking requests that have been converted to events
+    // Only include approved booking requests as they represent actual bookings
     let bookingRequests: any[] = [];
     if (businessId) {
       const { data: bookings, error: bookingsError } = await supabase
         .from('booking_requests')
         .select('*')
         .eq('business_id', businessId)
+        .eq('status', 'approved') // Only approved bookings should show as "booked"
         .is('deleted_at', null)
         .order('start_date', { ascending: true });
 
@@ -57,7 +58,7 @@ export const getUnifiedCalendarEvents = async (
       }
     }
 
-    console.log(`[CalendarService] Fetched ${bookingRequests.length} booking requests`);
+    console.log(`[CalendarService] Fetched ${bookingRequests.length} approved booking requests`);
 
     // Convert events to CalendarEventType format
     const formattedEvents: CalendarEventType[] = (events || []).map(event => ({
@@ -83,7 +84,7 @@ export const getUnifiedCalendarEvents = async (
       deleted_at: event.deleted_at
     }));
 
-    // Convert booking requests to CalendarEventType format
+    // Convert approved booking requests to CalendarEventType format
     const formattedBookings: CalendarEventType[] = bookingRequests.map(booking => ({
       id: booking.id,
       title: booking.title,
@@ -107,6 +108,12 @@ export const getUnifiedCalendarEvents = async (
     const validBookings = formattedBookings.filter(booking => !booking.deleted_at);
 
     console.log(`[CalendarService] Returning ${validEvents.length} events and ${validBookings.length} bookings`);
+    console.log('[CalendarService] Event details:', validEvents.map(e => ({ 
+      id: e.id, 
+      title: e.title, 
+      start: e.start_date, 
+      type: e.type 
+    })));
     
     return {
       events: validEvents,
@@ -129,6 +136,7 @@ export const deleteCalendarEvent = async (
     console.log(`[CalendarService] Deleting ${eventType} with ID:`, eventId);
     
     if (eventType === 'event') {
+      // Soft delete the event
       const { error } = await supabase
         .from('events')
         .update({ deleted_at: new Date().toISOString() })
@@ -136,6 +144,18 @@ export const deleteCalendarEvent = async (
         .eq('user_id', userId);
 
       if (error) throw error;
+
+      // If this is a recurring event (parent), also soft delete all child instances
+      const { error: childrenError } = await supabase
+        .from('events')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('parent_event_id', eventId)
+        .eq('user_id', userId);
+
+      if (childrenError) {
+        console.warn('[CalendarService] Error deleting recurring children:', childrenError);
+      }
+
     } else if (eventType === 'booking_request') {
       const { error } = await supabase
         .from('booking_requests')

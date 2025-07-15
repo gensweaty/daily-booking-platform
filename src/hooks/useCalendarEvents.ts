@@ -17,23 +17,30 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       const targetUserId = businessUserId || user?.id;
       
       if (!targetUserId) {
-        console.log("No user ID available for fetching events");
+        console.log("[useCalendarEvents] No user ID available for fetching events");
         return [];
       }
 
-      console.log("Fetching events for user:", targetUserId, "business:", businessId);
+      console.log("[useCalendarEvents] Fetching events for user:", targetUserId, "business:", businessId);
 
-      // Use the unified calendar service
+      // Use the unified calendar service - this ensures consistency between internal and external calendars
       const { events, bookings } = await getUnifiedCalendarEvents(businessId, targetUserId);
       
       // Combine all events
       const allEvents: CalendarEventType[] = [...events, ...bookings];
 
-      console.log(`✅ Loaded ${allEvents.length} total events (${events.length} events + ${bookings.length} bookings)`);
+      console.log(`[useCalendarEvents] ✅ Loaded ${allEvents.length} total events (${events.length} events + ${bookings.length} bookings)`);
+      console.log('[useCalendarEvents] Event details:', allEvents.map(e => ({ 
+        id: e.id, 
+        title: e.title, 
+        start: e.start_date, 
+        type: e.type 
+      })));
+      
       return allEvents;
 
     } catch (error) {
-      console.error("Error in fetchEvents:", error);
+      console.error("[useCalendarEvents] Error in fetchEvents:", error);
       throw error;
     }
   };
@@ -54,9 +61,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     mutationFn: async (eventData: Partial<CalendarEventType>) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("Creating event with data:", eventData);
+      console.log("[useCalendarEvents] Creating event with data:", eventData);
 
-      // Use the new database function for atomic operations
+      // Use the database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
         p_event_data: {
           title: eventData.user_surname || eventData.title,
@@ -81,7 +88,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       if (error) throw error;
 
-      // Clear cache after creation
+      // Clear cache after creation to ensure sync
       clearCalendarCache();
 
       // Return a complete CalendarEventType object
@@ -111,7 +118,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       });
     },
     onError: (error: any) => {
-      console.error("Error creating event:", error);
+      console.error("[useCalendarEvents] Error creating event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to create event",
@@ -124,9 +131,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     mutationFn: async (eventData: Partial<CalendarEventType> & { id: string }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("Updating event with data:", eventData);
+      console.log("[useCalendarEvents] Updating event with data:", eventData);
 
-      // Use the new database function for atomic operations
+      // Use the database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
         p_event_data: {
           title: eventData.user_surname || eventData.title,
@@ -151,7 +158,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       if (error) throw error;
 
-      // Clear cache after update
+      // Clear cache after update to ensure sync
       clearCalendarCache();
 
       // Return a complete CalendarEventType object
@@ -181,7 +188,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       });
     },
     onError: (error: any) => {
-      console.error("Error updating event:", error);
+      console.error("[useCalendarEvents] Error updating event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to update event",
@@ -194,13 +201,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("Deleting event:", id, deleteChoice);
+      console.log("[useCalendarEvents] Deleting event:", id, deleteChoice);
 
       // Determine the event type from the current events
       const eventToDelete = events.find(e => e.id === id);
       const eventType = eventToDelete?.type === 'booking_request' ? 'booking_request' : 'event';
 
-      // Use the unified delete function
+      // Use the unified delete function to ensure sync between calendars
       await deleteCalendarEvent(id, eventType, user.id);
 
       return { success: true };
@@ -220,7 +227,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       });
     },
     onError: (error: any) => {
-      console.error("Error deleting event:", error);
+      console.error("[useCalendarEvents] Error deleting event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete event",
