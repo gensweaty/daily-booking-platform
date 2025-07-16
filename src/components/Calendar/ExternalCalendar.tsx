@@ -167,8 +167,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       console.log("[External Calendar] Have business ID and user ID, fetching events");
       fetchAllEvents();
       
-      // Set up polling to refresh data every 30 seconds to ensure sync
-      const intervalId = setInterval(fetchAllEvents, 30000);
+      // Set up polling to refresh data every 5 seconds for immediate sync
+      const intervalId = setInterval(fetchAllEvents, 5000);
       return () => {
         clearInterval(intervalId);
       };

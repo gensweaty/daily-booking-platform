@@ -152,12 +152,12 @@ export const deleteCalendarEvent = async (
       // Get the event to check if it has a booking_request_id
       const { data: eventData, error: fetchError } = await supabase
         .from('events')
-        .select('booking_request_id')
+        .select('booking_request_id, parent_event_id')
         .eq('id', eventId)
         .eq('user_id', userId)
         .single();
 
-      if (fetchError) {
+      if (fetchError && fetchError.code !== 'PGRST116') {
         console.error('[CalendarService] Error fetching event data:', fetchError);
       }
 
@@ -195,6 +195,25 @@ export const deleteCalendarEvent = async (
       }
 
     } else if (eventType === 'booking_request') {
+      // First check if there's an event created from this booking request
+      const { data: relatedEvents, error: eventsError } = await supabase
+        .from('events')
+        .select('id')
+        .eq('booking_request_id', eventId);
+
+      if (!eventsError && relatedEvents && relatedEvents.length > 0) {
+        // Soft delete any events created from this booking request
+        const { error: eventDeleteError } = await supabase
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('booking_request_id', eventId);
+
+        if (eventDeleteError) {
+          console.warn('[CalendarService] Error deleting related events:', eventDeleteError);
+        }
+      }
+
+      // Soft delete the booking request
       const { error } = await supabase
         .from('booking_requests')
         .update({ deleted_at: new Date().toISOString() })
