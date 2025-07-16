@@ -47,7 +47,8 @@ BEGIN
     RAISE EXCEPTION 'Business not found: %', business_id_param;
   END IF;
 
-  -- Return ONLY NON-DELETED events from the events table
+  -- Return ALL events from the events table (this includes all types of events)
+  -- regular events, recurring events, CRM-created events, etc.
   RETURN QUERY
   SELECT 
     e.id as event_id,
@@ -67,11 +68,12 @@ BEGIN
     e.deleted_at as event_deleted_at
   FROM events e
   WHERE e.user_id = business_user_id
-    AND e.deleted_at IS NULL  -- CRITICAL: Only non-deleted events
+    AND e.deleted_at IS NULL  -- Only non-deleted events
   
   UNION ALL
   
-  -- Return ONLY NON-DELETED booking requests that haven't been converted to events
+  -- Return approved booking requests that haven't been converted to events
+  -- Only include booking requests that don't have a corresponding event
   SELECT 
     br.id as event_id,
     br.title as event_title,
@@ -91,7 +93,7 @@ BEGIN
   FROM booking_requests br
   WHERE br.business_id = business_id_param
     AND br.status = 'approved'  -- Only approved bookings
-    AND br.deleted_at IS NULL   -- CRITICAL: Only non-deleted bookings
+    AND br.deleted_at IS NULL   -- Only non-deleted bookings
     -- Only include booking requests that haven't been converted to events
     AND NOT EXISTS (
       SELECT 1 FROM events e 
