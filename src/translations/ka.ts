@@ -1,4 +1,4 @@
-export const ka = {
+export const translations = {
   common: {
     loading: "იტვირთება...",
     save: "შენახვა",
@@ -246,7 +246,6 @@ export const ka = {
     worker: "მუშაკი",
     staff: "პერსონალი",
     team: "გუნდი",
-    group: "ჯგუფი",
     department: "დეპარტამენტი",
     division: "განყოფილება",
     unit: "ერთეული",
@@ -543,7 +542,6 @@ export const ka = {
     opinion: "მოსაზრება",
     view: "ხედვა",
     perspective: "პერსპექტივა",
-    point: "წერტილი",
     argument: "არგუმენტი",
     reason: "მიზეზი",
     cause: "მიზეზი",
@@ -622,7 +620,6 @@ export const ka = {
     difficulty: "სირთულე",
     obstacle: "დაბრკოლება",
     barrier: "ბარიერი",
-    limit: "ზღვარი",
     boundary: "საზღვარი",
     edge: "კიდე",
     border: "საზღვარი",
@@ -667,6 +664,8 @@ export const ka = {
     requestApproved: "ჯავშნის მოთხოვნა წარმატებით დამტკიცდა",
     requestRejected: "ჯავშნის მოთხოვნა წარმატებით უარყოფილია",
     requestDeleted: "ჯავშნის მოთხოვნა წარმატებით წაიშალა",
-    pendingRequestsCount: "თქვენ გაქვთ {{count}} მოლოდინში მყოფი ჯავშნის მოთხოვნა"
+    pendingRequestsCount: "თქვენ გაქვთ {{count}} მოლოდინში მყოფი ჯავშნის მოთხოვნა",
+    newBookingRequestTitle: "ახალი ჯავშნის მოთხოვნა",
+    newBookingRequestMessage: "მიიღეთ ახალი ჯავშნის მოთხოვნა {{name}}-ისგან: {{title}}"
   }
 };
