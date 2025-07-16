@@ -29,6 +29,7 @@ export interface CalendarEventType {
   language?: string;
   customer_id?: string;
   event_name?: string;
+  booking_request_id?: string; // Add this property to track converted bookings
   // Recurring event properties
   is_recurring?: boolean;
   repeat_pattern?: string;
