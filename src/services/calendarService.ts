@@ -7,6 +7,25 @@ export interface CalendarEventsResponse {
   bookings: CalendarEventType[];
 }
 
+// Define the type for the public calendar events response
+interface PublicCalendarEvent {
+  event_id: string;
+  event_title: string;
+  event_start_date: string;
+  event_end_date: string;
+  event_type: string;
+  event_user_id: string;
+  event_user_surname?: string;
+  event_user_number?: string;
+  event_social_network_link?: string;
+  event_notes?: string;
+  event_payment_status?: string;
+  event_payment_amount?: number;
+  event_language?: string;
+  event_created_at?: string;
+  event_deleted_at?: string;
+}
+
 export const getUnifiedCalendarEvents = async (
   businessId?: string, 
   businessUserId?: string
@@ -21,42 +40,92 @@ export const getUnifiedCalendarEvents = async (
       return { events: [], bookings: [] };
     }
 
-    // For external calendar, use the database function to ensure consistency
+    // For external calendar, use a direct query to ensure consistency
     if (businessId && businessUserId) {
-      console.log('[CalendarService] Using database function for external calendar');
+      console.log('[CalendarService] Fetching for external calendar');
       
-      const { data: publicEvents, error: publicError } = await supabase
-        .rpc('get_public_calendar_events', { business_id_param: businessId });
+      // Fetch events directly with proper filtering
+      const { data: events, error: eventsError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('user_id', targetUserId)
+        .is('deleted_at', null)
+        .order('start_date', { ascending: true });
 
-      if (publicError) {
-        console.error('[CalendarService] Error fetching public events:', publicError);
-        throw publicError;
+      if (eventsError) {
+        console.error('[CalendarService] Error fetching events:', eventsError);
+        throw eventsError;
       }
 
-      console.log(`[CalendarService] Fetched ${publicEvents?.length || 0} public events from database function`);
+      // Fetch approved booking requests that haven't been converted to events
+      const { data: bookingRequests, error: bookingError } = await supabase
+        .from('booking_requests')
+        .select('*')
+        .eq('business_id', businessId)
+        .eq('status', 'approved')
+        .is('deleted_at', null)
+        .order('start_date', { ascending: true });
 
-      // Convert to CalendarEventType format - these are already filtered for deleted_at IS NULL
-      const formattedEvents: CalendarEventType[] = (publicEvents || []).map(event => ({
-        id: event.event_id,
-        title: event.event_title,
-        start_date: event.event_start_date,
-        end_date: event.event_end_date,
-        user_id: event.event_user_id || '',
-        user_surname: event.event_user_surname,
-        user_number: event.event_user_number,
-        social_network_link: event.event_social_network_link,
+      if (bookingError) {
+        console.error('[CalendarService] Error fetching booking requests:', bookingError);
+        throw bookingError;
+      }
+
+      console.log(`[CalendarService] Fetched ${events?.length || 0} events and ${bookingRequests?.length || 0} booking requests`);
+
+      // Filter out booking requests that have been converted to events
+      const existingEventBookingIds = new Set(
+        (events || [])
+          .filter(event => event.booking_request_id)
+          .map(event => event.booking_request_id)
+      );
+      
+      const filteredBookingRequests = (bookingRequests || []).filter(booking => 
+        !existingEventBookingIds.has(booking.id)
+      );
+
+      // Convert events to CalendarEventType format
+      const formattedEvents: CalendarEventType[] = (events || []).map(event => ({
+        id: event.id,
+        title: event.title,
+        start_date: event.start_date,
+        end_date: event.end_date,
+        user_id: event.user_id || '',
+        user_surname: event.user_surname,
+        user_number: event.user_number,
+        social_network_link: event.social_network_link,
         event_notes: event.event_notes,
-        payment_status: event.event_payment_status,
-        payment_amount: event.event_payment_amount,
-        type: event.event_type || 'event',
-        language: event.event_language,
-        created_at: event.event_created_at || new Date().toISOString(),
-        deleted_at: event.event_deleted_at
+        payment_status: event.payment_status,
+        payment_amount: event.payment_amount,
+        type: event.type || 'event',
+        language: event.language,
+        created_at: event.created_at || new Date().toISOString(),
+        deleted_at: event.deleted_at,
+        booking_request_id: event.booking_request_id
+      }));
+
+      // Convert approved booking requests
+      const formattedBookings: CalendarEventType[] = filteredBookingRequests.map(booking => ({
+        id: booking.id,
+        title: booking.title,
+        start_date: booking.start_date,
+        end_date: booking.end_date,
+        user_id: booking.user_id || '',
+        user_surname: booking.requester_name,
+        user_number: booking.requester_phone,
+        social_network_link: booking.requester_email,
+        event_notes: booking.description,
+        payment_status: booking.payment_status,
+        payment_amount: booking.payment_amount,
+        type: 'booking_request',
+        language: booking.language,
+        created_at: booking.created_at || new Date().toISOString(),
+        deleted_at: booking.deleted_at
       }));
 
       return {
         events: formattedEvents,
-        bookings: []
+        bookings: formattedBookings
       };
     }
 
@@ -65,7 +134,7 @@ export const getUnifiedCalendarEvents = async (
       .from('events')
       .select('*')
       .eq('user_id', targetUserId)
-      .is('deleted_at', null)  // CRITICAL: Only non-deleted events
+      .is('deleted_at', null)
       .order('start_date', { ascending: true });
 
     if (eventsError) {
@@ -83,7 +152,7 @@ export const getUnifiedCalendarEvents = async (
         .select('*')
         .eq('business_id', businessId)
         .eq('status', 'approved')
-        .is('deleted_at', null)  // CRITICAL: Only non-deleted bookings
+        .is('deleted_at', null)
         .order('start_date', { ascending: true });
 
       if (bookingsError) {
@@ -103,9 +172,9 @@ export const getUnifiedCalendarEvents = async (
 
     console.log(`[CalendarService] Fetched ${bookingRequests.length} approved booking requests`);
 
-    // Convert events to CalendarEventType format with strict deleted_at filtering
+    // Convert events to CalendarEventType format
     const formattedEvents: CalendarEventType[] = (events || [])
-      .filter(event => !event.deleted_at)  // Extra safety filter
+      .filter(event => !event.deleted_at)
       .map(event => ({
         id: event.id,
         title: event.title,
@@ -130,9 +199,9 @@ export const getUnifiedCalendarEvents = async (
         booking_request_id: event.booking_request_id
       }));
 
-    // Convert approved booking requests with strict deleted_at filtering
+    // Convert approved booking requests
     const formattedBookings: CalendarEventType[] = bookingRequests
-      .filter(booking => !booking.deleted_at)  // Extra safety filter
+      .filter(booking => !booking.deleted_at)
       .map(booking => ({
         id: booking.id,
         title: booking.title,
