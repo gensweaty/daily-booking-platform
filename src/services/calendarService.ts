@@ -7,6 +7,9 @@ export interface CalendarEventsResponse {
   bookings: CalendarEventType[];
 }
 
+// Global cache management for immediate synchronization
+const cacheKeys = new Set<string>();
+
 export const getUnifiedCalendarEvents = async (
   businessId?: string, 
   businessUserId?: string
@@ -23,6 +26,7 @@ export const getUnifiedCalendarEvents = async (
     }
 
     // Fetch ALL events from the events table (including recurring instances)
+    // Explicitly filter out deleted events with deleted_at IS NULL
     const { data: events, error: eventsError } = await supabase
       .from('events')
       .select('*')
@@ -35,9 +39,10 @@ export const getUnifiedCalendarEvents = async (
       throw eventsError;
     }
 
-    console.log(`[CalendarService] Fetched ${events?.length || 0} events from events table`);
+    console.log(`[CalendarService] Fetched ${events?.length || 0} non-deleted events from events table`);
 
     // Fetch approved booking requests that are NOT yet converted to events
+    // Explicitly filter out deleted booking requests
     let bookingRequests: any[] = [];
     if (businessId) {
       const { data: bookings, error: bookingsError } = await supabase
@@ -127,7 +132,7 @@ export const getUnifiedCalendarEvents = async (
   }
 };
 
-// Enhanced delete function with proper cascading
+// Enhanced delete function with immediate synchronization
 export const deleteCalendarEvent = async (
   eventId: string, 
   eventType: 'event' | 'booking_request',
@@ -220,13 +225,11 @@ export const deleteCalendarEvent = async (
 
     console.log(`[CalendarService] Deletion process completed for ${eventType}:`, eventId);
     
-    // Force clear all calendar cache immediately
+    // Immediate and aggressive cache clearing
     clearCalendarCache();
     
-    // Trigger a small delay then clear cache again to ensure it's properly cleared
-    setTimeout(() => {
-      clearCalendarCache();
-    }, 100);
+    // Broadcast change event to notify all calendars
+    broadcastCalendarChange();
     
   } catch (error) {
     console.error(`[CalendarService] Error deleting ${eventType}:`, error);
@@ -234,29 +237,74 @@ export const deleteCalendarEvent = async (
   }
 };
 
-// Enhanced cache clearing function
+// Enhanced cache clearing function with immediate effect
 export const clearCalendarCache = (): void => {
   try {
+    console.log('[CalendarService] Starting aggressive cache clearing');
+    
     // Clear session storage cache
-    const keys = Object.keys(sessionStorage);
-    keys.forEach(key => {
-      if (key.startsWith('calendar_events_') || key.startsWith('business_user_id_')) {
+    const sessionKeys = Object.keys(sessionStorage);
+    sessionKeys.forEach(key => {
+      if (key.startsWith('calendar_events_') || 
+          key.startsWith('business_user_id_') ||
+          key.startsWith('external_calendar_') ||
+          key.includes('calendar') ||
+          key.includes('events')) {
         sessionStorage.removeItem(key);
-        console.log('[CalendarService] Cleared cache key:', key);
+        console.log('[CalendarService] Cleared session cache key:', key);
       }
     });
     
-    // Also clear localStorage cache if any
+    // Clear localStorage cache
     const localKeys = Object.keys(localStorage);
     localKeys.forEach(key => {
-      if (key.startsWith('calendar_events_') || key.startsWith('business_user_id_')) {
+      if (key.startsWith('calendar_events_') || 
+          key.startsWith('business_user_id_') ||
+          key.startsWith('external_calendar_') ||
+          key.includes('calendar') ||
+          key.includes('events')) {
         localStorage.removeItem(key);
         console.log('[CalendarService] Cleared localStorage key:', key);
       }
     });
     
-    console.log('[CalendarService] Cache clearing completed');
+    // Clear tracked cache keys
+    cacheKeys.clear();
+    
+    console.log('[CalendarService] Aggressive cache clearing completed');
   } catch (error) {
     console.warn('[CalendarService] Error clearing cache:', error);
+  }
+};
+
+// Broadcast system for immediate synchronization
+let broadcastChannel: BroadcastChannel | null = null;
+
+// Initialize broadcast channel for cross-tab communication
+export const initializeBroadcastChannel = (): void => {
+  try {
+    if (typeof BroadcastChannel !== 'undefined' && !broadcastChannel) {
+      broadcastChannel = new BroadcastChannel('calendar-sync');
+      broadcastChannel.addEventListener('message', (event) => {
+        if (event.data.type === 'CALENDAR_CHANGED') {
+          console.log('[CalendarService] Received calendar change broadcast');
+          clearCalendarCache();
+        }
+      });
+    }
+  } catch (error) {
+    console.warn('[CalendarService] BroadcastChannel not supported or error:', error);
+  }
+};
+
+// Broadcast calendar changes
+export const broadcastCalendarChange = (): void => {
+  try {
+    if (broadcastChannel) {
+      broadcastChannel.postMessage({ type: 'CALENDAR_CHANGED' });
+      console.log('[CalendarService] Broadcasted calendar change');
+    }
+  } catch (error) {
+    console.warn('[CalendarService] Error broadcasting change:', error);
   }
 };

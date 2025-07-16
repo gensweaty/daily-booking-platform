@@ -7,7 +7,12 @@ import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
-import { getUnifiedCalendarEvents, clearCalendarCache } from "@/services/calendarService";
+import { 
+  getUnifiedCalendarEvents, 
+  clearCalendarCache, 
+  initializeBroadcastChannel,
+  broadcastCalendarChange 
+} from "@/services/calendarService";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
@@ -18,31 +23,23 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [businessUserId, setBusinessUserId] = useState<string | null>(null);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [lastSyncTime, setLastSyncTime] = useState<number>(Date.now());
   const { t } = useLanguage();
+
+  // Initialize broadcast channel for cross-tab communication
+  useEffect(() => {
+    initializeBroadcastChannel();
+  }, []);
 
   // Diagnostic logging for businessId
   useEffect(() => {
     console.log("[External Calendar] Mounted with business ID:", businessId);
     setLoadingError(null);
     clearCalendarCache();
+    setRetryCount(0);
   }, [businessId]);
 
-  // Retry mechanism for failed API calls
-  useEffect(() => {
-    if (loadingError) {
-      const retryTimer = setTimeout(() => {
-        if (retryCount < 3) {
-          console.log(`[External Calendar] Retrying API call, attempt ${retryCount + 1}`);
-          setRetryCount(prev => prev + 1);
-          setLoadingError(null);
-        }
-      }, 3000);
-      
-      return () => clearTimeout(retryTimer);
-    }
-  }, [loadingError, retryCount]);
-
-  // Step 1: Get the business user ID
+  // Step 1: Get the business user ID with immediate retry
   useEffect(() => {
     const getBusinessUserId = async () => {
       if (!businessId) return;
@@ -68,12 +65,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         } else {
           console.error("No user ID found for business:", businessId);
           setLoadingError("Invalid business profile");
-          
-          const cachedUserId = sessionStorage.getItem(`business_user_id_${businessId}`);
-          if (cachedUserId) {
-            console.log("[External Calendar] Recovered business user ID from session storage:", cachedUserId);
-            setBusinessUserId(cachedUserId);
-          }
         }
       } catch (error) {
         console.error("Exception fetching business user ID:", error);
@@ -84,34 +75,27 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     getBusinessUserId();
   }, [businessId, retryCount]);
 
-  // Step 2: Fetch all events using the unified calendar service
+  // Step 2: Aggressive event fetching with immediate sync
   useEffect(() => {
     const fetchAllEvents = async () => {
       if (!businessId || !businessUserId) return;
       
       setIsLoading(true);
-      console.log("[External Calendar] Starting to fetch events for business ID:", businessId, "user ID:", businessUserId);
+      console.log("[External Calendar] Starting aggressive event fetch for:", businessId, "user:", businessUserId);
       
       try {
-        // Clear cache before fetching to ensure fresh data
+        // Always clear cache before fetching to ensure fresh data
         clearCalendarCache();
         
-        // Use the unified calendar service
+        // Use the unified calendar service with aggressive cache busting
         const { events: unifiedEvents, bookings: unifiedBookings } = await getUnifiedCalendarEvents(businessId, businessUserId);
         
         console.log(`[External Calendar] Fetched ${unifiedEvents.length} events and ${unifiedBookings.length} bookings`);
-        console.log('[External Calendar] Unified events details:', unifiedEvents.map(e => ({ 
-          id: e.id, 
-          title: e.title, 
-          start: e.start_date, 
-          type: e.type,
-          deleted_at: e.deleted_at
-        })));
         
         // Combine all events
         const allEvents: CalendarEventType[] = [...unifiedEvents, ...unifiedBookings];
         
-        // Additional validation to ensure no deleted events
+        // Triple validation to ensure no deleted events
         const validEvents = allEvents.filter(event => !event.deleted_at);
         
         if (validEvents.length !== allEvents.length) {
@@ -119,42 +103,19 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         }
         
         console.log(`[External Calendar] Final events to display: ${validEvents.length}`);
-        console.log('[External Calendar] Final events details:', validEvents.map(e => ({ 
-          id: e.id, 
-          title: e.title, 
-          start: e.start_date, 
-          type: e.type,
-          deleted_at: e.deleted_at
-        })));
         
-        // Store events in session storage for recovery
-        try {
-          sessionStorage.setItem(`calendar_events_${businessId}`, JSON.stringify(validEvents));
-        } catch (e) {
-          console.warn("Failed to store events in session storage:", e);
-        }
-        
-        // Update state with fetched events
+        // Update state with fresh events
         setEvents(validEvents);
+        setLastSyncTime(Date.now());
         setLoadingError(null);
+        
       } catch (error) {
         console.error("Exception in ExternalCalendar.fetchAllEvents:", error);
         setLoadingError("Failed to load calendar events");
         
-        // Try to recover events from session storage
-        try {
-          const cachedEvents = sessionStorage.getItem(`calendar_events_${businessId}`);
-          if (cachedEvents) {
-            console.log("[External Calendar] Recovering events from session storage");
-            setEvents(JSON.parse(cachedEvents));
-          }
-        } catch (e) {
-          console.error("Failed to recover events from session storage:", e);
-        }
-        
         toast({
           title: t("common.error"),
-          description: t("common.error"),
+          description: "Failed to sync calendar events",
           variant: "destructive"
         });
       } finally {
@@ -164,14 +125,14 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
 
     // Only fetch if we have both business ID and user ID
     if (businessId && businessUserId) {
-      console.log("[External Calendar] Have business ID and user ID, fetching events");
+      console.log("[External Calendar] Initiating aggressive sync");
       fetchAllEvents();
       
-      // Set up aggressive polling for immediate sync
+      // Aggressive polling every 1 second for immediate sync
       const intervalId = setInterval(() => {
-        console.log("[External Calendar] Polling interval triggered, fetching fresh data");
+        console.log("[External Calendar] Aggressive polling - fetching fresh data");
         fetchAllEvents();
-      }, 2000); // Poll every 2 seconds for immediate sync
+      }, 1000);
       
       return () => {
         clearInterval(intervalId);
@@ -179,13 +140,13 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     }
   }, [businessId, businessUserId, toast, t, retryCount]);
 
-  // Enhanced real-time subscription for immediate sync
+  // Enhanced real-time subscription for immediate synchronization
   useEffect(() => {
     if (!businessId || !businessUserId) return;
 
     console.log("[External Calendar] Setting up enhanced real-time subscription");
 
-    // Subscribe to changes in events table
+    // Subscribe to changes in events table with immediate response
     const eventsChannel = supabase
       .channel(`external_calendar_events_${businessId}_${Date.now()}`)
       .on(
@@ -197,10 +158,13 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           filter: `user_id=eq.${businessUserId}`
         },
         (payload) => {
-          console.log('[External Calendar] Events table changed:', payload);
-          // Clear cache and trigger immediate refetch
+          console.log('[External Calendar] Events table changed (immediate sync):', payload);
+          
+          // Immediate response - clear cache and trigger refetch
           clearCalendarCache();
+          broadcastCalendarChange();
           setRetryCount(prev => prev + 1);
+          setLastSyncTime(Date.now());
         }
       )
       .subscribe();
@@ -217,10 +181,13 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           filter: `business_id=eq.${businessId}`
         },
         (payload) => {
-          console.log('[External Calendar] Booking requests table changed:', payload);
-          // Clear cache and trigger immediate refetch
+          console.log('[External Calendar] Booking requests table changed (immediate sync):', payload);
+          
+          // Immediate response - clear cache and trigger refetch
           clearCalendarCache();
+          broadcastCalendarChange();
           setRetryCount(prev => prev + 1);
+          setLastSyncTime(Date.now());
         }
       )
       .subscribe();
@@ -232,6 +199,29 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     };
   }, [businessId, businessUserId]);
 
+  // Listen for cross-tab synchronization
+  useEffect(() => {
+    const handleStorageChange = () => {
+      console.log("[External Calendar] Storage changed - triggering sync");
+      setRetryCount(prev => prev + 1);
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log("[External Calendar] Tab became visible - triggering sync");
+        setRetryCount(prev => prev + 1);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   if (!businessId) {
     return (
       <Card className="min-h-[calc(100vh-12rem)]">
@@ -242,13 +232,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     );
   }
   
-  console.log("[ExternalCalendar] Rendering with events:", events.length);
-  console.log("[ExternalCalendar] Events being passed to Calendar component:", events.map(e => ({ 
-    id: e.id, 
-    title: e.title, 
-    start: e.start_date, 
-    type: e.type 
-  })));
+  console.log("[ExternalCalendar] Rendering with events:", events.length, "Last sync:", new Date(lastSyncTime).toLocaleTimeString());
   
   return (
     <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">
@@ -265,7 +249,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             <div className="bg-background/80 py-8 text-center">
               <p className="text-red-500 mb-2">{loadingError}</p>
               <Button onClick={() => setRetryCount(prev => prev + 1)} className="mt-2">
-                Retry Loading
+                Force Sync
               </Button>
             </div>
           )}
