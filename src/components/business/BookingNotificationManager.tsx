@@ -5,7 +5,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from '@/components/ui/use-toast';
 import { MessageSquare, Bell } from 'lucide-react';
-import { platformNotificationManager } from '@/utils/platformNotificationManager';
 
 interface BookingRequest {
   id: string;
@@ -30,7 +29,7 @@ export const BookingNotificationManager = ({
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const channelRef = useRef<any>(null);
 
-  // Request browser notification permission on component mount
+  // Request browser notification permission
   useEffect(() => {
     if ('Notification' in window) {
       setNotificationPermission(Notification.permission);
@@ -52,10 +51,9 @@ export const BookingNotificationManager = ({
 
     console.log('Setting up real-time subscription for booking requests, businessProfileId:', businessProfileId);
 
-    // Create channel for real-time updates with unique channel name
-    const channelName = `booking-requests-${businessProfileId}`;
+    // Create channel for real-time updates
     const channel = supabase
-      .channel(channelName)
+      .channel('booking-requests-changes')
       .on(
         'postgres_changes',
         {
@@ -72,7 +70,7 @@ export const BookingNotificationManager = ({
           if (newRequest.status === 'pending') {
             console.log('Showing notification for pending booking request:', newRequest.id);
             
-            // Show toast notification immediately
+            // Show toast notification
             showNewRequestToast(newRequest);
             
             // Show browser notification
@@ -89,11 +87,6 @@ export const BookingNotificationManager = ({
       )
       .subscribe((status) => {
         console.log('Booking requests subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Successfully subscribed to booking request notifications');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Error subscribing to booking request notifications');
-        }
       });
 
     channelRef.current = channel;
@@ -105,28 +98,25 @@ export const BookingNotificationManager = ({
         channelRef.current = null;
       }
     };
-  }, [businessProfileId, user?.id, onNewRequest, language, t]);
+  }, [businessProfileId, user?.id, onNewRequest]);
 
   const showNewRequestToast = (request: BookingRequest) => {
-    console.log('Showing toast notification for new booking request:', request.id, 'Language:', language);
+    const isGeorgian = language === 'ka';
     
-    // Use toast with proper translation keys for all three languages
+    console.log('Showing toast notification for new booking request:', request.id);
+    
     toast({
-      translateKeys: {
-        titleKey: "bookings.newRequest",
-        descriptionKey: "bookings.newRequestFrom"
-      },
-      translateParams: {
-        name: request.requester_name,
-        title: request.title
-      },
+      title: isGeorgian ? "ახალი ჯავშნის მოთხოვნა!" : "New Booking Request!",
+      description: isGeorgian 
+        ? `${request.requester_name}-ისგან: ${request.title}`
+        : `From ${request.requester_name}: ${request.title}`,
       duration: 15000, // Show for 15 seconds to ensure visibility
       className: "bg-orange-50 border-orange-200 text-orange-900 shadow-lg",
       action: (
         <div className="flex items-center gap-2">
           <Bell className="h-4 w-4" />
           <span className="font-medium">
-            {language === 'ka' ? "იხილეთ" : language === 'es' ? "Ver" : "View"}
+            {isGeorgian ? "შეამოწმეთ" : "Check Now"}
           </span>
         </div>
       ),
@@ -135,43 +125,33 @@ export const BookingNotificationManager = ({
 
   const showBrowserNotification = (request: BookingRequest) => {
     if (notificationPermission === 'granted' && 'Notification' in window) {
-      console.log('Showing browser notification for new booking request:', request.id, 'Language:', language);
+      const isGeorgian = language === 'ka';
       
-      // Create platform-optimized notification
-      const notificationOptions = {
-        title: language === 'ka' ? "ახალი ჯავშნის მოთხოვნა!" : 
-               language === 'es' ? "¡Nueva Solicitud de Reserva!" : 
-               "New Booking Request!",
-        body: language === 'ka' ? `${request.requester_name}-ისგან: ${request.title}` :
-              language === 'es' ? `De ${request.requester_name}: ${request.title}` :
-              `From ${request.requester_name}: ${request.title}`,
-        icon: '/favicon.ico',
-        tag: `booking-request-${request.id}`,
-        requireInteraction: true,
-      };
+      console.log('Showing browser notification for new booking request:', request.id);
+      
+      const notification = new Notification(
+        isGeorgian ? "ახალი ჯავშნის მოთხოვნა!" : "New Booking Request!",
+        {
+          body: isGeorgian 
+            ? `${request.requester_name}-ისგან: ${request.title}`
+            : `From ${request.requester_name}: ${request.title}`,
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: `booking-request-${request.id}`,
+          requireInteraction: true,
+        }
+      );
 
-      platformNotificationManager.createNotification(notificationOptions)
-        .then((result) => {
-          if (result.success && result.notification) {
-            console.log('✅ Browser notification created successfully');
-            
-            // Handle click to focus the window
-            result.notification.onclick = () => {
-              window.focus();
-              result.notification?.close();
-            };
-            
-            // Auto-close after 15 seconds
-            setTimeout(() => {
-              result.notification?.close();
-            }, 15000);
-          } else {
-            console.error('❌ Failed to create browser notification:', result.error);
-          }
-        })
-        .catch((error) => {
-          console.error('❌ Error creating browser notification:', error);
-        });
+      // Auto-close after 15 seconds
+      setTimeout(() => {
+        notification.close();
+      }, 15000);
+
+      // Handle click to focus the window
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
     } else {
       console.log('Browser notifications not available or not permitted:', { 
         permission: notificationPermission, 
