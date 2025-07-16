@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -23,7 +22,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("[useCalendarEvents] Fetching events for user:", targetUserId, "business:", businessId);
 
-      // Use the unified calendar service - this ensures consistency between internal and external calendars
+      // Use the unified calendar service
       const { events, bookings } = await getUnifiedCalendarEvents(businessId, targetUserId);
       
       // Combine all events
@@ -54,7 +53,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     queryKey: businessId ? ['business-events', businessId] : ['events', user?.id],
     queryFn: fetchEvents,
     enabled: !!(businessUserId || user?.id),
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 1000, // 1 second - very short to ensure fresh data
+    refetchInterval: 2000, // Refetch every 2 seconds for real-time sync
   });
 
   const createEventMutation = useMutation({
@@ -207,19 +207,33 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       const eventToDelete = events.find(e => e.id === id);
       const eventType = eventToDelete?.type === 'booking_request' ? 'booking_request' : 'event';
 
+      console.log("[useCalendarEvents] Determined event type:", eventType, "for event:", eventToDelete);
+
       // Use the unified delete function to ensure sync between calendars
       await deleteCalendarEvent(id, eventType, user.id);
+
+      // Force clear cache after deletion
+      clearCalendarCache();
 
       return { success: true };
     },
     onSuccess: async () => {
+      console.log("[useCalendarEvents] Delete mutation succeeded, invalidating queries");
+      
+      // Clear cache immediately
+      clearCalendarCache();
+      
       // Wait a bit for changes to propagate
       await new Promise(resolve => setTimeout(resolve, 500));
       
+      // Invalidate all related queries to force refetch
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
       }
+      
+      // Also invalidate any potential external calendar queries
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
       
       toast({
         title: "Success",

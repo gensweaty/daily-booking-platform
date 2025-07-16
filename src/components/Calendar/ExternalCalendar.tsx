@@ -23,8 +23,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   // Diagnostic logging for businessId
   useEffect(() => {
     console.log("[External Calendar] Mounted with business ID:", businessId);
-    
-    // Reset error state when business ID changes
     setLoadingError(null);
     clearCalendarCache();
   }, [businessId]);
@@ -36,9 +34,9 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         if (retryCount < 3) {
           console.log(`[External Calendar] Retrying API call, attempt ${retryCount + 1}`);
           setRetryCount(prev => prev + 1);
-          setLoadingError(null); // Clear error to trigger a new fetch
+          setLoadingError(null);
         }
-      }, 3000); // Retry after 3 seconds
+      }, 3000);
       
       return () => clearTimeout(retryTimer);
     }
@@ -66,13 +64,11 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         if (data?.user_id) {
           console.log("[External Calendar] Found business user ID:", data.user_id);
           setBusinessUserId(data.user_id);
-          // Store business user ID in session storage for recovery
           sessionStorage.setItem(`business_user_id_${businessId}`, data.user_id);
         } else {
           console.error("No user ID found for business:", businessId);
           setLoadingError("Invalid business profile");
           
-          // Try to recover from session storage
           const cachedUserId = sessionStorage.getItem(`business_user_id_${businessId}`);
           if (cachedUserId) {
             console.log("[External Calendar] Recovered business user ID from session storage:", cachedUserId);
@@ -97,7 +93,10 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       console.log("[External Calendar] Starting to fetch events for business ID:", businessId, "user ID:", businessUserId);
       
       try {
-        // Use the unified calendar service - this ensures we get the SAME data as the internal calendar
+        // Clear cache before fetching to ensure fresh data
+        clearCalendarCache();
+        
+        // Use the unified calendar service
         const { events: unifiedEvents, bookings: unifiedBookings } = await getUnifiedCalendarEvents(businessId, businessUserId);
         
         console.log(`[External Calendar] Fetched ${unifiedEvents.length} events and ${unifiedBookings.length} bookings`);
@@ -105,10 +104,11 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           id: e.id, 
           title: e.title, 
           start: e.start_date, 
-          type: e.type 
+          type: e.type,
+          deleted_at: e.deleted_at
         })));
         
-        // Combine all events - this should match exactly what the internal calendar shows
+        // Combine all events
         const allEvents: CalendarEventType[] = [...unifiedEvents, ...unifiedBookings];
         
         // Additional validation to ensure no deleted events
@@ -167,23 +167,27 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       console.log("[External Calendar] Have business ID and user ID, fetching events");
       fetchAllEvents();
       
-      // Set up polling to refresh data every 5 seconds for immediate sync
-      const intervalId = setInterval(fetchAllEvents, 5000);
+      // Set up aggressive polling for immediate sync
+      const intervalId = setInterval(() => {
+        console.log("[External Calendar] Polling interval triggered, fetching fresh data");
+        fetchAllEvents();
+      }, 2000); // Poll every 2 seconds for immediate sync
+      
       return () => {
         clearInterval(intervalId);
       };
     }
   }, [businessId, businessUserId, toast, t, retryCount]);
 
-  // Real-time subscription for changes - this ensures immediate sync with internal calendar
+  // Enhanced real-time subscription for immediate sync
   useEffect(() => {
     if (!businessId || !businessUserId) return;
 
-    console.log("[External Calendar] Setting up real-time subscription");
+    console.log("[External Calendar] Setting up enhanced real-time subscription");
 
     // Subscribe to changes in events table
     const eventsChannel = supabase
-      .channel(`external_calendar_events_${businessId}`)
+      .channel(`external_calendar_events_${businessId}_${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -194,7 +198,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         },
         (payload) => {
           console.log('[External Calendar] Events table changed:', payload);
-          // Clear cache and refetch immediately
+          // Clear cache and trigger immediate refetch
           clearCalendarCache();
           setRetryCount(prev => prev + 1);
         }
@@ -203,7 +207,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
 
     // Subscribe to changes in booking_requests table
     const bookingsChannel = supabase
-      .channel(`external_calendar_bookings_${businessId}`)
+      .channel(`external_calendar_bookings_${businessId}_${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -214,27 +218,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         },
         (payload) => {
           console.log('[External Calendar] Booking requests table changed:', payload);
-          // Clear cache and refetch immediately
-          clearCalendarCache();
-          setRetryCount(prev => prev + 1);
-        }
-      )
-      .subscribe();
-
-    // Subscribe to changes in customers table (for CRM-created events)
-    const customersChannel = supabase
-      .channel(`external_calendar_customers_${businessId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'customers',
-          filter: `user_id=eq.${businessUserId}`
-        },
-        (payload) => {
-          console.log('[External Calendar] Customers table changed:', payload);
-          // Clear cache and refetch immediately
+          // Clear cache and trigger immediate refetch
           clearCalendarCache();
           setRetryCount(prev => prev + 1);
         }
@@ -242,9 +226,9 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       .subscribe();
 
     return () => {
+      console.log("[External Calendar] Cleaning up real-time subscriptions");
       supabase.removeChannel(eventsChannel);
       supabase.removeChannel(bookingsChannel);
-      supabase.removeChannel(customersChannel);
     };
   }, [businessId, businessUserId]);
 

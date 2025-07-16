@@ -23,7 +23,6 @@ export const getUnifiedCalendarEvents = async (
     }
 
     // Fetch ALL events from the events table (including recurring instances)
-    // This should include ALL event types: regular events, recurring events, CRM-created events
     const { data: events, error: eventsError } = await supabase
       .from('events')
       .select('*')
@@ -39,23 +38,20 @@ export const getUnifiedCalendarEvents = async (
     console.log(`[CalendarService] Fetched ${events?.length || 0} events from events table`);
 
     // Fetch approved booking requests that are NOT yet converted to events
-    // Only include approved booking requests that don't have a corresponding event
     let bookingRequests: any[] = [];
     if (businessId) {
       const { data: bookings, error: bookingsError } = await supabase
         .from('booking_requests')
         .select('*')
         .eq('business_id', businessId)
-        .eq('status', 'approved') // Only approved bookings should show as "booked"
+        .eq('status', 'approved')
         .is('deleted_at', null)
         .order('start_date', { ascending: true });
 
       if (bookingsError) {
         console.error('[CalendarService] Error fetching booking requests:', bookingsError);
-        // Don't throw here, just log the error and continue with empty bookings
       } else {
         // Filter out booking requests that have already been converted to events
-        // by checking if there's an event with the same booking_request_id
         const existingEventBookingIds = new Set(
           (events || [])
             .filter(event => event.booking_request_id)
@@ -92,11 +88,10 @@ export const getUnifiedCalendarEvents = async (
       language: event.language,
       created_at: event.created_at || new Date().toISOString(),
       deleted_at: event.deleted_at,
-      booking_request_id: event.booking_request_id // Include this to track converted bookings
+      booking_request_id: event.booking_request_id
     }));
 
     // Convert approved booking requests to CalendarEventType format
-    // Only include booking requests that haven't been converted to events
     const formattedBookings: CalendarEventType[] = bookingRequests.map(booking => ({
       id: booking.id,
       title: booking.title,
@@ -120,13 +115,6 @@ export const getUnifiedCalendarEvents = async (
     const validBookings = formattedBookings.filter(booking => !booking.deleted_at);
 
     console.log(`[CalendarService] Returning ${validEvents.length} events and ${validBookings.length} bookings`);
-    console.log('[CalendarService] Event details:', validEvents.map(e => ({ 
-      id: e.id, 
-      title: e.title, 
-      start: e.start_date, 
-      type: e.type,
-      booking_request_id: e.booking_request_id
-    })));
     
     return {
       events: validEvents,
@@ -139,14 +127,14 @@ export const getUnifiedCalendarEvents = async (
   }
 };
 
-// Unified delete function that handles both events and booking requests
+// Enhanced delete function with proper cascading
 export const deleteCalendarEvent = async (
   eventId: string, 
   eventType: 'event' | 'booking_request',
   userId: string
 ): Promise<void> => {
   try {
-    console.log(`[CalendarService] Deleting ${eventType} with ID:`, eventId);
+    console.log(`[CalendarService] Starting deletion of ${eventType} with ID:`, eventId);
     
     if (eventType === 'event') {
       // Get the event to check if it has a booking_request_id
@@ -161,7 +149,7 @@ export const deleteCalendarEvent = async (
         console.error('[CalendarService] Error fetching event data:', fetchError);
       }
 
-      // Soft delete the event
+      // Soft delete the event first
       const { error } = await supabase
         .from('events')
         .update({ deleted_at: new Date().toISOString() })
@@ -169,6 +157,7 @@ export const deleteCalendarEvent = async (
         .eq('user_id', userId);
 
       if (error) throw error;
+      console.log('[CalendarService] Successfully soft deleted event:', eventId);
 
       // If this event was created from a booking request, also soft delete the booking request
       if (eventData?.booking_request_id) {
@@ -180,6 +169,8 @@ export const deleteCalendarEvent = async (
 
         if (bookingError) {
           console.warn('[CalendarService] Error deleting related booking request:', bookingError);
+        } else {
+          console.log('[CalendarService] Successfully deleted related booking request');
         }
       }
 
@@ -199,9 +190,11 @@ export const deleteCalendarEvent = async (
       const { data: relatedEvents, error: eventsError } = await supabase
         .from('events')
         .select('id')
-        .eq('booking_request_id', eventId);
+        .eq('booking_request_id', eventId)
+        .is('deleted_at', null);
 
       if (!eventsError && relatedEvents && relatedEvents.length > 0) {
+        console.log(`[CalendarService] Found ${relatedEvents.length} related events to delete`);
         // Soft delete any events created from this booking request
         const { error: eventDeleteError } = await supabase
           .from('events')
@@ -210,6 +203,8 @@ export const deleteCalendarEvent = async (
 
         if (eventDeleteError) {
           console.warn('[CalendarService] Error deleting related events:', eventDeleteError);
+        } else {
+          console.log('[CalendarService] Successfully deleted related events');
         }
       }
 
@@ -220,12 +215,18 @@ export const deleteCalendarEvent = async (
         .eq('id', eventId);
 
       if (error) throw error;
+      console.log('[CalendarService] Successfully deleted booking request:', eventId);
     }
 
-    console.log(`[CalendarService] Successfully deleted ${eventType}:`, eventId);
+    console.log(`[CalendarService] Deletion process completed for ${eventType}:`, eventId);
     
-    // Clear any cached data
+    // Force clear all calendar cache immediately
     clearCalendarCache();
+    
+    // Trigger a small delay then clear cache again to ensure it's properly cleared
+    setTimeout(() => {
+      clearCalendarCache();
+    }, 100);
     
   } catch (error) {
     console.error(`[CalendarService] Error deleting ${eventType}:`, error);
@@ -233,7 +234,7 @@ export const deleteCalendarEvent = async (
   }
 };
 
-// Clear cache function
+// Enhanced cache clearing function
 export const clearCalendarCache = (): void => {
   try {
     // Clear session storage cache
@@ -241,9 +242,20 @@ export const clearCalendarCache = (): void => {
     keys.forEach(key => {
       if (key.startsWith('calendar_events_') || key.startsWith('business_user_id_')) {
         sessionStorage.removeItem(key);
+        console.log('[CalendarService] Cleared cache key:', key);
       }
     });
-    console.log('[CalendarService] Cleared calendar cache');
+    
+    // Also clear localStorage cache if any
+    const localKeys = Object.keys(localStorage);
+    localKeys.forEach(key => {
+      if (key.startsWith('calendar_events_') || key.startsWith('business_user_id_')) {
+        localStorage.removeItem(key);
+        console.log('[CalendarService] Cleared localStorage key:', key);
+      }
+    });
+    
+    console.log('[CalendarService] Cache clearing completed');
   } catch (error) {
     console.warn('[CalendarService] Error clearing cache:', error);
   }
