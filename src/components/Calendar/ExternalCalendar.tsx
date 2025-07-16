@@ -20,14 +20,13 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [retryCount, setRetryCount] = useState(0);
   const { t } = useLanguage();
 
-  // Diagnostic logging for businessId
   useEffect(() => {
     console.log("[External Calendar] Mounted with business ID:", businessId);
     setLoadingError(null);
     clearCalendarCache();
   }, [businessId]);
 
-  // Retry mechanism for failed API calls
+  // Retry mechanism
   useEffect(() => {
     if (loadingError) {
       const retryTimer = setTimeout(() => {
@@ -42,7 +41,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     }
   }, [loadingError, retryCount]);
 
-  // Step 1: Get the business user ID
+  // Get the business user ID
   useEffect(() => {
     const getBusinessUserId = async () => {
       if (!businessId) return;
@@ -64,16 +63,9 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         if (data?.user_id) {
           console.log("[External Calendar] Found business user ID:", data.user_id);
           setBusinessUserId(data.user_id);
-          sessionStorage.setItem(`business_user_id_${businessId}`, data.user_id);
         } else {
           console.error("No user ID found for business:", businessId);
           setLoadingError("Invalid business profile");
-          
-          const cachedUserId = sessionStorage.getItem(`business_user_id_${businessId}`);
-          if (cachedUserId) {
-            console.log("[External Calendar] Recovered business user ID from session storage:", cachedUserId);
-            setBusinessUserId(cachedUserId);
-          }
         }
       } catch (error) {
         console.error("Exception fetching business user ID:", error);
@@ -84,7 +76,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     getBusinessUserId();
   }, [businessId, retryCount]);
 
-  // Step 2: Fetch all events using the unified calendar service
+  // Fetch events using database function for external calendar
   useEffect(() => {
     const fetchAllEvents = async () => {
       if (!businessId || !businessUserId) return;
@@ -96,30 +88,47 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         // Clear cache before fetching to ensure fresh data
         clearCalendarCache();
         
-        // Use the unified calendar service
-        const { events: unifiedEvents, bookings: unifiedBookings } = await getUnifiedCalendarEvents(businessId, businessUserId);
+        // Use the database function directly for external calendar to ensure proper filtering
+        console.log("[External Calendar] Using database function for external calendar");
+        const { data: publicEvents, error: publicError } = await supabase
+          .rpc('get_public_calendar_events', { business_id_param: businessId });
+
+        if (publicError) {
+          console.error('[External Calendar] Error fetching public events:', publicError);
+          setLoadingError("Failed to load calendar events");
+          return;
+        }
+
+        console.log(`[External Calendar] Fetched ${publicEvents?.length || 0} public events from database function`);
+
+        // Convert to CalendarEventType format
+        const formattedEvents: CalendarEventType[] = (publicEvents || []).map(event => ({
+          id: event.event_id,
+          title: event.event_title,
+          start_date: event.event_start_date,
+          end_date: event.event_end_date,
+          user_id: event.event_user_id || '',
+          user_surname: event.event_user_surname,
+          user_number: event.event_user_number,
+          social_network_link: event.event_social_network_link,
+          event_notes: event.event_notes,
+          payment_status: event.event_payment_status,
+          payment_amount: event.event_payment_amount,
+          type: event.event_type || 'event',
+          language: event.event_language,
+          created_at: event.event_created_at || new Date().toISOString(),
+          deleted_at: event.event_deleted_at
+        }));
+
+        // Final validation - these should already be filtered but double-check
+        const validEvents = formattedEvents.filter(event => !event.deleted_at);
         
-        console.log(`[External Calendar] Fetched ${unifiedEvents.length} events and ${unifiedBookings.length} bookings`);
-        console.log('[External Calendar] Unified events details:', unifiedEvents.map(e => ({ 
-          id: e.id, 
-          title: e.title, 
-          start: e.start_date, 
-          type: e.type,
-          deleted_at: e.deleted_at
-        })));
-        
-        // Combine all events
-        const allEvents: CalendarEventType[] = [...unifiedEvents, ...unifiedBookings];
-        
-        // Additional validation to ensure no deleted events
-        const validEvents = allEvents.filter(event => !event.deleted_at);
-        
-        if (validEvents.length !== allEvents.length) {
-          console.warn(`[External Calendar] Filtered out ${allEvents.length - validEvents.length} deleted events`);
+        if (validEvents.length !== formattedEvents.length) {
+          console.warn(`[External Calendar] Filtered out ${formattedEvents.length - validEvents.length} deleted events`);
         }
         
         console.log(`[External Calendar] Final events to display: ${validEvents.length}`);
-        console.log('[External Calendar] Final events details:', validEvents.map(e => ({ 
+        console.log('[External Calendar] Event details:', validEvents.map(e => ({ 
           id: e.id, 
           title: e.title, 
           start: e.start_date, 
@@ -127,30 +136,11 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           deleted_at: e.deleted_at
         })));
         
-        // Store events in session storage for recovery
-        try {
-          sessionStorage.setItem(`calendar_events_${businessId}`, JSON.stringify(validEvents));
-        } catch (e) {
-          console.warn("Failed to store events in session storage:", e);
-        }
-        
-        // Update state with fetched events
         setEvents(validEvents);
         setLoadingError(null);
       } catch (error) {
         console.error("Exception in ExternalCalendar.fetchAllEvents:", error);
         setLoadingError("Failed to load calendar events");
-        
-        // Try to recover events from session storage
-        try {
-          const cachedEvents = sessionStorage.getItem(`calendar_events_${businessId}`);
-          if (cachedEvents) {
-            console.log("[External Calendar] Recovering events from session storage");
-            setEvents(JSON.parse(cachedEvents));
-          }
-        } catch (e) {
-          console.error("Failed to recover events from session storage:", e);
-        }
         
         toast({
           title: t("common.error"),
@@ -162,16 +152,15 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       }
     };
 
-    // Only fetch if we have both business ID and user ID
     if (businessId && businessUserId) {
       console.log("[External Calendar] Have business ID and user ID, fetching events");
       fetchAllEvents();
       
-      // Set up aggressive polling for immediate sync
+      // Set up immediate polling for real-time sync (every 1 second for external calendar)
       const intervalId = setInterval(() => {
-        console.log("[External Calendar] Polling interval triggered, fetching fresh data");
+        console.log("[External Calendar] Polling interval triggered for external calendar");
         fetchAllEvents();
-      }, 2000); // Poll every 2 seconds for immediate sync
+      }, 1000);
       
       return () => {
         clearInterval(intervalId);
@@ -183,9 +172,9 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   useEffect(() => {
     if (!businessId || !businessUserId) return;
 
-    console.log("[External Calendar] Setting up enhanced real-time subscription");
+    console.log("[External Calendar] Setting up real-time subscription for external calendar");
 
-    // Subscribe to changes in events table
+    // Subscribe to changes in events table for this specific user
     const eventsChannel = supabase
       .channel(`external_calendar_events_${businessId}_${Date.now()}`)
       .on(
@@ -197,7 +186,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           filter: `user_id=eq.${businessUserId}`
         },
         (payload) => {
-          console.log('[External Calendar] Events table changed:', payload);
+          console.log('[External Calendar] Events table changed for user:', payload);
           // Clear cache and trigger immediate refetch
           clearCalendarCache();
           setRetryCount(prev => prev + 1);
@@ -205,7 +194,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       )
       .subscribe();
 
-    // Subscribe to changes in booking_requests table
+    // Subscribe to changes in booking_requests table for this business
     const bookingsChannel = supabase
       .channel(`external_calendar_bookings_${businessId}_${Date.now()}`)
       .on(
@@ -217,7 +206,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           filter: `business_id=eq.${businessId}`
         },
         (payload) => {
-          console.log('[External Calendar] Booking requests table changed:', payload);
+          console.log('[External Calendar] Booking requests table changed for business:', payload);
           // Clear cache and trigger immediate refetch
           clearCalendarCache();
           setRetryCount(prev => prev + 1);

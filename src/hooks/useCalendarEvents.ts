@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -12,7 +13,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
   const fetchEvents = async (): Promise<CalendarEventType[]> => {
     try {
-      // Determine which user's events to fetch
       const targetUserId = businessUserId || user?.id;
       
       if (!targetUserId) {
@@ -25,15 +25,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       // Use the unified calendar service
       const { events, bookings } = await getUnifiedCalendarEvents(businessId, targetUserId);
       
-      // Combine all events
-      const allEvents: CalendarEventType[] = [...events, ...bookings];
+      // Combine all events and ensure no deleted events
+      const allEvents: CalendarEventType[] = [...events, ...bookings].filter(event => !event.deleted_at);
 
       console.log(`[useCalendarEvents] ✅ Loaded ${allEvents.length} total events (${events.length} events + ${bookings.length} bookings)`);
       console.log('[useCalendarEvents] Event details:', allEvents.map(e => ({ 
         id: e.id, 
         title: e.title, 
         start: e.start_date, 
-        type: e.type 
+        type: e.type,
+        deleted_at: e.deleted_at 
       })));
       
       return allEvents;
@@ -53,8 +54,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     queryKey: businessId ? ['business-events', businessId] : ['events', user?.id],
     queryFn: fetchEvents,
     enabled: !!(businessUserId || user?.id),
-    staleTime: 1000, // 1 second - very short to ensure fresh data
-    refetchInterval: 2000, // Refetch every 2 seconds for real-time sync
+    staleTime: 0, // Always consider data stale to ensure fresh fetches
+    refetchInterval: 1000, // Refetch every 1 second for immediate sync
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 
   const createEventMutation = useMutation({
@@ -81,17 +84,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           repeat_pattern: eventData.repeat_pattern,
           repeat_until: eventData.repeat_until
         },
-        p_additional_persons: [], // No additional persons for direct creation
+        p_additional_persons: [],
         p_user_id: user.id,
         p_event_id: null
       });
 
       if (error) throw error;
 
-      // Clear cache after creation to ensure sync
+      // Clear cache after creation
       clearCalendarCache();
 
-      // Return a complete CalendarEventType object
       return {
         id: savedEventId,
         title: eventData.user_surname || eventData.title || 'Untitled Event',
@@ -104,8 +106,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       } as CalendarEventType;
     },
     onSuccess: async () => {
-      // Wait a bit for recurring events to be generated
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Clear cache and invalidate queries
+      clearCalendarCache();
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
@@ -133,7 +137,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("[useCalendarEvents] Updating event with data:", eventData);
 
-      // Use the database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
         p_event_data: {
           title: eventData.user_surname || eventData.title,
@@ -151,17 +154,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           repeat_pattern: eventData.repeat_pattern,
           repeat_until: eventData.repeat_until
         },
-        p_additional_persons: [], // Additional persons handled in EventDialog
+        p_additional_persons: [],
         p_user_id: user.id,
         p_event_id: eventData.id
       });
 
       if (error) throw error;
 
-      // Clear cache after update to ensure sync
+      // Clear cache after update
       clearCalendarCache();
 
-      // Return a complete CalendarEventType object
       return {
         id: savedEventId,
         title: eventData.user_surname || eventData.title || 'Untitled Event',
@@ -174,7 +176,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       } as CalendarEventType;
     },
     onSuccess: async () => {
-      // Wait a bit for any changes to propagate
+      // Clear cache and invalidate queries
+      clearCalendarCache();
+      
       await new Promise(resolve => setTimeout(resolve, 500));
       
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
@@ -209,30 +213,27 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("[useCalendarEvents] Determined event type:", eventType, "for event:", eventToDelete);
 
-      // Use the unified delete function to ensure sync between calendars
+      // Use the unified delete function
       await deleteCalendarEvent(id, eventType, user.id);
 
-      // Force clear cache after deletion
+      // Aggressive cache clearing
       clearCalendarCache();
 
       return { success: true };
     },
     onSuccess: async () => {
-      console.log("[useCalendarEvents] Delete mutation succeeded, invalidating queries");
+      console.log("[useCalendarEvents] Delete mutation succeeded, clearing cache and invalidating queries");
       
-      // Clear cache immediately
+      // Aggressive cache clearing
       clearCalendarCache();
       
-      // Wait a bit for changes to propagate
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Invalidate all related queries to force refetch
+      // Invalidate all related queries
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
       }
-      
-      // Also invalidate any potential external calendar queries
       queryClient.invalidateQueries({ queryKey: ['calendar'] });
       
       toast({
