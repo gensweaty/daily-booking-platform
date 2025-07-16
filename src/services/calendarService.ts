@@ -38,8 +38,8 @@ export const getUnifiedCalendarEvents = async (
 
     console.log(`[CalendarService] Fetched ${events?.length || 0} events from events table`);
 
-    // Fetch approved booking requests that have been converted to events
-    // Only include approved booking requests as they represent actual bookings
+    // Fetch approved booking requests that are NOT yet converted to events
+    // Only include approved booking requests that don't have a corresponding event
     let bookingRequests: any[] = [];
     if (businessId) {
       const { data: bookings, error: bookingsError } = await supabase
@@ -54,11 +54,21 @@ export const getUnifiedCalendarEvents = async (
         console.error('[CalendarService] Error fetching booking requests:', bookingsError);
         // Don't throw here, just log the error and continue with empty bookings
       } else {
-        bookingRequests = bookings || [];
+        // Filter out booking requests that have already been converted to events
+        // by checking if there's an event with the same booking_request_id
+        const existingEventBookingIds = new Set(
+          (events || [])
+            .filter(event => event.booking_request_id)
+            .map(event => event.booking_request_id)
+        );
+        
+        bookingRequests = (bookings || []).filter(booking => 
+          !existingEventBookingIds.has(booking.id)
+        );
       }
     }
 
-    console.log(`[CalendarService] Fetched ${bookingRequests.length} approved booking requests`);
+    console.log(`[CalendarService] Fetched ${bookingRequests.length} approved booking requests (not yet converted to events)`);
 
     // Convert events to CalendarEventType format
     const formattedEvents: CalendarEventType[] = (events || []).map(event => ({
@@ -81,10 +91,12 @@ export const getUnifiedCalendarEvents = async (
       parent_event_id: event.parent_event_id,
       language: event.language,
       created_at: event.created_at || new Date().toISOString(),
-      deleted_at: event.deleted_at
+      deleted_at: event.deleted_at,
+      booking_request_id: event.booking_request_id // Include this to track converted bookings
     }));
 
     // Convert approved booking requests to CalendarEventType format
+    // Only include booking requests that haven't been converted to events
     const formattedBookings: CalendarEventType[] = bookingRequests.map(booking => ({
       id: booking.id,
       title: booking.title,
@@ -112,7 +124,8 @@ export const getUnifiedCalendarEvents = async (
       id: e.id, 
       title: e.title, 
       start: e.start_date, 
-      type: e.type 
+      type: e.type,
+      booking_request_id: e.booking_request_id
     })));
     
     return {
@@ -136,6 +149,18 @@ export const deleteCalendarEvent = async (
     console.log(`[CalendarService] Deleting ${eventType} with ID:`, eventId);
     
     if (eventType === 'event') {
+      // Get the event to check if it has a booking_request_id
+      const { data: eventData, error: fetchError } = await supabase
+        .from('events')
+        .select('booking_request_id')
+        .eq('id', eventId)
+        .eq('user_id', userId)
+        .single();
+
+      if (fetchError) {
+        console.error('[CalendarService] Error fetching event data:', fetchError);
+      }
+
       // Soft delete the event
       const { error } = await supabase
         .from('events')
@@ -144,6 +169,19 @@ export const deleteCalendarEvent = async (
         .eq('user_id', userId);
 
       if (error) throw error;
+
+      // If this event was created from a booking request, also soft delete the booking request
+      if (eventData?.booking_request_id) {
+        console.log(`[CalendarService] Also deleting related booking request: ${eventData.booking_request_id}`);
+        const { error: bookingError } = await supabase
+          .from('booking_requests')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', eventData.booking_request_id);
+
+        if (bookingError) {
+          console.warn('[CalendarService] Error deleting related booking request:', bookingError);
+        }
+      }
 
       // If this is a recurring event (parent), also soft delete all child instances
       const { error: childrenError } = await supabase
