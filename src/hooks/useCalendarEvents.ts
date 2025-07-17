@@ -5,6 +5,7 @@ import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getUnifiedCalendarEvents, deleteCalendarEvent, clearCalendarCache } from '@/services/calendarService';
+import { useEffect } from 'react';
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string) => {
   const { user } = useAuth();
@@ -13,7 +14,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
   const fetchEvents = async (): Promise<CalendarEventType[]> => {
     try {
-      // Determine which user's events to fetch
       const targetUserId = businessUserId || user?.id;
       
       if (!targetUserId) {
@@ -23,19 +23,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("[useCalendarEvents] Fetching events for user:", targetUserId, "business:", businessId);
 
-      // Use the unified calendar service - this ensures consistency between internal and external calendars
+      // Use the unified calendar service for consistency
       const { events, bookings } = await getUnifiedCalendarEvents(businessId, targetUserId);
       
       // Combine all events
       const allEvents: CalendarEventType[] = [...events, ...bookings];
 
       console.log(`[useCalendarEvents] ✅ Loaded ${allEvents.length} total events (${events.length} events + ${bookings.length} bookings)`);
-      console.log('[useCalendarEvents] Event details:', allEvents.map(e => ({ 
-        id: e.id, 
-        title: e.title, 
-        start: e.start_date, 
-        type: e.type 
-      })));
       
       return allEvents;
 
@@ -45,17 +39,118 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     }
   };
 
+  const queryKey = businessId ? ['business-events', businessId] : ['events', user?.id];
+
   const {
     data: events = [],
     isLoading,
     error,
     refetch
   } = useQuery({
-    queryKey: businessId ? ['business-events', businessId] : ['events', user?.id],
+    queryKey,
     queryFn: fetchEvents,
     enabled: !!(businessUserId || user?.id),
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 0, // Always consider data stale for immediate updates
+    gcTime: 1000, // Keep in cache for 1 second only
+    refetchInterval: 1000, // Aggressive polling every 1 second for immediate sync
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
+
+  // Listen for calendar cache invalidation events
+  useEffect(() => {
+    const handleCacheInvalidation = () => {
+      console.log('[useCalendarEvents] Cache invalidation detected, refetching...');
+      queryClient.invalidateQueries({ queryKey });
+      refetch();
+    };
+
+    const handleEventDeletion = (event: CustomEvent) => {
+      console.log('[useCalendarEvents] Event deletion detected:', event.detail);
+      queryClient.invalidateQueries({ queryKey });
+      refetch();
+    };
+
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'calendar_invalidation_signal' || event.key === 'calendar_event_deleted') {
+        console.log('[useCalendarEvents] Cross-tab sync detected, refetching...');
+        queryClient.invalidateQueries({ queryKey });
+        refetch();
+      }
+    };
+
+    window.addEventListener('calendar-cache-invalidated', handleCacheInvalidation);
+    window.addEventListener('calendar-event-deleted', handleEventDeletion as EventListener);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('calendar-cache-invalidated', handleCacheInvalidation);
+      window.removeEventListener('calendar-event-deleted', handleEventDeletion as EventListener);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [queryClient, queryKey, refetch]);
+
+  // Real-time subscriptions for immediate updates
+  useEffect(() => {
+    if (!user?.id && !businessUserId) return;
+
+    const targetUserId = businessUserId || user?.id;
+    if (!targetUserId) return;
+
+    console.log('[useCalendarEvents] Setting up real-time subscriptions');
+
+    // Subscribe to events table changes
+    const eventsChannel = supabase
+      .channel(`calendar_events_${targetUserId}_${Date.now()}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'events',
+          filter: `user_id=eq.${targetUserId}`
+        },
+        (payload) => {
+          console.log('[useCalendarEvents] Events table changed:', payload);
+          clearCalendarCache();
+          queryClient.invalidateQueries({ queryKey });
+          refetch();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to booking_requests table changes
+    let bookingsChannel: any = null;
+    if (businessId) {
+      bookingsChannel = supabase
+        .channel(`calendar_bookings_${businessId}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'booking_requests',
+            filter: `business_id=eq.${businessId}`
+          },
+          (payload) => {
+            console.log('[useCalendarEvents] Booking requests table changed:', payload);
+            clearCalendarCache();
+            queryClient.invalidateQueries({ queryKey });
+            refetch();
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      console.log('[useCalendarEvents] Cleaning up real-time subscriptions');
+      supabase.removeChannel(eventsChannel);
+      if (bookingsChannel) {
+        supabase.removeChannel(bookingsChannel);
+      }
+    };
+  }, [user?.id, businessUserId, businessId, queryClient, queryKey, refetch]);
 
   const createEventMutation = useMutation({
     mutationFn: async (eventData: Partial<CalendarEventType>) => {
@@ -63,7 +158,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("[useCalendarEvents] Creating event with data:", eventData);
 
-      // Use the database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
         p_event_data: {
           title: eventData.user_surname || eventData.title,
@@ -81,17 +175,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           repeat_pattern: eventData.repeat_pattern,
           repeat_until: eventData.repeat_until
         },
-        p_additional_persons: [], // No additional persons for direct creation
+        p_additional_persons: [],
         p_user_id: user.id,
         p_event_id: null
       });
 
       if (error) throw error;
 
-      // Clear cache after creation to ensure sync
       clearCalendarCache();
 
-      // Return a complete CalendarEventType object
       return {
         id: savedEventId,
         title: eventData.user_surname || eventData.title || 'Untitled Event',
@@ -104,14 +196,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       } as CalendarEventType;
     },
     onSuccess: async () => {
-      // Wait a bit for recurring events to be generated
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise(resolve => setTimeout(resolve, 500));
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
       }
-      
       toast({
         title: "Success",
         description: "Event created successfully",
@@ -133,7 +222,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("[useCalendarEvents] Updating event with data:", eventData);
 
-      // Use the database function for atomic operations
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
         p_event_data: {
           title: eventData.user_surname || eventData.title,
@@ -151,17 +239,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           repeat_pattern: eventData.repeat_pattern,
           repeat_until: eventData.repeat_until
         },
-        p_additional_persons: [], // Additional persons handled in EventDialog
+        p_additional_persons: [],
         p_user_id: user.id,
         p_event_id: eventData.id
       });
 
       if (error) throw error;
 
-      // Clear cache after update to ensure sync
       clearCalendarCache();
 
-      // Return a complete CalendarEventType object
       return {
         id: savedEventId,
         title: eventData.user_surname || eventData.title || 'Untitled Event',
@@ -174,14 +260,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       } as CalendarEventType;
     },
     onSuccess: async () => {
-      // Wait a bit for any changes to propagate
       await new Promise(resolve => setTimeout(resolve, 500));
-      
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
       }
-      
       toast({
         title: "Success",
         description: "Event updated successfully",
@@ -207,19 +290,21 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       const eventToDelete = events.find(e => e.id === id);
       const eventType = eventToDelete?.type === 'booking_request' ? 'booking_request' : 'event';
 
-      // Use the unified delete function to ensure sync between calendars
+      // Use the enhanced unified delete function
       await deleteCalendarEvent(id, eventType, user.id);
 
       return { success: true };
     },
     onSuccess: async () => {
-      // Wait a bit for changes to propagate
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      // Immediate cache invalidation and refetch
+      clearCalendarCache();
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
       }
+      
+      // Force immediate refetch
+      refetch();
       
       toast({
         title: "Success",
