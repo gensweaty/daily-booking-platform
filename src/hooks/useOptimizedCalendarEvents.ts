@@ -1,3 +1,4 @@
+
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfDay, endOfDay } from 'date-fns';
@@ -15,8 +16,6 @@ interface OptimizedEvent {
   type?: string;
   created_at: string;
   deleted_at?: string;
-  booking_request_id?: string;
-  user_surname?: string;
 }
 
 interface OptimizedBookingRequest {
@@ -28,7 +27,6 @@ interface OptimizedBookingRequest {
   business_id: string;
   created_at: string;
   deleted_at?: string;
-  requester_name?: string;
 }
 
 export const useOptimizedCalendarEvents = (userId: string | undefined, currentDate: Date) => {
@@ -58,14 +56,12 @@ export const useOptimizedCalendarEvents = (userId: string | undefined, currentDa
           payment_amount,
           type,
           created_at,
-          deleted_at,
-          booking_request_id,
-          user_surname
+          deleted_at
         `)
         .eq('user_id', userId)
         .gte('start_date', monthStart.toISOString())
         .lte('start_date', monthEnd.toISOString())
-        .is('deleted_at', null)
+        .is('deleted_at', null) // CRITICAL: Only non-deleted events
         .order('start_date', { ascending: true })
         .limit(100);
 
@@ -85,13 +81,12 @@ export const useOptimizedCalendarEvents = (userId: string | undefined, currentDa
           status,
           business_id,
           created_at,
-          deleted_at,
-          requester_name
+          deleted_at
         `)
         .eq('user_id', userId)
         .gte('start_date', monthStart.toISOString())
         .lte('start_date', monthEnd.toISOString())
-        .is('deleted_at', null)
+        .is('deleted_at', null) // CRITICAL: Only non-deleted bookings
         .order('start_date', { ascending: true })
         .limit(50);
 
@@ -104,31 +99,9 @@ export const useOptimizedCalendarEvents = (userId: string | undefined, currentDa
       const validEvents = (events as OptimizedEvent[])?.filter(event => !event.deleted_at) || [];
       const validBookings = (bookingRequests as OptimizedBookingRequest[])?.filter(booking => !booking.deleted_at) || [];
 
-      // Enhanced deduplication logic
+      // Filter out booking requests that are already present as events (avoid duplicates)
       const eventIds = new Set(validEvents.map(e => e.id));
-      const eventTimeSlots = new Set(validEvents.map(e => 
-        `${e.start_date}-${e.end_date}-${e.user_surname || e.title}`
-      ));
-
-      // Filter booking requests to avoid duplicates with events
-      const uniqueBookings = validBookings.filter(booking => {
-        // Don't include if there's already an event with the same ID
-        if (eventIds.has(booking.id)) {
-          return false;
-        }
-
-        // For approved bookings, check if there's a matching event by time slot and name
-        if (booking.status === 'approved') {
-          const bookingTimeSlot = `${booking.start_date}-${booking.end_date}-${booking.requester_name || booking.title}`;
-          if (eventTimeSlots.has(bookingTimeSlot)) {
-            return false;
-          }
-        }
-
-        return true;
-      });
-
-      console.log(`[useOptimizedCalendarEvents] Returning ${validEvents.length} events and ${uniqueBookings.length} bookings (optimized and deduplicated)`);
+      const uniqueBookings = validBookings.filter(booking => !eventIds.has(booking.id));
 
       return {
         events: validEvents,
