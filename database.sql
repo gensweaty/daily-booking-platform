@@ -12,7 +12,8 @@ AS $function$
   ORDER BY start_date ASC;
 $function$;
 
--- Update the get_public_calendar_events function to ensure proper deletion handling
+-- Create a new function to get all calendar data (events + booking requests) for a business
+-- This ensures the external calendar gets the exact same data as the internal calendar
 CREATE OR REPLACE FUNCTION public.get_public_calendar_events(business_id_param uuid)
  RETURNS TABLE(
    event_id uuid,
@@ -47,7 +48,8 @@ BEGIN
     RAISE EXCEPTION 'Business not found: %', business_id_param;
   END IF;
 
-  -- Return ALL non-deleted events from the events table
+  -- Return ALL events from the events table (this includes all types of events)
+  -- regular events, recurring events, CRM-created events, etc.
   RETURN QUERY
   SELECT 
     e.id as event_id,
@@ -67,11 +69,11 @@ BEGIN
     e.deleted_at as event_deleted_at
   FROM events e
   WHERE e.user_id = business_user_id
-    AND e.deleted_at IS NULL  -- Strictly filter out deleted events
+    AND e.deleted_at IS NULL  -- Only non-deleted events
   
   UNION ALL
   
-  -- Return approved non-deleted booking requests that haven't been converted to events
+  -- Return approved booking requests as events
   SELECT 
     br.id as event_id,
     br.title as event_title,
@@ -91,13 +93,7 @@ BEGIN
   FROM booking_requests br
   WHERE br.business_id = business_id_param
     AND br.status = 'approved'  -- Only approved bookings
-    AND br.deleted_at IS NULL   -- Strictly filter out deleted bookings
-    -- Only include booking requests that haven't been converted to events
-    AND NOT EXISTS (
-      SELECT 1 FROM events e 
-      WHERE e.booking_request_id = br.id 
-      AND e.deleted_at IS NULL
-    )
+    AND br.deleted_at IS NULL   -- Only non-deleted bookings
   
   ORDER BY event_start_date ASC;
 END;
