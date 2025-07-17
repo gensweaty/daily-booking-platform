@@ -25,21 +25,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       // Use the unified calendar service for consistency
       const { events, bookings } = await getUnifiedCalendarEvents(businessId, targetUserId);
       
-      // Combine all events and ensure no duplicates
+      // Combine all events - now properly deduplicated in the service
       const allEvents: CalendarEventType[] = [...events, ...bookings];
-      
-      // Additional deduplication by ID to ensure no duplicates
-      const uniqueEvents = allEvents.filter((event, index, self) => 
-        index === self.findIndex(e => e.id === event.id)
-      );
 
-      if (uniqueEvents.length !== allEvents.length) {
-        console.warn(`[useCalendarEvents] Removed ${allEvents.length - uniqueEvents.length} duplicate events`);
-      }
-
-      console.log(`[useCalendarEvents] ✅ Loaded ${uniqueEvents.length} unique events (${events.length} events + ${bookings.length} bookings)`);
+      console.log(`[useCalendarEvents] ✅ Loaded ${allEvents.length} events (${events.length} events + ${bookings.length} bookings) - fully deduplicated`);
       
-      return uniqueEvents;
+      return allEvents;
 
     } catch (error) {
       console.error("[useCalendarEvents] Error in fetchEvents:", error);
@@ -53,13 +44,14 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     data: events = [],
     isLoading,
     error,
-    refetch
+    refetch,
+    isPending
   } = useQuery({
     queryKey,
     queryFn: fetchEvents,
     enabled: !!(businessUserId || user?.id),
     staleTime: 0, // Always consider data stale for immediate updates
-    gcTime: 2000, // Keep in cache for 2 seconds only
+    gcTime: 1000, // Keep in cache for 1 second only
     refetchInterval: 2000, // Moderate polling every 2 seconds
     refetchIntervalInBackground: false, // Disable background refetch to avoid visible loading
     refetchOnWindowFocus: true,
@@ -175,6 +167,67 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       }
     };
   }, [user?.id, businessUserId, businessId, queryClient, queryKey, refetch]);
+
+  const deleteEventMutation = useMutation({
+    mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+
+      console.log("[useCalendarEvents] Deleting event:", id, deleteChoice);
+
+      // Determine the event type from the current events
+      const eventToDelete = events.find(e => e.id === id);
+      const eventType = eventToDelete?.type === 'booking_request' ? 'booking_request' : 'event';
+
+      // Use the enhanced unified delete function that handles cross-table deletion
+      await deleteCalendarEvent(id, eventType, user.id);
+
+      return { success: true };
+    },
+    onMutate: async ({ id }) => {
+      // Optimistic update - immediately remove from UI
+      await queryClient.cancelQueries({ queryKey });
+      
+      const previousEvents = queryClient.getQueryData<CalendarEventType[]>(queryKey);
+      
+      if (previousEvents) {
+        queryClient.setQueryData<CalendarEventType[]>(
+          queryKey,
+          previousEvents.filter(event => event.id !== id)
+        );
+      }
+      
+      return { previousEvents };
+    },
+    onSuccess: async () => {
+      // Immediate cache invalidation and refetch
+      clearCalendarCache();
+      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      if (businessId) {
+        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
+      }
+      
+      // Force immediate refetch for consistency
+      await refetch();
+      
+      toast({
+        title: "Success",
+        description: "Event deleted successfully",
+      });
+    },
+    onError: (error: any, variables, context) => {
+      // Rollback optimistic update on error
+      if (context?.previousEvents) {
+        queryClient.setQueryData(queryKey, context.previousEvents);
+      }
+      
+      console.error("[useCalendarEvents] Error deleting event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete event",
+        variant: "destructive",
+      });
+    },
+  });
 
   const createEventMutation = useMutation({
     mutationFn: async (eventData: Partial<CalendarEventType>) => {
@@ -304,50 +357,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     },
   });
 
-  const deleteEventMutation = useMutation({
-    mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
-      if (!user?.id) throw new Error("User not authenticated");
-
-      console.log("[useCalendarEvents] Deleting event:", id, deleteChoice);
-
-      // Determine the event type from the current events
-      const eventToDelete = events.find(e => e.id === id);
-      const eventType = eventToDelete?.type === 'booking_request' ? 'booking_request' : 'event';
-
-      // Use the enhanced unified delete function
-      await deleteCalendarEvent(id, eventType, user.id);
-
-      return { success: true };
-    },
-    onSuccess: async () => {
-      // Immediate cache invalidation and refetch
-      clearCalendarCache();
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      if (businessId) {
-        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
-      }
-      
-      // Force immediate refetch
-      refetch();
-      
-      toast({
-        title: "Success",
-        description: "Event deleted successfully",
-      });
-    },
-    onError: (error: any) => {
-      console.error("[useCalendarEvents] Error deleting event:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete event",
-        variant: "destructive",
-      });
-    },
-  });
-
   return {
     events,
-    isLoading,
+    isLoading: isLoading && !isPending, // Only show loading for initial loads, not background updates
     error,
     refetch,
     createEvent: createEventMutation.mutateAsync,

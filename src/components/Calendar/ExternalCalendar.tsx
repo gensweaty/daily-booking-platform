@@ -14,6 +14,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [view, setView] = useState<CalendarViewType>("month");
   const [events, setEvents] = useState<CalendarEventType[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
   const { toast } = useToast();
   const [businessUserId, setBusinessUserId] = useState<string | null>(null);
   const [loadingError, setLoadingError] = useState<string | null>(null);
@@ -85,7 +86,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     getBusinessUserId();
   }, [businessId, retryCount]);
 
-  // Step 2: Fetch all events using the unified calendar service with optimized polling
+  // Step 2: Fetch all events using the unified calendar service with silent background updates
   useEffect(() => {
     let isMounted = true;
     
@@ -94,6 +95,10 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       
       if (showLoading) {
         setIsInitialLoading(true);
+        setIsBackgroundLoading(false);
+      } else {
+        setIsBackgroundLoading(true);
+        setIsInitialLoading(false);
       }
       
       console.log("[External Calendar] Starting to fetch events for business ID:", businessId, "user ID:", businessUserId);
@@ -104,10 +109,10 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         
         console.log(`[External Calendar] Fetched ${unifiedEvents.length} events and ${unifiedBookings.length} bookings`);
         
-        // Combine all events - this should match exactly what the internal calendar shows
+        // Combine all events - this should now be properly deduplicated
         const allEvents: CalendarEventType[] = [...unifiedEvents, ...unifiedBookings];
         
-        // STRICT validation to ensure no deleted events and no duplicates
+        // Additional safety check for deleted events
         const validEvents = allEvents.filter(event => !event.deleted_at);
         
         // Additional deduplication by ID to ensure no duplicates
@@ -135,15 +140,15 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           
           setEvents(uniqueEvents);
           setLoadingError(null);
-          if (showLoading) {
-            setIsInitialLoading(false);
-          }
+          setIsInitialLoading(false);
+          setIsBackgroundLoading(false);
         }
       } catch (error) {
         console.error("Exception in ExternalCalendar.fetchAllEvents:", error);
         
         if (isMounted) {
           setLoadingError("Failed to load calendar events");
+          setIsBackgroundLoading(false);
           
           // Try to recover events from session storage
           try {
@@ -174,9 +179,9 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       // Initial load with loading indicator
       fetchAllEvents(true);
       
-      // Background polling every 3 seconds (reduced from 1 second to avoid excessive loading)
+      // Silent background polling every 3 seconds
       const intervalId = setInterval(() => {
-        // Background update without loading indicator
+        // Background update without visible loading indicator
         fetchAllEvents(false);
       }, 3000);
       
@@ -191,24 +196,52 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     };
   }, [businessId, businessUserId, toast, t, retryCount]);
 
-  // Listen for cache invalidation and deletion events
+  // Listen for cache invalidation and deletion events with immediate updates
   useEffect(() => {
+    let debounceTimer: NodeJS.Timeout;
+
+    const debouncedRefresh = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        setRetryCount(prev => prev + 1);
+      }, 100);
+    };
+
     const handleCacheInvalidation = () => {
-      console.log('[External Calendar] Cache invalidation detected, refetching...');
-      setRetryCount(prev => prev + 1);
+      console.log('[External Calendar] Cache invalidation detected, immediate refresh...');
+      debouncedRefresh();
     };
 
     const handleEventDeletion = (event: CustomEvent) => {
       console.log('[External Calendar] Event deletion detected:', event.detail);
       clearCalendarCache();
-      setRetryCount(prev => prev + 1);
+      
+      // Immediate optimistic update - remove the deleted event from local state
+      const deletedEventId = event.detail.eventId;
+      if (deletedEventId) {
+        setEvents(prevEvents => prevEvents.filter(evt => evt.id !== deletedEventId));
+      }
+      
+      // Then trigger a refresh to ensure consistency
+      debouncedRefresh();
     };
 
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === 'calendar_invalidation_signal' || event.key === 'calendar_event_deleted') {
-        console.log('[External Calendar] Cross-tab sync detected, refetching...');
+        console.log('[External Calendar] Cross-tab sync detected, immediate refresh...');
         clearCalendarCache();
-        setRetryCount(prev => prev + 1);
+        
+        // Handle deletion signal from other tabs
+        if (event.key === 'calendar_event_deleted' && event.newValue) {
+          try {
+            const deleteData = JSON.parse(event.newValue);
+            setEvents(prevEvents => prevEvents.filter(evt => evt.id !== deleteData.eventId));
+          } catch (e) {
+            console.warn('Failed to parse deletion signal:', e);
+          }
+        }
+        
+        debouncedRefresh();
       }
     };
 
@@ -217,6 +250,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
+      clearTimeout(debounceTimer);
       window.removeEventListener('calendar-cache-invalidated', handleCacheInvalidation);
       window.removeEventListener('calendar-event-deleted', handleEventDeletion as EventListener);
       window.removeEventListener('storage', handleStorageChange);
@@ -228,6 +262,18 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     if (!businessId || !businessUserId) return;
 
     console.log("[External Calendar] Setting up real-time subscriptions");
+
+    let debounceTimer: NodeJS.Timeout;
+
+    const debouncedUpdate = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        clearCalendarCache();
+        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
+        queryClient.invalidateQueries({ queryKey: ['events', businessUserId] });
+        setRetryCount(prev => prev + 1);
+      }, 200);
+    };
 
     // Subscribe to changes in events table
     const eventsChannel = supabase
@@ -242,11 +288,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         },
         (payload) => {
           console.log('[External Calendar] Events table changed:', payload);
-          clearCalendarCache();
-          // Invalidate React Query cache
-          queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
-          queryClient.invalidateQueries({ queryKey: ['events', businessUserId] });
-          setRetryCount(prev => prev + 1);
+          debouncedUpdate();
         }
       )
       .subscribe();
@@ -264,16 +306,13 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         },
         (payload) => {
           console.log('[External Calendar] Booking requests table changed:', payload);
-          clearCalendarCache();
-          // Invalidate React Query cache
-          queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
-          queryClient.invalidateQueries({ queryKey: ['events', businessUserId] });
-          setRetryCount(prev => prev + 1);
+          debouncedUpdate();
         }
       )
       .subscribe();
 
     return () => {
+      clearTimeout(debounceTimer);
       console.log('[External Calendar] Cleaning up real-time subscriptions');
       supabase.removeChannel(eventsChannel);
       supabase.removeChannel(bookingsChannel);
@@ -296,12 +335,20 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">
       <CardContent className="p-0">
         <div className="px-6 pt-6 relative">
+          {/* Only show loading spinner for initial load, not background updates */}
           {isInitialLoading && (
             <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
               <div className="flex items-center space-x-2">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                 <span className="text-primary">{t("common.loading")}</span>
               </div>
+            </div>
+          )}
+          
+          {/* Silent background loading indicator (optional, very subtle) */}
+          {isBackgroundLoading && !isInitialLoading && (
+            <div className="absolute top-2 right-2 z-10">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse opacity-50"></div>
             </div>
           )}
           
