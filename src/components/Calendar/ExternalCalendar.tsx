@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2 } from "lucide-react";
 import { getUnifiedCalendarEvents, clearCalendarCache } from "@/services/calendarService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useQueryClient } from '@tanstack/react-query';
@@ -14,7 +13,7 @@ import { useQueryClient } from '@tanstack/react-query';
 export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [view, setView] = useState<CalendarViewType>("month");
   const [events, setEvents] = useState<CalendarEventType[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const { toast } = useToast();
   const [businessUserId, setBusinessUserId] = useState<string | null>(null);
   const [loadingError, setLoadingError] = useState<string | null>(null);
@@ -86,12 +85,17 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     getBusinessUserId();
   }, [businessId, retryCount]);
 
-  // Step 2: Fetch all events using the unified calendar service with aggressive polling
+  // Step 2: Fetch all events using the unified calendar service with optimized polling
   useEffect(() => {
-    const fetchAllEvents = async () => {
+    let isMounted = true;
+    
+    const fetchAllEvents = async (showLoading = false) => {
       if (!businessId || !businessUserId) return;
       
-      setIsLoading(true);
+      if (showLoading) {
+        setIsInitialLoading(true);
+      }
+      
       console.log("[External Calendar] Starting to fetch events for business ID:", businessId, "user ID:", businessUserId);
       
       try {
@@ -103,59 +107,88 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         // Combine all events - this should match exactly what the internal calendar shows
         const allEvents: CalendarEventType[] = [...unifiedEvents, ...unifiedBookings];
         
-        // STRICT validation to ensure no deleted events
+        // STRICT validation to ensure no deleted events and no duplicates
         const validEvents = allEvents.filter(event => !event.deleted_at);
+        
+        // Additional deduplication by ID to ensure no duplicates
+        const uniqueEvents = validEvents.filter((event, index, self) => 
+          index === self.findIndex(e => e.id === event.id)
+        );
         
         if (validEvents.length !== allEvents.length) {
           console.warn(`[External Calendar] Filtered out ${allEvents.length - validEvents.length} deleted events`);
         }
         
-        console.log(`[External Calendar] Final events to display: ${validEvents.length}`);
-        
-        // Store events in session storage for recovery
-        try {
-          sessionStorage.setItem(`calendar_events_${businessId}`, JSON.stringify(validEvents));
-        } catch (e) {
-          console.warn("Failed to store events in session storage:", e);
+        if (uniqueEvents.length !== validEvents.length) {
+          console.warn(`[External Calendar] Removed ${validEvents.length - uniqueEvents.length} duplicate events`);
         }
         
-        setEvents(validEvents);
-        setLoadingError(null);
+        console.log(`[External Calendar] Final unique events to display: ${uniqueEvents.length}`);
+        
+        if (isMounted) {
+          // Store events in session storage for recovery
+          try {
+            sessionStorage.setItem(`calendar_events_${businessId}`, JSON.stringify(uniqueEvents));
+          } catch (e) {
+            console.warn("Failed to store events in session storage:", e);
+          }
+          
+          setEvents(uniqueEvents);
+          setLoadingError(null);
+          if (showLoading) {
+            setIsInitialLoading(false);
+          }
+        }
       } catch (error) {
         console.error("Exception in ExternalCalendar.fetchAllEvents:", error);
-        setLoadingError("Failed to load calendar events");
         
-        // Try to recover events from session storage
-        try {
-          const cachedEvents = sessionStorage.getItem(`calendar_events_${businessId}`);
-          if (cachedEvents) {
-            console.log("[External Calendar] Recovering events from session storage");
-            setEvents(JSON.parse(cachedEvents));
+        if (isMounted) {
+          setLoadingError("Failed to load calendar events");
+          
+          // Try to recover events from session storage
+          try {
+            const cachedEvents = sessionStorage.getItem(`calendar_events_${businessId}`);
+            if (cachedEvents) {
+              console.log("[External Calendar] Recovering events from session storage");
+              setEvents(JSON.parse(cachedEvents));
+            }
+          } catch (e) {
+            console.error("Failed to recover events from session storage:", e);
           }
-        } catch (e) {
-          console.error("Failed to recover events from session storage:", e);
+          
+          if (showLoading) {
+            setIsInitialLoading(false);
+          }
+          
+          toast({
+            title: t("common.error"),
+            description: t("common.error"),
+            variant: "destructive"
+          });
         }
-        
-        toast({
-          title: t("common.error"),
-          description: t("common.error"),
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoading(false);
       }
     };
 
     if (businessId && businessUserId) {
       console.log("[External Calendar] Have business ID and user ID, fetching events");
-      fetchAllEvents();
+      // Initial load with loading indicator
+      fetchAllEvents(true);
       
-      // Aggressive polling every 1 second for immediate sync
-      const intervalId = setInterval(fetchAllEvents, 1000);
+      // Background polling every 3 seconds (reduced from 1 second to avoid excessive loading)
+      const intervalId = setInterval(() => {
+        // Background update without loading indicator
+        fetchAllEvents(false);
+      }, 3000);
+      
       return () => {
+        isMounted = false;
         clearInterval(intervalId);
       };
     }
+    
+    return () => {
+      isMounted = false;
+    };
   }, [businessId, businessUserId, toast, t, retryCount]);
 
   // Listen for cache invalidation and deletion events
@@ -263,10 +296,12 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">
       <CardContent className="p-0">
         <div className="px-6 pt-6 relative">
-          {isLoading && (
+          {isInitialLoading && (
             <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
-              <Loader2 className="h-8 w-8 text-primary animate-spin" />
-              <span className="ml-2 text-primary">{t("common.loading")}</span>
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <span className="text-primary">{t("common.loading")}</span>
+              </div>
             </div>
           )}
           
