@@ -37,7 +37,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         console.warn(`[useCalendarEvents] Removed ${allEvents.length - uniqueEvents.length} duplicate events`);
       }
 
-      console.log(`[useCalendarEvents] ✅ Loaded ${uniqueEvents.length} unique events (${events.length} events + ${bookings.length} bookings)`);
+      console.log(`[useCalendarEvents] ✅ Loaded ${uniqueEvents.length} unique events (${events.length} events + ${bookings.length} approved bookings)`);
       
       return uniqueEvents;
 

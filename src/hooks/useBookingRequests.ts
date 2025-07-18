@@ -258,7 +258,6 @@ export const useBookingRequests = () => {
       if (fetchError) throw fetchError;
       if (!booking) throw new Error('Booking request not found');
       
-      // Log the booking details including language
       console.log('Booking details for approval:', {
         id: booking.id,
         requester_name: booking.requester_name,
@@ -266,7 +265,7 @@ export const useBookingRequests = () => {
         payment_status: booking.payment_status
       });
       
-      // Check for conflicts
+      // Check for conflicts with existing events
       const { data: conflictingEvents } = await supabase
         .from('events')
         .select('id, title')
@@ -275,6 +274,7 @@ export const useBookingRequests = () => {
         .filter('end_date', 'gt', booking.start_date)
         .is('deleted_at', null);
       
+      // Check for conflicts with other approved bookings
       const { data: conflictingBookings } = await supabase
         .from('booking_requests')
         .select('id, title')
@@ -282,38 +282,26 @@ export const useBookingRequests = () => {
         .eq('status', 'approved')
         .not('id', 'eq', bookingId)
         .filter('start_date', 'lt', booking.end_date)
-        .filter('end_date', 'gt', booking.start_date);
+        .filter('end_date', 'gt', booking.start_date)
+        .is('deleted_at', null);
       
       if ((conflictingEvents && conflictingEvents.length > 0) || 
           (conflictingBookings && conflictingBookings.length > 0)) {
         throw new Error('Time slot is no longer available');
       }
       
-      // Use transaction to update booking status
+      // CRITICAL FIX: Only update booking status to approved, don't create event
       const { error: updateError } = await supabase
         .from('booking_requests')
-        .update({ status: 'approved' })
+        .update({ 
+          status: 'approved',
+          user_id: user.id // Ensure the booking is linked to the business owner
+        })
         .eq('id', bookingId);
       
       if (updateError) throw updateError;
       
-      // Prepare data for event and customer creation
-      const eventData = {
-        title: booking.title,
-        start_date: booking.start_date,
-        end_date: booking.end_date,
-        user_id: user.id,
-        user_surname: booking.requester_name,
-        user_number: booking.requester_phone || booking.user_number || null,
-        social_network_link: booking.requester_email || booking.social_network_link || null,
-        event_notes: booking.description || booking.event_notes || null,
-        type: 'booking_request',
-        booking_request_id: booking.id,
-        payment_status: booking.payment_status || 'not_paid',
-        payment_amount: booking.payment_amount,
-        language: booking.language || language // Preserve the booking's original language or use UI language
-      };
-      
+      // Create customer record for CRM (but no event record)
       const customerData = {
         title: booking.requester_name,
         user_surname: booking.user_surname || null,
@@ -328,26 +316,18 @@ export const useBookingRequests = () => {
         payment_amount: booking.payment_amount
       };
       
-      // Create event and customer records in parallel
-      const [eventResult, customerResult] = await Promise.all([
-        supabase.from('events').insert(eventData).select().single(),
-        supabase.from('customers').insert(customerData).select().single()
-      ]);
+      const { data: customerData2, error: customerError } = await supabase
+        .from('customers')
+        .insert(customerData)
+        .select()
+        .single();
       
-      if (eventResult.error) {
-        console.error('Error creating event from booking:', eventResult.error);
-        throw eventResult.error;
-      }
-      
-      if (customerResult.error) {
-        console.error('Error creating customer from booking:', customerResult.error);
+      if (customerError) {
+        console.error('Error creating customer from booking:', customerError);
         // Continue with the approval even if customer creation fails
       }
       
-      const eventData2 = eventResult.data;
-      const customerData2 = customerResult.data;
-      
-      // Process files in parallel instead of sequentially
+      // Process files for customer record only
       const processFiles = async () => {
         try {
           // Fetch all files from event_files linked to the booking request
@@ -363,7 +343,7 @@ export const useBookingRequests = () => {
           
           console.log('Found booking files:', bookingFiles);
             
-          if (bookingFiles && bookingFiles.length > 0) {
+          if (bookingFiles && bookingFiles.length > 0 && customerData2) {
             console.log(`Processing ${bookingFiles.length} files for the booking in parallel`);
             
             // Process files in parallel using Promise.all
@@ -381,42 +361,17 @@ export const useBookingRequests = () => {
                   return;
                 }
                 
-                // Generate unique paths for both buckets to avoid conflicts
-                const eventFilePath = `event_${eventData2.id}/${Date.now()}_${file.filename.replace(/\s+/g, '_')}`;
-                const customerFilePath = customerData2 ? `customer_${customerData2.id}/${Date.now()}_${file.filename.replace(/\s+/g, '_')}` : null;
+                // Generate unique path for customer bucket
+                const customerFilePath = `customer_${customerData2.id}/${Date.now()}_${file.filename.replace(/\s+/g, '_')}`;
                 
-                // Upload files in parallel
-                const [eventUpload, customerUpload] = await Promise.all([
-                  supabase.storage
-                    .from('event_attachments')
-                    .upload(eventFilePath, fileData),
-                  customerFilePath ? 
-                    supabase.storage
-                      .from('customer_attachments')
-                      .upload(customerFilePath, fileData) : 
-                    Promise.resolve({ error: null })
-                ]);
+                // Upload file to customer_attachments
+                const { error: customerUploadError } = await supabase.storage
+                  .from('customer_attachments')
+                  .upload(customerFilePath, fileData);
                 
-                if (eventUpload.error) {
-                  console.error('Error uploading file to event_attachments:', eventUpload.error);
+                if (customerUploadError) {
+                  console.error('Error uploading file to customer_attachments:', customerUploadError);
                 } else {
-                  console.log(`Successfully copied file to event_attachments/${eventFilePath}`);
-                  
-                  // Create event file record
-                  await supabase
-                    .from('event_files')
-                    .insert({
-                      filename: file.filename,
-                      file_path: eventFilePath,
-                      content_type: file.content_type,
-                      size: file.size,
-                      user_id: user?.id,
-                      event_id: eventData2.id
-                    });
-                }
-                
-                // Only upload to customer_attachments if we successfully created a customer and the upload succeeded
-                if (customerData2 && !customerUpload.error && customerFilePath) {
                   console.log(`Successfully copied file to customer_attachments/${customerFilePath}`);
                   
                   // Create customer file record
@@ -438,7 +393,7 @@ export const useBookingRequests = () => {
           }
           
           // Also check for direct file information in the booking_requests table
-          if (booking && booking.file_path) {
+          if (booking && booking.file_path && customerData2) {
             try {
               console.log(`Processing direct file from booking request: ${booking.filename || 'unnamed'}, path: ${booking.file_path}`);
               
@@ -452,42 +407,17 @@ export const useBookingRequests = () => {
               } 
               
               if (fileData) {
-                // Generate unique paths for both buckets to avoid conflicts
-                const eventFilePath = `event_${eventData2.id}/${Date.now()}_${(booking.filename || 'attachment').replace(/\s+/g, '_')}`;
-                const customerFilePath = customerData2 ? `customer_${customerData2.id}/${Date.now()}_${(booking.filename || 'attachment').replace(/\s+/g, '_')}` : null;
+                // Generate unique path for customer bucket
+                const customerFilePath = `customer_${customerData2.id}/${Date.now()}_${(booking.filename || 'attachment').replace(/\s+/g, '_')}`;
                 
-                // Upload files in parallel
-                const [eventUpload, customerUpload] = await Promise.all([
-                  supabase.storage
-                    .from('event_attachments')
-                    .upload(eventFilePath, fileData),
-                  customerFilePath ?
-                    supabase.storage
-                      .from('customer_attachments')
-                      .upload(customerFilePath, fileData) :
-                    Promise.resolve({ error: null })
-                ]);
+                // Upload file to customer_attachments
+                const { error: customerUploadError } = await supabase.storage
+                  .from('customer_attachments')
+                  .upload(customerFilePath, fileData);
                 
-                if (eventUpload.error) {
-                  console.error('Error uploading direct file to event_attachments:', eventUpload.error);
+                if (customerUploadError) {
+                  console.error('Error uploading direct file to customer_attachments:', customerUploadError);
                 } else {
-                  console.log(`Successfully copied direct file to event_attachments/${eventFilePath}`);
-                  
-                  // Create event file record
-                  await supabase
-                    .from('event_files')
-                    .insert({
-                      filename: booking.filename || 'attachment',
-                      file_path: eventFilePath,
-                      content_type: booking.content_type || 'application/octet-stream',
-                      size: booking.size || 0,
-                      user_id: user?.id,
-                      event_id: eventData2.id
-                    });
-                }
-                
-                // Only upload to customer_attachments if we successfully created a customer and the upload succeeded
-                if (customerData2 && !customerUpload.error && customerFilePath) {
                   console.log(`Successfully copied direct file to customer_attachments/${customerFilePath}`);
                   
                   // Create customer file record
