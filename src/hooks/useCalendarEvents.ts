@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -22,7 +23,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("[useCalendarEvents] Fetching events for user:", targetUserId, "business:", businessId);
 
-      // Use the unified calendar service for consistency
+      // Use the unified calendar service for consistency - this will fetch both events and approved bookings
       const { events, bookings } = await getUnifiedCalendarEvents(businessId, targetUserId);
       
       // Combine all events and ensure no duplicates
@@ -107,14 +108,14 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     };
   }, [queryClient, queryKey, refetch]);
 
-  // Optimized real-time subscriptions
+  // Enhanced real-time subscriptions for both events and booking_requests
   useEffect(() => {
     if (!user?.id && !businessUserId) return;
 
     const targetUserId = businessUserId || user?.id;
     if (!targetUserId) return;
 
-    console.log('[useCalendarEvents] Setting up real-time subscriptions');
+    console.log('[useCalendarEvents] Setting up real-time subscriptions for both events and bookings');
 
     let debounceTimer: NodeJS.Timeout;
 
@@ -145,7 +146,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       )
       .subscribe();
 
-    // Subscribe to booking_requests table changes
+    // Subscribe to booking_requests table changes for the business
     let bookingsChannel: any = null;
     if (businessId) {
       bookingsChannel = supabase
@@ -246,42 +247,71 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("[useCalendarEvents] Updating event with data:", eventData);
 
-      const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: {
-          title: eventData.user_surname || eventData.title,
-          user_surname: eventData.user_surname,
-          user_number: eventData.user_number,
-          social_network_link: eventData.social_network_link,
-          event_notes: eventData.event_notes,
-          event_name: eventData.event_name,
-          start_date: eventData.start_date,
-          end_date: eventData.end_date,
-          payment_status: eventData.payment_status || 'not_paid',
-          payment_amount: eventData.payment_amount?.toString() || '',
+      // Check if this is a booking_request (type === 'booking_request') or regular event
+      if (eventData.type === 'booking_request') {
+        // Update booking_request table
+        const { error } = await supabase
+          .from('booking_requests')
+          .update({
+            title: eventData.user_surname || eventData.title,
+            requester_name: eventData.user_surname || eventData.title,
+            requester_phone: eventData.user_number,
+            requester_email: eventData.social_network_link,
+            description: eventData.event_notes,
+            start_date: eventData.start_date,
+            end_date: eventData.end_date,
+            payment_status: eventData.payment_status || 'not_paid',
+            payment_amount: eventData.payment_amount || null,
+          })
+          .eq('id', eventData.id);
+
+        if (error) throw error;
+
+        clearCalendarCache();
+
+        return {
+          ...eventData,
+          title: eventData.user_surname || eventData.title || 'Untitled Event',
+        } as CalendarEventType;
+      } else {
+        // Update regular event using the existing RPC function
+        const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
+          p_event_data: {
+            title: eventData.user_surname || eventData.title,
+            user_surname: eventData.user_surname,
+            user_number: eventData.user_number,
+            social_network_link: eventData.social_network_link,
+            event_notes: eventData.event_notes,
+            event_name: eventData.event_name,
+            start_date: eventData.start_date,
+            end_date: eventData.end_date,
+            payment_status: eventData.payment_status || 'not_paid',
+            payment_amount: eventData.payment_amount?.toString() || '',
+            type: eventData.type || 'event',
+            is_recurring: eventData.is_recurring || false,
+            repeat_pattern: eventData.repeat_pattern,
+            repeat_until: eventData.repeat_until
+          },
+          p_additional_persons: [],
+          p_user_id: user.id,
+          p_event_id: eventData.id
+        });
+
+        if (error) throw error;
+
+        clearCalendarCache();
+
+        return {
+          id: savedEventId,
+          title: eventData.user_surname || eventData.title || 'Untitled Event',
+          start_date: eventData.start_date || new Date().toISOString(),
+          end_date: eventData.end_date || new Date().toISOString(),
+          user_id: user.id,
           type: eventData.type || 'event',
-          is_recurring: eventData.is_recurring || false,
-          repeat_pattern: eventData.repeat_pattern,
-          repeat_until: eventData.repeat_until
-        },
-        p_additional_persons: [],
-        p_user_id: user.id,
-        p_event_id: eventData.id
-      });
-
-      if (error) throw error;
-
-      clearCalendarCache();
-
-      return {
-        id: savedEventId,
-        title: eventData.user_surname || eventData.title || 'Untitled Event',
-        start_date: eventData.start_date || new Date().toISOString(),
-        end_date: eventData.end_date || new Date().toISOString(),
-        user_id: user.id,
-        type: eventData.type || 'event',
-        created_at: eventData.created_at || new Date().toISOString(),
-        ...eventData
-      } as CalendarEventType;
+          created_at: eventData.created_at || new Date().toISOString(),
+          ...eventData
+        } as CalendarEventType;
+      }
     },
     onSuccess: async () => {
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -313,6 +343,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       // Determine the event type from the current events
       const eventToDelete = events.find(e => e.id === id);
       const eventType = eventToDelete?.type === 'booking_request' ? 'booking_request' : 'event';
+
+      console.log("[useCalendarEvents] Event type for deletion:", eventType);
 
       // Use the enhanced unified delete function
       await deleteCalendarEvent(id, eventType, user.id);

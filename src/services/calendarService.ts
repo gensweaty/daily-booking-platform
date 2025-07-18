@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from '@/lib/types/calendar';
 
@@ -74,7 +75,7 @@ export const getUnifiedCalendarEvents = async (
 
     console.log(`[CalendarService] Fetched ${events?.length || 0} events from events table`);
 
-    // Fetch ONLY approved booking requests (this is the single source of truth for approved bookings)
+    // Fetch ONLY approved booking requests for the business
     let approvedBookings: any[] = [];
     if (businessId) {
       const { data: bookings, error: bookingsError } = await supabase
@@ -89,6 +90,27 @@ export const getUnifiedCalendarEvents = async (
         console.error('[CalendarService] Error fetching approved booking requests:', bookingsError);
       } else {
         approvedBookings = bookings || [];
+      }
+    } else {
+      // If no businessId provided, check if this user has any business and fetch bookings for it
+      const { data: userBusiness, error: businessError } = await supabase
+        .from('business_profiles')
+        .select('id')
+        .eq('user_id', targetUserId)
+        .single();
+
+      if (!businessError && userBusiness) {
+        const { data: bookings, error: bookingsError } = await supabase
+          .from('booking_requests')
+          .select('*')
+          .eq('business_id', userBusiness.id)
+          .eq('status', 'approved')
+          .is('deleted_at', null)
+          .order('start_date', { ascending: true });
+
+        if (!bookingsError) {
+          approvedBookings = bookings || [];
+        }
       }
     }
 
