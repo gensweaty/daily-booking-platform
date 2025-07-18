@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -342,9 +341,15 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       // Determine the event type from the current events
       const eventToDelete = events.find(e => e.id === id);
-      const eventType = eventToDelete?.type === 'booking_request' ? 'booking_request' : 'event';
+      
+      if (!eventToDelete) {
+        console.error("[useCalendarEvents] Event not found in current events list:", id);
+        throw new Error("Event not found");
+      }
+      
+      const eventType = eventToDelete.type === 'booking_request' ? 'booking_request' : 'event';
 
-      console.log("[useCalendarEvents] Event type for deletion:", eventType);
+      console.log("[useCalendarEvents] Event type for deletion:", eventType, "Event data:", eventToDelete);
 
       // Use the enhanced unified delete function
       await deleteCalendarEvent(id, eventType, user.id);

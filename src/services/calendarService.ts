@@ -183,7 +183,7 @@ export const deleteCalendarEvent = async (
   userId: string
 ): Promise<void> => {
   try {
-    console.log(`[CalendarService] Starting deletion: ${eventType} with ID:`, eventId);
+    console.log(`[CalendarService] Starting deletion: ${eventType} with ID: ${eventId}, userId: ${userId}`);
     
     if (eventType === 'booking_request') {
       // This is an approved booking request - soft delete it
@@ -235,6 +235,8 @@ export const deleteCalendarEvent = async (
         }
         
         console.log(`[CalendarService] Successfully soft deleted event: ${eventId}`);
+      } else {
+        console.warn(`[CalendarService] Event not found in events table: ${eventId}`);
       }
     }
 
