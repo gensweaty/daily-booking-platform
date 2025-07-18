@@ -337,7 +337,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("[useCalendarEvents] Deleting event:", id, deleteChoice);
+      console.log("[useCalendarEvents] Starting atomic deletion for event:", id, deleteChoice);
 
       // Determine the event type from the current events
       const eventToDelete = events.find(e => e.id === id);
@@ -349,9 +349,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       
       const eventType = eventToDelete.type === 'booking_request' ? 'booking_request' : 'event';
 
-      console.log("[useCalendarEvents] Event type for deletion:", eventType, "Event data:", eventToDelete);
+      console.log("[useCalendarEvents] Event type for atomic deletion:", eventType, "Event data:", eventToDelete);
 
-      // Use the enhanced unified delete function
+      // Use the enhanced atomic delete function
       await deleteCalendarEvent(id, eventType, user.id);
 
       return { success: true };

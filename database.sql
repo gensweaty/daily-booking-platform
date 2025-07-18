@@ -98,3 +98,97 @@ BEGIN
   ORDER BY event_start_date ASC;
 END;
 $function$;
+
+-- Create atomic deletion function for events and linked booking requests
+CREATE OR REPLACE FUNCTION public.delete_event_and_linked_records(
+  p_event_id uuid,
+  p_user_id uuid,
+  p_event_type text DEFAULT 'event'
+) RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_deleted_count INTEGER := 0;
+  v_booking_request_id UUID;
+  v_linked_event_id UUID;
+  v_business_id UUID;
+BEGIN
+  RAISE NOTICE '[DELETE] Starting atomic deletion: event_id=%, user_id=%, type=%', p_event_id, p_user_id, p_event_type;
+  
+  IF p_event_type = 'booking_request' THEN
+    -- This is a booking request being deleted
+    -- 1. Soft delete the booking request
+    UPDATE booking_requests 
+    SET deleted_at = NOW() 
+    WHERE id = p_event_id 
+    AND (user_id = p_user_id OR id IN (
+      SELECT br.id FROM booking_requests br 
+      JOIN business_profiles bp ON br.business_id = bp.id 
+      WHERE bp.user_id = p_user_id
+    ));
+    
+    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
+    RAISE NOTICE '[DELETE] Soft deleted % booking request(s)', v_deleted_count;
+    
+    -- 2. Find and soft delete any linked event created from this booking request
+    SELECT id INTO v_linked_event_id
+    FROM events
+    WHERE original_booking_id = p_event_id
+    AND user_id = p_user_id
+    AND deleted_at IS NULL;
+    
+    IF v_linked_event_id IS NOT NULL THEN
+      UPDATE events 
+      SET deleted_at = NOW() 
+      WHERE id = v_linked_event_id 
+      AND user_id = p_user_id;
+      
+      v_deleted_count := v_deleted_count + 1;
+      RAISE NOTICE '[DELETE] Also soft deleted linked event: %', v_linked_event_id;
+    END IF;
+    
+  ELSE
+    -- This is a regular event being deleted
+    -- 1. Soft delete the event (and any recurring children)
+    UPDATE events 
+    SET deleted_at = NOW() 
+    WHERE (id = p_event_id OR parent_event_id = p_event_id)
+    AND user_id = p_user_id
+    AND deleted_at IS NULL;
+    
+    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
+    RAISE NOTICE '[DELETE] Soft deleted % event(s)', v_deleted_count;
+    
+    -- 2. Find and soft delete any linked booking request
+    SELECT original_booking_id INTO v_booking_request_id
+    FROM events
+    WHERE id = p_event_id
+    AND user_id = p_user_id;
+    
+    IF v_booking_request_id IS NOT NULL THEN
+      -- Get the business_id for this booking request to ensure proper deletion
+      SELECT business_id INTO v_business_id
+      FROM booking_requests
+      WHERE id = v_booking_request_id;
+      
+      -- Verify the user owns the business before deleting the booking request
+      IF EXISTS (
+        SELECT 1 FROM business_profiles 
+        WHERE id = v_business_id AND user_id = p_user_id
+      ) THEN
+        UPDATE booking_requests 
+        SET deleted_at = NOW() 
+        WHERE id = v_booking_request_id 
+        AND deleted_at IS NULL;
+        
+        v_deleted_count := v_deleted_count + 1;
+        RAISE NOTICE '[DELETE] Also soft deleted linked booking request: %', v_booking_request_id;
+      END IF;
+    END IF;
+  END IF;
+  
+  RAISE NOTICE '[DELETE] Total records deleted: %', v_deleted_count;
+  RETURN v_deleted_count;
+END;
+$$;
