@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from '@/lib/types/calendar';
 
@@ -176,7 +175,7 @@ export const getUnifiedCalendarEvents = async (
   }
 };
 
-// Enhanced delete function with proper cross-table deletion
+// Enhanced delete function with verification and better error handling
 export const deleteCalendarEvent = async (
   eventId: string, 
   eventType: 'event' | 'booking_request',
@@ -185,42 +184,57 @@ export const deleteCalendarEvent = async (
   try {
     console.log(`[CalendarService] Starting deletion: ${eventType} with ID: ${eventId}, userId: ${userId}`);
     
+    let deletionSuccess = false;
+    
     if (eventType === 'booking_request') {
       // This is an approved booking request - soft delete it
-      const { error: bookingError } = await supabase
+      const { data: updatedBooking, error: bookingError } = await supabase
         .from('booking_requests')
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', eventId);
+        .eq('id', eventId)
+        .select('id, deleted_at')
+        .single();
 
       if (bookingError) {
         console.error('[CalendarService] Error deleting booking request:', bookingError);
         throw bookingError;
       }
       
-      console.log(`[CalendarService] Successfully soft deleted booking request: ${eventId}`);
+      // Verify deletion was successful
+      if (updatedBooking && updatedBooking.deleted_at) {
+        deletionSuccess = true;
+        console.log(`[CalendarService] ✅ Successfully verified soft deletion of booking request: ${eventId}`);
+      }
     } else {
       // This is a regular event - soft delete from events table
       const { data: existingEvent } = await supabase
         .from('events')
-        .select('id, parent_event_id')
+        .select('id, parent_event_id, deleted_at')
         .eq('id', eventId)
         .eq('user_id', userId)
-        .is('deleted_at', null)
         .single();
 
-      if (existingEvent) {
+      if (existingEvent && !existingEvent.deleted_at) {
         console.log('[CalendarService] Found event in events table, soft deleting...');
         
         // Soft delete the main event
-        const { error: eventError } = await supabase
+        const { data: updatedEvent, error: eventError } = await supabase
           .from('events')
           .update({ deleted_at: new Date().toISOString() })
           .eq('id', eventId)
-          .eq('user_id', userId);
+          .eq('user_id', userId)
+          .select('id, deleted_at')
+          .single();
 
         if (eventError) {
           console.error('[CalendarService] Error deleting event:', eventError);
           throw eventError;
+        }
+
+        // Verify deletion was successful
+        if (updatedEvent && updatedEvent.deleted_at) {
+          deletionSuccess = true;
+          console.log(`[CalendarService] ✅ Successfully verified soft deletion of event: ${eventId}`);
         }
 
         // If this is a recurring event (parent), also soft delete all child instances
@@ -233,21 +247,27 @@ export const deleteCalendarEvent = async (
         if (childrenError) {
           console.warn('[CalendarService] Error deleting recurring children:', childrenError);
         }
-        
-        console.log(`[CalendarService] Successfully soft deleted event: ${eventId}`);
+      } else if (existingEvent && existingEvent.deleted_at) {
+        console.log(`[CalendarService] Event ${eventId} is already deleted`);
+        deletionSuccess = true;
       } else {
         console.warn(`[CalendarService] Event not found in events table: ${eventId}`);
+        throw new Error(`Event ${eventId} not found or access denied`);
       }
     }
 
-    console.log(`[CalendarService] Successfully completed deletion for ID: ${eventId}`);
+    if (!deletionSuccess) {
+      throw new Error(`Failed to verify deletion of ${eventType} ${eventId}`);
+    }
+
+    console.log(`[CalendarService] ✅ Successfully completed verified deletion for ID: ${eventId}`);
     
     // Immediate and aggressive cache clearing
     clearCalendarCache();
     
     // Broadcast deletion event for immediate UI updates
     const deletionEvent = new CustomEvent('calendar-event-deleted', {
-      detail: { eventId, eventType, timestamp: Date.now() }
+      detail: { eventId, eventType, timestamp: Date.now(), verified: true }
     });
     window.dispatchEvent(deletionEvent);
 
@@ -255,7 +275,8 @@ export const deleteCalendarEvent = async (
     localStorage.setItem('calendar_event_deleted', JSON.stringify({
       eventId,
       eventType,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      verified: true
     }));
     
     setTimeout(() => {
@@ -263,7 +284,7 @@ export const deleteCalendarEvent = async (
     }, 2000);
 
   } catch (error) {
-    console.error(`[CalendarService] Error in deletion:`, error);
+    console.error(`[CalendarService] ❌ Error in deletion:`, error);
     throw error;
   }
 };
