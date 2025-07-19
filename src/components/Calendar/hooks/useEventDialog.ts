@@ -94,32 +94,24 @@ export const useEventDialog = ({
     }
   };
 
-  // Enhanced delete handler with better event type detection and user feedback
+  // Enhanced delete handler with better event type detection
   const handleDeleteEvent = async (deleteChoice?: "this" | "series") => {
     try {
       if (!deleteEvent || !selectedEvent) {
         throw new Error("Delete event function not provided or no event selected");
       }
 
-      const eventInfo = {
+      console.log("Starting delete process for event:", {
         id: selectedEvent.id,
         title: selectedEvent.title,
         type: selectedEvent.type,
-        user_surname: selectedEvent.user_surname
-      };
-
-      console.log("⚡ Starting delete process for event:", eventInfo);
-      
-      // Provide immediate user feedback
-      toast({
-        title: "Deleting...",
-        description: `Removing ${eventInfo.type === 'booking_request' ? 'booking request' : 'event'} "${eventInfo.title || eventInfo.user_surname}"`,
+        deleteChoice
       });
       
       const result = await deleteEvent({ id: selectedEvent.id, deleteChoice });
       
       setSelectedEvent(null);
-      console.log("⚡ Event deletion completed successfully:", selectedEvent.id);
+      console.log("Event deletion completed successfully:", selectedEvent.id);
       
       return result;
     } catch (error: any) {

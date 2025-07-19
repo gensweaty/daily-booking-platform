@@ -3,8 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { getUnifiedCalendarEvents, deleteCalendarEvent, clearCalendarCache, broadcastCacheInvalidation } from '@/services/calendarService';
-import { useEffect, useCallback } from 'react';
+import { getUnifiedCalendarEvents, deleteCalendarEvent, clearCalendarCache } from '@/services/calendarService';
+import { useEffect } from 'react';
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string) => {
   const { user } = useAuth();
@@ -47,18 +47,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     }
   };
 
-  // Use consistent query key generation for both internal and external calendars
-  const generateQueryKey = useCallback(() => {
-    if (businessId && businessUserId) {
-      return ['unified-calendar-events', businessId, businessUserId];
-    } else if (businessId) {
-      return ['business-events', businessId];
-    } else {
-      return ['events', user?.id];
-    }
-  }, [businessId, businessUserId, user?.id]);
-
-  const queryKey = generateQueryKey();
+  const queryKey = businessId ? ['business-events', businessId] : ['events', user?.id];
 
   const {
     data: events = [],
@@ -69,36 +58,29 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     queryKey,
     queryFn: fetchEvents,
     enabled: !!(businessUserId || user?.id),
-    staleTime: 0, // Always consider data stale for immediate updates
-    gcTime: 2000, // Keep in cache for 2 seconds only
+    staleTime: 1000, // Consider data stale after 1 second
+    gcTime: 5000, // Keep in cache for 5 seconds
     refetchOnWindowFocus: true,
     refetchOnMount: true,
   });
 
-  // Optimized cache invalidation function
-  const invalidateAllCalendarQueries = useCallback(() => {
-    console.log('[useCalendarEvents] 🔄 Invalidating all calendar queries');
-    
-    // Invalidate all possible query variations for unified sync
-    queryClient.invalidateQueries({ queryKey: ['events'] });
-    queryClient.invalidateQueries({ queryKey: ['business-events'] });
-    queryClient.invalidateQueries({ queryKey: ['unified-calendar-events'] });
-    queryClient.invalidateQueries({ queryKey: ['optimized-calendar-events'] });
-    queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
-    
-    // Force refetch of current query
-    refetch();
-  }, [queryClient, refetch]);
-
-  // Enhanced event handlers with proper debouncing
+  // Enhanced cache invalidation with debouncing
   useEffect(() => {
     let debounceTimer: NodeJS.Timeout;
 
     const debouncedInvalidate = () => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
-        invalidateAllCalendarQueries();
-      }, 150); // Reduced debounce time for faster updates
+        console.log('[useCalendarEvents] Invalidating queries and refetching...');
+        
+        // Invalidate all related queries
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        queryClient.invalidateQueries({ queryKey: ['business-events'] });
+        queryClient.invalidateQueries({ queryKey: ['optimized-calendar-events'] });
+        
+        // Force refetch
+        refetch();
+      }, 100);
     };
 
     const handleCacheInvalidation = () => {
@@ -109,64 +91,59 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     const handleEventDeletion = (event: CustomEvent) => {
       console.log('[useCalendarEvents] Event deletion detected:', event.detail);
       if (event.detail.verified) {
-        console.log('[useCalendarEvents] ⚡ Verified deletion, forcing immediate refresh');
-        // Clear timeout and invalidate immediately for verified deletions
-        clearTimeout(debounceTimer);
-        invalidateAllCalendarQueries();
-      } else {
+        console.log('[useCalendarEvents] Deletion was verified, forcing immediate refresh');
         debouncedInvalidate();
       }
     };
 
-    const handleStorageSync = (event: StorageEvent) => {
-      if (event.key === 'calendar_deletion_sync') {
-        console.log('[useCalendarEvents] Cross-tab deletion sync detected');
-        const syncData = event.newValue ? JSON.parse(event.newValue) : null;
-        if (syncData?.action === 'delete') {
-          console.log(`[useCalendarEvents] ⚡ Cross-tab deletion: ${syncData.eventType} ${syncData.eventId}`);
-          clearTimeout(debounceTimer);
-          invalidateAllCalendarQueries();
-        }
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'calendar_invalidation_signal' || event.key === 'calendar_event_deleted') {
+        console.log('[useCalendarEvents] Cross-tab sync detected');
+        debouncedInvalidate();
       }
     };
 
-    // Set up event listeners
     window.addEventListener('calendar-cache-invalidated', handleCacheInvalidation);
     window.addEventListener('calendar-event-deleted', handleEventDeletion as EventListener);
-    window.addEventListener('storage', handleStorageSync);
+    window.addEventListener('storage', handleStorageChange);
 
     return () => {
       clearTimeout(debounceTimer);
       window.removeEventListener('calendar-cache-invalidated', handleCacheInvalidation);
       window.removeEventListener('calendar-event-deleted', handleEventDeletion as EventListener);
-      window.removeEventListener('storage', handleStorageSync);
+      window.removeEventListener('storage', handleStorageChange);
     };
-  }, [invalidateAllCalendarQueries]);
+  }, [queryClient, queryKey, refetch]);
 
-  // Enhanced real-time subscriptions with proper cleanup
+  // Enhanced real-time subscriptions
   useEffect(() => {
     if (!user?.id && !businessUserId) return;
 
     const targetUserId = businessUserId || user?.id;
     if (!targetUserId) return;
 
-    console.log('[useCalendarEvents] Setting up real-time subscriptions for user:', targetUserId);
+    console.log('[useCalendarEvents] Setting up real-time subscriptions');
 
     let debounceTimer: NodeJS.Timeout;
-    const channelSuffix = `${targetUserId}_${Date.now()}`;
 
     const debouncedUpdate = () => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
-        console.log('[useCalendarEvents] ⏰ Real-time update triggered');
+        console.log('[useCalendarEvents] Real-time update triggered');
         clearCalendarCache();
-        invalidateAllCalendarQueries();
+        
+        // Invalidate all related queries
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        queryClient.invalidateQueries({ queryKey: ['business-events'] });
+        queryClient.invalidateQueries({ queryKey: ['optimized-calendar-events'] });
+        
+        refetch();
       }, 200);
     };
 
     // Subscribe to events table changes
     const eventsChannel = supabase
-      .channel(`calendar_events_${channelSuffix}`)
+      .channel(`calendar_events_${targetUserId}_${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -176,10 +153,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           filter: `user_id=eq.${targetUserId}`
         },
         (payload) => {
-          console.log('[useCalendarEvents] Events table changed:', payload.eventType);
-          // Safe access to payload properties
-          const eventId = (payload.new as any)?.id || (payload.old as any)?.id || 'unknown';
-          console.log('[useCalendarEvents] Event ID:', eventId);
+          console.log('[useCalendarEvents] Events table changed:', payload);
           debouncedUpdate();
         }
       )
@@ -189,7 +163,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     let bookingsChannel: any = null;
     if (businessId) {
       bookingsChannel = supabase
-        .channel(`calendar_bookings_${channelSuffix}`)
+        .channel(`calendar_bookings_${businessId}_${Date.now()}`)
         .on(
           'postgres_changes',
           {
@@ -199,10 +173,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             filter: `business_id=eq.${businessId}`
           },
           (payload) => {
-            console.log('[useCalendarEvents] Booking requests table changed:', payload.eventType);
-            // Safe access to payload properties
-            const bookingId = (payload.new as any)?.id || (payload.old as any)?.id || 'unknown';
-            console.log('[useCalendarEvents] Booking ID:', bookingId);
+            console.log('[useCalendarEvents] Booking requests table changed:', payload);
             debouncedUpdate();
           }
         )
@@ -217,7 +188,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         supabase.removeChannel(bookingsChannel);
       }
     };
-  }, [user?.id, businessUserId, businessId, invalidateAllCalendarQueries]);
+  }, [user?.id, businessUserId, businessId, queryClient, queryKey, refetch]);
 
   const createEventMutation = useMutation({
     mutationFn: async (eventData: Partial<CalendarEventType>) => {
@@ -376,12 +347,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     },
   });
 
-  // Enhanced delete mutation with immediate UI updates
+  // Enhanced delete mutation with better verification
   const deleteEventMutation = useMutation({
     mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("[useCalendarEvents] ⚡ Starting deletion process for event:", id);
+      console.log("[useCalendarEvents] Starting deletion process for event:", id);
 
       // Find the event in current events to determine type
       const eventToDelete = events.find(e => e.id === id);
@@ -393,58 +364,36 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       
       const eventType = eventToDelete.type === 'booking_request' ? 'booking_request' : 'event';
 
-      console.log(`[useCalendarEvents] Determined event type: ${eventType} for event: "${eventToDelete.title}"`);
+      console.log("[useCalendarEvents] Determined event type:", eventType, "for event:", eventToDelete.title);
 
       // Use the enhanced unified delete function with verification
-      const result = await deleteCalendarEvent(id, eventType, user.id);
+      await deleteCalendarEvent(id, eventType, user.id);
 
-      console.log(`[useCalendarEvents] ✅ Deletion completed: success=${result.success}, verified=${result.verified}`);
+      console.log("[useCalendarEvents] ✅ Deletion completed successfully");
 
-      return { 
-        success: result.success, 
-        verified: result.verified,
-        eventType, 
-        title: eventToDelete.title 
-      };
-    },
-    onMutate: async ({ id }) => {
-      // Optimistic update - immediately remove from UI
-      await queryClient.cancelQueries({ queryKey });
-      
-      const previousEvents = queryClient.getQueryData<CalendarEventType[]>(queryKey);
-      
-      if (previousEvents) {
-        const optimisticEvents = previousEvents.filter(event => event.id !== id);
-        queryClient.setQueryData(queryKey, optimisticEvents);
-        console.log(`[useCalendarEvents] 🚀 Optimistic update: removed event ${id} from UI`);
-      }
-      
-      return { previousEvents };
+      return { success: true, eventType, title: eventToDelete.title };
     },
     onSuccess: async (result) => {
-      console.log("[useCalendarEvents] ⚡ Delete mutation succeeded:", result);
+      console.log("[useCalendarEvents] Delete mutation succeeded:", result);
       
-      // Clear caches and broadcast the change
+      // Immediate cache clearing and query invalidation
       clearCalendarCache();
-      broadcastCacheInvalidation(result.title, result.eventType);
       
-      // Force immediate refresh with unified query invalidation
-      await invalidateAllCalendarQueries();
+      // Invalidate all related queries immediately
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['optimized-calendar-events'] });
+      
+      // Force immediate refetch
+      await refetch();
       
       toast({
         title: "Success",
         description: `${result.eventType === 'booking_request' ? 'Booking request' : 'Event'} "${result.title}" deleted successfully`,
       });
     },
-    onError: (error: any, variables, context) => {
+    onError: (error: any) => {
       console.error("[useCalendarEvents] Delete mutation failed:", error);
-      
-      // Revert optimistic update
-      if (context?.previousEvents) {
-        queryClient.setQueryData(queryKey, context.previousEvents);
-        console.log("[useCalendarEvents] 🔄 Reverted optimistic update due to error");
-      }
-      
       toast({
         title: "Error",
         description: error.message || "Failed to delete event",

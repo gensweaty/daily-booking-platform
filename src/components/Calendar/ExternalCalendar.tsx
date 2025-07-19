@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
-import { getUnifiedCalendarEvents, clearCalendarCache, broadcastCacheInvalidation } from "@/services/calendarService";
+import { getUnifiedCalendarEvents, clearCalendarCache } from "@/services/calendarService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -180,57 +180,38 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     };
   }, [businessId, businessUserId, toast, t, retryCount]);
 
-  // Enhanced event listeners for immediate sync with internal calendar deletions
+  // Enhanced event listeners for deletions and cache invalidation
   useEffect(() => {
-    let debounceTimer: NodeJS.Timeout;
-
-    const debouncedRefresh = () => {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        console.log('[External Calendar] ⚡ Triggering immediate refresh');
-        setRetryCount(prev => prev + 1);
-      }, 100); // Very fast refresh for external calendar
-    };
-
     const handleCacheInvalidation = () => {
-      console.log('[External Calendar] Cache invalidation detected, refetching immediately...');
-      debouncedRefresh();
+      console.log('[External Calendar] Cache invalidation detected, refetching...');
+      setRetryCount(prev => prev + 1);
     };
 
     const handleEventDeletion = (event: CustomEvent) => {
-      console.log('[External Calendar] ⚡ Event deletion detected:', event.detail);
+      console.log('[External Calendar] Event deletion detected:', event.detail);
       if (event.detail.verified) {
-        console.log('[External Calendar] Verified deletion from internal calendar, forcing immediate refresh');
-        clearTimeout(debounceTimer); // Skip debounce for verified deletions
+        console.log('[External Calendar] Verified deletion, forcing immediate refresh');
         clearCalendarCache();
         setRetryCount(prev => prev + 1);
-      } else {
-        debouncedRefresh();
       }
     };
 
-    const handleStorageSync = (event: StorageEvent) => {
-      if (event.key === 'calendar_deletion_sync') {
-        console.log('[External Calendar] ⚡ Cross-tab deletion sync detected');
-        const syncData = event.newValue ? JSON.parse(event.newValue) : null;
-        if (syncData?.action === 'delete') {
-          console.log(`[External Calendar] Cross-tab deletion: ${syncData.eventType} ${syncData.eventId}`);
-          clearTimeout(debounceTimer);
-          clearCalendarCache();
-          setRetryCount(prev => prev + 1);
-        }
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'calendar_invalidation_signal' || event.key === 'calendar_event_deleted') {
+        console.log('[External Calendar] Cross-tab sync detected, refetching...');
+        clearCalendarCache();
+        setRetryCount(prev => prev + 1);
       }
     };
 
     window.addEventListener('calendar-cache-invalidated', handleCacheInvalidation);
     window.addEventListener('calendar-event-deleted', handleEventDeletion as EventListener);
-    window.addEventListener('storage', handleStorageSync);
+    window.addEventListener('storage', handleStorageChange);
 
     return () => {
-      clearTimeout(debounceTimer);
       window.removeEventListener('calendar-cache-invalidated', handleCacheInvalidation);
       window.removeEventListener('calendar-event-deleted', handleEventDeletion as EventListener);
-      window.removeEventListener('storage', handleStorageSync);
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
@@ -238,27 +219,25 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   useEffect(() => {
     if (!businessId || !businessUserId) return;
 
-    console.log("[External Calendar] Setting up enhanced real-time subscriptions");
+    console.log("[External Calendar] Setting up real-time subscriptions");
 
     let debounceTimer: NodeJS.Timeout;
-    const channelSuffix = `${businessId}_${Date.now()}`;
 
     const debouncedUpdate = () => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
-        console.log('[External Calendar] ⏰ Real-time database update detected');
         clearCalendarCache();
-        // Invalidate React Query cache for consistency
+        // Invalidate React Query cache
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
         queryClient.invalidateQueries({ queryKey: ['events', businessUserId] });
-        queryClient.invalidateQueries({ queryKey: ['unified-calendar-events'] });
+        queryClient.invalidateQueries({ queryKey: ['optimized-calendar-events'] });
         setRetryCount(prev => prev + 1);
-      }, 150); // Faster updates for real-time sync
+      }, 200);
     };
 
-    // Subscribe to changes in events table (for regular events)
+    // Subscribe to changes in events table
     const eventsChannel = supabase
-      .channel(`external_calendar_events_${channelSuffix}`)
+      .channel(`external_calendar_events_${businessId}_${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -268,18 +247,15 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           filter: `user_id=eq.${businessUserId}`
         },
         (payload) => {
-          console.log('[External Calendar] ⚡ Events table changed:', payload.eventType);
-          // Safe access to payload properties
-          const eventId = (payload.new as any)?.id || (payload.old as any)?.id || 'unknown';
-          console.log('[External Calendar] Event ID:', eventId);
+          console.log('[External Calendar] Events table changed:', payload);
           debouncedUpdate();
         }
       )
       .subscribe();
 
-    // Subscribe to changes in booking_requests table (for approved bookings)
+    // Subscribe to changes in booking_requests table
     const bookingsChannel = supabase
-      .channel(`external_calendar_bookings_${channelSuffix}`)
+      .channel(`external_calendar_bookings_${businessId}_${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -289,10 +265,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           filter: `business_id=eq.${businessId}`
         },
         (payload) => {
-          console.log('[External Calendar] ⚡ Booking requests table changed:', payload.eventType);
-          // Safe access to payload properties
-          const bookingId = (payload.new as any)?.id || (payload.old as any)?.id || 'unknown';
-          console.log('[External Calendar] Booking ID:', bookingId);
+          console.log('[External Calendar] Booking requests table changed:', payload);
           debouncedUpdate();
         }
       )
@@ -300,7 +273,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
 
     return () => {
       clearTimeout(debounceTimer);
-      console.log('[External Calendar] Cleaning up enhanced real-time subscriptions');
+      console.log('[External Calendar] Cleaning up real-time subscriptions');
       supabase.removeChannel(eventsChannel);
       supabase.removeChannel(bookingsChannel);
     };

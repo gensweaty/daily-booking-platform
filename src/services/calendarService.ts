@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from '@/lib/types/calendar';
 
@@ -7,7 +6,7 @@ export interface CalendarEventsResponse {
   bookings: CalendarEventType[];
 }
 
-// Enhanced cache clearing with unified invalidation
+// Enhanced cache clearing with cross-tab broadcasting
 export const clearCalendarCache = (): void => {
   try {
     // Clear session storage cache
@@ -28,43 +27,21 @@ export const clearCalendarCache = (): void => {
       }
     });
 
-    console.log('[CalendarService] Comprehensive cache cleared');
-  } catch (error) {
-    console.warn('[CalendarService] Error clearing cache:', error);
-  }
-};
-
-// Unified cache invalidation that works for both internal and external calendars
-export const broadcastCacheInvalidation = (eventId: string, eventType: string): void => {
-  try {
-    // Broadcast to current window
+    // Broadcast cache clear event to other tabs
     const cacheInvalidationEvent = new CustomEvent('calendar-cache-invalidated', {
-      detail: { timestamp: Date.now(), eventId, eventType }
+      detail: { timestamp: Date.now() }
     });
     window.dispatchEvent(cacheInvalidationEvent);
 
-    // Broadcast deletion event for immediate UI updates
-    const deletionEvent = new CustomEvent('calendar-event-deleted', {
-      detail: { eventId, eventType, timestamp: Date.now(), verified: true }
-    });
-    window.dispatchEvent(deletionEvent);
-
-    // Cross-tab communication via localStorage
-    localStorage.setItem('calendar_deletion_sync', JSON.stringify({
-      eventId,
-      eventType,
-      timestamp: Date.now(),
-      action: 'delete'
-    }));
-    
-    // Clean up after 2 seconds
+    // Use localStorage for cross-tab communication
+    localStorage.setItem('calendar_invalidation_signal', Date.now().toString());
     setTimeout(() => {
-      localStorage.removeItem('calendar_deletion_sync');
-    }, 2000);
+      localStorage.removeItem('calendar_invalidation_signal');
+    }, 1000);
 
-    console.log(`[CalendarService] Broadcasted deletion for ${eventType} ${eventId}`);
+    console.log('[CalendarService] Comprehensive cache cleared with cross-tab broadcast');
   } catch (error) {
-    console.warn('[CalendarService] Error broadcasting cache invalidation:', error);
+    console.warn('[CalendarService] Error clearing cache:', error);
   }
 };
 
@@ -198,17 +175,16 @@ export const getUnifiedCalendarEvents = async (
   }
 };
 
-// Enhanced delete function with proper verification and unified cache invalidation
+// Enhanced delete function with verification and better error handling
 export const deleteCalendarEvent = async (
   eventId: string, 
   eventType: 'event' | 'booking_request',
   userId: string
-): Promise<{ success: boolean; verified: boolean }> => {
+): Promise<void> => {
   try {
-    console.log(`[CalendarService] ⚡ Starting deletion: ${eventType} with ID: ${eventId}, userId: ${userId}`);
+    console.log(`[CalendarService] Starting deletion: ${eventType} with ID: ${eventId}, userId: ${userId}`);
     
     let deletionSuccess = false;
-    let verificationResult = false;
     
     if (eventType === 'booking_request') {
       // This is an approved booking request - soft delete it
@@ -227,17 +203,7 @@ export const deleteCalendarEvent = async (
       // Verify deletion was successful
       if (updatedBooking && updatedBooking.deleted_at) {
         deletionSuccess = true;
-        console.log(`[CalendarService] ✅ Successfully soft deleted booking request: ${eventId}`);
-        
-        // Double-check by querying the record
-        const { data: verifyBooking } = await supabase
-          .from('booking_requests')
-          .select('id, deleted_at')
-          .eq('id', eventId)
-          .single();
-          
-        verificationResult = verifyBooking?.deleted_at ? true : false;
-        console.log(`[CalendarService] 🔍 Verification result for booking ${eventId}: ${verificationResult}`);
+        console.log(`[CalendarService] ✅ Successfully verified soft deletion of booking request: ${eventId}`);
       }
     } else {
       // This is a regular event - soft delete from events table
@@ -268,37 +234,22 @@ export const deleteCalendarEvent = async (
         // Verify deletion was successful
         if (updatedEvent && updatedEvent.deleted_at) {
           deletionSuccess = true;
-          console.log(`[CalendarService] ✅ Successfully soft deleted event: ${eventId}`);
-          
-          // Double-check by querying the record
-          const { data: verifyEvent } = await supabase
-            .from('events')
-            .select('id, deleted_at')
-            .eq('id', eventId)
-            .single();
-            
-          verificationResult = verifyEvent?.deleted_at ? true : false;
-          console.log(`[CalendarService] 🔍 Verification result for event ${eventId}: ${verificationResult}`);
+          console.log(`[CalendarService] ✅ Successfully verified soft deletion of event: ${eventId}`);
         }
 
         // If this is a recurring event (parent), also soft delete all child instances
-        if (existingEvent.parent_event_id === null) {
-          const { error: childrenError } = await supabase
-            .from('events')
-            .update({ deleted_at: new Date().toISOString() })
-            .eq('parent_event_id', eventId)
-            .eq('user_id', userId);
+        const { error: childrenError } = await supabase
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('parent_event_id', eventId)
+          .eq('user_id', userId);
 
-          if (childrenError) {
-            console.warn('[CalendarService] Error deleting recurring children:', childrenError);
-          } else {
-            console.log(`[CalendarService] ✅ Also deleted recurring children for parent: ${eventId}`);
-          }
+        if (childrenError) {
+          console.warn('[CalendarService] Error deleting recurring children:', childrenError);
         }
       } else if (existingEvent && existingEvent.deleted_at) {
         console.log(`[CalendarService] Event ${eventId} is already deleted`);
         deletionSuccess = true;
-        verificationResult = true;
       } else {
         console.warn(`[CalendarService] Event not found in events table: ${eventId}`);
         throw new Error(`Event ${eventId} not found or access denied`);
@@ -306,16 +257,31 @@ export const deleteCalendarEvent = async (
     }
 
     if (!deletionSuccess) {
-      throw new Error(`Failed to delete ${eventType} ${eventId}`);
+      throw new Error(`Failed to verify deletion of ${eventType} ${eventId}`);
     }
 
-    console.log(`[CalendarService] ⚡ Deletion completed successfully for ID: ${eventId}, verified: ${verificationResult}`);
+    console.log(`[CalendarService] ✅ Successfully completed verified deletion for ID: ${eventId}`);
     
-    // Clear all caches and broadcast the change
+    // Immediate and aggressive cache clearing
     clearCalendarCache();
-    broadcastCacheInvalidation(eventId, eventType);
+    
+    // Broadcast deletion event for immediate UI updates
+    const deletionEvent = new CustomEvent('calendar-event-deleted', {
+      detail: { eventId, eventType, timestamp: Date.now(), verified: true }
+    });
+    window.dispatchEvent(deletionEvent);
 
-    return { success: true, verified: verificationResult };
+    // Force localStorage signal for cross-tab sync
+    localStorage.setItem('calendar_event_deleted', JSON.stringify({
+      eventId,
+      eventType,
+      timestamp: Date.now(),
+      verified: true
+    }));
+    
+    setTimeout(() => {
+      localStorage.removeItem('calendar_event_deleted');
+    }, 2000);
 
   } catch (error) {
     console.error(`[CalendarService] ❌ Error in deletion:`, error);
