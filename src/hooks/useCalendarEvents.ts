@@ -79,7 +79,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
   const invalidateAllCalendarQueries = useCallback(() => {
     console.log('[useCalendarEvents] 🔄 Invalidating all calendar queries');
     
-    // Invalidate all possible query variations
+    // Invalidate all possible query variations for unified sync
     queryClient.invalidateQueries({ queryKey: ['events'] });
     queryClient.invalidateQueries({ queryKey: ['business-events'] });
     queryClient.invalidateQueries({ queryKey: ['unified-calendar-events'] });
@@ -176,7 +176,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           filter: `user_id=eq.${targetUserId}`
         },
         (payload) => {
-          console.log('[useCalendarEvents] Events table changed:', payload.eventType, payload.new?.id || payload.old?.id);
+          console.log('[useCalendarEvents] Events table changed:', payload.eventType);
+          // Safe access to payload properties
+          const eventId = (payload.new as any)?.id || (payload.old as any)?.id || 'unknown';
+          console.log('[useCalendarEvents] Event ID:', eventId);
           debouncedUpdate();
         }
       )
@@ -196,7 +199,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             filter: `business_id=eq.${businessId}`
           },
           (payload) => {
-            console.log('[useCalendarEvents] Booking requests table changed:', payload.eventType, payload.new?.id || payload.old?.id);
+            console.log('[useCalendarEvents] Booking requests table changed:', payload.eventType);
+            // Safe access to payload properties
+            const bookingId = (payload.new as any)?.id || (payload.old as any)?.id || 'unknown';
+            console.log('[useCalendarEvents] Booking ID:', bookingId);
             debouncedUpdate();
           }
         )
@@ -422,7 +428,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       clearCalendarCache();
       broadcastCacheInvalidation(result.title, result.eventType);
       
-      // Force immediate refresh
+      // Force immediate refresh with unified query invalidation
       await invalidateAllCalendarQueries();
       
       toast({

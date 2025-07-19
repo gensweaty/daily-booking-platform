@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
-import { getUnifiedCalendarEvents, clearCalendarCache } from "@/services/calendarService";
+import { getUnifiedCalendarEvents, clearCalendarCache, broadcastCacheInvalidation } from "@/services/calendarService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -268,7 +268,10 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           filter: `user_id=eq.${businessUserId}`
         },
         (payload) => {
-          console.log('[External Calendar] ⚡ Events table changed:', payload.eventType, payload.new?.id || payload.old?.id);
+          console.log('[External Calendar] ⚡ Events table changed:', payload.eventType);
+          // Safe access to payload properties
+          const eventId = (payload.new as any)?.id || (payload.old as any)?.id || 'unknown';
+          console.log('[External Calendar] Event ID:', eventId);
           debouncedUpdate();
         }
       )
@@ -286,7 +289,10 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           filter: `business_id=eq.${businessId}`
         },
         (payload) => {
-          console.log('[External Calendar] ⚡ Booking requests table changed:', payload.eventType, payload.new?.id || payload.old?.id);
+          console.log('[External Calendar] ⚡ Booking requests table changed:', payload.eventType);
+          // Safe access to payload properties
+          const bookingId = (payload.new as any)?.id || (payload.old as any)?.id || 'unknown';
+          console.log('[External Calendar] Booking ID:', bookingId);
           debouncedUpdate();
         }
       )
