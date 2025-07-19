@@ -61,6 +61,7 @@ export const DashboardContent = ({
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState("calendar")
   const [showArchive, setShowArchive] = useState(false)
+  const [isDeletionInProgress, setIsDeletionInProgress] = useState(false)
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
 
@@ -71,52 +72,95 @@ export const DashboardContent = ({
     }
   }, [pendingCount, activeTab]);
 
-  // Handle tab changes and refresh data
+  // Listen for deletion events to prevent tab switching interference
+  useEffect(() => {
+    const handleEventDeletion = (event: CustomEvent) => {
+      console.log('[DashboardContent] Event deletion detected:', event.detail);
+      if (event.detail.verified && event.detail.source === 'unified_deletion') {
+        console.log('[DashboardContent] Setting deletion in progress flag');
+        setIsDeletionInProgress(true);
+        
+        // Clear the flag after a short delay to allow deletion to complete
+        setTimeout(() => {
+          console.log('[DashboardContent] Clearing deletion in progress flag');
+          setIsDeletionInProgress(false);
+        }, 2000);
+      }
+    };
+
+    window.addEventListener('calendar-event-deleted', handleEventDeletion as EventListener);
+
+    return () => {
+      window.removeEventListener('calendar-event-deleted', handleEventDeletion as EventListener);
+    };
+  }, []);
+
+  // Handle tab changes and refresh data (but not during deletions)
   const handleTabChange = (value: string) => {
+    if (isDeletionInProgress) {
+      console.log('[DashboardContent] Skipping tab change during deletion process');
+      return;
+    }
+
     setActiveTab(value)
     setShowArchive(false) // Reset archive view when switching tabs
     
-    // If switching to statistics tab, force refresh all statistics data
-    if (value === "statistics") {
-      console.log("Switching to statistics tab - refreshing data")
-      queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] })
-      queryClient.invalidateQueries({ queryKey: ['optimized-event-stats'] })
-      queryClient.invalidateQueries({ queryKey: ['optimized-customers'] })
-      queryClient.invalidateQueries({ queryKey: ['taskStats'] })
-      queryClient.invalidateQueries({ queryKey: ['eventStats'] })
-      queryClient.invalidateQueries({ queryKey: ['customers'] })
-      queryClient.invalidateQueries({ queryKey: ['crm'] })
-    }
-    
-    // Refresh calendar data when switching to calendar tab
-    if (value === "calendar") {
-      console.log("Switching to calendar tab - refreshing events")
-      queryClient.invalidateQueries({ queryKey: ['events'] })
-      queryClient.invalidateQueries({ queryKey: ['calendar-events'] })
-    }
-    
-    // Refresh tasks when switching to tasks tab  
-    if (value === "tasks") {
-      console.log("Switching to tasks tab - refreshing tasks")
-      queryClient.invalidateQueries({ queryKey: ['tasks'] })
-      queryClient.invalidateQueries({ queryKey: ['archivedTasks'] })
-    }
-    
-    // Refresh CRM data when switching to CRM tab
-    if (value === "crm") {
-      console.log("Switching to CRM tab - refreshing customers")
-      queryClient.invalidateQueries({ queryKey: ['customers'] })
-      queryClient.invalidateQueries({ queryKey: ['crm'] })
-    }
-    
-    // Refresh booking data when switching to business tab
-    if (value === "business") {
-      console.log("Switching to business tab - refreshing booking requests")
-      queryClient.invalidateQueries({ queryKey: ['booking_requests'] })
-    }
+    // Don't invalidate queries immediately after tab change to prevent interference with deletions
+    // Use a small delay to allow any ongoing deletions to complete
+    setTimeout(() => {
+      if (isDeletionInProgress) {
+        console.log('[DashboardContent] Skipping query invalidation due to ongoing deletion');
+        return;
+      }
+
+      // If switching to statistics tab, force refresh all statistics data
+      if (value === "statistics") {
+        console.log("Switching to statistics tab - refreshing data")
+        queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] })
+        queryClient.invalidateQueries({ queryKey: ['optimized-event-stats'] })
+        queryClient.invalidateQueries({ queryKey: ['optimized-customers'] })
+        queryClient.invalidateQueries({ queryKey: ['taskStats'] })
+        queryClient.invalidateQueries({ queryKey: ['eventStats'] })
+        queryClient.invalidateQueries({ queryKey: ['customers'] })
+        queryClient.invalidateQueries({ queryKey: ['crm'] })
+      }
+      
+      // Refresh calendar data when switching to calendar tab
+      if (value === "calendar") {
+        console.log("Switching to calendar tab - refreshing events")
+        queryClient.invalidateQueries({ queryKey: ['events'] })
+        queryClient.invalidateQueries({ queryKey: ['unified-calendar-events'] })
+        queryClient.invalidateQueries({ queryKey: ['calendar-events'] })
+      }
+      
+      // Refresh tasks when switching to tasks tab  
+      if (value === "tasks") {
+        console.log("Switching to tasks tab - refreshing tasks")
+        queryClient.invalidateQueries({ queryKey: ['tasks'] })
+        queryClient.invalidateQueries({ queryKey: ['archivedTasks'] })
+      }
+      
+      // Refresh CRM data when switching to CRM tab
+      if (value === "crm") {
+        console.log("Switching to CRM tab - refreshing customers")
+        queryClient.invalidateQueries({ queryKey: ['customers'] })
+        queryClient.invalidateQueries({ queryKey: ['crm'] })
+      }
+      
+      // Refresh booking data when switching to business tab
+      if (value === "business") {
+        console.log("Switching to business tab - refreshing booking requests")
+        queryClient.invalidateQueries({ queryKey: ['booking_requests'] })
+      }
+    }, 500);
   }
 
   const handleArchiveClick = () => {
+    if (isDeletionInProgress) {
+      console.log('[DashboardContent] Skipping archive click during deletion process');
+      return;
+    }
+
     setShowArchive(true)
     setActiveTab("tasks")
     queryClient.invalidateQueries({ queryKey: ['archivedTasks'] })
@@ -132,7 +176,8 @@ export const DashboardContent = ({
           <TabsList className="grid w-full grid-cols-5 bg-transparent p-0 gap-1 h-auto">
             <TabsTrigger 
               value="calendar" 
-              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+              disabled={isDeletionInProgress}
+              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02] disabled:opacity-50"
             >
               <motion.div
                 whileHover={{ rotate: 15 }}
@@ -146,7 +191,8 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="statistics" 
-              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+              disabled={isDeletionInProgress}
+              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02] disabled:opacity-50"
             >
               <motion.div
                 whileHover={{ rotate: 15 }}
@@ -164,7 +210,8 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="tasks" 
-              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+              disabled={isDeletionInProgress}
+              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02] disabled:opacity-50"
             >
               <motion.div
                 whileHover={{ rotate: 15 }}
@@ -182,7 +229,8 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="crm" 
-              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+              disabled={isDeletionInProgress}
+              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02] disabled:opacity-50"
             >
               <motion.div
                 whileHover={{ rotate: 15 }}
@@ -200,7 +248,8 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="business" 
-              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02] relative"
+              disabled={isDeletionInProgress}
+              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02] relative disabled:opacity-50"
             >
               <motion.div
                 whileHover={{ rotate: 15 }}
@@ -234,6 +283,16 @@ export const DashboardContent = ({
             </TabsTrigger>
           </TabsList>
         </div>
+
+        {/* Show deletion progress indicator */}
+        {isDeletionInProgress && (
+          <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg text-center">
+            <div className="flex items-center justify-center gap-2 text-blue-700">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700"></div>
+              <span className="text-sm">Processing deletion...</span>
+            </div>
+          </div>
+        )}
 
         <AnimatePresence mode="wait">
           <TabsContent key="calendar" value="calendar" className="mt-0">
@@ -321,6 +380,7 @@ export const DashboardContent = ({
                         <Button
                           onClick={handleArchiveClick}
                           variant="outline"
+                          disabled={isDeletionInProgress}
                           className="flex items-center gap-2"
                         >
                           <motion.div
@@ -339,6 +399,7 @@ export const DashboardContent = ({
                           <DialogTrigger asChild>
                             <Button 
                               className="flex items-center gap-2 w-full sm:w-auto bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95"
+                              disabled={isDeletionInProgress}
                             >
                               <motion.div
                                 whileHover={{ rotate: 180 }}
@@ -366,6 +427,7 @@ export const DashboardContent = ({
                       <Button
                         onClick={() => setShowArchive(false)}
                         variant="outline"
+                        disabled={isDeletionInProgress}
                         className="flex items-center gap-2"
                       >
                         <ListTodo className="w-4 h-4" />
