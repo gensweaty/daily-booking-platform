@@ -180,38 +180,57 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     };
   }, [businessId, businessUserId, toast, t, retryCount]);
 
-  // Enhanced event listeners for deletions and cache invalidation
+  // Enhanced event listeners for immediate sync with internal calendar deletions
   useEffect(() => {
+    let debounceTimer: NodeJS.Timeout;
+
+    const debouncedRefresh = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        console.log('[External Calendar] ⚡ Triggering immediate refresh');
+        setRetryCount(prev => prev + 1);
+      }, 100); // Very fast refresh for external calendar
+    };
+
     const handleCacheInvalidation = () => {
-      console.log('[External Calendar] Cache invalidation detected, refetching...');
-      setRetryCount(prev => prev + 1);
+      console.log('[External Calendar] Cache invalidation detected, refetching immediately...');
+      debouncedRefresh();
     };
 
     const handleEventDeletion = (event: CustomEvent) => {
-      console.log('[External Calendar] Event deletion detected:', event.detail);
+      console.log('[External Calendar] ⚡ Event deletion detected:', event.detail);
       if (event.detail.verified) {
-        console.log('[External Calendar] Verified deletion, forcing immediate refresh');
+        console.log('[External Calendar] Verified deletion from internal calendar, forcing immediate refresh');
+        clearTimeout(debounceTimer); // Skip debounce for verified deletions
         clearCalendarCache();
         setRetryCount(prev => prev + 1);
+      } else {
+        debouncedRefresh();
       }
     };
 
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'calendar_invalidation_signal' || event.key === 'calendar_event_deleted') {
-        console.log('[External Calendar] Cross-tab sync detected, refetching...');
-        clearCalendarCache();
-        setRetryCount(prev => prev + 1);
+    const handleStorageSync = (event: StorageEvent) => {
+      if (event.key === 'calendar_deletion_sync') {
+        console.log('[External Calendar] ⚡ Cross-tab deletion sync detected');
+        const syncData = event.newValue ? JSON.parse(event.newValue) : null;
+        if (syncData?.action === 'delete') {
+          console.log(`[External Calendar] Cross-tab deletion: ${syncData.eventType} ${syncData.eventId}`);
+          clearTimeout(debounceTimer);
+          clearCalendarCache();
+          setRetryCount(prev => prev + 1);
+        }
       }
     };
 
     window.addEventListener('calendar-cache-invalidated', handleCacheInvalidation);
     window.addEventListener('calendar-event-deleted', handleEventDeletion as EventListener);
-    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('storage', handleStorageSync);
 
     return () => {
+      clearTimeout(debounceTimer);
       window.removeEventListener('calendar-cache-invalidated', handleCacheInvalidation);
       window.removeEventListener('calendar-event-deleted', handleEventDeletion as EventListener);
-      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('storage', handleStorageSync);
     };
   }, []);
 
@@ -219,25 +238,27 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   useEffect(() => {
     if (!businessId || !businessUserId) return;
 
-    console.log("[External Calendar] Setting up real-time subscriptions");
+    console.log("[External Calendar] Setting up enhanced real-time subscriptions");
 
     let debounceTimer: NodeJS.Timeout;
+    const channelSuffix = `${businessId}_${Date.now()}`;
 
     const debouncedUpdate = () => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
+        console.log('[External Calendar] ⏰ Real-time database update detected');
         clearCalendarCache();
-        // Invalidate React Query cache
+        // Invalidate React Query cache for consistency
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
         queryClient.invalidateQueries({ queryKey: ['events', businessUserId] });
-        queryClient.invalidateQueries({ queryKey: ['optimized-calendar-events'] });
+        queryClient.invalidateQueries({ queryKey: ['unified-calendar-events'] });
         setRetryCount(prev => prev + 1);
-      }, 200);
+      }, 150); // Faster updates for real-time sync
     };
 
-    // Subscribe to changes in events table
+    // Subscribe to changes in events table (for regular events)
     const eventsChannel = supabase
-      .channel(`external_calendar_events_${businessId}_${Date.now()}`)
+      .channel(`external_calendar_events_${channelSuffix}`)
       .on(
         'postgres_changes',
         {
@@ -247,15 +268,15 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           filter: `user_id=eq.${businessUserId}`
         },
         (payload) => {
-          console.log('[External Calendar] Events table changed:', payload);
+          console.log('[External Calendar] ⚡ Events table changed:', payload.eventType, payload.new?.id || payload.old?.id);
           debouncedUpdate();
         }
       )
       .subscribe();
 
-    // Subscribe to changes in booking_requests table
+    // Subscribe to changes in booking_requests table (for approved bookings)
     const bookingsChannel = supabase
-      .channel(`external_calendar_bookings_${businessId}_${Date.now()}`)
+      .channel(`external_calendar_bookings_${channelSuffix}`)
       .on(
         'postgres_changes',
         {
@@ -265,7 +286,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           filter: `business_id=eq.${businessId}`
         },
         (payload) => {
-          console.log('[External Calendar] Booking requests table changed:', payload);
+          console.log('[External Calendar] ⚡ Booking requests table changed:', payload.eventType, payload.new?.id || payload.old?.id);
           debouncedUpdate();
         }
       )
@@ -273,7 +294,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
 
     return () => {
       clearTimeout(debounceTimer);
-      console.log('[External Calendar] Cleaning up real-time subscriptions');
+      console.log('[External Calendar] Cleaning up enhanced real-time subscriptions');
       supabase.removeChannel(eventsChannel);
       supabase.removeChannel(bookingsChannel);
     };
