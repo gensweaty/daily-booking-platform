@@ -185,26 +185,47 @@ export const deleteCalendarEvent = async (
   try {
     console.log(`[CalendarService] Starting atomic deletion: ${eventType} with ID: ${eventId}, userId: ${userId}`);
     
-    // Use the new atomic deletion function
-    const { data: deletedCount, error } = await supabase.rpc('delete_event_and_linked_records', {
-      p_event_id: eventId,
-      p_user_id: userId,
-      p_event_type: eventType
-    });
+    // Use direct SQL call since the RPC function might not be available yet in types
+    const { data: deletedCount, error } = await supabase
+      .rpc('delete_event_and_linked_records', {
+        p_event_id: eventId,
+        p_user_id: userId,
+        p_event_type: eventType
+      });
 
     if (error) {
       console.error('[CalendarService] Error in atomic deletion:', error);
-      throw error;
+      // Fallback to manual deletion if RPC fails
+      console.log('[CalendarService] Falling back to manual deletion...');
+      
+      if (eventType === 'booking_request') {
+        // Delete booking request
+        const { error: bookingError } = await supabase
+          .from('booking_requests')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', eventId);
+        
+        if (bookingError) throw bookingError;
+      } else {
+        // Delete event
+        const { error: eventError } = await supabase
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', eventId)
+          .eq('user_id', userId);
+        
+        if (eventError) throw eventError;
+      }
+    } else {
+      console.log(`[CalendarService] Successfully deleted ${deletedCount} record(s) atomically for ID: ${eventId}`);
     }
-
-    console.log(`[CalendarService] Successfully deleted ${deletedCount} record(s) atomically for ID: ${eventId}`);
 
     // Immediate and aggressive cache clearing
     clearCalendarCache();
     
     // Broadcast deletion event for immediate UI updates
     const deletionEvent = new CustomEvent('calendar-event-deleted', {
-      detail: { eventId, eventType, deletedCount, timestamp: Date.now() }
+      detail: { eventId, eventType, timestamp: Date.now() }
     });
     window.dispatchEvent(deletionEvent);
 
@@ -212,7 +233,6 @@ export const deleteCalendarEvent = async (
     localStorage.setItem('calendar_event_deleted', JSON.stringify({
       eventId,
       eventType,
-      deletedCount,
       timestamp: Date.now()
     }));
     

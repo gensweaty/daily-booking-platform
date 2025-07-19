@@ -1,10 +1,11 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { BookingRequest } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { clearCalendarCache } from '@/services/calendarService';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 export const useBookingRequests = (businessId?: string) => {
   const { user } = useAuth();
@@ -33,7 +34,11 @@ export const useBookingRequests = (businessId?: string) => {
     }
 
     console.log(`[useBookingRequests] ✅ Loaded ${data?.length || 0} booking requests.`);
-    return data || [];
+    // Cast status to proper type to fix TypeScript error
+    return (data || []).map(item => ({
+      ...item,
+      status: item.status as 'pending' | 'approved' | 'rejected'
+    }));
   };
 
   const {
@@ -52,6 +57,15 @@ export const useBookingRequests = (businessId?: string) => {
     refetchOnWindowFocus: true,
     refetchOnMount: true,
   });
+
+  // Compute filtered arrays using useMemo for performance
+  const filteredRequests = useMemo(() => {
+    const pending = bookingRequests.filter(req => req.status === 'pending');
+    const approved = bookingRequests.filter(req => req.status === 'approved');
+    const rejected = bookingRequests.filter(req => req.status === 'rejected');
+
+    return { pending, approved, rejected };
+  }, [bookingRequests]);
 
   useEffect(() => {
     let debounceTimer: NodeJS.Timeout;
@@ -187,6 +201,49 @@ export const useBookingRequests = (businessId?: string) => {
     },
   });
 
+  const deleteBookingRequestMutation = useMutation({
+    mutationFn: async (id: string) => {
+      console.log(`[useBookingRequests] Deleting booking request ${id}`);
+      
+      const { error } = await supabase
+        .from('booking_requests')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) {
+        console.error('[useBookingRequests] Error deleting booking request:', error);
+        throw error;
+      }
+
+      console.log(`[useBookingRequests] Successfully deleted booking request ${id}`);
+
+      // Clear calendar cache
+      clearCalendarCache();
+
+      return { id };
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey });
+      
+      // Also invalidate calendar queries
+      queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+
+      toast({
+        title: "Success", 
+        description: "Booking request deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      console.error('[useBookingRequests] Error deleting booking request:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete booking request",
+        variant: "destructive",
+      });
+    },
+  });
+
   const createBookingRequestMutation = useMutation({
     mutationFn: async (newBookingRequest: Omit<BookingRequest, 'id' | 'created_at' | 'updated_at'>) => {
       console.log("[useBookingRequests] Creating booking request:", newBookingRequest);
@@ -228,10 +285,16 @@ export const useBookingRequests = (businessId?: string) => {
 
   return {
     bookingRequests,
+    pendingRequests: filteredRequests.pending,
+    approvedRequests: filteredRequests.approved,
+    rejectedRequests: filteredRequests.rejected,
     isLoading,
     error,
     refetch,
     updateStatus: updateStatusMutation.mutateAsync,
+    approveRequest: (id: string) => updateStatusMutation.mutateAsync({ id, status: 'approved' }),
+    rejectRequest: (id: string) => updateStatusMutation.mutateAsync({ id, status: 'rejected' }),
+    deleteBookingRequest: deleteBookingRequestMutation.mutateAsync,
     createBookingRequest: createBookingRequestMutation.mutateAsync,
   };
 };
