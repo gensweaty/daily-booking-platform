@@ -176,52 +176,72 @@ export const getUnifiedCalendarEvents = async (
   }
 };
 
-// Enhanced atomic delete function with proper cross-table deletion
+// Enhanced delete function with proper cross-table deletion
 export const deleteCalendarEvent = async (
   eventId: string, 
   eventType: 'event' | 'booking_request',
   userId: string
 ): Promise<void> => {
   try {
-    console.log(`[CalendarService] Starting atomic deletion: ${eventType} with ID: ${eventId}, userId: ${userId}`);
+    console.log(`[CalendarService] Starting deletion: ${eventType} with ID: ${eventId}, userId: ${userId}`);
     
-    // Use direct RPC call with type assertion to bypass TypeScript limitations
-    const { data: deletedCount, error } = await supabase.rpc(
-      'delete_event_and_linked_records' as any,
-      {
-        p_event_id: eventId,
-        p_user_id: userId,
-        p_event_type: eventType
-      }
-    );
+    if (eventType === 'booking_request') {
+      // This is an approved booking request - soft delete it
+      const { error: bookingError } = await supabase
+        .from('booking_requests')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', eventId);
 
-    if (error) {
-      console.error('[CalendarService] Error in atomic deletion:', error);
-      // Fallback to manual deletion if RPC fails
-      console.log('[CalendarService] Falling back to manual deletion...');
+      if (bookingError) {
+        console.error('[CalendarService] Error deleting booking request:', bookingError);
+        throw bookingError;
+      }
       
-      if (eventType === 'booking_request') {
-        // Delete booking request
-        const { error: bookingError } = await supabase
-          .from('booking_requests')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('id', eventId);
+      console.log(`[CalendarService] Successfully soft deleted booking request: ${eventId}`);
+    } else {
+      // This is a regular event - soft delete from events table
+      const { data: existingEvent } = await supabase
+        .from('events')
+        .select('id, parent_event_id')
+        .eq('id', eventId)
+        .eq('user_id', userId)
+        .is('deleted_at', null)
+        .single();
+
+      if (existingEvent) {
+        console.log('[CalendarService] Found event in events table, soft deleting...');
         
-        if (bookingError) throw bookingError;
-      } else {
-        // Delete event
+        // Soft delete the main event
         const { error: eventError } = await supabase
           .from('events')
           .update({ deleted_at: new Date().toISOString() })
           .eq('id', eventId)
           .eq('user_id', userId);
+
+        if (eventError) {
+          console.error('[CalendarService] Error deleting event:', eventError);
+          throw eventError;
+        }
+
+        // If this is a recurring event (parent), also soft delete all child instances
+        const { error: childrenError } = await supabase
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('parent_event_id', eventId)
+          .eq('user_id', userId);
+
+        if (childrenError) {
+          console.warn('[CalendarService] Error deleting recurring children:', childrenError);
+        }
         
-        if (eventError) throw eventError;
+        console.log(`[CalendarService] Successfully soft deleted event: ${eventId}`);
+      } else {
+        console.warn(`[CalendarService] Event not found in events table: ${eventId}`);
       }
-    } else {
-      console.log(`[CalendarService] Successfully deleted ${deletedCount} record(s) atomically for ID: ${eventId}`);
     }
 
+    console.log(`[CalendarService] Successfully completed deletion for ID: ${eventId}`);
+    
     // Immediate and aggressive cache clearing
     clearCalendarCache();
     
@@ -243,7 +263,7 @@ export const deleteCalendarEvent = async (
     }, 2000);
 
   } catch (error) {
-    console.error(`[CalendarService] Error in atomic deletion:`, error);
+    console.error(`[CalendarService] Error in deletion:`, error);
     throw error;
   }
 };
