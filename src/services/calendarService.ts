@@ -185,13 +185,15 @@ export const deleteCalendarEvent = async (
   try {
     console.log(`[CalendarService] Starting atomic deletion: ${eventType} with ID: ${eventId}, userId: ${userId}`);
     
-    // Use direct SQL call since the RPC function might not be available yet in types
-    const { data: deletedCount, error } = await supabase
-      .rpc('delete_event_and_linked_records', {
+    // Use direct RPC call with type assertion to bypass TypeScript limitations
+    const { data: deletedCount, error } = await supabase.rpc(
+      'delete_event_and_linked_records' as any,
+      {
         p_event_id: eventId,
         p_user_id: userId,
         p_event_type: eventType
-      });
+      }
+    );
 
     if (error) {
       console.error('[CalendarService] Error in atomic deletion:', error);
