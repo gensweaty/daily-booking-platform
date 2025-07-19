@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from '@/lib/types/calendar';
 
@@ -7,7 +6,7 @@ export interface CalendarEventsResponse {
   bookings: CalendarEventType[];
 }
 
-// Enhanced cache clearing with unified approach
+// Enhanced cache clearing with cross-tab broadcasting
 export const clearCalendarCache = (): void => {
   try {
     // Clear session storage cache
@@ -28,34 +27,24 @@ export const clearCalendarCache = (): void => {
       }
     });
 
-    // Broadcast unified cache clear event
+    // Broadcast cache clear event to other tabs
     const cacheInvalidationEvent = new CustomEvent('calendar-cache-invalidated', {
-      detail: { 
-        timestamp: Date.now(),
-        source: 'unified_deletion',
-        clearAll: true 
-      }
+      detail: { timestamp: Date.now() }
     });
     window.dispatchEvent(cacheInvalidationEvent);
 
-    // Cross-tab communication
-    localStorage.setItem('calendar_invalidation_signal', JSON.stringify({
-      timestamp: Date.now(),
-      source: 'unified_deletion',
-      clearAll: true
-    }));
-    
+    // Use localStorage for cross-tab communication
+    localStorage.setItem('calendar_invalidation_signal', Date.now().toString());
     setTimeout(() => {
       localStorage.removeItem('calendar_invalidation_signal');
     }, 1000);
 
-    console.log('[CalendarService] Unified cache cleared with cross-tab broadcast');
+    console.log('[CalendarService] Comprehensive cache cleared with cross-tab broadcast');
   } catch (error) {
     console.warn('[CalendarService] Error clearing cache:', error);
   }
 };
 
-// Enhanced unified calendar events fetcher
 export const getUnifiedCalendarEvents = async (
   businessId?: string, 
   businessUserId?: string
@@ -186,14 +175,14 @@ export const getUnifiedCalendarEvents = async (
   }
 };
 
-// Enhanced delete function with unified calendar updates
+// Enhanced delete function with verification and better error handling
 export const deleteCalendarEvent = async (
   eventId: string, 
   eventType: 'event' | 'booking_request',
   userId: string
-): Promise<{ success: boolean; eventType: string; }> => {
+): Promise<void> => {
   try {
-    console.log(`[CalendarService] Starting unified deletion: ${eventType} with ID: ${eventId}, userId: ${userId}`);
+    console.log(`[CalendarService] Starting deletion: ${eventType} with ID: ${eventId}, userId: ${userId}`);
     
     let deletionSuccess = false;
     
@@ -211,6 +200,7 @@ export const deleteCalendarEvent = async (
         throw bookingError;
       }
       
+      // Verify deletion was successful
       if (updatedBooking && updatedBooking.deleted_at) {
         deletionSuccess = true;
         console.log(`[CalendarService] ✅ Successfully verified soft deletion of booking request: ${eventId}`);
@@ -241,6 +231,7 @@ export const deleteCalendarEvent = async (
           throw eventError;
         }
 
+        // Verify deletion was successful
         if (updatedEvent && updatedEvent.deleted_at) {
           deletionSuccess = true;
           console.log(`[CalendarService] ✅ Successfully verified soft deletion of event: ${eventId}`);
@@ -269,20 +260,14 @@ export const deleteCalendarEvent = async (
       throw new Error(`Failed to verify deletion of ${eventType} ${eventId}`);
     }
 
-    console.log(`[CalendarService] ✅ Successfully completed unified deletion for ID: ${eventId}`);
+    console.log(`[CalendarService] ✅ Successfully completed verified deletion for ID: ${eventId}`);
     
     // Immediate and aggressive cache clearing
     clearCalendarCache();
     
-    // Broadcast unified deletion event for immediate UI updates
+    // Broadcast deletion event for immediate UI updates
     const deletionEvent = new CustomEvent('calendar-event-deleted', {
-      detail: { 
-        eventId, 
-        eventType, 
-        timestamp: Date.now(), 
-        verified: true,
-        source: 'unified_deletion'
-      }
+      detail: { eventId, eventType, timestamp: Date.now(), verified: true }
     });
     window.dispatchEvent(deletionEvent);
 
@@ -291,18 +276,15 @@ export const deleteCalendarEvent = async (
       eventId,
       eventType,
       timestamp: Date.now(),
-      verified: true,
-      source: 'unified_deletion'
+      verified: true
     }));
     
     setTimeout(() => {
       localStorage.removeItem('calendar_event_deleted');
     }, 2000);
 
-    return { success: true, eventType };
-
   } catch (error) {
-    console.error(`[CalendarService] ❌ Error in unified deletion:`, error);
+    console.error(`[CalendarService] ❌ Error in deletion:`, error);
     throw error;
   }
 };

@@ -99,7 +99,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       console.log("[External Calendar] Starting to fetch events for business ID:", businessId, "user ID:", businessUserId);
       
       try {
-        // Use the unified calendar service for consistency with internal calendar
+        // Use the unified calendar service for consistency
         const { events: unifiedEvents, bookings: unifiedBookings } = await getUnifiedCalendarEvents(businessId, businessUserId);
         
         console.log(`[External Calendar] Fetched ${unifiedEvents.length} events and ${unifiedBookings.length} bookings`);
@@ -180,20 +180,17 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     };
   }, [businessId, businessUserId, toast, t, retryCount]);
 
-  // Enhanced event listeners for unified deletions and cache invalidation
+  // Enhanced event listeners for deletions and cache invalidation
   useEffect(() => {
-    const handleCacheInvalidation = (event?: CustomEvent) => {
-      console.log('[External Calendar] Cache invalidation detected:', event?.detail);
-      if (!event?.detail || event.detail.source === 'unified_deletion') {
-        console.log('[External Calendar] Unified cache invalidation, refetching...');
-        setRetryCount(prev => prev + 1);
-      }
+    const handleCacheInvalidation = () => {
+      console.log('[External Calendar] Cache invalidation detected, refetching...');
+      setRetryCount(prev => prev + 1);
     };
 
     const handleEventDeletion = (event: CustomEvent) => {
       console.log('[External Calendar] Event deletion detected:', event.detail);
-      if (event.detail.verified && event.detail.source === 'unified_deletion') {
-        console.log('[External Calendar] Verified unified deletion, forcing immediate refresh');
+      if (event.detail.verified) {
+        console.log('[External Calendar] Verified deletion, forcing immediate refresh');
         clearCalendarCache();
         setRetryCount(prev => prev + 1);
       }
@@ -202,36 +199,27 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === 'calendar_invalidation_signal' || event.key === 'calendar_event_deleted') {
         console.log('[External Calendar] Cross-tab sync detected, refetching...');
-        try {
-          const data = JSON.parse(event.newValue || '{}');
-          if (data.source === 'unified_deletion') {
-            console.log('[External Calendar] Cross-tab unified deletion detected');
-            clearCalendarCache();
-            setRetryCount(prev => prev + 1);
-          }
-        } catch (e) {
-          console.warn('[External Calendar] Error parsing storage event:', e);
-          setRetryCount(prev => prev + 1);
-        }
+        clearCalendarCache();
+        setRetryCount(prev => prev + 1);
       }
     };
 
-    window.addEventListener('calendar-cache-invalidated', handleCacheInvalidation as EventListener);
+    window.addEventListener('calendar-cache-invalidated', handleCacheInvalidation);
     window.addEventListener('calendar-event-deleted', handleEventDeletion as EventListener);
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
-      window.removeEventListener('calendar-cache-invalidated', handleCacheInvalidation as EventListener);
+      window.removeEventListener('calendar-cache-invalidated', handleCacheInvalidation);
       window.removeEventListener('calendar-event-deleted', handleEventDeletion as EventListener);
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
-  // Enhanced real-time subscriptions for immediate unified sync
+  // Enhanced real-time subscriptions for immediate database sync
   useEffect(() => {
     if (!businessId || !businessUserId) return;
 
-    console.log("[External Calendar] Setting up unified real-time subscriptions");
+    console.log("[External Calendar] Setting up real-time subscriptions");
 
     let debounceTimer: NodeJS.Timeout;
 
@@ -239,10 +227,9 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         clearCalendarCache();
-        // Invalidate React Query cache for unified sync
+        // Invalidate React Query cache
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
         queryClient.invalidateQueries({ queryKey: ['events', businessUserId] });
-        queryClient.invalidateQueries({ queryKey: ['unified-calendar-events'] });
         queryClient.invalidateQueries({ queryKey: ['optimized-calendar-events'] });
         setRetryCount(prev => prev + 1);
       }, 200);
@@ -250,7 +237,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
 
     // Subscribe to changes in events table
     const eventsChannel = supabase
-      .channel(`external_unified_events_${businessId}_${Date.now()}`)
+      .channel(`external_calendar_events_${businessId}_${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -268,7 +255,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
 
     // Subscribe to changes in booking_requests table
     const bookingsChannel = supabase
-      .channel(`external_unified_bookings_${businessId}_${Date.now()}`)
+      .channel(`external_calendar_bookings_${businessId}_${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -286,7 +273,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
 
     return () => {
       clearTimeout(debounceTimer);
-      console.log('[External Calendar] Cleaning up unified real-time subscriptions');
+      console.log('[External Calendar] Cleaning up real-time subscriptions');
       supabase.removeChannel(eventsChannel);
       supabase.removeChannel(bookingsChannel);
     };
