@@ -359,7 +359,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     },
   });
 
-  // Completely rewritten delete mutation with comprehensive error handling
+  // Enhanced delete mutation with business context support
   const deleteEventMutation = useMutation({
     mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
       if (!user?.id) throw new Error("User not authenticated");
@@ -375,11 +375,28 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       }
       
       const eventType = eventToDelete.type === 'booking_request' ? 'booking_request' : 'event';
+      
+      // Determine business context - get current business ID from the hook context
+      let currentBusinessId = businessId;
+      
+      // If this is a booking request and we don't have businessId, try to get it
+      if (eventType === 'booking_request' && !currentBusinessId) {
+        // Try to get business ID from user's business profile
+        const { data: userBusiness } = await supabase
+          .from('business_profiles')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (userBusiness) {
+          currentBusinessId = userBusiness.id;
+        }
+      }
 
-      console.log("[useCalendarEvents] Determined event type:", eventType, "for event:", eventToDelete.title);
+      console.log("[useCalendarEvents] Determined event type:", eventType, "for event:", eventToDelete.title, "businessId:", currentBusinessId);
 
-      // Use the enhanced unified delete function
-      const result = await deleteCalendarEvent(id, eventType, user.id);
+      // Use the enhanced unified delete function with business context
+      const result = await deleteCalendarEvent(id, eventType, user.id, currentBusinessId);
 
       console.log("[useCalendarEvents] ✅ Deletion completed successfully:", result);
 

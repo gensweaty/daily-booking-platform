@@ -180,20 +180,52 @@ export const getUnifiedCalendarEvents = async (
 export const deleteCalendarEvent = async (
   eventId: string, 
   eventType: 'event' | 'booking_request',
-  userId: string
+  userId: string,
+  businessId?: string
 ): Promise<{ success: boolean; deletedFrom: string[] }> => {
   try {
-    console.log(`[CalendarService] Starting deletion: ${eventType} with ID: ${eventId}, userId: ${userId}`);
+    console.log(`[CalendarService] Starting deletion: ${eventType} with ID: ${eventId}, userId: ${userId}, businessId: ${businessId}`);
     
     const deletedFrom: string[] = [];
     let deletionSuccess = false;
     
     if (eventType === 'booking_request') {
-      // This is an approved booking request - soft delete it
+      // Verify business ownership for booking requests
+      if (!businessId) {
+        // Try to get business ID from the booking request
+        const { data: bookingData } = await supabase
+          .from('booking_requests')
+          .select('business_id')
+          .eq('id', eventId)
+          .single();
+
+        if (bookingData?.business_id) {
+          businessId = bookingData.business_id;
+        }
+      }
+
+      if (!businessId) {
+        throw new Error('Business ID is required for booking request deletion');
+      }
+
+      // Verify that the user owns this business
+      const { data: businessOwnership } = await supabase
+        .from('business_profiles')
+        .select('id')
+        .eq('id', businessId)
+        .eq('user_id', userId)
+        .single();
+
+      if (!businessOwnership) {
+        throw new Error('Access denied: You can only delete booking requests for your own business');
+      }
+
+      // Soft delete the booking request
       const { data: updatedBooking, error: bookingError } = await supabase
         .from('booking_requests')
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', eventId)
+        .eq('business_id', businessId)
         .select('id, deleted_at')
         .single();
 
@@ -280,7 +312,8 @@ export const deleteCalendarEvent = async (
         eventType, 
         timestamp: Date.now(), 
         verified: true,
-        deletedFrom 
+        deletedFrom,
+        businessId 
       }
     });
     window.dispatchEvent(deletionEvent);
@@ -291,7 +324,8 @@ export const deleteCalendarEvent = async (
       eventType,
       timestamp: Date.now(),
       verified: true,
-      deletedFrom
+      deletedFrom,
+      businessId
     }));
     
     setTimeout(() => {
