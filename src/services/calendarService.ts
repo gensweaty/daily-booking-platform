@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from '@/lib/types/calendar';
 
@@ -175,15 +176,16 @@ export const getUnifiedCalendarEvents = async (
   }
 };
 
-// Enhanced delete function with verification and better error handling
+// Enhanced delete function with comprehensive error handling and verification
 export const deleteCalendarEvent = async (
   eventId: string, 
   eventType: 'event' | 'booking_request',
   userId: string
-): Promise<void> => {
+): Promise<{ success: boolean; deletedFrom: string[] }> => {
   try {
     console.log(`[CalendarService] Starting deletion: ${eventType} with ID: ${eventId}, userId: ${userId}`);
     
+    const deletedFrom: string[] = [];
     let deletionSuccess = false;
     
     if (eventType === 'booking_request') {
@@ -203,6 +205,7 @@ export const deleteCalendarEvent = async (
       // Verify deletion was successful
       if (updatedBooking && updatedBooking.deleted_at) {
         deletionSuccess = true;
+        deletedFrom.push('booking_requests');
         console.log(`[CalendarService] ✅ Successfully verified soft deletion of booking request: ${eventId}`);
       }
     } else {
@@ -234,22 +237,27 @@ export const deleteCalendarEvent = async (
         // Verify deletion was successful
         if (updatedEvent && updatedEvent.deleted_at) {
           deletionSuccess = true;
+          deletedFrom.push('events');
           console.log(`[CalendarService] ✅ Successfully verified soft deletion of event: ${eventId}`);
         }
 
         // If this is a recurring event (parent), also soft delete all child instances
-        const { error: childrenError } = await supabase
+        const { data: childrenDeleted, error: childrenError } = await supabase
           .from('events')
           .update({ deleted_at: new Date().toISOString() })
           .eq('parent_event_id', eventId)
-          .eq('user_id', userId);
+          .eq('user_id', userId)
+          .select('id');
 
         if (childrenError) {
           console.warn('[CalendarService] Error deleting recurring children:', childrenError);
+        } else if (childrenDeleted && childrenDeleted.length > 0) {
+          console.log(`[CalendarService] Also deleted ${childrenDeleted.length} recurring instances`);
         }
       } else if (existingEvent && existingEvent.deleted_at) {
         console.log(`[CalendarService] Event ${eventId} is already deleted`);
         deletionSuccess = true;
+        deletedFrom.push('events (already deleted)');
       } else {
         console.warn(`[CalendarService] Event not found in events table: ${eventId}`);
         throw new Error(`Event ${eventId} not found or access denied`);
@@ -260,14 +268,20 @@ export const deleteCalendarEvent = async (
       throw new Error(`Failed to verify deletion of ${eventType} ${eventId}`);
     }
 
-    console.log(`[CalendarService] ✅ Successfully completed verified deletion for ID: ${eventId}`);
+    console.log(`[CalendarService] ✅ Successfully completed verified deletion for ID: ${eventId} from: ${deletedFrom.join(', ')}`);
     
     // Immediate and aggressive cache clearing
     clearCalendarCache();
     
     // Broadcast deletion event for immediate UI updates
     const deletionEvent = new CustomEvent('calendar-event-deleted', {
-      detail: { eventId, eventType, timestamp: Date.now(), verified: true }
+      detail: { 
+        eventId, 
+        eventType, 
+        timestamp: Date.now(), 
+        verified: true,
+        deletedFrom 
+      }
     });
     window.dispatchEvent(deletionEvent);
 
@@ -276,12 +290,15 @@ export const deleteCalendarEvent = async (
       eventId,
       eventType,
       timestamp: Date.now(),
-      verified: true
+      verified: true,
+      deletedFrom
     }));
     
     setTimeout(() => {
       localStorage.removeItem('calendar_event_deleted');
     }, 2000);
+
+    return { success: true, deletedFrom };
 
   } catch (error) {
     console.error(`[CalendarService] ❌ Error in deletion:`, error);
