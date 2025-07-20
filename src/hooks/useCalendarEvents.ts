@@ -30,12 +30,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       
       // Additional deduplication by ID to ensure no duplicates
       const uniqueEvents = allEvents.filter((event, index, self) => 
-        index === self.findIndex(e => e.id === event.id)
+        index === self.findIndex(e => e.id === event.id && !e.deleted_at)
       );
-
-      if (uniqueEvents.length !== allEvents.length) {
-        console.warn(`[useCalendarEvents] Removed ${allEvents.length - uniqueEvents.length} duplicate events`);
-      }
 
       console.log(`[useCalendarEvents] ✅ Loaded ${uniqueEvents.length} unique events (${events.length} events + ${bookings.length} approved bookings)`);
       
@@ -47,7 +43,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     }
   };
 
-  const queryKey = businessId ? ['business-events', businessId] : ['events', user?.id];
+  // Use consistent query key structure
+  const queryKey = businessId ? ['calendar-events', businessId, businessUserId] : ['calendar-events', user?.id];
 
   const {
     data: events = [],
@@ -58,29 +55,30 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     queryKey,
     queryFn: fetchEvents,
     enabled: !!(businessUserId || user?.id),
-    staleTime: 1000, // Consider data stale after 1 second
-    gcTime: 5000, // Keep in cache for 5 seconds
+    staleTime: 0, // Always consider data stale for immediate updates
+    gcTime: 1000, // Keep in cache for 1 second only
     refetchOnWindowFocus: true,
     refetchOnMount: true,
   });
 
-  // Enhanced cache invalidation with debouncing
+  // Enhanced cache invalidation
   useEffect(() => {
     let debounceTimer: NodeJS.Timeout;
 
     const debouncedInvalidate = () => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
-        console.log('[useCalendarEvents] Invalidating queries and refetching...');
+        console.log('[useCalendarEvents] Invalidating all calendar queries');
         
-        // Invalidate all related queries
+        // Invalidate ALL calendar-related queries
+        queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
         queryClient.invalidateQueries({ queryKey: ['events'] });
         queryClient.invalidateQueries({ queryKey: ['business-events'] });
         queryClient.invalidateQueries({ queryKey: ['optimized-calendar-events'] });
         
         // Force refetch
         refetch();
-      }, 100);
+      }, 50);
     };
 
     const handleCacheInvalidation = () => {
@@ -133,12 +131,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         clearCalendarCache();
         
         // Invalidate all related queries
+        queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
         queryClient.invalidateQueries({ queryKey: ['events'] });
         queryClient.invalidateQueries({ queryKey: ['business-events'] });
         queryClient.invalidateQueries({ queryKey: ['optimized-calendar-events'] });
         
         refetch();
-      }, 200);
+      }, 100);
     };
 
     // Subscribe to events table changes
@@ -235,10 +234,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     },
     onSuccess: async () => {
       await new Promise(resolve => setTimeout(resolve, 300));
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      if (businessId) {
-        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
-      }
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast({
         title: "Success",
         description: "Event created successfully",
@@ -328,10 +324,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     },
     onSuccess: async () => {
       await new Promise(resolve => setTimeout(resolve, 300));
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      if (businessId) {
-        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
-      }
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast({
         title: "Success",
         description: "Event updated successfully",
@@ -347,7 +340,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     },
   });
 
-  // Enhanced delete mutation with better verification
+  // Enhanced delete mutation
   const deleteEventMutation = useMutation({
     mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
       if (!user?.id) throw new Error("User not authenticated");
@@ -366,7 +359,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("[useCalendarEvents] Determined event type:", eventType, "for event:", eventToDelete.title);
 
-      // Use the enhanced unified delete function with verification
+      // Use the enhanced unified delete function
       await deleteCalendarEvent(id, eventType, user.id);
 
       console.log("[useCalendarEvents] ✅ Deletion completed successfully");
@@ -376,15 +369,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     onSuccess: async (result) => {
       console.log("[useCalendarEvents] Delete mutation succeeded:", result);
       
-      // Immediate cache clearing and query invalidation
+      // Immediate and aggressive cache clearing
       clearCalendarCache();
       
-      // Invalidate all related queries immediately
+      // Invalidate ALL calendar-related queries immediately
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['business-events'] });
       queryClient.invalidateQueries({ queryKey: ['optimized-calendar-events'] });
       
-      // Force immediate refetch
+      // Force immediate refetch with a small delay to ensure database consistency
+      await new Promise(resolve => setTimeout(resolve, 100));
       await refetch();
       
       toast({

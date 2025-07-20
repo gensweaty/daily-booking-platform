@@ -227,12 +227,11 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         clearCalendarCache();
-        // Invalidate React Query cache
-        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
-        queryClient.invalidateQueries({ queryKey: ['events', businessUserId] });
-        queryClient.invalidateQueries({ queryKey: ['optimized-calendar-events'] });
+        // Invalidate React Query cache for consistency with internal calendar
+        queryClient.invalidateQueries({ queryKey: ['calendar-events', businessId, businessUserId] });
+        queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
         setRetryCount(prev => prev + 1);
-      }, 200);
+      }, 100);
     };
 
     // Subscribe to changes in events table
