@@ -186,13 +186,15 @@ export const deleteCalendarEvent = async (
   try {
     console.log(`[CalendarService] Starting deletion: ${eventType} with ID: ${eventId}, userId: ${userId}, businessId: ${businessId}`);
     
-    let resolvedBusinessId: string | undefined = businessId; // Use more descriptive name
+    // Variable to track the actual business ID for booking requests only
+    let actualBusinessId: string | undefined = undefined;
     
     if (eventType === 'booking_request') {
       // For booking requests, we need to verify business ownership
+      actualBusinessId = businessId;
       
       // If no businessId provided, get it from the booking request
-      if (!resolvedBusinessId) {
+      if (!actualBusinessId) {
         const { data: bookingData, error: fetchError } = await supabase
           .from('booking_requests')
           .select('business_id')
@@ -204,14 +206,14 @@ export const deleteCalendarEvent = async (
           throw new Error('Booking request not found');
         }
         
-        resolvedBusinessId = bookingData.business_id;
+        actualBusinessId = bookingData.business_id;
       }
       
       // Verify the current user owns this business
       const { data: businessOwner, error: businessError } = await supabase
         .from('business_profiles')
         .select('user_id')
-        .eq('id', resolvedBusinessId)
+        .eq('id', actualBusinessId)
         .single();
         
       if (businessError || !businessOwner) {
@@ -229,14 +231,14 @@ export const deleteCalendarEvent = async (
         .from('booking_requests')
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', eventId)
-        .eq('business_id', resolvedBusinessId);
+        .eq('business_id', actualBusinessId);
 
       if (deleteError) {
         console.error('[CalendarService] Error deleting booking request:', deleteError);
         throw deleteError;
       }
       
-      console.log(`[CalendarService] Successfully soft deleted booking request: ${eventId} from business: ${resolvedBusinessId}`);
+      console.log(`[CalendarService] Successfully soft deleted booking request: ${eventId} from business: ${actualBusinessId}`);
     } else {
       // This is a regular event - use existing logic
       const { data: existingEvent } = await supabase
@@ -285,22 +287,22 @@ export const deleteCalendarEvent = async (
     // Enhanced cache clearing
     clearCalendarCache();
     
-    // Broadcast deletion event with proper business context
+    // Broadcast deletion event - only include businessId for booking requests
     const deletionEvent = new CustomEvent('calendar-event-deleted', {
       detail: { 
         eventId, 
         eventType, 
-        businessId: resolvedBusinessId, // Only set for booking requests
+        businessId: eventType === 'booking_request' ? actualBusinessId : undefined,
         timestamp: Date.now() 
       }
     });
     window.dispatchEvent(deletionEvent);
 
-    // Enhanced cross-tab sync with proper business context
+    // Enhanced cross-tab sync - only include businessId for booking requests
     localStorage.setItem('calendar_event_deleted', JSON.stringify({
       eventId,
       eventType,
-      businessId: resolvedBusinessId, // Only set for booking requests
+      businessId: eventType === 'booking_request' ? actualBusinessId : undefined,
       timestamp: Date.now()
     }));
     
