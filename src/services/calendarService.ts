@@ -176,7 +176,7 @@ export const getUnifiedCalendarEvents = async (
   }
 };
 
-// Enhanced delete function with proper business ownership verification
+// Enhanced delete function with automatic event type detection
 export const deleteCalendarEvent = async (
   eventId: string, 
   eventType: 'event' | 'booking_request',
@@ -186,34 +186,59 @@ export const deleteCalendarEvent = async (
   try {
     console.log(`[CalendarService] Starting deletion: ${eventType} with ID: ${eventId}, userId: ${userId}, businessId: ${businessId}`);
     
-    // Variable to track the actual business ID for booking requests only
+    // First, let's determine the actual type by checking both tables
+    let actualEventType = eventType;
     let actualBusinessId: string | undefined = undefined;
     
-    if (eventType === 'booking_request') {
-      // For booking requests, we need to verify business ownership
-      actualBusinessId = businessId;
+    // Check if this ID exists in booking_requests table
+    const { data: bookingCheck } = await supabase
+      .from('booking_requests')
+      .select('id, business_id')
+      .eq('id', eventId)
+      .is('deleted_at', null)
+      .single();
+    
+    if (bookingCheck) {
+      console.log(`[CalendarService] Found in booking_requests table: ${eventId}`);
+      actualEventType = 'booking_request';
+      actualBusinessId = bookingCheck.business_id;
+    }
+    
+    // Check if this ID exists in events table
+    const { data: eventCheck } = await supabase
+      .from('events')
+      .select('id, user_id')
+      .eq('id', eventId)
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .single();
+    
+    if (eventCheck && !bookingCheck) {
+      console.log(`[CalendarService] Found in events table: ${eventId}`);
+      actualEventType = 'event';
+    }
+    
+    if (!bookingCheck && !eventCheck) {
+      console.error('[CalendarService] Event not found in either table:', eventId);
+      throw new Error('Event not found');
+    }
+    
+    console.log(`[CalendarService] Determined actual event type: ${actualEventType}`);
+    
+    if (actualEventType === 'booking_request') {
+      // Handle booking request deletion
+      const targetBusinessId = actualBusinessId || businessId;
       
-      // If no businessId provided, get it from the booking request
-      if (!actualBusinessId) {
-        const { data: bookingData, error: fetchError } = await supabase
-          .from('booking_requests')
-          .select('business_id')
-          .eq('id', eventId)
-          .single();
-          
-        if (fetchError || !bookingData) {
-          console.error('[CalendarService] Could not fetch booking request:', fetchError);
-          throw new Error('Booking request not found');
-        }
-        
-        actualBusinessId = bookingData.business_id;
+      if (!targetBusinessId) {
+        console.error('[CalendarService] No business ID available for booking request');
+        throw new Error('Business ID required for booking request deletion');
       }
       
       // Verify the current user owns this business
       const { data: businessOwner, error: businessError } = await supabase
         .from('business_profiles')
         .select('user_id')
-        .eq('id', actualBusinessId)
+        .eq('id', targetBusinessId)
         .single();
         
       if (businessError || !businessOwner) {
@@ -226,60 +251,49 @@ export const deleteCalendarEvent = async (
         throw new Error('Unauthorized: You do not own this business');
       }
       
-      // Now we can safely delete the booking request
+      // Soft delete the booking request
       const { error: deleteError } = await supabase
         .from('booking_requests')
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', eventId)
-        .eq('business_id', actualBusinessId);
+        .eq('business_id', targetBusinessId);
 
       if (deleteError) {
         console.error('[CalendarService] Error deleting booking request:', deleteError);
         throw deleteError;
       }
       
-      console.log(`[CalendarService] Successfully soft deleted booking request: ${eventId} from business: ${actualBusinessId}`);
+      console.log(`[CalendarService] Successfully soft deleted booking request: ${eventId} from business: ${targetBusinessId}`);
+      actualBusinessId = targetBusinessId;
+      
     } else {
-      // This is a regular event - use existing logic
-      const { data: existingEvent } = await supabase
+      // Handle regular event deletion
+      console.log('[CalendarService] Deleting regular event...');
+      
+      // Soft delete the main event
+      const { error: eventError } = await supabase
         .from('events')
-        .select('id, parent_event_id')
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', eventId)
-        .eq('user_id', userId)
-        .is('deleted_at', null)
-        .single();
+        .eq('user_id', userId);
 
-      if (existingEvent) {
-        console.log('[CalendarService] Found event in events table, soft deleting...');
-        
-        // Soft delete the main event
-        const { error: eventError } = await supabase
-          .from('events')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('id', eventId)
-          .eq('user_id', userId);
-
-        if (eventError) {
-          console.error('[CalendarService] Error deleting event:', eventError);
-          throw eventError;
-        }
-
-        // If this is a recurring event (parent), also soft delete all child instances
-        const { error: childrenError } = await supabase
-          .from('events')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('parent_event_id', eventId)
-          .eq('user_id', userId);
-
-        if (childrenError) {
-          console.warn('[CalendarService] Error deleting recurring children:', childrenError);
-        }
-        
-        console.log(`[CalendarService] Successfully soft deleted event: ${eventId}`);
-      } else {
-        console.warn(`[CalendarService] Event not found in events table: ${eventId}`);
-        throw new Error('Event not found or access denied');
+      if (eventError) {
+        console.error('[CalendarService] Error deleting event:', eventError);
+        throw eventError;
       }
+
+      // If this is a recurring event (parent), also soft delete all child instances
+      const { error: childrenError } = await supabase
+        .from('events')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('parent_event_id', eventId)
+        .eq('user_id', userId);
+
+      if (childrenError) {
+        console.warn('[CalendarService] Error deleting recurring children:', childrenError);
+      }
+      
+      console.log(`[CalendarService] Successfully soft deleted event: ${eventId}`);
     }
 
     console.log(`[CalendarService] Successfully completed deletion for ID: ${eventId}`);
@@ -287,22 +301,22 @@ export const deleteCalendarEvent = async (
     // Enhanced cache clearing
     clearCalendarCache();
     
-    // Broadcast deletion event - only include businessId for booking requests
+    // Broadcast deletion event - include businessId only for booking requests
     const deletionEvent = new CustomEvent('calendar-event-deleted', {
       detail: { 
         eventId, 
-        eventType, 
-        businessId: eventType === 'booking_request' ? actualBusinessId : undefined,
+        eventType: actualEventType, 
+        businessId: actualEventType === 'booking_request' ? actualBusinessId : undefined,
         timestamp: Date.now() 
       }
     });
     window.dispatchEvent(deletionEvent);
 
-    // Enhanced cross-tab sync - only include businessId for booking requests
+    // Enhanced cross-tab sync - include businessId only for booking requests
     localStorage.setItem('calendar_event_deleted', JSON.stringify({
       eventId,
-      eventType,
-      businessId: eventType === 'booking_request' ? actualBusinessId : undefined,
+      eventType: actualEventType,
+      businessId: actualEventType === 'booking_request' ? actualBusinessId : undefined,
       timestamp: Date.now()
     }));
     
