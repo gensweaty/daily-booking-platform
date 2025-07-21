@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from '@/lib/types/calendar';
 
@@ -185,9 +186,10 @@ export const deleteCalendarEvent = async (
   try {
     console.log(`[CalendarService] Starting deletion: ${eventType} with ID: ${eventId}, userId: ${userId}, businessId: ${businessId}`);
     
+    let targetBusinessId = businessId; // Declare at function scope
+    
     if (eventType === 'booking_request') {
       // For booking requests, we need to verify business ownership
-      let targetBusinessId = businessId;
       
       // If no businessId provided, get it from the booking request
       if (!targetBusinessId) {
@@ -288,7 +290,7 @@ export const deleteCalendarEvent = async (
       detail: { 
         eventId, 
         eventType, 
-        businessId: businessId || targetBusinessId,
+        businessId: targetBusinessId,
         timestamp: Date.now() 
       }
     });
@@ -298,7 +300,7 @@ export const deleteCalendarEvent = async (
     localStorage.setItem('calendar_event_deleted', JSON.stringify({
       eventId,
       eventType,
-      businessId: businessId || targetBusinessId,
+      businessId: targetBusinessId,
       timestamp: Date.now()
     }));
     
