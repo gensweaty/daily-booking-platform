@@ -186,13 +186,13 @@ export const deleteCalendarEvent = async (
   try {
     console.log(`[CalendarService] Starting deletion: ${eventType} with ID: ${eventId}, userId: ${userId}, businessId: ${businessId}`);
     
-    let targetBusinessId = businessId; // Declare at function scope
+    let resolvedBusinessId: string | undefined = businessId; // Use more descriptive name
     
     if (eventType === 'booking_request') {
       // For booking requests, we need to verify business ownership
       
       // If no businessId provided, get it from the booking request
-      if (!targetBusinessId) {
+      if (!resolvedBusinessId) {
         const { data: bookingData, error: fetchError } = await supabase
           .from('booking_requests')
           .select('business_id')
@@ -204,14 +204,14 @@ export const deleteCalendarEvent = async (
           throw new Error('Booking request not found');
         }
         
-        targetBusinessId = bookingData.business_id;
+        resolvedBusinessId = bookingData.business_id;
       }
       
       // Verify the current user owns this business
       const { data: businessOwner, error: businessError } = await supabase
         .from('business_profiles')
         .select('user_id')
-        .eq('id', targetBusinessId)
+        .eq('id', resolvedBusinessId)
         .single();
         
       if (businessError || !businessOwner) {
@@ -229,14 +229,14 @@ export const deleteCalendarEvent = async (
         .from('booking_requests')
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', eventId)
-        .eq('business_id', targetBusinessId);
+        .eq('business_id', resolvedBusinessId);
 
       if (deleteError) {
         console.error('[CalendarService] Error deleting booking request:', deleteError);
         throw deleteError;
       }
       
-      console.log(`[CalendarService] Successfully soft deleted booking request: ${eventId} from business: ${targetBusinessId}`);
+      console.log(`[CalendarService] Successfully soft deleted booking request: ${eventId} from business: ${resolvedBusinessId}`);
     } else {
       // This is a regular event - use existing logic
       const { data: existingEvent } = await supabase
@@ -282,25 +282,25 @@ export const deleteCalendarEvent = async (
 
     console.log(`[CalendarService] Successfully completed deletion for ID: ${eventId}`);
     
-    // Enhanced cache clearing with business context
+    // Enhanced cache clearing
     clearCalendarCache();
     
-    // Broadcast deletion event with business context
+    // Broadcast deletion event with proper business context
     const deletionEvent = new CustomEvent('calendar-event-deleted', {
       detail: { 
         eventId, 
         eventType, 
-        businessId: targetBusinessId,
+        businessId: resolvedBusinessId, // Only set for booking requests
         timestamp: Date.now() 
       }
     });
     window.dispatchEvent(deletionEvent);
 
-    // Enhanced cross-tab sync with business context
+    // Enhanced cross-tab sync with proper business context
     localStorage.setItem('calendar_event_deleted', JSON.stringify({
       eventId,
       eventType,
-      businessId: targetBusinessId,
+      businessId: resolvedBusinessId, // Only set for booking requests
       timestamp: Date.now()
     }));
     
