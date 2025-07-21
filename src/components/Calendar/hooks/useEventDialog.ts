@@ -94,24 +94,14 @@ export const useEventDialog = ({
     }
   };
 
-  // Enhanced delete handler with better event type detection
   const handleDeleteEvent = async (deleteChoice?: "this" | "series") => {
     try {
-      if (!deleteEvent || !selectedEvent) {
-        throw new Error("Delete event function not provided or no event selected");
-      }
-
-      console.log("Starting delete process for event:", {
-        id: selectedEvent.id,
-        title: selectedEvent.title,
-        type: selectedEvent.type,
-        deleteChoice
-      });
+      if (!deleteEvent || !selectedEvent) throw new Error("Delete event function not provided or no event selected");
       
       const result = await deleteEvent({ id: selectedEvent.id, deleteChoice });
       
       setSelectedEvent(null);
-      console.log("Event deletion completed successfully:", selectedEvent.id);
+      console.log("Event deleted successfully:", selectedEvent.id);
       
       return result;
     } catch (error: any) {
