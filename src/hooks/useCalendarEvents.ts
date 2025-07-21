@@ -122,7 +122,18 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         clearCalendarCache();
-        queryClient.invalidateQueries({ queryKey });
+        
+        // Invalidate all relevant query keys
+        const queryKeys = [
+          ['events', user?.id],
+          ['business-events', businessId],
+          ['unified-calendar-events', businessId, targetUserId]
+        ];
+        
+        queryKeys.forEach(key => {
+          queryClient.invalidateQueries({ queryKey: key });
+        });
+        
         refetch();
       }, 200);
     };
@@ -351,18 +362,42 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("[useCalendarEvents] Event type for deletion:", eventType, "Event data:", eventToDelete);
 
-      // Use the enhanced unified delete function
-      await deleteCalendarEvent(id, eventType, user.id);
+      // Get business ID for booking requests
+      let targetBusinessId = businessId;
+      
+      if (eventType === 'booking_request' && !targetBusinessId) {
+        // Try to get business ID from the user's business profile
+        const { data: userBusiness } = await supabase
+          .from('business_profiles')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+          
+        if (userBusiness) {
+          targetBusinessId = userBusiness.id;
+        }
+      }
+
+      // Use the enhanced unified delete function with business context
+      await deleteCalendarEvent(id, eventType, user.id, targetBusinessId);
 
       return { success: true };
     },
     onSuccess: async () => {
-      // Immediate cache invalidation and refetch
+      // Comprehensive cache invalidation for all relevant query keys
+      const queryKeys = [
+        ['events', user?.id],
+        ['business-events', businessId],
+        ['unified-calendar-events', businessId, businessUserId || user?.id]
+      ];
+      
+      // Invalidate all relevant queries
+      queryKeys.forEach(key => {
+        queryClient.invalidateQueries({ queryKey: key });
+      });
+      
+      // Clear all calendar-related caches
       clearCalendarCache();
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      if (businessId) {
-        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
-      }
       
       // Force immediate refetch
       refetch();
