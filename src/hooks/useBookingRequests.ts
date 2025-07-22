@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { approveBookingRequest, rejectBookingRequest } from '@/services/bookingApprovalService';
 import { clearCalendarCache } from '@/services/calendarService';
+import { useMemo } from 'react';
 
 export const useBookingRequests = (businessId?: string) => {
   const { user } = useAuth();
@@ -35,6 +36,15 @@ export const useBookingRequests = (businessId?: string) => {
     queryFn: fetchBookingRequests,
     enabled: !!businessId,
   });
+
+  // Categorize booking requests by status
+  const categorizedRequests = useMemo(() => {
+    const pending = bookingRequests.filter(req => req.status === 'pending');
+    const approved = bookingRequests.filter(req => req.status === 'approved');
+    const rejected = bookingRequests.filter(req => req.status === 'rejected');
+    
+    return { pending, approved, rejected };
+  }, [bookingRequests]);
 
   const approveMutation = useMutation({
     mutationFn: async (bookingId: string) => {
@@ -93,13 +103,51 @@ export const useBookingRequests = (businessId?: string) => {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (bookingId: string) => {
+      if (!user?.id) throw new Error('User not authenticated');
+      
+      const { error } = await supabase
+        .from('booking_requests')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', bookingId);
+        
+      if (error) throw error;
+    },
+    onSuccess: (_, bookingId) => {
+      console.log(`[useBookingRequests] Deleted booking ${bookingId}`);
+      
+      // Invalidate booking requests query
+      queryClient.invalidateQueries({ queryKey: ['booking-requests', businessId] });
+      
+      toast({
+        title: "Success",
+        description: "Booking request deleted",
+      });
+    },
+    onError: (error: any) => {
+      console.error('[useBookingRequests] Error deleting booking:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete booking request",
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     bookingRequests,
+    pendingRequests: categorizedRequests.pending,
+    approvedRequests: categorizedRequests.approved,
+    rejectedRequests: categorizedRequests.rejected,
     isLoading,
     error,
     refetch,
     approveBooking: approveMutation.mutateAsync,
     rejectBooking: rejectMutation.mutateAsync,
+    approveRequest: approveMutation.mutateAsync,
+    rejectRequest: rejectMutation.mutateAsync,
+    deleteBookingRequest: deleteMutation.mutateAsync,
     isApproving: approveMutation.isPending,
     isRejecting: rejectMutation.isPending,
   };
