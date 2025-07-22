@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -60,39 +59,46 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     queryFn: fetchEvents,
     enabled: !!(businessUserId || user?.id),
     staleTime: 0, // Always consider data stale for immediate updates
-    gcTime: 2000, // Keep in cache for 2 seconds only
-    refetchInterval: 2000, // Moderate polling every 2 seconds
-    refetchIntervalInBackground: false, // Disable background refetch to avoid visible loading
+    gcTime: 1000, // Keep in cache for 1 second only
+    refetchInterval: 3000, // Slightly longer polling to reduce load
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
   });
 
-  // Debounced cache invalidation to prevent excessive calls
+  // Enhanced cache invalidation with more aggressive refetching after deletion
   useEffect(() => {
     let debounceTimer: NodeJS.Timeout;
 
-    const debouncedInvalidate = () => {
+    const forceRefetch = () => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
+        console.log('[useCalendarEvents] 🔄 Force refetching after invalidation...');
+        clearCalendarCache();
         queryClient.invalidateQueries({ queryKey });
         refetch();
-      }, 100);
+        
+        // Also invalidate all related queries
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        queryClient.invalidateQueries({ queryKey: ['business-events'] });
+        queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
+      }, 50); // Faster response
     };
 
     const handleCacheInvalidation = () => {
-      console.log('[useCalendarEvents] Cache invalidation detected, refetching...');
-      debouncedInvalidate();
+      console.log('[useCalendarEvents] Cache invalidation detected, force refetching...');
+      forceRefetch();
     };
 
     const handleEventDeletion = (event: CustomEvent) => {
-      console.log('[useCalendarEvents] Event deletion detected:', event.detail);
-      debouncedInvalidate();
+      console.log('[useCalendarEvents] 🗑️ Event deletion detected:', event.detail);
+      forceRefetch();
     };
 
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === 'calendar_invalidation_signal' || event.key === 'calendar_event_deleted') {
-        console.log('[useCalendarEvents] Cross-tab sync detected, refetching...');
-        debouncedInvalidate();
+        console.log('[useCalendarEvents] 📡 Cross-tab sync detected, force refetching...');
+        forceRefetch();
       }
     };
 
@@ -177,41 +183,61 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     };
   }, [user?.id, businessUserId, businessId, queryClient, queryKey, refetch]);
 
-  // CRITICAL: Always use atomic delete function
+  // CRITICAL: Enhanced delete mutation with better error handling and verification
   const deleteEventMutation = useMutation({
     mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("[useCalendarEvents] Starting ATOMIC deletion for event:", id, deleteChoice);
+      console.log("[useCalendarEvents] 🎯 Starting ENHANCED deletion process for event:", id, deleteChoice);
 
-      // Find the event in current events to determine its actual type
+      // Find the event in current events to determine its actual type and details
       const eventToDelete = events.find(e => e.id === id);
       
       if (!eventToDelete) {
-        console.error("[useCalendarEvents] Event not found in current events list:", id);
-        throw new Error("Event not found");
+        console.error("[useCalendarEvents] ❌ Event not found in current events list:", id);
+        console.log("[useCalendarEvents] 📋 Available events:", events.map(e => ({ id: e.id, type: e.type, title: e.title })));
+        throw new Error("Event not found in current list");
       }
       
       // Use the type from the event data - this is more reliable
       const eventType = eventToDelete.type === 'booking_request' ? 'booking_request' : 'event';
 
-      console.log("[useCalendarEvents] Event type determined:", eventType, "Event data:", eventToDelete);
+      console.log("[useCalendarEvents] 🔍 Event analysis before deletion:");
+      console.log("- Event ID:", eventToDelete.id);
+      console.log("- Event Type:", eventType);
+      console.log("- Event Title:", eventToDelete.title);
+      console.log("- Booking Request ID:", (eventToDelete as any).booking_request_id || 'None');
+      console.log("- Is Recurring:", eventToDelete.is_recurring);
 
-      // ALWAYS use the atomic delete function - this handles both events and related booking requests
+      // ALWAYS use the enhanced atomic delete function
       await deleteCalendarEvent(id, eventType, user.id);
 
+      console.log("[useCalendarEvents] ✅ Deletion completed, returning success");
       return { success: true };
     },
-    onSuccess: async () => {
-      // Immediate cache invalidation and refetch
+    onSuccess: async (result, variables) => {
+      console.log("[useCalendarEvents] 🎉 Delete mutation succeeded, starting aggressive refresh...");
+      
+      // Immediate cache invalidation and refetch with delay to ensure DB is updated
       clearCalendarCache();
+      
+      // Invalidate all related queries immediately
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
       }
+      queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
       
-      // Force immediate refetch
-      refetch();
+      // Multiple refetch attempts to ensure UI updates
+      setTimeout(() => {
+        console.log("[useCalendarEvents] 🔄 First delayed refetch...");
+        refetch();
+      }, 200);
+      
+      setTimeout(() => {
+        console.log("[useCalendarEvents] 🔄 Second delayed refetch...");
+        refetch();
+      }, 1000);
       
       toast({
         title: "Success",
@@ -219,7 +245,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       });
     },
     onError: (error: any) => {
-      console.error("[useCalendarEvents] Error deleting event:", error);
+      console.error("[useCalendarEvents] ❌ Error deleting event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete event",
