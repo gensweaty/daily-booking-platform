@@ -176,6 +176,56 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     };
   }, [user?.id, businessUserId, businessId, queryClient, queryKey, refetch]);
 
+  const deleteEventMutation = useMutation({
+    mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+
+      console.log("[useCalendarEvents] Deleting event:", id, deleteChoice);
+
+      // Find the event in current events to determine its actual type
+      const eventToDelete = events.find(e => e.id === id);
+      
+      if (!eventToDelete) {
+        console.error("[useCalendarEvents] Event not found in current events list:", id);
+        throw new Error("Event not found");
+      }
+      
+      // Use the type from the event data - this is more reliable
+      const eventType = eventToDelete.type === 'booking_request' ? 'booking_request' : 'event';
+
+      console.log("[useCalendarEvents] Determined event type:", eventType, "Event data:", eventToDelete);
+
+      // Use the enhanced unified delete function
+      await deleteCalendarEvent(id, eventType, user.id);
+
+      return { success: true };
+    },
+    onSuccess: async () => {
+      // Immediate cache invalidation and refetch
+      clearCalendarCache();
+      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      if (businessId) {
+        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
+      }
+      
+      // Force immediate refetch
+      refetch();
+      
+      toast({
+        title: "Success",
+        description: "Event deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      console.error("[useCalendarEvents] Error deleting event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete event",
+        variant: "destructive",
+      });
+    },
+  });
+
   const createEventMutation = useMutation({
     mutationFn: async (eventData: Partial<CalendarEventType>) => {
       if (!user?.id) throw new Error("User not authenticated");
@@ -328,55 +378,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       toast({
         title: "Error",
         description: error.message || "Failed to update event",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteEventMutation = useMutation({
-    mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
-      if (!user?.id) throw new Error("User not authenticated");
-
-      console.log("[useCalendarEvents] Deleting event:", id, deleteChoice);
-
-      // Determine the event type from the current events
-      const eventToDelete = events.find(e => e.id === id);
-      
-      if (!eventToDelete) {
-        console.error("[useCalendarEvents] Event not found in current events list:", id);
-        throw new Error("Event not found");
-      }
-      
-      const eventType = eventToDelete.type === 'booking_request' ? 'booking_request' : 'event';
-
-      console.log("[useCalendarEvents] Event type for deletion:", eventType, "Event data:", eventToDelete);
-
-      // Use the enhanced unified delete function
-      await deleteCalendarEvent(id, eventType, user.id);
-
-      return { success: true };
-    },
-    onSuccess: async () => {
-      // Immediate cache invalidation and refetch
-      clearCalendarCache();
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      if (businessId) {
-        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
-      }
-      
-      // Force immediate refetch
-      refetch();
-      
-      toast({
-        title: "Success",
-        description: "Event deleted successfully",
-      });
-    },
-    onError: (error: any) => {
-      console.error("[useCalendarEvents] Error deleting event:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete event",
         variant: "destructive",
       });
     },
