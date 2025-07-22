@@ -197,10 +197,14 @@ export const deleteCalendarEvent = async (
     console.log(`[CalendarService] Starting ATOMIC deletion: ${eventType} with ID: ${eventId}, userId: ${userId}`);
     
     // ALWAYS use the atomic delete function from database
-    const { data, error } = await supabase.rpc('delete_event_and_related_booking', {
-      p_event_id: eventId,
-      p_user_id: userId
-    });
+    // Cast the function name to avoid TypeScript error since the types haven't been regenerated yet
+    const { data, error } = await supabase.rpc(
+      'delete_event_and_related_booking' as any,
+      {
+        p_event_id: eventId,
+        p_user_id: userId
+      }
+    );
     
     if (error) {
       console.error('[CalendarService] Error in atomic delete:', error);
