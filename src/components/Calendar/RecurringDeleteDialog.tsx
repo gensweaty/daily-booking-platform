@@ -45,7 +45,10 @@ export const RecurringDeleteDialog = ({
               </Button>
               <Button
                 variant="destructive"
-                onClick={onDeleteThis}
+                onClick={() => {
+                  console.log('[RecurringDeleteDialog] Triggering atomic delete for single event');
+                  onDeleteThis();
+                }}
                 disabled={isLoading}
               >
                 {isLoading ? t("common.loading") : t("events.deleteEvent")}
@@ -71,7 +74,10 @@ export const RecurringDeleteDialog = ({
           <div className="flex flex-col gap-2">
             <Button
               variant="outline"
-              onClick={onDeleteThis}
+              onClick={() => {
+                console.log('[RecurringDeleteDialog] Triggering atomic delete for single recurring instance');
+                onDeleteThis();
+              }}
               className="w-full"
               disabled={isLoading}
             >
@@ -79,7 +85,10 @@ export const RecurringDeleteDialog = ({
             </Button>
             <Button
               variant="destructive"
-              onClick={onDeleteSeries}
+              onClick={() => {
+                console.log('[RecurringDeleteDialog] Triggering atomic delete for entire recurring series');
+                onDeleteSeries();
+              }}
               className="w-full"
               disabled={isLoading}
             >

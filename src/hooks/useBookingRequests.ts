@@ -558,18 +558,20 @@ export const useBookingRequests = () => {
         throw new Error('User not authenticated');
       }
       
-      // Use the atomic delete function
+      console.log('[useBookingRequests] Starting ATOMIC deletion for booking request:', bookingId);
+      
+      // ALWAYS use the atomic delete function - this handles both the booking request and any linked events
       const { data, error } = await supabase.rpc('delete_event_and_related_booking', {
         p_event_id: bookingId,
         p_user_id: user.id
       });
       
       if (error) {
-        console.error('Error in atomic delete:', error);
+        console.error('[useBookingRequests] Error in atomic delete:', error);
         throw error;
       }
       
-      console.log(`Deleted ${data} records atomically`);
+      console.log(`[useBookingRequests] Atomic deletion completed successfully. Deleted ${data} records for booking: ${bookingId}`);
     },
     onSuccess: () => {
       clearCalendarCache();

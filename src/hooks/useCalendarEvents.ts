@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -176,11 +177,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     };
   }, [user?.id, businessUserId, businessId, queryClient, queryKey, refetch]);
 
+  // CRITICAL: Always use atomic delete function
   const deleteEventMutation = useMutation({
     mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("[useCalendarEvents] Deleting event:", id, deleteChoice);
+      console.log("[useCalendarEvents] Starting ATOMIC deletion for event:", id, deleteChoice);
 
       // Find the event in current events to determine its actual type
       const eventToDelete = events.find(e => e.id === id);
@@ -193,9 +195,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       // Use the type from the event data - this is more reliable
       const eventType = eventToDelete.type === 'booking_request' ? 'booking_request' : 'event';
 
-      console.log("[useCalendarEvents] Determined event type:", eventType, "Event data:", eventToDelete);
+      console.log("[useCalendarEvents] Event type determined:", eventType, "Event data:", eventToDelete);
 
-      // Use the enhanced unified delete function
+      // ALWAYS use the atomic delete function - this handles both events and related booking requests
       await deleteCalendarEvent(id, eventType, user.id);
 
       return { success: true };

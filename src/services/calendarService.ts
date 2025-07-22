@@ -187,129 +187,29 @@ export const getUnifiedCalendarEvents = async (
   }
 };
 
-// Atomic delete function that handles both events and related booking requests
+// CRITICAL: Always use atomic delete function - never delete just events table!
 export const deleteCalendarEvent = async (
   eventId: string, 
   eventType: 'event' | 'booking_request',
   userId: string
 ): Promise<void> => {
   try {
-    console.log(`[CalendarService] Starting atomic deletion: ${eventType} with ID: ${eventId}, userId: ${userId}`);
+    console.log(`[CalendarService] Starting ATOMIC deletion: ${eventType} with ID: ${eventId}, userId: ${userId}`);
     
-    // Step 1: Try to find and delete as an event first
-    const { data: eventData, error: eventFetchError } = await supabase
-      .from('events')
-      .select('id, booking_request_id, parent_event_id')
-      .eq('id', eventId)
-      .eq('user_id', userId)
-      .is('deleted_at', null)
-      .single();
+    // ALWAYS use the atomic delete function from database
+    const { data, error } = await supabase.rpc('delete_event_and_related_booking', {
+      p_event_id: eventId,
+      p_user_id: userId
+    });
     
-    if (!eventFetchError && eventData) {
-      console.log(`[CalendarService] Found event: ${eventData.id}, booking_request_id: ${eventData.booking_request_id}`);
-      
-      // Soft delete the event
-      const { error: eventDeleteError } = await supabase
-        .from('events')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', eventId)
-        .eq('user_id', userId);
-
-      if (eventDeleteError) {
-        console.error('[CalendarService] Error deleting event:', eventDeleteError);
-        throw eventDeleteError;
-      }
-
-      // If this event was created from a booking request, also soft delete the booking request
-      if (eventData.booking_request_id) {
-        console.log(`[CalendarService] Also deleting linked booking request: ${eventData.booking_request_id}`);
-        
-        const { error: bookingDeleteError } = await supabase
-          .from('booking_requests')
-          .update({ 
-            deleted_at: new Date().toISOString(),
-            status: 'rejected' // Mark as rejected to remove from approved lists
-          })
-          .eq('id', eventData.booking_request_id);
-          
-        if (bookingDeleteError) {
-          console.warn('[CalendarService] Error deleting linked booking request:', bookingDeleteError);
-        }
-      }
-
-      // If this is a recurring event (parent), also soft delete all child instances
-      const { error: childrenError } = await supabase
-        .from('events')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('parent_event_id', eventId)
-        .eq('user_id', userId);
-
-      if (childrenError) {
-        console.warn('[CalendarService] Error deleting recurring children:', childrenError);
-      }
-      
-      console.log(`[CalendarService] Successfully deleted event and related data: ${eventId}`);
-      
-    } else {
-      // Step 2: If not found as event, try to delete as a booking request
-      console.log(`[CalendarService] Event not found, trying as booking request: ${eventId}`);
-      
-      const { data: bookingData, error: bookingFetchError } = await supabase
-        .from('booking_requests')
-        .select('id, business_id')
-        .eq('id', eventId)
-        .is('deleted_at', null)
-        .single();
-      
-      if (!bookingFetchError && bookingData) {
-        // Verify user owns this booking request through business ownership
-        const { data: businessData, error: businessError } = await supabase
-          .from('business_profiles')
-          .select('user_id')
-          .eq('id', bookingData.business_id)
-          .single();
-          
-        if (businessError || !businessData || businessData.user_id !== userId) {
-          throw new Error('Unauthorized to delete this booking request');
-        }
-        
-        console.log(`[CalendarService] Found booking request: ${bookingData.id}`);
-        
-        // Soft delete the booking request
-        const { error: bookingDeleteError } = await supabase
-          .from('booking_requests')
-          .update({ 
-            deleted_at: new Date().toISOString(),
-            status: 'rejected'
-          })
-          .eq('id', eventId);
-
-        if (bookingDeleteError) {
-          console.error('[CalendarService] Error deleting booking request:', bookingDeleteError);
-          throw bookingDeleteError;
-        }
-        
-        // Also check if there's a corresponding event created from this booking and delete it
-        const { error: linkedEventError } = await supabase
-          .from('events')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('booking_request_id', eventId)
-          .eq('user_id', userId);
-          
-        if (linkedEventError) {
-          console.warn('[CalendarService] Error deleting linked event:', linkedEventError);
-        }
-        
-        console.log(`[CalendarService] Successfully deleted booking request and related data: ${eventId}`);
-        
-      } else {
-        throw new Error(`Event or Booking Request with ID ${eventId} not found`);
-      }
+    if (error) {
+      console.error('[CalendarService] Error in atomic delete:', error);
+      throw error;
     }
-
-    console.log(`[CalendarService] Atomic deletion completed successfully for ID: ${eventId}`);
     
-    // Step 3: Comprehensive cache clearing and broadcasting
+    console.log(`[CalendarService] Atomic deletion completed successfully. Deleted ${data} records for ID: ${eventId}`);
+    
+    // Comprehensive cache clearing and broadcasting
     clearCalendarCache();
     
     // Broadcast deletion event
