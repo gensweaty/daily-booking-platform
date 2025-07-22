@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Calendar } from "./Calendar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -84,7 +85,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     getBusinessUserId();
   }, [businessId, retryCount]);
 
-  // Step 2: Enhanced fetch with proper business context
+  // Step 2: Fetch all events using the unified calendar service with optimized polling
   useEffect(() => {
     let isMounted = true;
     
@@ -173,11 +174,11 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       // Initial load with loading indicator
       fetchAllEvents(true);
       
-      // Background polling every 2 seconds for immediate updates after deletion
+      // Background polling every 3 seconds (reduced from 1 second to avoid excessive loading)
       const intervalId = setInterval(() => {
         // Background update without loading indicator
         fetchAllEvents(false);
-      }, 2000);
+      }, 3000);
       
       return () => {
         isMounted = false;
@@ -190,27 +191,15 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     };
   }, [businessId, businessUserId, toast, t, retryCount]);
 
-  // Enhanced event listeners for immediate updates
+  // Listen for cache invalidation and deletion events
   useEffect(() => {
     const handleCacheInvalidation = () => {
       console.log('[External Calendar] Cache invalidation detected, refetching...');
-      clearCalendarCache();
       setRetryCount(prev => prev + 1);
     };
 
     const handleEventDeletion = (event: CustomEvent) => {
       console.log('[External Calendar] Event deletion detected:', event.detail);
-      const { eventId, businessId: deletedBusinessId } = event.detail;
-      
-      // If this deletion is for our business, immediately update the UI
-      if (deletedBusinessId === businessId) {
-        setEvents(prevEvents => {
-          const filteredEvents = prevEvents.filter(e => e.id !== eventId);
-          console.log(`[External Calendar] Immediately removed deleted event ${eventId}, ${prevEvents.length} -> ${filteredEvents.length} events`);
-          return filteredEvents;
-        });
-      }
-      
       clearCalendarCache();
       setRetryCount(prev => prev + 1);
     };
@@ -218,23 +207,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === 'calendar_invalidation_signal' || event.key === 'calendar_event_deleted') {
         console.log('[External Calendar] Cross-tab sync detected, refetching...');
-        
-        if (event.key === 'calendar_event_deleted' && event.newValue) {
-          try {
-            const deletionData = JSON.parse(event.newValue);
-            if (deletionData.businessId === businessId) {
-              // Immediately remove the event from UI
-              setEvents(prevEvents => {
-                const filteredEvents = prevEvents.filter(e => e.id !== deletionData.eventId);
-                console.log(`[External Calendar] Cross-tab removal of event ${deletionData.eventId}`);
-                return filteredEvents;
-              });
-            }
-          } catch (e) {
-            console.warn('Error parsing deletion data:', e);
-          }
-        }
-        
         clearCalendarCache();
         setRetryCount(prev => prev + 1);
       }
@@ -249,7 +221,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       window.removeEventListener('calendar-event-deleted', handleEventDeletion as EventListener);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [businessId]);
+  }, []);
 
   // Real-time subscriptions for immediate database sync
   useEffect(() => {
