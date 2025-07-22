@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { approveBookingRequest, rejectBookingRequest } from '@/services/bookingApprovalService';
 import { clearCalendarCache } from '@/services/calendarService';
 import { useMemo } from 'react';
+import { BookingRequest } from '@/types/database';
 
 export const useBookingRequests = (businessId?: string) => {
   const { user } = useAuth();
@@ -37,11 +38,11 @@ export const useBookingRequests = (businessId?: string) => {
     enabled: !!businessId,
   });
 
-  // Categorize booking requests by status
+  // Categorize booking requests by status with proper typing
   const categorizedRequests = useMemo(() => {
-    const pending = bookingRequests.filter(req => req.status === 'pending');
-    const approved = bookingRequests.filter(req => req.status === 'approved');
-    const rejected = bookingRequests.filter(req => req.status === 'rejected');
+    const pending = bookingRequests.filter(req => req.status === 'pending') as BookingRequest[];
+    const approved = bookingRequests.filter(req => req.status === 'approved') as BookingRequest[];
+    const rejected = bookingRequests.filter(req => req.status === 'rejected') as BookingRequest[];
     
     return { pending, approved, rejected };
   }, [bookingRequests]);
@@ -136,7 +137,7 @@ export const useBookingRequests = (businessId?: string) => {
   });
 
   return {
-    bookingRequests,
+    bookingRequests: bookingRequests as BookingRequest[],
     pendingRequests: categorizedRequests.pending,
     approvedRequests: categorizedRequests.approved,
     rejectedRequests: categorizedRequests.rejected,
