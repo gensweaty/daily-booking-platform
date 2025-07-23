@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getRepeatOptions } from "@/lib/recurringEvents";
+import { CalendarEventType } from "@/lib/types/calendar";
 
 // Define interface for person data
 interface PersonData {
@@ -32,119 +34,48 @@ interface PersonData {
 }
 
 interface EventDialogFieldsProps {
-  title: string;
-  setTitle: (value: string) => void;
-  userSurname: string;
-  setUserSurname: (value: string) => void;
-  userNumber: string;
-  setUserNumber: (value: string) => void;
-  socialNetworkLink: string;
-  setSocialNetworkLink: (value: string) => void;
-  eventNotes: string;
-  setEventNotes: (value: string) => void;
-  eventName: string;
-  setEventName: (value: string) => void;
-  startDate: string;
-  setStartDate: (value: string) => void;
-  endDate: string;
-  setEndDate: (value: string) => void;
-  paymentStatus: string;
-  setPaymentStatus: (value: string) => void;
-  paymentAmount: string;
-  setPaymentAmount: (value: string) => void;
-  files: File[];
-  setFiles: (files: File[]) => void;
-  existingFiles: Array<{
-    id: string;
-    filename: string;
-    file_path: string;
-    content_type?: string;
-    size?: number;
-  }>;
-  setExistingFiles: (files: Array<{
-    id: string;
-    filename: string;
-    file_path: string;
-    content_type?: string;
-    size?: number;
-  }>) => void;
-  eventId?: string;
-  isBookingRequest?: boolean;
-  // Add repeat props
-  isRecurring: boolean;
-  setIsRecurring: (value: boolean) => void;
-  repeatPattern: string;
-  setRepeatPattern: (value: string) => void;
-  repeatUntil: string;
-  setRepeatUntil: (value: string) => void;
-  isNewEvent?: boolean;
-  // New props for additional persons management
-  additionalPersons: PersonData[];
-  setAdditionalPersons: (persons: PersonData[]) => void;
-  // Add missing prop
-  isVirtualEvent?: boolean;
+  event: CalendarEventType;
+  onFieldChange: (field: keyof CalendarEventType, value: any) => void;
 }
 
 export const EventDialogFields = ({
-  title,
-  setTitle,
-  userSurname,
-  setUserSurname,
-  userNumber,
-  setUserNumber,
-  socialNetworkLink,
-  setSocialNetworkLink,
-  eventNotes,
-  setEventNotes,
-  eventName,
-  setEventName,
-  startDate,
-  setStartDate,
-  endDate,
-  setEndDate,
-  paymentStatus,
-  setPaymentStatus,
-  paymentAmount,
-  setPaymentAmount,
-  files,
-  setFiles,
-  existingFiles,
-  setExistingFiles,
-  eventId,
-  isBookingRequest = false,
-  isRecurring,
-  setIsRecurring,
-  repeatPattern,
-  setRepeatPattern,
-  repeatUntil,
-  setRepeatUntil,
-  isNewEvent = false,
-  additionalPersons,
-  setAdditionalPersons,
-  isVirtualEvent = false
+  event,
+  onFieldChange,
 }: EventDialogFieldsProps) => {
-  const {
-    t,
-    language
-  } = useLanguage();
+  const { t, language } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isRepeatUntilPickerOpen, setIsRepeatUntilPickerOpen] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [existingFiles, setExistingFiles] = useState<Array<{
+    id: string;
+    filename: string;
+    file_path: string;
+    content_type?: string;
+    size?: number;
+  }>>([]);
+  const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
+  
   const isGeorgian = language === 'ka';
-  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
+  const showPaymentAmount = event.payment_status === "partly_paid" || event.payment_status === "fully_paid";
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
   const currencySymbol = getCurrencySymbol(language);
+  const isNewEvent = !event.id;
+  const isBookingRequest = event.type === 'booking_request';
+  
+  // Safe access to additionalPersons with fallback to empty array
+  const safeAdditionalPersons = additionalPersons || [];
   
   // Show event name field only when there are multiple persons (additionalPersons.length > 0)
-  const shouldShowEventNameField = additionalPersons.length > 0;
+  const shouldShowEventNameField = safeAdditionalPersons.length > 0;
 
   // Generate repeat options using the dynamic function
   const repeatOptions = useMemo(() => {
-    if (startDate) {
-      return getRepeatOptions(new Date(startDate), t);
+    if (event.start_date) {
+      return getRepeatOptions(new Date(event.start_date), t);
     }
     return getRepeatOptions(undefined, t);
-  }, [startDate, t]);
+  }, [event.start_date, t]);
   
   const georgianStyle = isGeorgian ? {
     fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
@@ -175,11 +106,11 @@ export const EventDialogFields = ({
   // Handle recurring checkbox change with proper state management
   const handleRecurringToggle = (checked: boolean) => {
     console.log('Recurring toggle clicked:', checked);
-    setIsRecurring(checked);
+    onFieldChange('is_recurring', checked);
     if (!checked) {
       // Clear repeat settings when unchecked
-      setRepeatPattern('');
-      setRepeatUntil('');
+      onFieldChange('repeat_pattern', '');
+      onFieldChange('repeat_until', '');
     }
   };
 
@@ -194,15 +125,15 @@ export const EventDialogFields = ({
       paymentStatus: 'not_paid',
       paymentAmount: ''
     };
-    setAdditionalPersons([...additionalPersons, newPerson]);
+    setAdditionalPersons([...safeAdditionalPersons, newPerson]);
   };
 
   const onRemovePerson = (personId: string) => {
-    setAdditionalPersons(additionalPersons.filter(person => person.id !== personId));
+    setAdditionalPersons(safeAdditionalPersons.filter(person => person.id !== personId));
   };
 
   const onUpdatePerson = (personId: string, field: keyof PersonData, value: string) => {
-    setAdditionalPersons(additionalPersons.map(person => 
+    setAdditionalPersons(safeAdditionalPersons.map(person => 
       person.id === personId ? { ...person, [field]: value } : person
     ));
   };
@@ -234,35 +165,35 @@ export const EventDialogFields = ({
     index?: number, 
     isMain: boolean = false
   ) => {
-    const sectionUserSurname = isMain ? userSurname : (person?.userSurname || '');
-    const sectionUserNumber = isMain ? userNumber : (person?.userNumber || '');
-    const sectionSocialNetworkLink = isMain ? socialNetworkLink : (person?.socialNetworkLink || '');
-    const sectionEventNotes = isMain ? eventNotes : (person?.eventNotes || '');
-    const sectionPaymentStatus = isMain ? paymentStatus : (person?.paymentStatus || 'not_paid');
-    const sectionPaymentAmount = isMain ? paymentAmount : (person?.paymentAmount || '');
+    const sectionUserSurname = isMain ? (event.user_surname || '') : (person?.userSurname || '');
+    const sectionUserNumber = isMain ? (event.user_number || '') : (person?.userNumber || '');
+    const sectionSocialNetworkLink = isMain ? (event.social_network_link || '') : (person?.socialNetworkLink || '');
+    const sectionEventNotes = isMain ? (event.event_notes || '') : (person?.eventNotes || '');
+    const sectionPaymentStatus = isMain ? (event.payment_status || 'not_paid') : (person?.paymentStatus || 'not_paid');
+    const sectionPaymentAmount = isMain ? (event.payment_amount?.toString() || '') : (person?.paymentAmount || '');
     const sectionShowPaymentAmount = sectionPaymentStatus === "partly_paid" || sectionPaymentStatus === "fully_paid";
 
     const handleFieldChange = (field: string, value: string) => {
       if (isMain) {
         switch (field) {
           case 'userSurname':
-            setUserSurname(value);
-            setTitle(value);
+            onFieldChange('user_surname', value);
+            onFieldChange('title', value);
             break;
           case 'userNumber':
-            setUserNumber(value);
+            onFieldChange('user_number', value);
             break;
           case 'socialNetworkLink':
-            setSocialNetworkLink(value);
+            onFieldChange('social_network_link', value);
             break;
           case 'eventNotes':
-            setEventNotes(value);
+            onFieldChange('event_notes', value);
             break;
           case 'paymentStatus':
-            setPaymentStatus(value);
+            onFieldChange('payment_status', value);
             break;
           case 'paymentAmount':
-            setPaymentAmount(value);
+            onFieldChange('payment_amount', parseFloat(value) || 0);
             break;
         }
       } else if (person) {
@@ -458,8 +389,8 @@ export const EventDialogFields = ({
               <Input 
                 id="startDate" 
                 type="datetime-local" 
-                value={startDate} 
-                onChange={e => setStartDate(e.target.value)} 
+                value={event.start_date} 
+                onChange={e => onFieldChange('start_date', e.target.value)} 
                 required 
                 className="w-full dark:text-white dark:[color-scheme:dark]" 
                 style={{ colorScheme: 'auto' }} 
@@ -478,8 +409,8 @@ export const EventDialogFields = ({
               <Input 
                 id="endDate" 
                 type="datetime-local" 
-                value={endDate} 
-                onChange={e => setEndDate(e.target.value)} 
+                value={event.end_date} 
+                onChange={e => onFieldChange('end_date', e.target.value)} 
                 required 
                 className="w-full dark:text-white dark:[color-scheme:dark]" 
                 style={{ colorScheme: 'auto' }} 
@@ -495,7 +426,7 @@ export const EventDialogFields = ({
           <div className="flex items-center space-x-2">
             <Checkbox
               id="isRecurring"
-              checked={isRecurring}
+              checked={event.is_recurring || false}
               onCheckedChange={handleRecurringToggle}
             />
             <Label 
@@ -508,7 +439,7 @@ export const EventDialogFields = ({
             </Label>
           </div>
           
-          {isRecurring && (
+          {event.is_recurring && (
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label 
@@ -518,7 +449,7 @@ export const EventDialogFields = ({
                 >
                   {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორების რეჟიმი</GeorgianAuthText> : <LanguageText>Repeat</LanguageText>}
                 </Label>
-                <Select value={repeatPattern || ''} onValueChange={(value) => setRepeatPattern(value)}>
+                <Select value={event.repeat_pattern || ''} onValueChange={(value) => onFieldChange('repeat_pattern', value)}>
                   <SelectTrigger id="repeatPattern" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                     <SelectValue placeholder={isGeorgian ? "აირჩიეთ..." : "Select..."} />
                   </SelectTrigger>
@@ -532,7 +463,7 @@ export const EventDialogFields = ({
                 </Select>
               </div>
               
-              {repeatPattern && repeatPattern !== 'none' && (
+              {event.repeat_pattern && event.repeat_pattern !== 'none' && (
                 <div>
                   <Label 
                     htmlFor="repeatUntil" 
@@ -547,28 +478,27 @@ export const EventDialogFields = ({
                         variant="outline"
                         className={cn(
                           "w-full justify-start text-left font-normal",
-                          !repeatUntil && "text-muted-foreground"
+                          !event.repeat_until && "text-muted-foreground"
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {repeatUntil ? format(new Date(repeatUntil), "PPP") : <span>Pick a date</span>}
+                        {event.repeat_until ? format(new Date(event.repeat_until), "PPP") : <span>Pick a date</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={repeatUntil ? new Date(repeatUntil) : undefined}
+                        selected={event.repeat_until ? new Date(event.repeat_until) : undefined}
                         onSelect={(date) => {
                           if (date) {
-                            // Ensure we only send the date part (YYYY-MM-DD) to fix biweekly issue
                             const dateStr = format(date, "yyyy-MM-dd");
-                            setRepeatUntil(dateStr);
+                            onFieldChange('repeat_until', dateStr);
                             setIsRepeatUntilPickerOpen(false);
                           }
                         }}
                         disabled={(date) => {
-                          if (!startDate) return false;
-                          const startDateObj = new Date(startDate);
+                          if (!event.start_date) return false;
+                          const startDateObj = new Date(event.start_date);
                           return date <= startDateObj;
                         }}
                         initialFocus
@@ -587,12 +517,12 @@ export const EventDialogFields = ({
       {renderPersonSection(undefined, undefined, true)}
 
       {/* Additional Persons */}
-      {additionalPersons.map((person, index) => 
+      {safeAdditionalPersons.map((person, index) => 
         renderPersonSection(person, index, false)
       )}
 
       {/* Add Person Button */}
-      {additionalPersons.length < 49 && (
+      {safeAdditionalPersons.length < 49 && (
         <div className="flex justify-center">
           <Button
             type="button"
@@ -627,8 +557,8 @@ export const EventDialogFields = ({
           </Label>
           <Input 
             id="eventName"
-            value={eventName} 
-            onChange={e => setEventName(e.target.value)} 
+            value={event.event_name || ''} 
+            onChange={e => onFieldChange('event_name', e.target.value)} 
             placeholder={isGeorgian ? "მოვლენის სახელი" : "Event Name"} 
             className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
             style={isGeorgian ? {
