@@ -1,168 +1,123 @@
-import { useState } from "react";
-import { CalendarEventType } from "@/lib/types/calendar";
-import { useToast } from "@/components/ui/use-toast";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { isVirtualInstance } from "@/lib/recurringEvents";
-import { SupabaseClient } from "@supabase/supabase-js"; // Import SupabaseClient
+import { useState, useCallback } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { CalendarEventType } from '@/lib/types/calendar';
+import { isVirtualInstance, expandRecurringEvents } from '@/lib/recurringEvents';
 
-interface UseEventDialogProps {
-  supabase: SupabaseClient<any, "public", any>; // Add supabase client to props
-  createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  updateEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  deleteEvent?: ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => Promise<{ success: boolean; }>;
-}
+export const useCalendarEvents = (initialEvents: CalendarEventType[] = []) => {
+  const [events, setEvents] = useState<CalendarEventType[]>(initialEvents);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-export const useEventDialog = ({
-  supabase, // Destructure supabase from props
-  createEvent,
-  updateEvent,
-  deleteEvent,
-}: UseEventDialogProps) => {
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
-  const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const { toast } = useToast();
-  const { language } = useLanguage();
+  const addCalendarEvent = async (event: Partial<CalendarEventType>) => {
+    setLoading(true);
+    const { data, error: insertError } = await supabase.from('events').insert([event]).select();
 
-  const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
-    try {
-      const eventData = {
-        ...data,
-        type: 'event',
-        title: data.user_surname || data.title,
-        user_surname: data.user_surname || data.title,
-        payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
-        checkAvailability: false,
-        language: data.language || language || 'en'
-      };
-      
-      console.log("Creating event with language:", eventData.language);
-      
-      if (!createEvent) throw new Error("Create event function not provided");
-      
-      console.log("Creating event with data:", eventData);
-      const createdEvent = await createEvent(eventData);
-      
-      setIsNewEventDialogOpen(false);
-      console.log("Event created successfully:", createdEvent);
-      
-      return createdEvent;
-    } catch (error: any) {
-      console.error("Failed to create event:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create event",
-        variant: "destructive",
-      });
-      throw error;
+    if (insertError) {
+      setError(insertError.message);
+      setLoading(false);
+      throw new Error(insertError.message);
     }
+    
+    if (data) {
+      const newEvent = data[0] as CalendarEventType;
+      setEvents((prevEvents) => [...prevEvents, newEvent]);
+      setLoading(false);
+      return newEvent;
+    }
+
+    setLoading(false);
+    return null;
   };
 
-  const handleUpdateEvent = async (data: Partial<CalendarEventType>) => {
-    try {
-      if (!updateEvent || !selectedEvent) {
-        throw new Error("Update event function not provided or no event selected");
-      }
-      
-      const eventData = {
-        ...data,
-        type: selectedEvent.type || 'event',
-        title: data.user_surname || data.title || selectedEvent.title,
-        user_surname: data.user_surname || data.title || selectedEvent.user_surname,
-        payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
-        language: data.language || selectedEvent.language || language || 'en'
-      };
-      
-      console.log("Updating event with language:", eventData.language);
-      console.log("Updating event with data:", eventData);
-      
-      const updatedEvent = await updateEvent({
-        ...eventData,
-        id: selectedEvent.id,
-      });
-      
-      setSelectedEvent(null);
-      console.log("Event updated successfully:", updatedEvent);
-      
+  const updateCalendarEvent = async (event: Partial<CalendarEventType>) => {
+    setLoading(true);
+    const { data, error: updateError } = await supabase.from('events').update(event).match({ id: event.id }).select();
+
+    if (updateError) {
+      setError(updateError.message);
+      setLoading(false);
+      throw new Error(updateError.message);
+    }
+
+    if (data) {
+      const updatedEvent = data[0] as CalendarEventType;
+      setEvents((prevEvents) => prevEvents.map((e) => (e.id === updatedEvent.id ? updatedEvent : e)));
+      setLoading(false);
       return updatedEvent;
-    } catch (error: any) {
-      console.error("Failed to update event:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update event",
-        variant: "destructive",
-      });
-      throw error;
     }
+
+    setLoading(false);
+    return null;
   };
+  
+  // <<< THIS IS THE CORRECTED FUNCTION >>>
+  const deleteCalendarEvent = async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
+    setLoading(true);
+    const eventToDelete = events.find(e => e.id === id);
 
-  // <<< ENTIRE handleDeleteEvent FUNCTION IS REPLACED >>>
-  const handleDeleteEvent = async (deleteChoice?: "this" | "series") => {
-    if (!deleteEvent || !selectedEvent) {
-      toast({ title: "Error", description: "No event selected for deletion.", variant: "destructive" });
-      return;
+    if (!eventToDelete) {
+      const message = "Event not found";
+      setError(message);
+      setLoading(false);
+      throw new Error(message);
     }
 
-    try {
-      // FIX: Only for approved bookings, first unlink the event from the booking.
-      // This will NOT run for internally created events or series events.
-      if (selectedEvent.booking_id) {
-        const { error: updateError } = await supabase
-          .from('events')
-          .update({ booking_id: null })
-          .match({ id: selectedEvent.id });
+    // --- START OF THE FIX ---
+    // If the event's ID is the same as its series_id, it's a standalone "approved booking" event.
+    // Delete it directly and bypass the recurring event logic.
+    if (eventToDelete.series_id && eventToDelete.id === eventToDelete.series_id) {
+        const { error: deleteError } = await supabase.from('events').delete().match({ id: eventToDelete.id });
 
-        if (updateError) {
-          throw new Error(`Failed to unlink event from booking: ${updateError.message}`);
+        if (deleteError) {
+            setError(deleteError.message);
+            setLoading(false);
+            throw new Error(deleteError.message);
         }
-        console.log("Event unlinked from booking successfully.");
-      }
-
-      // Now, proceed with the original deletion logic (for all event types)
-      const result = await deleteEvent({ id: selectedEvent.id, deleteChoice });
-      
-      setSelectedEvent(null);
-      console.log("Event deleted successfully:", selectedEvent.id);
-      toast({
-        title: "Success",
-        description: "Event has been deleted.",
-        variant: "success",
-      });
-      
-      return result;
-    } catch (error: any) {
-      console.error("Failed to delete event:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete event",
-        variant: "destructive",
-      });
-      throw error;
+        
+        setEvents(prevEvents => prevEvents.filter(e => e.id !== id));
+        setLoading(false);
+        return { success: true };
     }
+    // --- END OF THE FIX ---
+
+    // Original logic for handling real recurring events (now safe)
+    if (isVirtualInstance(eventToDelete) && deleteChoice === 'this') {
+      const series = events.find(e => e.id === eventToDelete.series_id);
+      if (series) {
+        const updatedSeries = {
+          ...series,
+          excluded_dates: [...(series.excluded_dates || []), new Date(eventToDelete.start_time).toISOString()],
+        };
+        await updateCalendarEvent(updatedSeries);
+        setEvents(prevEvents => prevEvents.filter(e => e.id !== id));
+      }
+    } else if (eventToDelete?.series_id && deleteChoice === 'this') {
+      const updatedEvent = { ...eventToDelete, series_id: null };
+      await updateCalendarEvent(updatedEvent);
+    } else {
+      const { error: deleteError } = await supabase.from('events').delete().match({ id });
+
+      if (deleteError) {
+        setError(deleteError.message);
+        setLoading(false);
+        throw new Error(deleteError.message);
+      }
+      setEvents(prevEvents => prevEvents.filter(e => e.id !== id && e.series_id !== id));
+    }
+
+    setLoading(false);
+    return { success: true };
   };
 
-  // Helper function to normalize payment status values
-  const normalizePaymentStatus = (status: string | undefined): string | undefined => {
-    if (!status) return undefined;
-    
-    console.log("Normalizing payment status:", status);
-    
-    if (status.includes('partly')) return 'partly_paid';
-    if (status.includes('fully')) return 'fully_paid';
-    if (status.includes('not_paid') || status === 'not paid') return 'not_paid';
-    
-    return status;
-  };
+  const expandedEvents = expandRecurringEvents(events);
 
   return {
-    selectedEvent,
-    setSelectedEvent,
-    isNewEventDialogOpen,
-    setIsNewEventDialogOpen,
-    selectedDate,
-    setSelectedDate,
-    handleCreateEvent,
-    handleUpdateEvent,
-    handleDeleteEvent,
+    events: expandedEvents,
+    setEvents,
+    loading,
+    error,
+    addCalendarEvent,
+    updateCalendarEvent,
+    deleteCalendarEvent,
   };
 };
