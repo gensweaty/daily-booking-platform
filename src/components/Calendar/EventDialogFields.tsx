@@ -149,8 +149,8 @@ export const EventDialogFields = ({ event, onFieldChange }: EventDialogFieldsPro
         </Label>
         <FileUploadField
           onFileSelect={(file) => onFieldChange("file", file)}
-          accept="image/*,application/pdf,.doc,.docx"
-          maxSize={5 * 1024 * 1024} // 5MB
+          acceptedFileTypes="image/*,application/pdf,.doc,.docx"
+          maxSizeMB={5}
         />
       </div>
     </div>
