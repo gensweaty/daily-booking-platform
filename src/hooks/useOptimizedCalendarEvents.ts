@@ -110,20 +110,19 @@ export const useOptimizedCalendarEvents = (userId: string | undefined, currentDa
     },
     enabled: !!userId,
     staleTime: 0, // Always consider data stale for immediate updates
-    gcTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 2 * 60 * 1000, // 2 minutes
     refetchOnWindowFocus: true,
     refetchOnMount: true,
-    refetchInterval: 3000, // Moderate polling every 3 seconds
-    refetchIntervalInBackground: false, // Prevent background refetch to avoid loading indicators
   });
 
-  // Debounced event handlers to prevent excessive calls
+  // Enhanced event handlers with better debouncing
   useEffect(() => {
     let debounceTimer: NodeJS.Timeout;
 
     const debouncedInvalidate = () => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
+        console.log('[useOptimizedCalendarEvents] Invalidating optimized queries');
         queryClient.invalidateQueries({ queryKey });
       }, 100);
     };
@@ -135,7 +134,10 @@ export const useOptimizedCalendarEvents = (userId: string | undefined, currentDa
 
     const handleEventDeletion = (event: CustomEvent) => {
       console.log('[useOptimizedCalendarEvents] Event deletion detected:', event.detail);
-      debouncedInvalidate();
+      if (event.detail.verified) {
+        console.log('[useOptimizedCalendarEvents] Verified deletion, forcing immediate refresh');
+        debouncedInvalidate();
+      }
     };
 
     const handleStorageChange = (event: StorageEvent) => {
@@ -157,7 +159,7 @@ export const useOptimizedCalendarEvents = (userId: string | undefined, currentDa
     };
   }, [queryClient, queryKey]);
 
-  // Optimized real-time subscriptions
+  // Enhanced real-time subscriptions
   useEffect(() => {
     if (!userId) return;
 
