@@ -1,6 +1,6 @@
 
 import React from "react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isSameMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isSameMonth, startOfWeek, endOfWeek } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -19,9 +19,13 @@ export const CalendarGrid = ({
   onDayClick,
 }: CalendarGridProps) => {
   const { t } = useLanguage();
+  
+  // Get the full calendar grid including previous/next month days
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
-  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const calendarStart = startOfWeek(monthStart);
+  const calendarEnd = endOfWeek(monthEnd);
+  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
   const getEventsForDay = (date: Date) => {
     return events.filter(event => {
