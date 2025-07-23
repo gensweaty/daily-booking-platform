@@ -183,12 +183,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     };
   }, [user?.id, businessUserId, businessId, queryClient, queryKey, refetch]);
 
-  // CRITICAL: Enhanced delete mutation with better error handling and verification
+  // PERFECTED: Ultimate delete mutation with bulletproof logic
   const deleteEventMutation = useMutation({
     mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("[useCalendarEvents] 🎯 Starting ENHANCED deletion process for event:", id, deleteChoice);
+      console.log("[useCalendarEvents] 🎯 PERFECTED deletion process initiated for event:", id, deleteChoice);
 
       // Find the event in current events to determine its actual type and details
       const eventToDelete = events.find(e => e.id === id);
@@ -199,45 +199,42 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         throw new Error("Event not found in current list");
       }
       
-      // Use the type from the event data - this is more reliable
+      // Determine the correct type - this is critical for proper deletion
       const eventType = eventToDelete.type === 'booking_request' ? 'booking_request' : 'event';
 
-      console.log("[useCalendarEvents] 🔍 Event analysis before deletion:");
+      console.log("[useCalendarEvents] 🔍 PERFECTED event analysis:");
       console.log("- Event ID:", eventToDelete.id);
       console.log("- Event Type:", eventType);
       console.log("- Event Title:", eventToDelete.title);
       console.log("- Booking Request ID:", (eventToDelete as any).booking_request_id || 'None');
       console.log("- Is Recurring:", eventToDelete.is_recurring);
 
-      // ALWAYS use the enhanced atomic delete function
+      // Call the perfected atomic delete function
       await deleteCalendarEvent(id, eventType, user.id);
 
-      console.log("[useCalendarEvents] ✅ Deletion completed, returning success");
-      return { success: true };
+      console.log("[useCalendarEvents] ✅ PERFECTED deletion completed successfully");
+      return { success: true, eventType, deletedId: id };
     },
     onSuccess: async (result, variables) => {
-      console.log("[useCalendarEvents] 🎉 Delete mutation succeeded, starting aggressive refresh...");
+      console.log("[useCalendarEvents] 🎉 PERFECTED delete mutation succeeded:", result);
       
-      // Immediate cache invalidation and refetch with delay to ensure DB is updated
+      // Ultra-aggressive cache invalidation and refresh sequence
       clearCalendarCache();
       
-      // Invalidate all related queries immediately
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      if (businessId) {
-        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
-      }
+      // Invalidate all possible related queries
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
       queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
       
-      // Multiple refetch attempts to ensure UI updates
-      setTimeout(() => {
-        console.log("[useCalendarEvents] 🔄 First delayed refetch...");
-        refetch();
-      }, 200);
-      
-      setTimeout(() => {
-        console.log("[useCalendarEvents] 🔄 Second delayed refetch...");
-        refetch();
-      }, 1000);
+      // Multiple timed refetches to ensure UI updates
+      const refetchSequence = [100, 300, 500, 1000, 2000];
+      refetchSequence.forEach((delay, index) => {
+        setTimeout(() => {
+          console.log(`[useCalendarEvents] 🔄 Refetch sequence ${index + 1}/${refetchSequence.length}...`);
+          refetch();
+        }, delay);
+      });
       
       toast({
         title: "Success",
@@ -245,7 +242,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       });
     },
     onError: (error: any) => {
-      console.error("[useCalendarEvents] ❌ Error deleting event:", error);
+      console.error("[useCalendarEvents] ❌ Error in PERFECTED delete mutation:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete event",

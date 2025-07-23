@@ -1037,6 +1037,10 @@ export type Database = {
         }
         Returns: string
       }
+      delete_event_and_related_booking: {
+        Args: { p_event_id: string; p_user_id: string }
+        Returns: number
+      }
       delete_recurring_series: {
         Args: {
           p_event_id: string
