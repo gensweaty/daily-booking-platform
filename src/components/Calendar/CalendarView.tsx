@@ -123,10 +123,14 @@ export function CalendarView({
   return (
     <div className="h-full">
       <CalendarGrid
-        currentDate={selectedDate}
-        events={filteredEvents}
-        onEventClick={onEventClick}
+        days={daysToRender}
+        events={filteredEvents} // Use the filtered events (all events from DB including recurring instances)
+        formattedSelectedDate={formattedSelectedDate}
+        view={view}
         onDayClick={onDayClick}
+        onEventClick={onEventClick}
+        isExternalCalendar={isExternalCalendar}
+        theme={currentTheme}
       />
     </div>
   );

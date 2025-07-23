@@ -188,65 +188,121 @@ export const getUnifiedCalendarEvents = async (
   }
 };
 
-// PERFECTED: Ultimate atomic delete function with bulletproof logic
+// CRITICAL: Enhanced atomic delete function with better debugging and error handling
 export const deleteCalendarEvent = async (
   eventId: string, 
   eventType: 'event' | 'booking_request',
   userId: string
 ): Promise<void> => {
   try {
-    console.log(`[CalendarService] 🎯 PERFECTED ATOMIC DELETION INITIATED:`);
+    console.log(`[CalendarService] 🔍 Starting ENHANCED atomic deletion analysis:`);
     console.log(`[CalendarService] - Event ID: ${eventId}`);
     console.log(`[CalendarService] - Event Type: ${eventType}`);
     console.log(`[CalendarService] - User ID: ${userId}`);
     
-    // STEP 1: Use the bulletproof atomic delete function
-    console.log(`[CalendarService] 🔧 Calling atomic delete function...`);
-    
-    const { data: deletedCount, error } = await supabase.rpc(
-      'delete_event_and_related_booking',
-      {
-        p_event_id: eventId,
-        p_user_id: userId
+    // STEP 1: First, let's examine what we're about to delete
+    if (eventType === 'event') {
+      const { data: eventData, error: eventFetchError } = await supabase
+        .from('events')
+        .select('*, booking_request_id')
+        .eq('id', eventId)
+        .eq('user_id', userId)
+        .single();
+      
+      if (eventFetchError) {
+        console.error('[CalendarService] ❌ Error fetching event data:', eventFetchError);
+        throw eventFetchError;
       }
-    );
-    
-    if (error) {
-      console.error('[CalendarService] ❌ Error in atomic delete function:', error);
-      throw error;
+      
+      console.log(`[CalendarService] 📋 Event data before deletion:`, eventData);
+      console.log(`[CalendarService] 🔗 Linked booking request ID: ${eventData?.booking_request_id || 'None'}`);
+      
+      if (eventData?.booking_request_id) {
+        // This is an event created from a booking request - we need atomic deletion
+        console.log(`[CalendarService] 🎯 This is a booking-derived event, using ATOMIC deletion`);
+        
+        // Use atomic delete function
+        const { data, error } = await supabase.rpc(
+          'delete_event_and_related_booking' as any,
+          {
+            p_event_id: eventId,
+            p_user_id: userId
+          }
+        );
+        
+        if (error) {
+          console.error('[CalendarService] ❌ Error in atomic delete:', error);
+          throw error;
+        }
+        
+        console.log(`[CalendarService] ✅ Atomic deletion completed. Deleted ${data} records`);
+        
+        // STEP 2: Verify the deletion worked
+        const { data: verifyEvent } = await supabase
+          .from('events')
+          .select('deleted_at')
+          .eq('id', eventId)
+          .single();
+          
+        const { data: verifyBooking } = await supabase
+          .from('booking_requests')
+          .select('deleted_at, status')
+          .eq('id', eventData.booking_request_id)
+          .single();
+          
+        console.log(`[CalendarService] 🔍 Post-deletion verification:`);
+        console.log(`[CalendarService] - Event deleted_at: ${verifyEvent?.deleted_at || 'NULL'}`);
+        console.log(`[CalendarService] - Booking deleted_at: ${verifyBooking?.deleted_at || 'NULL'}`);
+        console.log(`[CalendarService] - Booking status: ${verifyBooking?.status || 'NULL'}`);
+        
+      } else {
+        // This is a regular event - simple deletion
+        console.log(`[CalendarService] 📝 This is a regular event, using simple deletion`);
+        
+        const { error } = await supabase
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', eventId)
+          .eq('user_id', userId);
+          
+        if (error) {
+          console.error('[CalendarService] ❌ Error in simple delete:', error);
+          throw error;
+        }
+        
+        console.log(`[CalendarService] ✅ Simple deletion completed`);
+      }
+      
+    } else if (eventType === 'booking_request') {
+      console.log(`[CalendarService] 📋 Deleting booking request directly`);
+      
+      // For booking requests, soft delete and reject
+      const { error } = await supabase
+        .from('booking_requests')
+        .update({ 
+          deleted_at: new Date().toISOString(),
+          status: 'rejected'
+        })
+        .eq('id', eventId);
+        
+      if (error) {
+        console.error('[CalendarService] ❌ Error deleting booking request:', error);
+        throw error;
+      }
+      
+      console.log(`[CalendarService] ✅ Booking request deletion completed`);
     }
     
-    console.log(`[CalendarService] ✅ Atomic deletion completed. Deleted ${deletedCount} records`);
-    
-    // STEP 2: Verification - Check if the deletion actually worked
-    const { data: eventCheck } = await supabase
-      .from('events')
-      .select('deleted_at')
-      .eq('id', eventId)
-      .single();
-      
-    const { data: bookingCheck } = await supabase
-      .from('booking_requests')
-      .select('deleted_at, status')
-      .eq('id', eventId)
-      .single();
-      
-    console.log(`[CalendarService] 🔍 POST-DELETION VERIFICATION:`);
-    console.log(`[CalendarService] - Event deleted_at: ${eventCheck?.deleted_at || 'Not found/NULL'}`);
-    console.log(`[CalendarService] - Booking deleted_at: ${bookingCheck?.deleted_at || 'Not found/NULL'}`);
-    console.log(`[CalendarService] - Booking status: ${bookingCheck?.status || 'Not found/NULL'}`);
-    
-    // STEP 3: Aggressive cache invalidation
-    console.log(`[CalendarService] 🧹 Starting aggressive cache invalidation...`);
+    // STEP 3: Comprehensive cache clearing and broadcasting
+    console.log(`[CalendarService] 🧹 Starting comprehensive cache invalidation...`);
     clearCalendarCache();
     
-    // STEP 4: Force cross-tab sync
+    // Broadcast deletion event
     const deletionEvent = new CustomEvent('calendar-event-deleted', {
       detail: { 
         eventId, 
         eventType, 
-        timestamp: Date.now(),
-        deletedCount 
+        timestamp: Date.now() 
       }
     });
     window.dispatchEvent(deletionEvent);
@@ -255,20 +311,17 @@ export const deleteCalendarEvent = async (
     localStorage.setItem('calendar_event_deleted', JSON.stringify({
       eventId,
       eventType,
-      timestamp: Date.now(),
-      deletedCount
+      timestamp: Date.now()
     }));
     
     setTimeout(() => {
       localStorage.removeItem('calendar_event_deleted');
     }, 2000);
 
-    console.log(`[CalendarService] 🎉 PERFECTED DELETION PROCESS COMPLETED SUCCESSFULLY`);
-    console.log(`[CalendarService] - Total records deleted: ${deletedCount}`);
-    console.log(`[CalendarService] - Cache invalidated and broadcasted`);
+    console.log(`[CalendarService] ✅ DELETION PROCESS COMPLETED SUCCESSFULLY`);
 
   } catch (error) {
-    console.error(`[CalendarService] 💥 CRITICAL ERROR in perfected deletion process:`, error);
+    console.error(`[CalendarService] ❌ CRITICAL ERROR in deletion process:`, error);
     throw error;
   }
 };

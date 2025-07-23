@@ -251,7 +251,7 @@ export const DashboardContent = ({
                       initial="hidden"
                       animate="visible"
                     >
-                      <Calendar />
+                      <Calendar defaultView="month" />
                     </motion.div>
                   </div>
                 </CardContent>
