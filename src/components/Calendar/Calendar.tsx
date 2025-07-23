@@ -110,6 +110,14 @@ export const Calendar = ({ businessId, businessUserId }: CalendarProps) => {
     }
   };
 
+  const handlePrevious = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  };
+
+  const handleNext = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -121,8 +129,11 @@ export const Calendar = ({ businessId, businessUserId }: CalendarProps) => {
   return (
     <div className="space-y-4">
       <CalendarHeader
-        currentDate={currentDate}
-        onDateChange={setCurrentDate}
+        selectedDate={currentDate}
+        view="month"
+        onViewChange={() => {}}
+        onPrevious={handlePrevious}
+        onNext={handleNext}
       />
       
       <CalendarGrid
