@@ -183,12 +183,12 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     };
   }, [user?.id, businessUserId, businessId, queryClient, queryKey, refetch]);
 
-  // CRITICAL: Enhanced delete mutation with better error handling and verification
+  // ENHANCED: Improved delete mutation with better event type detection
   const deleteEventMutation = useMutation({
     mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("[useCalendarEvents] 🎯 Starting ENHANCED deletion process for event:", id, deleteChoice);
+      console.log("[useCalendarEvents] 🎯 Starting deletion process for event:", id, deleteChoice);
 
       // Find the event in current events to determine its actual type and details
       const eventToDelete = events.find(e => e.id === id);
@@ -196,7 +196,37 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       if (!eventToDelete) {
         console.error("[useCalendarEvents] ❌ Event not found in current events list:", id);
         console.log("[useCalendarEvents] 📋 Available events:", events.map(e => ({ id: e.id, type: e.type, title: e.title })));
-        throw new Error("Event not found in current list");
+        
+        // As a fallback, try to determine type by checking database directly
+        console.log("[useCalendarEvents] 🔍 Attempting to determine event type from database...");
+        
+        // Check if it's in events table
+        const { data: eventCheck } = await supabase
+          .from('events')
+          .select('id, type, booking_request_id')
+          .eq('id', id)
+          .single();
+        
+        if (eventCheck) {
+          console.log("[useCalendarEvents] ✅ Found in events table:", eventCheck);
+          await deleteCalendarEvent(id, 'event', user.id);
+          return { success: true };
+        }
+        
+        // Check if it's in booking_requests table
+        const { data: bookingCheck } = await supabase
+          .from('booking_requests')
+          .select('id')
+          .eq('id', id)
+          .single();
+        
+        if (bookingCheck) {
+          console.log("[useCalendarEvents] ✅ Found in booking_requests table:", bookingCheck);
+          await deleteCalendarEvent(id, 'booking_request', user.id);
+          return { success: true };
+        }
+        
+        throw new Error("Event not found in either events or booking_requests tables");
       }
       
       // Use the type from the event data - this is more reliable
@@ -209,7 +239,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       console.log("- Booking Request ID:", (eventToDelete as any).booking_request_id || 'None');
       console.log("- Is Recurring:", eventToDelete.is_recurring);
 
-      // ALWAYS use the enhanced atomic delete function
+      // Use the enhanced deletion function
       await deleteCalendarEvent(id, eventType, user.id);
 
       console.log("[useCalendarEvents] ✅ Deletion completed, returning success");
@@ -238,6 +268,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         console.log("[useCalendarEvents] 🔄 Second delayed refetch...");
         refetch();
       }, 1000);
+      
+      setTimeout(() => {
+        console.log("[useCalendarEvents] 🔄 Third delayed refetch...");
+        refetch();
+      }, 2000);
       
       toast({
         title: "Success",

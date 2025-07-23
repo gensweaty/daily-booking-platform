@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -124,7 +125,22 @@ export const Calendar = ({
       });
       return result;
     },
-    deleteEvent: deleteEvent
+    deleteEvent: async ({ id, deleteChoice }) => {
+      console.log("Calendar deleteEvent called with:", { id, deleteChoice });
+      const result = await deleteEvent?.({ id, deleteChoice });
+      
+      // Force immediate refresh after deletion
+      console.log("Calendar forcing refresh after deletion...");
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+        if (businessId) {
+          queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
+        }
+        queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
+      }, 100);
+      
+      return result;
+    }
   });
 
   if (!isExternalCalendar && !user && !window.location.pathname.includes('/business/')) {
@@ -247,17 +263,25 @@ export const Calendar = ({
     setIsBookingFormOpen(false);
     queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
     
-    toast.event.bookingSubmitted();
+    toast({
+      title: "Success", 
+      description: "Booking request submitted successfully"
+    });
   };
 
-  // Functions to handle event operations and refresh calendar
+  // Enhanced functions to handle event operations and refresh calendar
   const refreshCalendar = async () => {
     const queryKey = businessId ? ['business-events', businessId] : ['events', user?.id];
+    
+    // Clear cache first
+    queryClient.removeQueries({ queryKey });
     
     // Wait a bit for database operations to complete
     await new Promise(resolve => setTimeout(resolve, 1000));
     
+    // Invalidate and refetch
     queryClient.invalidateQueries({ queryKey });
+    queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
   };
 
   const handleEventCreated = async () => {
