@@ -5,7 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { BookingRequest, EventFile } from "@/types/database";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { clearCalendarCache } from "@/services/calendarService";
 
 export const useBookingRequests = () => {
   const { user } = useAuth();
@@ -15,7 +14,7 @@ export const useBookingRequests = () => {
     business_name: string;
     contact_address: string | null;
   } | null>(null);
-  const { language } = useLanguage();
+  const { language } = useLanguage(); // Get current UI language
   
   // Cache business profile data when component mounts
   useEffect(() => {
@@ -72,6 +71,7 @@ export const useBookingRequests = () => {
       console.log(`Found ${requests.length} booking requests`);
       
       // Fetch files for all booking requests using event_files table
+      // Files for booking requests are stored with event_id matching the booking request ID
       const requestIds = requests.map(req => req.id);
       
       const { data: filesData, error: filesError } = await supabase
@@ -81,6 +81,7 @@ export const useBookingRequests = () => {
       
       if (filesError) {
         console.error('Error fetching booking request files:', filesError);
+        // Don't throw here, just proceed without files
       }
       
       // Use Map for efficient lookups, with proper typing for the nested Map
@@ -89,6 +90,7 @@ export const useBookingRequests = () => {
       if (filesData && filesData.length > 0) {
         console.log(`Found ${filesData.length} files for booking requests`);
         
+        // Create a map of booking request ID to files with deduplication
         filesData.forEach(file => {
           if (!file.event_id) return;
           
@@ -96,6 +98,7 @@ export const useBookingRequests = () => {
             filesMap.set(file.event_id, new Map<string, EventFile>());
           }
           
+          // Use file path as key to prevent duplicates
           const fileMap = filesMap.get(file.event_id)!;
           const fileKey = `${file.filename}:${file.file_path}`;
           
@@ -107,10 +110,14 @@ export const useBookingRequests = () => {
         console.log('No files found for booking requests');
       }
       
+      // Enrich requests with files information
       return requests.map(request => {
+        // Get deduplicated files from the map
         const fileMap = filesMap.get(request.id);
         const files = fileMap ? Array.from(fileMap.values()) : [];
         
+        // If we have files, add the first file's info directly to the request object
+        // This maintains compatibility with the existing UI
         if (files.length > 0) {
           const firstFile = files[0];
           return {
@@ -119,7 +126,7 @@ export const useBookingRequests = () => {
             file_path: firstFile.file_path,
             content_type: firstFile.content_type,
             size: firstFile.size,
-            files: files
+            files: files // Add all files array for future use if needed
           };
         }
         
@@ -129,13 +136,15 @@ export const useBookingRequests = () => {
     enabled: !!businessId,
   });
   
+  // Extract the booking requests from the data
   const bookingRequests = bookingRequestsData || [];
   
-  // Filter requests by status with proper typing
-  const pendingRequests = bookingRequests.filter(req => req.status === 'pending') as BookingRequest[];
-  const approvedRequests = bookingRequests.filter(req => req.status === 'approved') as BookingRequest[];
-  const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected') as BookingRequest[];
+  // Filter requests by status
+  const pendingRequests = bookingRequests.filter(req => req.status === 'pending');
+  const approvedRequests = bookingRequests.filter(req => req.status === 'approved');
+  const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected');
   
+  // Memoized function for sending emails to avoid recreating it on each render
   const sendApprovalEmail = useCallback(async ({ 
     email, 
     fullName, 
@@ -145,7 +154,7 @@ export const useBookingRequests = () => {
     paymentStatus, 
     paymentAmount, 
     businessAddress,
-    language
+    language // Add language parameter
   }: {
     email: string;
     fullName: string;
@@ -155,7 +164,7 @@ export const useBookingRequests = () => {
     paymentStatus?: string;
     paymentAmount?: number;
     businessAddress?: string;
-    language?: string;
+    language?: string; // Add language parameter type
   }) => {
     if (!email || !email.includes('@')) {
       console.error("Invalid email format or missing email:", email);
@@ -165,6 +174,7 @@ export const useBookingRequests = () => {
     try {
       console.log(`Sending approval email to ${email} for booking at ${businessName} with language: ${language || 'not specified'}`);
       
+      // Log all data being sent in the request
       const requestBody = {
         recipientEmail: email.trim(),
         fullName: fullName || "",
@@ -173,15 +183,16 @@ export const useBookingRequests = () => {
         endDate: endDate,
         paymentStatus: paymentStatus,
         paymentAmount: paymentAmount,
-        businessAddress: businessAddress,
-        language: language
+        businessAddress: businessAddress, // Pass the address as is
+        language: language // Pass language parameter to the edge function
       };
       
       console.log("Email request payload:", {
         ...requestBody,
-        recipientEmail: email.trim().substring(0, 3) + '***'
+        recipientEmail: email.trim().substring(0, 3) + '***' // Mask email for privacy in logs
       });
       
+      // Get access token for authenticated request
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
       
@@ -190,6 +201,7 @@ export const useBookingRequests = () => {
         return { success: false, error: "Authentication error" };
       }
       
+      // Call the Edge Function
       const response = await fetch(
         "https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-booking-approval-email",
         {
@@ -202,6 +214,7 @@ export const useBookingRequests = () => {
         }
       );
       
+      // Read the response as text first
       const responseText = await response.text();
       
       let data;
@@ -277,45 +290,18 @@ export const useBookingRequests = () => {
         throw new Error('Time slot is no longer available');
       }
       
-      // Create an event for the approved booking request
-      const eventData = {
-        title: booking.title,
-        user_surname: booking.requester_name,
-        user_number: booking.requester_phone,
-        social_network_link: booking.requester_email,
-        event_notes: booking.description,
-        start_date: booking.start_date,
-        end_date: booking.end_date,
-        user_id: user.id,
-        type: 'booking_request',
-        payment_status: booking.payment_status,
-        payment_amount: booking.payment_amount,
-        language: booking.language,
-        booking_request_id: booking.id // Link the event to the booking request
-      };
-      
-      const { data: eventResult, error: eventError } = await supabase
-        .from('events')
-        .insert(eventData)
-        .select()
-        .single();
-      
-      if (eventError) {
-        console.error('Error creating event from booking:', eventError);
-        throw eventError;
-      }
-      
-      // Update booking status to approved
+      // CRITICAL FIX: Only update booking status to approved, don't create event
       const { error: updateError } = await supabase
         .from('booking_requests')
         .update({ 
           status: 'approved',
-          user_id: user.id
+          user_id: user.id // Ensure the booking is linked to the business owner
         })
         .eq('id', bookingId);
       
       if (updateError) throw updateError;
       
+      // Create customer record for CRM (but no event record)
       const customerData = {
         title: booking.requester_name,
         user_surname: booking.user_surname || null,
@@ -461,9 +447,11 @@ export const useBookingRequests = () => {
       
       // Send email notification (using cached business profile data)
       if (booking.requester_email) {
+        // Use the cached business profile info instead of making another database call
         const businessName = businessProfile?.business_name || "Our Business";
         const contactAddress = businessProfile?.contact_address || null;
         
+        // Prepare email parameters
         const emailParams = {
           email: booking.requester_email,
           fullName: booking.requester_name || booking.user_surname || "",
@@ -473,11 +461,12 @@ export const useBookingRequests = () => {
           paymentStatus: booking.payment_status,
           paymentAmount: booking.payment_amount,
           businessAddress: contactAddress,
-          language: booking.language || language
+          language: booking.language || language // Pass the booking's language or fallback to UI language
         };
         
         console.log('Sending approval email with language:', emailParams.language);
         
+        // Send email but don't block the approval process completion
         sendApprovalEmail(emailParams).then(emailResult => {
           if (emailResult.success) {
             console.log("Email notification processed during booking approval");
@@ -491,7 +480,6 @@ export const useBookingRequests = () => {
       return booking;
     },
     onSuccess: () => {
-      clearCalendarCache();
       queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['business-events'] });
@@ -529,10 +517,7 @@ export const useBookingRequests = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      clearCalendarCache();
       queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['business-events'] });
       toast({
         translateKeys: {
           titleKey: "common.success",
@@ -554,30 +539,15 @@ export const useBookingRequests = () => {
   
   const deleteMutation = useMutation({
     mutationFn: async (bookingId: string) => {
-      if (!user?.id) {
-        throw new Error('User not authenticated');
-      }
+      const { error } = await supabase
+        .from('booking_requests')
+        .delete()
+        .eq('id', bookingId);
       
-      console.log('[useBookingRequests] Starting ATOMIC deletion for booking request:', bookingId);
-      
-      // ALWAYS use the atomic delete function - this handles both the booking request and any linked events
-      const { data, error } = await supabase.rpc('delete_event_and_related_booking', {
-        p_event_id: bookingId,
-        p_user_id: user.id
-      });
-      
-      if (error) {
-        console.error('[useBookingRequests] Error in atomic delete:', error);
-        throw error;
-      }
-      
-      console.log(`[useBookingRequests] Atomic deletion completed successfully. Deleted ${data} records for booking: ${bookingId}`);
+      if (error) throw error;
     },
     onSuccess: () => {
-      clearCalendarCache();
       queryClient.invalidateQueries({ queryKey: ['booking_requests', businessId] });
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['business-events'] });
       toast({
         translateKeys: {
           titleKey: "common.success",
