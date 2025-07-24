@@ -176,7 +176,7 @@ export const getUnifiedCalendarEvents = async (
   }
 };
 
-// Enhanced delete function with proper cross-table deletion
+// Enhanced delete function specifically for requested/approved events
 export const deleteCalendarEvent = async (
   eventId: string, 
   eventType: 'event' | 'booking_request',
@@ -186,10 +186,15 @@ export const deleteCalendarEvent = async (
     console.log(`[CalendarService] Starting deletion: ${eventType} with ID:`, eventId);
     
     if (eventType === 'booking_request') {
-      // This is an approved booking request - soft delete it
+      // This is an approved booking request - we need to soft delete it
+      console.log('[CalendarService] Deleting booking request...');
+      
       const { error: bookingError } = await supabase
         .from('booking_requests')
-        .update({ deleted_at: new Date().toISOString() })
+        .update({ 
+          deleted_at: new Date().toISOString(),
+          status: 'rejected' // Also update status to rejected
+        })
         .eq('id', eventId);
 
       if (bookingError) {
@@ -198,11 +203,34 @@ export const deleteCalendarEvent = async (
       }
       
       console.log(`[CalendarService] Successfully soft deleted booking request: ${eventId}`);
+      
+      // Also check if there's a corresponding event created from this booking and delete it too
+      const { data: relatedEvents, error: relatedError } = await supabase
+        .from('events')
+        .select('id')
+        .eq('booking_request_id', eventId)
+        .is('deleted_at', null);
+        
+      if (relatedEvents && relatedEvents.length > 0) {
+        console.log(`[CalendarService] Found ${relatedEvents.length} related events to delete`);
+        
+        const { error: relatedDeleteError } = await supabase
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('booking_request_id', eventId);
+          
+        if (relatedDeleteError) {
+          console.error('[CalendarService] Error deleting related events:', relatedDeleteError);
+        } else {
+          console.log('[CalendarService] Successfully deleted related events');
+        }
+      }
+      
     } else {
-      // This is a regular event - soft delete from events table
+      // This is a regular event - handle normal deletion including recurring events
       const { data: existingEvent } = await supabase
         .from('events')
-        .select('id, parent_event_id')
+        .select('id, parent_event_id, booking_request_id')
         .eq('id', eventId)
         .eq('user_id', userId)
         .is('deleted_at', null)
@@ -221,6 +249,23 @@ export const deleteCalendarEvent = async (
         if (eventError) {
           console.error('[CalendarService] Error deleting event:', eventError);
           throw eventError;
+        }
+
+        // If this event was created from a booking request, also mark the booking as rejected
+        if (existingEvent.booking_request_id) {
+          console.log('[CalendarService] Also updating related booking request...');
+          
+          const { error: bookingUpdateError } = await supabase
+            .from('booking_requests')
+            .update({ 
+              deleted_at: new Date().toISOString(),
+              status: 'rejected'
+            })
+            .eq('id', existingEvent.booking_request_id);
+            
+          if (bookingUpdateError) {
+            console.warn('[CalendarService] Error updating related booking:', bookingUpdateError);
+          }
         }
 
         // If this is a recurring event (parent), also soft delete all child instances

@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -60,8 +59,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     queryFn: fetchEvents,
     enabled: !!(businessUserId || user?.id),
     staleTime: 0, // Always consider data stale for immediate updates
-    gcTime: 2000, // Keep in cache for 2 seconds only
-    refetchInterval: 2000, // Moderate polling every 2 seconds
+    gcTime: 1000, // Keep in cache for 1 second only
+    refetchInterval: 1500, // Moderate polling every 1.5 seconds
     refetchIntervalInBackground: false, // Disable background refetch to avoid visible loading
     refetchOnWindowFocus: true,
     refetchOnMount: true,
@@ -76,7 +75,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       debounceTimer = setTimeout(() => {
         queryClient.invalidateQueries({ queryKey });
         refetch();
-      }, 100);
+      }, 50);
     };
 
     const handleCacheInvalidation = () => {
@@ -125,7 +124,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         clearCalendarCache();
         queryClient.invalidateQueries({ queryKey });
         refetch();
-      }, 200);
+      }, 100);
     };
 
     // Subscribe to events table changes
@@ -342,9 +341,26 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       // Determine the event type from the current events
       const eventToDelete = events.find(e => e.id === id);
-      const eventType = eventToDelete?.type === 'booking_request' ? 'booking_request' : 'event';
+      let eventType: 'event' | 'booking_request' = 'event';
+      
+      if (eventToDelete?.type === 'booking_request') {
+        eventType = 'booking_request';
+        console.log("[useCalendarEvents] Detected booking request for deletion");
+      } else {
+        // Double-check by querying the database directly
+        const { data: bookingCheck } = await supabase
+          .from('booking_requests')
+          .select('id')
+          .eq('id', id)
+          .single();
+          
+        if (bookingCheck) {
+          eventType = 'booking_request';
+          console.log("[useCalendarEvents] Found booking request in database for deletion");
+        }
+      }
 
-      console.log("[useCalendarEvents] Event type for deletion:", eventType);
+      console.log("[useCalendarEvents] Final event type for deletion:", eventType);
 
       // Use the enhanced unified delete function
       await deleteCalendarEvent(id, eventType, user.id);
@@ -352,15 +368,26 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       return { success: true };
     },
     onSuccess: async () => {
+      console.log("[useCalendarEvents] Delete mutation success, triggering immediate refresh");
+      
       // Immediate cache invalidation and refetch
       clearCalendarCache();
+      
+      // Invalidate all related queries
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       if (businessId) {
         queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
       }
       
-      // Force immediate refetch
-      refetch();
+      // Force immediate refetch with a small delay
+      setTimeout(() => {
+        refetch();
+      }, 100);
+      
+      // Broadcast the deletion event
+      window.dispatchEvent(new CustomEvent('calendar-event-deleted', {
+        detail: { timestamp: Date.now() }
+      }));
       
       toast({
         title: "Success",
