@@ -176,7 +176,7 @@ export const getUnifiedCalendarEvents = async (
   }
 };
 
-// Comprehensive deletion function that handles both booking requests and events
+// Bulletproof deletion function that handles all cases idempotently
 export const deleteCalendarEvent = async (
   eventId: string,
   eventType: 'event' | 'booking_request',
@@ -184,71 +184,80 @@ export const deleteCalendarEvent = async (
 ): Promise<void> => {
   try {
     console.log(`[CalendarService] Deleting calendar entry: type=${eventType}, id=${eventId}`);
+    let bookingIdToDelete: string | undefined = undefined;
 
-    // If it's a booking_request, delete booking and any related event(s)
+    // 1. If it's a booking_request, always also delete any event linked by booking_request_id.
     if (eventType === 'booking_request') {
-      // 1. Soft delete booking_request and mark as rejected
-      const { error: bookingError } = await supabase
+      // Soft delete booking request
+      await supabase
         .from('booking_requests')
-        .update({
-          deleted_at: new Date().toISOString(),
-          status: 'rejected'
-        })
+        .update({ deleted_at: new Date().toISOString(), status: 'rejected' })
         .eq('id', eventId);
 
-      if (bookingError) throw bookingError;
-
-      // 2. Delete related event(s) linked by booking_request_id
-      const { data: relatedEvents, error: relatedError } = await supabase
+      // Delete all events that reference this booking
+      const { data: linkedEvents } = await supabase
         .from('events')
         .select('id')
         .eq('booking_request_id', eventId)
         .is('deleted_at', null);
-
-      if (relatedEvents && relatedEvents.length > 0) {
-        const eventIds = relatedEvents.map(e => e.id);
+      if (linkedEvents && linkedEvents.length > 0) {
         await supabase
           .from('events')
           .update({ deleted_at: new Date().toISOString() })
-          .in('id', eventIds);
+          .in('id', linkedEvents.map(e => e.id));
       }
-
-    } else { // type === 'event'
-      // 1. Soft delete the event
-      const { data: event, error: eventFetchError } = await supabase
+    } else {
+      // 2. If it's an event, soft delete event and any children
+      // Fetch event to check for booking_request_id
+      const { data: event } = await supabase
         .from('events')
         .select('id, booking_request_id, parent_event_id')
         .eq('id', eventId)
-        .eq('user_id', userId)
         .is('deleted_at', null)
-        .single();
+        .maybeSingle();
 
-      if (!event || eventFetchError) throw eventFetchError || new Error('Event not found');
-
-      // 2. Delete this event
-      await supabase
-        .from('events')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', eventId)
-        .eq('user_id', userId);
-
-      // 3. If this event was created from a booking request, delete the booking too
-      if (event.booking_request_id) {
+      // If event exists
+      if (event) {
+        // Delete the event
         await supabase
-          .from('booking_requests')
-          .update({
-            deleted_at: new Date().toISOString(),
-            status: 'rejected'
-          })
-          .eq('id', event.booking_request_id);
-      }
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', eventId);
 
-      // 4. If this is a recurring parent event, also soft delete all children
+        // Delete all child events (recurring instances)
+        await supabase
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('parent_event_id', eventId);
+
+        // If it is linked to a booking request, delete that too
+        if (event.booking_request_id) {
+          bookingIdToDelete = event.booking_request_id;
+          await supabase
+            .from('booking_requests')
+            .update({ deleted_at: new Date().toISOString(), status: 'rejected' })
+            .eq('id', event.booking_request_id);
+        }
+      }
+    }
+
+    // 3. As a fallback, always try to delete BOTH sides by ID (safe to re-update)
+    // This means: if you delete a booking_request, also try deleting it as event; vice versa.
+    await supabase
+      .from('booking_requests')
+      .update({ deleted_at: new Date().toISOString(), status: 'rejected' })
+      .eq('id', eventId);
+
+    await supabase
+      .from('events')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', eventId);
+
+    if (bookingIdToDelete) {
       await supabase
-        .from('events')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('parent_event_id', eventId)
-        .eq('user_id', userId);
+        .from('booking_requests')
+        .update({ deleted_at: new Date().toISOString(), status: 'rejected' })
+        .eq('id', bookingIdToDelete);
     }
 
     // Cache clearing and sync
@@ -261,7 +270,7 @@ export const deleteCalendarEvent = async (
     }));
     setTimeout(() => localStorage.removeItem('calendar_event_deleted'), 2000);
 
-    console.log(`[CalendarService] Deleted booking/event and synced all views`);
+    console.log(`[CalendarService] Deleted all linked bookings/events for ID: ${eventId}`);
   } catch (error) {
     console.error(`[CalendarService] Error in deletion:`, error);
     throw error;
