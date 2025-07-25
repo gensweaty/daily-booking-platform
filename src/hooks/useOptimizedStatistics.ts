@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format, parseISO, startOfMonth, endOfMonth, addMonths } from 'date-fns';
@@ -75,7 +76,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
     gcTime: 10 * 60 * 1000, // 10 minutes - reduced from 30
   });
 
-  // Updated event stats query to include both events and approved booking requests
+  // Fixed event stats query to properly filter by date range and count correctly
   const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
     queryKey: ['optimized-event-stats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async (): Promise<OptimizedEventStats> => {
@@ -94,7 +95,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const startDateStr = dateRange.start.toISOString();
       const endDateStr = dateRange.end.toISOString();
 
-      // Get regular events from events table
+      // Get regular events from events table (filter by date range)
       const { data: regularEvents, error: eventsError } = await supabase
         .from('events')
         .select('*')
@@ -116,7 +117,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         };
       }
 
-      // Get approved booking requests from booking_requests table
+      // Get approved booking requests from booking_requests table (filter by date range)
       const { data: bookingRequests, error: bookingError } = await supabase
         .from('booking_requests')
         .select('*')
@@ -139,23 +140,26 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         };
       }
 
+      // Transform booking requests to match event structure
+      const transformedBookingRequests = (bookingRequests || []).map(booking => ({
+        ...booking,
+        type: 'booking_request',
+        title: booking.title,
+        user_surname: booking.requester_name,
+        user_number: booking.requester_phone,
+        social_network_link: booking.requester_email,
+        event_notes: booking.description
+      }));
+
       // Combine both types of events
       const allEvents = [
         ...(regularEvents || []),
-        ...(bookingRequests || []).map(booking => ({
-          ...booking,
-          type: 'booking_request',
-          title: booking.title,
-          user_surname: booking.requester_name,
-          user_number: booking.requester_phone,
-          social_network_link: booking.requester_email,
-          event_notes: booking.description
-        }))
+        ...transformedBookingRequests
       ];
 
-      console.log(`Found ${regularEvents?.length || 0} regular events and ${bookingRequests?.length || 0} approved booking requests`);
+      console.log(`Found ${regularEvents?.length || 0} regular events and ${bookingRequests?.length || 0} approved booking requests in date range`);
 
-      // Get additional persons only for parent events (not child instances)
+      // Get additional persons only for parent events (not child instances) that are in the date range
       const parentEventIds = regularEvents
         ?.filter(event => !event.parent_event_id) // Only parent events
         .map(event => event.id) || [];
@@ -167,6 +171,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           .select('*')
           .in('event_id', parentEventIds)
           .eq('type', 'customer')
+          .gte('start_date', startDateStr)
+          .lte('start_date', endDateStr)
           .is('deleted_at', null);
 
         if (!customersError && customers) {
@@ -174,7 +180,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         }
       }
 
-      // Count unique events (all events in date range)
+      // Count unique events in the selected date range
       const totalEvents = allEvents.length;
 
       let partlyPaid = 0;
@@ -184,10 +190,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const dailyBookings = new Map<string, number>();
       const monthlyIncomeMap = new Map<string, number>();
 
-      // Create a map to track which parent events we've already processed for payment
-      const processedParentEvents = new Set<string>();
-
-      // Process each event individually
+      // Process events for payment status and income calculation
       allEvents.forEach(event => {
         // Count payment status per event
         const paymentStatus = event.payment_status || '';
@@ -199,44 +202,17 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           fullyPaid++;
         }
 
-        // Calculate income only once per parent event (not per recurring instance)
-        let eventIncome = 0;
-        const eventIdForPayment = event.parent_event_id || event.id; // Use parent ID if child, otherwise use own ID
-        
-        // Only process payment if we haven't already processed this parent event
-        if (!processedParentEvents.has(eventIdForPayment)) {
-          processedParentEvents.add(eventIdForPayment);
-          
-          // Add main person income
-          if ((event.payment_status?.includes('partly') || 
-               event.payment_status?.includes('fully')) && 
-              event.payment_amount) {
-            const amount = typeof event.payment_amount === 'number' 
-              ? event.payment_amount 
-              : parseFloat(String(event.payment_amount));
-            if (!isNaN(amount) && amount > 0) {
-              eventIncome += amount;
-            }
-          }
-
-          // Add additional persons income (only for regular events, not booking requests)
-          if (event.type !== 'booking_request' && !event.parent_event_id) {
-            const eventAdditionalPersons = additionalPersons.filter(person => person.event_id === event.id);
-            eventAdditionalPersons.forEach(person => {
-              const personPaymentStatus = person.payment_status || '';
-              if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
-                const amount = typeof person.payment_amount === 'number' 
-                  ? person.payment_amount 
-                  : parseFloat(String(person.payment_amount));
-                if (!isNaN(amount) && amount > 0) {
-                  eventIncome += amount;
-                }
-              }
-            });
+        // Calculate income from main event
+        if ((event.payment_status?.includes('partly') || 
+             event.payment_status?.includes('fully')) && 
+            event.payment_amount) {
+          const amount = typeof event.payment_amount === 'number' 
+            ? event.payment_amount 
+            : parseFloat(String(event.payment_amount));
+          if (!isNaN(amount) && amount > 0) {
+            totalIncome += amount;
           }
         }
-
-        totalIncome += eventIncome;
 
         // Daily stats (count each event individually)
         if (event.start_date) {
@@ -245,13 +221,44 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
             const day = format(eventDate, 'yyyy-MM-dd');
             dailyBookings.set(day, (dailyBookings.get(day) || 0) + 1);
 
-            // Monthly income aggregation (only add income if we processed payment for this event)
-            if (eventIncome > 0) {
-              const month = format(eventDate, 'MMM yyyy');
-              monthlyIncomeMap.set(month, (monthlyIncomeMap.get(month) || 0) + eventIncome);
+            // Monthly income aggregation
+            const month = format(eventDate, 'MMM yyyy');
+            if ((event.payment_status?.includes('partly') || 
+                 event.payment_status?.includes('fully')) && 
+                event.payment_amount) {
+              const amount = typeof event.payment_amount === 'number' 
+                ? event.payment_amount 
+                : parseFloat(String(event.payment_amount));
+              if (!isNaN(amount) && amount > 0) {
+                monthlyIncomeMap.set(month, (monthlyIncomeMap.get(month) || 0) + amount);
+              }
             }
           } catch (dateError) {
             console.warn('Invalid date in event:', event.start_date);
+          }
+        }
+      });
+
+      // Add income from additional persons (only for regular events, not booking requests)
+      additionalPersons.forEach(person => {
+        const personPaymentStatus = person.payment_status || '';
+        if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
+          const amount = typeof person.payment_amount === 'number' 
+            ? person.payment_amount 
+            : parseFloat(String(person.payment_amount));
+          if (!isNaN(amount) && amount > 0) {
+            totalIncome += amount;
+            
+            // Add to monthly income if person has valid date
+            if (person.start_date) {
+              try {
+                const personDate = parseISO(person.start_date);
+                const month = format(personDate, 'MMM yyyy');
+                monthlyIncomeMap.set(month, (monthlyIncomeMap.get(month) || 0) + amount);
+              } catch (dateError) {
+                console.warn('Invalid date in person:', person.start_date);
+              }
+            }
           }
         }
       });
@@ -282,15 +289,15 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         events: allEvents || []
       };
 
-      console.log('🔧 Updated event stats result (including booking requests):', {
+      console.log('🔧 Event stats result for date range:', {
+        dateRange: `${startDateStr} to ${endDateStr}`,
         total: result.total,
         partlyPaid: result.partlyPaid,
         fullyPaid: result.fullyPaid,
         totalIncome: result.totalIncome,
         regularEventsCount: regularEvents?.length || 0,
         bookingRequestsCount: bookingRequests?.length || 0,
-        additionalPersonsCount: additionalPersons.length,
-        processedParentEventsCount: processedParentEvents.size
+        additionalPersonsCount: additionalPersons.length
       });
 
       return result;
