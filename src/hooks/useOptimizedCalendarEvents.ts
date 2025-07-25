@@ -1,4 +1,3 @@
-
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfDay, endOfDay } from 'date-fns';
@@ -70,7 +69,7 @@ export const useOptimizedCalendarEvents = (userId: string | undefined, currentDa
         throw eventsError;
       }
 
-      // Fetch booking requests with minimal fields - STRICT deleted_at filtering
+      // Fetch booking requests with minimal fields - STRICT deleted_at filtering and only approved bookings
       const { data: bookingRequests, error: bookingError } = await supabase
         .from('booking_requests')
         .select(`
@@ -84,6 +83,7 @@ export const useOptimizedCalendarEvents = (userId: string | undefined, currentDa
           deleted_at
         `)
         .eq('user_id', userId)
+        .eq('status', 'approved') // Only include approved bookings
         .gte('start_date', monthStart.toISOString())
         .lte('start_date', monthEnd.toISOString())
         .is('deleted_at', null) // CRITICAL: Only non-deleted bookings

@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { sendEventCreationEmail } from "@/lib/api";
 import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
+import { deleteCalendarEvent, clearCalendarCache } from "@/services/calendarService";
 
 interface EventDialogProps {
   open: boolean;
@@ -661,12 +662,29 @@ export const EventDialog = ({
     setIsLoading(true);
     
     try {
-      const { error } = await supabase
-        .from('events')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', eventId || initialData?.id);
+      // Determine if this is an approved booking request or an event linked to one
+      if (initialData?.type === 'booking_request' || initialData?.booking_request_id) {
+        // Use unified deletion to remove booking_request and any linked events
+        await deleteCalendarEvent(
+          initialData.id,
+          initialData.type === 'booking_request' ? 'booking_request' : 'event',
+          user?.id || ''
+        );
+      } else {
+        // Normal event deletion (soft-delete the event record)
+        const { error } = await supabase
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', eventId || initialData?.id);
+          
+        if (error) throw error;
         
-      if (error) throw error;
+        // Clear cache and broadcast, so all views are updated immediately
+        clearCalendarCache();
+        window.dispatchEvent(new CustomEvent('calendar-event-deleted', { detail: { timestamp: Date.now() } }));
+        localStorage.setItem('calendar_event_deleted', JSON.stringify({ timestamp: Date.now() }));
+        setTimeout(() => localStorage.removeItem('calendar_event_deleted'), 2000);
+      }
       
       toast({
         title: t("common.success"),
