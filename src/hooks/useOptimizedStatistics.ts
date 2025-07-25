@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format, parseISO, startOfMonth, endOfMonth, addMonths } from 'date-fns';
@@ -76,7 +75,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
     gcTime: 10 * 60 * 1000, // 10 minutes - reduced from 30
   });
 
-  // Fixed event stats query with proper payment counting for recurring events
+  // Updated event stats query to include both events and approved booking requests
   const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
     queryKey: ['optimized-event-stats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async (): Promise<OptimizedEventStats> => {
@@ -95,8 +94,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const startDateStr = dateRange.start.toISOString();
       const endDateStr = dateRange.end.toISOString();
 
-      // Get all events (both parent and instances) in the date range
-      const { data: allEvents, error: eventsError } = await supabase
+      // Get regular events from events table
+      const { data: regularEvents, error: eventsError } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
@@ -105,7 +104,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         .is('deleted_at', null);
 
       if (eventsError) {
-        console.error('Error fetching events:', eventsError);
+        console.error('Error fetching regular events:', eventsError);
         return {
           total: 0,
           partlyPaid: 0,
@@ -117,9 +116,47 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         };
       }
 
-      // FIX BUG 2: Get additional persons only for parent events (not child instances)
-      // This prevents payment double counting
-      const parentEventIds = allEvents
+      // Get approved booking requests from booking_requests table
+      const { data: bookingRequests, error: bookingError } = await supabase
+        .from('booking_requests')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'approved')
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
+        .is('deleted_at', null);
+
+      if (bookingError) {
+        console.error('Error fetching booking requests:', bookingError);
+        return {
+          total: 0,
+          partlyPaid: 0,
+          fullyPaid: 0,
+          totalIncome: 0,
+          monthlyIncome: [],
+          dailyStats: [],
+          events: []
+        };
+      }
+
+      // Combine both types of events
+      const allEvents = [
+        ...(regularEvents || []),
+        ...(bookingRequests || []).map(booking => ({
+          ...booking,
+          type: 'booking_request',
+          title: booking.title,
+          user_surname: booking.requester_name,
+          user_number: booking.requester_phone,
+          social_network_link: booking.requester_email,
+          event_notes: booking.description
+        }))
+      ];
+
+      console.log(`Found ${regularEvents?.length || 0} regular events and ${bookingRequests?.length || 0} approved booking requests`);
+
+      // Get additional persons only for parent events (not child instances)
+      const parentEventIds = regularEvents
         ?.filter(event => !event.parent_event_id) // Only parent events
         .map(event => event.id) || [];
 
@@ -138,7 +175,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       }
 
       // Count unique events (all events in date range)
-      const totalEvents = allEvents?.length || 0;
+      const totalEvents = allEvents.length;
 
       let partlyPaid = 0;
       let fullyPaid = 0;
@@ -147,11 +184,11 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const dailyBookings = new Map<string, number>();
       const monthlyIncomeMap = new Map<string, number>();
 
-      // FIX BUG 2: Create a map to track which parent events we've already processed for payment
+      // Create a map to track which parent events we've already processed for payment
       const processedParentEvents = new Set<string>();
 
       // Process each event individually
-      allEvents?.forEach(event => {
+      allEvents.forEach(event => {
         // Count payment status per event
         const paymentStatus = event.payment_status || '';
         
@@ -162,7 +199,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           fullyPaid++;
         }
 
-        // FIX BUG 2: Calculate income only once per parent event (not per recurring instance)
+        // Calculate income only once per parent event (not per recurring instance)
         let eventIncome = 0;
         const eventIdForPayment = event.parent_event_id || event.id; // Use parent ID if child, otherwise use own ID
         
@@ -170,24 +207,20 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         if (!processedParentEvents.has(eventIdForPayment)) {
           processedParentEvents.add(eventIdForPayment);
           
-          // Add main person income (only from parent event or standalone event)
-          const eventToProcessForPayment = event.parent_event_id 
-            ? allEvents?.find(e => e.id === event.parent_event_id) || event
-            : event;
-            
-          if ((eventToProcessForPayment.payment_status?.includes('partly') || 
-               eventToProcessForPayment.payment_status?.includes('fully')) && 
-              eventToProcessForPayment.payment_amount) {
-            const amount = typeof eventToProcessForPayment.payment_amount === 'number' 
-              ? eventToProcessForPayment.payment_amount 
-              : parseFloat(String(eventToProcessForPayment.payment_amount));
+          // Add main person income
+          if ((event.payment_status?.includes('partly') || 
+               event.payment_status?.includes('fully')) && 
+              event.payment_amount) {
+            const amount = typeof event.payment_amount === 'number' 
+              ? event.payment_amount 
+              : parseFloat(String(event.payment_amount));
             if (!isNaN(amount) && amount > 0) {
               eventIncome += amount;
             }
           }
 
-          // Add additional persons income (only for parent events)
-          if (!event.parent_event_id) {
+          // Add additional persons income (only for regular events, not booking requests)
+          if (event.type !== 'booking_request' && !event.parent_event_id) {
             const eventAdditionalPersons = additionalPersons.filter(person => person.event_id === event.id);
             eventAdditionalPersons.forEach(person => {
               const personPaymentStatus = person.payment_status || '';
@@ -249,11 +282,13 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         events: allEvents || []
       };
 
-      console.log('🔧 Fixed event stats result (Bug 2 - No payment double counting):', {
+      console.log('🔧 Updated event stats result (including booking requests):', {
         total: result.total,
         partlyPaid: result.partlyPaid,
         fullyPaid: result.fullyPaid,
         totalIncome: result.totalIncome,
+        regularEventsCount: regularEvents?.length || 0,
+        bookingRequestsCount: bookingRequests?.length || 0,
         additionalPersonsCount: additionalPersons.length,
         processedParentEventsCount: processedParentEvents.size
       });
