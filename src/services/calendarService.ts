@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from '@/lib/types/calendar';
 
@@ -184,83 +183,32 @@ export const deleteCalendarEvent = async (
 ): Promise<void> => {
   try {
     console.log(`[CalendarService] Deleting calendar entry: type=${eventType}, id=${eventId}`);
-    let bookingIdToDelete: string | undefined = undefined;
 
-    // 1. If it's a booking_request, always also delete any event linked by booking_request_id.
-    if (eventType === 'booking_request') {
-      // Soft delete booking request
-      await supabase
-        .from('booking_requests')
-        .update({ deleted_at: new Date().toISOString(), status: 'rejected' })
-        .eq('id', eventId);
+    // Delete by booking_request_id in events table (for approved bookings)
+    await supabase
+      .from('events')
+      .update({ deleted_at: new Date().toISOString() })
+      .or(`id.eq.${eventId},booking_request_id.eq.${eventId}`);
 
-      // Delete all events that reference this booking
-      const { data: linkedEvents } = await supabase
-        .from('events')
-        .select('id')
-        .eq('booking_request_id', eventId)
-        .is('deleted_at', null);
-      if (linkedEvents && linkedEvents.length > 0) {
-        await supabase
-          .from('events')
-          .update({ deleted_at: new Date().toISOString() })
-          .in('id', linkedEvents.map(e => e.id));
-      }
-    } else {
-      // 2. If it's an event, soft delete event and any children
-      // Fetch event to check for booking_request_id
-      const { data: event } = await supabase
-        .from('events')
-        .select('id, booking_request_id, parent_event_id')
-        .eq('id', eventId)
-        .is('deleted_at', null)
-        .maybeSingle();
-
-      // If event exists
-      if (event) {
-        // Delete the event
-        await supabase
-          .from('events')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('id', eventId);
-
-        // Delete all child events (recurring instances)
-        await supabase
-          .from('events')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('parent_event_id', eventId);
-
-        // If it is linked to a booking request, delete that too
-        if (event.booking_request_id) {
-          bookingIdToDelete = event.booking_request_id;
-          await supabase
-            .from('booking_requests')
-            .update({ deleted_at: new Date().toISOString(), status: 'rejected' })
-            .eq('id', event.booking_request_id);
-        }
-      }
-    }
-
-    // 3. As a fallback, always try to delete BOTH sides by ID (safe to re-update)
-    // This means: if you delete a booking_request, also try deleting it as event; vice versa.
+    // Always try to delete the booking_request itself
     await supabase
       .from('booking_requests')
       .update({ deleted_at: new Date().toISOString(), status: 'rejected' })
       .eq('id', eventId);
 
+    // Always try to delete the event itself (again, safe idempotent)
     await supabase
       .from('events')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', eventId);
 
-    if (bookingIdToDelete) {
-      await supabase
-        .from('booking_requests')
-        .update({ deleted_at: new Date().toISOString(), status: 'rejected' })
-        .eq('id', bookingIdToDelete);
-    }
+    // Try also by parent_event_id (for recurring events created from booking)
+    await supabase
+      .from('events')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('parent_event_id', eventId);
 
-    // Cache clearing and sync
+    // Clear all calendar caches and notify all tabs
     clearCalendarCache();
     window.dispatchEvent(new CustomEvent('calendar-event-deleted', {
       detail: { eventId, eventType, timestamp: Date.now() }
@@ -269,6 +217,14 @@ export const deleteCalendarEvent = async (
       eventId, eventType, timestamp: Date.now()
     }));
     setTimeout(() => localStorage.removeItem('calendar_event_deleted'), 2000);
+
+    // FORCE page reload for public business page if on one
+    if (
+      window.location.pathname.startsWith('/business/') &&
+      typeof window !== 'undefined'
+    ) {
+      setTimeout(() => window.location.reload(), 600); // allow cache clearing first
+    }
 
     console.log(`[CalendarService] Deleted all linked bookings/events for ID: ${eventId}`);
   } catch (error) {
