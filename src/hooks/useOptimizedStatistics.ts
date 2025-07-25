@@ -20,6 +20,12 @@ interface OptimizedEventStats {
   events: Array<any>;
 }
 
+interface OptimizedCustomerStats {
+  total: number;
+  withBooking: number;
+  withoutBooking: number;
+}
+
 export const useOptimizedStatistics = (userId: string | undefined, dateRange: { start: Date; end: Date }) => {
   // Optimized task stats with better error handling and direct query fallback
   const { data: taskStats, isLoading: isLoadingTaskStats } = useQuery({
@@ -307,9 +313,92 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
     gcTime: 15 * 60 * 1000,
   });
 
+  // New customer stats query that counts all persons/customers in events within date range
+  const { data: customerStats, isLoading: isLoadingCustomerStats } = useQuery({
+    queryKey: ['optimized-customer-stats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryFn: async (): Promise<OptimizedCustomerStats> => {
+      if (!userId) return { total: 0, withBooking: 0, withoutBooking: 0 };
+
+      console.log('Fetching customer stats for user:', userId, 'date range:', dateRange);
+
+      const startDateStr = dateRange.start.toISOString();
+      const endDateStr = dateRange.end.toISOString();
+
+      // Get all customers (including additional persons) from events in the date range
+      const { data: eventCustomers, error: eventCustomersError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
+        .is('deleted_at', null);
+
+      if (eventCustomersError) {
+        console.error('Error fetching event customers:', eventCustomersError);
+        return { total: 0, withBooking: 0, withoutBooking: 0 };
+      }
+
+      // Get main persons from regular events in the date range
+      const { data: regularEvents, error: regularEventsError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
+        .is('deleted_at', null);
+
+      if (regularEventsError) {
+        console.error('Error fetching regular events for customer stats:', regularEventsError);
+        return { total: 0, withBooking: 0, withoutBooking: 0 };
+      }
+
+      // Get main persons from approved booking requests in the date range
+      const { data: bookingRequests, error: bookingRequestsError } = await supabase
+        .from('booking_requests')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'approved')
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
+        .is('deleted_at', null);
+
+      if (bookingRequestsError) {
+        console.error('Error fetching booking requests for customer stats:', bookingRequestsError);
+        return { total: 0, withBooking: 0, withoutBooking: 0 };
+      }
+
+      // Count all persons/customers
+      const additionalPersonsCount = eventCustomers?.length || 0;
+      const mainEventsCount = (regularEvents?.length || 0) + (bookingRequests?.length || 0);
+      const totalCustomers = additionalPersonsCount + mainEventsCount;
+
+      // All of these are "with booking" since they're all from events
+      const withBooking = totalCustomers;
+      const withoutBooking = 0; // In this context, all customers are from events
+
+      console.log('Customer stats calculation:', {
+        additionalPersons: additionalPersonsCount,
+        mainEvents: mainEventsCount,
+        total: totalCustomers,
+        withBooking,
+        withoutBooking
+      });
+
+      return {
+        total: totalCustomers,
+        withBooking,
+        withoutBooking
+      };
+    },
+    enabled: !!userId,
+    staleTime: 3 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+  });
+
   return { 
     taskStats, 
     eventStats,
-    isLoading: isLoadingTaskStats || isLoadingEventStats
+    customerStats,
+    isLoading: isLoadingTaskStats || isLoadingEventStats || isLoadingCustomerStats
   };
 };

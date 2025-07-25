@@ -30,23 +30,9 @@ export const Statistics = () => {
   const userId = useMemo(() => user?.id, [user?.id]);
   
   // Use optimized hooks instead of original ones
-  const { taskStats, eventStats, isLoading } = useOptimizedStatistics(userId, dateRange);
+  const { taskStats, eventStats, customerStats, isLoading } = useOptimizedStatistics(userId, dateRange);
   const { combinedData, isLoading: isLoadingCRM } = useOptimizedCRMData(userId, dateRange);
   const { exportToExcel } = useExcelExport();
-
-  // Calculate customer statistics from optimized data
-  const customerStats = useMemo(() => {
-    if (!combinedData) return { total: 0, withBooking: 0, withoutBooking: 0 };
-    
-    const total = combinedData.length;
-    const withBooking = combinedData.filter(item => 
-      item.create_event === true || 
-      (item.start_date && item.end_date)
-    ).length;
-    const withoutBooking = total - withBooking;
-    
-    return { total, withBooking, withoutBooking };
-  }, [combinedData]);
 
   // Add effect to validate eventStats and totalIncome specifically
   useEffect(() => {
@@ -69,6 +55,7 @@ export const Statistics = () => {
       // Invalidate all statistics-related queries to force fresh data
       queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] });
       queryClient.invalidateQueries({ queryKey: ['optimized-event-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['optimized-customer-stats'] });
       queryClient.invalidateQueries({ queryKey: ['optimized-customers'] });
       
       // Also invalidate legacy query keys for compatibility
@@ -110,7 +97,7 @@ export const Statistics = () => {
   }, [queryClient, userId]); // Include userId to refresh when user changes
 
   const handleExport = useCallback(() => {
-    if (taskStats && eventStats) {
+    if (taskStats && eventStats && customerStats) {
       // Pass customer stats to the export function
       exportToExcel({ taskStats, eventStats, customerStats });
     }
@@ -122,10 +109,11 @@ export const Statistics = () => {
     
     // Immediately refresh data when date range changes
     queryClient.invalidateQueries({ queryKey: ['optimized-event-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['optimized-customer-stats'] });
     queryClient.invalidateQueries({ queryKey: ['optimized-customers'] });
   }, [queryClient]);
 
-  // Default task stats
+  // Default stats
   const defaultTaskStats = useMemo(() => ({ 
     total: 0, 
     completed: 0, 
@@ -142,7 +130,6 @@ export const Statistics = () => {
     dailyStats: []
   }), []);
 
-  // Default customer stats
   const defaultCustomerStats = useMemo(() => ({
     total: 0,
     withBooking: 0,
