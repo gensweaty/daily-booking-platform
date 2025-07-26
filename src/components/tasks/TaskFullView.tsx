@@ -1,7 +1,7 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Task } from "@/lib/types";
-import { FileDisplay } from "../shared/FileDisplay";
+import { SimpleFileDisplay } from "../shared/SimpleFileDisplay";
 import { TaskDateInfo } from "./TaskDateInfo";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -166,13 +166,12 @@ export const TaskFullView = ({
                     </h3>
                   </div>
                   <div className="bg-muted/30 rounded-md p-3 border border-muted/40">
-                    <FileDisplay 
+                    <SimpleFileDisplay 
                       files={files} 
-                      bucketName="event_attachments" 
+                      parentType="task"
                       allowDelete={!isArchived}
                       onFileDeleted={handleFileDeleted}
                       parentId={task.id}
-                      parentType="task"
                     />
                   </div>
                 </CardContent>
