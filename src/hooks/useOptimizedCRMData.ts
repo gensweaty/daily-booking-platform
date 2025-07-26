@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -21,41 +20,44 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         .is('event_id', null)
         .gte('created_at', startDateStr)
         .lte('created_at', endDateStr)
-        .is('deleted_at', null);
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false }); // Order by creation date DESC
 
       if (customersError) {
         console.error('Error fetching standalone customers:', customersError);
       }
 
-      // Get events in date range (only parent events to avoid duplicates)
+      // Get events in date range (only parent events to avoid duplicates) - filter by EVENT created_at
       const { data: events, error: eventsError } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
-        .gte('start_date', startDateStr)
-        .lte('start_date', endDateStr)
+        .gte('created_at', startDateStr) // Filter by event creation date, not start_date
+        .lte('created_at', endDateStr)   // Filter by event creation date, not start_date
         .is('deleted_at', null)
-        .is('parent_event_id', null); // Only parent events
+        .is('parent_event_id', null) // Only parent events
+        .order('created_at', { ascending: false }); // Order by creation date DESC
 
       if (eventsError) {
         console.error('Error fetching events:', eventsError);
       }
 
-      // Get approved booking requests in date range
+      // Get approved booking requests in date range - filter by booking request created_at
       const { data: bookingRequests, error: bookingRequestsError } = await supabase
         .from('booking_requests')
         .select('*')
         .eq('user_id', userId)
         .eq('status', 'approved')
-        .gte('start_date', startDateStr)
-        .lte('start_date', endDateStr)
-        .is('deleted_at', null);
+        .gte('created_at', startDateStr) // Filter by booking creation date, not start_date
+        .lte('created_at', endDateStr)   // Filter by booking creation date, not start_date
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false }); // Order by creation date DESC
 
       if (bookingRequestsError) {
         console.error('Error fetching booking requests:', bookingRequestsError);
       }
 
-      // Get additional persons linked to events - filter by CUSTOMER created_at date, not event date
+      // Get additional persons linked to events - filter by CUSTOMER created_at date
       const { data: eventLinkedCustomers, error: eventCustomersError } = await supabase
         .from('customers')
         .select('*')
@@ -63,7 +65,8 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         .eq('type', 'customer')
         .gte('created_at', startDateStr) // Filter by customer creation date
         .lte('created_at', endDateStr)   // Filter by customer creation date
-        .is('deleted_at', null);
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false }); // Order by creation date DESC
 
       if (eventCustomersError) {
         console.error('Error fetching event customers:', eventCustomersError);
@@ -82,24 +85,23 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         create_event: true
       }));
 
-      // Combine all unique customers
-      const uniqueCustomers = new Map<string, any>();
+      // Combine all data into a single array to sort by creation date
+      const allData = [];
 
       // Add standalone customers
       (standaloneCustomers || []).forEach(customer => {
-        const key = `standalone-${customer.id}`;
-        uniqueCustomers.set(key, {
+        allData.push({
           ...customer,
           source: 'standalone',
-          create_event: customer.create_event || false
+          create_event: customer.create_event || false,
+          sort_date: customer.created_at
         });
       });
 
       // Add main persons from events as customers
       (events || []).forEach(event => {
-        const key = `event-${event.id}`;
-        uniqueCustomers.set(key, {
-          id: event.id,
+        allData.push({
+          id: `event-${event.id}`,
           title: event.title || event.user_surname,
           user_surname: event.user_surname,
           user_number: event.user_number,
@@ -112,27 +114,54 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
           created_at: event.created_at,
           user_id: event.user_id,
           source: 'event',
-          create_event: true
+          create_event: true,
+          sort_date: event.created_at
         });
       });
 
       // Add transformed booking requests
       transformedBookingRequests.forEach(booking => {
-        const key = `booking-${booking.id}`;
-        uniqueCustomers.set(key, booking);
+        allData.push({
+          ...booking,
+          sort_date: booking.created_at
+        });
       });
 
       // Add additional persons from events (filtered by customer creation date)
       (eventLinkedCustomers || []).forEach(customer => {
-        const key = `additional-${customer.id}`;
-        uniqueCustomers.set(key, {
+        allData.push({
           ...customer,
           source: 'additional',
-          create_event: true
+          create_event: true,
+          sort_date: customer.created_at
         });
       });
 
-      const result = Array.from(uniqueCustomers.values());
+      // Remove duplicates using a Map based on unique identifiers
+      const uniqueData = new Map();
+      
+      allData.forEach(item => {
+        let key;
+        if (item.source === 'event') {
+          key = `event-${item.id.replace('event-', '')}`;
+        } else if (item.source === 'booking_request') {
+          key = `booking-${item.id.replace('booking-', '')}`;
+        } else {
+          key = `customer-${item.id}`;
+        }
+        
+        // Keep the most recent version if duplicate found
+        if (!uniqueData.has(key) || new Date(item.sort_date) > new Date(uniqueData.get(key).sort_date)) {
+          uniqueData.set(key, item);
+        }
+      });
+
+      // Convert back to array and sort by creation date (newest first)
+      const result = Array.from(uniqueData.values()).sort((a, b) => {
+        const dateA = new Date(a.sort_date || a.created_at || 0);
+        const dateB = new Date(b.sort_date || b.created_at || 0);
+        return dateB.getTime() - dateA.getTime(); // DESC order (newest first)
+      });
 
       console.log('CRM data result:', {
         standaloneCustomers: standaloneCustomers?.length || 0,
@@ -140,7 +169,8 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         bookingRequests: bookingRequests?.length || 0,
         eventLinkedCustomers: eventLinkedCustomers?.length || 0,
         totalUniqueCustomers: result.length,
-        dateRange: `${startDateStr} to ${endDateStr}`
+        dateRange: `${startDateStr} to ${endDateStr}`,
+        sortedByCreationDate: true
       });
 
       return result;

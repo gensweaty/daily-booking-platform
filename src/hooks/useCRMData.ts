@@ -25,7 +25,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     [dateRange.start, dateRange.end, userId]
   );
 
-  // Fetch customers with optimized query and proper date filtering
+  // Fetch customers with optimized query and proper date filtering - ORDER BY created_at DESC
   const fetchCustomers = useCallback(async () => {
     if (!userId) return [];
     
@@ -34,8 +34,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       end: endOfDay(dateRange.end).toISOString()
     });
     
-    // Improved query: use explicit date range filters that match how we filter events
-    // This ensures consistent filtering between customers and events
+    // Filter customers by their creation date (when they were added to the system)
     const { data, error } = await supabase
       .from('customers')
       .select(`
@@ -43,14 +42,10 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
         customer_files_new(*)
       `)
       .eq('user_id', userId)
-      .or(
-        `start_date.gte.${dateRange.start.toISOString()},created_at.gte.${dateRange.start.toISOString()}`
-      )
-      .or(
-        `start_date.lte.${endOfDay(dateRange.end).toISOString()},created_at.lte.${endOfDay(dateRange.end).toISOString()}`
-      )
+      .gte('created_at', dateRange.start.toISOString())
+      .lte('created_at', endOfDay(dateRange.end).toISOString())
       .is('deleted_at', null)
-      .order('created_at', { ascending: false }); // Sort by created_at in descending order
+      .order('created_at', { ascending: false }); // Sort by created_at in descending order (newest first)
 
     if (error) {
       console.error("Error fetching customers:", error);
@@ -60,20 +55,21 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     return data || [];
   }, [userId, dateRange.start, dateRange.end]);
 
-  // Fetch events with optimized query - ONLY fetch parent events to avoid duplicates
+  // Fetch events with optimized query - ONLY fetch parent events to avoid duplicates, ORDER BY created_at DESC
   const fetchEvents = useCallback(async () => {
     if (!userId) return [];
     
     console.log("Fetching events for user:", userId);
+    // Filter events by their creation date (when they were added to the system)
     const { data: events, error: eventsError } = await supabase
       .from('events')
       .select('*')
       .eq('user_id', userId)
-      .gte('start_date', dateRange.start.toISOString())
-      .lte('start_date', endOfDay(dateRange.end).toISOString())
+      .gte('created_at', dateRange.start.toISOString())
+      .lte('created_at', endOfDay(dateRange.end).toISOString())
       .is('deleted_at', null)
       .is('parent_event_id', null) // ONLY fetch parent events, not child instances
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false }); // Sort by created_at in descending order (newest first)
 
     if (eventsError) {
       console.error("Error fetching events:", eventsError);
@@ -134,7 +130,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     refetchOnWindowFocus: false,
   });
 
-  // Pre-process combined data with improved deduplication
+  // Pre-process combined data with improved deduplication and proper sorting
   const combinedData = useMemo(() => {
     // Return empty array quickly if still loading initial data
     if (isLoadingCustomers || isLoadingEvents) return [];
@@ -213,11 +209,11 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       itemSignatureMap.set(signature, true);
     }
     
-    // Sort by created_at in descending order
+    // Sort by created_at in descending order (newest first)
     combined.sort((a, b) => {
       const dateA = new Date(a.created_at || 0).getTime();
       const dateB = new Date(b.created_at || 0).getTime();
-      return dateB - dateA;
+      return dateB - dateA; // DESC order (newest first)
     });
     
     return combined;
