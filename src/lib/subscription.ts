@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { addDays } from "date-fns";
 import { SubscriptionPlan } from "@/types/subscription-types";
@@ -106,32 +105,7 @@ export const redeemCode = async (code: string): Promise<{ success: boolean; mess
     const trimmedCode = code.trim();
     console.log('Trimmed code:', trimmedCode);
 
-    // Step 3: Check if code exists and is valid
-    console.log('Checking code in database...');
-    const { data: codeData, error: codeError } = await supabase
-      .from('redeem_codes')
-      .select('*')
-      .eq('code', trimmedCode)
-      .maybeSingle();
-
-    if (codeError) {
-      console.error('Database error checking code:', codeError);
-      return { success: false, message: 'Database error. Please try again.' };
-    }
-
-    if (!codeData) {
-      console.log('Code not found in database');
-      return { success: false, message: 'Invalid code. Please check and try again.' };
-    }
-
-    console.log('Code found in database:', codeData);
-
-    if (codeData.is_used) {
-      console.log('Code already used');
-      return { success: false, message: 'This code has already been used.' };
-    }
-
-    // Step 4: Check if user already has ultimate subscription
+    // Step 3: Check if user already has ultimate subscription
     console.log('Checking existing subscription...');
     const { data: existingSub, error: subError } = await supabase
       .from('subscriptions')
@@ -151,82 +125,25 @@ export const redeemCode = async (code: string): Promise<{ success: boolean; mess
 
     console.log('Existing subscription:', existingSub);
 
-    // Step 5: Get ultimate plan
-    console.log('Getting ultimate plan...');
-    const { data: ultimatePlan, error: planError } = await supabase
-      .from('subscription_plans')
-      .select('*')
-      .eq('type', 'ultimate')
-      .maybeSingle();
-
-    if (planError || !ultimatePlan) {
-      console.error('Error getting ultimate plan:', planError);
-      return { success: false, message: 'Ultimate plan not found. Please contact support.' };
-    }
-
-    console.log('Ultimate plan found:', ultimatePlan);
-
-    // Step 6: Mark code as used and create/update subscription
-    console.log('Starting transaction...');
+    // Step 4: Use database function to validate and redeem code
+    console.log('Validating and redeeming code using database function...');
     
-    // First mark the code as used
-    const { error: updateCodeError } = await supabase
-      .from('redeem_codes')
-      .update({
-        is_used: true,
-        used_by: userId,
-        used_at: new Date().toISOString()
-      })
-      .eq('code', trimmedCode)
-      .eq('is_used', false); // Ensure it's still unused
+    const { data: redeemResult, error: redeemError } = await supabase
+      .rpc('validate_and_use_redeem_code', {
+        p_code: trimmedCode,
+        p_user_id: userId
+      });
 
-    if (updateCodeError) {
-      console.error('Error marking code as used:', updateCodeError);
-      return { success: false, message: 'Failed to process code. Please try again.' };
+    if (redeemError) {
+      console.error('Error calling redeem function:', redeemError);
+      return { success: false, message: 'Database error. Please try again.' };
     }
 
-    console.log('Code marked as used successfully');
+    console.log('Redeem function result:', redeemResult);
 
-    // Then create or update subscription
-    if (existingSub) {
-      // Update existing subscription to ultimate
-      console.log('Updating existing subscription to ultimate...');
-      const { error: updateSubError } = await supabase
-        .from('subscriptions')
-        .update({
-          plan_id: ultimatePlan.id,
-          plan_type: 'ultimate',
-          status: 'active',
-          current_period_start: new Date().toISOString(),
-          current_period_end: null,
-          trial_end_date: null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId);
-
-      if (updateSubError) {
-        console.error('Error updating subscription:', updateSubError);
-        return { success: false, message: 'Failed to upgrade subscription. Please contact support.' };
-      }
-    } else {
-      // Create new ultimate subscription
-      console.log('Creating new ultimate subscription...');
-      const { error: createSubError } = await supabase
-        .from('subscriptions')
-        .insert({
-          user_id: userId,
-          plan_id: ultimatePlan.id,
-          plan_type: 'ultimate',
-          status: 'active',
-          current_period_start: new Date().toISOString(),
-          current_period_end: null,
-          trial_end_date: null
-        });
-
-      if (createSubError) {
-        console.error('Error creating subscription:', createSubError);
-        return { success: false, message: 'Failed to create subscription. Please contact support.' };
-      }
+    if (!redeemResult) {
+      console.log('Code redemption failed - invalid or already used code');
+      return { success: false, message: 'Invalid code or code has already been used.' };
     }
 
     console.log('=== REDEEM CODE PROCESS SUCCESS ===');
