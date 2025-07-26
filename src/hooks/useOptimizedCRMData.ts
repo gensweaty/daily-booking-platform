@@ -13,14 +13,14 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
       const startDateStr = dateRange.start.toISOString();
       const endDateStr = dateRange.end.toISOString();
 
-      // Get standalone customers (not linked to events) - filter by start_date if available, otherwise created_at
+      // Get standalone customers (not linked to events) - filter by CUSTOMER created_at date
       const { data: standaloneCustomers, error: customersError } = await supabase
         .from('customers')
         .select('*')
         .eq('user_id', userId)
         .is('event_id', null)
-        .or(`start_date.gte.${startDateStr},and(start_date.is.null,created_at.gte.${startDateStr})`)
-        .or(`start_date.lte.${endDateStr},and(start_date.is.null,created_at.lte.${endDateStr})`)
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
         .is('deleted_at', null);
 
       if (customersError) {
@@ -55,24 +55,18 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         console.error('Error fetching booking requests:', bookingRequestsError);
       }
 
-      // Get additional persons linked to parent events in date range
-      const parentEventIds = events?.map(event => event.id) || [];
-      let eventLinkedCustomers: any[] = [];
+      // Get additional persons linked to events - filter by CUSTOMER created_at date, not event date
+      const { data: eventLinkedCustomers, error: eventCustomersError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('type', 'customer')
+        .gte('created_at', startDateStr) // Filter by customer creation date
+        .lte('created_at', endDateStr)   // Filter by customer creation date
+        .is('deleted_at', null);
 
-      if (parentEventIds.length > 0) {
-        const { data: customers, error: eventCustomersError } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('user_id', userId)
-          .in('event_id', parentEventIds)
-          .eq('type', 'customer')
-          .gte('start_date', startDateStr)
-          .lte('start_date', endDateStr)
-          .is('deleted_at', null);
-
-        if (!eventCustomersError && customers) {
-          eventLinkedCustomers = customers;
-        }
+      if (eventCustomersError) {
+        console.error('Error fetching event customers:', eventCustomersError);
       }
 
       // Transform booking requests to match customer structure
@@ -128,8 +122,8 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         uniqueCustomers.set(key, booking);
       });
 
-      // Add additional persons from events
-      eventLinkedCustomers.forEach(customer => {
+      // Add additional persons from events (filtered by customer creation date)
+      (eventLinkedCustomers || []).forEach(customer => {
         const key = `additional-${customer.id}`;
         uniqueCustomers.set(key, {
           ...customer,
@@ -144,7 +138,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         standaloneCustomers: standaloneCustomers?.length || 0,
         events: events?.length || 0,
         bookingRequests: bookingRequests?.length || 0,
-        eventLinkedCustomers: eventLinkedCustomers.length,
+        eventLinkedCustomers: eventLinkedCustomers?.length || 0,
         totalUniqueCustomers: result.length,
         dateRange: `${startDateStr} to ${endDateStr}`
       });

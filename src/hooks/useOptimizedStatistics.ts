@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format, parseISO, startOfMonth, endOfMonth, addMonths } from 'date-fns';
@@ -165,7 +164,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
 
       console.log(`Found ${regularEvents?.length || 0} regular events and ${bookingRequests?.length || 0} approved booking requests in date range`);
 
-      // Get additional persons only for parent events (not child instances) that are in the date range
+      // Get additional persons only for parent events (not child instances) that have events in the date range
       const parentEventIds = regularEvents
         ?.filter(event => !event.parent_event_id) // Only parent events
         .map(event => event.id) || [];
@@ -177,8 +176,6 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           .select('*')
           .in('event_id', parentEventIds)
           .eq('type', 'customer')
-          .gte('start_date', startDateStr)
-          .lte('start_date', endDateStr)
           .is('deleted_at', null);
 
         if (!customersError && customers) {
@@ -245,7 +242,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         }
       });
 
-      // Add income from additional persons (only for regular events, not booking requests)
+      // Add income from additional persons
       additionalPersons.forEach(person => {
         const personPaymentStatus = person.payment_status || '';
         if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
@@ -313,7 +310,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
     gcTime: 15 * 60 * 1000,
   });
 
-  // New customer stats query that counts all persons/customers in events within date range
+  // Updated customer stats query to count customers by their creation date, not event date
   const { data: customerStats, isLoading: isLoadingCustomerStats } = useQuery({
     queryKey: ['optimized-customer-stats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async (): Promise<OptimizedCustomerStats> => {
@@ -324,27 +321,27 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const startDateStr = dateRange.start.toISOString();
       const endDateStr = dateRange.end.toISOString();
 
-      // Get all customers (including additional persons) from events in the date range
-      const { data: eventCustomers, error: eventCustomersError } = await supabase
+      // Get all customers created in the date range (filter by customer creation date)
+      const { data: allCustomers, error: customersError } = await supabase
         .from('customers')
         .select('*')
         .eq('user_id', userId)
-        .gte('start_date', startDateStr)
-        .lte('start_date', endDateStr)
+        .gte('created_at', startDateStr) // Filter by customer creation date
+        .lte('created_at', endDateStr)   // Filter by customer creation date
         .is('deleted_at', null);
 
-      if (eventCustomersError) {
-        console.error('Error fetching event customers:', eventCustomersError);
+      if (customersError) {
+        console.error('Error fetching customers:', customersError);
         return { total: 0, withBooking: 0, withoutBooking: 0 };
       }
 
-      // Get main persons from regular events in the date range
+      // Get main persons from regular events created in the date range
       const { data: regularEvents, error: regularEventsError } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
-        .gte('start_date', startDateStr)
-        .lte('start_date', endDateStr)
+        .gte('created_at', startDateStr) // Filter by event creation date
+        .lte('created_at', endDateStr)   // Filter by event creation date
         .is('deleted_at', null);
 
       if (regularEventsError) {
@@ -352,14 +349,14 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         return { total: 0, withBooking: 0, withoutBooking: 0 };
       }
 
-      // Get main persons from approved booking requests in the date range
+      // Get main persons from approved booking requests created in the date range
       const { data: bookingRequests, error: bookingRequestsError } = await supabase
         .from('booking_requests')
         .select('*')
         .eq('user_id', userId)
         .eq('status', 'approved')
-        .gte('start_date', startDateStr)
-        .lte('start_date', endDateStr)
+        .gte('created_at', startDateStr) // Filter by booking request creation date
+        .lte('created_at', endDateStr)   // Filter by booking request creation date
         .is('deleted_at', null);
 
       if (bookingRequestsError) {
@@ -367,17 +364,17 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         return { total: 0, withBooking: 0, withoutBooking: 0 };
       }
 
-      // Count all persons/customers
-      const additionalPersonsCount = eventCustomers?.length || 0;
+      // Count all persons/customers created in the date range
+      const customersCount = allCustomers?.length || 0;
       const mainEventsCount = (regularEvents?.length || 0) + (bookingRequests?.length || 0);
-      const totalCustomers = additionalPersonsCount + mainEventsCount;
+      const totalCustomers = customersCount + mainEventsCount;
 
-      // All of these are "with booking" since they're all from events
+      // All of these are "with booking" since they're all from events or are customers
       const withBooking = totalCustomers;
-      const withoutBooking = 0; // In this context, all customers are from events
+      const withoutBooking = 0; // In this context, all customers are associated with events
 
-      console.log('Customer stats calculation:', {
-        additionalPersons: additionalPersonsCount,
+      console.log('Customer stats calculation (by creation date):', {
+        customersFromCRM: customersCount,
         mainEvents: mainEventsCount,
         total: totalCustomers,
         withBooking,
