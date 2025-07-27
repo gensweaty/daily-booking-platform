@@ -289,6 +289,7 @@ export const translations: TranslationType = {
     withoutBooking: "sin reserva"
   },
   events: {
+    addEvent: "Añadir evento",
     submitBookingRequest: "Enviar solicitud de reserva",
     fullNameRequired: "Nombre completo",
     fullName: "Nombre completo",
