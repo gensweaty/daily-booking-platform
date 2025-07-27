@@ -36,7 +36,7 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete }: TaskCardProp
     switch (status) {
       case 'in-progress':
         return 'border-l-4 border-l-amber-500';
-      case 'completed':
+      case 'done':
         return 'border-l-4 border-l-green-500';
       default:
         return 'border-l-4 border-l-gray-300 dark:border-l-gray-600';
@@ -58,7 +58,7 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete }: TaskCardProp
           className={`p-4 bg-background dark:bg-gray-800 rounded-lg shadow ${getTaskStyle(task.status)}`}
         >
           <div className="flex justify-between items-start gap-2">
-            <div className={`flex-1 min-w-0 ${task.status === 'completed' ? 'line-through text-gray-500' : 'text-foreground'}`}>
+            <div className={`flex-1 min-w-0 ${task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'}`}>
               <div className="flex items-start gap-2 mb-2">
                 <div className="flex-1 min-w-0">
                   {isGeorgian ? (

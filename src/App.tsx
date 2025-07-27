@@ -248,43 +248,41 @@ const BusinessRouteInterceptor = () => {
 // Inner App component that uses router hooks
 const AppContent = () => {
   return (
-    <LanguageProvider>
-      <SessionAndRealtimeWrapper>
-        <AuthProvider>
-          <SEOManager />
-          <BusinessRouteInterceptor />
-          <RouteAwareThemeProvider>
-            <RouteAwareWrapper>
-              <Routes>
-                <Route path="/" element={<Landing />} />
-                <Route path="/dashboard" element={<Index />} />
-                <Route path="/dashboard/*" element={<Index />} />
-                <Route path="/legal" element={<Legal />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/business/:slug" element={<PublicBusinessPage />} />
-                <Route path="/business" element={<PublicBusinessPage />} />
-                <Route path="/login" element={<Index />} />
-                <Route path="/signup" element={<Index />} />
-                {/* Admin Panel Routes */}
-                <Route path="/admin-panel" element={<AdminPanel />} />
-                <Route 
-                  path="/admin-panel/dashboard" 
-                  element={
-                    <AdminRoute>
-                      <AdminPanelDashboard />
-                    </AdminRoute>
-                  } 
-                />
-                <Route path="*" element={<Landing />} />
-              </Routes>
-              <Toaster />
-            </RouteAwareWrapper>
-          </RouteAwareThemeProvider>
-        </AuthProvider>
-      </SessionAndRealtimeWrapper>
-    </LanguageProvider>
+    <SessionAndRealtimeWrapper>
+      <AuthProvider>
+        <SEOManager />
+        <BusinessRouteInterceptor />
+        <RouteAwareThemeProvider>
+          <RouteAwareWrapper>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/dashboard" element={<Index />} />
+              <Route path="/dashboard/*" element={<Index />} />
+              <Route path="/legal" element={<Legal />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/business/:slug" element={<PublicBusinessPage />} />
+              <Route path="/business" element={<PublicBusinessPage />} />
+              <Route path="/login" element={<Index />} />
+              <Route path="/signup" element={<Index />} />
+              {/* Admin Panel Routes */}
+              <Route path="/admin-panel" element={<AdminPanel />} />
+              <Route 
+                path="/admin-panel/dashboard" 
+                element={
+                  <AdminRoute>
+                    <AdminPanelDashboard />
+                  </AdminRoute>
+                } 
+              />
+              <Route path="*" element={<Landing />} />
+            </Routes>
+            <Toaster />
+          </RouteAwareWrapper>
+        </RouteAwareThemeProvider>
+      </AuthProvider>
+    </SessionAndRealtimeWrapper>
   );
 };
 
@@ -329,11 +327,13 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-        <BrowserRouter>
-          <AppContent />
-        </BrowserRouter>
-      </ThemeProvider>
+      <LanguageProvider>
+        <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+          <BrowserRouter>
+            <AppContent />
+          </BrowserRouter>
+        </ThemeProvider>
+      </LanguageProvider>
     </QueryClientProvider>
   );
 }
