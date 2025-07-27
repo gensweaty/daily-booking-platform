@@ -42,3 +42,5 @@ export interface Reminder {
   updated_at: string;
   remind_at: string;
 }
+
+export type PaymentStatus = 'pending' | 'paid' | 'overdue' | 'cancelled';

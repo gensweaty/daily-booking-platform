@@ -15,24 +15,24 @@ export const getTasks = async () => {
 
   if (error) throw error;
   
-  // Map database fields to TypeScript interface
+  // Map database fields to TypeScript interface with proper type casting
   return (data || []).map(task => ({
     id: task.id,
     user_id: task.user_id,
     title: task.title,
-    description: task.description,
-    status: task.status,
-    priority: task.priority,
+    description: task.description || '',
+    status: task.status as 'todo' | 'in_progress' | 'completed',
+    priority: task.priority as 'low' | 'medium' | 'high' | undefined,
     due_date: task.due_date,
     created_at: task.created_at,
     updated_at: task.updated_at || task.created_at,
-    is_archived: task.is_archived,
-    position: task.position,
+    is_archived: task.is_archived || false,
+    position: task.position || 0,
     deadline_at: task.deadline_at,
     reminder_at: task.reminder_at,
-    email_reminder: task.email_reminder,
-    reminder_sent: task.reminder_sent,
-    archived: task.archived,
+    email_reminder: task.email_reminder || false,
+    reminder_sent: task.reminder_sent || false,
+    archived: task.archived || false,
     archived_at: task.archived_at,
     deleted_at: task.deleted_at,
   }));
@@ -61,19 +61,19 @@ export const createTask = async (taskData: {
     id: data.id,
     user_id: data.user_id,
     title: data.title,
-    description: data.description,
-    status: data.status,
-    priority: data.priority,
+    description: data.description || '',
+    status: data.status as 'todo' | 'in_progress' | 'completed',
+    priority: data.priority as 'low' | 'medium' | 'high' | undefined,
     due_date: data.due_date,
     created_at: data.created_at,
     updated_at: data.updated_at || data.created_at,
-    is_archived: data.is_archived,
-    position: data.position,
+    is_archived: data.is_archived || false,
+    position: data.position || 0,
     deadline_at: data.deadline_at,
     reminder_at: data.reminder_at,
-    email_reminder: data.email_reminder,
-    reminder_sent: data.reminder_sent,
-    archived: data.archived,
+    email_reminder: data.email_reminder || false,
+    reminder_sent: data.reminder_sent || false,
+    archived: data.archived || false,
     archived_at: data.archived_at,
     deleted_at: data.deleted_at,
   };
@@ -93,19 +93,19 @@ export const updateTask = async (id: string, updates: any) => {
     id: data.id,
     user_id: data.user_id,
     title: data.title,
-    description: data.description,
-    status: data.status,
-    priority: data.priority,
+    description: data.description || '',
+    status: data.status as 'todo' | 'in_progress' | 'completed',
+    priority: data.priority as 'low' | 'medium' | 'high' | undefined,
     due_date: data.due_date,
     created_at: data.created_at,
     updated_at: data.updated_at || data.created_at,
-    is_archived: data.is_archived,
-    position: data.position,
+    is_archived: data.is_archived || false,
+    position: data.position || 0,
     deadline_at: data.deadline_at,
     reminder_at: data.reminder_at,
-    email_reminder: data.email_reminder,
-    reminder_sent: data.reminder_sent,
-    archived: data.archived,
+    email_reminder: data.email_reminder || false,
+    reminder_sent: data.reminder_sent || false,
+    archived: data.archived || false,
     archived_at: data.archived_at,
     deleted_at: data.deleted_at,
   };
@@ -138,19 +138,19 @@ export const getTasksForUser = async () => {
     id: task.id,
     user_id: task.user_id,
     title: task.title,
-    description: task.description,
-    status: task.status,
-    priority: task.priority,
+    description: task.description || '',
+    status: task.status as 'todo' | 'in_progress' | 'completed',
+    priority: task.priority as 'low' | 'medium' | 'high' | undefined,
     due_date: task.due_date,
     created_at: task.created_at,
     updated_at: task.updated_at || task.created_at,
-    is_archived: task.is_archived,
-    position: task.position,
+    is_archived: task.is_archived || false,
+    position: task.position || 0,
     deadline_at: task.deadline_at,
     reminder_at: task.reminder_at,
-    email_reminder: task.email_reminder,
-    reminder_sent: task.reminder_sent,
-    archived: task.archived,
+    email_reminder: task.email_reminder || false,
+    reminder_sent: task.reminder_sent || false,
+    archived: task.archived || false,
     archived_at: task.archived_at,
     deleted_at: task.deleted_at,
   }));
@@ -183,19 +183,19 @@ export const getArchivedTasks = async () => {
     id: task.id,
     user_id: task.user_id,
     title: task.title,
-    description: task.description,
-    status: task.status,
-    priority: task.priority,
+    description: task.description || '',
+    status: task.status as 'todo' | 'in_progress' | 'completed',
+    priority: task.priority as 'low' | 'medium' | 'high' | undefined,
     due_date: task.due_date,
     created_at: task.created_at,
     updated_at: task.updated_at || task.created_at,
-    is_archived: task.is_archived,
-    position: task.position,
+    is_archived: task.is_archived || false,
+    position: task.position || 0,
     deadline_at: task.deadline_at,
     reminder_at: task.reminder_at,
-    email_reminder: task.email_reminder,
-    reminder_sent: task.reminder_sent,
-    archived: task.archived,
+    email_reminder: task.email_reminder || false,
+    reminder_sent: task.reminder_sent || false,
+    archived: task.archived || false,
     archived_at: task.archived_at,
     deleted_at: task.deleted_at,
   }));
@@ -391,8 +391,7 @@ export const sendEventCreationEmail = async (
   paymentAmount: number | null,
   businessAddress: string,
   eventId: string,
-  language: string,
-  eventNotes: string
+  language: string
 ): Promise<{ success: boolean; error?: string }> => {
   try {
     const { data, error } = await supabase.functions.invoke('send-booking-request-notification', {
@@ -406,8 +405,7 @@ export const sendEventCreationEmail = async (
         paymentAmount,
         businessAddress,
         eventId,
-        language,
-        eventNotes
+        language
       }
     });
 
@@ -496,13 +494,16 @@ export const sendBookingConfirmationToMultipleRecipients = async (
   }
 };
 
-export const deleteCustomer = async (customerId: string, userId: string) => {
+export const deleteCustomer = async (customerId: string) => {
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
     const { error } = await supabase
       .from('customers')
       .delete()
       .eq('id', customerId)
-      .eq('user_id', userId);
+      .eq('user_id', user.id);
 
     if (error) {
       console.error('Error deleting customer:', error);
