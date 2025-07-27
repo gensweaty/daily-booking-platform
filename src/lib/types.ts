@@ -1,18 +1,64 @@
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  image?: string;
+  emailVerified?: Date | null;
+}
+
+export interface Account {
+  id: string;
+  userId: string;
+  type: string;
+  provider: string;
+  providerAccountId: string;
+  refresh_token?: string;
+  access_token?: string;
+  expires_at?: number;
+  token_type?: string;
+  scope?: string;
+  id_token?: string;
+  session_state?: string;
+}
+
+export interface Session {
+  id: string;
+  sessionToken: string;
+  userId: string;
+  expires: Date;
+}
+
+export interface VerificationToken {
+  identifier: string;
+  token: string;
+  expires: Date;
+}
+
 export interface Task {
   id: string;
   title: string;
   description?: string;
   status: 'todo' | 'inprogress' | 'done';
-  position: number;
   created_at: string;
+  updated_at: string;
   user_id: string;
-  deadline_at?: string;
-  reminder_at?: string;
+  due_date?: string;
+  reminder_time?: string;
+  priority?: 'low' | 'medium' | 'high';
   archived?: boolean;
-  archived_at?: string;
-  reminder_sent?: boolean;
   send_email_reminder?: boolean;
-  deleted_at?: string;
+  reminder_sent?: boolean;
+}
+
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+  color?: string;
+  category?: string;
 }
 
 export interface Reminder {
@@ -21,94 +67,51 @@ export interface Reminder {
   description?: string;
   remind_at: string;
   created_at: string;
+  updated_at: string;
   user_id: string;
+  completed?: boolean;
 }
 
-export interface Note {
+export interface Customer {
   id: string;
-  title: string;
-  content?: string;
-  color?: string;
-  category?: string;
-  created_at: string;
-  user_id: string;
-}
-
-export interface BusinessProfile {
-  id: string;
-  user_id: string;
-  business_name: string;
-  description?: string;
-  contact_phone?: string;
-  contact_email?: string;
-  contact_address?: string;
-  contact_website?: string;
-  cover_photo_url?: string;
-  slug: string;
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  notes?: string;
   created_at: string;
   updated_at: string;
-}
-
-export interface BookingRequest {
-  id: string;
-  business_id: string;
-  user_id: string | null; // Make user_id nullable for public booking requests
-  requester_name: string;
-  requester_email: string;
-  requester_phone?: string;
-  title: string;
-  description?: string;
-  start_date: string; // ISO format date string
-  end_date: string;   // ISO format date string
-  status: 'pending' | 'approved' | 'rejected';
-  created_at: string;
-  updated_at: string;
-  deleted_at?: string;
+  user_id: string;
+  payment_status?: PaymentStatus;
+  payment_amount?: number;
+  social_network_link?: string;
   user_surname?: string;
   user_number?: string;
+}
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description?: string;
+  start_date: string;
+  end_date: string;
+  all_day?: boolean;
+  location?: string;
+  event_type?: string;
+  attendees?: string[];
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+  recurring_pattern?: string;
+  recurring_end_date?: string;
+  parent_event_id?: string;
+  language?: string;
+  notes?: string;
+  payment_status?: PaymentStatus;
+  payment_amount?: number;
   social_network_link?: string;
-  event_notes?: string;
-  payment_status?: string;
-  payment_amount?: number | null;
-  language?: string; // Add language field to BookingRequest interface
-  // File fields explicitly defined
-  file_path?: string;
-  filename?: string;
-  content_type?: string;
-  size?: number;
-  // Add the files property for multiple file attachments
-  files?: Array<{
-    id: string;
-    event_id: string;
-    filename: string;
-    file_path: string;
-    content_type?: string;
-    size?: number;
-  }>;
+  user_surname?: string;
+  user_number?: string;
 }
 
-// Add EventFile interface to match event_files table
-export interface EventFile {
-  id: string;
-  event_id: string;
-  filename: string;
-  file_path: string;
-  content_type?: string;
-  size?: number;
-  user_id?: string;
-  created_at: string;
-  source?: string;
-}
-
-// Add CustomerFile interface to match customer_files_new table
-export interface CustomerFile {
-  id: string;
-  customer_id: string;
-  filename: string;
-  file_path: string;
-  content_type?: string;
-  size?: number;
-  user_id?: string;
-  created_at: string;
-  source?: string;
-}
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled';

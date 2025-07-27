@@ -1,4 +1,5 @@
-export const en = {
+
+export const translations = {
   common: {
     success: "Success",
     successMessage: "Operation completed successfully.",

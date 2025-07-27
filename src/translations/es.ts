@@ -1,4 +1,5 @@
-export const es = {
+
+export const translations = {
   common: {
     loading: "Cargando...",
     error: "Error",
