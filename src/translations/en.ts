@@ -301,7 +301,7 @@ export const translations: TranslationType = {
     eventNotes: "Notes",
     addEventNotes: "Add notes about your booking request",
     editEvent: "Edit Event",
-    addNewEvent: "Add New Event",
+    addNewEvent: "Add Event",
     updateEvent: "Update Event",
     createEvent: "Create Event",
     deleteEvent: "Delete Event",
@@ -452,7 +452,7 @@ export const translations: TranslationType = {
   },
   legal: {
     title: "Terms and Privacy Policy",
-    lastUpdated: "Last updated: {{date}}",
+    lastUpdated: "{{date}}",
     termsOfService: "Terms of Service",
     welcomeText: "Welcome to SmartBookly. These Terms of Service ('Terms') govern the use of our SaaS platform and services ('Services'). By accessing or using our Services, you agree to these Terms. If you disagree, please do not use our Services.",
     generalInfo: {
