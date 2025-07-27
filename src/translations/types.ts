@@ -1,10 +1,19 @@
-export interface TranslationType {
+
+export type Language = 'en' | 'es' | 'ka';
+
+export interface LanguageContextType {
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  t: (key: string) => string;
+}
+
+export interface Translations {
   common: {
     success: string;
     error: string;
     saving: string;
     cancel: string;
-		delete: string;
+    delete: string;
     edit: string;
     confirm: string;
     language: string;
@@ -13,6 +22,11 @@ export interface TranslationType {
     georgian: string;
     loading: string;
     fileDeleted: string;
+    add: string;
+    update: string;
+    view: string;
+    save: string;
+    authRequired: string;
   };
   auth: {
     login: string;
@@ -26,61 +40,105 @@ export interface TranslationType {
     loggedOut: string;
     registerSuccess: string;
     registerError: string;
-    loginSuccess: string;
     loginError: string;
-    logoutSuccess: string;
-    logoutError: string;
-    profile: string;
-    updateProfile: string;
-    profileUpdated: string;
-    profileUpdateError: string;
-    deleteProfile: string;
-    deleteProfileConfirmation: string;
-    profileDeleted: string;
-    profileDeleteError: string;
-    currentPassword: string;
+    passwordMismatch: string;
+    registrationTitle: string;
+    loginTitle: string;
+    alreadyHaveAccount: string;
+    dontHaveAccount: string;
+    loginPrompt: string;
+    signUpPrompt: string;
+    forgotPasswordTitle: string;
+    forgotPasswordPrompt: string;
+    resetPasswordTitle: string;
+    resetPasswordPrompt: string;
+    sendResetEmail: string;
+    backToLogin: string;
+    resetEmailSent: string;
+    resetPasswordSuccess: string;
+    resetPasswordError: string;
+    invalidResetToken: string;
+    expiredResetToken: string;
     newPassword: string;
-    changePassword: string;
-    passwordChanged: string;
-    passwordChangeError: string;
-    uploadAvatar: string;
-    avatarUploaded: string;
-    avatarUploadError: string;
-    deleteAvatar: string;
-    avatarDeleted: string;
-    avatarDeleteError: string;
-    authTitle: string;
-    authDescription: string;
     profileTitle: string;
+    forgotPassword: string;
+    requiredEmail: string;
+    surname: string;
   };
-  business: {
-    profile: string;
-    createProfile: string;
-    editProfile: string;
-    viewProfile: string;
-    businessName: string;
-    description: string;
-    contactPhone: string;
-    contactEmail: string;
-    contactAddress: string;
-    contactWebsite: string;
-    coverPhoto: string;
-    slug: string;
-    created: string;
-    updated: string;
-    profileCreated: string;
-    profileUpdated: string;
-    profileError: string;
-    slugError: string;
-    slugAvailable: string;
-    slugUnavailable: string;
-    coverPhotoUploaded: string;
-    coverPhotoUploadError: string;
-    coverPhotoDeleted: string;
-    coverPhotoDeleteError: string;
-    businessProfileTitle: string;
-    businessProfileDescription: string;
-    businessCreateTitle: string;
+  tasks: {
+    addTask: string;
+    editTask: string;
+    deleteTask: string;
+    deleteTaskConfirmTitle: string;
+    deleteTaskConfirmation: string;
+    taskAdded: string;
+    taskUpdated: string;
+    taskDeleted: string;
+    taskArchived: string;
+    archive: string;
+    emailMe: string;
+    emailReminderTooltip: string;
+    title: string;
+  };
+  reminders: {
+    reminder: string;
+    addReminder: string;
+    editReminder: string;
+    deleteReminder: string;
+    reminderAdded: string;
+    reminderUpdated: string;
+    reminderDeleted: string;
+    reminderTitle: string;
+    reminderDescription: string;
+    reminderDueDate: string;
+    title: string;
+    reminderAddError: string;
+  };
+  notes: {
+    note: string;
+    addNote: string;
+    editNote: string;
+    deleteNote: string;
+    noteAdded: string;
+    noteUpdated: string;
+    noteDeleted: string;
+    noteTitle: string;
+    noteContent: string;
+    noteCategory: string;
+    noteColor: string;
+    noteCreationDate: string;
+    title: string;
+  };
+  settings: {
+    settings: string;
+    profileSettings: string;
+    businessSettings: string;
+    notificationSettings: string;
+    accountSettings: string;
+    securitySettings: string;
+    languageSettings: string;
+    themeSettings: string;
+    generalSettings: string;
+    title: string;
+  };
+  events: {
+    addEvent: string;
+    editEvent: string;
+    deleteEvent: string;
+    eventAdded: string;
+    eventUpdated: string;
+    eventDeleted: string;
+    eventTitle: string;
+    eventDescription: string;
+    eventStartDate: string;
+    eventEndDate: string;
+    eventLocation: string;
+    eventCategory: string;
+    eventColor: string;
+    eventCreationDate: string;
+    recurringEventCreated: string;
+    eventCreated: string;
+    seriesDeleted: string;
   };
   bookings: {
     requestBooking: string;
@@ -96,73 +154,28 @@ export interface TranslationType {
     pending: string;
     approved: string;
     rejected: string;
-    created: string;
-    updated: string;
+    approve: string;
+    reject: string;
+    bookingApproved: string;
+    bookingRejected: string;
     bookingRequested: string;
     bookingRequestError: string;
-    bookingUpdated: string;
-    bookingUpdateError: string;
-    bookingDeleted: string;
-    bookingDeleteError: string;
+    bookingRequestSuccess: string;
     bookingRequestTitle: string;
     bookingRequestDescription: string;
-    requestSubmitted: string;
-    requestSubmittedDescription: string;
-    userSurname: string;
-    userNumber: string;
-    socialNetworkLink: string;
-    eventNotes: string;
-    paymentStatus: string;
-    paymentAmount: string;
-    language: string;
-    filename: string;
-    file: string;
-    files: string;
-    uploadFile: string;
-    bookingFileUploaded: string;
-    bookingFileUploadError: string;
-    bookingFileDeleted: string;
-    bookingFileDeleteError: string;
-    bookingRequestFileTitle: string;
+    bookingRequestStartDate: string;
+    bookingRequestEndDate: string;
+    bookingRequestStatus: string;
+    bookingRequestApprove: string;
+    bookingRequestReject: string;
+    bookingRequestApproved: string;
+    bookingRequestRejected: string;
+    bookingRequestRequested: string;
+    bookingRequestError: string;
+    bookingRequestSuccess: string;
+    bookingRequestFileUpload: string;
     bookingRequestFileDescription: string;
-  };
-  tasks: {
-    addTask: string;
-    editTask: string;
-    deleteTask: string;
-    deleteTaskConfirmTitle: string;
-    deleteTaskConfirmation: string;
-    taskAdded: string;
-    taskUpdated: string;
-    taskDeleted: string;
-    taskArchived: string;
-    archive: string;
-    emailMe: string;
-    emailReminderTooltip: string;
-  };
-  categories: {
-    category: string;
-    addCategory: string;
-    editCategory: string;
-    deleteCategory: string;
-    categoryAdded: string;
-    categoryUpdated: string;
-    categoryDeleted: string;
-    categoryName: string;
-    categoryDescription: string;
-    categoryColor: string;
-  };
-  reminders: {
-    reminder: string;
-    addReminder: string;
-    editReminder: string;
-    deleteReminder: string;
-    reminderAdded: string;
-    reminderUpdated: string;
-    reminderDeleted: string;
-    reminderTitle: string;
-    reminderDescription: string;
-    reminderDueDate: string;
+    newBooking: string;
   };
   files: {
     file: string;
@@ -178,20 +191,7 @@ export interface TranslationType {
     fileSize: string;
     fileType: string;
     fileUploadDate: string;
-  };
-  notes: {
-    note: string;
-    addNote: string;
-    editNote: string;
-    deleteNote: string;
-    noteAdded: string;
-    noteUpdated: string;
-    noteDeleted: string;
-    noteTitle: string;
-    noteContent: string;
-    noteCategory: string;
-    noteColor: string;
-    noteCreationDate: string;
+    filename: string;
   };
   customers: {
     customer: string;
@@ -207,17 +207,7 @@ export interface TranslationType {
     customerAddress: string;
     customerNotes: string;
     customerCreationDate: string;
-  };
-  settings: {
-    settings: string;
-    profileSettings: string;
-    businessSettings: string;
-    notificationSettings: string;
-    accountSettings: string;
-    securitySettings: string;
-    languageSettings: string;
-    themeSettings: string;
-    generalSettings: string;
+    name: string;
   };
   subscriptions: {
     subscription: string;
@@ -229,12 +219,11 @@ export interface TranslationType {
     subscriptionName: string;
     subscriptionDescription: string;
     subscriptionPrice: string;
-    subscriptionFeatures: string;
-    subscriptionBenefits: string;
-    subscriptionTerms: string;
-    subscriptionPrivacy: string;
-    subscriptionContact: string;
+    subscriptionDuration: string;
+    subscriptionStatus: string;
+    subscriptionCreationDate: string;
     subscriptionFaq: string;
+    subscriptionType: string;
   };
   contacts: {
     contact: string;
@@ -250,5 +239,6 @@ export interface TranslationType {
     contactAddress: string;
     contactNotes: string;
     contactCreationDate: string;
+    contactMessage: string;
   };
 }

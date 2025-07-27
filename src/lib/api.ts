@@ -1,3 +1,4 @@
+
 import { supabase } from "./supabase";
 import { Task, Reminder, Note } from "./types";
 
@@ -72,6 +73,33 @@ export const archiveTask = async (id: string): Promise<void> => {
 
   if (error) {
     console.error("Error archiving task:", error);
+    throw error;
+  }
+};
+
+export const getArchivedTasks = async (): Promise<Task[]> => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('archived', true)
+    .order('archived_at', { ascending: false });
+
+  if (error) {
+    console.error("Error fetching archived tasks:", error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+export const restoreTask = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('tasks')
+    .update({ archived: false, archived_at: null })
+    .eq('id', id);
+
+  if (error) {
+    console.error("Error restoring task:", error);
     throw error;
   }
 };
@@ -185,5 +213,123 @@ export const deleteNote = async (id: string): Promise<void> => {
   if (error) {
     console.error("Error deleting note:", error);
     throw error;
+  }
+};
+
+// Email functions
+export const sendEventCreationEmail = async (
+  to: string,
+  customerName: string,
+  businessName: string,
+  startDate: string,
+  endDate: string,
+  paymentStatus: string,
+  paymentAmount: number | null,
+  businessAddress: string,
+  eventId: string,
+  language: string = 'en',
+  eventNotes: string = ''
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
+      body: {
+        to,
+        customerName,
+        businessName,
+        startDate,
+        endDate,
+        paymentStatus,
+        paymentAmount,
+        businessAddress,
+        eventId,
+        language,
+        eventNotes
+      }
+    });
+
+    if (error) {
+      console.error('Error sending event creation email:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending event creation email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const sendBookingConfirmationEmail = async (
+  to: string,
+  customerName: string,
+  businessName: string,
+  startDate: string,
+  endDate: string,
+  paymentStatus: string,
+  paymentAmount: number | null,
+  businessAddress: string,
+  eventId: string,
+  language: string = 'en',
+  eventNotes: string = ''
+): Promise<{ success: boolean; error?: string }> => {
+  return sendEventCreationEmail(
+    to,
+    customerName,
+    businessName,
+    startDate,
+    endDate,
+    paymentStatus,
+    paymentAmount,
+    businessAddress,
+    eventId,
+    language,
+    eventNotes
+  );
+};
+
+export const sendBookingConfirmationToMultipleRecipients = async (
+  recipients: Array<{
+    email: string;
+    name: string;
+    paymentStatus: string;
+    paymentAmount: number | null;
+    eventNotes: string;
+  }>,
+  businessName: string,
+  startDate: string,
+  endDate: string,
+  businessAddress: string,
+  eventId: string,
+  language: string = 'en'
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const emailPromises = recipients.map(recipient =>
+      sendEventCreationEmail(
+        recipient.email,
+        recipient.name,
+        businessName,
+        startDate,
+        endDate,
+        recipient.paymentStatus,
+        recipient.paymentAmount,
+        businessAddress,
+        eventId,
+        language,
+        recipient.eventNotes
+      )
+    );
+
+    const results = await Promise.all(emailPromises);
+    const allSuccessful = results.every(result => result.success);
+
+    if (allSuccessful) {
+      return { success: true };
+    } else {
+      const errors = results.filter(result => !result.success).map(result => result.error).join(', ');
+      return { success: false, error: errors };
+    }
+  } catch (error: any) {
+    console.error('Error sending booking confirmation to multiple recipients:', error);
+    return { success: false, error: error.message };
   }
 };
