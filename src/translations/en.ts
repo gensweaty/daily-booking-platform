@@ -1,3 +1,4 @@
+
 export const translations = {
   common: {
     success: "Success",
@@ -125,6 +126,7 @@ export const translations = {
     submitRequest: "Submit Request",
     deleteEventConfirmTitle: "Delete Event",
     deleteEventConfirmMessage: "Are you sure you want to delete this event?",
+    bookAppointment: "Book Appointment",
   },
   crm: {
     customerCreated: "Customer created successfully",

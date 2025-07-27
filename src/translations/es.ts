@@ -1,3 +1,4 @@
+
 export const translations = {
   common: {
     loading: "Cargando...",
@@ -191,6 +192,7 @@ export const translations = {
     submitRequest: "Enviar Solicitud",
     deleteEventConfirmTitle: "Eliminar Evento",
     deleteEventConfirmMessage: "¿Estás seguro de que quieres eliminar este evento?",
+    bookAppointment: "Reservar Cita",
   },
   crm: {
     customerCreated: "Cliente creado exitosamente",
