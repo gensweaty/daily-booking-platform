@@ -21,7 +21,7 @@ export function AddReminderForm({ onReminderAdded, onClose }: AddReminderFormPro
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    reminder_time: "",
+    remind_at: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,9 +46,8 @@ export function AddReminderForm({ onReminderAdded, onClose }: AddReminderFormPro
           {
             title: formData.title,
             description: formData.description,
-            reminder_time: formData.reminder_time,
+            remind_at: formData.remind_at,
             user_id: user.id,
-            completed: false,
           },
         ])
         .select()
@@ -60,8 +59,9 @@ export function AddReminderForm({ onReminderAdded, onClose }: AddReminderFormPro
         id: data.id,
         title: data.title,
         description: data.description,
-        reminder_time: data.reminder_time,
-        completed: data.completed,
+        remind_at: data.remind_at,
+        created_at: data.created_at,
+        updated_at: data.created_at,
         user_id: data.user_id,
       };
 
@@ -107,12 +107,12 @@ export function AddReminderForm({ onReminderAdded, onClose }: AddReminderFormPro
       </div>
 
       <div>
-        <Label htmlFor="reminder_time">{t("reminders.reminderTime")}</Label>
+        <Label htmlFor="remind_at">{t("reminders.reminderTime")}</Label>
         <Input
-          id="reminder_time"
+          id="remind_at"
           type="datetime-local"
-          value={formData.reminder_time}
-          onChange={(e) => setFormData({ ...formData, reminder_time: e.target.value })}
+          value={formData.remind_at}
+          onChange={(e) => setFormData({ ...formData, remind_at: e.target.value })}
           required
         />
       </div>
