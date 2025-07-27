@@ -66,7 +66,8 @@ export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
         title, 
         description, 
         remind_at: dueDate,
-        user_id: user.id
+        user_id: user.id,
+        updated_at: new Date().toISOString()
       });
       await queryClient.invalidateQueries({ queryKey: ['reminders'] });
       toast({

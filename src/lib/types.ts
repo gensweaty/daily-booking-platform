@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   name: string;
@@ -48,6 +49,10 @@ export interface Task {
   archived?: boolean;
   send_email_reminder?: boolean;
   reminder_sent?: boolean;
+  position?: number;
+  deadline_at?: string;
+  reminder_at?: string;
+  archived_at?: string;
 }
 
 export interface Note {

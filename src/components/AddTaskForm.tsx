@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { createTask, updateTask, archiveTask } from "@/lib/api";
@@ -43,8 +44,8 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     if (editingTask) {
       setTitle(editingTask.title);
       setDescription(editingTask.description || "");
-      setDeadline(editingTask.deadline_at);
-      setReminderAt(editingTask.reminder_at);
+      setDeadline(editingTask.deadline_at || editingTask.due_date);
+      setReminderAt(editingTask.reminder_at || editingTask.reminder_time);
       setSendEmailReminder(editingTask.send_email_reminder || false);
     }
   }, [editingTask]);
