@@ -23,6 +23,78 @@ setInterval(() => {
   }
 }, 10 * 60 * 1000);
 
+// Multi-language email content
+const getEmailContent = (language: string, taskTitle: string, reminderTime: string, taskDescription?: string) => {
+  let subject, body;
+  
+  if (language === 'ka') {
+    subject = "📋 დაგეგმილი დავალების შეხსენება!";
+    body = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333; text-align: center;">დავალების შეხსენება</h2>
+        <p style="font-size: 16px; line-height: 1.6;">
+          შეგახსენებთ დავალებაზე: <strong>${taskTitle}</strong>
+        </p>
+        <p style="font-size: 14px; color: #666;">
+          <strong>დრო:</strong> ${reminderTime}
+        </p>
+        ${taskDescription ? `<p style="font-size: 14px; color: #666;"><strong>აღწერა:</strong> ${taskDescription}</p>` : ''}
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 0; font-size: 16px; color: #333;">📝 არ დაგავიწყდეს!</p>
+        </div>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="font-size: 12px; color: #999; text-align: center;">
+          SmartBookly-დან მიღებული შეხსენება
+        </p>
+      </div>
+    `;
+  } else if (language === 'es') {
+    subject = "📋 ¡Tienes un recordatorio de tarea!";
+    body = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333; text-align: center;">Recordatorio de Tarea</h2>
+        <p style="font-size: 16px; line-height: 1.6;">
+          Este es un recordatorio de tu tarea: <strong>${taskTitle}</strong>
+        </p>
+        <p style="font-size: 14px; color: #666;">
+          <strong>Programada para:</strong> ${reminderTime}
+        </p>
+        ${taskDescription ? `<p style="font-size: 14px; color: #666;"><strong>Descripción:</strong> ${taskDescription}</p>` : ''}
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 0; font-size: 16px; color: #333;">📝 ¡No lo olvides!</p>
+        </div>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="font-size: 12px; color: #999; text-align: center;">
+          Recordatorio de SmartBookly
+        </p>
+      </div>
+    `;
+  } else {
+    subject = "📋 You have a task reminder!";
+    body = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333; text-align: center;">Task Reminder</h2>
+        <p style="font-size: 16px; line-height: 1.6;">
+          This is a reminder for your task: <strong>${taskTitle}</strong>
+        </p>
+        <p style="font-size: 14px; color: #666;">
+          <strong>Scheduled for:</strong> ${reminderTime}
+        </p>
+        ${taskDescription ? `<p style="font-size: 14px; color: #666;"><strong>Description:</strong> ${taskDescription}</p>` : ''}
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 0; font-size: 16px; color: #333;">📝 Don't forget!</p>
+        </div>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="font-size: 12px; color: #999; text-align: center;">
+          Reminder from SmartBookly
+        </p>
+      </div>
+    `;
+  }
+  
+  return { subject, body };
+};
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -87,7 +159,7 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      // Get user email
+      // Get user email and language preference
       const { data: userData, error: userError } = await supabase.auth.admin.getUserById(task.user_id);
       
       if (userError || !userData.user?.email) {
@@ -104,7 +176,7 @@ const handler = async (req: Request): Promise<Response> => {
       const userEmail = userData.user.email;
       const deduplicationKey = `${task.id}_${userEmail}`;
 
-      // Check if we've recently sent this email
+      // Check if we've recently sent this email (prevent duplicates)
       const recentSendTime = recentlySentEmails.get(deduplicationKey);
       if (recentSendTime && Date.now() - recentSendTime < 10 * 60 * 1000) {
         console.log(`⏭️ Skipping duplicate email for task ${task.id}`);
@@ -117,15 +189,14 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      // Get user's language preference (default to English)
+      // Get user's language preference from profiles table
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('*')
+        .select('language')
         .eq('id', task.user_id)
         .single();
 
-      // Determine language (you might store this in user profile)
-      const language = 'en'; // Default to English for now
+      const language = profileData?.language || 'en';
       
       // Format reminder time
       const reminderTime = new Date(task.reminder_at);
@@ -138,52 +209,15 @@ const handler = async (req: Request): Promise<Response> => {
         minute: '2-digit'
       });
 
-      // Prepare email content based on language
-      let subject, body;
-      
-      if (language.startsWith('ka')) {
-        subject = "დაგეგმილი დავალების შეხსენება!";
-        body = `
-          <h2>დავალების შეხსენება</h2>
-          <p>შეგახსენებთ დავალებაზე: <strong>${task.title}</strong></p>
-          <p>დრო: ${formattedTime}</p>
-          <p>არ დაგავიწყდეს!</p>
-        `;
-      } else if (language.startsWith('es')) {
-        subject = "¡Tienes un recordatorio de tarea!";
-        body = `
-          <h2>Recordatorio de Tarea</h2>
-          <p>Este es un recordatorio de tu tarea: <strong>${task.title}</strong></p>
-          <p>Programada para: ${formattedTime}</p>
-          <p>¡No lo olvides!</p>
-        `;
-      } else {
-        subject = "You have a task reminder!";
-        body = `
-          <h2>Task Reminder</h2>
-          <p>This is a reminder for your task: <strong>${task.title}</strong></p>
-          <p>Scheduled for: ${formattedTime}</p>
-          <p>Don't forget!</p>
-        `;
-      }
-
-      // Add task description if available
-      if (task.description) {
-        if (language.startsWith('ka')) {
-          body += `<p><strong>აღწერა:</strong> ${task.description}</p>`;
-        } else if (language.startsWith('es')) {
-          body += `<p><strong>Descripción:</strong> ${task.description}</p>`;
-        } else {
-          body += `<p><strong>Description:</strong> ${task.description}</p>`;
-        }
-      }
+      // Get localized email content
+      const { subject, body: emailBody } = getEmailContent(language, task.title, formattedTime, task.description);
 
       // Send email
       const emailResult = await resend.emails.send({
         from: 'SmartBookly <noreply@smartbookly.com>',
         to: [userEmail],
         subject: subject,
-        html: body
+        html: emailBody
       });
 
       if (emailResult.error) {
@@ -197,14 +231,14 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      console.log(`✅ Reminder email sent for task ${task.id} to ${userEmail}`);
+      console.log(`✅ Reminder email sent for task ${task.id} to ${userEmail} in language ${language}`);
       
-      // Mark the task as email sent
+      // Mark the task as email sent and disable future sends
       await supabase
         .from('tasks')
         .update({ 
           reminder_sent_at: new Date().toISOString(),
-          email_reminder_enabled: false // Disable to prevent future sends
+          email_reminder_enabled: false
         })
         .eq('id', task.id);
 
@@ -215,7 +249,8 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({
           message: 'Task reminder email sent successfully',
           emailsSent: 1,
-          taskId: task.id
+          taskId: task.id,
+          language: language
         }),
         { 
           status: 200, 
@@ -285,15 +320,14 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
-        // Get user's language preference (default to English)
+        // Get user's language preference
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('*')
+          .select('language')
           .eq('id', task.user_id)
           .single();
 
-        // Determine language (you might store this in user profile)
-        const language = 'en'; // Default to English for now
+        const language = profileData?.language || 'en';
         
         // Format reminder time
         const reminderTime = new Date(task.reminder_at);
@@ -306,52 +340,15 @@ const handler = async (req: Request): Promise<Response> => {
           minute: '2-digit'
         });
 
-        // Prepare email content based on language
-        let subject, body;
-        
-        if (language.startsWith('ka')) {
-          subject = "დაგეგმილი დავალების შეხსენება!";
-          body = `
-            <h2>დავალების შეხსენება</h2>
-            <p>შეგახსენებთ დავალებაზე: <strong>${task.title}</strong></p>
-            <p>დრო: ${formattedTime}</p>
-            <p>არ დაგავიწყდეს!</p>
-          `;
-        } else if (language.startsWith('es')) {
-          subject = "¡Tienes un recordatorio de tarea!";
-          body = `
-            <h2>Recordatorio de Tarea</h2>
-            <p>Este es un recordatorio de tu tarea: <strong>${task.title}</strong></p>
-            <p>Programada para: ${formattedTime}</p>
-            <p>¡No lo olvides!</p>
-          `;
-        } else {
-          subject = "You have a task reminder!";
-          body = `
-            <h2>Task Reminder</h2>
-            <p>This is a reminder for your task: <strong>${task.title}</strong></p>
-            <p>Scheduled for: ${formattedTime}</p>
-            <p>Don't forget!</p>
-          `;
-        }
-
-        // Add task description if available
-        if (task.description) {
-          if (language.startsWith('ka')) {
-            body += `<p><strong>აღწერა:</strong> ${task.description}</p>`;
-          } else if (language.startsWith('es')) {
-            body += `<p><strong>Descripción:</strong> ${task.description}</p>`;
-          } else {
-            body += `<p><strong>Description:</strong> ${task.description}</p>`;
-          }
-        }
+        // Get localized email content
+        const { subject, body: emailBody } = getEmailContent(language, task.title, formattedTime, task.description);
 
         // Send email
         const emailResult = await resend.emails.send({
           from: 'SmartBookly <noreply@smartbookly.com>',
           to: [userEmail],
           subject: subject,
-          html: body
+          html: emailBody
         });
 
         if (emailResult.error) {
@@ -359,14 +356,14 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
-        console.log(`✅ Reminder email sent for task ${task.id} to ${userEmail}`);
+        console.log(`✅ Reminder email sent for task ${task.id} to ${userEmail} in language ${language}`);
         
         // Mark the task as email sent
         await supabase
           .from('tasks')
           .update({ 
             reminder_sent_at: new Date().toISOString(),
-            email_reminder_enabled: false // Disable to prevent future sends
+            email_reminder_enabled: false
           })
           .eq('id', task.id);
 

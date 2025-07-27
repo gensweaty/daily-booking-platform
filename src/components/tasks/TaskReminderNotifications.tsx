@@ -14,9 +14,8 @@ export const TaskReminderNotifications = () => {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [processedReminders, setProcessedReminders] = useState<Set<string>>(new Set());
-  const [processedEmailReminders, setProcessedEmailReminders] = useState<Set<string>>(new Set());
-  const precisionIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const backupIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const realtimeChannelRef = useRef<any>(null);
 
   // Load processed reminders from localStorage on mount
@@ -27,13 +26,6 @@ export const TaskReminderNotifications = () => {
         const parsed = JSON.parse(stored);
         setProcessedReminders(new Set(parsed));
         console.log("📋 Loaded processed reminders from storage:", parsed.length);
-      }
-      
-      const storedEmails = localStorage.getItem("processedTaskEmailReminders");
-      if (storedEmails) {
-        const parsedEmails = JSON.parse(storedEmails);
-        setProcessedEmailReminders(new Set(parsedEmails));
-        console.log("📧 Loaded processed email reminders from storage:", parsedEmails.length);
       }
     } catch (error) {
       console.error("❌ Error loading processed reminders:", error);
@@ -48,14 +40,6 @@ export const TaskReminderNotifications = () => {
       console.error("❌ Error saving processed reminders:", error);
     }
   }, [processedReminders]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("processedTaskEmailReminders", JSON.stringify(Array.from(processedEmailReminders)));
-    } catch (error) {
-      console.error("❌ Error saving processed email reminders:", error);
-    }
-  }, [processedEmailReminders]);
 
   // Fetch tasks with reminders
   const { data: tasks } = useQuery({
@@ -83,7 +67,7 @@ export const TaskReminderNotifications = () => {
       return data || [];
     },
     enabled: !!user?.id,
-    refetchInterval: 30000, // Backup polling every 30 seconds
+    refetchInterval: 30000, // Refetch every 30 seconds
   });
 
   // Show dashboard notification
@@ -91,7 +75,7 @@ export const TaskReminderNotifications = () => {
     console.log("📊 Showing dashboard notification for:", taskTitle);
     toast({
       title: "📋 Task Reminder",
-      description: `Reminder: ${taskTitle}`,
+      description: `${t('tasks.taskReminder')}: ${taskTitle}`,
       duration: 8000,
       action: (
         <div className="flex items-center">
@@ -103,13 +87,6 @@ export const TaskReminderNotifications = () => {
 
   // Send email reminder
   const sendEmailReminder = async (task: any) => {
-    const emailKey = `${task.id}-${task.reminder_at}-email`;
-    
-    if (processedEmailReminders.has(emailKey)) {
-      console.log("📧 Email already sent for task:", task.title);
-      return;
-    }
-
     try {
       console.log("📧 Sending email reminder for task:", task.title);
       
@@ -124,13 +101,10 @@ export const TaskReminderNotifications = () => {
           description: "Failed to send email reminder",
           variant: "destructive",
         });
-        return;
+        return false;
       }
 
       console.log("✅ Email reminder sent successfully:", data);
-      
-      // Mark as processed
-      setProcessedEmailReminders(prev => new Set([...prev, emailKey]));
       
       toast({
         title: "📧 Email Sent",
@@ -138,6 +112,7 @@ export const TaskReminderNotifications = () => {
         duration: 3000,
       });
       
+      return true;
     } catch (error) {
       console.error("❌ Failed to send email reminder:", error);
       toast({
@@ -145,70 +120,77 @@ export const TaskReminderNotifications = () => {
         description: "Failed to send email reminder",
         variant: "destructive",
       });
+      return false;
     }
   };
 
-  // Process due reminders
+  // Process due reminders - with execution lock to prevent duplicates
   const processDueReminders = async (tasksToCheck: any[]) => {
-    if (!tasksToCheck || tasksToCheck.length === 0) return;
+    if (!tasksToCheck || tasksToCheck.length === 0 || isProcessing) return;
 
-    const now = new Date();
-    let notificationsTriggered = 0;
+    setIsProcessing(true);
     
-    for (const task of tasksToCheck) {
-      const reminderTime = new Date(task.reminder_at);
-      const reminderKey = `${task.id}-${task.reminder_at}`;
+    try {
+      const now = new Date();
+      let notificationsTriggered = 0;
       
-      // Check if reminder is due (within 1 minute window)
-      const timeDiff = now.getTime() - reminderTime.getTime();
-      const isDue = timeDiff >= 0 && timeDiff <= 60000; // 0 to 60 seconds past due time
-      
-      if (isDue && !processedReminders.has(reminderKey)) {
-        console.log('🔔 TRIGGERING NOTIFICATIONS for task:', task.title);
-        console.log('⏰ Reminder time:', reminderTime.toLocaleString());
-        console.log('🕐 Current time:', now.toLocaleString());
-        console.log('⏱️ Time difference:', timeDiff, 'ms');
+      for (const task of tasksToCheck) {
+        const reminderTime = new Date(task.reminder_at);
+        const reminderKey = `${task.id}-${task.reminder_at}`;
         
-        // Show dashboard notification
-        showDashboardNotification(task.title);
+        // Check if reminder is due (within 1 minute window)
+        const timeDiff = now.getTime() - reminderTime.getTime();
+        const isDue = timeDiff >= 0 && timeDiff <= 60000; // 0 to 60 seconds past due time
         
-        // Show platform-optimized system notification
-        const result = await platformNotificationManager.createNotification({
-          title: "📋 Task Reminder",
-          body: `Reminder: ${task.title}`,
-          icon: "/favicon.ico",
-          tag: `task-reminder-${task.id}`,
-          requireInteraction: true,
-        });
-        
-        if (result.success) {
-          console.log('🔔 System notification sent successfully', result.fallbackUsed ? '(fallback used)' : '');
-        } else {
-          console.error('❌ System notification failed:', result.error);
+        if (isDue && !processedReminders.has(reminderKey)) {
+          console.log('🔔 PROCESSING REMINDER for task:', task.title);
+          console.log('⏰ Reminder time:', reminderTime.toLocaleString());
+          console.log('🕐 Current time:', now.toLocaleString());
+          console.log('⏱️ Time difference:', timeDiff, 'ms');
+          
+          // Mark as processed FIRST to prevent duplicate processing
+          setProcessedReminders(prev => {
+            const newSet = new Set([...prev, reminderKey]);
+            console.log('✅ Marked as processed:', reminderKey);
+            return newSet;
+          });
+          
+          // Show dashboard notification
+          showDashboardNotification(task.title);
+          
+          // Show system notification
+          const result = await platformNotificationManager.createNotification({
+            title: "📋 Task Reminder",
+            body: `${t('tasks.taskReminder')}: ${task.title}`,
+            icon: "/favicon.ico",
+            tag: `task-reminder-${task.id}`,
+            requireInteraction: true,
+          });
+          
+          if (result.success) {
+            console.log('🔔 System notification sent successfully', result.fallbackUsed ? '(fallback used)' : '');
+          } else {
+            console.error('❌ System notification failed:', result.error);
+          }
+          
+          // Send email reminder if enabled
+          if (task.email_reminder_enabled) {
+            await sendEmailReminder(task);
+          }
+          
+          console.log('📊 Dashboard notification: ✅ Sent');
+          console.log('🔔 System notification:', result.success ? '✅ Sent' : '❌ Failed');
+          console.log('📧 Email reminder:', task.email_reminder_enabled ? '✅ Enabled' : '❌ Disabled');
+          
+          notificationsTriggered++;
         }
-        
-        // Send email reminder if enabled
-        if (task.email_reminder_enabled) {
-          await sendEmailReminder(task);
-        }
-        
-        console.log('📊 Dashboard notification:', '✅ Sent');
-        console.log('🔔 System notification:', result.success ? '✅ Sent' : '❌ Failed');
-        console.log('📧 Email reminder:', task.email_reminder_enabled ? '✅ Enabled' : '❌ Disabled');
-        
-        // Mark as processed
-        setProcessedReminders(prev => {
-          const newSet = new Set([...prev, reminderKey]);
-          console.log('✅ Marked as processed:', reminderKey);
-          return newSet;
-        });
-        
-        notificationsTriggered++;
       }
-    }
 
-    if (notificationsTriggered > 0) {
-      console.log(`🎯 Total notifications triggered: ${notificationsTriggered}`);
+      if (notificationsTriggered > 0) {
+        console.log(`🎯 Total notifications triggered: ${notificationsTriggered}`);
+      }
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -245,42 +227,23 @@ export const TaskReminderNotifications = () => {
     };
   }, [user?.id, queryClient]);
 
-  // Precision interval for 1-second checking
+  // Single interval for checking due reminders - prevents overlapping checks
   useEffect(() => {
     if (!tasks || tasks.length === 0) return;
 
-    console.log("⏰ Starting precision 1-second reminder checker");
+    console.log("⏰ Starting single reminder checker");
 
-    precisionIntervalRef.current = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       processDueReminders(tasks);
-    }, 1000);
+    }, 2000); // Check every 2 seconds to reduce load
 
     return () => {
-      if (precisionIntervalRef.current) {
-        console.log("🛑 Stopping precision checker");
-        clearInterval(precisionIntervalRef.current);
+      if (intervalRef.current) {
+        console.log("🛑 Stopping reminder checker");
+        clearInterval(intervalRef.current);
       }
     };
-  }, [tasks, processedReminders, processedEmailReminders]);
-
-  // Backup interval system (failsafe)
-  useEffect(() => {
-    if (!user?.id) return;
-
-    console.log("🛡️ Starting backup notification system");
-
-    backupIntervalRef.current = setInterval(() => {
-      console.log("🔄 Backup system: Force refreshing task reminders");
-      queryClient.invalidateQueries({ queryKey: ['taskReminders', user.id] });
-    }, 5000);
-
-    return () => {
-      if (backupIntervalRef.current) {
-        console.log("🛑 Stopping backup system");
-        clearInterval(backupIntervalRef.current);
-      }
-    };
-  }, [user?.id, queryClient]);
+  }, [tasks, processedReminders]);
 
   // Clean up old processed reminders every hour
   useEffect(() => {
@@ -301,20 +264,6 @@ export const TaskReminderNotifications = () => {
           }
         });
         console.log('🧹 Cleanup complete. Before:', prev.size, 'After:', newSet.size);
-        return newSet;
-      });
-
-      setProcessedEmailReminders(prev => {
-        const newSet = new Set<string>();
-        prev.forEach(key => {
-          const [, reminderTimeStr] = key.split('-');
-          if (reminderTimeStr) {
-            const reminderTime = new Date(reminderTimeStr);
-            if (reminderTime > oneHourAgo) {
-              newSet.add(key);
-            }
-          }
-        });
         return newSet;
       });
     }, 60 * 60 * 1000);
