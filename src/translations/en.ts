@@ -258,7 +258,7 @@ export const translations: TranslationType = {
     lightMode: "Light mode",
     systemMode: "System",
     more: "More",
-    addEvent: "Add event",
+    addEvent: "Add Event",
     day: "Day",
     week: "Week",
     month: "Month",
