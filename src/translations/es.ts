@@ -20,7 +20,15 @@ export const es: Translations = {
     update: "Actualizar",
     view: "Ver",
     save: "Guardar",
-    authRequired: "Autenticación requerida"
+    authRequired: "Autenticación requerida",
+    missingUserInfo: "Información de usuario faltante",
+    uploadError: "Error de carga",
+    errorOccurred: "Ocurrió un error",
+    deleteSuccess: "Eliminado con éxito",
+    deleteError: "Error al eliminar",
+    deleteConfirmTitle: "Confirmar eliminación",
+    deleteConfirmMessage: "¿Estás seguro de que quieres eliminar este elemento?",
+    warning: "Advertencia"
   },
   auth: {
     login: "Iniciar sesión",
@@ -165,8 +173,6 @@ export const es: Translations = {
     bookingRequestApproved: "Solicitud de reserva aprobada",
     bookingRequestRejected: "Solicitud de reserva rechazada",
     bookingRequestRequested: "Solicitud de reserva solicitada",
-    bookingRequestError: "Error en la solicitud de reserva",
-    bookingRequestSuccess: "Solicitud de reserva exitosa",
     bookingRequestFileUpload: "Subir archivo",
     bookingRequestFileDescription: "Descripción del archivo",
     newBooking: "Nueva reserva"
@@ -234,5 +240,13 @@ export const es: Translations = {
     contactNotes: "Notas del contacto",
     contactCreationDate: "Fecha de creación",
     contactMessage: "Mensaje"
+  },
+  crm: {
+    customerCreated: "Cliente creado con éxito",
+    customerUpdated: "Cliente actualizado con éxito",
+    eventCreationFailed: "Falló la creación del evento",
+    eventUpdateFailed: "Falló la actualización del evento"
   }
 };
+
+export const translations = es;

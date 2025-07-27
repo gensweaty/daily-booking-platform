@@ -1,144 +1,195 @@
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getArchivedTasks, restoreTask, deleteTask } from '@/lib/api';
+import { Task } from '@/lib/types';
+import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useNavigate } from 'react-router-dom';
+import { Edit, Eye, RotateCw, Trash2, AlertCircle } from 'lucide-react';
 
-import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { getArchivedTasks, restoreTask, deleteTask } from "@/lib/api";
-import { Task } from "@/lib/types";
-import { ArchivedTaskCard } from "./ArchivedTaskCard";
-import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Trash2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+interface ArchivedTaskCardProps {
+  task: Task;
+  onRestore: (taskId: string) => Promise<void>;
+  onDelete: (taskId: string) => Promise<void>;
+  onView: (taskId: string) => void;
+}
+
+const ArchivedTaskCard: React.FC<ArchivedTaskCardProps> = ({ task, onDelete, onRestore, onView }) => {
+  const { t } = useLanguage();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  return (
+    <Card className="bg-zinc-100 dark:bg-zinc-900">
+      <CardHeader>
+        <CardTitle>{task.title}</CardTitle>
+        <CardDescription>
+          {t('tasks.archive')} {new Date(task.archived_at || '').toLocaleDateString()}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {task.description}
+      </CardContent>
+      <CardFooter className="flex justify-between items-center">
+        <Button variant="outline" size="sm" onClick={() => onView(task.id)}>
+          <Eye className="mr-2 h-4 w-4" />
+          {t('common.view')}
+        </Button>
+        <div>
+          <Button variant="ghost" size="sm" onClick={() => onRestore(task.id)}>
+            <RotateCw className="mr-2 h-4 w-4" />
+            {t('tasks.restore')}
+          </Button>
+          <Button variant="destructive" size="sm" onClick={() => setIsDeleteDialogOpen(true)}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            {t('common.delete')}
+          </Button>
+        </div>
+      </CardFooter>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              {t('common.deleteConfirmTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('tasks.deleteTaskConfirmation')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              onDelete(task.id);
+              setIsDeleteDialogOpen(false);
+            }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>
+  );
+};
 
 export const ArchivedTasksPage = () => {
-  const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const { t } = useLanguage();
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    loadArchivedTasks();
-  }, []);
+  const { data: archivedTasks, isLoading, isError } = useQuery({
+    queryKey: ['archivedTasks'],
+    queryFn: getArchivedTasks,
+  });
 
-  const loadArchivedTasks = async () => {
-    try {
-      setLoading(true);
-      const tasks = await getArchivedTasks();
-      setArchivedTasks(tasks);
-    } catch (error) {
-      console.error("Error loading archived tasks:", error);
+  const restoreTaskMutation = useMutation(restoreTask, {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['archivedTasks'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast({
-        title: "Error",
-        description: "Failed to load archived tasks",
-        variant: "destructive",
+        title: t('common.success'),
+        description: t('tasks.taskUpdated'),
       });
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: t('common.error'),
+        description: error.message || t('common.errorOccurred'),
+      });
+    },
+  });
+
+  const deleteTaskMutation = useMutation(deleteTask, {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['archivedTasks'] });
+      toast({
+        title: t('common.success'),
+        description: t('tasks.taskDeleted'),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: t('common.error'),
+        description: error.message || t('common.errorOccurred'),
+      });
+    },
+  });
 
   const handleRestore = async (taskId: string) => {
-    try {
-      await restoreTask(taskId);
-      toast({
-        title: "Success",
-        description: "Task restored successfully",
-      });
-      loadArchivedTasks();
-    } catch (error) {
-      console.error("Error restoring task:", error);
-      toast({
-        title: "Error",
-        description: "Failed to restore task",
-        variant: "destructive",
-      });
-    }
+    await restoreTaskMutation.mutateAsync(taskId);
   };
 
   const handleDelete = async (taskId: string) => {
-    try {
-      await deleteTask(taskId);
-      toast({
-        title: "Success",
-        description: "Task deleted permanently",
-      });
-      loadArchivedTasks();
-    } catch (error) {
-      console.error("Error deleting task:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete task",
-        variant: "destructive",
-      });
-    }
+    await deleteTaskMutation.mutateAsync(taskId);
   };
 
-  const handleClearAll = async () => {
-    if (archivedTasks.length === 0) return;
-    
-    if (window.confirm("Are you sure you want to permanently delete all archived tasks?")) {
-      try {
-        await Promise.all(archivedTasks.map(task => deleteTask(task.id)));
-        toast({
-          title: "Success",
-          description: "All archived tasks deleted",
-        });
-        loadArchivedTasks();
-      } catch (error) {
-        console.error("Error clearing archived tasks:", error);
-        toast({
-          title: "Error",
-          description: "Failed to clear archived tasks",
-          variant: "destructive",
-        });
-      }
+  const handleView = (taskId: string) => {
+    const task = archivedTasks?.find(t => t.id === taskId);
+    if (task) {
+      setSelectedTask(task);
+      setIsViewDialogOpen(true);
     }
   };
-
-  if (loading) {
-    return <div className="p-6">Loading archived tasks...</div>;
-  }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/dashboard")}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </Button>
-          <h1 className="text-2xl font-bold">Archived Tasks</h1>
-        </div>
-        
-        {archivedTasks.length > 0 && (
-          <Button
-            variant="destructive"
-            onClick={handleClearAll}
-            className="flex items-center gap-2"
-          >
-            <Trash2 className="w-4 h-4" />
-            Clear All
-          </Button>
-        )}
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">{t('tasks.archive')}</h2>
+        <Button onClick={() => navigate('/tasks')}>{t('tasks.title')}</Button>
       </div>
 
-      {archivedTasks.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-gray-500 text-lg">No archived tasks found</p>
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          {archivedTasks.map((task) => (
-            <ArchivedTaskCard
-              key={task.id}
-              task={task}
-              onRestore={handleRestore}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
+      {isLoading && <p>{t('common.loading')}</p>}
+      {isError && <p>{t('common.error')}</p>}
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {archivedTasks?.map((task) => (
+          <ArchivedTaskCard
+            key={task.id}
+            task={task}
+            onRestore={handleRestore}
+            onDelete={handleDelete}
+            onView={handleView}
+          />
+        ))}
+      </div>
+
+      {selectedTask && (
+        <AlertDialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{selectedTask.title}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {selectedTask.description}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <Button onClick={() => setIsViewDialogOpen(false)}>{t('common.cancel')}</Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   );

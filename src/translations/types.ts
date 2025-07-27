@@ -27,6 +27,14 @@ export interface Translations {
     view: string;
     save: string;
     authRequired: string;
+    missingUserInfo: string;
+    uploadError: string;
+    errorOccurred: string;
+    deleteSuccess: string;
+    deleteError: string;
+    deleteConfirmTitle: string;
+    deleteConfirmMessage: string;
+    warning: string;
   };
   auth: {
     login: string;
@@ -171,8 +179,6 @@ export interface Translations {
     bookingRequestApproved: string;
     bookingRequestRejected: string;
     bookingRequestRequested: string;
-    bookingRequestError: string;
-    bookingRequestSuccess: string;
     bookingRequestFileUpload: string;
     bookingRequestFileDescription: string;
     newBooking: string;
@@ -241,4 +247,12 @@ export interface Translations {
     contactCreationDate: string;
     contactMessage: string;
   };
+  crm: {
+    customerCreated: string;
+    customerUpdated: string;
+    eventCreationFailed: string;
+    eventUpdateFailed: string;
+  };
 }
+
+export type TranslationType = Translations;

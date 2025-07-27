@@ -1,56 +1,25 @@
-
-import React from 'react';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { cn } from '@/lib/utils';
-import { getGeorgianFontStyle } from '@/lib/font-utils';
+import React from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface LanguageTextProps {
-  children: React.ReactNode;
+  textKey: string;
   className?: string;
-  withFont?: boolean;
-  fixLetterSpacing?: boolean;
-  translateParams?: Record<string, string | number>;
+  fallback?: string;
 }
 
-export const LanguageText = ({ 
-  children, 
-  className,
-  withFont = true,
-  fixLetterSpacing = true,
-  translateParams
-}: LanguageTextProps) => {
-  const { language, t } = useLanguage();
-  const isGeorgian = language === 'ka';
+export const LanguageText: React.FC<LanguageTextProps> = ({ 
+  textKey, 
+  className = "",
+  fallback = ""
+}) => {
+  const { t } = useLanguage();
   
-  // Handle translation keys directly if passed as string
-  if (typeof children === 'string' && children.includes('.')) {
-    try {
-      const possibleTranslation = t(children, translateParams);
-      // If the returned value is different from the key, it's a valid translation
-      if (possibleTranslation !== children) {
-        children = possibleTranslation;
-      }
-    } catch (error) {
-      // Silently fail if it's not a valid translation key
-    }
-  } else if (typeof children === 'string' && translateParams) {
-    // Handle direct text with parameters (not a translation key)
-    children = Object.entries(translateParams).reduce((str, [param, value]) => {
-      return str.replace(new RegExp(`{{${param}}}`, 'g'), String(value));
-    }, children as string);
-  }
+  // If the translation key is missing, you can provide a fallback
+  const translatedText = t(textKey) || fallback || textKey;
   
-  if (!isGeorgian) {
-    return <span className={className}>{children}</span>;
-  }
-  
-  // For Georgian text, apply specific styling
   return (
-    <span 
-      className={cn("ka-text georgian-text-fix", className)}
-      style={withFont ? getGeorgianFontStyle() : undefined}
-    >
-      {children}
+    <span className={className}>
+      {t(textKey)}
     </span>
   );
 };

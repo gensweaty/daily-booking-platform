@@ -288,20 +288,17 @@ export const sendBookingConfirmationEmail = async (
 };
 
 export const sendBookingConfirmationToMultipleRecipients = async (
-  recipients: Array<{
-    email: string;
-    name: string;
-    paymentStatus: string;
-    paymentAmount: number | null;
-    eventNotes: string;
-  }>,
+  recipients: Array<{ email: string; name: string }>,
   businessName: string,
   startDate: string,
   endDate: string,
+  paymentStatus: string,
+  paymentAmount: number | null,
   businessAddress: string,
   eventId: string,
-  language: string = 'en'
-): Promise<{ success: boolean; error?: string }> => {
+  language: string = 'en',
+  eventNotes: string = ''
+): Promise<{ successful: number; failed: number; total: number }> => {
   try {
     const emailPromises = recipients.map(recipient =>
       sendEventCreationEmail(
@@ -310,26 +307,30 @@ export const sendBookingConfirmationToMultipleRecipients = async (
         businessName,
         startDate,
         endDate,
-        recipient.paymentStatus,
-        recipient.paymentAmount,
+        paymentStatus,
+        paymentAmount,
         businessAddress,
         eventId,
         language,
-        recipient.eventNotes
+        eventNotes
       )
     );
 
     const results = await Promise.all(emailPromises);
-    const allSuccessful = results.every(result => result.success);
+    const successful = results.filter(result => result.success).length;
+    const failed = results.length - successful;
 
-    if (allSuccessful) {
-      return { success: true };
-    } else {
-      const errors = results.filter(result => !result.success).map(result => result.error).join(', ');
-      return { success: false, error: errors };
-    }
+    return {
+      successful,
+      failed,
+      total: results.length
+    };
   } catch (error: any) {
     console.error('Error sending booking confirmation to multiple recipients:', error);
-    return { success: false, error: error.message };
+    return {
+      successful: 0,
+      failed: recipients.length,
+      total: recipients.length
+    };
   }
 };
