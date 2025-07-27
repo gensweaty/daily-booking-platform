@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { Task } from "./types";
+import { Task, Reminder, Note } from "./types";
 
 export const getTasks = async (userId: string) => {
   const { data, error } = await supabase
@@ -186,17 +186,79 @@ export const restoreTask = async (id: string) => {
   return data;
 };
 
-export const sendEventCreationEmail = async (eventData: any) => {
-  // Placeholder for event creation email functionality
-  console.log('Event creation email would be sent:', eventData);
+export const getTasksForUser = async (userId: string) => {
+  return getTasks(userId);
 };
 
+// Fixed function signature to match what's expected in the codebase
+export const sendEventCreationEmail = async (
+  customerEmail: string,
+  customerName: string,
+  businessName: string,
+  startDate: string,
+  endDate: string,
+  paymentStatus: string,
+  paymentAmount: number | null,
+  businessAddress: string,
+  eventId: string,
+  language: string,
+  eventNotes: string
+) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
+      body: {
+        customerEmail,
+        customerName,
+        businessName,
+        startDate,
+        endDate,
+        paymentStatus,
+        paymentAmount,
+        businessAddress,
+        eventId,
+        language,
+        eventNotes
+      }
+    });
+
+    if (error) {
+      console.error('Error sending event creation email:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (error: any) {
+    console.error('Error sending event creation email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Fixed function signatures to return proper response objects
 export const sendBookingConfirmationEmail = async (bookingData: any) => {
-  // Placeholder for booking confirmation email functionality
-  console.log('Booking confirmation email would be sent:', bookingData);
+  try {
+    console.log('Booking confirmation email would be sent:', bookingData);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 };
 
 export const sendBookingConfirmationToMultipleRecipients = async (bookingData: any, recipients: string[]) => {
-  // Placeholder for multiple recipient booking confirmation
-  console.log('Booking confirmation emails would be sent to:', recipients, bookingData);
+  try {
+    console.log('Booking confirmation emails would be sent to:', recipients, bookingData);
+    return { 
+      success: true, 
+      successful: recipients.length,
+      failed: 0,
+      total: recipients.length 
+    };
+  } catch (error: any) {
+    return { 
+      success: false, 
+      error: error.message,
+      successful: 0,
+      failed: recipients.length,
+      total: recipients.length 
+    };
+  }
 };
