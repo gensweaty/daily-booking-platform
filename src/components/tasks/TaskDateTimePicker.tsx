@@ -1,15 +1,16 @@
-
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, X, Clock } from "lucide-react";
+import { Calendar as CalendarIcon, X, Clock, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { getUserTimezone } from "@/utils/timezoneUtils";
 import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
 import { useToast } from "@/components/ui/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface TaskDateTimePickerProps {
   label: string;
@@ -18,6 +19,9 @@ interface TaskDateTimePickerProps {
   placeholder: string;
   type?: 'deadline' | 'reminder';
   deadlineValue?: string; // for reminder validation
+  emailReminder?: boolean;
+  onEmailReminderChange?: (value: boolean) => void;
+  showEmailOption?: boolean;
 }
 
 export const TaskDateTimePicker = ({
@@ -26,9 +30,13 @@ export const TaskDateTimePicker = ({
   onChange,
   placeholder,
   type = 'deadline',
-  deadlineValue
+  deadlineValue,
+  emailReminder = false,
+  onEmailReminderChange,
+  showEmailOption = false
 }: TaskDateTimePickerProps) => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const { validateDateTime, isValidating } = useTimezoneValidation();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
@@ -105,6 +113,10 @@ export const TaskDateTimePicker = ({
   const handleRemove = () => {
     onChange(undefined);
     setSelectedDate(undefined);
+    // Reset email reminder when removing reminder time
+    if (type === 'reminder' && onEmailReminderChange) {
+      onEmailReminderChange(false);
+    }
   };
 
   const handleQuickSet = () => {
@@ -225,21 +237,43 @@ export const TaskDateTimePicker = ({
           </PopoverContent>
         </Popover>
       ) : (
-        <div className="flex items-center justify-between p-2 border rounded-md bg-muted/50">
-          <div className="flex items-center gap-2">
-            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm">
-              {label}: {format(new Date(value), "MMM dd, yyyy 'at' HH:mm")}
-            </span>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between p-2 border rounded-md bg-muted/50">
+            <div className="flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm">
+                {label}: {format(new Date(value), "MMM dd, yyyy 'at' HH:mm")}
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRemove}
+              className="h-6 w-6 p-0"
+            >
+              <X className="h-3 w-3" />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleRemove}
-            className="h-6 w-6 p-0"
-          >
-            <X className="h-3 w-3" />
-          </Button>
+          
+          {/* Email reminder checkbox - only show for reminder type */}
+          {showEmailOption && type === 'reminder' && onEmailReminderChange && (
+            <div className="flex items-center space-x-2 p-2 border rounded-md bg-muted/30">
+              <Checkbox
+                id={`email-reminder-${type}`}
+                checked={emailReminder}
+                onCheckedChange={onEmailReminderChange}
+              />
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <label
+                  htmlFor={`email-reminder-${type}`}
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  {t("tasks.emailReminder")}
+                </label>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

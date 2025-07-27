@@ -1,28 +1,19 @@
-
 export interface Task {
   id: string;
   title: string;
   description?: string;
   status: 'todo' | 'inprogress' | 'done';
-  created_at: string;
-  user_id?: string;
   position: number;
-  deadline_at?: string;
-  reminder_at?: string;
-  archived?: boolean;
-  archived_at?: string;
-}
-
-export interface Note {
-  id: string;
-  title: string;
-  content: string;
-  color?: string;
   created_at: string;
-  user_id?: string;
+  user_id: string;
+  deadline_at?: string | null;
+  reminder_at?: string | null;
+  email_reminder?: boolean;
+  reminder_sent?: boolean;
+  archived?: boolean;
+  archived_at?: string | null;
+  deleted_at?: string | null;
 }
-
-export type { CalendarEventType as CalendarEvent } from './types/calendar';
 
 export interface Reminder {
   id: string;
@@ -30,14 +21,94 @@ export interface Reminder {
   description?: string;
   remind_at: string;
   created_at: string;
-  user_id?: string;
+  user_id: string;
 }
 
-// Export BookingRequest from database.ts
-export { type BookingRequest } from '../types/database';
+export interface Note {
+  id: string;
+  title: string;
+  content?: string;
+  color?: string;
+  category?: string;
+  created_at: string;
+  user_id: string;
+}
 
-// Payment status type for consistency across components 
-// Includes both database and display formats
-export type PaymentStatus = 
-  'not_paid' | 'partly' | 'fully' | 
-  'partly_paid' | 'fully_paid';
+export interface BusinessProfile {
+  id: string;
+  user_id: string;
+  business_name: string;
+  description?: string;
+  contact_phone?: string;
+  contact_email?: string;
+  contact_address?: string;
+  contact_website?: string;
+  cover_photo_url?: string;
+  slug: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BookingRequest {
+  id: string;
+  business_id: string;
+  user_id: string | null; // Make user_id nullable for public booking requests
+  requester_name: string;
+  requester_email: string;
+  requester_phone?: string;
+  title: string;
+  description?: string;
+  start_date: string; // ISO format date string
+  end_date: string;   // ISO format date string
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+  user_surname?: string;
+  user_number?: string;
+  social_network_link?: string;
+  event_notes?: string;
+  payment_status?: string;
+  payment_amount?: number | null;
+  language?: string; // Add language field to BookingRequest interface
+  // File fields explicitly defined
+  file_path?: string;
+  filename?: string;
+  content_type?: string;
+  size?: number;
+  // Add the files property for multiple file attachments
+  files?: Array<{
+    id: string;
+    event_id: string;
+    filename: string;
+    file_path: string;
+    content_type?: string;
+    size?: number;
+  }>;
+}
+
+// Add EventFile interface to match event_files table
+export interface EventFile {
+  id: string;
+  event_id: string;
+  filename: string;
+  file_path: string;
+  content_type?: string;
+  size?: number;
+  user_id?: string;
+  created_at: string;
+  source?: string;
+}
+
+// Add CustomerFile interface to match customer_files_new table
+export interface CustomerFile {
+  id: string;
+  customer_id: string;
+  filename: string;
+  file_path: string;
+  content_type?: string;
+  size?: number;
+  user_id?: string;
+  created_at: string;
+  source?: string;
+}

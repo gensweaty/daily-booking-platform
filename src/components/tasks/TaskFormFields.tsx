@@ -26,6 +26,8 @@ interface TaskFormFieldsProps {
   setDeadline: (deadline: string | undefined) => void;
   reminderAt: string | undefined;
   setReminderAt: (reminder: string | undefined) => void;
+  emailReminder: boolean;
+  setEmailReminder: (value: boolean) => void;
 }
 
 export const TaskFormFields = ({
@@ -42,6 +44,8 @@ export const TaskFormFields = ({
   setDeadline,
   reminderAt,
   setReminderAt,
+  emailReminder,
+  setEmailReminder,
 }: TaskFormFieldsProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -102,6 +106,11 @@ export const TaskFormFields = ({
     }
 
     setReminderAt(newReminder);
+    
+    // Reset email reminder if removing reminder time
+    if (!newReminder) {
+      setEmailReminder(false);
+    }
   };
 
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
@@ -132,6 +141,9 @@ export const TaskFormFields = ({
           placeholder="Set reminder (optional)"
           type="reminder"
           deadlineValue={deadline}
+          emailReminder={emailReminder}
+          onEmailReminderChange={setEmailReminder}
+          showEmailOption={true}
         />
       </div>
       
