@@ -1,49 +1,56 @@
 
-import React from "react";
-import { useLanguage } from "@/contexts/LanguageContext";
+import React from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { cn } from '@/lib/utils';
+import { getGeorgianFontStyle } from '@/lib/font-utils';
 
 interface LanguageTextProps {
-  textKey?: string;
-  children?: string | number;
+  children: React.ReactNode;
   className?: string;
-  fallback?: string;
   withFont?: boolean;
+  fixLetterSpacing?: boolean;
   translateParams?: Record<string, string | number>;
 }
 
-export const LanguageText: React.FC<LanguageTextProps> = ({ 
-  textKey, 
-  children,
-  className = "",
-  fallback = "",
-  withFont = false,
+export const LanguageText = ({ 
+  children, 
+  className,
+  withFont = true,
+  fixLetterSpacing = true,
   translateParams
-}) => {
-  const { t } = useLanguage();
+}: LanguageTextProps) => {
+  const { language, t } = useLanguage();
+  const isGeorgian = language === 'ka';
   
-  // If textKey is provided, use it for translation
-  if (textKey) {
-    const translatedText = t(textKey, translateParams) || fallback || textKey;
-    return (
-      <span className={className}>
-        {translatedText}
-      </span>
-    );
+  // Handle translation keys directly if passed as string
+  if (typeof children === 'string' && children.includes('.')) {
+    try {
+      const possibleTranslation = t(children, translateParams);
+      // If the returned value is different from the key, it's a valid translation
+      if (possibleTranslation !== children) {
+        children = possibleTranslation;
+      }
+    } catch (error) {
+      // Silently fail if it's not a valid translation key
+    }
+  } else if (typeof children === 'string' && translateParams) {
+    // Handle direct text with parameters (not a translation key)
+    children = Object.entries(translateParams).reduce((str, [param, value]) => {
+      return str.replace(new RegExp(`{{${param}}}`, 'g'), String(value));
+    }, children as string);
   }
   
-  // If children is provided, use it directly (assuming it's already translated)
-  if (children !== undefined) {
-    return (
-      <span className={className}>
-        {children}
-      </span>
-    );
+  if (!isGeorgian) {
+    return <span className={className}>{children}</span>;
   }
   
-  // Fallback case
+  // For Georgian text, apply specific styling
   return (
-    <span className={className}>
-      {fallback}
+    <span 
+      className={cn("ka-text georgian-text-fix", className)}
+      style={withFont ? getGeorgianFontStyle() : undefined}
+    >
+      {children}
     </span>
   );
 };

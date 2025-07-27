@@ -2,9 +2,9 @@
 import { translations as en } from './en';
 import { translations as es } from './es';
 import { translations as ka } from './ka';
-import { Language, Translations } from './types';
+import { Language, TranslationType } from './types';
 
-export const translations: Record<Language, Translations> = {
+export const translations: Record<Language, TranslationType> = {
   en,
   es,
   ka,
