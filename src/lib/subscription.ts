@@ -126,32 +126,8 @@ export const redeemCode = async (code: string): Promise<{ success: boolean; mess
 
     console.log('Existing subscription:', existingSub);
 
-    // Step 4: First check if code exists and is valid
-    console.log('Checking code validity...');
-    const { data: codeData, error: codeError } = await supabase
-      .from('redeem_codes')
-      .select('*')
-      .eq('code', trimmedCode)
-      .maybeSingle();
-
-    if (codeError) {
-      console.error('Error checking code:', codeError);
-      return { success: false, message: 'Database error. Please try again.' };
-    }
-
-    if (!codeData) {
-      console.log('Code not found in database');
-      return { success: false, message: 'Invalid code.' };
-    }
-
-    if (codeData.is_used) {
-      console.log('Code already used');
-      return { success: false, message: 'Code has already been used.' };
-    }
-
-    console.log('Code is valid and unused:', codeData);
-
-    // Step 5: Use the database function to validate and redeem code
+    // Step 4: Use the database function to validate and redeem code
+    // This function now handles both validation AND subscription creation atomically
     console.log('Redeeming code using database function...');
     
     const { data: redeemResult, error: redeemError } = await supabase
@@ -169,23 +145,10 @@ export const redeemCode = async (code: string): Promise<{ success: boolean; mess
 
     if (!redeemResult) {
       console.log('Code redemption failed - function returned false');
-      return { success: false, message: 'Failed to redeem code. Please try again.' };
+      return { success: false, message: 'Invalid code or code has already been used.' };
     }
 
-    // If the code was successfully redeemed, create the Ultimate subscription for the user
-    console.log('Code redeemed, creating ultimate subscription for user:', userId);
-    try {
-      // Use existing helper to create the Ultimate subscription plan
-      const { success: subSuccess } = await createSubscription(userId, 'ultimate');
-      if (!subSuccess) {
-        console.error('Subscription creation failed after redeeming code');
-        return { success: false, message: 'Code redeemed, but failed to activate subscription.' };
-      }
-    } catch (subError) {
-      console.error('Error creating subscription after code redemption:', subError);
-      return { success: false, message: 'Code redeemed, but could not activate subscription. Please try again.' };
-    }
-
+    // Success! The database function has already created the ultimate subscription
     console.log('=== REDEEM CODE PROCESS SUCCESS ===');
     return { 
       success: true, 
