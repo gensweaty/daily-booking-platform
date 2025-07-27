@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -97,8 +96,8 @@ export const TaskReminderNotifications = () => {
       if (error) {
         console.error("❌ Error sending email reminder:", error);
         toast({
-          title: "Email Error",
-          description: "Failed to send email reminder",
+          title: t('email.failed'),
+          description: t('email.failedToSend'),
           variant: "destructive",
         });
         return false;
@@ -107,8 +106,8 @@ export const TaskReminderNotifications = () => {
       console.log("✅ Email reminder sent successfully:", data);
       
       toast({
-        title: "📧 Email Sent",
-        description: "Task reminder email sent successfully",
+        title: t('email.sent'),
+        description: t('email.taskReminderSent'),
         duration: 3000,
       });
       
@@ -116,8 +115,8 @@ export const TaskReminderNotifications = () => {
     } catch (error) {
       console.error("❌ Failed to send email reminder:", error);
       toast({
-        title: "Email Error",
-        description: "Failed to send email reminder",
+        title: t('email.failed'),
+        description: t('email.failedToSend'),
         variant: "destructive",
       });
       return false;

@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
 import { Resend } from "npm:resend@2.0.0";
@@ -23,6 +22,41 @@ setInterval(() => {
   }
 }, 10 * 60 * 1000);
 
+// Format time properly handling timezone
+const formatReminderTime = (dateString: string, language: string) => {
+  const date = new Date(dateString);
+  
+  // Format based on language
+  if (language === 'ka') {
+    return date.toLocaleString('ka-GE', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } else if (language === 'es') {
+    return date.toLocaleString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } else {
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  }
+};
+
 // Multi-language email content
 const getEmailContent = (language: string, taskTitle: string, reminderTime: string, taskDescription?: string) => {
   let subject, body;
@@ -36,7 +70,7 @@ const getEmailContent = (language: string, taskTitle: string, reminderTime: stri
           შეგახსენებთ დავალებაზე: <strong>${taskTitle}</strong>
         </p>
         <p style="font-size: 14px; color: #666;">
-          <strong>დრო:</strong> ${reminderTime}
+          <strong>შეხსენების დრო:</strong> ${reminderTime}
         </p>
         ${taskDescription ? `<p style="font-size: 14px; color: #666;"><strong>აღწერა:</strong> ${taskDescription}</p>` : ''}
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -57,7 +91,7 @@ const getEmailContent = (language: string, taskTitle: string, reminderTime: stri
           Este es un recordatorio de tu tarea: <strong>${taskTitle}</strong>
         </p>
         <p style="font-size: 14px; color: #666;">
-          <strong>Programada para:</strong> ${reminderTime}
+          <strong>Hora del recordatorio:</strong> ${reminderTime}
         </p>
         ${taskDescription ? `<p style="font-size: 14px; color: #666;"><strong>Descripción:</strong> ${taskDescription}</p>` : ''}
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -78,7 +112,7 @@ const getEmailContent = (language: string, taskTitle: string, reminderTime: stri
           This is a reminder for your task: <strong>${taskTitle}</strong>
         </p>
         <p style="font-size: 14px; color: #666;">
-          <strong>Scheduled for:</strong> ${reminderTime}
+          <strong>Reminder time:</strong> ${reminderTime}
         </p>
         ${taskDescription ? `<p style="font-size: 14px; color: #666;"><strong>Description:</strong> ${taskDescription}</p>` : ''}
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -198,16 +232,8 @@ const handler = async (req: Request): Promise<Response> => {
 
       const language = profileData?.language || 'en';
       
-      // Format reminder time
-      const reminderTime = new Date(task.reminder_at);
-      const formattedTime = reminderTime.toLocaleString('en-US', {
-        timeZone: 'UTC',
-        year: 'numeric',
-        month: 'short',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      // Format reminder time with proper timezone handling
+      const formattedTime = formatReminderTime(task.reminder_at, language);
 
       // Get localized email content
       const { subject, body: emailBody } = getEmailContent(language, task.title, formattedTime, task.description);
@@ -330,15 +356,7 @@ const handler = async (req: Request): Promise<Response> => {
         const language = profileData?.language || 'en';
         
         // Format reminder time
-        const reminderTime = new Date(task.reminder_at);
-        const formattedTime = reminderTime.toLocaleString('en-US', {
-          timeZone: 'UTC',
-          year: 'numeric',
-          month: 'short',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
+        const formattedTime = formatReminderTime(task.reminder_at, language);
 
         // Get localized email content
         const { subject, body: emailBody } = getEmailContent(language, task.title, formattedTime, task.description);
