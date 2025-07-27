@@ -1,392 +1,11 @@
+import { supabase } from "./supabase";
 
-import { supabase } from "@/integrations/supabase/client";
-
-// Tasks API
-export const getTasks = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('User not authenticated');
-
-  const { data, error } = await supabase
-    .from('tasks')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('archived', false)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  
-  // Map database fields to TypeScript interface with proper type casting
-  return (data || []).map(task => ({
-    id: task.id,
-    user_id: task.user_id,
-    title: task.title,
-    description: task.description || '',
-    status: task.status as 'todo' | 'in_progress' | 'completed',
-    priority: undefined as 'low' | 'medium' | 'high' | undefined,
-    due_date: undefined,
-    created_at: task.created_at,
-    updated_at: task.created_at,
-    is_archived: task.archived || false,
-    position: task.position || 0,
-    deadline_at: task.deadline_at,
-    reminder_at: task.reminder_at,
-    email_reminder: task.email_reminder || false,
-    reminder_sent: task.reminder_sent || false,
-    archived: task.archived || false,
-    archived_at: task.archived_at,
-    deleted_at: undefined,
-  }));
-};
-
-export const createTask = async (taskData: {
-  title: string;
-  description?: string;
-  status: 'todo' | 'in_progress' | 'completed';
-  user_id: string;
-  position?: number;
-  deadline_at?: string | null;
-  reminder_at?: string | null;
-  email_reminder?: boolean;
-  reminder_sent?: boolean;
-}) => {
-  const { data, error } = await supabase
-    .from('tasks')
-    .insert(taskData)
-    .select()
-    .single();
-
-  if (error) throw error;
-  
-  return {
-    id: data.id,
-    user_id: data.user_id,
-    title: data.title,
-    description: data.description || '',
-    status: data.status as 'todo' | 'in_progress' | 'completed',
-    priority: undefined as 'low' | 'medium' | 'high' | undefined,
-    due_date: undefined,
-    created_at: data.created_at,
-    updated_at: data.created_at,
-    is_archived: data.archived || false,
-    position: data.position || 0,
-    deadline_at: data.deadline_at,
-    reminder_at: data.reminder_at,
-    email_reminder: data.email_reminder || false,
-    reminder_sent: data.reminder_sent || false,
-    archived: data.archived || false,
-    archived_at: data.archived_at,
-    deleted_at: undefined,
-  };
-};
-
-export const updateTask = async (id: string, updates: any) => {
-  const { data, error } = await supabase
-    .from('tasks')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  
-  return {
-    id: data.id,
-    user_id: data.user_id,
-    title: data.title,
-    description: data.description || '',
-    status: data.status as 'todo' | 'in_progress' | 'completed',
-    priority: undefined as 'low' | 'medium' | 'high' | undefined,
-    due_date: undefined,
-    created_at: data.created_at,
-    updated_at: data.created_at,
-    is_archived: data.archived || false,
-    position: data.position || 0,
-    deadline_at: data.deadline_at,
-    reminder_at: data.reminder_at,
-    email_reminder: data.email_reminder || false,
-    reminder_sent: data.reminder_sent || false,
-    archived: data.archived || false,
-    archived_at: data.archived_at,
-    deleted_at: undefined,
-  };
-};
-
-export const deleteTask = async (id: string) => {
-  const { data, error } = await supabase
-    .from('tasks')
-    .delete()
-    .eq('id', id);
-
-  if (error) throw error;
-  return data;
-};
-
-export const getTasksForUser = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('User not authenticated');
-
-  const { data, error } = await supabase
-    .from('tasks')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('archived', false)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  
-  return (data || []).map(task => ({
-    id: task.id,
-    user_id: task.user_id,
-    title: task.title,
-    description: task.description || '',
-    status: task.status as 'todo' | 'in_progress' | 'completed',
-    priority: undefined as 'low' | 'medium' | 'high' | undefined,
-    due_date: undefined,
-    created_at: task.created_at,
-    updated_at: task.created_at,
-    is_archived: task.archived || false,
-    position: task.position || 0,
-    deadline_at: task.deadline_at,
-    reminder_at: task.reminder_at,
-    email_reminder: task.email_reminder || false,
-    reminder_sent: task.reminder_sent || false,
-    archived: task.archived || false,
-    archived_at: task.archived_at,
-    deleted_at: undefined,
-  }));
-};
-
-export const archiveTask = async (taskId: string) => {
-  const { data, error } = await supabase
-    .from('tasks')
-    .update({ archived: true })
-    .eq('id', taskId);
-
-  if (error) throw error;
-  return data;
-};
-
-export const getArchivedTasks = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('User not authenticated');
-
-  const { data, error } = await supabase
-    .from('tasks')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('archived', true)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  
-  return (data || []).map(task => ({
-    id: task.id,
-    user_id: task.user_id,
-    title: task.title,
-    description: task.description || '',
-    status: task.status as 'todo' | 'in_progress' | 'completed',
-    priority: undefined as 'low' | 'medium' | 'high' | undefined,
-    due_date: undefined,
-    created_at: task.created_at,
-    updated_at: task.created_at,
-    is_archived: task.archived || false,
-    position: task.position || 0,
-    deadline_at: task.deadline_at,
-    reminder_at: task.reminder_at,
-    email_reminder: task.email_reminder || false,
-    reminder_sent: task.reminder_sent || false,
-    archived: task.archived || false,
-    archived_at: task.archived_at,
-    deleted_at: undefined,
-  }));
-};
-
-export const restoreTask = async (taskId: string) => {
-  const { data, error } = await supabase
-    .from('tasks')
-    .update({ archived: false })
-    .eq('id', taskId);
-
-  if (error) throw error;
-  return data;
-};
-
-// Notes API
-export const getNotes = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('User not authenticated');
-
-  const { data, error } = await supabase
-    .from('notes')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  
-  return (data || []).map(note => ({
-    id: note.id,
-    user_id: note.user_id,
-    title: note.title,
-    content: note.content || '',
-    created_at: note.created_at,
-    updated_at: note.created_at,
-    color: note.color,
-  }));
-};
-
-export const createNote = async (noteData: {
-  title: string;
-  content?: string;
-  user_id: string;
-  color?: string;
-}) => {
-  const { data, error } = await supabase
-    .from('notes')
-    .insert(noteData)
-    .select()
-    .single();
-
-  if (error) throw error;
-  
-  return {
-    id: data.id,
-    user_id: data.user_id,
-    title: data.title,
-    content: data.content || '',
-    created_at: data.created_at,
-    updated_at: data.created_at,
-    color: data.color,
-  };
-};
-
-export const updateNote = async (id: string, updates: any) => {
-  const { data, error } = await supabase
-    .from('notes')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  
-  return {
-    id: data.id,
-    user_id: data.user_id,
-    title: data.title,
-    content: data.content || '',
-    created_at: data.created_at,
-    updated_at: data.created_at,
-    color: data.color,
-  };
-};
-
-export const deleteNote = async (id: string) => {
-  const { data, error } = await supabase
-    .from('notes')
-    .delete()
-    .eq('id', id);
-
-  if (error) throw error;
-  return data;
-};
-
-// Reminders API
-export const getReminders = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('User not authenticated');
-
-  const { data, error } = await supabase
-    .from('reminders')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  
-  return (data || []).map(reminder => ({
-    id: reminder.id,
-    user_id: reminder.user_id,
-    title: reminder.title,
-    description: reminder.description,
-    reminder_date: undefined,
-    reminder_time: undefined,
-    is_completed: false,
-    created_at: reminder.created_at,
-    updated_at: reminder.created_at,
-    remind_at: reminder.remind_at,
-  }));
-};
-
-export const createReminder = async (reminderData: {
-  title: string;
-  description?: string;
-  remind_at: string;
-  user_id: string;
-}) => {
-  const { data, error } = await supabase
-    .from('reminders')
-    .insert(reminderData)
-    .select()
-    .single();
-
-  if (error) throw error;
-  
-  return {
-    id: data.id,
-    user_id: data.user_id,
-    title: data.title,
-    description: data.description,
-    reminder_date: undefined,
-    reminder_time: undefined,
-    is_completed: false,
-    created_at: data.created_at,
-    updated_at: data.created_at,
-    remind_at: data.remind_at,
-  };
-};
-
-export const updateReminder = async (id: string, updates: any) => {
-  const { data, error } = await supabase
-    .from('reminders')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  
-  return {
-    id: data.id,
-    user_id: data.user_id,
-    title: data.title,
-    description: data.description,
-    reminder_date: undefined,
-    reminder_time: undefined,
-    is_completed: false,
-    created_at: data.created_at,
-    updated_at: data.created_at,
-    remind_at: data.remind_at,
-  };
-};
-
-export const deleteReminder = async (id: string) => {
-  const { data, error } = await supabase
-    .from('reminders')
-    .delete()
-    .eq('id', id);
-
-  if (error) throw error;
-  return data;
-};
-
-// Email API functions
-export const sendEventCreationEmail = async (
-  customerEmail: string,
+export const sendBookingApprovalEmail = async (
+  email: string,
   customerName: string,
   businessName: string,
-  eventStartDate: string,
-  eventEndDate: string,
+  startDate: string,
+  endDate: string,
   paymentStatus: string,
   paymentAmount: number | null,
   businessAddress: string,
@@ -394,18 +13,60 @@ export const sendEventCreationEmail = async (
   language: string
 ): Promise<{ success: boolean; error?: string }> => {
   try {
-    const { data, error } = await supabase.functions.invoke('send-booking-request-notification', {
+    const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
       body: {
-        customerEmail,
+        email,
         customerName,
         businessName,
-        eventStartDate,
-        eventEndDate,
+        startDate,
+        endDate,
         paymentStatus,
         paymentAmount,
         businessAddress,
         eventId,
         language
+      }
+    });
+
+    if (error) {
+      console.error('Error sending booking approval email:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending booking approval email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const sendEventCreationEmail = async (
+  email: string,
+  customerName: string,
+  businessName: string,
+  startDate: string,
+  endDate: string,
+  paymentStatus: string,
+  paymentAmount: number | null,
+  businessAddress: string,
+  eventId: string,
+  language: string,
+  eventNotes: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
+      body: {
+        email,
+        customerName,
+        businessName,
+        startDate,
+        endDate,
+        paymentStatus,
+        paymentAmount,
+        businessAddress,
+        eventId,
+        language,
+        eventNotes
       }
     });
 
@@ -416,103 +77,60 @@ export const sendEventCreationEmail = async (
 
     return { success: true };
   } catch (error: any) {
-    console.error('Error in sendEventCreationEmail:', error);
-    return { success: false, error: error.message };
-  }
-};
-
-export const sendBookingConfirmationEmail = async (
-  customerEmail: string,
-  customerName: string,
-  eventDate: string,
-  eventTime: string,
-  eventService: string,
-  eventLocation: string,
-  eventPrice: string,
-  eventDescription: string,
-  businessName: string,
-  businessEmail: string
-): Promise<{ success: boolean; error?: string }> => {
-  try {
-    const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
-      body: {
-        customerEmail,
-        customerName,
-        eventDate,
-        eventTime,
-        eventService,
-        eventLocation,
-        eventPrice,
-        eventDescription,
-        businessName,
-        businessEmail
-      }
-    });
-
-    if (error) {
-      console.error('Error sending booking confirmation email:', error);
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
-  } catch (error: any) {
-    console.error('Error in sendBookingConfirmationEmail:', error);
+    console.error('Error sending event creation email:', error);
     return { success: false, error: error.message };
   }
 };
 
 export const sendBookingConfirmationToMultipleRecipients = async (
-  recipients: string[],
-  eventData: any
-) => {
+  recipients: Array<{ email: string; name: string }>,
+  businessName: string,
+  startDate: string,
+  endDate: string,
+  paymentStatus: string,
+  paymentAmount: number | null,
+  businessAddress: string,
+  eventId: string,
+  language: string,
+  eventNotes: string
+): Promise<{ successful: number; failed: number; total: number }> => {
   try {
-    const results = await Promise.allSettled(
-      recipients.map(email => 
-        sendBookingConfirmationEmail(
-          email,
-          eventData.customerName,
-          eventData.eventDate,
-          eventData.eventTime,
-          eventData.eventService,
-          eventData.eventLocation,
-          eventData.eventPrice,
-          eventData.eventDescription,
-          eventData.businessName,
-          eventData.businessEmail
-        )
-      )
-    );
-
-    const successful = results.filter(result => result.status === 'fulfilled').length;
-    const failed = results.filter(result => result.status === 'rejected').length;
-    const total = recipients.length;
-
-    return { successful, failed, total };
-  } catch (error) {
-    console.error('Error in sendBookingConfirmationToMultipleRecipients:', error);
-    return { successful: 0, failed: recipients.length, total: recipients.length };
-  }
-};
-
-export const deleteCustomer = async (customerId: string) => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
-
-    const { error } = await supabase
-      .from('customers')
-      .delete()
-      .eq('id', customerId)
-      .eq('user_id', user.id);
-
-    if (error) {
-      console.error('Error deleting customer:', error);
-      return { successful: false, failed: 1, total: 1 };
+    let successful = 0;
+    let failed = 0;
+    
+    for (const recipient of recipients) {
+      const result = await sendEventCreationEmail(
+        recipient.email,
+        recipient.name,
+        businessName,
+        startDate,
+        endDate,
+        paymentStatus,
+        paymentAmount,
+        businessAddress,
+        eventId,
+        language,
+        eventNotes
+      );
+      
+      if (result.success) {
+        successful++;
+      } else {
+        failed++;
+      }
     }
-
-    return { successful: 1, failed: 0, total: 1 };
-  } catch (error) {
-    console.error('Error in deleteCustomer:', error);
-    return { successful: 0, failed: 1, total: 1 };
+    
+    return {
+      successful,
+      failed,
+      total: recipients.length
+    };
+  } catch (error: any) {
+    console.error('Error sending multiple booking confirmations:', error);
+    return {
+      successful: 0,
+      failed: recipients.length,
+      total: recipients.length
+    };
   }
 };
