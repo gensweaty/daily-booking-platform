@@ -289,6 +289,7 @@ export const translations: TranslationType = {
     withoutBooking: "without booking"
   },
   events: {
+    addEvent: "Add Event",
     submitBookingRequest: "Submit Booking Request",
     fullNameRequired: "Full Name",
     fullName: "Full Name",
