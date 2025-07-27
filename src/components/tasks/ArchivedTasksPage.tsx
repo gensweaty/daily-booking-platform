@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getArchivedTasks, restoreTask, deleteTask } from '@/lib/api';
@@ -103,7 +104,8 @@ export const ArchivedTasksPage = () => {
     queryFn: getArchivedTasks,
   });
 
-  const restoreTaskMutation = useMutation(restoreTask, {
+  const restoreTaskMutation = useMutation({
+    mutationFn: restoreTask,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['archivedTasks'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
@@ -121,7 +123,8 @@ export const ArchivedTasksPage = () => {
     },
   });
 
-  const deleteTaskMutation = useMutation(deleteTask, {
+  const deleteTaskMutation = useMutation({
+    mutationFn: deleteTask,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['archivedTasks'] });
       toast({
