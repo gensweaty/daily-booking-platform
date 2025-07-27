@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 // Tasks API
@@ -11,6 +12,49 @@ export const getTasks = async () => {
     .eq('user_id', user.id)
     .eq('is_archived', false)
     .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data;
+};
+
+export const createTask = async (taskData: {
+  title: string;
+  description?: string;
+  status: 'todo' | 'in_progress' | 'completed';
+  user_id: string;
+  position?: number;
+  deadline_at?: string | null;
+  reminder_at?: string | null;
+  email_reminder?: boolean;
+  reminder_sent?: boolean;
+}) => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .insert(taskData)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const updateTask = async (id: string, updates: any) => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const deleteTask = async (id: string) => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .delete()
+    .eq('id', id);
 
   if (error) throw error;
   return data;
@@ -81,6 +125,44 @@ export const getNotes = async () => {
   return data || [];
 };
 
+export const createNote = async (noteData: {
+  title: string;
+  content?: string;
+  user_id: string;
+  color?: string;
+}) => {
+  const { data, error } = await supabase
+    .from('notes')
+    .insert(noteData)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const updateNote = async (id: string, updates: any) => {
+  const { data, error } = await supabase
+    .from('notes')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const deleteNote = async (id: string) => {
+  const { data, error } = await supabase
+    .from('notes')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+  return data;
+};
+
 // Reminders API
 export const getReminders = async () => {
   const { data: { user } } = await supabase.auth.getUser();
@@ -94,6 +176,44 @@ export const getReminders = async () => {
 
   if (error) throw error;
   return data || [];
+};
+
+export const createReminder = async (reminderData: {
+  title: string;
+  description?: string;
+  remind_at: string;
+  user_id: string;
+}) => {
+  const { data, error } = await supabase
+    .from('reminders')
+    .insert(reminderData)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const updateReminder = async (id: string, updates: any) => {
+  const { data, error } = await supabase
+    .from('reminders')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const deleteReminder = async (id: string) => {
+  const { data, error } = await supabase
+    .from('reminders')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+  return data;
 };
 
 // Email API functions
