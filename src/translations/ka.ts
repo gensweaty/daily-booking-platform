@@ -1,5 +1,4 @@
-
-export const ka = {
+export const translations = {
   common: {
     success: "წარმატება",
     error: "შეცდომა",

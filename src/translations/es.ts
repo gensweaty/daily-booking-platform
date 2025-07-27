@@ -1,5 +1,4 @@
-
-export const es = {
+export const translations = {
   common: {
     success: "Éxito",
     error: "Error",
@@ -353,6 +352,7 @@ export const es = {
   },
   profile: {
     title: "Perfil",
+    editProfile: "Editar Perfil",
     personalInfo: "Información Personal",
     accountSettings: "Configuración de Cuenta",
     subscription: "Suscripción",
@@ -400,8 +400,7 @@ export const es = {
     uploadError: "Error subiendo archivo. Por favor intenta de nuevo.",
     settings: "Configuración",
     preferences: "Preferencias",
-    edit: "Editar",
-    editProfile: "Editar Perfil"
+    edit: "Editar"
   },
   auth: {
     signIn: "Iniciar Sesión",
