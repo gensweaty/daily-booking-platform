@@ -10,6 +10,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { TaskFullView } from "./TaskFullView";
 import { ArchivedTaskCard } from "./ArchivedTaskCard";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
@@ -24,11 +25,13 @@ export const ArchivedTasksPage = () => {
   
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: archivedTasks = [], isLoading } = useQuery({
     queryKey: ['archivedTasks'],
-    queryFn: getArchivedTasks,
+    queryFn: () => getArchivedTasks(user?.id || ''),
+    enabled: !!user?.id,
   });
 
   const restoreTaskMutation = useMutation({
