@@ -13,8 +13,10 @@ import { TaskFullView } from "./tasks/TaskFullView";
 import { TaskColumn } from "./tasks/TaskColumn";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const TaskList = () => {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -112,12 +114,8 @@ export const TaskList = () => {
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks'],
-    queryFn: async () => {
-      console.log('Fetching tasks in TaskList component');
-      const tasks = await getTasks();
-      console.log('Tasks received in TaskList:', tasks);
-      return tasks;
-    },
+    queryFn: () => getTasks(user?.id || ''),
+    enabled: !!user?.id,
   });
 
   if (isLoading) return <div className="text-foreground">Loading tasks...</div>;

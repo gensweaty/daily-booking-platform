@@ -65,7 +65,7 @@ export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
       await createReminder({ 
         title, 
         description, 
-        remind_at: dueDate,
+        reminder_at: dueDate,
         user_id: user.id
       });
       await queryClient.invalidateQueries({ queryKey: ['reminders'] });
