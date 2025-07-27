@@ -220,30 +220,30 @@ export const deleteReminder = async (id: string) => {
 export const sendEventCreationEmail = async (
   customerEmail: string,
   customerName: string,
-  eventDate: string,
-  eventTime: string,
-  eventService: string,
-  eventLocation: string,
-  eventPrice: string,
-  eventDescription: string,
   businessName: string,
-  businessEmail: string,
-  businessPhone: string
-) => {
+  eventStartDate: string,
+  eventEndDate: string,
+  paymentStatus: string,
+  paymentAmount: number | null,
+  businessAddress: string,
+  eventId: string,
+  language: string,
+  eventNotes: string
+): Promise<{ success: boolean; error?: string }> => {
   try {
     const { data, error } = await supabase.functions.invoke('send-booking-request-notification', {
       body: {
         customerEmail,
         customerName,
-        eventDate,
-        eventTime,
-        eventService,
-        eventLocation,
-        eventPrice,
-        eventDescription,
         businessName,
-        businessEmail,
-        businessPhone
+        eventStartDate,
+        eventEndDate,
+        paymentStatus,
+        paymentAmount,
+        businessAddress,
+        eventId,
+        language,
+        eventNotes
       }
     });
 
@@ -252,8 +252,8 @@ export const sendEventCreationEmail = async (
       return { success: false, error: error.message };
     }
 
-    return { success: true, data };
-  } catch (error) {
+    return { success: true };
+  } catch (error: any) {
     console.error('Error in sendEventCreationEmail:', error);
     return { success: false, error: error.message };
   }
@@ -269,9 +269,8 @@ export const sendBookingConfirmationEmail = async (
   eventPrice: string,
   eventDescription: string,
   businessName: string,
-  businessEmail: string,
-  businessPhone: string
-) => {
+  businessEmail: string
+): Promise<{ success: boolean; error?: string }> => {
   try {
     const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
       body: {
@@ -284,8 +283,7 @@ export const sendBookingConfirmationEmail = async (
         eventPrice,
         eventDescription,
         businessName,
-        businessEmail,
-        businessPhone
+        businessEmail
       }
     });
 
@@ -294,8 +292,8 @@ export const sendBookingConfirmationEmail = async (
       return { success: false, error: error.message };
     }
 
-    return { success: true, data };
-  } catch (error) {
+    return { success: true };
+  } catch (error: any) {
     console.error('Error in sendBookingConfirmationEmail:', error);
     return { success: false, error: error.message };
   }
@@ -318,8 +316,7 @@ export const sendBookingConfirmationToMultipleRecipients = async (
           eventData.eventPrice,
           eventData.eventDescription,
           eventData.businessName,
-          eventData.businessEmail,
-          eventData.businessPhone
+          eventData.businessEmail
         )
       )
     );

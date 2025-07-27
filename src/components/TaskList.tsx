@@ -72,12 +72,14 @@ export const TaskList = () => {
     const newStatus = result.destination.droppableId;
     
     // Convert from UI status format to database status format
-    let dbStatus: 'todo' | 'inprogress' | 'done';
+    let dbStatus: 'todo' | 'in_progress' | 'completed';
     
     if (newStatus === 'in-progress') {
-      dbStatus = 'inprogress';
+      dbStatus = 'in_progress';
+    } else if (newStatus === 'done') {
+      dbStatus = 'completed';
     } else {
-      dbStatus = newStatus as 'todo' | 'done';
+      dbStatus = 'todo';
     }
 
     console.log(`Moving task ${taskId} to status: ${dbStatus}`);
@@ -122,11 +124,11 @@ export const TaskList = () => {
 
   if (isLoading) return <div className="text-foreground">Loading tasks...</div>;
 
-  // Map database status to UI status
+  // Map database status to UI status and filter tasks
   const columns = {
     todo: tasks.filter((task: Task) => task.status === 'todo'),
-    'in-progress': tasks.filter((task: Task) => task.status === 'inprogress'),
-    done: tasks.filter((task: Task) => task.status === 'done'),
+    'in-progress': tasks.filter((task: Task) => task.status === 'in_progress'),
+    done: tasks.filter((task: Task) => task.status === 'completed'),
   };
 
   return (
