@@ -14,7 +14,28 @@ export const getTasks = async () => {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data;
+  
+  // Map database fields to TypeScript interface
+  return (data || []).map(task => ({
+    id: task.id,
+    user_id: task.user_id,
+    title: task.title,
+    description: task.description,
+    status: task.status,
+    priority: task.priority,
+    due_date: task.due_date,
+    created_at: task.created_at,
+    updated_at: task.updated_at || task.created_at,
+    is_archived: task.is_archived,
+    position: task.position,
+    deadline_at: task.deadline_at,
+    reminder_at: task.reminder_at,
+    email_reminder: task.email_reminder,
+    reminder_sent: task.reminder_sent,
+    archived: task.archived,
+    archived_at: task.archived_at,
+    deleted_at: task.deleted_at,
+  }));
 };
 
 export const createTask = async (taskData: {
@@ -35,7 +56,27 @@ export const createTask = async (taskData: {
     .single();
 
   if (error) throw error;
-  return data;
+  
+  return {
+    id: data.id,
+    user_id: data.user_id,
+    title: data.title,
+    description: data.description,
+    status: data.status,
+    priority: data.priority,
+    due_date: data.due_date,
+    created_at: data.created_at,
+    updated_at: data.updated_at || data.created_at,
+    is_archived: data.is_archived,
+    position: data.position,
+    deadline_at: data.deadline_at,
+    reminder_at: data.reminder_at,
+    email_reminder: data.email_reminder,
+    reminder_sent: data.reminder_sent,
+    archived: data.archived,
+    archived_at: data.archived_at,
+    deleted_at: data.deleted_at,
+  };
 };
 
 export const updateTask = async (id: string, updates: any) => {
@@ -47,7 +88,27 @@ export const updateTask = async (id: string, updates: any) => {
     .single();
 
   if (error) throw error;
-  return data;
+  
+  return {
+    id: data.id,
+    user_id: data.user_id,
+    title: data.title,
+    description: data.description,
+    status: data.status,
+    priority: data.priority,
+    due_date: data.due_date,
+    created_at: data.created_at,
+    updated_at: data.updated_at || data.created_at,
+    is_archived: data.is_archived,
+    position: data.position,
+    deadline_at: data.deadline_at,
+    reminder_at: data.reminder_at,
+    email_reminder: data.email_reminder,
+    reminder_sent: data.reminder_sent,
+    archived: data.archived,
+    archived_at: data.archived_at,
+    deleted_at: data.deleted_at,
+  };
 };
 
 export const deleteTask = async (id: string) => {
@@ -72,7 +133,27 @@ export const getTasksForUser = async () => {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data;
+  
+  return (data || []).map(task => ({
+    id: task.id,
+    user_id: task.user_id,
+    title: task.title,
+    description: task.description,
+    status: task.status,
+    priority: task.priority,
+    due_date: task.due_date,
+    created_at: task.created_at,
+    updated_at: task.updated_at || task.created_at,
+    is_archived: task.is_archived,
+    position: task.position,
+    deadline_at: task.deadline_at,
+    reminder_at: task.reminder_at,
+    email_reminder: task.email_reminder,
+    reminder_sent: task.reminder_sent,
+    archived: task.archived,
+    archived_at: task.archived_at,
+    deleted_at: task.deleted_at,
+  }));
 };
 
 export const archiveTask = async (taskId: string) => {
@@ -97,7 +178,27 @@ export const getArchivedTasks = async () => {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data || [];
+  
+  return (data || []).map(task => ({
+    id: task.id,
+    user_id: task.user_id,
+    title: task.title,
+    description: task.description,
+    status: task.status,
+    priority: task.priority,
+    due_date: task.due_date,
+    created_at: task.created_at,
+    updated_at: task.updated_at || task.created_at,
+    is_archived: task.is_archived,
+    position: task.position,
+    deadline_at: task.deadline_at,
+    reminder_at: task.reminder_at,
+    email_reminder: task.email_reminder,
+    reminder_sent: task.reminder_sent,
+    archived: task.archived,
+    archived_at: task.archived_at,
+    deleted_at: task.deleted_at,
+  }));
 };
 
 export const restoreTask = async (taskId: string) => {
@@ -122,7 +223,16 @@ export const getNotes = async () => {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data || [];
+  
+  return (data || []).map(note => ({
+    id: note.id,
+    user_id: note.user_id,
+    title: note.title,
+    content: note.content || '',
+    created_at: note.created_at,
+    updated_at: note.updated_at || note.created_at,
+    color: note.color,
+  }));
 };
 
 export const createNote = async (noteData: {
@@ -138,7 +248,16 @@ export const createNote = async (noteData: {
     .single();
 
   if (error) throw error;
-  return data;
+  
+  return {
+    id: data.id,
+    user_id: data.user_id,
+    title: data.title,
+    content: data.content || '',
+    created_at: data.created_at,
+    updated_at: data.updated_at || data.created_at,
+    color: data.color,
+  };
 };
 
 export const updateNote = async (id: string, updates: any) => {
@@ -150,7 +269,16 @@ export const updateNote = async (id: string, updates: any) => {
     .single();
 
   if (error) throw error;
-  return data;
+  
+  return {
+    id: data.id,
+    user_id: data.user_id,
+    title: data.title,
+    content: data.content || '',
+    created_at: data.created_at,
+    updated_at: data.updated_at || data.created_at,
+    color: data.color,
+  };
 };
 
 export const deleteNote = async (id: string) => {
@@ -175,7 +303,19 @@ export const getReminders = async () => {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data || [];
+  
+  return (data || []).map(reminder => ({
+    id: reminder.id,
+    user_id: reminder.user_id,
+    title: reminder.title,
+    description: reminder.description,
+    reminder_date: reminder.reminder_date,
+    reminder_time: reminder.reminder_time,
+    is_completed: reminder.is_completed,
+    created_at: reminder.created_at,
+    updated_at: reminder.updated_at || reminder.created_at,
+    remind_at: reminder.remind_at,
+  }));
 };
 
 export const createReminder = async (reminderData: {
@@ -191,7 +331,19 @@ export const createReminder = async (reminderData: {
     .single();
 
   if (error) throw error;
-  return data;
+  
+  return {
+    id: data.id,
+    user_id: data.user_id,
+    title: data.title,
+    description: data.description,
+    reminder_date: data.reminder_date,
+    reminder_time: data.reminder_time,
+    is_completed: data.is_completed,
+    created_at: data.created_at,
+    updated_at: data.updated_at || data.created_at,
+    remind_at: data.remind_at,
+  };
 };
 
 export const updateReminder = async (id: string, updates: any) => {
@@ -203,7 +355,19 @@ export const updateReminder = async (id: string, updates: any) => {
     .single();
 
   if (error) throw error;
-  return data;
+  
+  return {
+    id: data.id,
+    user_id: data.user_id,
+    title: data.title,
+    description: data.description,
+    reminder_date: data.reminder_date,
+    reminder_time: data.reminder_time,
+    is_completed: data.is_completed,
+    created_at: data.created_at,
+    updated_at: data.updated_at || data.created_at,
+    remind_at: data.remind_at,
+  };
 };
 
 export const deleteReminder = async (id: string) => {
