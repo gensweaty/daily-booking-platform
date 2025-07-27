@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { getUserTimezone } from "@/utils/timezoneUtils";
 import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
 import { useToast } from "@/components/ui/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface TaskDateTimePickerProps {
   label: string;
@@ -18,6 +20,8 @@ interface TaskDateTimePickerProps {
   placeholder: string;
   type?: 'deadline' | 'reminder';
   deadlineValue?: string; // for reminder validation
+  emailReminder?: boolean;
+  onEmailReminderChange?: (enabled: boolean) => void;
 }
 
 export const TaskDateTimePicker = ({
@@ -26,9 +30,12 @@ export const TaskDateTimePicker = ({
   onChange,
   placeholder,
   type = 'deadline',
-  deadlineValue
+  deadlineValue,
+  emailReminder = false,
+  onEmailReminderChange
 }: TaskDateTimePickerProps) => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const { validateDateTime, isValidating } = useTimezoneValidation();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
@@ -105,6 +112,10 @@ export const TaskDateTimePicker = ({
   const handleRemove = () => {
     onChange(undefined);
     setSelectedDate(undefined);
+    // Reset email reminder when removing reminder
+    if (type === 'reminder' && onEmailReminderChange) {
+      onEmailReminderChange(false);
+    }
   };
 
   const handleQuickSet = () => {
@@ -240,6 +251,23 @@ export const TaskDateTimePicker = ({
           >
             <X className="h-3 w-3" />
           </Button>
+        </div>
+      )}
+      
+      {/* Email reminder checkbox - only show for reminder type */}
+      {type === 'reminder' && value && onEmailReminderChange && (
+        <div className="flex items-center space-x-2 mt-2">
+          <Checkbox
+            id="email-reminder"
+            checked={emailReminder}
+            onCheckedChange={(checked) => onEmailReminderChange(!!checked)}
+          />
+          <label
+            htmlFor="email-reminder"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            {t("tasks.emailReminder")}
+          </label>
         </div>
       )}
     </div>

@@ -958,9 +958,13 @@ export type Database = {
           created_at: string | null
           deadline_at: string | null
           description: string | null
+          email_reminder: boolean | null
+          email_reminder_enabled: boolean | null
           id: string
           position: number | null
           reminder_at: string | null
+          reminder_sent: boolean | null
+          reminder_sent_at: string | null
           status: string
           title: string
           user_id: string | null
@@ -971,9 +975,13 @@ export type Database = {
           created_at?: string | null
           deadline_at?: string | null
           description?: string | null
+          email_reminder?: boolean | null
+          email_reminder_enabled?: boolean | null
           id?: string
           position?: number | null
           reminder_at?: string | null
+          reminder_sent?: boolean | null
+          reminder_sent_at?: string | null
           status?: string
           title: string
           user_id?: string | null
@@ -984,9 +992,13 @@ export type Database = {
           created_at?: string | null
           deadline_at?: string | null
           description?: string | null
+          email_reminder?: boolean | null
+          email_reminder_enabled?: boolean | null
           id?: string
           position?: number | null
           reminder_at?: string | null
+          reminder_sent?: boolean | null
+          reminder_sent_at?: string | null
           status?: string
           title?: string
           user_id?: string | null
