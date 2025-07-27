@@ -209,6 +209,7 @@ export const translations = {
     newCustomer: "Nuevo Cliente",
     fullNameRequired: "Nombre completo requerido",
     fullNamePlaceholder: "Ingresa nombre completo",
+    phoneNumber: "Número de Teléfono",
     phoneNumberPlaceholder: "Ingresa número de teléfono",
     socialLinkEmail: "Correo electrónico",
     socialLinkEmailPlaceholder: "Ingresa dirección de correo electrónico",

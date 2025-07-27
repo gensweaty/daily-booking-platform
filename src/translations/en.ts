@@ -143,6 +143,7 @@ export const translations = {
     newCustomer: "New Customer",
     fullNameRequired: "Full name is required",
     fullNamePlaceholder: "Enter full name",
+    phoneNumber: "Phone Number",
     phoneNumberPlaceholder: "Enter phone number",
     socialLinkEmail: "Email",
     socialLinkEmailPlaceholder: "Enter email address",
