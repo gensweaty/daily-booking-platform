@@ -15,10 +15,18 @@ export const useUserLanguage = () => {
     
     setIsLoading(true);
     try {
+      // First, get the current profile to preserve existing username
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single();
+
       const { error } = await supabase
         .from('profiles')
         .upsert({
           id: user.id,
+          username: profile?.username || `user_${user.id.slice(0, 8)}`,
           language: lang,
         }, {
           onConflict: 'id'
