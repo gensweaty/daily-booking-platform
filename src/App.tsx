@@ -250,7 +250,6 @@ const AppContent = () => {
   return (
     <SessionAndRealtimeWrapper>
       <AuthProvider>
-        <SEOManager />
         <BusinessRouteInterceptor />
         <RouteAwareThemeProvider>
           <RouteAwareWrapper>
@@ -328,6 +327,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
+        <SEOManager />
         <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
           <BrowserRouter>
             <AppContent />
