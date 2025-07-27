@@ -11,8 +11,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
 import { ensureNotificationPermission } from "@/utils/notificationUtils";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 
 interface TaskFormFieldsProps {
   title: string;
@@ -28,8 +26,6 @@ interface TaskFormFieldsProps {
   setDeadline: (deadline: string | undefined) => void;
   reminderAt: string | undefined;
   setReminderAt: (reminder: string | undefined) => void;
-  sendEmailReminder: boolean;
-  setSendEmailReminder: (value: boolean) => void;
 }
 
 export const TaskFormFields = ({
@@ -46,8 +42,6 @@ export const TaskFormFields = ({
   setDeadline,
   reminderAt,
   setReminderAt,
-  sendEmailReminder,
-  setSendEmailReminder,
 }: TaskFormFieldsProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -139,19 +133,6 @@ export const TaskFormFields = ({
           type="reminder"
           deadlineValue={deadline}
         />
-        
-        {reminderAt && (
-          <div className="flex items-center space-x-2 pt-2 border-t border-muted/20">
-            <Checkbox
-              id="emailReminder"
-              checked={sendEmailReminder}
-              onCheckedChange={setSendEmailReminder}
-            />
-            <Label htmlFor="emailReminder" className="text-sm">
-              {t("tasks.emailReminder")}
-            </Label>
-          </div>
-        )}
       </div>
       
       {editingTask?.id && existingFiles && existingFiles.length > 0 && (

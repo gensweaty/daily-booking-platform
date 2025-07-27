@@ -2,129 +2,117 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { Reminder } from "@/lib/types";
+import { createReminder } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { DialogTitle } from "@/components/ui/dialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { ensureNotificationPermission, getPermissionInstructions, getDeviceSpecificMessage } from "@/utils/notificationUtils";
+import { detectDevice } from "@/utils/deviceDetector";
 
-interface AddReminderFormProps {
-  onReminderAdded: (reminder: Reminder) => void;
-  onClose: () => void;
-}
-
-export function AddReminderForm({ onReminderAdded, onClose }: AddReminderFormProps) {
+export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { t } = useLanguage();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    remind_at: "",
-  });
+  const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        toast({
-          title: t("common.error"),
-          description: "You must be logged in to add reminders",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("reminders")
-        .insert([
-          {
-            title: formData.title,
-            description: formData.description,
-            remind_at: formData.remind_at,
-            user_id: user.id,
-          },
-        ])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const newReminder: Reminder = {
-        id: data.id,
-        title: data.title,
-        description: data.description,
-        remind_at: data.remind_at,
-        created_at: data.created_at,
-        updated_at: data.created_at,
-        user_id: data.user_id,
-      };
-
-      onReminderAdded(newReminder);
+    if (!user?.id) {
       toast({
-        title: t("common.success"),
-        description: t("reminders.reminderCreated"),
+        title: "Error",
+        description: "You need to be logged in to create reminders",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Request notification permission when creating a reminder with due date
+    if (dueDate) {
+      const device = detectDevice();
+      console.log(`🔔 Requesting notification permission for reminder creation on ${device.os}`);
+      
+      const permissionGranted = await ensureNotificationPermission();
+      
+      if (permissionGranted) {
+        toast({
+          title: "🔔 Notifications Enabled",
+          description: `Perfect! You'll receive reminder notifications on your ${device.os} device`,
+          duration: 4000,
+        });
+      } else if (Notification.permission === "denied") {
+        const instructions = getPermissionInstructions();
+        toast({
+          title: "⚠️ Notifications Blocked",
+          description: instructions,
+          variant: "destructive",
+          duration: 8000,
+        });
+      } else {
+        // Permission request was cancelled or failed
+        const deviceMessage = getDeviceSpecificMessage();
+        toast({
+          title: "🔔 Enable Notifications",
+          description: deviceMessage,
+          duration: 5000,
+        });
+      }
+    }
+    
+    try {
+      await createReminder({ 
+        title, 
+        description, 
+        remind_at: dueDate,
+        user_id: user.id
+      });
+      await queryClient.invalidateQueries({ queryKey: ['reminders'] });
+      toast({
+        title: "Success",
+        description: "Reminder created successfully",
       });
       onClose();
     } catch (error) {
-      console.error("Error adding reminder:", error);
+      console.error('Reminder creation error:', error);
       toast({
-        title: t("common.error"),
-        description: "Failed to add reminder",
+        title: "Error",
+        description: "Failed to create reminder. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="title">{t("common.title")}</Label>
-        <Input
-          id="title"
-          type="text"
-          value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          required
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="description">{t("common.description")}</Label>
-        <Textarea
-          id="description"
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          placeholder={t("common.description")}
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="remind_at">{t("reminders.reminderTime")}</Label>
-        <Input
-          id="remind_at"
-          type="datetime-local"
-          value={formData.remind_at}
-          onChange={(e) => setFormData({ ...formData, remind_at: e.target.value })}
-          required
-        />
-      </div>
-
-      <div className="flex gap-2">
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? t("common.saving") : t("common.save")}
-        </Button>
-        <Button type="button" variant="outline" onClick={onClose}>
-          {t("common.cancel")}
-        </Button>
-      </div>
-    </form>
+    <>
+      <DialogTitle>Add New Reminder</DialogTitle>
+      <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        <div>
+          <Input
+            placeholder="Reminder title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <Input
+            placeholder="Description (optional)"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+        <div>
+          <Input
+            type="datetime-local"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            required
+          />
+        </div>
+        <Button type="submit">Add Reminder</Button>
+      </form>
+    </>
   );
-}
+};
