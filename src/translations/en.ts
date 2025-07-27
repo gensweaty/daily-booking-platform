@@ -463,6 +463,7 @@ export const translations = {
   },
   profile: {
     title: "Profile",
+    editProfile: "Edit Profile",
     edit: "Edit Profile",
     settings: "Settings",
     preferences: "Preferences",
