@@ -1,4 +1,3 @@
-
 export interface Task {
   id: string;
   title: string;
@@ -11,6 +10,7 @@ export interface Task {
   reminder_at?: string;
   archived?: boolean;
   archived_at?: string;
+  email_reminder?: boolean;
 }
 
 export interface Note {
