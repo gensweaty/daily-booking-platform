@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -259,7 +258,7 @@ export const translations: TranslationType = {
     lightMode: "ღია რეჟიმი",
     systemMode: "სისტემა",
     more: "მეტი",
-    addEvent: "ღონისძიების დამატება",
+    addEvent: "მოვლენის დამატება",
     day: "დღე",
     week: "კვირა",
     month: "თვე",
@@ -290,7 +289,7 @@ export const translations: TranslationType = {
     withoutBooking: "დაჯავშნის გარეშე"
   },
   events: {
-    addEvent: "ღონისძიების დამატება",
+    addEvent: "მოვლენის დამატება",
     submitBookingRequest: "დაჯავშნის მოთხოვნის გაგზავნა",
     fullNameRequired: "სრული სახელი",
     fullName: "სრული სახელი",
@@ -357,7 +356,7 @@ export const translations: TranslationType = {
     day: "დღე",
     week: "კვირა",
     month: "თვე",
-    addEvent: "ღონისძიების დამატება",
+    addEvent: "მოვლენის დამატება",
     bookNow: "დაჯავშნე ახლავე",
     weekOf: "კვირა"
   },
