@@ -112,3 +112,5 @@ export interface CustomerFile {
   created_at: string;
   source?: string;
 }
+
+export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'partly_paid' | 'fully_paid' | 'not_paid';

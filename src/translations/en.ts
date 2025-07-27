@@ -1,4 +1,5 @@
-export const en = {
+
+export const translations = {
   common: {
     success: "Success",
     successMessage: "Operation completed successfully",
@@ -42,18 +43,6 @@ export const en = {
     eventUpdated: "Event updated successfully",
     eventDeleted: "Event deleted successfully",
     eventSeriesDeleted: "Event series deleted successfully"
-  },
-  tasks: {
-    taskAdded: "Task added successfully",
-    taskUpdated: "Task updated successfully",
-    taskDeleted: "Task deleted successfully",
-    taskArchived: "Task archived successfully",
-    archive: "Archive",
-    deleteTask: "Delete Task",
-    deleteTaskConfirmTitle: "Delete Task",
-    deleteTaskConfirmation: "Are you sure you want to delete this task? This action cannot be undone.",
-    emailReminder: "Email Me",
-    emailReminderDescription: "Send email reminder at the specified time"
   },
   notes: {
     noteAdded: "Note added successfully",

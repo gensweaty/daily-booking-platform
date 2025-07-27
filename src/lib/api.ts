@@ -80,3 +80,123 @@ export const updateTask = async (id: string, updates: {
   if (error) throw error;
   return data;
 };
+
+export const createReminder = async (reminder: Partial<Reminder>) => {
+  const { data, error } = await supabase
+    .from('reminders')
+    .insert([reminder])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const getReminders = async () => {
+  const { data, error } = await supabase
+    .from('reminders')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+};
+
+export const updateReminder = async (id: string, updates: Partial<Reminder>) => {
+  const { data, error } = await supabase
+    .from('reminders')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const deleteReminder = async (id: string) => {
+  const { error } = await supabase
+    .from('reminders')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+};
+
+export const getNotes = async () => {
+  const { data, error } = await supabase
+    .from('notes')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+};
+
+export const updateNote = async (id: string, updates: Partial<Note>) => {
+  const { data, error } = await supabase
+    .from('notes')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const deleteNote = async (id: string) => {
+  const { error } = await supabase
+    .from('notes')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+};
+
+export const deleteTask = async (id: string) => {
+  const { error } = await supabase
+    .from('tasks')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+};
+
+export const getArchivedTasks = async () => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('archived', true)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+};
+
+export const restoreTask = async (id: string) => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .update({ archived: false })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const sendEventCreationEmail = async (eventData: any) => {
+  // Placeholder for event creation email functionality
+  console.log('Event creation email would be sent:', eventData);
+};
+
+export const sendBookingConfirmationEmail = async (bookingData: any) => {
+  // Placeholder for booking confirmation email functionality
+  console.log('Booking confirmation email would be sent:', bookingData);
+};
+
+export const sendBookingConfirmationToMultipleRecipients = async (bookingData: any, recipients: string[]) => {
+  // Placeholder for multiple recipient booking confirmation
+  console.log('Booking confirmation emails would be sent to:', recipients, bookingData);
+};
