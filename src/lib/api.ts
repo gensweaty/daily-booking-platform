@@ -1,6 +1,8 @@
+
 import { supabase } from './supabase';
 import { Task } from './types';
 
+// Task operations
 export const createTask = async (task: Omit<Task, 'id' | 'created_at'>) => {
   const { data, error } = await supabase
     .from('tasks')
@@ -84,6 +86,297 @@ export const archiveTask = async (id: string) => {
 
   if (error) {
     console.error('Error archiving task:', error);
+    throw error;
+  }
+};
+
+// Archived tasks operations
+export const getArchivedTasks = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('archived', true)
+    .order('archived_at', { ascending: false });
+
+  if (error) {
+    console.error('Error getting archived tasks:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+export const restoreTask = async (id: string) => {
+  const { error } = await supabase
+    .from('tasks')
+    .update({ archived: false, archived_at: null })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error restoring task:', error);
+    throw error;
+  }
+};
+
+// Notes operations
+export const getNotes = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('notes')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error getting notes:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+export const createNote = async (note: { title: string; content: string; user_id: string }) => {
+  const { data, error } = await supabase
+    .from('notes')
+    .insert([note])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating note:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const updateNote = async (id: string, updates: { title?: string; content?: string }) => {
+  const { data, error } = await supabase
+    .from('notes')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating note:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const deleteNote = async (id: string) => {
+  const { error } = await supabase
+    .from('notes')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting note:', error);
+    throw error;
+  }
+};
+
+// Reminders operations
+export const getReminders = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('reminders')
+    .select('*')
+    .eq('user_id', userId)
+    .order('reminder_at', { ascending: true });
+
+  if (error) {
+    console.error('Error getting reminders:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+export const createReminder = async (reminder: {
+  title: string;
+  description?: string;
+  reminder_at: string;
+  user_id: string;
+}) => {
+  const { data, error } = await supabase
+    .from('reminders')
+    .insert([reminder])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating reminder:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const updateReminder = async (id: string, updates: {
+  title?: string;
+  description?: string;
+  reminder_at?: string;
+}) => {
+  const { data, error } = await supabase
+    .from('reminders')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating reminder:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const deleteReminder = async (id: string) => {
+  const { error } = await supabase
+    .from('reminders')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting reminder:', error);
+    throw error;
+  }
+};
+
+// Email operations
+export const sendEventCreationEmail = async (
+  recipientEmail: string,
+  recipientName: string,
+  businessName: string,
+  startDate: string,
+  endDate: string,
+  paymentStatus: string,
+  paymentAmount: number | null,
+  contactAddress: string,
+  eventId: string,
+  language: string = 'en',
+  eventNotes: string = ''
+) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
+      body: {
+        recipientEmail,
+        recipientName,
+        businessName,
+        startDate,
+        endDate,
+        paymentStatus,
+        paymentAmount,
+        contactAddress,
+        eventId,
+        language,
+        eventNotes
+      }
+    });
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error sending event creation email:', error);
+    throw error;
+  }
+};
+
+export const sendBookingConfirmationEmail = async (
+  recipientEmail: string,
+  recipientName: string,
+  businessName: string,
+  startDate: string,
+  endDate: string,
+  paymentStatus: string,
+  paymentAmount: number | null,
+  contactAddress: string,
+  eventId: string,
+  language: string = 'en',
+  eventNotes: string = ''
+) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
+      body: {
+        recipientEmail,
+        recipientName,
+        businessName,
+        startDate,
+        endDate,
+        paymentStatus,
+        paymentAmount,
+        contactAddress,
+        eventId,
+        language,
+        eventNotes
+      }
+    });
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error sending booking confirmation email:', error);
+    throw error;
+  }
+};
+
+export const sendBookingConfirmationToMultipleRecipients = async (
+  recipients: Array<{ email: string; name: string }>,
+  businessName: string,
+  startDate: string,
+  endDate: string,
+  paymentStatus: string,
+  paymentAmount: number | null,
+  contactAddress: string,
+  eventId: string,
+  language: string = 'en',
+  eventNotes: string = ''
+) => {
+  const results = {
+    successful: 0,
+    failed: 0,
+    total: recipients.length
+  };
+
+  for (const recipient of recipients) {
+    try {
+      await sendBookingConfirmationEmail(
+        recipient.email,
+        recipient.name,
+        businessName,
+        startDate,
+        endDate,
+        paymentStatus,
+        paymentAmount,
+        contactAddress,
+        eventId,
+        language,
+        eventNotes
+      );
+      results.successful++;
+    } catch (error) {
+      console.error(`Failed to send email to ${recipient.email}:`, error);
+      results.failed++;
+    }
+  }
+
+  return results;
+};
+
+// Task email reminder
+export const sendTaskReminderEmail = async (taskId: string) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-task-reminder-email', {
+      body: { taskId }
+    });
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error sending task reminder email:', error);
     throw error;
   }
 };
