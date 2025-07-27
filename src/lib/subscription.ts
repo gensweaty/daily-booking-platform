@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { addDays } from "date-fns";
 import { SubscriptionPlan } from "@/types/subscription-types";
@@ -125,8 +126,33 @@ export const redeemCode = async (code: string): Promise<{ success: boolean; mess
 
     console.log('Existing subscription:', existingSub);
 
-    // Step 4: Use database function to validate and redeem code
-    console.log('Validating and redeeming code using database function...');
+    // Step 4: First check if code exists and is valid
+    console.log('Checking code validity...');
+    const { data: codeData, error: codeError } = await supabase
+      .from('redeem_codes')
+      .select('*')
+      .eq('code', trimmedCode)
+      .maybeSingle();
+
+    if (codeError) {
+      console.error('Error checking code:', codeError);
+      return { success: false, message: 'Database error. Please try again.' };
+    }
+
+    if (!codeData) {
+      console.log('Code not found in database');
+      return { success: false, message: 'Invalid code.' };
+    }
+
+    if (codeData.is_used) {
+      console.log('Code already used');
+      return { success: false, message: 'Code has already been used.' };
+    }
+
+    console.log('Code is valid and unused:', codeData);
+
+    // Step 5: Use the database function to validate and redeem code
+    console.log('Redeeming code using database function...');
     
     const { data: redeemResult, error: redeemError } = await supabase
       .rpc('validate_and_use_redeem_code', {
@@ -136,14 +162,14 @@ export const redeemCode = async (code: string): Promise<{ success: boolean; mess
 
     if (redeemError) {
       console.error('Error calling redeem function:', redeemError);
-      return { success: false, message: 'Database error. Please try again.' };
+      return { success: false, message: `Database error: ${redeemError.message}` };
     }
 
     console.log('Redeem function result:', redeemResult);
 
     if (!redeemResult) {
-      console.log('Code redemption failed - invalid or already used code');
-      return { success: false, message: 'Invalid code or code has already been used.' };
+      console.log('Code redemption failed - function returned false');
+      return { success: false, message: 'Failed to redeem code. Please try again.' };
     }
 
     console.log('=== REDEEM CODE PROCESS SUCCESS ===');
