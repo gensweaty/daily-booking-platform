@@ -40,7 +40,7 @@ export const StatCard = ({
       <div className="flex items-center space-x-2">
         <Icon className={cn("w-4 h-4", colorStyles[color])} />
         <h3 className="text-sm font-medium">
-          <LanguageText>{title}</LanguageText>
+          <LanguageText textKey={title} />
         </h3>
       </div>
       <div className={valueClassName || "text-2xl font-bold"}>
@@ -48,11 +48,11 @@ export const StatCard = ({
         {isCurrencyValue ? (
           <span>{value}</span>
         ) : (
-          <LanguageText withFont={typeof value === 'string'}>{value}</LanguageText>
+          <LanguageText>{value}</LanguageText>
         )}
       </div>
       <p className="text-xs text-muted-foreground">
-        <LanguageText>{description}</LanguageText>
+        <LanguageText textKey={description} />
       </p>
     </Card>
   );
