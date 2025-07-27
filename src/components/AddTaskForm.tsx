@@ -1,160 +1,144 @@
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/components/ui/use-toast";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { TaskFormFields } from "./tasks/TaskFormFields";
-import { TaskFormHeader } from "./tasks/TaskFormHeader";
-import { getUserTimezone } from "@/utils/timezoneUtils";
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { TaskFormFields } from '@/components/tasks/TaskFormFields';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { translations } from '@/translations';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { Plus, X } from 'lucide-react';
 
-export default function AddTaskForm() {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState("");
-  const [deadline, setDeadline] = useState<string | undefined>(undefined);
-  const [reminderAt, setReminderAt] = useState<string | undefined>(undefined);
-  const [emailReminder, setEmailReminder] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
+const AddTaskForm = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const { t } = useLanguage();
+  const { language } = useLanguage();
+  const t = translations[language];
+  const queryClient = useQueryClient();
+  
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    deadline: '',
+    reminder: '',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
-
-    if (!title.trim()) {
-      toast({
-        title: t("common.error"),
-        description: t("tasks.titleRequired"),
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!user?.id) return;
 
     setIsSubmitting(true);
-
+    
     try {
-      // Get user's timezone
-      const userTimezone = getUserTimezone();
-      
-      // Create task with timezone
-      const { data: task, error: taskError } = await supabase
-        .from("tasks")
-        .insert({
-          title: title.trim(),
-          description: description.trim() || null,
+      const { error } = await supabase
+        .from('tasks')
+        .insert([{
+          title: formData.title,
+          description: formData.description,
+          status: 'todo',
           user_id: user.id,
-          deadline_at: deadline || null,
-          reminder_at: reminderAt || null,
-          email_reminder_enabled: emailReminder,
-          timezone: userTimezone,
-        })
-        .select()
-        .single();
+          deadline: formData.deadline || null,
+          reminder: formData.reminder || null,
+          timezone: formData.timezone
+        }]);
 
-      if (taskError) throw taskError;
+      if (error) throw error;
 
-      // Handle file upload if there's a selected file
-      if (selectedFile && task) {
-        const fileExt = selectedFile.name.split(".").pop();
-        const fileName = `${task.id}/${Date.now()}.${fileExt}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("task_attachments")
-          .upload(fileName, selectedFile);
-
-        if (uploadError) {
-          console.error("File upload error:", uploadError);
-          toast({
-            title: t("common.warning"),
-            description: t("common.fileUploadError"),
-            variant: "destructive",
-          });
-        } else {
-          // Create file record
-          const { error: fileRecordError } = await supabase
-            .from("files")
-            .insert({
-              filename: selectedFile.name,
-              file_path: fileName,
-              content_type: selectedFile.type,
-              size: selectedFile.size,
-              user_id: user.id,
-              task_id: task.id,
-            });
-
-          if (fileRecordError) {
-            console.error("File record error:", fileRecordError);
-          }
-        }
-      }
-
-      toast({
-        title: t("common.success"),
-        description: t("tasks.taskAdded"),
+      toast.success(t.tasks.taskAdded);
+      setFormData({
+        title: '',
+        description: '',
+        deadline: '',
+        reminder: '',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
       });
-
-      // Reset form
-      setTitle("");
-      setDescription("");
-      setSelectedFile(null);
-      setFileError("");
-      setDeadline(undefined);
-      setReminderAt(undefined);
-      setEmailReminder(false);
-
+      setIsOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
     } catch (error) {
-      console.error("Error creating task:", error);
-      toast({
-        title: t("common.error"),
-        description: t("common.somethingWentWrong"),
-        variant: "destructive",
-      });
+      console.error('Error adding task:', error);
+      toast.error(t.common.error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  if (!isOpen) {
+    return (
+      <Button
+        onClick={() => setIsOpen(true)}
+        className="mb-4"
+        size="sm"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        {t.tasks.addTask}
+      </Button>
+    );
+  }
+
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <TaskFormHeader />
+    <Card className="mb-4">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">{t.tasks.addTask}</CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsOpen(false)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Input
+              placeholder={t.tasks.titlePlaceholder}
+              value={formData.title}
+              onChange={(e) => handleInputChange('title', e.target.value)}
+              required
+            />
+          </div>
+          
           <TaskFormFields
-            title={title}
-            setTitle={setTitle}
-            description={description}
-            setDescription={setDescription}
-            selectedFile={selectedFile}
-            setSelectedFile={setSelectedFile}
-            fileError={fileError}
-            setFileError={setFileError}
-            editingTask={null}
-            deadline={deadline}
-            setDeadline={setDeadline}
-            reminderAt={reminderAt}
-            setReminderAt={setReminderAt}
-            emailReminder={emailReminder}
-            setEmailReminder={setEmailReminder}
+            formData={formData}
+            onInputChange={handleInputChange}
+            isSubmitting={isSubmitting}
           />
           
-          <Button 
-            type="submit" 
-            className="w-full"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? t("common.adding") : t("tasks.addTask")}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              type="submit"
+              disabled={isSubmitting || !formData.title}
+              className="flex-1"
+            >
+              {isSubmitting ? t.common.submitting : t.common.create}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsOpen(false)}
+              className="flex-1"
+            >
+              {t.common.cancel}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>
   );
-}
+};
+
+export default AddTaskForm;

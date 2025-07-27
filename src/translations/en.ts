@@ -1,6 +1,6 @@
 import { TranslationType } from './types';
 
-export const en: TranslationType = {
+export const translations: TranslationType = {
   nav: {
     signin: "Sign In",
     startJourney: "Start Journey", 
