@@ -1,3 +1,4 @@
+
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
@@ -251,6 +252,7 @@ const AppContent = () => {
     <SessionAndRealtimeWrapper>
       <AuthProvider>
         <BusinessRouteInterceptor />
+        <SEOManager />
         <RouteAwareThemeProvider>
           <RouteAwareWrapper>
             <Routes>
@@ -327,7 +329,6 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
-        <SEOManager />
         <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
           <BrowserRouter>
             <AppContent />
