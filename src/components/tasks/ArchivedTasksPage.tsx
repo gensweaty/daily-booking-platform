@@ -2,104 +2,22 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getArchivedTasks, restoreTask, deleteTask } from '@/lib/api';
-import { Task } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { ArchivedTaskCard } from './ArchivedTaskCard';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { Trash2, RotateCcw, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Eye, RotateCw, Trash2, AlertCircle } from 'lucide-react';
-
-interface ArchivedTaskCardProps {
-  task: Task;
-  onRestore: (taskId: string) => Promise<void>;
-  onDelete: (taskId: string) => Promise<void>;
-  onView: (taskId: string) => void;
-}
-
-const ArchivedTaskCard: React.FC<ArchivedTaskCardProps> = ({ task, onDelete, onRestore, onView }) => {
-  const { t } = useLanguage();
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-
-  return (
-    <Card className="bg-zinc-100 dark:bg-zinc-900">
-      <CardHeader>
-        <CardTitle>{task.title}</CardTitle>
-        <CardDescription>
-          {t('tasks.archive')} {new Date(task.archived_at || '').toLocaleDateString()}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {task.description}
-      </CardContent>
-      <CardFooter className="flex justify-between items-center">
-        <Button variant="outline" size="sm" onClick={() => onView(task.id)}>
-          <Eye className="mr-2 h-4 w-4" />
-          {t('common.view')}
-        </Button>
-        <div>
-          <Button variant="ghost" size="sm" onClick={() => onRestore(task.id)}>
-            <RotateCw className="mr-2 h-4 w-4" />
-            {t('tasks.restore')}
-          </Button>
-          <Button variant="destructive" size="sm" onClick={() => setIsDeleteDialogOpen(true)}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            {t('common.delete')}
-          </Button>
-        </div>
-      </CardFooter>
-
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-destructive" />
-              {t('common.deleteConfirmTitle')}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('tasks.deleteTaskConfirmation')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              onDelete(task.id);
-              setIsDeleteDialogOpen(false);
-            }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {t('common.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Card>
-  );
-};
+import { LanguageText } from '@/components/shared/LanguageText';
 
 export const ArchivedTasksPage = () => {
   const { t } = useLanguage();
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: archivedTasks, isLoading, isError } = useQuery({
+  const { data: archivedTasks = [], isLoading, error } = useQuery({
     queryKey: ['archivedTasks'],
     queryFn: getArchivedTasks,
   });
@@ -111,14 +29,15 @@ export const ArchivedTasksPage = () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast({
         title: t('common.success'),
-        description: t('tasks.taskUpdated'),
+        description: "Task restored successfully",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
+      console.error('Error restoring task:', error);
       toast({
-        variant: 'destructive',
         title: t('common.error'),
-        description: error.message || t('common.errorOccurred'),
+        description: "Failed to restore task",
+        variant: "destructive",
       });
     },
   });
@@ -132,67 +51,92 @@ export const ArchivedTasksPage = () => {
         description: t('tasks.taskDeleted'),
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
+      console.error('Error deleting task:', error);
       toast({
-        variant: 'destructive',
         title: t('common.error'),
-        description: error.message || t('common.errorOccurred'),
+        description: "Failed to delete task permanently",
+        variant: "destructive",
       });
     },
   });
 
-  const handleRestore = async (taskId: string) => {
-    await restoreTaskMutation.mutateAsync(taskId);
+  const handleRestore = (taskId: string) => {
+    restoreTaskMutation.mutate(taskId);
   };
 
-  const handleDelete = async (taskId: string) => {
-    await deleteTaskMutation.mutateAsync(taskId);
+  const handleDelete = (taskId: string) => {
+    deleteTaskMutation.mutate(taskId);
   };
 
   const handleView = (taskId: string) => {
-    const task = archivedTasks?.find(t => t.id === taskId);
-    if (task) {
-      setSelectedTask(task);
-      setIsViewDialogOpen(true);
-    }
+    // Navigate to task view or open modal
+    console.log('View task:', taskId);
   };
 
+  const handleGoBack = () => {
+    navigate('/dashboard');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">
+          <LanguageText textKey="common.loading" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-red-500">
+          <LanguageText textKey="common.error" />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">{t('tasks.archive')}</h2>
-        <Button onClick={() => navigate('/tasks')}>{t('tasks.title')}</Button>
+    <div className="container mx-auto p-4">
+      <div className="flex items-center gap-4 mb-6">
+        <Button
+          variant="outline"
+          onClick={handleGoBack}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <LanguageText textKey="common.back" />
+        </Button>
+        <h1 className="text-2xl font-bold">
+          <LanguageText textKey="tasks.archivedTasks" />
+        </h1>
       </div>
 
-      {isLoading && <p>{t('common.loading')}</p>}
-      {isError && <p>{t('common.error')}</p>}
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {archivedTasks?.map((task) => (
-          <ArchivedTaskCard
-            key={task.id}
-            task={task}
-            onRestore={handleRestore}
-            onDelete={handleDelete}
-            onView={handleView}
-          />
-        ))}
-      </div>
-
-      {selectedTask && (
-        <AlertDialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{selectedTask.title}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {selectedTask.description}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <Button onClick={() => setIsViewDialogOpen(false)}>{t('common.cancel')}</Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+      {archivedTasks.length === 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              <LanguageText textKey="tasks.noArchivedTasks" />
+            </CardTitle>
+            <CardDescription>
+              <LanguageText textKey="tasks.noArchivedTasksDescription" />
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {archivedTasks.map((task) => (
+            <ArchivedTaskCard
+              key={task.id}
+              task={task}
+              onRestore={() => handleRestore(task.id)}
+              onDelete={() => handleDelete(task.id)}
+              onView={() => handleView(task.id)}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
