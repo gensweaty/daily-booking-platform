@@ -62,12 +62,14 @@ export const AddReminderForm = ({ onClose }: { onClose: () => void }) => {
     }
     
     try {
+      // Create reminder without send_email_reminder field
       await createReminder({ 
         title, 
         description, 
         remind_at: dueDate,
         user_id: user.id,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        created_at: new Date().toISOString()
       });
       await queryClient.invalidateQueries({ queryKey: ['reminders'] });
       toast({
