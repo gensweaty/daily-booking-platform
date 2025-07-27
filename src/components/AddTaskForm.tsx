@@ -27,6 +27,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [deadline, setDeadline] = useState<string | undefined>();
   const [reminderAt, setReminderAt] = useState<string | undefined>();
+  const [sendEmailReminder, setSendEmailReminder] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -44,6 +45,7 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       setDescription(editingTask.description || "");
       setDeadline(editingTask.deadline_at);
       setReminderAt(editingTask.reminder_at);
+      setSendEmailReminder(editingTask.send_email_reminder || false);
     }
   }, [editingTask]);
 
@@ -102,7 +104,9 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         user_id: user.id,
         position: editingTask?.position || 0,
         deadline_at: deadline && deadline.trim() !== '' ? deadline : null,
-        reminder_at: reminderAt && reminderAt.trim() !== '' ? reminderAt : null
+        reminder_at: reminderAt && reminderAt.trim() !== '' ? reminderAt : null,
+        send_email_reminder: sendEmailReminder && reminderAt ? true : false,
+        reminder_sent: false
       };
 
       let taskResponse;
@@ -264,6 +268,8 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
             setDeadline={setDeadline}
             reminderAt={reminderAt}
             setReminderAt={setReminderAt}
+            sendEmailReminder={sendEmailReminder}
+            setSendEmailReminder={setSendEmailReminder}
           />
           <div className="flex justify-end gap-2 pt-4 border-t border-muted/20">
             {editingTask && (

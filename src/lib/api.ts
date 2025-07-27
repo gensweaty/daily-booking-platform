@@ -1,4 +1,3 @@
-
 import { Task, Note, Reminder, CalendarEvent } from "@/lib/types";
 import { supabase, normalizeFilePath } from "@/lib/supabase";
 import { BookingRequest } from "@/types/database";
@@ -529,37 +528,54 @@ export const restoreTask = async (id: string): Promise<void> => {
   }
 };
 
-export const createTask = async (task: Omit<Task, "id" | "created_at">): Promise<Task> => {
-  try {
-    const { data, error } = await supabase
-      .from("tasks")
-      .insert([task])
-      .select()
-      .single();
-      
-    if (error) throw error;
-    return data;
-  } catch (error: any) {
-    console.error("Error creating task:", error);
-    throw new Error(error.message || "Failed to create task");
+export const createTask = async (task: {
+  title: string;
+  description?: string;
+  status: 'todo' | 'inprogress' | 'done';
+  user_id: string;
+  position?: number;
+  deadline_at?: string | null;
+  reminder_at?: string | null;
+  send_email_reminder?: boolean;
+  reminder_sent?: boolean;
+}): Promise<Task> => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .insert([task])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating task:', error);
+    throw error;
   }
+
+  return data;
 };
 
-export const updateTask = async (id: string, updates: Partial<Task>): Promise<Task> => {
-  try {
-    const { data, error } = await supabase
-      .from("tasks")
-      .update(updates)
-      .eq("id", id)
-      .select()
-      .single();
-      
-    if (error) throw error;
-    return data;
-  } catch (error: any) {
-    console.error("Error updating task:", error);
-    throw new Error(error.message || "Failed to update task");
+export const updateTask = async (id: string, updates: {
+  title?: string;
+  description?: string;
+  status?: 'todo' | 'inprogress' | 'done';
+  position?: number;
+  deadline_at?: string | null;
+  reminder_at?: string | null;
+  send_email_reminder?: boolean;
+  reminder_sent?: boolean;
+}): Promise<Task> => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating task:', error);
+    throw error;
   }
+
+  return data;
 };
 
 export const deleteTask = async (id: string): Promise<void> => {
