@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface LanguageContextType {
@@ -295,6 +296,7 @@ export interface TranslationType {
     withoutBooking: string;
   };
   events: {
+    addEvent: string;
     submitBookingRequest: string;
     fullNameRequired: string;
     fullName: string;
