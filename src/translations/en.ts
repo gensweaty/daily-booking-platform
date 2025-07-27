@@ -1,6 +1,6 @@
 import { TranslationType } from './types';
 
-export const translations: TranslationType = {
+export const en: TranslationType = {
   nav: {
     signin: "Sign In",
     startJourney: "Start Journey", 
@@ -154,6 +154,10 @@ export const translations: TranslationType = {
     deleteTask: "Delete Task",
     deleteTaskConfirmation: "Are you sure you want to delete this task?",
     emailReminder: "Email Reminder",
+    emailSent: "Email Sent",
+    taskReminderEmailSent: "Task reminder email sent successfully",
+    emailError: "Email Error",
+    failedToSendEmail: "Failed to send email reminder"
   },
   website: {
     title: "Free Website for your business",

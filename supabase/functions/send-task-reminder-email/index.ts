@@ -23,6 +23,30 @@ setInterval(() => {
   }
 }, 10 * 60 * 1000);
 
+// Function to format time with timezone
+const formatTimeForEmail = (dateTime: string, timezone: string, language: string): string => {
+  try {
+    const date = new Date(dateTime);
+    
+    // Format based on language preferences
+    const locale = language === 'ka' ? 'ka-GE' : 
+                   language === 'es' ? 'es-ES' : 'en-US';
+    
+    return date.toLocaleString(locale, {
+      timeZone: timezone,
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: language === 'en' // Use 12-hour format for English, 24-hour for others
+    });
+  } catch (error) {
+    console.error('Error formatting time for email:', error);
+    return dateTime;
+  }
+};
+
 // Multi-language email content
 const getEmailContent = (language: string, taskTitle: string, reminderTime: string, taskDescription?: string) => {
   let subject, body;
@@ -189,25 +213,18 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      // Get user's language preference from profiles table
+      // Get user's language preference and timezone from profiles table
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('language')
+        .select('language, timezone')
         .eq('id', task.user_id)
         .single();
 
       const language = profileData?.language || 'en';
+      const userTimezone = profileData?.timezone || task.timezone || 'UTC';
       
-      // Format reminder time
-      const reminderTime = new Date(task.reminder_at);
-      const formattedTime = reminderTime.toLocaleString('en-US', {
-        timeZone: 'UTC',
-        year: 'numeric',
-        month: 'short',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      // Format reminder time with user's timezone
+      const formattedTime = formatTimeForEmail(task.reminder_at, userTimezone, language);
 
       // Get localized email content
       const { subject, body: emailBody } = getEmailContent(language, task.title, formattedTime, task.description);
@@ -231,7 +248,7 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      console.log(`✅ Reminder email sent for task ${task.id} to ${userEmail} in language ${language}`);
+      console.log(`✅ Reminder email sent for task ${task.id} to ${userEmail} in language ${language} with timezone ${userTimezone}`);
       
       // Mark the task as email sent and disable future sends
       await supabase
@@ -250,7 +267,8 @@ const handler = async (req: Request): Promise<Response> => {
           message: 'Task reminder email sent successfully',
           emailsSent: 1,
           taskId: task.id,
-          language: language
+          language: language,
+          timezone: userTimezone
         }),
         { 
           status: 200, 
@@ -320,25 +338,18 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
-        // Get user's language preference
+        // Get user's language preference and timezone
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('language')
+          .select('language, timezone')
           .eq('id', task.user_id)
           .single();
 
         const language = profileData?.language || 'en';
+        const userTimezone = profileData?.timezone || task.timezone || 'UTC';
         
-        // Format reminder time
-        const reminderTime = new Date(task.reminder_at);
-        const formattedTime = reminderTime.toLocaleString('en-US', {
-          timeZone: 'UTC',
-          year: 'numeric',
-          month: 'short',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
+        // Format reminder time with user's timezone
+        const formattedTime = formatTimeForEmail(task.reminder_at, userTimezone, language);
 
         // Get localized email content
         const { subject, body: emailBody } = getEmailContent(language, task.title, formattedTime, task.description);
@@ -356,7 +367,7 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
-        console.log(`✅ Reminder email sent for task ${task.id} to ${userEmail} in language ${language}`);
+        console.log(`✅ Reminder email sent for task ${task.id} to ${userEmail} in language ${language} with timezone ${userTimezone}`);
         
         // Mark the task as email sent
         await supabase

@@ -97,8 +97,8 @@ export const TaskReminderNotifications = () => {
       if (error) {
         console.error("❌ Error sending email reminder:", error);
         toast({
-          title: "Email Error",
-          description: "Failed to send email reminder",
+          title: t("tasks.emailError"),
+          description: t("tasks.failedToSendEmail"),
           variant: "destructive",
         });
         return false;
@@ -107,8 +107,8 @@ export const TaskReminderNotifications = () => {
       console.log("✅ Email reminder sent successfully:", data);
       
       toast({
-        title: "📧 Email Sent",
-        description: "Task reminder email sent successfully",
+        title: t("tasks.emailSent"),
+        description: t("tasks.taskReminderEmailSent"),
         duration: 3000,
       });
       
@@ -116,8 +116,8 @@ export const TaskReminderNotifications = () => {
     } catch (error) {
       console.error("❌ Failed to send email reminder:", error);
       toast({
-        title: "Email Error",
-        description: "Failed to send email reminder",
+        title: t("tasks.emailError"),
+        description: t("tasks.failedToSendEmail"),
         variant: "destructive",
       });
       return false;

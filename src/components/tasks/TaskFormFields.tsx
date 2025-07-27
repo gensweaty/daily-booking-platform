@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
 import { ensureNotificationPermission } from "@/utils/notificationUtils";
+import { getUserTimezone } from "@/utils/timezoneUtils";
 
 interface TaskFormFieldsProps {
   title: string;
@@ -113,6 +114,12 @@ export const TaskFormFields = ({
     }
   };
 
+  // Get user timezone for task creation
+  const userTimezone = getUserTimezone();
+  
+  // Store timezone in task data (this will be used when creating/updating tasks)
+  const taskTimezone = editingTask?.timezone || userTimezone;
+
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
 
   return (
@@ -166,6 +173,9 @@ export const TaskFormFields = ({
           acceptedFileTypes={acceptedFormats}
         />
       </div>
+      
+      {/* Hidden field to track timezone for task creation */}
+      <input type="hidden" name="timezone" value={taskTimezone} />
     </div>
   );
 };

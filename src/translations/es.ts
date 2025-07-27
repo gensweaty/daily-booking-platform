@@ -154,6 +154,10 @@ export const translations: TranslationType = {
     deleteTask: "Eliminar Tarea",
     deleteTaskConfirmation: "¿Estás seguro de que quieres eliminar esta tarea?",
     emailReminder: "Recordatorio por Email",
+    emailSent: "Correo Enviado",
+    taskReminderEmailSent: "Recordatorio de tarea enviado exitosamente",
+    emailError: "Error de Correo",
+    failedToSendEmail: "Error al enviar recordatorio por correo"
   },
   website: {
     title: "Sitio web gratuito para su negocio",
