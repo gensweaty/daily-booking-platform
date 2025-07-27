@@ -172,6 +172,20 @@ export const redeemCode = async (code: string): Promise<{ success: boolean; mess
       return { success: false, message: 'Failed to redeem code. Please try again.' };
     }
 
+    // If the code was successfully redeemed, create the Ultimate subscription for the user
+    console.log('Code redeemed, creating ultimate subscription for user:', userId);
+    try {
+      // Use existing helper to create the Ultimate subscription plan
+      const { success: subSuccess } = await createSubscription(userId, 'ultimate');
+      if (!subSuccess) {
+        console.error('Subscription creation failed after redeeming code');
+        return { success: false, message: 'Code redeemed, but failed to activate subscription.' };
+      }
+    } catch (subError) {
+      console.error('Error creating subscription after code redemption:', subError);
+      return { success: false, message: 'Code redeemed, but could not activate subscription. Please try again.' };
+    }
+
     console.log('=== REDEEM CODE PROCESS SUCCESS ===');
     return { 
       success: true, 
