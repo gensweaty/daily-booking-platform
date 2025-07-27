@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'es' | 'ka';
 
 export interface TranslationType {
@@ -638,12 +639,6 @@ export interface TranslationType {
     october: string;
     november: string;
     december: string;
-  };
-  email: {
-    sent: string;
-    taskReminderSent: string;
-    failed: string;
-    failedToSend: string;
   };
 }
 
