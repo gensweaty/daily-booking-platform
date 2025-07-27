@@ -1,4 +1,3 @@
-
 export const translations = {
   common: {
     loading: "Cargando...",
@@ -503,6 +502,7 @@ export const translations = {
   },
   profile: {
     title: "Perfil",
+    editProfile: "Editar Perfil",
     edit: "Editar Perfil",
     settings: "Configuración",
     preferences: "Preferencias",
