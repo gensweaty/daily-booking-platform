@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -13,6 +14,7 @@ export const TaskReminderNotifications = () => {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [processedReminders, setProcessedReminders] = useState<Set<string>>(new Set());
+  const [processedEmailReminders, setProcessedEmailReminders] = useState<Set<string>>(new Set());
   const precisionIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const backupIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const realtimeChannelRef = useRef<any>(null);
@@ -26,12 +28,19 @@ export const TaskReminderNotifications = () => {
         setProcessedReminders(new Set(parsed));
         console.log("📋 Loaded processed reminders from storage:", parsed.length);
       }
+      
+      const storedEmails = localStorage.getItem("processedTaskEmailReminders");
+      if (storedEmails) {
+        const parsedEmails = JSON.parse(storedEmails);
+        setProcessedEmailReminders(new Set(parsedEmails));
+        console.log("📧 Loaded processed email reminders from storage:", parsedEmails.length);
+      }
     } catch (error) {
       console.error("❌ Error loading processed reminders:", error);
     }
   }, []);
 
-  // Save processed reminders to localStorage whenever it changes
+  // Save processed reminders to localStorage whenever they change
   useEffect(() => {
     try {
       localStorage.setItem("processedTaskReminders", JSON.stringify(Array.from(processedReminders)));
@@ -39,6 +48,14 @@ export const TaskReminderNotifications = () => {
       console.error("❌ Error saving processed reminders:", error);
     }
   }, [processedReminders]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("processedTaskEmailReminders", JSON.stringify(Array.from(processedEmailReminders)));
+    } catch (error) {
+      console.error("❌ Error saving processed email reminders:", error);
+    }
+  }, [processedEmailReminders]);
 
   // Fetch tasks with reminders
   const { data: tasks } = useQuery({
@@ -84,6 +101,53 @@ export const TaskReminderNotifications = () => {
     });
   };
 
+  // Send email reminder
+  const sendEmailReminder = async (task: any) => {
+    const emailKey = `${task.id}-${task.reminder_at}-email`;
+    
+    if (processedEmailReminders.has(emailKey)) {
+      console.log("📧 Email already sent for task:", task.title);
+      return;
+    }
+
+    try {
+      console.log("📧 Sending email reminder for task:", task.title);
+      
+      const { data, error } = await supabase.functions.invoke('send-task-reminder-email', {
+        body: { taskId: task.id }
+      });
+
+      if (error) {
+        console.error("❌ Error sending email reminder:", error);
+        toast({
+          title: "Email Error",
+          description: "Failed to send email reminder",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("✅ Email reminder sent successfully:", data);
+      
+      // Mark as processed
+      setProcessedEmailReminders(prev => new Set([...prev, emailKey]));
+      
+      toast({
+        title: "📧 Email Sent",
+        description: "Task reminder email sent successfully",
+        duration: 3000,
+      });
+      
+    } catch (error) {
+      console.error("❌ Failed to send email reminder:", error);
+      toast({
+        title: "Email Error",
+        description: "Failed to send email reminder",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Process due reminders
   const processDueReminders = async (tasksToCheck: any[]) => {
     if (!tasksToCheck || tasksToCheck.length === 0) return;
@@ -123,8 +187,14 @@ export const TaskReminderNotifications = () => {
           console.error('❌ System notification failed:', result.error);
         }
         
+        // Send email reminder if enabled
+        if (task.email_reminder_enabled) {
+          await sendEmailReminder(task);
+        }
+        
         console.log('📊 Dashboard notification:', '✅ Sent');
         console.log('🔔 System notification:', result.success ? '✅ Sent' : '❌ Failed');
+        console.log('📧 Email reminder:', task.email_reminder_enabled ? '✅ Enabled' : '❌ Disabled');
         
         // Mark as processed
         setProcessedReminders(prev => {
@@ -191,7 +261,7 @@ export const TaskReminderNotifications = () => {
         clearInterval(precisionIntervalRef.current);
       }
     };
-  }, [tasks, processedReminders]);
+  }, [tasks, processedReminders, processedEmailReminders]);
 
   // Backup interval system (failsafe)
   useEffect(() => {
@@ -231,6 +301,20 @@ export const TaskReminderNotifications = () => {
           }
         });
         console.log('🧹 Cleanup complete. Before:', prev.size, 'After:', newSet.size);
+        return newSet;
+      });
+
+      setProcessedEmailReminders(prev => {
+        const newSet = new Set<string>();
+        prev.forEach(key => {
+          const [, reminderTimeStr] = key.split('-');
+          if (reminderTimeStr) {
+            const reminderTime = new Date(reminderTimeStr);
+            if (reminderTime > oneHourAgo) {
+              newSet.add(key);
+            }
+          }
+        });
         return newSet;
       });
     }, 60 * 60 * 1000);
