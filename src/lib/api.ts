@@ -10,7 +10,7 @@ export const getTasks = async () => {
     .from('tasks')
     .select('*')
     .eq('user_id', user.id)
-    .eq('is_archived', false)
+    .eq('archived', false)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -22,11 +22,11 @@ export const getTasks = async () => {
     title: task.title,
     description: task.description || '',
     status: task.status as 'todo' | 'in_progress' | 'completed',
-    priority: task.priority as 'low' | 'medium' | 'high' | undefined,
-    due_date: task.due_date,
+    priority: undefined as 'low' | 'medium' | 'high' | undefined,
+    due_date: undefined,
     created_at: task.created_at,
-    updated_at: task.updated_at || task.created_at,
-    is_archived: task.is_archived || false,
+    updated_at: task.created_at,
+    is_archived: task.archived || false,
     position: task.position || 0,
     deadline_at: task.deadline_at,
     reminder_at: task.reminder_at,
@@ -34,7 +34,7 @@ export const getTasks = async () => {
     reminder_sent: task.reminder_sent || false,
     archived: task.archived || false,
     archived_at: task.archived_at,
-    deleted_at: task.deleted_at,
+    deleted_at: undefined,
   }));
 };
 
@@ -63,11 +63,11 @@ export const createTask = async (taskData: {
     title: data.title,
     description: data.description || '',
     status: data.status as 'todo' | 'in_progress' | 'completed',
-    priority: data.priority as 'low' | 'medium' | 'high' | undefined,
-    due_date: data.due_date,
+    priority: undefined as 'low' | 'medium' | 'high' | undefined,
+    due_date: undefined,
     created_at: data.created_at,
-    updated_at: data.updated_at || data.created_at,
-    is_archived: data.is_archived || false,
+    updated_at: data.created_at,
+    is_archived: data.archived || false,
     position: data.position || 0,
     deadline_at: data.deadline_at,
     reminder_at: data.reminder_at,
@@ -75,7 +75,7 @@ export const createTask = async (taskData: {
     reminder_sent: data.reminder_sent || false,
     archived: data.archived || false,
     archived_at: data.archived_at,
-    deleted_at: data.deleted_at,
+    deleted_at: undefined,
   };
 };
 
@@ -95,11 +95,11 @@ export const updateTask = async (id: string, updates: any) => {
     title: data.title,
     description: data.description || '',
     status: data.status as 'todo' | 'in_progress' | 'completed',
-    priority: data.priority as 'low' | 'medium' | 'high' | undefined,
-    due_date: data.due_date,
+    priority: undefined as 'low' | 'medium' | 'high' | undefined,
+    due_date: undefined,
     created_at: data.created_at,
-    updated_at: data.updated_at || data.created_at,
-    is_archived: data.is_archived || false,
+    updated_at: data.created_at,
+    is_archived: data.archived || false,
     position: data.position || 0,
     deadline_at: data.deadline_at,
     reminder_at: data.reminder_at,
@@ -107,7 +107,7 @@ export const updateTask = async (id: string, updates: any) => {
     reminder_sent: data.reminder_sent || false,
     archived: data.archived || false,
     archived_at: data.archived_at,
-    deleted_at: data.deleted_at,
+    deleted_at: undefined,
   };
 };
 
@@ -129,7 +129,7 @@ export const getTasksForUser = async () => {
     .from('tasks')
     .select('*')
     .eq('user_id', user.id)
-    .eq('is_archived', false)
+    .eq('archived', false)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -140,11 +140,11 @@ export const getTasksForUser = async () => {
     title: task.title,
     description: task.description || '',
     status: task.status as 'todo' | 'in_progress' | 'completed',
-    priority: task.priority as 'low' | 'medium' | 'high' | undefined,
-    due_date: task.due_date,
+    priority: undefined as 'low' | 'medium' | 'high' | undefined,
+    due_date: undefined,
     created_at: task.created_at,
-    updated_at: task.updated_at || task.created_at,
-    is_archived: task.is_archived || false,
+    updated_at: task.created_at,
+    is_archived: task.archived || false,
     position: task.position || 0,
     deadline_at: task.deadline_at,
     reminder_at: task.reminder_at,
@@ -152,14 +152,14 @@ export const getTasksForUser = async () => {
     reminder_sent: task.reminder_sent || false,
     archived: task.archived || false,
     archived_at: task.archived_at,
-    deleted_at: task.deleted_at,
+    deleted_at: undefined,
   }));
 };
 
 export const archiveTask = async (taskId: string) => {
   const { data, error } = await supabase
     .from('tasks')
-    .update({ is_archived: true })
+    .update({ archived: true })
     .eq('id', taskId);
 
   if (error) throw error;
@@ -174,7 +174,7 @@ export const getArchivedTasks = async () => {
     .from('tasks')
     .select('*')
     .eq('user_id', user.id)
-    .eq('is_archived', true)
+    .eq('archived', true)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -185,11 +185,11 @@ export const getArchivedTasks = async () => {
     title: task.title,
     description: task.description || '',
     status: task.status as 'todo' | 'in_progress' | 'completed',
-    priority: task.priority as 'low' | 'medium' | 'high' | undefined,
-    due_date: task.due_date,
+    priority: undefined as 'low' | 'medium' | 'high' | undefined,
+    due_date: undefined,
     created_at: task.created_at,
-    updated_at: task.updated_at || task.created_at,
-    is_archived: task.is_archived || false,
+    updated_at: task.created_at,
+    is_archived: task.archived || false,
     position: task.position || 0,
     deadline_at: task.deadline_at,
     reminder_at: task.reminder_at,
@@ -197,14 +197,14 @@ export const getArchivedTasks = async () => {
     reminder_sent: task.reminder_sent || false,
     archived: task.archived || false,
     archived_at: task.archived_at,
-    deleted_at: task.deleted_at,
+    deleted_at: undefined,
   }));
 };
 
 export const restoreTask = async (taskId: string) => {
   const { data, error } = await supabase
     .from('tasks')
-    .update({ is_archived: false })
+    .update({ archived: false })
     .eq('id', taskId);
 
   if (error) throw error;
@@ -230,7 +230,7 @@ export const getNotes = async () => {
     title: note.title,
     content: note.content || '',
     created_at: note.created_at,
-    updated_at: note.updated_at || note.created_at,
+    updated_at: note.created_at,
     color: note.color,
   }));
 };
@@ -255,7 +255,7 @@ export const createNote = async (noteData: {
     title: data.title,
     content: data.content || '',
     created_at: data.created_at,
-    updated_at: data.updated_at || data.created_at,
+    updated_at: data.created_at,
     color: data.color,
   };
 };
@@ -276,7 +276,7 @@ export const updateNote = async (id: string, updates: any) => {
     title: data.title,
     content: data.content || '',
     created_at: data.created_at,
-    updated_at: data.updated_at || data.created_at,
+    updated_at: data.created_at,
     color: data.color,
   };
 };
@@ -309,11 +309,11 @@ export const getReminders = async () => {
     user_id: reminder.user_id,
     title: reminder.title,
     description: reminder.description,
-    reminder_date: reminder.reminder_date,
-    reminder_time: reminder.reminder_time,
-    is_completed: reminder.is_completed,
+    reminder_date: undefined,
+    reminder_time: undefined,
+    is_completed: false,
     created_at: reminder.created_at,
-    updated_at: reminder.updated_at || reminder.created_at,
+    updated_at: reminder.created_at,
     remind_at: reminder.remind_at,
   }));
 };
@@ -337,11 +337,11 @@ export const createReminder = async (reminderData: {
     user_id: data.user_id,
     title: data.title,
     description: data.description,
-    reminder_date: data.reminder_date,
-    reminder_time: data.reminder_time,
-    is_completed: data.is_completed,
+    reminder_date: undefined,
+    reminder_time: undefined,
+    is_completed: false,
     created_at: data.created_at,
-    updated_at: data.updated_at || data.created_at,
+    updated_at: data.created_at,
     remind_at: data.remind_at,
   };
 };
@@ -361,11 +361,11 @@ export const updateReminder = async (id: string, updates: any) => {
     user_id: data.user_id,
     title: data.title,
     description: data.description,
-    reminder_date: data.reminder_date,
-    reminder_time: data.reminder_time,
-    is_completed: data.is_completed,
+    reminder_date: undefined,
+    reminder_time: undefined,
+    is_completed: false,
     created_at: data.created_at,
-    updated_at: data.updated_at || data.created_at,
+    updated_at: data.created_at,
     remind_at: data.remind_at,
   };
 };
