@@ -1,233 +1,236 @@
+import { supabase } from "@/integrations/supabase/client";
 
-import { supabase } from './supabase';
-import { Task, Reminder, Note, BookingRequest, BusinessProfile } from './types';
+// Tasks API
+export const getTasks = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
 
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('is_archived', false)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data;
+};
+
+export const getTasksForUser = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('is_archived', false)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data;
+};
+
+export const archiveTask = async (taskId: string) => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .update({ is_archived: true })
+    .eq('id', taskId);
+
+  if (error) throw error;
+  return data;
+};
+
+export const getArchivedTasks = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('is_archived', true)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+};
+
+export const restoreTask = async (taskId: string) => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .update({ is_archived: false })
+    .eq('id', taskId);
+
+  if (error) throw error;
+  return data;
+};
+
+// Notes API
+export const getNotes = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('notes')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+};
+
+// Reminders API
+export const getReminders = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('reminders')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+};
+
+// Email API functions
 export const sendEventCreationEmail = async (
-  requesterEmail: string,
-  requesterName: string,
-  eventTitle: string,
+  customerEmail: string,
+  customerName: string,
+  eventDate: string,
+  eventTime: string,
+  eventService: string,
+  eventLocation: string,
+  eventPrice: string,
   eventDescription: string,
-  startDate: string,
-  endDate: string,
   businessName: string,
   businessEmail: string,
-  isRecurring: boolean,
-  userSurname: string,
-  userNumber: string
+  businessPhone: string
 ) => {
   try {
     const { data, error } = await supabase.functions.invoke('send-booking-request-notification', {
       body: {
-        requester_email: requesterEmail,
-        requester_name: requesterName,
-        event_title: eventTitle,
-        event_description: eventDescription,
-        start_date: startDate,
-        end_date: endDate,
-        business_name: businessName,
-        business_email: businessEmail,
-        is_recurring: isRecurring,
-        user_surname: userSurname,
-        user_number: userNumber
+        customerEmail,
+        customerName,
+        eventDate,
+        eventTime,
+        eventService,
+        eventLocation,
+        eventPrice,
+        eventDescription,
+        businessName,
+        businessEmail,
+        businessPhone
       }
     });
 
     if (error) {
-      console.error('Error sending email:', error);
+      console.error('Error sending event creation email:', error);
       return { success: false, error: error.message };
     }
 
     return { success: true, data };
   } catch (error) {
     console.error('Error in sendEventCreationEmail:', error);
-    return { success: false, error: 'Failed to send email' };
+    return { success: false, error: error.message };
   }
 };
 
-export const deleteCustomer = async (
-  customerId: string,
-  businessId: string,
-  requesterEmail: string,
-  requesterName: string,
-  eventTitle: string,
+export const sendBookingConfirmationEmail = async (
+  customerEmail: string,
+  customerName: string,
+  eventDate: string,
+  eventTime: string,
+  eventService: string,
+  eventLocation: string,
+  eventPrice: string,
   eventDescription: string,
-  startDate: string,
-  endDate: string,
   businessName: string,
-  businessEmail: string
+  businessEmail: string,
+  businessPhone: string
 ) => {
   try {
-    const { error } = await supabase
-      .from('booking_requests')
-      .delete()
-      .eq('id', customerId);
+    const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
+      body: {
+        customerEmail,
+        customerName,
+        eventDate,
+        eventTime,
+        eventService,
+        eventLocation,
+        eventPrice,
+        eventDescription,
+        businessName,
+        businessEmail,
+        businessPhone
+      }
+    });
 
     if (error) {
-      console.error('Error deleting customer:', error);
+      console.error('Error sending booking confirmation email:', error);
       return { success: false, error: error.message };
     }
 
-    // Send notification email
-    const emailResult = await sendEventCreationEmail(
-      requesterEmail,
-      requesterName,
-      eventTitle,
-      eventDescription,
-      startDate,
-      endDate,
-      businessName,
-      businessEmail,
-      false,
-      '',
-      ''
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error in sendBookingConfirmationEmail:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const sendBookingConfirmationToMultipleRecipients = async (
+  recipients: string[],
+  eventData: any
+) => {
+  try {
+    const results = await Promise.allSettled(
+      recipients.map(email => 
+        sendBookingConfirmationEmail(
+          email,
+          eventData.customerName,
+          eventData.eventDate,
+          eventData.eventTime,
+          eventData.eventService,
+          eventData.eventLocation,
+          eventData.eventPrice,
+          eventData.eventDescription,
+          eventData.businessName,
+          eventData.businessEmail,
+          eventData.businessPhone
+        )
+      )
     );
 
-    return { 
-      successful: true, 
-      total: 1,
-      failed: emailResult.success ? 0 : 1
-    };
+    const successful = results.filter(result => result.status === 'fulfilled').length;
+    const failed = results.filter(result => result.status === 'rejected').length;
+    const total = recipients.length;
+
+    return { successful, failed, total };
   } catch (error) {
-    console.error('Error in deleteCustomer:', error);
-    return { 
-      successful: false, 
-      total: 1,
-      failed: 1
-    };
+    console.error('Error in sendBookingConfirmationToMultipleRecipients:', error);
+    return { successful: 0, failed: recipients.length, total: recipients.length };
   }
 };
 
-export const getTasksForUser = async () => {
+export const deleteCustomer = async (customerId: string, userId: string) => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('user_id', user.id)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false });
+    const { error } = await supabase
+      .from('customers')
+      .delete()
+      .eq('id', customerId)
+      .eq('user_id', userId);
 
     if (error) {
-      console.error('Error fetching tasks:', error);
-      throw error;
+      console.error('Error deleting customer:', error);
+      return { successful: false, failed: 1, total: 1 };
     }
 
-    return data as Task[];
+    return { successful: 1, failed: 0, total: 1 };
   } catch (error) {
-    console.error('Error in getTasksForUser:', error);
-    throw error;
+    console.error('Error in deleteCustomer:', error);
+    return { successful: 0, failed: 1, total: 1 };
   }
-};
-
-export const createTask = async (taskData: Omit<Task, 'id' | 'created_at' | 'user_id'>) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) throw new Error('User not authenticated');
-
-  const { data, error } = await supabase
-    .from('tasks')
-    .insert([{ ...taskData, user_id: user.id }])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-};
-
-export const updateTask = async (id: string, updates: Partial<Task>) => {
-  const { data, error } = await supabase
-    .from('tasks')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-};
-
-export const deleteTask = async (id: string) => {
-  const { error } = await supabase
-    .from('tasks')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id);
-
-  if (error) throw error;
-};
-
-export const createReminder = async (reminderData: Omit<Reminder, 'id' | 'created_at' | 'user_id'>) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) throw new Error('User not authenticated');
-
-  const { data, error } = await supabase
-    .from('reminders')
-    .insert([{ ...reminderData, user_id: user.id }])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-};
-
-export const updateReminder = async (id: string, updates: Partial<Reminder>) => {
-  const { data, error } = await supabase
-    .from('reminders')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-};
-
-export const deleteReminder = async (id: string) => {
-  const { error } = await supabase
-    .from('reminders')
-    .delete()
-    .eq('id', id);
-
-  if (error) throw error;
-};
-
-export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'user_id'>) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) throw new Error('User not authenticated');
-
-  const { data, error } = await supabase
-    .from('notes')
-    .insert([{ ...noteData, user_id: user.id }])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-};
-
-export const updateNote = async (id: string, updates: Partial<Note>) => {
-  const { data, error } = await supabase
-    .from('notes')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-};
-
-export const deleteNote = async (id: string) => {
-  const { error } = await supabase
-    .from('notes')
-    .delete()
-    .eq('id', id);
-
-  if (error) throw error;
 };
