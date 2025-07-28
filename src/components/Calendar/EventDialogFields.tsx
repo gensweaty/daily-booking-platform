@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,6 +10,7 @@ import { History } from "lucide-react";
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { georgianLocale } from "@/lib/dateLocalization";
+import { LanguageText } from "@/components/shared/LanguageText";
 
 interface EventDialogFieldsProps {
   title: string;

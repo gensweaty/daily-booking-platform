@@ -39,6 +39,34 @@ export const spanishWeekdaysShort = [
   "Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"
 ];
 
+// Georgian locale object for date-fns
+export const georgianLocale = {
+  code: 'ka',
+  formatDistance: () => '',
+  formatRelative: () => '',
+  localize: {
+    ordinalNumber: (n: number) => String(n),
+    era: () => '',
+    quarter: () => '',
+    month: (n: number) => georgianMonths[n],
+    day: (n: number) => georgianWeekdays[n],
+    dayPeriod: () => ''
+  },
+  formatLong: {
+    date: () => 'dd/MM/yyyy',
+    time: () => 'HH:mm',
+    dateTime: () => 'dd/MM/yyyy HH:mm'
+  },
+  match: {
+    ordinalNumber: () => ({ value: 0, rest: '' }),
+    era: () => ({ value: 0, rest: '' }),
+    quarter: () => ({ value: 0, rest: '' }),
+    month: () => ({ value: 0, rest: '' }),
+    day: () => ({ value: 0, rest: '' }),
+    dayPeriod: () => ({ value: 0, rest: '' })
+  }
+};
+
 export const getLocalizedMonthName = (date: Date, language: Language): string => {
   const monthIndex = date.getMonth();
   
