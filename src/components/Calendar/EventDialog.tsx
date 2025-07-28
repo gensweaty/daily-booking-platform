@@ -331,6 +331,9 @@ export const EventDialog = ({
 
   const uploadFiles = async (eventId: string) => {
     if (files.length === 0) return;
+    
+    console.log('📤 Uploading', files.length, 'files for event:', eventId);
+    
     const uploadPromises = files.map(async file => {
       const fileExt = file.name.split('.').pop();
       const fileName = `${eventId}/${Date.now()}.${fileExt}`;
@@ -363,6 +366,7 @@ export const EventDialog = ({
     });
 
     await Promise.all(uploadPromises);
+    console.log('✅ Files uploaded successfully');
   };
 
   const sendEmailToAllPersons = async (eventData: any, additionalPersons: any[] = []) => {
@@ -554,6 +558,27 @@ export const EventDialog = ({
         });
 
         if (result.error) throw result.error;
+
+        // Upload files after successful event update
+        if (files.length > 0) {
+          try {
+            await uploadFiles(actualEventId);
+            console.log('✅ Files uploaded successfully after event update');
+            
+            // Clear files state after successful upload
+            setFiles([]);
+            
+            // Refresh the existing files list to show newly uploaded files
+            await loadExistingFiles(actualEventId);
+          } catch (fileError) {
+            console.error('❌ Error uploading files during event update:', fileError);
+            toast({
+              title: t("common.warning"),
+              description: "Event updated successfully, but some files failed to upload",
+              variant: "destructive"
+            });
+          }
+        }
 
         if (actualEventId) {
           const freshEventData = await loadEventData(actualEventId);
