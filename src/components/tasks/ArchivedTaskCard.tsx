@@ -65,9 +65,9 @@ export const ArchivedTaskCard = ({ task, onView, onRestore, onDelete }: Archived
       </CardHeader>
       <CardContent className="pt-0">
         {task.description && (
-          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-            {task.description}
-          </p>
+          <div className="text-sm text-muted-foreground mb-3 line-clamp-2">
+            <div dangerouslySetInnerHTML={{ __html: task.description }} />
+          </div>
         )}
         
         <div className="flex items-center gap-4 text-xs text-muted-foreground mb-4">

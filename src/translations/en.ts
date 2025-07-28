@@ -100,13 +100,6 @@ export const translations: TranslationType = {
     error: "Error"
   },
   tasks: {
-    title: "Task Management",
-    description: "Organize and track your tasks efficiently",
-    feature1: "Create and organize tasks with deadlines",
-    feature2: "Set priority levels and categories",
-    feature3: "Track progress with status updates",
-    feature4: "Get notifications for due tasks",
-    feature5: "Archive completed tasks for reference",
     addTask: "Add Task",
     editTask: "Edit Task",
     titlePlaceholder: "Enter task title...",
@@ -118,6 +111,7 @@ export const translations: TranslationType = {
     taskUpdated: "Task updated successfully",
     taskDeleted: "Task deleted successfully",
     taskAdded: "Task added successfully",
+    taskArchived: "Task archived successfully",
     deadline: "Deadline",
     reminder: "Reminder",
     setDeadline: "Set Deadline",
@@ -134,7 +128,6 @@ export const translations: TranslationType = {
     taskReminder: "Task Reminder",
     archive: "Archive",
     archived: "Archived",
-    taskArchived: "Task archived successfully",
     archivedTasks: "Archived Tasks",
     backToTasks: "Back to Tasks",
     searchArchivedTasks: "Search archived tasks...",
@@ -155,6 +148,8 @@ export const translations: TranslationType = {
     deleteTaskConfirmation: "Are you sure you want to delete this task?",
     emailReminder: "Email Reminder",
     reminderEmailSent: "Task reminder email sent successfully",
+    created: "Created",
+    file: "file"
   },
   website: {
     title: "Free Website for your business",
