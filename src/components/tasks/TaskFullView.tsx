@@ -122,7 +122,10 @@ export const TaskFullView = ({ task, isOpen, onClose, onDelete, onEdit, onArchiv
 
           {/* Moved metadata section to bottom, before buttons */}
           <div className="pt-4 border-t border-muted/20">
-            <TaskDateInfo task={task} />
+            <TaskDateInfo 
+              deadline={task.deadline_at}
+              reminderAt={task.reminder_at}
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t border-muted/20">
