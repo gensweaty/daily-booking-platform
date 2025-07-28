@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -5,7 +6,7 @@ import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Briefc
 import { Button } from "@/components/ui/button"
 import { TaskList } from "@/components/TaskList"
 import { Calendar } from "@/components/Calendar/Calendar"
-import { AddTaskForm } from "@/components/AddTaskForm"
+import AddTaskForm from "@/components/AddTaskForm"
 import { Statistics } from "@/components/Statistics"
 import { CustomerList } from "@/components/crm/CustomerList"
 import { BusinessPage } from "@/components/business/BusinessPage"
