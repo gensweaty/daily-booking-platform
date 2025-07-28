@@ -22,22 +22,31 @@ setInterval(() => {
   }
 }, 10 * 60 * 1000);
 
-// Helper function to format time directly from ISO string without timezone conversion
+// Helper function to format time directly from ISO string without any timezone conversion
 const formatReminderTime = (reminderAt: string): string => {
-  // Parse the ISO string and extract components directly
-  const isoString = reminderAt;
-  const datePart = isoString.split('T')[0];
-  const timePart = isoString.split('T')[1];
+  console.log("Original reminderAt ISO string:", reminderAt);
   
-  // Extract date components
+  // Extract date and time parts from ISO string
+  const parts = reminderAt.split('T');
+  if (parts.length < 2) {
+    console.error("Invalid ISO string format:", reminderAt);
+    return reminderAt;
+  }
+  
+  const datePart = parts[0]; // YYYY-MM-DD
+  const timePart = parts[1].split('.')[0]; // HH:MM:SS (remove milliseconds if present)
+  
+  // Extract components
   const [year, month, day] = datePart.split('-');
+  const [hours, minutes] = timePart.split(':');
   
-  // Extract time components (before any timezone indicator)
-  const timeWithoutTz = timePart.split('.')[0]; // Remove milliseconds if present
-  const [hours, minutes] = timeWithoutTz.split(':');
+  // Format as DD/MM/YYYY HH:MM (exactly as user set it)
+  const formattedResult = `${day}/${month}/${year} ${hours}:${minutes}`;
   
-  // Format as DD/MM/YYYY HH:MM
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
+  console.log("Formatted reminder time:", formattedResult);
+  console.log("Extracted hours:", hours, "minutes:", minutes);
+  
+  return formattedResult;
 };
 
 // Multi-language email content
