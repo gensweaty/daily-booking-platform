@@ -1,3 +1,4 @@
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,19 +27,27 @@ import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
 interface EventDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (data: CalendarEventType) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave?: (data: CalendarEventType) => void;
   initialData?: CalendarEventType;
   isNewEvent?: boolean;
+  selectedDate?: Date;
+  onEventCreated?: () => Promise<void>;
+  onEventUpdated?: () => Promise<void>;
+  onEventDeleted?: () => Promise<void>;
 }
 
 export const EventDialog = ({
-  isOpen,
-  onClose,
+  open,
+  onOpenChange,
   onSave,
   initialData,
-  isNewEvent = false
+  isNewEvent = false,
+  selectedDate,
+  onEventCreated,
+  onEventUpdated,
+  onEventDeleted
 }: EventDialogProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -48,8 +57,8 @@ export const EventDialog = ({
   const [socialNetworkLink, setSocialNetworkLink] = useState(initialData?.social_network_link || '');
   const [eventNotes, setEventNotes] = useState(initialData?.event_notes || '');
   const [eventName, setEventName] = useState(initialData?.event_name || '');
-  const [startDate, setStartDate] = useState(initialData?.start_date || '');
-  const [endDate, setEndDate] = useState(initialData?.end_date || '');
+  const [startDate, setStartDate] = useState(initialData?.start_date || selectedDate?.toISOString() || '');
+  const [endDate, setEndDate] = useState(initialData?.end_date || selectedDate?.toISOString() || '');
   const [paymentStatus, setPaymentStatus] = useState(initialData?.payment_status || 'not_paid');
   const [paymentAmount, setPaymentAmount] = useState(initialData?.payment_amount?.toString() || '');
   const [files, setFiles] = useState<File[]>([]);
@@ -82,8 +91,15 @@ export const EventDialog = ({
       setRepeatPattern(initialData.repeat_pattern || '');
       setRepeatUntil(initialData.repeat_until || '');
       setIsVirtualEvent(initialData.checkAvailability || false);
+    } else if (selectedDate) {
+      setStartDate(selectedDate.toISOString());
+      setEndDate(selectedDate.toISOString());
     }
-  }, [initialData]);
+  }, [initialData, selectedDate]);
+
+  const handleClose = () => {
+    onOpenChange(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,12 +129,22 @@ export const EventDialog = ({
     };
 
     try {
-      onSave(eventData);
+      if (onSave) {
+        await onSave(eventData);
+      }
+      
+      if (initialData && onEventUpdated) {
+        await onEventUpdated();
+      } else if (!initialData && onEventCreated) {
+        await onEventCreated();
+      }
+      
       toast({
         title: t("events.eventSaved"),
         description: t("events.eventSavedDescription"),
       });
-      onClose();
+      
+      handleClose();
     } catch (error) {
       console.error("Error saving event:", error);
       toast({
@@ -132,7 +158,7 @@ export const EventDialog = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -184,7 +210,7 @@ export const EventDialog = ({
           />
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={handleClose}>
               <LanguageText>{t("common.cancel")}</LanguageText>
             </Button>
             <Button type="submit" disabled={loading}>
