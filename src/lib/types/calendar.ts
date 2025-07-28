@@ -1,3 +1,4 @@
+
 export type CalendarViewType = 'month' | 'week' | 'day';
 
 export interface CalendarEventType {
@@ -13,7 +14,6 @@ export interface CalendarEventType {
   payment_status?: string;
   payment_amount?: number;
   created_at: string;
-  updated_at?: string;
   user_id: string;
   requester_name?: string;
   requester_email?: string;
@@ -29,7 +29,7 @@ export interface CalendarEventType {
   language?: string;
   customer_id?: string;
   event_name?: string;
-  booking_request_id?: string;
+  booking_request_id?: string; // Added missing property
   // Recurring event properties
   is_recurring?: boolean;
   repeat_pattern?: string;

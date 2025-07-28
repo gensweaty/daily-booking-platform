@@ -19,7 +19,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getRepeatOptions } from "@/lib/recurringEvents";
-import { EventMetadata } from "./EventMetadata";
 
 // Define interface for person data
 interface PersonData {
@@ -84,9 +83,6 @@ interface EventDialogFieldsProps {
   setAdditionalPersons: (persons: PersonData[]) => void;
   // Add missing prop
   isVirtualEvent?: boolean;
-  // Add metadata props
-  createdAt?: string;
-  updatedAt?: string;
 }
 
 export const EventDialogFields = ({
@@ -125,9 +121,7 @@ export const EventDialogFields = ({
   isNewEvent = false,
   additionalPersons,
   setAdditionalPersons,
-  isVirtualEvent = false,
-  createdAt,
-  updatedAt
+  isVirtualEvent = false
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -494,14 +488,6 @@ export const EventDialogFields = ({
           </div>
         </div>
       </div>
-
-      {/* Event Metadata - Only show for existing events */}
-      {eventId && createdAt && (
-        <EventMetadata 
-          createdAt={createdAt} 
-          updatedAt={updatedAt}
-        />
-      )}
 
       {/* Repeat Options - Only show for new events */}
       {isNewEvent && (
