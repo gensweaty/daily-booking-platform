@@ -1,57 +1,44 @@
+
+import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileUploadField } from "@/components/shared/FileUploadField";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { FileDisplay } from "@/components/shared/FileDisplay";
-import { cn } from "@/lib/utils";
-import { FileRecord } from "@/types/files";
-import { LanguageText } from "@/components/shared/LanguageText";
-import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
-import { getCurrencySymbol } from "@/lib/currency";
-import { useState, useEffect, useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Repeat, Calendar as CalendarIcon } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { Checkbox } from "@/components/ui/checkbox";
-import { getRepeatOptions } from "@/lib/recurringEvents";
-
-// Define interface for person data
-interface PersonData {
-  id: string;
-  userSurname: string;
-  userNumber: string;
-  socialNetworkLink: string;
-  eventNotes: string;
-  paymentStatus: string;
-  paymentAmount: string;
-}
+import { FileUploadField } from "@/components/shared/FileUploadField";
+import { FileDisplay } from "@/components/shared/FileDisplay";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
+import { Clock, RefreshCcw, Plus, X } from "lucide-react";
+import { CalendarEventType } from "@/lib/types/calendar";
 
 interface EventDialogFieldsProps {
   title: string;
-  setTitle: (value: string) => void;
+  setTitle: (title: string) => void;
   userSurname: string;
-  setUserSurname: (value: string) => void;
+  setUserSurname: (surname: string) => void;
   userNumber: string;
-  setUserNumber: (value: string) => void;
+  setUserNumber: (number: string) => void;
   socialNetworkLink: string;
-  setSocialNetworkLink: (value: string) => void;
+  setSocialNetworkLink: (link: string) => void;
   eventNotes: string;
-  setEventNotes: (value: string) => void;
+  setEventNotes: (notes: string) => void;
   eventName: string;
-  setEventName: (value: string) => void;
-  startDate: string;
-  setStartDate: (value: string) => void;
-  endDate: string;
-  setEndDate: (value: string) => void;
+  setEventName: (name: string) => void;
   paymentStatus: string;
-  setPaymentStatus: (value: string) => void;
+  setPaymentStatus: (status: string) => void;
   paymentAmount: string;
-  setPaymentAmount: (value: string) => void;
+  setPaymentAmount: (amount: string) => void;
+  startDate: string;
+  setStartDate: (date: string) => void;
+  endDate: string;
+  setEndDate: (date: string) => void;
+  isRecurring: boolean;
+  setIsRecurring: (recurring: boolean) => void;
+  repeatPattern: string;
+  setRepeatPattern: (pattern: string) => void;
+  repeatUntil: string;
+  setRepeatUntil: (until: string) => void;
   files: File[];
   setFiles: (files: File[]) => void;
   existingFiles: Array<{
@@ -68,21 +55,29 @@ interface EventDialogFieldsProps {
     content_type?: string;
     size?: number;
   }>) => void;
-  eventId?: string;
-  isBookingRequest?: boolean;
-  // Add repeat props
-  isRecurring: boolean;
-  setIsRecurring: (value: boolean) => void;
-  repeatPattern: string;
-  setRepeatPattern: (value: string) => void;
-  repeatUntil: string;
-  setRepeatUntil: (value: string) => void;
-  isNewEvent?: boolean;
-  // New props for additional persons management
-  additionalPersons: PersonData[];
-  setAdditionalPersons: (persons: PersonData[]) => void;
-  // Add missing prop
-  isVirtualEvent?: boolean;
+  additionalPersons: Array<{
+    id: string;
+    userSurname: string;
+    userNumber: string;
+    socialNetworkLink: string;
+    eventNotes: string;
+    paymentStatus: string;
+    paymentAmount: string;
+  }>;
+  setAdditionalPersons: (persons: Array<{
+    id: string;
+    userSurname: string;
+    userNumber: string;
+    socialNetworkLink: string;
+    eventNotes: string;
+    paymentStatus: string;
+    paymentAmount: string;
+  }>) => void;
+  isVirtualEvent: boolean;
+  isNewEvent: boolean;
+  initialData?: CalendarEventType;
+  language: string;
+  t: (key: string) => string;
 }
 
 export const EventDialogFields = ({
@@ -98,622 +93,383 @@ export const EventDialogFields = ({
   setEventNotes,
   eventName,
   setEventName,
-  startDate,
-  setStartDate,
-  endDate,
-  setEndDate,
   paymentStatus,
   setPaymentStatus,
   paymentAmount,
   setPaymentAmount,
-  files,
-  setFiles,
-  existingFiles,
-  setExistingFiles,
-  eventId,
-  isBookingRequest = false,
+  startDate,
+  setStartDate,
+  endDate,
+  setEndDate,
   isRecurring,
   setIsRecurring,
   repeatPattern,
   setRepeatPattern,
   repeatUntil,
   setRepeatUntil,
-  isNewEvent = false,
+  files,
+  setFiles,
+  existingFiles,
+  setExistingFiles,
   additionalPersons,
   setAdditionalPersons,
-  isVirtualEvent = false
+  isVirtualEvent,
+  isNewEvent,
+  initialData,
+  language,
+  t
 }: EventDialogFieldsProps) => {
-  const {
-    t,
-    language
-  } = useLanguage();
-  const [loading, setLoading] = useState(false);
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [isRepeatUntilPickerOpen, setIsRepeatUntilPickerOpen] = useState(false);
-  const isGeorgian = language === 'ka';
-  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
-  const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
-  const currencySymbol = getCurrencySymbol(language);
   
-  // Show event name field only when there are multiple persons (additionalPersons.length > 0)
-  const shouldShowEventNameField = additionalPersons.length > 0;
-
-  // Generate repeat options using the dynamic function
-  const repeatOptions = useMemo(() => {
-    if (startDate) {
-      return getRepeatOptions(new Date(startDate), t);
-    }
-    return getRepeatOptions(undefined, t);
-  }, [startDate, t]);
-  
-  const georgianStyle = isGeorgian ? {
-    fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-    letterSpacing: '-0.2px',
-    WebkitFontSmoothing: 'antialiased',
-    MozOsxFontSmoothing: 'grayscale'
-  } : undefined;
-  
-  // Helper function for Georgian label text
-  const renderGeorgianLabel = (text: string) => {
-    if (isGeorgian) {
-      if (text === "events.fullName") return <GeorgianAuthText letterSpacing="-0.05px">სრული სახელი</GeorgianAuthText>;
-      if (text === "events.phoneNumber") return <GeorgianAuthText letterSpacing="-0.05px">ტელეფონის ნომერი</GeorgianAuthText>;
-      if (text === "events.socialLinkEmail") return <GeorgianAuthText letterSpacing="-0.05px">ელფოსტა</GeorgianAuthText>; 
-      if (text === "events.eventNotes") return <GeorgianAuthText letterSpacing="-0.05px">შენიშვნები</GeorgianAuthText>;
-    }
-    return <LanguageText>{t(text)}</LanguageText>;
-  };
-  
-  // Fixed Georgian placeholder for event notes
-  const getEventNotesPlaceholder = () => {
-    if (isGeorgian) {
-      return "დაამატეთ შენიშვნები თქვენი ჯავშნის შესახებ";
-    }
-    return t("events.addEventNotes");
-  };
-
-  // Handle recurring checkbox change with proper state management
-  const handleRecurringToggle = (checked: boolean) => {
-    console.log('Recurring toggle clicked:', checked);
-    setIsRecurring(checked);
-    if (!checked) {
-      // Clear repeat settings when unchecked
-      setRepeatPattern('');
-      setRepeatUntil('');
-    }
-  };
-
-  // Helper functions for additional persons management
-  const onAddPerson = () => {
-    const newPerson: PersonData = {
-      id: crypto.randomUUID(),
-      userSurname: '',
-      userNumber: '',
-      socialNetworkLink: '',
-      eventNotes: '',
-      paymentStatus: 'not_paid',
-      paymentAmount: ''
-    };
-    setAdditionalPersons([...additionalPersons, newPerson]);
-  };
-
-  const onRemovePerson = (personId: string) => {
-    setAdditionalPersons(additionalPersons.filter(person => person.id !== personId));
-  };
-
-  const onUpdatePerson = (personId: string, field: keyof PersonData, value: string) => {
-    setAdditionalPersons(additionalPersons.map(person => 
-      person.id === personId ? { ...person, [field]: value } : person
-    ));
-  };
-
-  // Handle existing file removal
-  const handleRemoveExistingFile = async (fileId: string) => {
-    try {
-      // Remove from database
-      const { error } = await supabase
-        .from('event_files')
-        .delete()
-        .eq('id', fileId);
-
-      if (error) {
-        console.error('Error removing file:', error);
-        return;
+  const addPerson = () => {
+    setAdditionalPersons([
+      ...additionalPersons,
+      {
+        id: `temp-${Date.now()}`,
+        userSurname: '',
+        userNumber: '',
+        socialNetworkLink: '',
+        eventNotes: '',
+        paymentStatus: '',
+        paymentAmount: ''
       }
-
-      // Remove from UI
-      setExistingFiles(existingFiles.filter(file => file.id !== fileId));
-    } catch (error) {
-      console.error('Error removing existing file:', error);
-    }
+    ]);
   };
 
-  // Function to render person data section
-  const renderPersonSection = (
-    person?: PersonData, 
-    index?: number, 
-    isMain: boolean = false
-  ) => {
-    const sectionUserSurname = isMain ? userSurname : (person?.userSurname || '');
-    const sectionUserNumber = isMain ? userNumber : (person?.userNumber || '');
-    const sectionSocialNetworkLink = isMain ? socialNetworkLink : (person?.socialNetworkLink || '');
-    const sectionEventNotes = isMain ? eventNotes : (person?.eventNotes || '');
-    const sectionPaymentStatus = isMain ? paymentStatus : (person?.paymentStatus || 'not_paid');
-    const sectionPaymentAmount = isMain ? paymentAmount : (person?.paymentAmount || '');
-    const sectionShowPaymentAmount = sectionPaymentStatus === "partly_paid" || sectionPaymentStatus === "fully_paid";
+  const removePerson = (index: number) => {
+    setAdditionalPersons(additionalPersons.filter((_, i) => i !== index));
+  };
 
-    const handleFieldChange = (field: string, value: string) => {
-      if (isMain) {
-        switch (field) {
-          case 'userSurname':
-            setUserSurname(value);
-            setTitle(value);
-            break;
-          case 'userNumber':
-            setUserNumber(value);
-            break;
-          case 'socialNetworkLink':
-            setSocialNetworkLink(value);
-            break;
-          case 'eventNotes':
-            setEventNotes(value);
-            break;
-          case 'paymentStatus':
-            setPaymentStatus(value);
-            break;
-          case 'paymentAmount':
-            setPaymentAmount(value);
-            break;
-        }
-      } else if (person) {
-        onUpdatePerson(person.id, field as keyof PersonData, value);
-      }
-    };
+  const updatePerson = (index: number, field: string, value: string) => {
+    const updated = [...additionalPersons];
+    updated[index] = { ...updated[index], [field]: value };
+    setAdditionalPersons(updated);
+  };
 
-    return (
-      <div key={isMain ? 'main' : person?.id} className="border rounded-lg p-4 space-y-4 bg-muted/20">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className={cn("text-sm font-medium text-muted-foreground", isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-            {isGeorgian ? (
-              <GeorgianAuthText letterSpacing="-0.05px">
-                {isMain ? "პირადი მონაცემები" : `პირი ${index! + 2}`}
-              </GeorgianAuthText>
-            ) : (
-              isMain ? "Person Data" : `Person ${index! + 2}`
-            )}
-          </h3>
-          {!isMain && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => onRemovePerson(person!.id)}
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-        
-        <div>
-          <Label 
-            htmlFor={`userSurname-${isMain ? 'main' : person?.id}`}
-            className={cn(isGeorgian ? "font-georgian" : "")}
-            style={georgianStyle}
-          >
-            {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">სრული სახელი</GeorgianAuthText> : <LanguageText>{t("events.fullName")}</LanguageText>}
-          </Label>
-          <Input 
-            id={`userSurname-${isMain ? 'main' : person?.id}`}
-            value={sectionUserSurname} 
-            onChange={e => handleFieldChange('userSurname', e.target.value)} 
-            placeholder={isGeorgian ? "სრული სახელი" : t("events.fullName")} 
-            required={isMain}
-            className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
-            style={isGeorgian ? {
-              fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-              letterSpacing: '-0.2px',
-              WebkitFontSmoothing: 'antialiased',
-              MozOsxFontSmoothing: 'grayscale'
-            } : undefined} 
-          />
-        </div>
-        
-        <div>
-          <Label 
-            htmlFor={`userNumber-${isMain ? 'main' : person?.id}`}
-            className={cn(isGeorgian ? "font-georgian" : "")}
-            style={georgianStyle}
-          >
-            {renderGeorgianLabel("events.phoneNumber")}
-          </Label>
-          <Input 
-            id={`userNumber-${isMain ? 'main' : person?.id}`}
-            value={sectionUserNumber} 
-            onChange={e => handleFieldChange('userNumber', e.target.value)} 
-            placeholder={isGeorgian ? "ტელეფონის ნომერი" : t("events.phoneNumber")} 
-            className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}  
-            style={georgianStyle} 
-          />
-        </div>
-        
-        <div>
-          <Label 
-            htmlFor={`socialNetworkLink-${isMain ? 'main' : person?.id}`}
-            className={cn(isGeorgian ? "font-georgian" : "")}
-            style={georgianStyle}
-          >
-            {renderGeorgianLabel("events.socialLinkEmail")}
-          </Label>
-          <Input 
-            id={`socialNetworkLink-${isMain ? 'main' : person?.id}`}
-            value={sectionSocialNetworkLink} 
-            onChange={e => handleFieldChange('socialNetworkLink', e.target.value)} 
-            placeholder="email@example.com" 
-            type="email" 
-            style={isGeorgian ? { ...georgianStyle } : undefined}
-          />
-        </div>
-        
-        {!isBookingRequest && (
+  return (
+    <div className="space-y-6">
+      {/* Date & Time Section */}
+      <div className="space-y-4">
+        <h3 className="font-medium text-foreground">Date & Time</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label 
-              htmlFor={`paymentStatus-${isMain ? 'main' : person?.id}`}
-              className={cn(isGeorgian ? "font-georgian" : "")}
-              style={georgianStyle}
-            >
-              <LanguageText>{t("events.paymentStatus")}</LanguageText>
+            <Label htmlFor="startDate" className="text-sm font-medium text-foreground">
+              Start
             </Label>
-            <Select value={sectionPaymentStatus} onValueChange={value => handleFieldChange('paymentStatus', value)}>
-              <SelectTrigger id={`paymentStatus-${isMain ? 'main' : person?.id}`} className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                <SelectValue placeholder={t("events.selectPaymentStatus")} />
-              </SelectTrigger>
-              <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
-                <SelectItem value="not_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  <LanguageText>{t("crm.notPaid")}</LanguageText>
-                </SelectItem>
-                <SelectItem value="partly_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  <LanguageText>{t("crm.paidPartly")}</LanguageText>
-                </SelectItem>
-                <SelectItem value="fully_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  <LanguageText>{t("crm.paidFully")}</LanguageText>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <Input
+              id="startDate"
+              type="datetime-local"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-background border-input"
+              required
+            />
           </div>
-        )}
-        
-        {!isBookingRequest && sectionShowPaymentAmount && (
           <div>
-            <Label 
-              htmlFor={`paymentAmount-${isMain ? 'main' : person?.id}`}
-              className={cn(isGeorgian ? "font-georgian" : "")}
-              style={georgianStyle}
-            >
-              <LanguageText>{t("events.paymentAmount")}</LanguageText>
+            <Label htmlFor="endDate" className="text-sm font-medium text-foreground">
+              End
             </Label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <span className="text-gray-500">{currencySymbol}</span>
+            <Input
+              id="endDate"
+              type="datetime-local"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-background border-input"
+              required
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Created/Updated metadata section - only show for existing events */}
+      {initialData && (
+        <div className="bg-muted/50 rounded-lg p-3 border border-muted">
+          <div className="flex items-center text-sm text-muted-foreground">
+            <span className="flex items-center mr-4">
+              <Clock className="mr-1 h-4 w-4" />
+              <span>{t("tasks.createdAt")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
+            </span>
+            <span className="flex items-center">
+              <RefreshCcw className="mr-1 h-4 w-4" />
+              <span>{t("tasks.lastUpdated")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Person Data Section */}
+      <div className="space-y-4">
+        <h3 className="font-medium text-foreground">Person Data</h3>
+        
+        {/* Main Person */}
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="userSurname" className="text-sm font-medium text-foreground">
+              Full Name
+            </Label>
+            <Input
+              id="userSurname"
+              value={userSurname}
+              onChange={(e) => setUserSurname(e.target.value)}
+              className="bg-background border-input"
+              placeholder="Enter full name"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="userNumber" className="text-sm font-medium text-foreground">
+              Phone Number
+            </Label>
+            <Input
+              id="userNumber"
+              value={userNumber}
+              onChange={(e) => setUserNumber(e.target.value)}
+              className="bg-background border-input"
+              placeholder="Enter phone number"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="socialNetworkLink" className="text-sm font-medium text-foreground">
+              Email
+            </Label>
+            <Input
+              id="socialNetworkLink"
+              type="email"
+              value={socialNetworkLink}
+              onChange={(e) => setSocialNetworkLink(e.target.value)}
+              className="bg-background border-input"
+              placeholder="Enter email address"
+            />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="paymentStatus" className="text-sm font-medium text-foreground">
+                Payment Status
+              </Label>
+              <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+                <SelectTrigger className="bg-background border-input">
+                  <SelectValue placeholder="Select payment status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="partially_paid">Paid Partly</SelectItem>
+                  <SelectItem value="not_paid">Not Paid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="paymentAmount" className="text-sm font-medium text-foreground">
+                Payment Amount
+              </Label>
+              <Input
+                id="paymentAmount"
+                type="number"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                className="bg-background border-input"
+                placeholder="Enter amount"
+              />
+            </div>
+          </div>
+          
+          <div>
+            <Label htmlFor="eventNotes" className="text-sm font-medium text-foreground">
+              Notes
+            </Label>
+            <Textarea
+              id="eventNotes"
+              value={eventNotes}
+              onChange={(e) => setEventNotes(e.target.value)}
+              className="bg-background border-input min-h-[80px]"
+              placeholder="Enter notes"
+            />
+          </div>
+        </div>
+
+        {/* Additional Persons */}
+        {additionalPersons.map((person, index) => (
+          <Card key={person.id} className="relative">
+            <CardContent className="p-4">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute top-2 right-2 h-8 w-8 p-0"
+                onClick={() => removePerson(index)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              
+              <h4 className="font-medium text-foreground mb-4">Additional Person {index + 1}</h4>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium text-foreground">
+                    Full Name
+                  </Label>
+                  <Input
+                    value={person.userSurname}
+                    onChange={(e) => updatePerson(index, 'userSurname', e.target.value)}
+                    className="bg-background border-input"
+                    placeholder="Enter full name"
+                  />
+                </div>
+                
+                <div>
+                  <Label className="text-sm font-medium text-foreground">
+                    Phone Number
+                  </Label>
+                  <Input
+                    value={person.userNumber}
+                    onChange={(e) => updatePerson(index, 'userNumber', e.target.value)}
+                    className="bg-background border-input"
+                    placeholder="Enter phone number"
+                  />
+                </div>
+                
+                <div>
+                  <Label className="text-sm font-medium text-foreground">
+                    Email
+                  </Label>
+                  <Input
+                    type="email"
+                    value={person.socialNetworkLink}
+                    onChange={(e) => updatePerson(index, 'socialNetworkLink', e.target.value)}
+                    className="bg-background border-input"
+                    placeholder="Enter email address"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-foreground">
+                      Payment Status
+                    </Label>
+                    <Select 
+                      value={person.paymentStatus} 
+                      onValueChange={(value) => updatePerson(index, 'paymentStatus', value)}
+                    >
+                      <SelectTrigger className="bg-background border-input">
+                        <SelectValue placeholder="Select payment status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="paid">Paid</SelectItem>
+                        <SelectItem value="partially_paid">Paid Partly</SelectItem>
+                        <SelectItem value="not_paid">Not Paid</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm font-medium text-foreground">
+                      Payment Amount
+                    </Label>
+                    <Input
+                      type="number"
+                      value={person.paymentAmount}
+                      onChange={(e) => updatePerson(index, 'paymentAmount', e.target.value)}
+                      className="bg-background border-input"
+                      placeholder="Enter amount"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <Label className="text-sm font-medium text-foreground">
+                    Notes
+                  </Label>
+                  <Textarea
+                    value={person.eventNotes}
+                    onChange={(e) => updatePerson(index, 'eventNotes', e.target.value)}
+                    className="bg-background border-input min-h-[80px]"
+                    placeholder="Enter notes"
+                  />
+                </div>
               </div>
-              <Input 
-                id={`paymentAmount-${isMain ? 'main' : person?.id}`}
-                value={sectionPaymentAmount} 
-                onChange={e => {
-                  const value = e.target.value;
-                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                    handleFieldChange('paymentAmount', value);
-                  }
-                }} 
-                className="pl-7" 
-                placeholder="0.00" 
-                type="text" 
-                inputMode="decimal" 
-              />
-            </div>
-          </div>
-        )}
+            </CardContent>
+          </Card>
+        ))}
         
-        <div>
-          <Label 
-            htmlFor={`eventNotes-${isMain ? 'main' : person?.id}`}
-            className={cn(isGeorgian ? "font-georgian" : "")}
-            style={georgianStyle}
-          >
-            {renderGeorgianLabel("events.eventNotes")}
-          </Label>
-          <Textarea 
-            id={`eventNotes-${isMain ? 'main' : person?.id}`}
-            value={sectionEventNotes} 
-            onChange={e => handleFieldChange('eventNotes', e.target.value)} 
-            placeholder={getEventNotesPlaceholder()}
-            className={cn("min-h-[100px] resize-none", isGeorgian ? "placeholder:font-georgian font-georgian" : "")} 
-            style={georgianStyle}
-          />
-        </div>
-      </div>
-    );
-  };
-  
-  return <>
-      {/* Date and Time - Moved to top */}
-      <div>
-        <Label 
-          htmlFor="dateTime" 
-          className={cn(isGeorgian ? "font-georgian" : "")}
-          style={georgianStyle}
-        >
-          <LanguageText>{t("events.dateAndTime")}</LanguageText>
-        </Label>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label 
-              htmlFor="startDate" 
-              className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}
-              style={georgianStyle}
-            >
-              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">დაწყება</GeorgianAuthText> : <LanguageText>{t("events.start")}</LanguageText>}
-            </Label>
-            <div className="relative">
-              <Input 
-                id="startDate" 
-                type="datetime-local" 
-                value={startDate} 
-                onChange={e => setStartDate(e.target.value)} 
-                required 
-                className="w-full dark:text-white dark:[color-scheme:dark]" 
-                style={{ colorScheme: 'auto' }} 
-              />
-            </div>
-          </div>
-          <div>
-            <Label 
-              htmlFor="endDate" 
-              className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}
-              style={georgianStyle}
-            >
-              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">დასრულება</GeorgianAuthText> : <LanguageText>{t("events.end")}</LanguageText>}
-            </Label>
-            <div className="relative">
-              <Input 
-                id="endDate" 
-                type="datetime-local" 
-                value={endDate} 
-                onChange={e => setEndDate(e.target.value)} 
-                required 
-                className="w-full dark:text-white dark:[color-scheme:dark]" 
-                style={{ colorScheme: 'auto' }} 
-              />
-            </div>
-          </div>
-        </div>
+        <Button type="button" variant="outline" onClick={addPerson} className="w-full">
+          <Plus className="mr-2 h-4 w-4" />
+          Add Person
+        </Button>
       </div>
 
-      {/* Repeat Options - Only show for new events */}
-      {isNewEvent && (
+      {/* Recurring Events Section */}
+      {!isVirtualEvent && (
         <div className="space-y-4">
           <div className="flex items-center space-x-2">
-            <Checkbox
+            <Switch
               id="isRecurring"
               checked={isRecurring}
-              onCheckedChange={handleRecurringToggle}
+              onCheckedChange={setIsRecurring}
             />
-            <Label 
-              htmlFor="isRecurring" 
-              className={cn("flex items-center gap-2", isGeorgian ? "font-georgian" : "")}
-              style={georgianStyle}
-            >
-              <Repeat className="h-4 w-4" />
-              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორება</GeorgianAuthText> : <LanguageText>Make this event recurring</LanguageText>}
+            <Label htmlFor="isRecurring" className="text-sm font-medium text-foreground">
+              Make this a recurring event
             </Label>
           </div>
           
           {isRecurring && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-4">
               <div>
-                <Label 
-                  htmlFor="repeatPattern" 
-                  className={cn(isGeorgian ? "font-georgian" : "")}
-                  style={georgianStyle}
-                >
-                  {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორების რეჟიმი</GeorgianAuthText> : <LanguageText>Repeat</LanguageText>}
+                <Label htmlFor="repeatPattern" className="text-sm font-medium text-foreground">
+                  Repeat Pattern
                 </Label>
-                <Select value={repeatPattern || ''} onValueChange={(value) => setRepeatPattern(value)}>
-                  <SelectTrigger id="repeatPattern" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                    <SelectValue placeholder={isGeorgian ? "აირჩიეთ..." : "Select..."} />
+                <Select value={repeatPattern} onValueChange={setRepeatPattern}>
+                  <SelectTrigger className="bg-background border-input">
+                    <SelectValue placeholder="Select repeat pattern" />
                   </SelectTrigger>
-                  <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
-                    {repeatOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value} className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
+                  <SelectContent>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="yearly">Yearly</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               
-              {repeatPattern && repeatPattern !== 'none' && (
-                <div>
-                  <Label 
-                    htmlFor="repeatUntil" 
-                    className={cn(isGeorgian ? "font-georgian" : "")}
-                    style={georgianStyle}
-                  >
-                    {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორება მდე</GeorgianAuthText> : <LanguageText>Repeat until</LanguageText>}
-                  </Label>
-                  <Popover open={isRepeatUntilPickerOpen} onOpenChange={setIsRepeatUntilPickerOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !repeatUntil && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {repeatUntil ? format(new Date(repeatUntil), "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={repeatUntil ? new Date(repeatUntil) : undefined}
-                        onSelect={(date) => {
-                          if (date) {
-                            // Ensure we only send the date part (YYYY-MM-DD) to fix biweekly issue
-                            const dateStr = format(date, "yyyy-MM-dd");
-                            setRepeatUntil(dateStr);
-                            setIsRepeatUntilPickerOpen(false);
-                          }
-                        }}
-                        disabled={(date) => {
-                          if (!startDate) return false;
-                          const startDateObj = new Date(startDate);
-                          return date <= startDateObj;
-                        }}
-                        initialFocus
-                        className={cn("p-3 pointer-events-auto")}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              )}
+              <div>
+                <Label htmlFor="repeatUntil" className="text-sm font-medium text-foreground">
+                  Repeat Until
+                </Label>
+                <Input
+                  id="repeatUntil"
+                  type="date"
+                  value={repeatUntil}
+                  onChange={(e) => setRepeatUntil(e.target.value)}
+                  className="bg-background border-input"
+                />
+              </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Main Person Data Section */}
-      {renderPersonSection(undefined, undefined, true)}
-
-      {/* Additional Persons */}
-      {additionalPersons.map((person, index) => 
-        renderPersonSection(person, index, false)
-      )}
-
-      {/* Add Person Button */}
-      {additionalPersons.length < 49 && (
-        <div className="flex justify-center">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onAddPerson}
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            {isGeorgian ? (
-              <GeorgianAuthText>პირის დამატება</GeorgianAuthText>
-            ) : (
-              <LanguageText>Add Person</LanguageText>
-            )}
-          </Button>
-        </div>
-      )}
-
-      {/* Event Name Field - Moved to the end, only show when there are multiple persons */}
-      {shouldShowEventNameField && (
-        <div>
-          <Label 
-            htmlFor="eventName"
-            className={cn(isGeorgian ? "font-georgian" : "")}
-            style={isGeorgian ? {
-              fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-              letterSpacing: '-0.2px',
-              WebkitFontSmoothing: 'antialiased',
-              MozOsxFontSmoothing: 'grayscale'
-            } : undefined}
-          >
-            {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">მოვლენის სახელი</GeorgianAuthText> : <LanguageText>Event Name</LanguageText>}
-          </Label>
-          <Input 
-            id="eventName"
-            value={eventName} 
-            onChange={e => setEventName(e.target.value)} 
-            placeholder={isGeorgian ? "მოვლენის სახელი" : "Event Name"} 
-            className={cn(isGeorgian ? "font-georgian placeholder:font-georgian" : "")}
-            style={isGeorgian ? {
-              fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-              letterSpacing: '-0.2px',
-              WebkitFontSmoothing: 'antialiased',
-              MozOsxFontSmoothing: 'grayscale'
-            } : undefined} 
-          />
-        </div>
-      )}
-      
-      <div>
-        <Label 
-          htmlFor="file" 
-          className={cn(isGeorgian ? "font-georgian" : "")}
-          style={georgianStyle}
-        >
-          <LanguageText>{t("common.attachments")}</LanguageText>
-        </Label>
+      {/* File Attachments Section */}
+      <div className="space-y-4">
+        <h3 className="font-medium text-foreground">File Attachments</h3>
+        
+        {existingFiles.length > 0 && (
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">Current Attachments</Label>
+            <FileDisplay 
+              files={existingFiles} 
+              bucketName="event_attachments"
+              allowDelete
+              parentType="event"
+            />
+          </div>
+        )}
+        
         <FileUploadField 
-          onChange={(file) => {
-            if (file) {
-              setFiles([...files, file]);
-            }
-          }} 
-          fileError="" 
-          setFileError={() => {}} 
-          acceptedFileTypes={acceptedFormats} 
-          selectedFile={null} 
-          hideLabel={true} 
+          onChange={setFiles}
+          fileError=""
+          setFileError={() => {}}
         />
       </div>
-      
-      {/* Show existing files with proper FileDisplay component */}
-      {existingFiles.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-sm font-medium">
-            {isGeorgian ? <GeorgianAuthText>არსებული ფაილები</GeorgianAuthText> : "Existing Files:"}
-          </div>
-          <FileDisplay 
-            files={existingFiles.map(file => ({
-              id: file.id,
-              filename: file.filename,
-              file_path: file.file_path,
-              content_type: file.content_type,
-              size: file.size,
-              created_at: new Date().toISOString(),
-              user_id: '',
-              source: 'event'
-            } as FileRecord))}
-            bucketName="event_attachments"
-            allowDelete={true}
-            onFileDeleted={handleRemoveExistingFile}
-            parentType="event"
-          />
-        </div>
-      )}
-
-      {/* Show new files to be uploaded with proper FileDisplay component */}
-      {files.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-sm font-medium">
-            {isGeorgian ? <GeorgianAuthText>ახალი ფაილები ატვირთვისთვის</GeorgianAuthText> : "New Files to Upload:"}
-          </div>
-          <FileDisplay 
-            files={files.map((file, index) => ({
-              id: `temp-${index}`,
-              filename: file.name,
-              file_path: '',
-              content_type: file.type,
-              size: file.size,
-              created_at: new Date().toISOString(),
-              user_id: '',
-              source: 'event'
-            } as FileRecord))}
-            bucketName="event_attachments"
-            allowDelete={true}
-            onFileDeleted={(fileId) => {
-              const index = parseInt(fileId.replace('temp-', ''));
-              setFiles(files.filter((_, i) => i !== index));
-            }}
-            parentType="event"
-          />
-        </div>
-      )}
-    </>;
+    </div>
+  );
 };
