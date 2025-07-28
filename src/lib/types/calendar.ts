@@ -14,7 +14,7 @@ export interface CalendarEventType {
   payment_status?: string;
   payment_amount?: number;
   created_at: string;
-  updated_at?: string; // Add this field to track updates
+  updated_at: string; // Now properly typed as required field
   user_id: string;
   requester_name?: string;
   requester_email?: string;
