@@ -157,6 +157,7 @@ export interface TranslationType {
     emailReminder: string;
     reminderEmailSent: string;
     created: string;
+    file: string;
   };
   website: {
     title: string;
