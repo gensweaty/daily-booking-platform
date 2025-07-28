@@ -11,7 +11,6 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { sendEventCreationEmail } from "@/lib/api";
 import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
 import { deleteCalendarEvent, clearCalendarCache } from "@/services/calendarService";
-import { Clock, RefreshCcw } from "lucide-react";
 
 interface EventDialogProps {
   open: boolean;
@@ -760,20 +759,6 @@ export const EventDialog = ({
               }
             </DialogTitle>
           </DialogHeader>
-          
-          {/* Created/Updated metadata section - only show for existing events */}
-          {initialData && (
-            <div className="flex items-center text-sm text-muted-foreground mb-4">
-              <span className="flex items-center mr-4">
-                <Clock className="mr-1 h-4 w-4" />
-                <span>{t("tasks.createdAt")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
-              </span>
-              <span className="flex items-center">
-                <RefreshCcw className="mr-1 h-4 w-4" />
-                <span>{t("tasks.lastUpdated")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
-              </span>
-            </div>
-          )}
           
           <form onSubmit={handleSubmit} className="space-y-6">
             <EventDialogFields
