@@ -12,6 +12,7 @@ import { sendEventCreationEmail } from "@/lib/api";
 import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
 import { deleteCalendarEvent, clearCalendarCache } from "@/services/calendarService";
 import { Clock, RefreshCcw } from "lucide-react";
+
 interface EventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -41,6 +42,7 @@ const isoToLocalDateTimeInput = (isoString: string): string => {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
+
 export const EventDialog = ({
   open,
   onOpenChange,
@@ -194,6 +196,7 @@ export const EventDialog = ({
       console.error('Error loading existing files:', error);
     }
   };
+
   useEffect(() => {
     if (open) {
       if (initialData || eventId) {
@@ -281,6 +284,7 @@ export const EventDialog = ({
       }
     }
   }, [open, selectedDate, initialData, eventId, isVirtualEvent]);
+
   const loadParentEventData = async (parentId: string) => {
     try {
       const {
@@ -297,6 +301,7 @@ export const EventDialog = ({
       console.error('Error loading parent event:', error);
     }
   };
+
   const resetForm = () => {
     setTitle("");
     setUserSurname("");
@@ -315,6 +320,7 @@ export const EventDialog = ({
     setFiles([]);
     setExistingFiles([]);
   };
+
   const uploadFiles = async (eventId: string) => {
     if (files.length === 0) return;
     const uploadPromises = files.map(async file => {
@@ -449,6 +455,7 @@ export const EventDialog = ({
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
@@ -480,6 +487,7 @@ export const EventDialog = ({
         return;
       }
     }
+
     setIsLoading(true);
     try {
       // Enhanced debug logging for repeat pattern
@@ -493,6 +501,7 @@ export const EventDialog = ({
         startDateConverted: localDateTimeToISOString(startDate),
         endDateConverted: localDateTimeToISOString(endDate)
       });
+
       const eventData = {
         title,
         user_surname: userSurname,
@@ -511,6 +520,7 @@ export const EventDialog = ({
         repeat_pattern: isRecurring && repeatPattern ? repeatPattern : null,
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null
       };
+
       console.log("📤 Sending event data to backend:", eventData);
       let result;
       if (eventId || initialData) {
@@ -596,6 +606,7 @@ export const EventDialog = ({
       setIsLoading(false);
     }
   };
+
   const handleDeleteThis = async () => {
     if (!eventId && !initialData?.id) return;
     setIsLoading(true);
@@ -643,6 +654,7 @@ export const EventDialog = ({
       setIsLoading(false);
     }
   };
+
   const handleDeleteSeries = async () => {
     if (!eventId && !initialData?.id) return;
     setIsLoading(true);
@@ -677,6 +689,7 @@ export const EventDialog = ({
       setIsLoading(false);
     }
   };
+
   return <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
@@ -685,20 +698,20 @@ export const EventDialog = ({
               {eventId || initialData ? t("events.editEvent") : language === 'ka' ? "მოვლენის დამატება" : t("events.addEvent")}
             </DialogTitle>
           </DialogHeader>
-
-          {initialData && <div className="flex items-center text-sm text-muted-foreground mb-4 bg-slate-800 rounded-md">
-              <span className="flex items-center mr-4">
-                <Clock className="mr-1 h-4 w-4" />
-                <span>{t("tasks.createdAt")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
-              </span>
-              <span className="flex items-center">
-                <RefreshCcw className="mr-1 h-4 w-4" />
-                <span>{t("tasks.lastUpdated")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
-              </span>
-            </div>}
           
           <form onSubmit={handleSubmit} className="space-y-6">
             <EventDialogFields title={title} setTitle={setTitle} userSurname={userSurname} setUserSurname={setUserSurname} userNumber={userNumber} setUserNumber={setUserNumber} socialNetworkLink={socialNetworkLink} setSocialNetworkLink={setSocialNetworkLink} eventNotes={eventNotes} setEventNotes={setEventNotes} eventName={eventName} setEventName={setEventName} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} isRecurring={isRecurring} setIsRecurring={setIsRecurring} repeatPattern={repeatPattern} setRepeatPattern={setRepeatPattern} repeatUntil={repeatUntil} setRepeatUntil={setRepeatUntil} files={files} setFiles={setFiles} existingFiles={existingFiles} setExistingFiles={setExistingFiles} additionalPersons={additionalPersons} setAdditionalPersons={setAdditionalPersons} isVirtualEvent={isVirtualEvent} isNewEvent={isNewEvent} />
+            
+            {initialData && <div className="flex items-center text-sm text-muted-foreground mb-4 bg-slate-800 rounded-md p-4">
+                <span className="flex items-center mr-4">
+                  <Clock className="mr-1 h-4 w-4" />
+                  <span>{t("tasks.createdAt")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
+                </span>
+                <span className="flex items-center">
+                  <RefreshCcw className="mr-1 h-4 w-4" />
+                  <span>{t("tasks.lastUpdated")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
+                </span>
+              </div>}
             
             <div className="flex flex-col sm:flex-row gap-2 pt-4">
               <Button type="submit" disabled={isLoading} className="flex-1">
