@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -115,7 +116,7 @@ export const EventDialogFields = ({
       </div>
 
       {/* Event Metadata Display - only show for existing events */}
-      {event && event.created_at && event.updated_at && (
+      {event && event.created_at && (
         <EventMetadataDisplay 
           createdAt={event.created_at}
           updatedAt={event.updated_at}
@@ -289,7 +290,7 @@ export const EventDialogFields = ({
       <div>
         <Label className="text-base font-medium">{t('events.attachments')}</Label>
         <FileUploadField
-          onFileUpload={onFileUpload}
+          onUpload={onFileUpload}
           bucketName="event-attachments"
           allowedTypes={['image/*', 'application/pdf', '.doc,.docx,.txt']}
           maxSize={10 * 1024 * 1024} // 10MB
@@ -302,11 +303,7 @@ export const EventDialogFields = ({
               files={existingFiles}
               allowDelete={true}
               parentType="event"
-              setFiles={(files) => {
-                // Handle file removal
-                const removedFiles = existingFiles.filter(f => !files.some(nf => nf.id === f.id));
-                removedFiles.forEach(onFileRemove);
-              }}
+              onFileDelete={onFileRemove}
             />
           </div>
         )}

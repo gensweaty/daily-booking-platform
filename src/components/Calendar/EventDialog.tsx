@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import {
   Dialog,
@@ -57,22 +58,6 @@ export const EventDialog = ({ isOpen, onClose, event, onSave }: EventDialogProps
     setExistingFiles(prev => prev.filter(f => f.id !== fileToRemove.id));
   };
 
-  const addAdditionalPerson = () => {
-    setAdditionalPersons([...additionalPersons, { name: '', surname: '', phone: '', email: '' }]);
-  };
-
-  const removeAdditionalPerson = (index: number) => {
-    const updatedPersons = [...additionalPersons];
-    updatedPersons.splice(index, 1);
-    setAdditionalPersons(updatedPersons);
-  };
-
-  const updateAdditionalPerson = (index: number, field: string, value: string) => {
-    const updatedPersons = [...additionalPersons];
-    updatedPersons[index][field] = value;
-    setAdditionalPersons(updatedPersons);
-  };
-
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -81,12 +66,14 @@ export const EventDialog = ({ isOpen, onClose, event, onSave }: EventDialogProps
     const repeat_until = formData.isRecurring ? new Date(formData.repeatUntil).toISOString() : null;
 
     const upsertEvent = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { data, error } = await supabase
         .from('events')
         .upsert({
           id: event?.id,
           title: formData.title,
-          user_id: supabase.auth.user()?.id,
+          user_id: user?.id,
           user_name: formData.name,
           user_surname: formData.surname,
           user_number: formData.phone,
@@ -138,15 +125,7 @@ export const EventDialog = ({ isOpen, onClose, event, onSave }: EventDialogProps
             setFormData={setFormData}
             additionalPersons={additionalPersons}
             setAdditionalPersons={setAdditionalPersons}
-            existingFiles={existingFiles.map(f => ({
-              id: f.id,
-              filename: f.filename,
-              file_path: f.file_path,
-              content_type: f.content_type,
-              size: f.size,
-              created_at: f.created_at || new Date().toISOString(),
-              user_id: f.user_id || ''
-            }))}
+            existingFiles={existingFiles}
             onFileUpload={handleFileUpload}
             onFileRemove={handleFileRemove}
             event={event}
