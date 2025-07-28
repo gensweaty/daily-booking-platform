@@ -13,12 +13,13 @@ import { getCurrencySymbol } from "@/lib/currency";
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Repeat, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, Trash2, Repeat, Calendar as CalendarIcon, History } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getRepeatOptions } from "@/lib/recurringEvents";
+import { CalendarEventType } from "@/lib/types/calendar";
 
 // Define interface for person data
 interface PersonData {
@@ -83,6 +84,8 @@ interface EventDialogFieldsProps {
   setAdditionalPersons: (persons: PersonData[]) => void;
   // Add missing prop
   isVirtualEvent?: boolean;
+  // Add event data for created/updated indicators
+  eventData?: CalendarEventType;
 }
 
 export const EventDialogFields = ({
@@ -121,7 +124,8 @@ export const EventDialogFields = ({
   isNewEvent = false,
   additionalPersons,
   setAdditionalPersons,
-  isVirtualEvent = false
+  isVirtualEvent = false,
+  eventData
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -152,6 +156,17 @@ export const EventDialogFields = ({
     WebkitFontSmoothing: 'antialiased',
     MozOsxFontSmoothing: 'grayscale'
   } : undefined;
+
+  // Date formatting function (same as TaskFullView)
+  const formatDate = (dateString: string) => {
+    try {
+      const date = parseISO(dateString);
+      return format(date, 'MM/dd/yyyy HH:mm');
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateString;
+    }
+  };
   
   // Helper function for Georgian label text
   const renderGeorgianLabel = (text: string) => {
@@ -488,6 +503,22 @@ export const EventDialogFields = ({
           </div>
         </div>
       </div>
+
+      {/* Created/Updated Indicators - Only show for existing events */}
+      {eventData && eventData.created_at && (
+        <div className="px-2 py-1.5 rounded-md border border-muted/30 bg-muted/20 w-fit">
+          <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+            <div className="flex items-center">
+              <CalendarIcon className="w-3 h-3 mr-1" />
+              <span><LanguageText>{t("common.created")}</LanguageText>: {formatDate(eventData.created_at)}</span>
+            </div>
+            <div className="flex items-center">
+              <History className="w-3 h-3 mr-1" />
+              <span><LanguageText>{t("common.lastUpdated")}</LanguageText>: {formatDate(eventData.updated_at || eventData.created_at)}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Repeat Options - Only show for new events */}
       {isNewEvent && (

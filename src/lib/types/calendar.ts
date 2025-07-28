@@ -14,6 +14,7 @@ export interface CalendarEventType {
   payment_status?: string;
   payment_amount?: number;
   created_at: string;
+  updated_at?: string;
   user_id: string;
   requester_name?: string;
   requester_email?: string;
