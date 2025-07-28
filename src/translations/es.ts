@@ -329,9 +329,7 @@ export const translations: TranslationType = {
     bookAppointment: "Reservar Cita",
     submitRequest: "Enviar Solicitud",
     deleteEventConfirmTitle: "¿Eliminar Evento?",
-    deleteEventConfirmMessage: "¿Está seguro de que desea eliminar este evento? Esta acción no se puede deshacer.",
-    createdAtLabel: "Creado:",
-    lastUpdatedLabel: "Última actualización:"
+    deleteEventConfirmMessage: "¿Está seguro de que desea eliminar este evento? Esta acción no se puede deshacer."
   },
   contact: {
     email: "Correo Electrónico",
