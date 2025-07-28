@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getTasks, updateTask, deleteTask, archiveTask } from "@/lib/api";
 import { Task } from "@/lib/types";
@@ -7,7 +8,7 @@ import { Button } from "./ui/button";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { useToast } from "./ui/use-toast";
-import AddTaskForm from "./AddTaskForm";
+import { AddTaskForm } from "./AddTaskForm";
 import { TaskFullView } from "./tasks/TaskFullView";
 import { TaskColumn } from "./tasks/TaskColumn";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
