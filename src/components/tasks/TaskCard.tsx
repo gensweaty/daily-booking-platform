@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { GeorgianAuthText } from "../shared/GeorgianAuthText";
 import { TaskDateInfo } from "./TaskDateInfo";
+import { TaskMetadata } from "./TaskMetadata";
 
 interface TaskCardProps {
   task: Task;
@@ -34,7 +35,7 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete }: TaskCardProp
 
   const getTaskStyle = (status: string) => {
     switch (status) {
-      case 'in-progress':
+      case 'inprogress':
         return 'border-l-4 border-l-amber-500';
       case 'done':
         return 'border-l-4 border-l-green-500';
@@ -57,51 +58,67 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete }: TaskCardProp
           {...provided.dragHandleProps}
           className={`p-4 bg-background dark:bg-gray-800 rounded-lg shadow ${getTaskStyle(task.status)}`}
         >
+          {/* Task Metadata */}
+          <TaskMetadata createdAt={task.created_at} updatedAt={task.updated_at} />
+          
           <div className="flex justify-between items-start gap-2">
             <div className={`flex-1 min-w-0 ${task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'}`}>
-              <div className="flex items-start gap-2 mb-2">
-                <div className="flex-1 min-w-0">
-                  {isGeorgian ? (
-                    <h3 
-                      className="font-semibold cursor-pointer hover:text-primary transition-colors break-words line-clamp-2 leading-tight" 
-                      onClick={handleTitleClick}
-                      title={task.title}
-                      style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                    >
-                      <GeorgianAuthText fontWeight="bold">{task.title}</GeorgianAuthText>
-                    </h3>
-                  ) : (
-                    <h3 
-                      className="font-semibold cursor-pointer hover:text-primary transition-colors break-words line-clamp-2 leading-tight"
-                      onClick={handleTitleClick}
-                      title={task.title}
-                      style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                    >
-                      {task.title}
-                    </h3>
+              {/* Highlighted Header Section */}
+              <div className="bg-muted/20 rounded-md p-3 border border-muted/40 mb-3">
+                <div className="flex items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    {isGeorgian ? (
+                      <h3 
+                        className="font-semibold cursor-pointer hover:text-primary transition-colors break-words line-clamp-2 leading-tight" 
+                        onClick={handleTitleClick}
+                        title={task.title}
+                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                      >
+                        <GeorgianAuthText fontWeight="bold">{task.title}</GeorgianAuthText>
+                      </h3>
+                    ) : (
+                      <h3 
+                        className="font-semibold cursor-pointer hover:text-primary transition-colors break-words line-clamp-2 leading-tight"
+                        onClick={handleTitleClick}
+                        title={task.title}
+                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                      >
+                        {task.title}
+                      </h3>
+                    )}
+                  </div>
+                  {files && files.length > 0 && (
+                    <div className="flex items-center text-gray-600 flex-shrink-0">
+                      <Paperclip className="h-4 w-4" />
+                      <span className="text-sm ml-1">{files.length}</span>
+                    </div>
                   )}
                 </div>
-                {files && files.length > 0 && (
-                  <div className="flex items-center text-gray-600 flex-shrink-0">
-                    <Paperclip className="h-4 w-4" />
-                    <span className="text-sm ml-1">{files.length}</span>
-                  </div>
-                )}
               </div>
+
+              {/* Description Section */}
               {task.description && (
-                <div 
-                  className="prose dark:prose-invert max-w-none mt-2 line-clamp-3 text-sm"
-                  dangerouslySetInnerHTML={{ __html: task.description }}
-                />
+                <div className="bg-muted/20 rounded-md p-3 border border-muted/40 mb-3">
+                  <div 
+                    className="prose dark:prose-invert max-w-none line-clamp-3 text-sm"
+                    dangerouslySetInnerHTML={{ __html: task.description }}
+                  />
+                </div>
               )}
-              <div className="mt-2">
-                <TaskDateInfo 
-                  deadline={task.deadline_at} 
-                  reminderAt={task.reminder_at} 
-                  compact 
-                />
-              </div>
+
+              {/* Schedule Section */}
+              {(task.deadline_at || task.reminder_at) && (
+                <div className="bg-muted/20 rounded-md p-3 border border-muted/40 mb-3">
+                  <TaskDateInfo 
+                    deadline={task.deadline_at} 
+                    reminderAt={task.reminder_at} 
+                    compact 
+                  />
+                </div>
+              )}
             </div>
+            
+            {/* Action Buttons */}
             <div className="flex gap-0.5 flex-shrink-0">
               <Button
                 variant="ghost"

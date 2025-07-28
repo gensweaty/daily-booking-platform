@@ -146,7 +146,7 @@ export const TaskFullView = ({
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="text-sm font-medium text-muted-foreground">Schedule</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground">{t("tasks.schedule")}</h3>
                   </div>
                   <div className="bg-muted/30 rounded-md p-3 border border-muted/40">
                     <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />

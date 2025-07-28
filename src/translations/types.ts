@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'es' | 'ka';
 
 export interface TranslationType {
@@ -158,6 +157,8 @@ export interface TranslationType {
     reminderEmailSent: string;
     created: string;
     file: string;
+    schedule: string;
+    lastUpdated: string;
   };
   website: {
     title: string;
