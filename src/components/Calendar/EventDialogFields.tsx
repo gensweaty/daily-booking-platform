@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Clock, RefreshCcw, Plus, X } from "lucide-react";
 import { CalendarEventType } from "@/lib/types/calendar";
+import { FileRecord } from "@/types/files";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -41,20 +42,8 @@ interface EventDialogFieldsProps {
   setRepeatUntil: (until: string) => void;
   files: File[];
   setFiles: (files: File[]) => void;
-  existingFiles: Array<{
-    id: string;
-    filename: string;
-    file_path: string;
-    content_type?: string;
-    size?: number;
-  }>;
-  setExistingFiles: (files: Array<{
-    id: string;
-    filename: string;
-    file_path: string;
-    content_type?: string;
-    size?: number;
-  }>) => void;
+  existingFiles: FileRecord[];
+  setExistingFiles: (files: FileRecord[]) => void;
   additionalPersons: Array<{
     id: string;
     userSurname: string;
@@ -143,6 +132,12 @@ export const EventDialogFields = ({
     const updated = [...additionalPersons];
     updated[index] = { ...updated[index], [field]: value };
     setAdditionalPersons(updated);
+  };
+
+  const handleFileUpload = (file: File | null) => {
+    if (file) {
+      setFiles([...files, file]);
+    }
   };
 
   return (
@@ -465,7 +460,7 @@ export const EventDialogFields = ({
         )}
         
         <FileUploadField 
-          onChange={setFiles}
+          onChange={handleFileUpload}
           fileError=""
           setFileError={() => {}}
         />
