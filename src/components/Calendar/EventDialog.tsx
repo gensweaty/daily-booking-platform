@@ -11,7 +11,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { sendEventCreationEmail } from "@/lib/api";
 import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
 import { deleteCalendarEvent, clearCalendarCache } from "@/services/calendarService";
-import { Clock, RefreshCcw } from "lucide-react";
+import { Clock, RefreshCcw, Calendar as CalendarIcon } from "lucide-react";
 
 interface EventDialogProps {
   open: boolean;
@@ -765,11 +765,11 @@ export const EventDialog = ({
             <div className="flex items-center text-sm text-muted-foreground mb-4">
               <span className="flex items-center mr-4">
                 <Clock className="mr-1 h-4 w-4" />
-                <span>{t("tasks.createdAt")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
+                <span>{t("tasks.createdAt")} {new Date(initialData.created_at).toLocaleString(language)}</span>
               </span>
               <span className="flex items-center">
                 <RefreshCcw className="mr-1 h-4 w-4" />
-                <span>{t("tasks.lastUpdated")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
+                <span>{t("tasks.lastUpdated")} {new Date(initialData.created_at).toLocaleString(language)}</span>
               </span>
             </div>
           )}
@@ -811,6 +811,20 @@ export const EventDialog = ({
               isVirtualEvent={isVirtualEvent}
               isNewEvent={isNewEvent}
             />
+
+            {/* Event Metadata Display - Only show when editing an existing event */}
+            {initialData && (
+              <div className="flex items-center text-sm text-muted-foreground bg-muted/50 p-4 rounded-lg border border-input mb-4">
+                <span className="flex items-center mr-4">
+                  <CalendarIcon className="mr-1 h-4 w-4" />
+                  <span>{t("events.createdAtLabel")} {new Date(initialData.created_at).toLocaleString(language)}</span>
+                </span>
+                <span className="flex items-center">
+                  <RefreshCcw className="mr-1 h-4 w-4" />
+                  <span>{t("events.lastUpdatedLabel")} {new Date(initialData.created_at).toLocaleString(language)}</span>
+                </span>
+              </div>
+            )}
             
             <div className="flex flex-col sm:flex-row gap-2 pt-4">
               <Button
