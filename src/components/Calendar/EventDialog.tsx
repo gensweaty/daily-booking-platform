@@ -13,6 +13,17 @@ import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recu
 import { deleteCalendarEvent, clearCalendarCache } from "@/services/calendarService";
 import { Clock, RefreshCcw } from "lucide-react";
 
+interface EventDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedDate?: Date;
+  eventId?: string;
+  initialData?: CalendarEventType;
+  onEventCreated?: () => void;
+  onEventUpdated?: () => void;
+  onEventDeleted?: () => void;
+}
+
 // Helper function to convert datetime-local input values to ISO string in local timezone
 const localDateTimeToISOString = (dtStr: string): string => {
   if (!dtStr) return new Date().toISOString();
