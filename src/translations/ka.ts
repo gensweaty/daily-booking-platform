@@ -1,6 +1,4 @@
-import { ca } from "date-fns/locale";
-
-export const ka = {
+export const translations = {
   common: {
     loading: "იტვირთება...",
     error: "შეცდომა",
@@ -19,6 +17,7 @@ export const ka = {
     spanish: "ესპანური",
     all: "ყველა",
     clear: "გასუფთავება",
+    remove: "წაშლა",
   },
   components: {
     navbar: {
@@ -219,5 +218,24 @@ export const ka = {
     recurringEventCreated: "განმეორებადი მოვლენა შეიქმნა",
     createdAtLabel: "შეიქმნა:",
     lastUpdatedLabel: "ბოლო განახლება:",
+    title: "სათაური",
+    userSurname: "მომხმარებლის გვარი",
+    userNumber: "მომხმარებლის ნომერი",
+    eventNotes: "მოვლენის შენიშვნები",
+    eventName: "მოვლენის სახელი",
+    paid: "გადახდილი",
+    pending: "მომლოდინე",
+    refunded: "დაბრუნებული",
+    notPaid: "არ არის გადახდილი",
+    selectPaymentStatus: "აირჩიეთ გადახდის სტატუსი",
+    selectRepeatPattern: "აირჩიეთ განმეორების ნიმუში",
+    daily: "ყოველდღიურად",
+    weekly: "ყოველკვირეულად",
+    monthly: "ყოველთვიურად",
+    yearly: "ყოველწლიურად",
+    addAdditionalPerson: "დამატებითი პირის დამატება",
+    repeatPattern: "განმეორების ნიმუში",
+    attachments: "დანართები",
+    currentAttachments: "მიმდინარე დანართები",
   },
 };

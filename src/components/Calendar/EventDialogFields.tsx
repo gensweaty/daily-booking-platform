@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +11,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { SimpleFileDisplay } from "@/components/shared/SimpleFileDisplay";
 import { EventMetadataDisplay } from "./EventMetadataDisplay";
+import { FileRecord } from "@/types/files";
 
 interface AdditionalPerson {
   id: string;
@@ -50,20 +52,8 @@ interface EventDialogFieldsProps {
   setRepeatUntil: (repeatUntil: string) => void;
   files: File[];
   setFiles: (files: File[]) => void;
-  existingFiles: Array<{
-    id: string;
-    filename: string;
-    file_path: string;
-    content_type?: string;
-    size?: number;
-  }>;
-  setExistingFiles: (files: Array<{
-    id: string;
-    filename: string;
-    file_path: string;
-    content_type?: string;
-    size?: number;
-  }>) => void;
+  existingFiles: FileRecord[];
+  setExistingFiles: (files: FileRecord[]) => void;
   additionalPersons: AdditionalPerson[];
   setAdditionalPersons: (additionalPersons: AdditionalPerson[]) => void;
   isVirtualEvent: boolean;
@@ -143,6 +133,12 @@ export const EventDialogFields = ({
         person.id === id ? { ...person, [field]: value } : person
       )
     );
+  };
+
+  const handleFileUpload = (file: File | null) => {
+    if (file) {
+      setFiles([...files, file]);
+    }
   };
 
   return (
@@ -446,7 +442,7 @@ export const EventDialogFields = ({
             />
           </div>
         )}
-        <FileUploadField onChange={setFiles} />
+        <FileUploadField onChange={handleFileUpload} />
       </div>
     </div>
   );

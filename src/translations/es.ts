@@ -1,18 +1,4 @@
-import { ca } from "./ca";
-import { en } from "./en";
-import { fr } from "./fr";
-import { de } from "./de";
-import { it } from "./it";
-import { ja } from "./ja";
-import { ko } from "./ko";
-import { pl } from "./pl";
-import { pt } from "./pt";
-import { ru } from "./ru";
-import { zhCN } from "./zh-CN";
-import { zhTW } from "./zh-TW";
-import { Language } from "@/types";
-
-export const es = {
+export const translations = {
   common: {
     loading: "Cargando...",
     select: "Seleccionar",
@@ -46,6 +32,7 @@ export const es = {
     authRequired: "Se requiere autenticación",
     error: "Error",
     success: "Éxito",
+    remove: "Eliminar",
   },
   countries: {
     US: "Estados Unidos",
@@ -423,5 +410,18 @@ export const es = {
     repeatUntil: "Repetir hasta",
     createdAtLabel: "Creado:",
     lastUpdatedLabel: "Última actualización:",
+    paid: "Pagado",
+    pending: "Pendiente",
+    refunded: "Reembolsado",
+    notPaid: "No pagado",
+    selectPaymentStatus: "Seleccionar estado de pago",
+    selectRepeatPattern: "Seleccionar patrón de repetición",
+    daily: "Diario",
+    weekly: "Semanal",
+    monthly: "Mensual",
+    yearly: "Anual",
+    addAdditionalPerson: "Añadir persona adicional",
+    attachments: "Adjuntos",
+    currentAttachments: "Adjuntos actuales",
   },
 };

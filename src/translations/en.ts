@@ -1,6 +1,5 @@
-import { ca } from "./ca";
 
-export const en = {
+export const translations = {
   common: {
     edit: "Edit",
     delete: "Delete",
@@ -22,6 +21,7 @@ export const en = {
     apply: "Apply",
     close: "Close",
     language: "Language",
+    remove: "Remove",
   },
   sidebar: {
     dashboard: "Dashboard",
@@ -88,6 +88,7 @@ export const en = {
     week: "Week",
     day: "Day",
     agenda: "Agenda",
+    attachment: "Attachment",
   },
   notes: {
     title: "Notes",
@@ -184,5 +185,19 @@ export const en = {
     eventDeleted: "Event deleted successfully",
     createdAtLabel: "Created:",
     lastUpdatedLabel: "Last Updated:",
+    title: "Title",
+    userSurname: "User Surname",
+    userNumber: "User Number",
+    socialNetworkLink: "Social Network Link",
+    eventNotes: "Event Notes",
+    eventName: "Event Name",
+    paid: "Paid",
+    pending: "Pending",
+    refunded: "Refunded",
+    notPaid: "Not Paid",
+    selectPaymentStatus: "Select Payment Status",
+    selectRepeatPattern: "Select Repeat Pattern",
+    attachments: "Attachments",
+    currentAttachments: "Current Attachments",
   },
 };
