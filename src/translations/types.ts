@@ -156,6 +156,7 @@ export interface TranslationType {
     deleteTaskConfirmation: string;
     emailReminder: string;
     reminderEmailSent: string;
+    created: string;
   };
   website: {
     title: string;
