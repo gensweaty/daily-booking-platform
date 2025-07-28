@@ -329,7 +329,9 @@ export const translations: TranslationType = {
     bookAppointment: "Book Appointment",
     submitRequest: "Submit Request",
     deleteEventConfirmTitle: "Delete Event?",
-    deleteEventConfirmMessage: "Are you sure you want to delete this event? This action cannot be undone."
+    deleteEventConfirmMessage: "Are you sure you want to delete this event? This action cannot be undone.",
+    createdAtLabel: "Created:",
+    lastUpdatedLabel: "Last Updated:"
   },
   contact: {
     email: "Email",
