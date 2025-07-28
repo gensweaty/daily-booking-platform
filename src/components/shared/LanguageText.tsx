@@ -25,10 +25,17 @@ export const LanguageText = ({
   // Handle translation keys directly if passed as string
   if (typeof children === 'string' && children.includes('.')) {
     try {
-      const possibleTranslation = t(children, translateParams);
+      const possibleTranslation = t(children);
       // If the returned value is different from the key, it's a valid translation
       if (possibleTranslation !== children) {
-        children = possibleTranslation;
+        // Apply parameter replacement if translateParams is provided
+        if (translateParams) {
+          children = Object.entries(translateParams).reduce((str, [param, value]) => {
+            return str.replace(new RegExp(`{{${param}}}`, 'g'), String(value));
+          }, possibleTranslation);
+        } else {
+          children = possibleTranslation;
+        }
       }
     } catch (error) {
       // Silently fail if it's not a valid translation key
