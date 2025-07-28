@@ -20,7 +20,7 @@ interface AddTaskFormProps {
   editingTask?: Task | null;
 }
 
-export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
+const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [fileError, setFileError] = useState("");
@@ -368,3 +368,5 @@ export const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     </>
   );
 };
+
+export default AddTaskForm;
