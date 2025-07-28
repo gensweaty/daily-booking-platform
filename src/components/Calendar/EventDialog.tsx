@@ -5,6 +5,7 @@ import { CalendarEventType } from "@/lib/types/calendar";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { EventDialogFields } from "./EventDialogFields";
+import { EventMetadata } from "./EventMetadata";
 import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -761,20 +762,6 @@ export const EventDialog = ({
             </DialogTitle>
           </DialogHeader>
           
-          {/* Created/Updated metadata section - only show for existing events */}
-          {initialData && (
-            <div className="flex items-center text-sm text-muted-foreground mb-4">
-              <span className="flex items-center mr-4">
-                <Clock className="mr-1 h-4 w-4" />
-                <span>{t("tasks.createdAt")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
-              </span>
-              <span className="flex items-center">
-                <RefreshCcw className="mr-1 h-4 w-4" />
-                <span>{t("tasks.lastUpdated")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
-              </span>
-            </div>
-          )}
-          
           <form onSubmit={handleSubmit} className="space-y-6">
             <EventDialogFields
               title={title}
@@ -811,6 +798,7 @@ export const EventDialog = ({
               setAdditionalPersons={setAdditionalPersons}
               isVirtualEvent={isVirtualEvent}
               isNewEvent={isNewEvent}
+              initialData={initialData}
             />
             
             <div className="flex flex-col sm:flex-row gap-2 pt-4">
