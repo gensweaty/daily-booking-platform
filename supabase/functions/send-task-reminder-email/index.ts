@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
 import { Resend } from "npm:resend@2.0.0";
@@ -23,16 +22,21 @@ setInterval(() => {
   }
 }, 10 * 60 * 1000);
 
-// Helper function to format time without timezone conversion
+// Helper function to format time directly from ISO string without timezone conversion
 const formatReminderTime = (reminderAt: string): string => {
-  // Extract time directly from ISO string without timezone conversion
-  const date = new Date(reminderAt);
-  const hours = date.getUTCHours().toString().padStart(2, '0');
-  const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-  const day = date.getUTCDate().toString().padStart(2, '0');
-  const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
-  const year = date.getUTCFullYear();
+  // Parse the ISO string and extract components directly
+  const isoString = reminderAt;
+  const datePart = isoString.split('T')[0];
+  const timePart = isoString.split('T')[1];
   
+  // Extract date components
+  const [year, month, day] = datePart.split('-');
+  
+  // Extract time components (before any timezone indicator)
+  const timeWithoutTz = timePart.split('.')[0]; // Remove milliseconds if present
+  const [hours, minutes] = timeWithoutTz.split(':');
+  
+  // Format as DD/MM/YYYY HH:MM
   return `${day}/${month}/${year} ${hours}:${minutes}`;
 };
 
@@ -211,7 +215,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       const language = profileData?.language || 'en';
       
-      // Format reminder time without timezone conversion
+      // Format reminder time using the corrected function
       const formattedTime = formatReminderTime(task.reminder_at);
 
       // Get localized email content
@@ -334,7 +338,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         const language = profileData?.language || 'en';
         
-        // Format reminder time without timezone conversion
+        // Format reminder time using the corrected function
         const formattedTime = formatReminderTime(task.reminder_at);
 
         // Get localized email content
