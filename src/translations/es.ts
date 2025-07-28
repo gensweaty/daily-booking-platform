@@ -3,7 +3,7 @@ import { TranslationType } from './types';
 export const translations: TranslationType = {
   nav: {
     signin: "Iniciar Sesión",
-    startJourney: "Comenzar el Viaje",
+    startJourney: "Comenzar el Viaje", 
     contact: "Contacto",
   },
   hero: {
@@ -100,6 +100,13 @@ export const translations: TranslationType = {
     error: "Error"
   },
   tasks: {
+    title: "Gestión de Tareas",
+    description: "Organice y rastree sus tareas de manera eficiente",
+    feature1: "Tableros de tareas estilo Kanban con arrastrar y soltar",
+    feature2: "Fechas límite de tareas y notificaciones de recordatorio",
+    feature3: "Descripciones de texto enriquecido con archivos adjuntos",
+    feature4: "Archivo de tareas y funcionalidad de búsqueda",
+    feature5: "Recordatorios por correo electrónico y seguimiento del estado de tareas",
     addTask: "Agregar Tarea",
     editTask: "Editar Tarea",
     titlePlaceholder: "Ingrese el título de la tarea...",

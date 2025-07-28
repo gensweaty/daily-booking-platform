@@ -100,6 +100,13 @@ export const translations: TranslationType = {
     error: "Error"
   },
   tasks: {
+    title: "Task Management",
+    description: "Organize and track your tasks efficiently",
+    feature1: "Kanban-style task boards with drag and drop",
+    feature2: "Task deadlines and reminder notifications",
+    feature3: "Rich text descriptions with file attachments",
+    feature4: "Task archiving and search functionality",
+    feature5: "Email reminders and task status tracking",
     addTask: "Add Task",
     editTask: "Edit Task",
     titlePlaceholder: "Enter task title...",
