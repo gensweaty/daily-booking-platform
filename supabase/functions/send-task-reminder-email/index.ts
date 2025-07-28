@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
 import { Resend } from "npm:resend@2.0.0";
@@ -22,29 +23,26 @@ setInterval(() => {
   }
 }, 10 * 60 * 1000);
 
-// Helper function to format time directly from ISO string without any timezone conversion
-const formatReminderTime = (reminderAt: string): string => {
-  console.log("Original reminderAt ISO string:", reminderAt);
+// Helper function to format time with proper timezone and locale
+const formatReminderTimeForLocale = (reminderAtISO: string, lang: string): string => {
+  console.log("Original reminderAt ISO string:", reminderAtISO);
   
-  // Extract date and time parts from ISO string
-  const parts = reminderAt.split('T');
-  if (parts.length < 2) {
-    console.error("Invalid ISO string format:", reminderAt);
-    return reminderAt;
-  }
-  
-  const datePart = parts[0]; // YYYY-MM-DD
-  const timePart = parts[1].split('.')[0]; // HH:MM:SS (remove milliseconds if present)
-  
-  // Extract components
-  const [year, month, day] = datePart.split('-');
-  const [hours, minutes] = timePart.split(':');
-  
-  // Format as DD/MM/YYYY HH:MM (exactly as user set it)
-  const formattedResult = `${day}/${month}/${year} ${hours}:${minutes}`;
-  
+  const date = new Date(reminderAtISO);
+  const locale = lang === 'ka' ? 'ka-GE' : lang === 'es' ? 'es-ES' : 'en-US';
+
+  const formatter = new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Tbilisi',
+  });
+
+  const formattedResult = formatter.format(date);
   console.log("Formatted reminder time:", formattedResult);
-  console.log("Extracted hours:", hours, "minutes:", minutes);
+  console.log("Language:", lang, "Locale:", locale);
   
   return formattedResult;
 };
@@ -224,8 +222,8 @@ const handler = async (req: Request): Promise<Response> => {
 
       const language = profileData?.language || 'en';
       
-      // Format reminder time using the corrected function
-      const formattedTime = formatReminderTime(task.reminder_at);
+      // Format reminder time using the new function with proper locale and timezone
+      const formattedTime = formatReminderTimeForLocale(task.reminder_at, language);
 
       // Get localized email content
       const { subject, body: emailBody } = getEmailContent(language, task.title, formattedTime, task.description);
@@ -347,8 +345,8 @@ const handler = async (req: Request): Promise<Response> => {
 
         const language = profileData?.language || 'en';
         
-        // Format reminder time using the corrected function
-        const formattedTime = formatReminderTime(task.reminder_at);
+        // Format reminder time using the new function with proper locale and timezone
+        const formattedTime = formatReminderTimeForLocale(task.reminder_at, language);
 
         // Get localized email content
         const { subject, body: emailBody } = getEmailContent(language, task.title, formattedTime, task.description);
