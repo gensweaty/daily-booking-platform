@@ -15,7 +15,7 @@ export const translations: TranslationType = {
     title: "Lo Que Ofrecemos",
     mainTitle: "Todo lo que necesita para que su negocio prospere",
     booking: "Reservas",
-    tasks: "Tareas",
+    tasks: "Tareas", 
     crm: "CRM",
     analytics: "Analítica",
     website: "Sitio Web",
@@ -404,7 +404,10 @@ export const translations: TranslationType = {
     fileDeleted: "Archivo eliminado exitosamente",
     minutesAgo: "hace minutos",
     hoursAgo: "hace horas",
-    daysAgo: "hace días"
+    daysAgo: "hace días",
+    schedule: "Cronograma",
+    created: "Creado",
+    lastUpdated: "Última actualización"
   },
   auth: {
     welcome: "Bienvenido a SmartBookly",

@@ -404,7 +404,10 @@ export const translations: TranslationType = {
     fileDeleted: "File deleted successfully",
     minutesAgo: "minutes ago",
     hoursAgo: "hours ago",
-    daysAgo: "days ago"
+    daysAgo: "days ago",
+    schedule: "Schedule",
+    created: "Created",
+    lastUpdated: "Last Updated"
   },
   auth: {
     welcome: "Welcome to SmartBookly",

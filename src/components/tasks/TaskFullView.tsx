@@ -9,10 +9,11 @@ import { useEffect, useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "../ui/button";
-import { AlertCircle, Trash2, Pen, FileText, Calendar, Paperclip, Archive, RefreshCw } from "lucide-react";
+import { AlertCircle, Trash2, Pen, FileText, Calendar, Paperclip, Archive, RefreshCw, History } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { Card, CardContent } from "../ui/card";
+import { format, parseISO } from "date-fns";
 
 interface TaskFullViewProps {
   task: Task;
@@ -108,15 +109,43 @@ export const TaskFullView = ({
     }
   };
 
+  // Format dates for display
+  const formatDate = (dateString: string) => {
+    try {
+      return format(parseISO(dateString), 'PPp');
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateString;
+    }
+  };
+
+  const formattedCreatedDate = formatDate(task.created_at);
+  const formattedUpdatedDate = task.updated_at ? formatDate(task.updated_at) : formattedCreatedDate;
+
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="bg-background border-border text-foreground sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="pb-4">
-            <DialogTitle className="flex items-start gap-3 text-left">
-              <FileText className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-              <span className="text-xl font-bold leading-tight">{task.title}</span>
-            </DialogTitle>
+            {/* Created and Last Updated indicators */}
+            <div className="flex items-center space-x-4 text-xs text-muted-foreground mb-3">
+              <div className="flex items-center">
+                <Calendar className="w-3 h-3 mr-1" />
+                <span>{t("common.created")}: {formattedCreatedDate}</span>
+              </div>
+              <div className="flex items-center">
+                <History className="w-3 h-3 mr-1" />
+                <span>{t("common.lastUpdated")}: {formattedUpdatedDate}</span>
+              </div>
+            </div>
+
+            {/* Highlighted Task Title */}
+            <div className="p-4 rounded-lg border border-input bg-muted/50">
+              <DialogTitle className="flex items-start gap-3 text-left">
+                <FileText className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                <span className="text-xl font-bold leading-tight">{task.title}</span>
+              </DialogTitle>
+            </div>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -146,7 +175,7 @@ export const TaskFullView = ({
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="text-sm font-medium text-muted-foreground">Schedule</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground">{t("common.schedule")}</h3>
                   </div>
                   <div className="bg-muted/30 rounded-md p-3 border border-muted/40">
                     <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
