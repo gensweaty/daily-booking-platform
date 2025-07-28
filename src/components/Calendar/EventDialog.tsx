@@ -769,7 +769,7 @@ export const EventDialog = ({
               </span>
               <span className="flex items-center">
                 <RefreshCcw className="mr-1 h-4 w-4" />
-                <span>{t("tasks.lastUpdated")}: {new Date(initialData.updated_at || initialData.created_at).toLocaleString(language)}</span>
+                <span>{t("tasks.lastUpdated")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
               </span>
             </div>
           )}
