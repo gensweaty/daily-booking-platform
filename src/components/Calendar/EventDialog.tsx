@@ -761,6 +761,20 @@ export const EventDialog = ({
             </DialogTitle>
           </DialogHeader>
           
+          {/* Created/Updated metadata section - only show for existing events */}
+          {initialData && (
+            <div className="flex items-center text-sm text-muted-foreground mb-4">
+              <span className="flex items-center mr-4">
+                <Clock className="mr-1 h-4 w-4" />
+                <span>{t("tasks.createdAt")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
+              </span>
+              <span className="flex items-center">
+                <RefreshCcw className="mr-1 h-4 w-4" />
+                <span>{t("tasks.lastUpdated")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
+              </span>
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-6">
             <EventDialogFields
               title={title}
@@ -797,9 +811,6 @@ export const EventDialog = ({
               setAdditionalPersons={setAdditionalPersons}
               isVirtualEvent={isVirtualEvent}
               isNewEvent={isNewEvent}
-              initialData={initialData}
-              language={language}
-              t={t}
             />
             
             <div className="flex flex-col sm:flex-row gap-2 pt-4">
