@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from '@/lib/types/calendar';
 
@@ -136,6 +137,7 @@ export const getUnifiedCalendarEvents = async (
       parent_event_id: event.parent_event_id,
       language: event.language,
       created_at: event.created_at || new Date().toISOString(),
+      updated_at: event.updated_at || event.created_at || new Date().toISOString(),
       deleted_at: event.deleted_at
     }));
 
@@ -155,6 +157,7 @@ export const getUnifiedCalendarEvents = async (
       type: 'booking_request',
       language: booking.language,
       created_at: booking.created_at || new Date().toISOString(),
+      updated_at: booking.updated_at || booking.created_at || new Date().toISOString(),
       deleted_at: booking.deleted_at
     }));
 
