@@ -105,8 +105,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         position: editingTask?.position || 0,
         deadline_at: deadline && deadline.trim() !== '' ? deadline : null,
         reminder_at: reminderAt && reminderAt.trim() !== '' ? reminderAt : null,
-        email_reminder_enabled: emailReminder && reminderAt ? emailReminder : false,
-        ...(editingTask && { updated_at: new Date().toISOString() })
+        email_reminder_enabled: emailReminder && reminderAt ? emailReminder : false
       };
 
       let taskResponse;

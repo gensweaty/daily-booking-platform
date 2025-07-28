@@ -744,7 +744,6 @@ export type Database = {
           created_at: string | null
           id: string
           language: string | null
-          timezone: string | null
           username: string
         }
         Insert: {
@@ -752,7 +751,6 @@ export type Database = {
           created_at?: string | null
           id: string
           language?: string | null
-          timezone?: string | null
           username: string
         }
         Update: {
@@ -760,7 +758,6 @@ export type Database = {
           created_at?: string | null
           id?: string
           language?: string | null
-          timezone?: string | null
           username?: string
         }
         Relationships: []
@@ -972,9 +969,7 @@ export type Database = {
           reminder_sent: boolean | null
           reminder_sent_at: string | null
           status: string
-          timezone: string | null
           title: string
-          updated_at: string | null
           user_id: string | null
         }
         Insert: {
@@ -991,9 +986,7 @@ export type Database = {
           reminder_sent?: boolean | null
           reminder_sent_at?: string | null
           status?: string
-          timezone?: string | null
           title: string
-          updated_at?: string | null
           user_id?: string | null
         }
         Update: {
@@ -1010,9 +1003,7 @@ export type Database = {
           reminder_sent?: boolean | null
           reminder_sent_at?: string | null
           status?: string
-          timezone?: string | null
           title?: string
-          updated_at?: string | null
           user_id?: string | null
         }
         Relationships: []
