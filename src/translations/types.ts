@@ -155,10 +155,6 @@ export interface TranslationType {
     deleteTask: string;
     deleteTaskConfirmation: string;
     emailReminder: string;
-    emailSent: string;
-    taskReminderEmailSent: string;
-    emailError: string;
-    failedToSendEmail: string;
   };
   website: {
     title: string;
@@ -644,4 +640,10 @@ export interface TranslationType {
     november: string;
     december: string;
   };
+}
+
+export interface LanguageContextType {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }
