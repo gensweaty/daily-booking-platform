@@ -1,7 +1,7 @@
 export const es = {
   nav: {
     signin: "Iniciar Sesión",
-    startJourney: "Comience su viaje",
+    startJourney: "Comience su viaje", 
     contact: "Contacto",
   },
   hero: {
@@ -600,7 +600,9 @@ export const es = {
     statusRefreshed: "Estado actualizado",
     failedRefreshSubscription: "Error al actualizar suscripción",
     syncSuccessful: "Sincronización exitosa",
+    subscriptionUpdatedFromStripe: "Suscripción actualizada desde Stripe",
     syncComplete: "Sincronización completa",
+    subscriptionStatusVerified: "Estado de suscripción verificado",
     syncError: "Error de sincronización",
     failedSyncWithStripe: "Error al sincronizar con Stripe",
     signOutError: "Error al cerrar sesión",

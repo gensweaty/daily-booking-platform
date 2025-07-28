@@ -13,7 +13,7 @@ export const en = {
     title: "Everything you need to run your business",
     mainTitle: "Powerful Features",
     booking: "Smart Booking",
-    tasks: "Task Management",
+    tasks: "Task Management", 
     crm: "Customer Management",
     analytics: "Business Analytics",
     website: "Business Website",
