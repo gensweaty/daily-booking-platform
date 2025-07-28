@@ -1,448 +1,315 @@
-
-import React from "react";
+import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { Switch } from "@/components/ui/switch";
 import { FileUploadField } from "@/components/shared/FileUploadField";
-import { SimpleFileDisplay } from "@/components/shared/SimpleFileDisplay";
+import { FileDisplay } from "@/components/shared/FileDisplay";
 import { EventMetadataDisplay } from "./EventMetadataDisplay";
+import { Trash2 } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { EventFormData, AdditionalPerson } from "@/lib/types/calendar";
 import { FileRecord } from "@/types/files";
 
-interface AdditionalPerson {
-  id: string;
-  userSurname: string;
-  userNumber: string;
-  socialNetworkLink: string;
-  eventNotes: string;
-  paymentStatus: string;
-  paymentAmount: string;
-}
-
 interface EventDialogFieldsProps {
-  title: string;
-  setTitle: (title: string) => void;
-  userSurname: string;
-  setUserSurname: (userSurname: string) => void;
-  userNumber: string;
-  setUserNumber: (userNumber: string) => void;
-  socialNetworkLink: string;
-  setSocialNetworkLink: (socialNetworkLink: string) => void;
-  eventNotes: string;
-  setEventNotes: (eventNotes: string) => void;
-  eventName: string;
-  setEventName: (eventName: string) => void;
-  paymentStatus: string;
-  setPaymentStatus: (paymentStatus: string) => void;
-  paymentAmount: string;
-  setPaymentAmount: (paymentAmount: string) => void;
-  startDate: string;
-  setStartDate: (startDate: string) => void;
-  endDate: string;
-  setEndDate: (endDate: string) => void;
-  isRecurring: boolean;
-  setIsRecurring: (isRecurring: boolean) => void;
-  repeatPattern: string;
-  setRepeatPattern: (repeatPattern: string) => void;
-  repeatUntil: string;
-  setRepeatUntil: (repeatUntil: string) => void;
-  files: File[];
-  setFiles: (files: File[]) => void;
-  existingFiles: FileRecord[];
-  setExistingFiles: (files: FileRecord[]) => void;
+  formData: EventFormData;
+  setFormData: (data: EventFormData) => void;
   additionalPersons: AdditionalPerson[];
-  setAdditionalPersons: (additionalPersons: AdditionalPerson[]) => void;
-  isVirtualEvent: boolean;
-  isNewEvent: boolean;
-  eventId?: string;
-  eventCreatedAt?: string;
-  eventUpdatedAt?: string;
+  setAdditionalPersons: (persons: AdditionalPerson[]) => void;
+  existingFiles: FileRecord[];
+  onFileUpload: (file: File | null) => void;
+  onFileRemove: (file: FileRecord) => void;
+  event?: any;
 }
 
 export const EventDialogFields = ({
-  title,
-  setTitle,
-  userSurname,
-  setUserSurname,
-  userNumber,
-  setUserNumber,
-  socialNetworkLink,
-  setSocialNetworkLink,
-  eventNotes,
-  setEventNotes,
-  eventName,
-  setEventName,
-  paymentStatus,
-  setPaymentStatus,
-  paymentAmount,
-  setPaymentAmount,
-  startDate,
-  setStartDate,
-  endDate,
-  setEndDate,
-  isRecurring,
-  setIsRecurring,
-  repeatPattern,
-  setRepeatPattern,
-  repeatUntil,
-  setRepeatUntil,
-  files,
-  setFiles,
-  existingFiles,
-  setExistingFiles,
+  formData,
+  setFormData,
   additionalPersons,
   setAdditionalPersons,
-  isVirtualEvent,
-  isNewEvent,
-  eventId,
-  eventCreatedAt,
-  eventUpdatedAt,
+  existingFiles,
+  onFileUpload,
+  onFileRemove,
+  event
 }: EventDialogFieldsProps) => {
   const { t } = useLanguage();
 
-  const handleAddPerson = () => {
+  const addAdditionalPerson = () => {
     setAdditionalPersons([
       ...additionalPersons,
-      {
-        id: Date.now().toString(),
-        userSurname: "",
-        userNumber: "",
-        socialNetworkLink: "",
-        eventNotes: "",
-        paymentStatus: "",
-        paymentAmount: "",
-      },
+      { name: '', surname: '', phone: '', email: '' },
     ]);
   };
 
-  const handleRemovePerson = (id: string) => {
-    setAdditionalPersons(additionalPersons.filter((person) => person.id !== id));
+  const removeAdditionalPerson = (index: number) => {
+    const newPersons = [...additionalPersons];
+    newPersons.splice(index, 1);
+    setAdditionalPersons(newPersons);
   };
 
-  const updatePersonField = (
-    id: string,
-    field: keyof AdditionalPerson,
+  const updateAdditionalPerson = (
+    index: number,
+    field: string,
     value: string
   ) => {
-    setAdditionalPersons(
-      additionalPersons.map((person) =>
-        person.id === id ? { ...person, [field]: value } : person
-      )
-    );
-  };
-
-  const handleFileUpload = (file: File | null) => {
-    if (file) {
-      setFiles([...files, file]);
-    }
+    const newPersons = [...additionalPersons];
+    newPersons[index][field] = value;
+    setAdditionalPersons(newPersons);
   };
 
   return (
-    <div className="space-y-6">
-      {/* Date & Time Section */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">{t("events.dateTime")}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="startDate">{t("events.startDate")}</Label>
-            <Input
-              id="startDate"
-              type="datetime-local"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="bg-background border-input"
-            />
-          </div>
-          <div>
-            <Label htmlFor="endDate">{t("events.endDate")}</Label>
-            <Input
-              id="endDate"
-              type="datetime-local"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="bg-background border-input"
-            />
-          </div>
-        </div>
-
-        {/* Recurring Event Options */}
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="isRecurring"
-            checked={isRecurring}
-            onCheckedChange={(checked) => setIsRecurring(checked)}
-          />
-          <Label htmlFor="isRecurring">{t("events.isRecurring")}</Label>
-        </div>
-
-        {isRecurring && (
-          <div className="space-y-2">
-            <div>
-              <Label htmlFor="repeatPattern">{t("events.repeatPattern")}</Label>
-              <Select value={repeatPattern} onValueChange={setRepeatPattern}>
-                <SelectTrigger className="w-full bg-background border-input">
-                  <SelectValue placeholder={t("events.selectRepeatPattern")} />
-                </SelectTrigger>
-                <SelectContent className="bg-background border-input">
-                  <SelectItem value="daily">{t("events.daily")}</SelectItem>
-                  <SelectItem value="weekly">{t("events.weekly")}</SelectItem>
-                  <SelectItem value="monthly">{t("events.monthly")}</SelectItem>
-                  <SelectItem value="yearly">{t("events.yearly")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="repeatUntil">{t("events.repeatUntil")}</Label>
-              <Input
-                id="repeatUntil"
-                type="date"
-                value={repeatUntil}
-                onChange={(e) => setRepeatUntil(e.target.value)}
-                className="bg-background border-input"
-              />
-            </div>
-          </div>
-        )}
+    <div className="space-y-4">
+      {/* Title */}
+      <div>
+        <Label htmlFor="title">{t('events.title')}</Label>
+        <Input
+          id="title"
+          value={formData.title}
+          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          required
+        />
       </div>
 
-      {/* Event Metadata Display - Only show for existing events */}
-      {eventId && eventCreatedAt && eventUpdatedAt && (
+      {/* Person Data Section */}
+      <div>
+        <Label className="text-base font-medium">{t('events.personData')}</Label>
+        <div className="grid grid-cols-2 gap-4 mt-2">
+          <div>
+            <Label htmlFor="name">{t('events.name')}</Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label htmlFor="surname">{t('events.surname')}</Label>
+            <Input
+              id="surname"
+              value={formData.surname}
+              onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4 mt-2">
+          <div>
+            <Label htmlFor="phone">{t('events.phone')}</Label>
+            <Input
+              id="phone"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label htmlFor="email">{t('events.email')}</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Event Metadata Display - only show for existing events */}
+      {event && event.created_at && event.updated_at && (
         <EventMetadataDisplay 
-          createdAt={eventCreatedAt} 
-          updatedAt={eventUpdatedAt} 
+          createdAt={event.created_at}
+          updatedAt={event.updated_at}
         />
       )}
 
-      {/* Person Data Section */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">{t("events.personData")}</h3>
-        
-        {/* Main Person Fields */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Date & Time Section */}
+      <div>
+        <Label className="text-base font-medium">{t('events.dateTime')}</Label>
+        <div className="grid grid-cols-2 gap-4 mt-2">
           <div>
-            <Label htmlFor="title">{t("events.title")}</Label>
+            <Label htmlFor="startDate">{t('events.startDate')}</Label>
             <Input
-              id="title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="bg-background border-input"
+              id="startDate"
+              type="datetime-local"
+              value={formData.startDate}
+              onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+              required
             />
           </div>
           <div>
-            <Label htmlFor="userSurname">{t("events.userSurname")}</Label>
+            <Label htmlFor="endDate">{t('events.endDate')}</Label>
             <Input
-              id="userSurname"
-              type="text"
-              value={userSurname}
-              onChange={(e) => setUserSurname(e.target.value)}
-              className="bg-background border-input"
+              id="endDate"
+              type="datetime-local"
+              value={formData.endDate}
+              onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+              required
             />
           </div>
+        </div>
+      </div>
+
+      {/* Additional fields */}
+      <div>
+        <Label htmlFor="socialNetworkLink">{t('events.socialNetworkLink')}</Label>
+        <Input
+          id="socialNetworkLink"
+          value={formData.socialNetworkLink}
+          onChange={(e) => setFormData({ ...formData, socialNetworkLink: e.target.value })}
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="notes">{t('events.notes')}</Label>
+        <Textarea
+          id="notes"
+          value={formData.notes}
+          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          rows={3}
+        />
+      </div>
+
+      {/* Payment Status */}
+      <div>
+        <Label htmlFor="paymentStatus">{t('events.paymentStatus')}</Label>
+        <Select value={formData.paymentStatus} onValueChange={(value) => setFormData({ ...formData, paymentStatus: value })}>
+          <SelectTrigger>
+            <SelectValue placeholder={t('events.selectPaymentStatus')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="paid">{t('events.paid')}</SelectItem>
+            <SelectItem value="pending">{t('events.pending')}</SelectItem>
+            <SelectItem value="refunded">{t('events.refunded')}</SelectItem>
+            <SelectItem value="not_paid">{t('events.notPaid')}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="paymentAmount">{t('events.paymentAmount')}</Label>
+        <Input
+          id="paymentAmount"
+          type="number"
+          step="0.01"
+          value={formData.paymentAmount}
+          onChange={(e) => setFormData({ ...formData, paymentAmount: e.target.value })}
+        />
+      </div>
+
+      {/* Recurring Event Options */}
+      <div className="flex items-center space-x-2">
+        <Switch
+          id="isRecurring"
+          checked={formData.isRecurring}
+          onCheckedChange={(checked) => setFormData({ ...formData, isRecurring: checked })}
+        />
+        <Label htmlFor="isRecurring">{t('events.isRecurring')}</Label>
+      </div>
+
+      {formData.isRecurring && (
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="userNumber">{t("events.userNumber")}</Label>
-            <Input
-              id="userNumber"
-              type="text"
-              value={userNumber}
-              onChange={(e) => setUserNumber(e.target.value)}
-              className="bg-background border-input"
-            />
-          </div>
-          <div>
-            <Label htmlFor="socialNetworkLink">{t("events.socialNetworkLink")}</Label>
-            <Input
-              id="socialNetworkLink"
-              type="text"
-              value={socialNetworkLink}
-              onChange={(e) => setSocialNetworkLink(e.target.value)}
-              className="bg-background border-input"
-            />
-          </div>
-          <div>
-            <Label htmlFor="eventName">{t("events.eventName")}</Label>
-            <Input
-              id="eventName"
-              type="text"
-              value={eventName}
-              onChange={(e) => setEventName(e.target.value)}
-              className="bg-background border-input"
-            />
-          </div>
-          <div>
-            <Label htmlFor="paymentStatus">{t("events.paymentStatus")}</Label>
-            <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-              <SelectTrigger className="w-full bg-background border-input">
-                <SelectValue placeholder={t("events.selectPaymentStatus")} />
+            <Label htmlFor="repeatPattern">{t('events.repeatPattern')}</Label>
+            <Select value={formData.repeatPattern} onValueChange={(value) => setFormData({ ...formData, repeatPattern: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder={t('events.selectRepeatPattern')} />
               </SelectTrigger>
-              <SelectContent className="bg-background border-input">
-                <SelectItem value="paid">{t("events.paid")}</SelectItem>
-                <SelectItem value="pending">{t("events.pending")}</SelectItem>
-                <SelectItem value="refunded">{t("events.refunded")}</SelectItem>
-                <SelectItem value="not_paid">{t("events.notPaid")}</SelectItem>
+              <SelectContent>
+                <SelectItem value="daily">{t('events.daily')}</SelectItem>
+                <SelectItem value="weekly">{t('events.weekly')}</SelectItem>
+                <SelectItem value="monthly">{t('events.monthly')}</SelectItem>
+                <SelectItem value="yearly">{t('events.yearly')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label htmlFor="paymentAmount">{t("events.paymentAmount")}</Label>
+            <Label htmlFor="repeatUntil">{t('events.repeatUntil')}</Label>
             <Input
-              id="paymentAmount"
-              type="number"
-              value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
-              className="bg-background border-input"
+              id="repeatUntil"
+              type="date"
+              value={formData.repeatUntil}
+              onChange={(e) => setFormData({ ...formData, repeatUntil: e.target.value })}
             />
           </div>
         </div>
-        <div>
-          <Label htmlFor="eventNotes">{t("events.eventNotes")}</Label>
-          <Textarea
-            id="eventNotes"
-            value={eventNotes}
-            onChange={(e) => setEventNotes(e.target.value)}
-            className="bg-background border-input"
-          />
-        </div>
-      </div>
+      )}
 
-      {/* Additional Persons Section */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">{t("events.additionalPersons")}</h3>
-        {additionalPersons.map((person) => (
-          <div key={person.id} className="space-y-2 border p-4 rounded-md">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor={`userSurname-${person.id}`}>
-                  {t("events.userSurname")}
-                </Label>
-                <Input
-                  type="text"
-                  id={`userSurname-${person.id}`}
-                  value={person.userSurname}
-                  onChange={(e) =>
-                    updatePersonField(person.id, "userSurname", e.target.value)
-                  }
-                  className="bg-background border-input"
-                />
-              </div>
-              <div>
-                <Label htmlFor={`userNumber-${person.id}`}>
-                  {t("events.userNumber")}
-                </Label>
-                <Input
-                  type="text"
-                  id={`userNumber-${person.id}`}
-                  value={person.userNumber}
-                  onChange={(e) =>
-                    updatePersonField(person.id, "userNumber", e.target.value)
-                  }
-                  className="bg-background border-input"
-                />
-              </div>
-              <div>
-                <Label htmlFor={`socialNetworkLink-${person.id}`}>
-                  {t("events.socialNetworkLink")}
-                </Label>
-                <Input
-                  type="text"
-                  id={`socialNetworkLink-${person.id}`}
-                  value={person.socialNetworkLink}
-                  onChange={(e) =>
-                    updatePersonField(
-                      person.id,
-                      "socialNetworkLink",
-                      e.target.value
-                    )
-                  }
-                  className="bg-background border-input"
-                />
-              </div>
-              <div>
-                <Label htmlFor={`paymentStatus-${person.id}`}>
-                  {t("events.paymentStatus")}
-                </Label>
-                <Select
-                  value={person.paymentStatus}
-                  onValueChange={(value) =>
-                    updatePersonField(person.id, "paymentStatus", value)
-                  }
-                >
-                  <SelectTrigger className="w-full bg-background border-input">
-                    <SelectValue placeholder={t("events.selectPaymentStatus")} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background border-input">
-                    <SelectItem value="paid">{t("events.paid")}</SelectItem>
-                    <SelectItem value="pending">{t("events.pending")}</SelectItem>
-                    <SelectItem value="refunded">{t("events.refunded")}</SelectItem>
-                    <SelectItem value="not_paid">{t("events.notPaid")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor={`paymentAmount-${person.id}`}>
-                  {t("events.paymentAmount")}
-                </Label>
-                <Input
-                  type="number"
-                  id={`paymentAmount-${person.id}`}
-                  value={person.paymentAmount}
-                  onChange={(e) =>
-                    updatePersonField(person.id, "paymentAmount", e.target.value)
-                  }
-                  className="bg-background border-input"
-                />
-              </div>
+      {/* Additional Persons */}
+      <div>
+        <Label className="text-base font-medium">{t('events.additionalPersons')}</Label>
+        {additionalPersons.map((person, index) => (
+          <div key={index} className="border rounded p-3 mt-2">
+            <div className="flex justify-between items-center mb-2">
+              <span className="font-medium">Person {index + 1}</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => removeAdditionalPerson(index)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
-            <div>
-              <Label htmlFor={`eventNotes-${person.id}`}>
-                {t("events.eventNotes")}
-              </Label>
-              <Textarea
-                id={`eventNotes-${person.id}`}
-                value={person.eventNotes}
-                onChange={(e) =>
-                  updatePersonField(person.id, "eventNotes", e.target.value)
-                }
-                className="bg-background border-input"
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder={t('events.name')}
+                value={person.name}
+                onChange={(e) => updateAdditionalPerson(index, 'name', e.target.value)}
+              />
+              <Input
+                placeholder={t('events.surname')}
+                value={person.surname}
+                onChange={(e) => updateAdditionalPerson(index, 'surname', e.target.value)}
+              />
+              <Input
+                placeholder={t('events.phone')}
+                value={person.phone}
+                onChange={(e) => updateAdditionalPerson(index, 'phone', e.target.value)}
+              />
+              <Input
+                placeholder={t('events.email')}
+                type="email"
+                value={person.email}
+                onChange={(e) => updateAdditionalPerson(index, 'email', e.target.value)}
               />
             </div>
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              onClick={() => handleRemovePerson(person.id)}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              {t("common.remove")}
-            </Button>
           </div>
         ))}
-        <Button type="button" size="sm" onClick={handleAddPerson}>
-          <Plus className="h-4 w-4 mr-2" />
-          {t("events.addAdditionalPerson")}
+        <Button
+          type="button"
+          variant="outline"
+          onClick={addAdditionalPerson}
+          className="mt-2"
+        >
+          {t('events.addAdditionalPerson')}
         </Button>
       </div>
 
-      {/* Files Section */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">{t("events.attachments")}</h3>
+      {/* File Attachments */}
+      <div>
+        <Label className="text-base font-medium">{t('events.attachments')}</Label>
+        <FileUploadField
+          onFileUpload={onFileUpload}
+          bucketName="event-attachments"
+          allowedTypes={['image/*', 'application/pdf', '.doc,.docx,.txt']}
+          maxSize={10 * 1024 * 1024} // 10MB
+        />
+        
         {existingFiles.length > 0 && (
-          <div className="space-y-2">
-            <Label>{t("events.currentAttachments")}</Label>
-            <SimpleFileDisplay
+          <div className="mt-2">
+            <Label className="text-sm font-medium">{t('events.currentAttachments')}</Label>
+            <FileDisplay
               files={existingFiles}
-              bucketName="event_attachments"
-              allowDelete
+              allowDelete={true}
               parentType="event"
-              setFiles={setExistingFiles}
+              setFiles={(files) => {
+                // Handle file removal
+                const removedFiles = existingFiles.filter(f => !files.some(nf => nf.id === f.id));
+                removedFiles.forEach(onFileRemove);
+              }}
             />
           </div>
         )}
-        <FileUploadField onChange={handleFileUpload} />
       </div>
     </div>
   );
