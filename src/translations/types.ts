@@ -119,6 +119,7 @@ export interface TranslationType {
     taskUpdated: string;
     taskDeleted: string;
     taskAdded: string;
+    taskArchived: string;
     deadline: string;
     reminder: string;
     setDeadline: string;
@@ -135,7 +136,6 @@ export interface TranslationType {
     taskReminder: string;
     archive: string;
     archived: string;
-    taskArchived: string;
     archivedTasks: string;
     backToTasks: string;
     searchArchivedTasks: string;
@@ -406,6 +406,9 @@ export interface TranslationType {
     minutesAgo: string;
     hoursAgo: string;
     daysAgo: string;
+    schedule: string;
+    created: string;
+    lastUpdated: string;
   };
   auth: {
     welcome: string;
