@@ -1,3 +1,4 @@
+
 export const translations = {
   events: {
     addEvent: "მოვლენის დამატება",
