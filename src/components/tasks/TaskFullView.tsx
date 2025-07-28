@@ -126,7 +126,7 @@ export const TaskFullView = ({
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="bg-background border-border text-foreground sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="pb-2">
+          <DialogHeader className="pb-0">
             {/* Highlighted Task Title */}
             <div className="p-4 rounded-lg border border-input bg-muted/50">
               <DialogTitle className="flex items-start gap-3 text-left">
@@ -136,7 +136,7 @@ export const TaskFullView = ({
             </div>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-3 mt-3">
             {/* Created and Last Updated indicators - smaller and more compact */}
             <div className="px-2 py-1.5 rounded-md border border-muted/30 bg-muted/20 w-fit">
               <div className="flex items-center space-x-3 text-xs text-muted-foreground">
