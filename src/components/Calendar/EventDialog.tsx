@@ -765,11 +765,11 @@ export const EventDialog = ({
             <div className="flex items-center text-sm text-muted-foreground mb-4">
               <span className="flex items-center mr-4">
                 <Clock className="mr-1 h-4 w-4" />
-                <span>{t("events.createdAtLabel")} {new Date(initialData.created_at).toLocaleString(language)}</span>
+                <span>{t("tasks.createdAt")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
               </span>
               <span className="flex items-center">
                 <RefreshCcw className="mr-1 h-4 w-4" />
-                <span>{t("events.lastUpdatedLabel")} {new Date(initialData.created_at).toLocaleString(language)}</span>
+                <span>{t("tasks.lastUpdated")}: {new Date(initialData.created_at).toLocaleString(language)}</span>
               </span>
             </div>
           )}

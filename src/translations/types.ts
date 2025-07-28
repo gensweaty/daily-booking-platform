@@ -331,8 +331,6 @@ export interface TranslationType {
     submitRequest: string;
     deleteEventConfirmTitle: string;
     deleteEventConfirmMessage: string;
-    createdAtLabel: string;
-    lastUpdatedLabel: string;
   };
   contact: {
     email: string;
