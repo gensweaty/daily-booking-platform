@@ -154,6 +154,7 @@ export const translations: TranslationType = {
     deleteTask: "Delete Task",
     deleteTaskConfirmation: "Are you sure you want to delete this task?",
     emailReminder: "Email Reminder",
+    reminderEmailSent: "Reminder email scheduled successfully.",
   },
   website: {
     title: "Free Website for your business",

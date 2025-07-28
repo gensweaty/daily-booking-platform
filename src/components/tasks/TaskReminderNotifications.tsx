@@ -107,8 +107,8 @@ export const TaskReminderNotifications = () => {
       console.log("✅ Email reminder sent successfully:", data);
       
       toast({
-        title: "📧 Email Sent",
-        description: "Task reminder email sent successfully",
+        title: t("common.success"),
+        description: t("tasks.reminderEmailSent"),
         duration: 3000,
       });
       

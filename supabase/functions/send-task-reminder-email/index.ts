@@ -23,6 +23,19 @@ setInterval(() => {
   }
 }, 10 * 60 * 1000);
 
+// Helper function to format time without timezone conversion
+const formatReminderTime = (reminderAt: string): string => {
+  // Extract time directly from ISO string without timezone conversion
+  const date = new Date(reminderAt);
+  const hours = date.getUTCHours().toString().padStart(2, '0');
+  const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+  const day = date.getUTCDate().toString().padStart(2, '0');
+  const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+  const year = date.getUTCFullYear();
+  
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+};
+
 // Multi-language email content
 const getEmailContent = (language: string, taskTitle: string, reminderTime: string, taskDescription?: string) => {
   let subject, body;
@@ -198,16 +211,8 @@ const handler = async (req: Request): Promise<Response> => {
 
       const language = profileData?.language || 'en';
       
-      // Format reminder time
-      const reminderTime = new Date(task.reminder_at);
-      const formattedTime = reminderTime.toLocaleString('en-US', {
-        timeZone: 'UTC',
-        year: 'numeric',
-        month: 'short',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      // Format reminder time without timezone conversion
+      const formattedTime = formatReminderTime(task.reminder_at);
 
       // Get localized email content
       const { subject, body: emailBody } = getEmailContent(language, task.title, formattedTime, task.description);
@@ -329,16 +334,8 @@ const handler = async (req: Request): Promise<Response> => {
 
         const language = profileData?.language || 'en';
         
-        // Format reminder time
-        const reminderTime = new Date(task.reminder_at);
-        const formattedTime = reminderTime.toLocaleString('en-US', {
-          timeZone: 'UTC',
-          year: 'numeric',
-          month: 'short',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
+        // Format reminder time without timezone conversion
+        const formattedTime = formatReminderTime(task.reminder_at);
 
         // Get localized email content
         const { subject, body: emailBody } = getEmailContent(language, task.title, formattedTime, task.description);
