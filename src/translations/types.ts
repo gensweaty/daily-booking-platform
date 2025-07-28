@@ -401,6 +401,9 @@ export interface TranslationType {
     saving: string;
     select: string;
     fileDeleted: string;
+    minutesAgo: string;
+    hoursAgo: string;
+    daysAgo: string;
   };
   auth: {
     welcome: string;
