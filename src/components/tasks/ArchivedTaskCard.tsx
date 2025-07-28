@@ -1,147 +1,125 @@
 
 import { Task } from "@/lib/types";
-import { RefreshCw, Paperclip, Calendar, Clock, Trash2 } from "lucide-react";
+import { Calendar, Clock, FileText, Archive, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { formatDistanceToNow, format } from "date-fns";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "../shared/LanguageText";
 
 interface ArchivedTaskCardProps {
   task: Task;
   onView: (task: Task) => void;
-  onRestore: (id: string) => void;
-  onDelete: (id: string) => void;
+  onRestore: (taskId: string) => void;
+  onDelete: (taskId: string) => void;
 }
 
 export const ArchivedTaskCard = ({ task, onView, onRestore, onDelete }: ArchivedTaskCardProps) => {
-  const { t, language } = useLanguage();
-  const isGeorgian = language === 'ka';
-  
-  const { data: files } = useQuery({
-    queryKey: ['taskFiles', task.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('files')
-        .select('*')
-        .eq('task_id', task.id);
-      return data || [];
-    },
-  });
+  const { t } = useLanguage();
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'done':
-        return <Badge className="bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">{t("tasks.completed")}</Badge>;
-      case 'inprogress':
-        return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-800 dark:text-amber-100">{t("tasks.inProgress")}</Badge>;
-      default:
-        return <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100">{t("tasks.todo")}</Badge>;
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return null;
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} ${t("common.minutesAgo")}`;
+    } else if (diffInMinutes < 1440) {
+      const hours = Math.floor(diffInMinutes / 60);
+      return `${hours} ${t("common.hoursAgo")}`;
+    } else {
+      const days = Math.floor(diffInMinutes / 1440);
+      return `${days} ${t("common.daysAgo")}`;
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return format(date, 'MMM dd, yyyy HH:mm');
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'done': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'inprogress': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'done': return t('tasks.done');
+      case 'inprogress': return t('tasks.inProgress');
+      default: return t('tasks.todo');
+    }
   };
 
   return (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0" onClick={() => onView(task)}>
-            <div className="flex items-start gap-2 mb-2">
-              <div className="flex-1 min-w-0">
-                {isGeorgian ? (
-                  <h3 
-                    className="font-semibold text-foreground break-words line-clamp-2 leading-tight"
-                    title={task.title}
-                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                  >
-                    <GeorgianAuthText fontWeight="bold">{task.title}</GeorgianAuthText>
-                  </h3>
-                ) : (
-                  <h3 
-                    className="font-semibold text-foreground break-words line-clamp-2 leading-tight"
-                    title={task.title}
-                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                  >
-                    {task.title}
-                  </h3>
-                )}
+    <Card className="hover:shadow-md transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <CardTitle className="text-lg font-semibold cursor-pointer hover:text-primary" onClick={() => onView(task)}>
+            {task.title}
+          </CardTitle>
+          <Badge className={getStatusColor(task.status)}>
+            <LanguageText>{getStatusText(task.status)}</LanguageText>
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {task.description && (
+          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+            {task.description}
+          </p>
+        )}
+        
+        <div className="flex items-center gap-4 text-xs text-muted-foreground mb-4">
+          <div className="flex items-center gap-1">
+            <Archive className="h-3 w-3" />
+            <span>
+              <LanguageText>{t("tasks.archived")}</LanguageText> {formatDate(task.archived_at)}
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-1">
+            <Calendar className="h-3 w-3" />
+            <span>
+              <LanguageText>{t("tasks.created")}</LanguageText> {formatDate(task.created_at)}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {task.deadline_at && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                <span><LanguageText>{t("tasks.deadline")}</LanguageText></span>
               </div>
-              {/* Status badge - visible on desktop, hidden on mobile */}
-              <div className="flex-shrink-0 hidden sm:block">
-                {getStatusBadge(task.status)}
-              </div>
-            </div>
-            
-            {task.description && (
-              <div 
-                className="text-sm text-muted-foreground line-clamp-2 mb-2"
-                dangerouslySetInnerHTML={{ __html: task.description }}
-              />
             )}
-            
-            <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-              {task.archived_at && (
-                <div className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  <span>{t("tasks.archivedAgo")} {formatDistanceToNow(new Date(task.archived_at))} ago</span>
-                </div>
-              )}
-              
-              {task.deadline_at && (
-                <div className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  <span>Due: {formatDate(task.deadline_at)}</span>
-                </div>
-              )}
-              
-              {files && files.length > 0 && (
-                <div className="flex items-center gap-1">
-                  <Paperclip className="h-3 w-3" />
-                  <span>{files.length} file{files.length > 1 ? 's' : ''}</span>
-                </div>
-              )}
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <FileText className="h-3 w-3" />
+              <span>1 {t("tasks.file")}</span>
             </div>
           </div>
           
-          <div className="flex flex-col gap-2 ml-2 flex-shrink-0">
+          <div className="flex items-center gap-1">
             <Button
               variant="outline"
               size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRestore(task.id);
-              }}
-              className="flex items-center gap-1"
+              onClick={() => onRestore(task.id)}
+              className="h-8 px-2"
             >
-              <RefreshCw className="h-3 w-3" />
-              {t("tasks.restore")}
+              <RotateCcw className="h-3 w-3 mr-1" />
+              <LanguageText>{t("tasks.restore")}</LanguageText>
             </Button>
-            
             <Button
-              variant="destructive"
+              variant="outline"
               size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(task.id);
-              }}
-              className="flex items-center gap-1"
+              onClick={() => onDelete(task.id)}
+              className="h-8 px-2 text-destructive hover:text-destructive"
             >
-              <Trash2 className="h-3 w-3" />
-              {t("common.delete")}
+              <Trash2 className="h-3 w-3 mr-1" />
+              <LanguageText>{t("common.delete")}</LanguageText>
             </Button>
           </div>
-        </div>
-        
-        {/* Status badge - visible on mobile only, positioned at bottom */}
-        <div className="sm:hidden mt-3 flex justify-center">
-          {getStatusBadge(task.status)}
         </div>
       </CardContent>
     </Card>

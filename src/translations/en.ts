@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -400,7 +399,10 @@ export const translations: TranslationType = {
     save: "Save",
     saving: "Saving...",
     select: "Select",
-    fileDeleted: "File deleted successfully"
+    fileDeleted: "File deleted successfully",
+    minutesAgo: "minutes ago",
+    hoursAgo: "hours ago",
+    daysAgo: "days ago"
   },
   auth: {
     welcome: "Welcome to SmartBookly",

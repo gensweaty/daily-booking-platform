@@ -56,6 +56,7 @@ export const getTasks = async (userId: string) => {
     .from('tasks')
     .select('*')
     .eq('user_id', userId)
+    .eq('archived', false)  // Only get non-archived tasks
     .order('position', { ascending: true });
 
   if (error) {
