@@ -184,7 +184,7 @@ export const useBookingRequests = (businessId?: string) => {
       const { data: newCustomer, error: customerError } = await supabase
         .from('customers')
         .insert([{
-          user_id: bookingToApprove.user_id || user.id,
+          user_id: bookingToApprove.user_id || user.id, // Ensure user_id is set
           title: bookingToApprove.title || bookingToApprove.requester_name,
           user_surname: bookingToApprove.requester_name,
           user_number: bookingToApprove.requester_phone,
@@ -195,7 +195,7 @@ export const useBookingRequests = (businessId?: string) => {
           end_date: bookingToApprove.end_date,
           event_notes: bookingToApprove.description,
           type: 'customer',
-          create_event: true
+          create_event: true // Mark that this customer came from an event booking
         }])
         .select()
         .single();
@@ -236,7 +236,7 @@ export const useBookingRequests = (businessId?: string) => {
 
       console.log("[useBookingRequests] Calendar event created:", newEvent.id);
 
-      // Step 4: Send confirmation email with properly constructed full name
+      // Step 4: Send confirmation email
       try {
         console.log("[useBookingRequests] Sending approval email for booking:", bookingId);
         
@@ -249,8 +249,8 @@ export const useBookingRequests = (businessId?: string) => {
         if (businessError) {
           console.error("[useBookingRequests] Error fetching business profile:", businessError);
         } else if (businessProfile && bookingToApprove.requester_email) {
-          // Use only the requester's name, no title concatenation
-          const fullName = bookingToApprove.requester_name || bookingToApprove.title || "Customer";
+          // Construct full name properly
+          const fullName = `${bookingToApprove.title || ''} ${bookingToApprove.requester_name || ''}`.trim() || bookingToApprove.requester_name || 'Customer';
           
           await sendBookingConfirmationEmail(
             bookingToApprove.requester_email,
@@ -266,7 +266,7 @@ export const useBookingRequests = (businessId?: string) => {
             bookingToApprove.description || ''
           );
           
-          console.log("[useBookingRequests] Approval email sent successfully to:", fullName);
+          console.log("[useBookingRequests] Approval email sent successfully");
         }
       } catch (emailError) {
         console.error("[useBookingRequests] Error sending approval email:", emailError);

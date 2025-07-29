@@ -16,10 +16,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
       // Get standalone customers (not linked to events) - filter by CUSTOMER created_at date
       const { data: standaloneCustomers, error: customersError } = await supabase
         .from('customers')
-        .select(`
-          *,
-          customer_files_new(*)
-        `)
+        .select('*')
         .eq('user_id', userId)
         .is('event_id', null)
         .gte('created_at', startDateStr)
@@ -34,10 +31,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
       // Get events in date range (only parent events to avoid duplicates) - filter by EVENT start_date to show events happening in this period
       const { data: events, error: eventsError } = await supabase
         .from('events')
-        .select(`
-          *,
-          event_files(*)
-        `)
+        .select('*')
         .eq('user_id', userId)
         .gte('start_date', startDateStr)
         .lte('start_date', endDateStr)
@@ -52,10 +46,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
       // Get approved booking requests in date range - filter by start_date to show bookings happening in this period
       const { data: bookingRequests, error: bookingRequestsError } = await supabase
         .from('booking_requests')
-        .select(`
-          *,
-          event_files(event_id)
-        `)
+        .select('*')
         .eq('user_id', userId)
         .eq('status', 'approved')
         .gte('start_date', startDateStr)
@@ -70,10 +61,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
       // Get additional persons linked to events - filter by CUSTOMER created_at date
       const { data: eventLinkedCustomers, error: eventCustomersError } = await supabase
         .from('customers')
-        .select(`
-          *,
-          customer_files_new(*)
-        `)
+        .select('*')
         .eq('user_id', userId)
         .eq('type', 'customer')
         .gte('created_at', startDateStr)
@@ -96,9 +84,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         event_notes: booking.description,
         source: 'booking_request',
         create_event: true,
-        sort_date: booking.created_at,
-        // Map event_files to customer_files_new for UI compatibility
-        customer_files_new: booking.event_files || []
+        sort_date: booking.created_at
       }));
 
       // Combine all data into a single array to sort by creation date
@@ -131,9 +117,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
           user_id: event.user_id,
           source: 'event',
           create_event: true,
-          sort_date: event.created_at,
-          // Map event_files to customer_files_new for UI compatibility
-          customer_files_new: event.event_files || []
+          sort_date: event.created_at
         });
       });
 
@@ -181,7 +165,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         return dateB.getTime() - dateA.getTime(); // DESC order (newest first)
       });
 
-      console.log('CRM data result (with files and approved booking requests):', {
+      console.log('CRM data result (with approved booking requests):', {
         standaloneCustomers: standaloneCustomers?.length || 0,
         events: events?.length || 0,
         bookingRequests: bookingRequests?.length || 0,
