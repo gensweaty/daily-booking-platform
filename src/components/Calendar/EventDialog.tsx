@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -240,7 +239,7 @@ export const EventDialog = ({
   const handleDeleteThis = async () => {
     setIsLoading(true);
     try {
-      if (!initialData) throw new Error("No event selected");
+      if (!initialData?.id) throw new Error("No event ID available");
       await eventDialogHook.handleDeleteEvent("this");
       toast.event.deleted();
       onEventDeleted?.();
@@ -261,7 +260,7 @@ export const EventDialog = ({
   const handleDeleteSeries = async () => {
     setIsLoading(true);
     try {
-      if (!initialData) throw new Error("No event selected");
+      if (!initialData?.id) throw new Error("No event ID available");
       await eventDialogHook.handleDeleteEvent("series");
       toast.event.seriesDeleted();
       onEventDeleted?.();
