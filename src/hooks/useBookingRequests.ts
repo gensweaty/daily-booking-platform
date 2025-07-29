@@ -75,7 +75,6 @@ export const useBookingRequests = (businessId?: string) => {
 
       console.log("[useBookingRequests] Approving booking request:", bookingId);
 
-      // Find the booking request to approve
       const bookingToApprove = bookingRequests.find(req => req.id === bookingId);
       if (!bookingToApprove) {
         throw new Error("Booking request not found");
@@ -184,9 +183,9 @@ export const useBookingRequests = (businessId?: string) => {
       const { data: newCustomer, error: customerError } = await supabase
         .from('customers')
         .insert([{
-          user_id: bookingToApprove.user_id || user.id, // Ensure user_id is set
-          title: bookingToApprove.title || bookingToApprove.requester_name,
-          user_surname: bookingToApprove.requester_name,
+          user_id: bookingToApprove.user_id || user.id,
+          title: bookingToApprove.title || bookingToApprove.user_surname || bookingToApprove.requester_name,
+          user_surname: bookingToApprove.user_surname || bookingToApprove.requester_name,
           user_number: bookingToApprove.requester_phone,
           social_network_link: bookingToApprove.requester_email,
           payment_status: bookingToApprove.payment_status || 'not_paid',
@@ -195,7 +194,7 @@ export const useBookingRequests = (businessId?: string) => {
           end_date: bookingToApprove.end_date,
           event_notes: bookingToApprove.description,
           type: 'customer',
-          create_event: true // Mark that this customer came from an event booking
+          create_event: true
         }])
         .select()
         .single();
@@ -211,10 +210,10 @@ export const useBookingRequests = (businessId?: string) => {
       const { data: newEvent, error: eventError } = await supabase
         .from('events')
         .insert([{
-          id: bookingId, // Use the same ID as the booking request
+          id: bookingId,
           user_id: bookingToApprove.user_id || user.id,
           title: bookingToApprove.title,
-          user_surname: bookingToApprove.requester_name,
+          user_surname: bookingToApprove.user_surname || bookingToApprove.requester_name,
           user_number: bookingToApprove.requester_phone,
           social_network_link: bookingToApprove.requester_email,
           start_date: bookingToApprove.start_date,
@@ -241,16 +240,15 @@ export const useBookingRequests = (businessId?: string) => {
         console.log("[useBookingRequests] Associating booking files with event");
         const associatedFiles = await associateBookingFilesWithEvent(
           bookingId,
-          bookingId, // Same ID for event
+          bookingId,
           user.id
         );
         console.log("[useBookingRequests] Associated files:", associatedFiles.length);
       } catch (fileError) {
         console.error("[useBookingRequests] Error associating files:", fileError);
-        // Don't fail the approval process if file association fails
       }
 
-      // Step 5: Send confirmation email (only once, in the mutation function)
+      // Step 5: Send confirmation email with proper full name
       try {
         console.log("[useBookingRequests] Sending approval email for booking:", bookingId);
         
@@ -263,8 +261,13 @@ export const useBookingRequests = (businessId?: string) => {
         if (businessError) {
           console.error("[useBookingRequests] Error fetching business profile:", businessError);
         } else if (businessProfile && bookingToApprove.requester_email) {
-          // Construct full name properly from the requester_name field
-          const fullName = bookingToApprove.requester_name || bookingToApprove.title || 'Customer';
+          // Fix: Construct full name properly using all available name fields
+          const fullName = bookingToApprove.user_surname || 
+                           bookingToApprove.requester_name || 
+                           bookingToApprove.title || 
+                           'Customer';
+          
+          console.log("[useBookingRequests] Using full name for email:", fullName);
           
           await sendBookingConfirmationEmail(
             bookingToApprove.requester_email,
@@ -284,13 +287,11 @@ export const useBookingRequests = (businessId?: string) => {
         }
       } catch (emailError) {
         console.error("[useBookingRequests] Error sending approval email:", emailError);
-        // Don't fail the approval process if email fails
       }
 
       return updatedBooking;
     },
     onSuccess: () => {
-      // Invalidate all relevant queries to refresh UI immediately
       console.log("[useBookingRequests] Invalidating queries after successful approval");
       
       // Booking requests
@@ -321,7 +322,6 @@ export const useBookingRequests = (businessId?: string) => {
     onError: (error: any) => {
       console.error("[useBookingRequests] Error approving booking:", error);
       
-      // Don't show generic error for time conflicts (we already showed specific toast)
       if (error.message !== "time-conflict") {
         toast({
           variant: "destructive",

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -6,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { formatDate } from 'date-fns';
 import { AlertCircle, Check, X, Trash2, FileText, PaperclipIcon, Paperclip } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { Badge } from "@/components/ui/badge";
@@ -20,10 +21,10 @@ import { getStorageUrl } from "@/integrations/supabase/client";
 import { FileDisplay } from "@/components/shared/FileDisplay";
 import type { FileRecord } from "@/types/files";
 import { getCurrencySymbol } from "@/lib/currency";
+import { supabase } from "@/lib/supabase";
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
-  type: 'pending' | 'approved' | 'rejected';
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
   onDelete: (id: string) => void;
@@ -31,7 +32,6 @@ interface BookingRequestsListProps {
 
 export const BookingRequestsList = ({ 
   requests, 
-  type,
   onApprove, 
   onReject,
   onDelete 
@@ -40,9 +40,49 @@ export const BookingRequestsList = ({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [requestFiles, setRequestFiles] = useState<{[key: string]: FileRecord[]}>({});
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');
   const currencySymbol = getCurrencySymbol(language);
+
+  // Fetch files for all requests
+  useEffect(() => {
+    const fetchFilesForRequests = async () => {
+      const filesMap: {[key: string]: FileRecord[]} = {};
+      
+      await Promise.all(requests.map(async (request) => {
+        // Get files from event_files table using booking request ID
+        const { data: eventFiles, error } = await supabase
+          .from('event_files')
+          .select('*')
+          .eq('event_id', request.id);
+
+        if (error) {
+          console.error('Error fetching files for request:', request.id, error);
+          filesMap[request.id] = [];
+        } else {
+          // Convert to FileRecord format
+          const fileRecords: FileRecord[] = (eventFiles || []).map(file => ({
+            id: file.id,
+            filename: file.filename,
+            file_path: file.file_path,
+            content_type: file.content_type || '',
+            size: file.size || 0,
+            created_at: file.created_at || new Date().toISOString(),
+            user_id: file.user_id,
+            event_id: request.id
+          }));
+          filesMap[request.id] = fileRecords;
+        }
+      }));
+      
+      setRequestFiles(filesMap);
+    };
+
+    if (requests.length > 0) {
+      fetchFilesForRequests();
+    }
+  }, [requests]);
 
   const handleDeleteClick = (id: string) => {
     setRequestToDelete(id);
@@ -58,21 +98,17 @@ export const BookingRequestsList = ({
   };
   
   const handleApprove = async (id: string) => {
-    // Log the current language context
     console.log(`Approving request ${id} with UI language: ${language}`);
     
-    // Check if the request has its own language setting
     const requestToApprove = requests.find(req => req.id === id);
     if (requestToApprove) {
       console.log(`Request ${id} language setting: ${requestToApprove.language || 'not set'}`);
     }
     
-    // Set processing state to show loading indicator
     setProcessingId(id);
     try {
       await onApprove?.(id);
     } finally {
-      // Clear processing state when done (success or error)
       setProcessingId(null);
     }
   };
@@ -86,61 +122,11 @@ export const BookingRequestsList = ({
     }
   };
 
-  // Improved function to deduplicate files
-  const mapRequestFilesToFileRecords = (request: BookingRequest): FileRecord[] => {
-    const files: FileRecord[] = [];
-    const fileSignatures = new Set<string>(); // Track file signatures to prevent duplicates
-    
-    // Helper function to add a file if it's not a duplicate
-    const addUniqueFile = (file: FileRecord) => {
-      // Create a unique signature for the file based on path and name
-      const signature = `${file.filename}:${file.file_path}`;
-      
-      if (!fileSignatures.has(signature)) {
-        fileSignatures.add(signature);
-        files.push(file);
-      }
-    };
-    
-    // Add direct file if it exists on the request
-    if (request.file_path) {
-      addUniqueFile({
-        id: `${request.id}-main`,
-        filename: request.filename || 'file',
-        file_path: request.file_path,
-        content_type: request.content_type || '',
-        size: request.size || 0,
-        created_at: request.created_at,
-        user_id: request.user_id || null,
-        event_id: request.id
-      });
-    }
-    
-    // Add any files from the files array with deduplication
-    if (request.files && request.files.length > 0) {
-      request.files.forEach(file => {
-        addUniqueFile({
-          id: file.id,
-          filename: file.filename,
-          file_path: file.file_path,
-          content_type: file.content_type || '',
-          size: file.size || 0,
-          created_at: request.created_at,
-          user_id: request.user_id || null,
-          event_id: request.id
-        });
-      });
-    }
-    
-    return files;
-  };
-
   // Format payment status for display with proper styling
   const renderPaymentStatus = (status?: string, amount?: number | null) => {
     let statusDisplay: React.ReactNode;
     
     if (!status || status === 'not_paid') {
-      // Red for not paid
       statusDisplay = (
         <Badge variant="outline" className="text-[#ea384c] border-[#ea384c] bg-transparent">
           {language === 'en' ? 'Not Paid' : 
@@ -149,7 +135,6 @@ export const BookingRequestsList = ({
         </Badge>
       );
     } else if (status === 'partly_paid' || status === 'partly') {
-      // Orange for partly paid
       let text = language === 'en' ? 'Partly Paid' : 
                  language === 'es' ? 'Pagado Parcialmente' : 
                  <GeorgianAuthText>ნაწილობრივ გადახდილი</GeorgianAuthText>;
@@ -168,7 +153,6 @@ export const BookingRequestsList = ({
         </Badge>
       );
     } else if (status === 'fully_paid' || status === 'fully') {
-      // Green for fully paid
       let text = language === 'en' ? 'Fully Paid' : 
                  language === 'es' ? 'Pagado Completamente' : 
                  <GeorgianAuthText>სრულად გადახდილი</GeorgianAuthText>;
@@ -187,7 +171,6 @@ export const BookingRequestsList = ({
         </Badge>
       );
     } else {
-      // Default case
       statusDisplay = (
         <Badge variant="outline">
           {status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ')}
@@ -215,7 +198,6 @@ export const BookingRequestsList = ({
       if (key === "business.attachments") return <GeorgianAuthText>დანართები</GeorgianAuthText>;
     }
     
-    // For English and Spanish
     if (key === "business.paymentStatus") {
       if (language === 'en') return "Payment Status";
       if (language === 'es') return "Estado del pago";
@@ -238,45 +220,23 @@ export const BookingRequestsList = ({
     return (
       <div className="text-center p-10 border border-dashed rounded-lg">
         <div className="flex justify-center mb-4">
-          {type === 'pending' && (
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-              <div className="w-8 h-8 rounded-full border-2 border-muted-foreground border-dashed"></div>
-            </div>
-          )}
-          {type === 'approved' && (
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-              <Check className="w-8 h-8 text-muted-foreground" />
-            </div>
-          )}
-          {type === 'rejected' && (
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-              <X className="w-8 h-8 text-muted-foreground" />
-            </div>
-          )}
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full border-2 border-muted-foreground border-dashed"></div>
+          </div>
         </div>
         <h3 className="text-lg font-medium">
-          <LanguageText>
-            {type === 'pending' ? t("business.noPendingRequests") : 
-             type === 'approved' ? t("business.noApprovedRequests") : 
-             t("business.noRejectedRequests")}
-          </LanguageText>
+          <LanguageText>{t("business.noRequestsYet")}</LanguageText>
         </h3>
         <p className="text-muted-foreground mt-2">
-          <LanguageText>
-            {type === 'pending' ? t("business.pendingRequestsDescription") : 
-             type === 'approved' ? t("business.approvedRequestsDescription") : 
-             t("business.rejectedRequestsDescription")}
-          </LanguageText>
+          <LanguageText>{t("business.requestsWillAppearHere")}</LanguageText>
         </p>
       </div>
     );
   }
 
-  // Responsive table view with improved mobile styling
   return (
     <>
       <div className="rounded-md border">
-        {/* Make the container scrollable horizontally on mobile */}
         <div className="overflow-x-auto w-full">
           <Table className="min-w-[750px]">
             <TableHeader className="bg-muted/50">
@@ -294,8 +254,12 @@ export const BookingRequestsList = ({
                 <TableRow key={request.id} className="h-[72px]">
                   <TableCell className="font-medium py-2">
                     <div className="overflow-hidden">
-                      <div className="font-medium truncate">{request.requester_name}</div>
-                      <div className="text-sm text-muted-foreground truncate">{request.requester_email || request.requester_phone}</div>
+                      <div className="font-medium truncate">
+                        {request.user_surname || request.requester_name}
+                      </div>
+                      <div className="text-sm text-muted-foreground truncate">
+                        {request.requester_email || request.requester_phone}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell className="py-2">
@@ -329,21 +293,21 @@ export const BookingRequestsList = ({
                     )}
                   </TableCell>
                   <TableCell className="py-2">
-                    {(request.file_path || (request.files && request.files.length > 0)) ? (
+                    {requestFiles[request.id] && requestFiles[request.id].length > 0 ? (
                       <FileDisplay 
-                        files={mapRequestFilesToFileRecords(request)}
+                        files={requestFiles[request.id]}
                         bucketName="booking_attachments"
                         allowDelete={false}
                         parentType="event"
+                        fallbackBuckets={['event_attachments', 'customer_attachments']}
                       />
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right py-2">
-                    {/* Improve action buttons layout - stack on mobile */}
                     <div className="flex flex-wrap gap-2 justify-end sm:justify-end">
-                      {type === 'pending' && onApprove && (
+                      {onApprove && (
                         <Button 
                           variant="approve" 
                           size="sm" 
@@ -365,7 +329,7 @@ export const BookingRequestsList = ({
                           </span>
                         </Button>
                       )}
-                      {type === 'pending' && onReject && (
+                      {onReject && (
                         <Button 
                           variant="outline" 
                           size="sm" 

@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -31,7 +30,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         console.error('Error fetching standalone customers:', customersError);
       }
 
-      // Get events in date range (only parent events to avoid duplicates) - filter by EVENT start_date to show events happening in this period
+      // Get events in date range (only parent events to avoid duplicates)
       const { data: events, error: eventsError } = await supabase
         .from('events')
         .select(`
@@ -49,7 +48,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         console.error('Error fetching events:', eventsError);
       }
 
-      // Get approved booking requests in date range - filter by start_date to show bookings happening in this period
+      // Get approved booking requests in date range
       const { data: bookingRequests, error: bookingRequestsError } = await supabase
         .from('booking_requests')
         .select('*')
@@ -64,7 +63,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         console.error('Error fetching booking requests:', bookingRequestsError);
       }
 
-      // Get additional persons linked to events - filter by CUSTOMER created_at date
+      // Get event customers
       const { data: eventLinkedCustomers, error: eventCustomersError } = await supabase
         .from('customers')
         .select(`
@@ -82,8 +81,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         console.error('Error fetching event customers:', eventCustomersError);
       }
 
-      // For each approved booking request, get its associated files from event_files table
-      // (since the event was created with the same ID as the booking request)
+      // For each booking request, get its files from event_files table
       const bookingRequestsWithFiles = await Promise.all(
         (bookingRequests || []).map(async (booking) => {
           const { data: eventFiles, error: filesError } = await supabase
@@ -106,8 +104,8 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
       const transformedBookingRequests = bookingRequestsWithFiles.map(booking => ({
         ...booking,
         id: `booking-${booking.id}`,
-        title: booking.title || booking.requester_name,
-        user_surname: booking.requester_name,
+        title: booking.title || booking.user_surname || booking.requester_name,
+        user_surname: booking.user_surname || booking.requester_name,
         user_number: booking.requester_phone,
         social_network_link: booking.requester_email,
         event_notes: booking.description,
@@ -154,7 +152,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         });
       });
 
-      // Add transformed booking requests - this ensures approved booking requests appear in CRM with files
+      // Add transformed booking requests
       transformedBookingRequests.forEach(booking => {
         allData.push({
           ...booking,
@@ -162,7 +160,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         });
       });
 
-      // Add additional persons from events (filtered by customer creation date)
+      // Add additional persons from events
       (eventLinkedCustomers || []).forEach(customer => {
         allData.push({
           ...customer,
@@ -195,17 +193,16 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
       const result = Array.from(uniqueData.values()).sort((a, b) => {
         const dateA = new Date(a.sort_date || a.created_at || 0);
         const dateB = new Date(b.sort_date || b.created_at || 0);
-        return dateB.getTime() - dateA.getTime(); // DESC order (newest first)
+        return dateB.getTime() - dateA.getTime();
       });
 
-      console.log('CRM data result (with approved booking requests and files):', {
+      console.log('CRM data result with files:', {
         standaloneCustomers: standaloneCustomers?.length || 0,
         events: events?.length || 0,
         bookingRequests: bookingRequests?.length || 0,
         eventLinkedCustomers: eventLinkedCustomers?.length || 0,
         totalUniqueCustomers: result.length,
-        dateRange: `${startDateStr} to ${endDateStr}`,
-        sortedByCreationDate: true
+        dateRange: `${startDateStr} to ${endDateStr}`
       });
 
       return result;
