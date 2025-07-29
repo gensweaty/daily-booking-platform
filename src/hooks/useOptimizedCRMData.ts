@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -120,7 +119,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
       // Combine all data into a single array to sort by creation date
       const allData = [];
 
-      // Add standalone customers (with files already loaded)
+      // Add standalone customers
       (standaloneCustomers || []).forEach(customer => {
         allData.push({
           ...customer,
@@ -161,35 +160,8 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         });
       });
 
-      // Process event linked customers - fetch files for customers created from booking approvals
-      const eventLinkedCustomersWithFiles = await Promise.all(
-        (eventLinkedCustomers || []).map(async (customer) => {
-          // Check if this customer was created from a booking approval
-          // These customers will have create_event: true and might have an event_id or be linked to a booking
-          if (customer.create_event && customer.event_id) {
-            console.log('Fetching files for customer created from booking/event:', customer.id, 'event_id:', customer.event_id);
-            
-            // First try to get files from event_files using the event_id
-            const { data: eventFiles, error: eventFilesError } = await supabase
-              .from('event_files')
-              .select('*')
-              .eq('event_id', customer.event_id);
-
-            if (!eventFilesError && eventFiles && eventFiles.length > 0) {
-              console.log('Found event files for customer:', customer.id, 'files count:', eventFiles.length);
-              return {
-                ...customer,
-                customer_files_new: [...(customer.customer_files_new || []), ...eventFiles]
-              };
-            }
-          }
-          
-          return customer;
-        })
-      );
-
-      // Add event linked customers (with files now loaded)
-      eventLinkedCustomersWithFiles.forEach(customer => {
+      // Add additional persons from events
+      (eventLinkedCustomers || []).forEach(customer => {
         allData.push({
           ...customer,
           source: 'additional',
