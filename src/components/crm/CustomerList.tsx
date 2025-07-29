@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,92 +16,6 @@ import { getCurrencySymbol } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import type { FileRecord } from '@/types/files';
-
-// Define interface for customer data
-interface CustomerData {
-  id: string;
-  userSurname: string;
-  userNumber: string;
-  socialNetworkLink: string;
-  eventNotes: string;
-  paymentStatus: string;
-  paymentAmount: string;
-}
-
-interface CustomerDialogProps {
-  customer?: CustomerData | null;
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-interface CustomerFormProps {
-  customer?: CustomerData | null;
-  onClose: () => void;
-}
-
-interface PersonData {
-  id: string;
-  userSurname: string;
-  userNumber: string;
-  socialNetworkLink: string;
-  eventNotes: string;
-  paymentStatus: string;
-  paymentAmount: string;
-}
-
-interface EventDialogFieldsProps {
-  title: string;
-  setTitle: (value: string) => void;
-  userSurname: string;
-  setUserSurname: (value: string) => void;
-  userNumber: string;
-  setUserNumber: (value: string) => void;
-  socialNetworkLink: string;
-  setSocialNetworkLink: (value: string) => void;
-  eventNotes: string;
-  setEventNotes: (value: string) => void;
-  eventName: string;
-  setEventName: (value: string) => void;
-  startDate: string;
-  setStartDate: (value: string) => void;
-  endDate: string;
-  setEndDate: (value: string) => void;
-  paymentStatus: string;
-  setPaymentStatus: (value: string) => void;
-  paymentAmount: string;
-  setPaymentAmount: (value: string) => void;
-  files: File[];
-  setFiles: (files: File[]) => void;
-  existingFiles: Array<{
-    id: string;
-    filename: string;
-    file_path: string;
-    content_type?: string;
-    size?: number;
-  }>;
-  setExistingFiles: (files: Array<{
-    id: string;
-    filename: string;
-    file_path: string;
-    content_type?: string;
-    size?: number;
-  }>) => void;
-  eventId?: string;
-  isBookingRequest?: boolean;
-  // Add repeat props
-  isRecurring: boolean;
-  setIsRecurring: (value: boolean) => void;
-  repeatPattern: string;
-  setRepeatPattern: (value: string) => void;
-  repeatUntil: string;
-  setRepeatUntil: (value: string) => void;
-  isNewEvent?: boolean;
-  // New props for additional persons management
-  additionalPersons: PersonData[];
-  setAdditionalPersons: (persons: PersonData[]) => void;
-  // Add missing prop
-  isVirtualEvent?: boolean;
-}
 
 interface Customer {
   id: string;
@@ -160,7 +75,7 @@ const useCustomerFiles = (customer: Customer) => {
         
         const { data: eventFiles, error: eventFilesError } = await supabase
           .from('event_files')
-          .select('*')
+          .select('id, filename, file_path, content_type, size, created_at, user_id')
           .eq('event_id', eventId);
 
         if (eventFilesError) {
@@ -190,7 +105,7 @@ const useCustomerFiles = (customer: Customer) => {
 
           if (bookingError) {
             console.error('Error fetching booking data:', bookingError);
-          } else if (bookingData?.file_path && bookingData.filename) {
+          } else if (bookingData && bookingData.file_path && bookingData.filename) {
             allFiles.push({
               id: `booking-${eventId}`,
               filename: bookingData.filename,
@@ -213,7 +128,7 @@ const useCustomerFiles = (customer: Customer) => {
         
         const { data: customerFiles, error: customerFilesError } = await supabase
           .from('customer_files_new')
-          .select('*')
+          .select('id, filename, file_path, content_type, size, created_at, user_id')
           .eq('customer_id', customerId);
 
         if (customerFilesError) {
@@ -362,7 +277,6 @@ const CustomerRow: React.FC<{
             bucketName={getBucketName(files)}
             allowDelete={false}
             parentType="customer"
-            maxDisplayCount={1}
             showDownloadOnly={true}
           />
         ) : (
@@ -522,7 +436,6 @@ export const CustomerList: React.FC<CustomerListProps> = ({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <SearchCommand 
-          searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
         />
         
@@ -589,7 +502,6 @@ export const CustomerList: React.FC<CustomerListProps> = ({
 
       {(editingCustomer || isAddingCustomer) && (
         <CustomerDialog
-          customer={editingCustomer}
           isOpen={true}
           onClose={handleCloseDialog}
         />

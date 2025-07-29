@@ -28,6 +28,11 @@ interface BookingRequest {
   payment_amount?: number;
   language?: string;
   created_at: string;
+  // Add file fields that might exist on booking_requests
+  file_path?: string;
+  filename?: string;
+  content_type?: string;
+  size?: number;
 }
 
 interface BookingRequestsListProps {
@@ -51,7 +56,7 @@ const useBookingRequestFiles = (bookingId: string) => {
       // First try to get files from event_files table (since approved bookings use same ID)
       const { data: eventFiles, error: eventFilesError } = await supabase
         .from('event_files')
-        .select('*')
+        .select('id, filename, file_path, content_type, size, created_at, user_id')
         .eq('event_id', bookingId);
 
       if (eventFilesError) {
@@ -88,7 +93,7 @@ const useBookingRequestFiles = (bookingId: string) => {
       }
 
       // Add file from booking_requests table if it exists
-      if (bookingData?.file_path && bookingData.filename) {
+      if (bookingData && bookingData.file_path && bookingData.filename) {
         allFiles.push({
           id: `booking-${bookingId}`,
           filename: bookingData.filename,
@@ -199,7 +204,6 @@ const BookingRequestRow: React.FC<{
             bucketName={files[0]?.source === 'booking_request' ? 'booking_attachments' : 'event_attachments'}
             allowDelete={false}
             parentType="booking"
-            maxDisplayCount={1}
             showDownloadOnly={true}
           />
         ) : (
