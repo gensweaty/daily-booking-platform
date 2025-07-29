@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -63,7 +64,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         console.error('Error fetching booking requests:', bookingRequestsError);
       }
 
-      // Get event customers
+      // Get event customers (customers created from approved bookings)
       const { data: eventLinkedCustomers, error: eventCustomersError } = await supabase
         .from('customers')
         .select(`
@@ -97,6 +98,42 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
             ...booking,
             event_files: eventFiles || []
           };
+        })
+      );
+
+      // For customers created from approved bookings (with create_event: true), get their files from event_files
+      const eventCustomersWithFiles = await Promise.all(
+        (eventLinkedCustomers || []).map(async (customer) => {
+          if (customer.create_event) {
+            // Find the corresponding event that was created from this customer's booking
+            const { data: correspondingEvent, error: eventError } = await supabase
+              .from('events')
+              .select('id')
+              .eq('user_id', userId)
+              .eq('title', customer.title)
+              .eq('user_surname', customer.user_surname)
+              .eq('start_date', customer.start_date)
+              .is('deleted_at', null)
+              .limit(1)
+              .single();
+
+            if (!eventError && correspondingEvent) {
+              // Fetch files from event_files using the event ID
+              const { data: eventFiles, error: filesError } = await supabase
+                .from('event_files')
+                .select('*')
+                .eq('event_id', correspondingEvent.id);
+
+              if (!filesError && eventFiles && eventFiles.length > 0) {
+                console.log('Found files for customer created from booking:', customer.id, 'files:', eventFiles.length);
+                return {
+                  ...customer,
+                  customer_files_new: [...(customer.customer_files_new || []), ...eventFiles]
+                };
+              }
+            }
+          }
+          return customer;
         })
       );
 
@@ -160,8 +197,8 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         });
       });
 
-      // Add additional persons from events
-      (eventLinkedCustomers || []).forEach(customer => {
+      // Add customers with their files (including files from approved bookings)
+      eventCustomersWithFiles.forEach(customer => {
         allData.push({
           ...customer,
           source: 'additional',

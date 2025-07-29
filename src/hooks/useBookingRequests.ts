@@ -261,10 +261,10 @@ export const useBookingRequests = (businessId?: string) => {
         if (businessError) {
           console.error("[useBookingRequests] Error fetching business profile:", businessError);
         } else if (businessProfile && bookingToApprove.requester_email) {
-          // Fix: Construct full name properly using all available name fields
-          const fullName = bookingToApprove.user_surname || 
+          // Fix: Use the same name priority as UI - title first, then user_surname, then requester_name
+          const fullName = bookingToApprove.title || 
+                           bookingToApprove.user_surname || 
                            bookingToApprove.requester_name || 
-                           bookingToApprove.title || 
                            'Customer';
           
           console.log("[useBookingRequests] Using full name for email:", fullName);
