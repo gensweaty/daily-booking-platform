@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, associateBookingFilesWithEvent } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { BookingRequest } from '@/types/database';
@@ -236,7 +236,21 @@ export const useBookingRequests = (businessId?: string) => {
 
       console.log("[useBookingRequests] Calendar event created:", newEvent.id);
 
-      // Step 4: Send confirmation email
+      // Step 4: Associate booking files with the new event
+      try {
+        console.log("[useBookingRequests] Associating booking files with event");
+        const associatedFiles = await associateBookingFilesWithEvent(
+          bookingId,
+          bookingId, // Same ID for event
+          user.id
+        );
+        console.log("[useBookingRequests] Associated files:", associatedFiles.length);
+      } catch (fileError) {
+        console.error("[useBookingRequests] Error associating files:", fileError);
+        // Don't fail the approval process if file association fails
+      }
+
+      // Step 5: Send confirmation email (only once, in the mutation function)
       try {
         console.log("[useBookingRequests] Sending approval email for booking:", bookingId);
         
@@ -249,8 +263,8 @@ export const useBookingRequests = (businessId?: string) => {
         if (businessError) {
           console.error("[useBookingRequests] Error fetching business profile:", businessError);
         } else if (businessProfile && bookingToApprove.requester_email) {
-          // Construct full name properly
-          const fullName = `${bookingToApprove.title || ''} ${bookingToApprove.requester_name || ''}`.trim() || bookingToApprove.requester_name || 'Customer';
+          // Construct full name properly from the requester_name field
+          const fullName = bookingToApprove.requester_name || bookingToApprove.title || 'Customer';
           
           await sendBookingConfirmationEmail(
             bookingToApprove.requester_email,
