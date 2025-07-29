@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -251,10 +250,8 @@ export const useBookingRequests = (businessId?: string) => {
     mutationFn: async (bookingId: string) => {
       if (!user?.id) throw new Error("User not authenticated");
 
-      console.log("[useBookingRequests] Deleting booking request (soft delete only):", bookingId);
+      console.log("[useBookingRequests] Deleting booking request:", bookingId);
 
-      // **FIXED: Only soft-delete the booking request, do NOT delete the related event**
-      // This preserves the event that was created when the booking was approved
       const { error } = await supabase
         .from('booking_requests')
         .update({ 
@@ -263,8 +260,6 @@ export const useBookingRequests = (businessId?: string) => {
         .eq('id', bookingId);
 
       if (error) throw error;
-
-      console.log("[useBookingRequests] Successfully soft-deleted booking request without affecting related event");
 
       return null;
     },
