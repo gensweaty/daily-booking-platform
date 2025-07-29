@@ -22,6 +22,20 @@ export const useEventDialog = ({
   const { toast } = useToast();
   const { language } = useLanguage();
 
+  // Helper function to format error messages for better user experience
+  const formatErrorMessage = (error: any): string => {
+    if (!error?.message) return "An unexpected error occurred";
+    
+    const message = error.message;
+    
+    // Check if it's a time conflict error from the database
+    if (message.includes('Time conflict detected')) {
+      return message;
+    }
+    
+    return message;
+  };
+
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
       const eventData = {
@@ -49,7 +63,7 @@ export const useEventDialog = ({
       console.error("Failed to create event:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to create event",
+        description: formatErrorMessage(error),
         variant: "destructive",
       });
       throw error;
@@ -87,7 +101,7 @@ export const useEventDialog = ({
       console.error("Failed to update event:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update event",
+        description: formatErrorMessage(error),
         variant: "destructive",
       });
       throw error;
@@ -108,7 +122,7 @@ export const useEventDialog = ({
       console.error("Failed to delete event:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to delete event",
+        description: formatErrorMessage(error),
         variant: "destructive",
       });
       throw error;

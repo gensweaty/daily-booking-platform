@@ -1041,6 +1041,22 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      check_time_overlap: {
+        Args: {
+          p_user_id: string
+          p_start_date: string
+          p_end_date: string
+          p_exclude_event_id?: string
+          p_business_id?: string
+        }
+        Returns: {
+          event_id: string
+          event_title: string
+          event_start: string
+          event_end: string
+          event_type: string
+        }[]
+      }
       check_trial_status: {
         Args: Record<PropertyKey, never>
         Returns: undefined
