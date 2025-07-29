@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Task } from "@/lib/types";
 import { SimpleFileDisplay } from "../shared/SimpleFileDisplay";
@@ -136,20 +137,6 @@ export const TaskFullView = ({
           </DialogHeader>
 
           <div className="space-y-3 mt-3">
-            {/* Created and Last Updated indicators - smaller and more compact */}
-            <div className="px-2 py-1.5 rounded-md border border-muted/30 bg-muted/20 w-fit">
-              <div className="flex items-center space-x-3 text-xs text-muted-foreground">
-                <div className="flex items-center">
-                  <Calendar className="w-3 h-3 mr-1" />
-                  <span>{t("common.created")}: {formattedCreatedDate}</span>
-                </div>
-                <div className="flex items-center">
-                  <History className="w-3 h-3 mr-1" />
-                  <span>{t("common.lastUpdated")}: {formattedUpdatedDate}</span>
-                </div>
-              </div>
-            </div>
-
             {/* Description Section */}
             <Card className="border-muted/40 bg-muted/20">
               <CardContent className="p-4">
@@ -207,6 +194,20 @@ export const TaskFullView = ({
                 </CardContent>
               </Card>
             )}
+          </div>
+
+          {/* Created and Last Updated indicators - moved to bottom with theme-aware styling */}
+          <div className="px-2 py-1.5 rounded-md border border-border bg-card text-card-foreground w-fit">
+            <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+              <div className="flex items-center">
+                <Calendar className="w-3 h-3 mr-1" />
+                <span>{t("common.created")}: {formattedCreatedDate}</span>
+              </div>
+              <div className="flex items-center">
+                <History className="w-3 h-3 mr-1" />
+                <span>{t("common.lastUpdated")}: {formattedUpdatedDate}</span>
+              </div>
+            </div>
           </div>
 
           {/* Action Buttons */}
