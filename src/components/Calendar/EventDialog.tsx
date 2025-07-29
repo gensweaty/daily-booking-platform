@@ -542,12 +542,20 @@ export const EventDialog = ({
       let result;
       if (eventId || initialData) {
         let actualEventId = eventId || initialData?.id;
+        
+        // Enhanced logic for determining the correct event ID to update
         if (isVirtualEvent && eventId) {
+          // For virtual instances, always update the parent event
           actualEventId = getParentEventId(eventId);
           console.log('🔄 Virtual instance update - using parent ID:', actualEventId);
         } else if (initialData?.parent_event_id) {
+          // For child instances, update the parent event
           actualEventId = initialData.parent_event_id;
           console.log('🔄 Child instance update - using parent ID:', actualEventId);
+        } else if (initialData?.is_recurring && !initialData?.parent_event_id) {
+          // This is already the parent event
+          actualEventId = initialData.id;
+          console.log('🔄 Parent event update - using own ID:', actualEventId);
         }
 
         result = await supabase.rpc('save_event_with_persons', {
