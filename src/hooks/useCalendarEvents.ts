@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -6,7 +5,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getUnifiedCalendarEvents, deleteCalendarEvent, clearCalendarCache } from '@/services/calendarService';
 import { useEffect } from 'react';
-import { isVirtualInstance, getParentEventId } from '@/lib/recurringEvents';
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string) => {
   const { user } = useAuth();
@@ -248,16 +246,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("[useCalendarEvents] Updating event with data:", eventData);
 
-      // Check if this is a virtual instance (part of a recurring series)
-      const isVirtual = isVirtualInstance(eventData.id);
-      let actualEventId = eventData.id;
-      
-      if (isVirtual) {
-        // Get the parent event ID for virtual instances
-        actualEventId = getParentEventId(eventData.id);
-        console.log("[useCalendarEvents] Virtual instance detected, updating parent event:", actualEventId);
-      }
-
       // Check if this is a booking_request (type === 'booking_request') or regular event
       if (eventData.type === 'booking_request') {
         // Update booking_request table
@@ -274,7 +262,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             payment_status: eventData.payment_status || 'not_paid',
             payment_amount: eventData.payment_amount || null,
           })
-          .eq('id', actualEventId);
+          .eq('id', eventData.id);
 
         if (error) throw error;
 
@@ -285,7 +273,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           title: eventData.user_surname || eventData.title || 'Untitled Event',
         } as CalendarEventType;
       } else {
-        // For recurring events, we need to update the parent event which will affect all instances
+        // Update regular event using the existing RPC function
         const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
           p_event_data: {
             title: eventData.user_surname || eventData.title,
@@ -293,7 +281,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             user_number: eventData.user_number,
             social_network_link: eventData.social_network_link,
             event_notes: eventData.event_notes,
-            event_name: eventData.event_name, // This will be applied to all instances
+            event_name: eventData.event_name,
             start_date: eventData.start_date,
             end_date: eventData.end_date,
             payment_status: eventData.payment_status || 'not_paid',
@@ -305,7 +293,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           },
           p_additional_persons: [],
           p_user_id: user.id,
-          p_event_id: actualEventId // Use the actual parent event ID
+          p_event_id: eventData.id
         });
 
         if (error) throw error;

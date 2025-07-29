@@ -542,39 +542,12 @@ export const EventDialog = ({
       let result;
       if (eventId || initialData) {
         let actualEventId = eventId || initialData?.id;
-        
-        // Enhanced logic for determining the correct event ID to update
         if (isVirtualEvent && eventId) {
-          // For virtual instances, always update the parent event
           actualEventId = getParentEventId(eventId);
           console.log('🔄 Virtual instance update - using parent ID:', actualEventId);
         } else if (initialData?.parent_event_id) {
-          // For child instances, update the parent event
           actualEventId = initialData.parent_event_id;
           console.log('🔄 Child instance update - using parent ID:', actualEventId);
-        } else if (initialData?.is_recurring && !initialData?.parent_event_id) {
-          // This is already the parent event
-          actualEventId = initialData.id;
-          console.log('🔄 Parent event update - using own ID:', actualEventId);
-        }
-
-        // For recurring events, we need to handle child instances specially
-        if (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) {
-          console.log('🔄 Updating recurring event series, deleting child instances first');
-          
-          // First, delete all existing child instances of this recurring series
-          const { error: deleteError } = await supabase
-            .from('events')
-            .delete()
-            .eq('parent_event_id', actualEventId)
-            .neq('id', actualEventId);
-
-          if (deleteError) {
-            console.error('Error deleting child instances:', deleteError);
-            // Don't throw here, just log - we'll proceed with the update
-          } else {
-            console.log('✅ Deleted existing child instances for recurring series');
-          }
         }
 
         result = await supabase.rpc('save_event_with_persons', {
