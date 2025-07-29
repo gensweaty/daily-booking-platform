@@ -558,40 +558,71 @@ export const EventDialog = ({
       }
     }
 
-    // **FIXED: Enhanced conflict checking to properly handle virtual instances**
+    // **ENHANCED: More comprehensive conflict checking for recurring events**
     const newStartTime = new Date(localDateTimeToISOString(startDate));
     const newEndTime = new Date(localDateTimeToISOString(endDate));
 
     // Get existing events from React Query cache
     const existingEvents = queryClient.getQueryData<CalendarEventType[]>(['events', user.id]) || [];
     
-    // **CRITICAL FIX: Determine the actual event ID to exclude from conflict checking**
-    let actualEventIdToExclude = eventId || initialData?.id;
+    // **CRITICAL FIX: Determine all event IDs to exclude from conflict checking**
+    let eventIdsToExclude: string[] = [];
+    let parentEventId: string | null = null;
     
-    // For virtual instances, we need to exclude the parent event from conflict checking
+    // For virtual instances, we need to exclude the entire recurring series
     if (isVirtualEvent && eventId) {
-      actualEventIdToExclude = getParentEventId(eventId);
-      console.log('🔄 Virtual instance conflict check - excluding parent ID:', actualEventIdToExclude);
+      parentEventId = getParentEventId(eventId);
+      eventIdsToExclude.push(parentEventId);
+      console.log('🔄 Virtual instance conflict check - excluding parent ID:', parentEventId);
     } else if (initialData?.parent_event_id) {
-      actualEventIdToExclude = initialData.parent_event_id;
-      console.log('🔄 Child instance conflict check - excluding parent ID:', actualEventIdToExclude);
+      parentEventId = initialData.parent_event_id;
+      eventIdsToExclude.push(parentEventId);
+      console.log('🔄 Child instance conflict check - excluding parent ID:', parentEventId);
+    } else if (eventId || initialData?.id) {
+      // For regular events or parent recurring events, exclude the event itself
+      const currentEventId = eventId || initialData?.id;
+      eventIdsToExclude.push(currentEventId);
+      parentEventId = currentEventId;
+      console.log('🔄 Regular event conflict check - excluding event ID:', currentEventId);
     }
 
-    console.log('🔍 Conflict checking details:', {
+    // **NEW: If this is a recurring event, exclude all instances of the same series**
+    if (parentEventId && (isRecurringEvent || initialData?.is_recurring)) {
+      // Find all virtual instances that belong to this series
+      const seriesInstances = existingEvents.filter(event => {
+        // Check if event is a virtual instance of the same parent
+        if (isVirtualInstance(event.id)) {
+          return getParentEventId(event.id) === parentEventId;
+        }
+        // Check if event has the same parent_event_id
+        return event.parent_event_id === parentEventId || event.id === parentEventId;
+      });
+      
+      seriesInstances.forEach(instance => {
+        if (!eventIdsToExclude.includes(instance.id)) {
+          eventIdsToExclude.push(instance.id);
+        }
+      });
+      
+      console.log('🔄 Recurring series conflict check - excluding all series instances:', eventIdsToExclude);
+    }
+
+    console.log('🔍 Enhanced conflict checking details:', {
       eventId,
       initialDataId: initialData?.id,
-      actualEventIdToExclude,
+      eventIdsToExclude,
       isVirtualEvent,
-      parentEventId: initialData?.parent_event_id,
+      isRecurringEvent,
+      parentEventId,
       newStartTime: newStartTime.toISOString(),
       newEndTime: newEndTime.toISOString()
     });
     
     // Check for conflicts with existing events
     const conflictingEvent = existingEvents.find(event => {
-      // Skip checking against the current event when editing (using the actual event ID)
-      if (actualEventIdToExclude && event.id === actualEventIdToExclude) {
-        console.log('⏭️ Skipping conflict check with current event:', event.id);
+      // Skip checking against any event in the exclusion list
+      if (eventIdsToExclude.includes(event.id)) {
+        console.log('⏭️ Skipping conflict check with excluded event:', event.id);
         return false;
       }
       
@@ -630,8 +661,8 @@ export const EventDialog = ({
       
       for (const occurrence of occurrences) {
         const conflictingEventInOccurrence = existingEvents.find(event => {
-          // Skip checking against the current event when editing (using the actual event ID)
-          if (actualEventIdToExclude && event.id === actualEventIdToExclude) {
+          // Skip checking against any event in the exclusion list
+          if (eventIdsToExclude.includes(event.id)) {
             return false;
           }
           
