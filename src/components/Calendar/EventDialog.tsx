@@ -558,26 +558,62 @@ export const EventDialog = ({
       }
     }
 
-    // **NEW: Add conflict checking before submission**
+    // **FIXED: Enhanced conflict checking to properly handle virtual instances**
     const newStartTime = new Date(localDateTimeToISOString(startDate));
     const newEndTime = new Date(localDateTimeToISOString(endDate));
 
     // Get existing events from React Query cache
     const existingEvents = queryClient.getQueryData<CalendarEventType[]>(['events', user.id]) || [];
     
+    // **CRITICAL FIX: Determine the actual event ID to exclude from conflict checking**
+    let actualEventIdToExclude = eventId || initialData?.id;
+    
+    // For virtual instances, we need to exclude the parent event from conflict checking
+    if (isVirtualEvent && eventId) {
+      actualEventIdToExclude = getParentEventId(eventId);
+      console.log('🔄 Virtual instance conflict check - excluding parent ID:', actualEventIdToExclude);
+    } else if (initialData?.parent_event_id) {
+      actualEventIdToExclude = initialData.parent_event_id;
+      console.log('🔄 Child instance conflict check - excluding parent ID:', actualEventIdToExclude);
+    }
+
+    console.log('🔍 Conflict checking details:', {
+      eventId,
+      initialDataId: initialData?.id,
+      actualEventIdToExclude,
+      isVirtualEvent,
+      parentEventId: initialData?.parent_event_id,
+      newStartTime: newStartTime.toISOString(),
+      newEndTime: newEndTime.toISOString()
+    });
+    
     // Check for conflicts with existing events
     const conflictingEvent = existingEvents.find(event => {
-      // Skip checking against the current event when editing
-      if (eventId && event.id === eventId) return false;
-      if (initialData && event.id === initialData.id) return false;
+      // Skip checking against the current event when editing (using the actual event ID)
+      if (actualEventIdToExclude && event.id === actualEventIdToExclude) {
+        console.log('⏭️ Skipping conflict check with current event:', event.id);
+        return false;
+      }
       
       const eventStart = new Date(event.start_date);
       const eventEnd = new Date(event.end_date);
       
-      return timeRangesOverlap(newStartTime, newEndTime, eventStart, eventEnd);
+      const hasConflict = timeRangesOverlap(newStartTime, newEndTime, eventStart, eventEnd);
+      
+      if (hasConflict) {
+        console.log('⚠️ Conflict detected with event:', {
+          conflictingEventId: event.id,
+          conflictingEventTitle: event.title,
+          conflictingEventStart: eventStart.toISOString(),
+          conflictingEventEnd: eventEnd.toISOString()
+        });
+      }
+      
+      return hasConflict;
     });
 
     if (conflictingEvent) {
+      console.log('❌ Time conflict detected, blocking submission');
       toast({
         variant: "destructive",
         translateKeys: {
@@ -594,9 +630,10 @@ export const EventDialog = ({
       
       for (const occurrence of occurrences) {
         const conflictingEventInOccurrence = existingEvents.find(event => {
-          // Skip checking against the current event when editing
-          if (eventId && event.id === eventId) return false;
-          if (initialData && event.id === initialData.id) return false;
+          // Skip checking against the current event when editing (using the actual event ID)
+          if (actualEventIdToExclude && event.id === actualEventIdToExclude) {
+            return false;
+          }
           
           const eventStart = new Date(event.start_date);
           const eventEnd = new Date(event.end_date);
@@ -605,6 +642,7 @@ export const EventDialog = ({
         });
 
         if (conflictingEventInOccurrence) {
+          console.log('❌ Recurring event conflict detected, blocking submission');
           toast({
             variant: "destructive",
             translateKeys: {
