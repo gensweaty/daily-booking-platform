@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -101,36 +100,22 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         })
       );
 
-      // For customers created from approved bookings (with create_event: true), get their files from event_files
+      // For customers created from approved bookings (with create_event: true and event_id), get their files from event_files
       const eventCustomersWithFiles = await Promise.all(
         (eventLinkedCustomers || []).map(async (customer) => {
-          if (customer.create_event) {
-            // Find the corresponding event that was created from this customer's booking
-            const { data: correspondingEvent, error: eventError } = await supabase
-              .from('events')
-              .select('id')
-              .eq('user_id', userId)
-              .eq('title', customer.title)
-              .eq('user_surname', customer.user_surname)
-              .eq('start_date', customer.start_date)
-              .is('deleted_at', null)
-              .limit(1)
-              .single();
+          if (customer.create_event && customer.event_id) {
+            // Fetch files from event_files using the stored event_id
+            const { data: eventFiles, error: filesError } = await supabase
+              .from('event_files')
+              .select('*')
+              .eq('event_id', customer.event_id);
 
-            if (!eventError && correspondingEvent) {
-              // Fetch files from event_files using the event ID
-              const { data: eventFiles, error: filesError } = await supabase
-                .from('event_files')
-                .select('*')
-                .eq('event_id', correspondingEvent.id);
-
-              if (!filesError && eventFiles && eventFiles.length > 0) {
-                console.log('Found files for customer created from booking:', customer.id, 'files:', eventFiles.length);
-                return {
-                  ...customer,
-                  customer_files_new: [...(customer.customer_files_new || []), ...eventFiles]
-                };
-              }
+            if (!filesError && eventFiles && eventFiles.length > 0) {
+              console.log('Found files for customer created from booking:', customer.id, 'files:', eventFiles.length);
+              return {
+                ...customer,
+                customer_files_new: [...(customer.customer_files_new || []), ...eventFiles]
+              };
             }
           }
           return customer;

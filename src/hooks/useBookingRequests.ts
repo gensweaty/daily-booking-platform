@@ -194,6 +194,7 @@ export const useBookingRequests = (businessId?: string) => {
           end_date: bookingToApprove.end_date,
           event_notes: bookingToApprove.description,
           type: 'customer',
+          event_id: bookingId,
           create_event: true
         }])
         .select()
@@ -261,11 +262,11 @@ export const useBookingRequests = (businessId?: string) => {
         if (businessError) {
           console.error("[useBookingRequests] Error fetching business profile:", businessError);
         } else if (businessProfile && bookingToApprove.requester_email) {
-          // Fix: Use the same name priority as UI - title first, then user_surname, then requester_name
-          const fullName = bookingToApprove.title || 
-                           bookingToApprove.user_surname || 
-                           bookingToApprove.requester_name || 
-                           'Customer';
+          // Fix: Use the exact priority order specified in the plan
+          const fullName = bookingToApprove.requester_name
+            || bookingToApprove.user_surname
+            || bookingToApprove.title
+            || 'Customer';
           
           console.log("[useBookingRequests] Using full name for email:", fullName);
           
