@@ -1,3 +1,4 @@
+
 import { CalendarEventType } from "@/lib/types/calendar";
 import { addDays, addWeeks, addMonths, addYears, endOfYear, isBefore, format, getDay, startOfDay } from "date-fns";
 
@@ -140,6 +141,11 @@ export const generateRecurringInstances = (baseEvent: CalendarEventType): Calend
       id: `${baseEvent.id}-${format(currentDate, "yyyy-MM-dd")}`, // Virtual ID
       start_date: currentDate.toISOString(),
       end_date: instanceEndDate.toISOString(),
+      // Make sure event_name is inherited from parent event
+      event_name: baseEvent.event_name,
+      title: baseEvent.event_name && baseEvent.event_name.trim() !== '' 
+        ? baseEvent.event_name 
+        : baseEvent.title,
       // Mark as virtual instance for special handling
       parent_event_id: baseEvent.id,
     };
