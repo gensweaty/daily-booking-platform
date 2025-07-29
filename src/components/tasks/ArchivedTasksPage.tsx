@@ -224,9 +224,8 @@ export const ArchivedTasksPage = () => {
               task={selectedTask}
               isOpen={!!selectedTask}
               onClose={() => setSelectedTask(null)}
-              onDelete={handleDelete}
-              onEdit={() => {}}
-              onArchive={handleRestore}
+              onRestore={() => handleRestore(selectedTask.id)}
+              isArchived={true}
             />
           </DialogContent>
         </Dialog>
