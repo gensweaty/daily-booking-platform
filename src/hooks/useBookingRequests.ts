@@ -49,7 +49,7 @@ export const useBookingRequests = () => {
       // FRONTEND CONFLICT CHECK - Get existing events and bookings
       const { data: existingEvents, error: eventsError } = await supabase
         .from('events')
-        .select('id, title, start_date, end_date, user_id, type, deleted_at, user_surname')
+        .select('id, title, start_date, end_date, user_id, type, deleted_at, user_surname, created_at, updated_at')
         .eq('user_id', bookingRequest.user_id)
         .is('deleted_at', null);
 
