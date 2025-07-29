@@ -4,6 +4,7 @@ import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { isVirtualInstance } from "@/lib/recurringEvents";
+import { supabase } from "@/integrations/supabase/client";
 
 interface UseEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
@@ -21,6 +22,41 @@ export const useEventDialog = ({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
   const { language } = useLanguage();
+
+  // Helper function to check for time conflicts
+  const checkTimeConflicts = async (
+    startDate: string,
+    endDate: string,
+    userId: string,
+    excludeEventId?: string
+  ) => {
+    try {
+      // Get user's business profile to check booking conflicts too
+      const { data: businessProfile } = await supabase
+        .from('business_profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
+      const { data: conflicts, error } = await supabase.rpc('check_time_overlap', {
+        p_user_id: userId,
+        p_start_date: startDate,
+        p_end_date: endDate,
+        p_exclude_event_id: excludeEventId || null,
+        p_business_id: businessProfile?.id || null
+      });
+
+      if (error) {
+        console.error('Error checking time conflicts:', error);
+        return [];
+      }
+
+      return conflicts || [];
+    } catch (error) {
+      console.error('Error in checkTimeConflicts:', error);
+      return [];
+    }
+  };
 
   // Helper function to format error messages for better user experience
   const formatErrorMessage = (error: any): string => {
@@ -51,6 +87,28 @@ export const useEventDialog = ({
       console.log("Creating event with language:", eventData.language);
       
       if (!createEvent) throw new Error("Create event function not provided");
+      
+      // Check for time conflicts before creating
+      if (eventData.start_date && eventData.end_date) {
+        const conflicts = await checkTimeConflicts(
+          eventData.start_date,
+          eventData.end_date,
+          eventData.user_id || ''
+        );
+        
+        if (conflicts.length > 0) {
+          const conflictMessage = `Time conflict detected with existing events: ${conflicts.map(c => 
+            `"${c.event_title}" (${new Date(c.event_start).toLocaleString()} - ${new Date(c.event_end).toLocaleString()})`
+          ).join(', ')}`;
+          
+          toast({
+            title: "Time Conflict",
+            description: conflictMessage,
+            variant: "destructive",
+          });
+          throw new Error(conflictMessage);
+        }
+      }
       
       console.log("Creating event with data:", eventData);
       const createdEvent = await createEvent(eventData);
@@ -86,6 +144,30 @@ export const useEventDialog = ({
       };
       
       console.log("Updating event with language:", eventData.language);
+      
+      // Check for time conflicts before updating (exclude current event)
+      if (eventData.start_date && eventData.end_date) {
+        const conflicts = await checkTimeConflicts(
+          eventData.start_date,
+          eventData.end_date,
+          selectedEvent.user_id,
+          selectedEvent.id
+        );
+        
+        if (conflicts.length > 0) {
+          const conflictMessage = `Time conflict detected with existing events: ${conflicts.map(c => 
+            `"${c.event_title}" (${new Date(c.event_start).toLocaleString()} - ${new Date(c.event_end).toLocaleString()})`
+          ).join(', ')}`;
+          
+          toast({
+            title: "Time Conflict",
+            description: conflictMessage,
+            variant: "destructive",
+          });
+          throw new Error(conflictMessage);
+        }
+      }
+      
       console.log("Updating event with data:", eventData);
       
       const updatedEvent = await updateEvent({
