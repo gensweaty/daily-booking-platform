@@ -32,7 +32,6 @@ interface BookingRequest {
   file_path?: string;
   filename?: string;
   content_type?: string;
-  size?: number;
 }
 
 interface BookingRequestsListProps {
@@ -66,7 +65,7 @@ const useBookingRequestFiles = (bookingId: string) => {
       // Also check if there are files directly in booking_requests table
       const { data: bookingData, error: bookingError } = await supabase
         .from('booking_requests')
-        .select('file_path, filename, content_type, size')
+        .select('file_path, filename, content_type')
         .eq('id', bookingId)
         .single();
 
@@ -99,7 +98,7 @@ const useBookingRequestFiles = (bookingId: string) => {
           filename: bookingData.filename,
           file_path: bookingData.file_path,
           content_type: bookingData.content_type || 'application/octet-stream',
-          size: bookingData.size || 0,
+          size: 0,
           created_at: new Date().toISOString(),
           user_id: '',
           source: 'booking_request'
@@ -204,7 +203,6 @@ const BookingRequestRow: React.FC<{
             bucketName={files[0]?.source === 'booking_request' ? 'booking_attachments' : 'event_attachments'}
             allowDelete={false}
             parentType="booking"
-            showDownloadOnly={true}
           />
         ) : (
           <span className="text-muted-foreground">-</span>

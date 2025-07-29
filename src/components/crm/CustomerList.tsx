@@ -99,7 +99,7 @@ const useCustomerFiles = (customer: Customer) => {
         if (customer.source === 'booking_request') {
           const { data: bookingData, error: bookingError } = await supabase
             .from('booking_requests')
-            .select('file_path, filename, content_type, size')
+            .select('file_path, filename, content_type')
             .eq('id', eventId)
             .single();
 
@@ -111,7 +111,7 @@ const useCustomerFiles = (customer: Customer) => {
               filename: bookingData.filename,
               file_path: bookingData.file_path,
               content_type: bookingData.content_type || 'application/octet-stream',
-              size: bookingData.size || 0,
+              size: 0,
               created_at: customer.created_at,
               user_id: customer.user_id,
               source: 'booking_request'
@@ -277,7 +277,6 @@ const CustomerRow: React.FC<{
             bucketName={getBucketName(files)}
             allowDelete={false}
             parentType="customer"
-            showDownloadOnly={true}
           />
         ) : (
           <span className="text-muted-foreground">-</span>
@@ -436,7 +435,8 @@ export const CustomerList: React.FC<CustomerListProps> = ({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <SearchCommand 
-          onSearchChange={setSearchTerm}
+          value={searchTerm}
+          onChange={setSearchTerm}
         />
         
         <Button onClick={handleAddCustomer} className="flex items-center gap-2">
@@ -502,8 +502,8 @@ export const CustomerList: React.FC<CustomerListProps> = ({
 
       {(editingCustomer || isAddingCustomer) && (
         <CustomerDialog
-          isOpen={true}
-          onClose={handleCloseDialog}
+          open={true}
+          onOpenChange={handleCloseDialog}
         />
       )}
     </div>
