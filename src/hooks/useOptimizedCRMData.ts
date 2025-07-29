@@ -122,40 +122,21 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
           return cust;
         });
 
-        // Fetch files for customers that originated from booking requests (approved requests)
-        const bookingCustIds = processedCustomers.filter(c => c.type === 'booking_request').map(c => c.id);
-        if (bookingCustIds.length) {
-          const { data: eventsMatch, error: matchErr } = await supabase
-            .from('events')
-            .select('id, booking_request_id')
-            .in('booking_request_id', bookingCustIds);
-          
-          if (!matchErr && eventsMatch?.length) {
-            const eventIds = eventsMatch.map(evt => evt.id);
-            const { data: eventFiles, error: filesErr } = await supabase
-              .from('event_files')
-              .select('*')
-              .in('event_id', eventIds);
-            
-            if (!filesErr && eventFiles) {
-              // Group files by the booking_request (customer) ID
-              const filesByRequest = new Map<string, any[]>();
-              for (const evt of eventsMatch) filesByRequest.set(evt.booking_request_id, []);
-              for (const file of eventFiles) {
-                const evt = eventsMatch.find(e => e.id === file.event_id);
-                if (evt && filesByRequest.has(evt.booking_request_id)) {
-                  const list = filesByRequest.get(evt.booking_request_id)!;
-                  if (!list.find(f => f.file_path === file.file_path)) {
-                    list.push(file);
-                  }
-                }
-              }
-              
-              // Attach files to the corresponding customer entries
-              processedCustomers = processedCustomers.map(cust => ({
-                ...cust,
-                customer_files_new: filesByRequest.get(cust.id) ?? []
-              }));
+        // After fetching customers, add files for booking request customers
+        const bookingRequestCustomers = processedCustomers.filter(
+          c => c.type === 'booking_request' || c.create_event
+        );
+
+        if (bookingRequestCustomers.length > 0) {
+          const ids = bookingRequestCustomers.map(c => c.id);
+          const { data: files, error } = await supabase
+            .from('event_files')
+            .select('*')
+            .in('event_id', ids);
+
+          if (!error && files) {
+            for (const cust of bookingRequestCustomers) {
+              cust.customer_files_new = files.filter(f => f.event_id === cust.id);
             }
           }
         }

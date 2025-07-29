@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, associateBookingFilesWithEvent } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -265,10 +264,14 @@ export const useBookingRequests = (businessId?: string) => {
         if (businessError) {
           console.error("[useBookingRequests] Error fetching business profile:", businessError);
         } else if (businessProfile && bookingToApprove.requester_email) {
-          // Use full name in greeting if available, otherwise fallback to any provided name
-          const fullName = bookingToApprove.requester_name && bookingToApprove.user_surname 
-            ? `${bookingToApprove.requester_name} ${bookingToApprove.user_surname}` 
-            : (bookingToApprove.requester_name || bookingToApprove.user_surname || bookingToApprove.title || 'Customer');
+          // Use exact logic specified for full name construction
+          const fullName = bookingToApprove.requester_name
+            ? bookingToApprove.requester_name
+            : bookingToApprove.user_surname
+              ? bookingToApprove.user_surname
+              : bookingToApprove.title
+                ? bookingToApprove.title
+                : 'Customer';
           
           console.log("[useBookingRequests] Using full name for email:", fullName);
           
