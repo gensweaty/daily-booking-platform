@@ -427,7 +427,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
     gcTime: 15 * 60 * 1000,
   });
 
-  // Fixed customer stats query to count unique customers properly and avoid double counting
+  // Fixed customer stats query to properly count all customers including CRM-only ones
   const { data: customerStats, isLoading: isLoadingCustomerStats } = useQuery({
     queryKey: ['optimized-customer-stats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async (): Promise<OptimizedCustomerStats> => {
@@ -513,15 +513,14 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         });
       }
 
-      // Get standalone CRM customers (not associated with events) created in the date range
+      // **FIXED: Get ALL standalone CRM customers (not just those created in date range)**
+      // This ensures customers added from CRM are always counted regardless of when they were created
       const { data: standaloneCrmCustomers, error: standaloneCrmError } = await supabase
         .from('customers')
         .select('*')
         .eq('user_id', userId)
-        .neq('type', 'customer') // These are standalone customers
+        .or('type.neq.customer,type.is.null') // Get customers that are NOT additional persons
         .is('event_id', null) // Not associated with events
-        .gte('created_at', startDateStr)
-        .lte('created_at', endDateStr)
         .is('deleted_at', null);
 
       if (standaloneCrmError) {
