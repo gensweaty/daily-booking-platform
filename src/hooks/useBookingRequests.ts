@@ -5,7 +5,6 @@ import { useToast } from '@/hooks/use-toast';
 import { BookingRequest } from '@/types/database';
 import { CalendarEventType } from '@/lib/types/calendar';
 import { sendBookingConfirmationEmail } from '@/lib/api';
-import { associateBookingFilesWithEvent } from '@/integrations/supabase/client';
 
 // Helper function to check if two time ranges overlap
 const timeRangesOverlap = (start1: Date, end1: Date, start2: Date, end2: Date): boolean => {
@@ -237,17 +236,7 @@ export const useBookingRequests = (businessId?: string) => {
 
       console.log("[useBookingRequests] Calendar event created:", newEvent.id);
 
-      // Step 4: Copy all attached files from booking request to the new event
-      try {
-        console.log("[useBookingRequests] Copying files from booking to event:", bookingId);
-        const copiedFiles = await associateBookingFilesWithEvent(bookingId, bookingId, user.id);
-        console.log("[useBookingRequests] Files copied successfully:", copiedFiles.length, "files");
-      } catch (fileError) {
-        console.error("[useBookingRequests] Error copying files:", fileError);
-        // Don't fail the approval process if file copying fails
-      }
-
-      // Step 5: Send confirmation email with properly constructed full name
+      // Step 4: Send confirmation email with properly constructed full name
       try {
         console.log("[useBookingRequests] Sending approval email for booking:", bookingId);
         
@@ -260,11 +249,8 @@ export const useBookingRequests = (businessId?: string) => {
         if (businessError) {
           console.error("[useBookingRequests] Error fetching business profile:", businessError);
         } else if (businessProfile && bookingToApprove.requester_email) {
-          // Construct full name properly - filter out falsy values and join
-          const fullName = [bookingToApprove.title, bookingToApprove.requester_name]
-            .filter(Boolean)
-            .join(" ")
-            .trim() || bookingToApprove.requester_name || bookingToApprove.title || "Customer";
+          // Use only the requester's name, no title concatenation
+          const fullName = bookingToApprove.requester_name || bookingToApprove.title || "Customer";
           
           await sendBookingConfirmationEmail(
             bookingToApprove.requester_email,
