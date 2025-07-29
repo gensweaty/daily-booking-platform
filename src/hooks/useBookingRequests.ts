@@ -1,3 +1,4 @@
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -84,8 +85,10 @@ export const useBookingRequests = () => {
       const transformedEvents = (existingEvents || []).map(event => ({
         ...event,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }));
+        updated_at: new Date().toISOString(),
+        user_id: event.user_id,
+        type: event.type || 'event'
+      } as CalendarEventType));
 
       const transformedBookings = (existingBookings || []).map(booking => ({
         id: booking.id,
@@ -115,10 +118,8 @@ export const useBookingRequests = () => {
           ...bookingConflicts.conflicts
         ];
         
-        toast({
-          title: "Schedule Conflict",
+        toast("Schedule Conflict", {
           description: `Cannot approve booking: conflicts with ${allConflicts.length} existing event(s). Please resolve conflicts first.`,
-          variant: "destructive",
         });
         
         throw new Error(`Schedule conflicts detected with ${allConflicts.length} existing event(s)`);
@@ -144,17 +145,14 @@ export const useBookingRequests = () => {
       return data;
     },
     onSuccess: (data) => {
-      toast({
-        title: "Booking Request Approved",
+      toast("Booking Request Approved", {
         description: "The booking request has been successfully approved.",
       });
       queryClient.invalidateQueries({ queryKey: ['booking-requests'] });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error Approving Booking Request",
+      toast("Error Approving Booking Request", {
         description: error.message || "Failed to approve the booking request.",
-        variant: "destructive",
       });
     },
   });
@@ -176,17 +174,14 @@ export const useBookingRequests = () => {
       return data;
     },
     onSuccess: () => {
-      toast({
-        title: "Booking Request Rejected",
+      toast("Booking Request Rejected", {
         description: "The booking request has been successfully rejected.",
       });
       queryClient.invalidateQueries({ queryKey: ['booking-requests'] });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error Rejecting Booking Request",
+      toast("Error Rejecting Booking Request", {
         description: error.message || "Failed to reject the booking request.",
-        variant: "destructive",
       });
     },
   });
@@ -206,17 +201,14 @@ export const useBookingRequests = () => {
       return data;
     },
     onSuccess: () => {
-      toast({
-        title: "Booking Request Deleted",
+      toast("Booking Request Deleted", {
         description: "The booking request has been successfully deleted.",
       });
       queryClient.invalidateQueries({ queryKey: ['booking-requests'] });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error Deleting Booking Request",
+      toast("Error Deleting Booking Request", {
         description: error.message || "Failed to delete the booking request.",
-        variant: "destructive",
       });
     },
   });
@@ -239,6 +231,12 @@ export const useBookingRequests = () => {
     },
   });
 
+  // Add derived properties for backward compatibility
+  const allRequests = query.data || [];
+  const pendingRequests = allRequests.filter(req => req.status === 'pending');
+  const rejectedRequests = allRequests.filter(req => req.status === 'rejected');
+  const bookingRequests = allRequests; // alias for compatibility
+
   return {
     data: query.data,
     isLoading: query.isLoading,
@@ -247,10 +245,19 @@ export const useBookingRequests = () => {
     approveBookingRequest: approveMutation.mutateAsync,
     rejectBookingRequest: rejectMutation.mutateAsync,
     cancelBookingRequest: cancelMutation.mutateAsync,
-    isApproving: approveMutation.isLoading,
-    isRejecting: rejectMutation.isLoading,
-    isCanceling: cancelMutation.isLoading,
+    isApproving: approveMutation.isPending,
+    isRejecting: rejectMutation.isPending,
+    isCanceling: cancelMutation.isPending,
     approvedRequests: approvedRequestsQuery.data || [],
     isFetchingApprovedRequests: approvedRequestsQuery.isLoading,
+    
+    // Add compatibility properties
+    bookingRequests,
+    pendingRequests,
+    rejectedRequests,
+    approveRequest: approveMutation.mutateAsync,
+    rejectRequest: rejectMutation.mutateAsync,
+    deleteBookingRequest: cancelMutation.mutateAsync,
+    refetch: query.refetch,
   };
 };
