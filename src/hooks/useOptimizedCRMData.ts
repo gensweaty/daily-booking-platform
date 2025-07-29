@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -29,7 +28,6 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
           create_event,
           created_at,
           type,
-          event_id,
           customer_files_new!inner(count)
         `)
         .eq('user_id', userId)
@@ -99,11 +97,10 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
           create_event,
           created_at,
           type,
-          event_id,
           customer_files_new!inner(count)
         `)
         .eq('user_id', userId)
-        .eq('type', 'booking_request')
+        .eq('type', 'customer')
         .gte('created_at', startDateStr)
         .lte('created_at', endDateStr)
         .is('deleted_at', null)
@@ -126,38 +123,40 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         });
 
         // Fetch files for customers that originated from booking requests (approved requests)
-        const bookingCustIds = processedCustomers.filter(c => c.type === 'booking_request' && c.event_id).map(c => c.event_id);
+        const bookingCustIds = processedCustomers.filter(c => c.type === 'booking_request').map(c => c.id);
         if (bookingCustIds.length) {
-          console.log('Fetching files for booking customers with event_ids:', bookingCustIds);
+          const { data: eventsMatch, error: matchErr } = await supabase
+            .from('events')
+            .select('id, booking_request_id')
+            .in('booking_request_id', bookingCustIds);
           
-          const { data: eventFiles, error: filesErr } = await supabase
-            .from('event_files')
-            .select('*')
-            .in('event_id', bookingCustIds);
-          
-          if (!filesErr && eventFiles) {
-            console.log('Found event files for booking customers:', eventFiles.length);
+          if (!matchErr && eventsMatch?.length) {
+            const eventIds = eventsMatch.map(evt => evt.id);
+            const { data: eventFiles, error: filesErr } = await supabase
+              .from('event_files')
+              .select('*')
+              .in('event_id', eventIds);
             
-            // Group files by the event_id (which matches customer.event_id)
-            const filesByEventId = new Map<string, any[]>();
-            for (const file of eventFiles) {
-              if (!filesByEventId.has(file.event_id)) {
-                filesByEventId.set(file.event_id, []);
+            if (!filesErr && eventFiles) {
+              // Group files by the booking_request (customer) ID
+              const filesByRequest = new Map<string, any[]>();
+              for (const evt of eventsMatch) filesByRequest.set(evt.booking_request_id, []);
+              for (const file of eventFiles) {
+                const evt = eventsMatch.find(e => e.id === file.event_id);
+                if (evt && filesByRequest.has(evt.booking_request_id)) {
+                  const list = filesByRequest.get(evt.booking_request_id)!;
+                  if (!list.find(f => f.file_path === file.file_path)) {
+                    list.push(file);
+                  }
+                }
               }
-              filesByEventId.get(file.event_id)!.push(file);
+              
+              // Attach files to the corresponding customer entries
+              processedCustomers = processedCustomers.map(cust => ({
+                ...cust,
+                customer_files_new: filesByRequest.get(cust.id) ?? []
+              }));
             }
-            
-            // Attach files to the corresponding customer entries
-            processedCustomers = processedCustomers.map(cust => {
-              if (cust.type === 'booking_request' && cust.event_id) {
-                const files = filesByEventId.get(cust.event_id) || [];
-                return {
-                  ...cust,
-                  customer_files_new: files
-                };
-              }
-              return cust;
-            });
           }
         }
         
@@ -323,8 +322,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         bookingRequests: bookingRequests?.length || 0,
         eventLinkedCustomers: eventLinkedCustomers?.length || 0,
         totalUniqueCustomers: result.length,
-        dateRange: `${startDateStr} to ${endDateStr}`,
-        customersWithFiles: result.filter(r => r.customer_files_new?.length > 0).length
+        dateRange: `${startDateStr} to ${endDateStr}`
       });
 
       return result;
