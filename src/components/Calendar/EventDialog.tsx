@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ export const EventDialog = ({
   const [repeatPattern, setRepeatPattern] = useState(initialData?.repeat_pattern || '');
   const [repeatUntil, setRepeatUntil] = useState(initialData?.repeat_until || '');
   const [additionalPersons, setAdditionalPersons] = useState<any[]>([]);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
   const { user } = useAuth();
   const { t, language } = useLanguage();
@@ -228,11 +230,11 @@ export const EventDialog = ({
     }
   };
 
-  const handleDelete = async (deleteChoice?: "this" | "series") => {
+  const handleDeleteThis = async () => {
     setIsLoading(true);
     try {
       if (!initialData) throw new Error("No event selected");
-      await eventDialogHook.handleDeleteEvent(deleteChoice);
+      await eventDialogHook.handleDeleteEvent("this");
       toast.event.deleted();
       onEventDeleted?.();
       onOpenChange(false);
@@ -245,6 +247,28 @@ export const EventDialog = ({
       });
     } finally {
       setIsLoading(false);
+      setIsDeleteDialogOpen(false);
+    }
+  };
+
+  const handleDeleteSeries = async () => {
+    setIsLoading(true);
+    try {
+      if (!initialData) throw new Error("No event selected");
+      await eventDialogHook.handleDeleteEvent("series");
+      toast.event.seriesDeleted();
+      onEventDeleted?.();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error("Event deletion error:", error);
+      toast({
+        title: t("common.error"),
+        description: error.message || t("events.eventDeletionFailed"),
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      setIsDeleteDialogOpen(false);
     }
   };
 
@@ -312,7 +336,7 @@ export const EventDialog = ({
                 <Button
                   type="button"
                   variant="destructive"
-                  onClick={() => setDeleteDialogOpen(true)}
+                  onClick={() => setIsDeleteDialogOpen(true)}
                   disabled={isLoading}
                 >
                   {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">წაშლა</GeorgianAuthText> : <LanguageText>{t("common.delete")}</LanguageText>}
@@ -340,8 +364,11 @@ export const EventDialog = ({
       
       <RecurringDeleteDialog
         open={isDeleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        onDelete={handleDelete}
+        onOpenChange={setIsDeleteDialogOpen}
+        onDeleteThis={handleDeleteThis}
+        onDeleteSeries={handleDeleteSeries}
+        isRecurringEvent={initialData?.is_recurring || false}
+        isLoading={isLoading}
       />
     </>
   );
