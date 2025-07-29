@@ -12,6 +12,7 @@ import { sendEventCreationEmail } from "@/lib/api";
 import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
 import { deleteCalendarEvent, clearCalendarCache } from "@/services/calendarService";
 import { Clock, RefreshCcw } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface EventDialogProps {
   open: boolean;
@@ -23,6 +24,53 @@ interface EventDialogProps {
   onEventUpdated?: () => void;
   onEventDeleted?: () => void;
 }
+
+// Helper function to check if two time ranges overlap
+const timeRangesOverlap = (start1: Date, end1: Date, start2: Date, end2: Date): boolean => {
+  return start1 < end2 && end1 > start2;
+};
+
+// Helper function to generate recurring event occurrences for conflict checking
+const generateRecurringOccurrences = (startDate: Date, endDate: Date, repeatPattern: string, repeatUntil: string): Array<{ start: Date; end: Date }> => {
+  const occurrences = [];
+  const duration = endDate.getTime() - startDate.getTime();
+  const endLimit = new Date(repeatUntil);
+  let currentDate = new Date(startDate);
+
+  // Limit to prevent infinite loops - max 100 occurrences
+  let count = 0;
+  const maxOccurrences = 100;
+
+  while (currentDate <= endLimit && count < maxOccurrences) {
+    const occurrenceEnd = new Date(currentDate.getTime() + duration);
+    occurrences.push({
+      start: new Date(currentDate),
+      end: occurrenceEnd
+    });
+
+    // Calculate next occurrence based on pattern
+    switch (repeatPattern) {
+      case 'daily':
+        currentDate.setDate(currentDate.getDate() + 1);
+        break;
+      case 'weekly':
+        currentDate.setDate(currentDate.getDate() + 7);
+        break;
+      case 'monthly':
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        break;
+      case 'yearly':
+        currentDate.setFullYear(currentDate.getFullYear() + 1);
+        break;
+      default:
+        break;
+    }
+
+    count++;
+  }
+
+  return occurrences;
+};
 
 // Helper function to convert datetime-local input values to ISO string in local timezone
 const localDateTimeToISOString = (dtStr: string): string => {
@@ -56,6 +104,8 @@ export const EventDialog = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const { t, language } = useLanguage();
+  const queryClient = useQueryClient();
+  
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
   const [userNumber, setUserNumber] = useState("");
@@ -505,6 +555,65 @@ export const EventDialog = ({
           variant: "destructive"
         });
         return;
+      }
+    }
+
+    // **NEW: Add conflict checking before submission**
+    const newStartTime = new Date(localDateTimeToISOString(startDate));
+    const newEndTime = new Date(localDateTimeToISOString(endDate));
+
+    // Get existing events from React Query cache
+    const existingEvents = queryClient.getQueryData<CalendarEventType[]>(['events', user.id]) || [];
+    
+    // Check for conflicts with existing events
+    const conflictingEvent = existingEvents.find(event => {
+      // Skip checking against the current event when editing
+      if (eventId && event.id === eventId) return false;
+      if (initialData && event.id === initialData.id) return false;
+      
+      const eventStart = new Date(event.start_date);
+      const eventEnd = new Date(event.end_date);
+      
+      return timeRangesOverlap(newStartTime, newEndTime, eventStart, eventEnd);
+    });
+
+    if (conflictingEvent) {
+      toast({
+        variant: "destructive",
+        translateKeys: {
+          titleKey: "common.error",
+          descriptionKey: "events.timeConflictError"
+        }
+      });
+      return;
+    }
+
+    // If creating a recurring event, check all occurrences for conflicts
+    if (isRecurring && repeatPattern && repeatUntil) {
+      const occurrences = generateRecurringOccurrences(newStartTime, newEndTime, repeatPattern, repeatUntil);
+      
+      for (const occurrence of occurrences) {
+        const conflictingEventInOccurrence = existingEvents.find(event => {
+          // Skip checking against the current event when editing
+          if (eventId && event.id === eventId) return false;
+          if (initialData && event.id === initialData.id) return false;
+          
+          const eventStart = new Date(event.start_date);
+          const eventEnd = new Date(event.end_date);
+          
+          return timeRangesOverlap(occurrence.start, occurrence.end, eventStart, eventEnd);
+        });
+
+        if (conflictingEventInOccurrence) {
+          toast({
+            variant: "destructive",
+            translateKeys: {
+              titleKey: "common.error",
+              descriptionKey: "events.timeConflictError"
+            }
+          });
+          return;
+        }
       }
     }
 

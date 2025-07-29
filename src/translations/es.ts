@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -330,7 +329,8 @@ export const translations: TranslationType = {
     bookAppointment: "Reservar Cita",
     submitRequest: "Enviar Solicitud",
     deleteEventConfirmTitle: "¿Eliminar Evento?",
-    deleteEventConfirmMessage: "¿Está seguro de que desea eliminar este evento? Esta acción no se puede deshacer."
+    deleteEventConfirmMessage: "¿Está seguro de que desea eliminar este evento? Esta acción no se puede deshacer.",
+    timeConflictError: "Ya tienes un evento programado en este horario."
   },
   contact: {
     email: "Correo Electrónico",

@@ -1,4 +1,3 @@
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -330,7 +329,8 @@ export const translations: TranslationType = {
     bookAppointment: "Book Appointment",
     submitRequest: "Submit Request",
     deleteEventConfirmTitle: "Delete Event?",
-    deleteEventConfirmMessage: "Are you sure you want to delete this event? This action cannot be undone."
+    deleteEventConfirmMessage: "Are you sure you want to delete this event? This action cannot be undone.",
+    timeConflictError: "You already have an event scheduled during this time."
   },
   contact: {
     email: "Email",
