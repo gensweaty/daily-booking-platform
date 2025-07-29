@@ -5,6 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { BookingRequest, EventFile } from "@/types/database";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { checkTimeConflicts, checkBookingConflicts } from "@/utils/timeConflictChecker";
+import { useOptimizedCalendarEvents } from "@/hooks/useOptimizedCalendarEvents";
 
 export const useBookingRequests = () => {
   const { user } = useAuth();
@@ -265,29 +267,62 @@ export const useBookingRequests = () => {
         payment_status: booking.payment_status
       });
       
-      // Check for conflicts with existing events
-      const { data: conflictingEvents } = await supabase
-        .from('events')
-        .select('id, title')
-        .eq('user_id', user.id)
-        .filter('start_date', 'lt', booking.end_date)
-        .filter('end_date', 'gt', booking.start_date)
-        .is('deleted_at', null);
+      // FRONTEND CONFLICT CHECK - Query current calendar data
+      const currentDate = new Date(booking.start_date);
       
-      // Check for conflicts with other approved bookings
-      const { data: conflictingBookings } = await supabase
+      // Get calendar events for conflict checking
+      const { data: calendarData, error: calendarError } = await supabase
+        .from('events')
+        .select('id, title, start_date, end_date, user_id, type, deleted_at, user_surname')
+        .eq('user_id', user.id)
+        .is('deleted_at', null)
+        .gte('start_date', new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString())
+        .lte('start_date', new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString());
+
+      if (calendarError) {
+        console.error('Error fetching calendar data for conflict check:', calendarError);
+      }
+
+      // Get other approved booking requests for conflict checking
+      const { data: otherBookings, error: bookingsError } = await supabase
         .from('booking_requests')
-        .select('id, title')
+        .select('id, title, start_date, end_date, status, requester_name, deleted_at')
         .eq('business_id', businessId)
         .eq('status', 'approved')
         .not('id', 'eq', bookingId)
-        .filter('start_date', 'lt', booking.end_date)
-        .filter('end_date', 'gt', booking.start_date)
-        .is('deleted_at', null);
-      
-      if ((conflictingEvents && conflictingEvents.length > 0) || 
-          (conflictingBookings && conflictingBookings.length > 0)) {
-        throw new Error('Time slot is no longer available');
+        .is('deleted_at', null)
+        .gte('start_date', new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString())
+        .lte('start_date', new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString());
+
+      if (bookingsError) {
+        console.error('Error fetching booking data for conflict check:', bookingsError);
+      }
+
+      // Check for conflicts with existing events
+      const eventConflicts = checkTimeConflicts(
+        booking.start_date,
+        booking.end_date,
+        calendarData || [],
+        undefined // Don't exclude any events
+      );
+
+      // Check for conflicts with other approved bookings
+      const bookingConflicts = checkBookingConflicts(
+        booking.start_date,
+        booking.end_date,
+        otherBookings || [],
+        bookingId // Exclude current booking
+      );
+
+      // If conflicts found, throw error to prevent approval
+      if (eventConflicts.hasConflicts || bookingConflicts.hasConflicts) {
+        const allConflicts = [
+          ...eventConflicts.conflicts,
+          ...bookingConflicts.conflicts
+        ];
+        
+        const conflictTitles = allConflicts.map(c => c.title).join(', ');
+        throw new Error(`Time slot conflicts with existing events: ${conflictTitles}. Please resolve conflicts before approving.`);
       }
       
       // CRITICAL FIX: Only update booking status to approved, don't create event

@@ -1,832 +1,431 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CalendarEventType } from "@/lib/types/calendar";
-import { supabase } from "@/lib/supabase";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
-import { EventDialogFields } from "./EventDialogFields";
-import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
-import { useToast } from "@/hooks/use-toast";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { sendEventCreationEmail } from "@/lib/api";
-import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
-import { deleteCalendarEvent, clearCalendarCache } from "@/services/calendarService";
-import { Clock, RefreshCcw } from "lucide-react";
+import { CalendarEventType } from "@/lib/types/calendar";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { FileInput } from "@/components/ui/file-input";
+import { TimeConflictDialog } from "./TimeConflictDialog";
+import { checkTimeConflicts, checkBookingConflicts } from "@/utils/timeConflictChecker";
+import { useOptimizedCalendarEvents } from "@/hooks/useOptimizedCalendarEvents";
+import { useBookingRequests } from "@/hooks/useBookingRequests";
+
+const formSchema = z.object({
+  title: z.string().min(2, {
+    message: "Title must be at least 2 characters.",
+  }),
+  startDate: z.string().min(1, {
+    message: "Start date is required.",
+  }),
+  endDate: z.string().min(1, {
+    message: "End date is required.",
+  }),
+  userNumber: z.string().optional(),
+  socialNetworkLink: z.string().optional(),
+  eventNotes: z.string().optional(),
+  paymentStatus: z.string().optional(),
+  paymentAmount: z.string().optional(),
+  file: z.any().optional(),
+});
 
 interface EventDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  selectedDate?: Date;
-  eventId?: string;
-  initialData?: CalendarEventType;
-  onEventCreated?: () => void;
-  onEventUpdated?: () => void;
-  onEventDeleted?: () => void;
+  selectedEvent: CalendarEventType | null;
+  onClose: () => void;
+  isOpen: boolean;
+  selectedDate: Date | undefined;
+  onEventCreate?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType | void>;
+  onEventUpdate?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType | void>;
+  onEventDelete?: (id: string) => Promise<void>;
 }
 
-// Helper function to convert datetime-local input values to ISO string in local timezone
-const localDateTimeToISOString = (dtStr: string): string => {
-  if (!dtStr) return new Date().toISOString();
-  const [datePart, timePart] = dtStr.split('T');
-  const [year, month, day] = datePart.split('-').map(Number);
-  const [hour, minute] = timePart.split(':').map(Number);
-  // Create date in local timezone
-  const localDate = new Date(year, month - 1, day, hour, minute);
-  return localDate.toISOString();
-};
-
-// Helper function to convert ISO string from DB to datetime-local input format
-const isoToLocalDateTimeInput = (isoString: string): string => {
-  if (!isoString) return '';
-  const date = new Date(isoString);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
-
-export const EventDialog = ({
-  open,
-  onOpenChange,
+export const EventDialog = ({ 
+  selectedEvent, 
+  onClose, 
+  isOpen, 
   selectedDate,
-  eventId,
-  initialData,
-  onEventCreated,
-  onEventUpdated,
-  onEventDeleted
+  onEventCreate,
+  onEventUpdate,
+  onEventDelete
 }: EventDialogProps) => {
+  const [date, setDate] = useState<Date | undefined>(selectedDate);
   const { user } = useAuth();
-  const { toast } = useToast();
-  const { t, language } = useLanguage();
-  const [title, setTitle] = useState("");
-  const [userSurname, setUserSurname] = useState("");
-  const [userNumber, setUserNumber] = useState("");
-  const [socialNetworkLink, setSocialNetworkLink] = useState("");
-  const [eventNotes, setEventNotes] = useState("");
-  const [eventName, setEventName] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("");
-  const [paymentAmount, setPaymentAmount] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [repeatPattern, setRepeatPattern] = useState("");
-  const [repeatUntil, setRepeatUntil] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
-  const [existingFiles, setExistingFiles] = useState<Array<{
-    id: string;
-    filename: string;
-    file_path: string;
-    content_type?: string;
-    size?: number;
-  }>>([]);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [additionalPersons, setAdditionalPersons] = useState<Array<{
-    id: string;
-    userSurname: string;
-    userNumber: string;
-    socialNetworkLink: string;
-    eventNotes: string;
-    paymentStatus: string;
-    paymentAmount: string;
-  }>>([]);
-  const [currentEventData, setCurrentEventData] = useState<CalendarEventType | null>(null);
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
+  const [conflictingEvents, setConflictingEvents] = useState<any[]>([]);
+  const [pendingSubmission, setPendingSubmission] = useState<any>(null);
 
-  const isNewEvent = !initialData && !eventId;
-  const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
-  const isRecurringEvent = initialData?.is_recurring || isVirtualEvent || isRecurring;
+  // Get calendar data for conflict checking
+  const { data: calendarData } = useOptimizedCalendarEvents(user?.id, selectedDate || new Date());
+  const { approvedRequests } = useBookingRequests();
 
-  const loadAdditionalPersons = async (targetEventId: string) => {
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: selectedEvent?.title || "",
+      startDate: selectedEvent?.start_date || selectedDate?.toISOString() || "",
+      endDate: selectedEvent?.end_date || selectedDate?.toISOString() || "",
+      userNumber: selectedEvent?.user_number || "",
+      socialNetworkLink: selectedEvent?.social_network_link || "",
+      eventNotes: selectedEvent?.event_notes || "",
+      paymentStatus: selectedEvent?.payment_status || "not_paid",
+      paymentAmount: selectedEvent?.payment_amount?.toString() || "",
+    },
+  });
+
+  function disabled(date: Date): boolean {
+    if (!selectedDate) {
+      return false;
+    }
+    return date < selectedDate;
+  }
+
+  const handleDateChange = (newDate: Date | undefined) => {
+    setDate(newDate);
+    if (newDate) {
+      form.setValue("startDate", newDate.toISOString());
+      form.setValue("endDate", newDate.toISOString());
+    }
+  };
+
+  const checkForConflicts = (formData: any) => {
+    if (!user?.id) return { hasConflicts: false, conflicts: [] };
+
+    const startDate = formData.startDate;
+    const endDate = formData.endDate;
+
+    if (!startDate || !endDate) return { hasConflicts: false, conflicts: [] };
+
+    // Combine events from calendar data
+    const allEvents = [
+      ...(calendarData?.events || []),
+      ...(calendarData?.bookingRequests || [])
+    ];
+
+    // Check conflicts with calendar events
+    const eventConflicts = checkTimeConflicts(
+      startDate,
+      endDate,
+      allEvents,
+      selectedEvent?.id // Exclude current event when editing
+    );
+
+    // Check conflicts with approved bookings
+    const bookingConflicts = checkBookingConflicts(
+      startDate,
+      endDate,
+      approvedRequests || []
+    );
+
+    // Combine all conflicts
+    const allConflicts = [
+      ...eventConflicts.conflicts,
+      ...bookingConflicts.conflicts
+    ];
+
+    return {
+      hasConflicts: allConflicts.length > 0,
+      conflicts: allConflicts
+    };
+  };
+
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
     try {
-      let actualEventId = targetEventId;
-
-      if (isVirtualInstance(targetEventId)) {
-        actualEventId = getParentEventId(targetEventId);
-        console.log('🔍 Virtual instance detected, using parent ID:', actualEventId);
-      } else if (initialData?.parent_event_id) {
-        actualEventId = initialData.parent_event_id;
-        console.log('🔍 Child instance detected, using parent ID:', actualEventId);
-      } else if (initialData?.is_recurring && !initialData?.parent_event_id) {
-        actualEventId = targetEventId;
-        console.log('🔍 Parent recurring event, using own ID:', actualEventId);
+      // Check for time conflicts
+      const conflictCheck = checkForConflicts(data);
+      
+      if (conflictCheck.hasConflicts) {
+        setConflictingEvents(conflictCheck.conflicts);
+        setPendingSubmission(data);
+        setShowConflictDialog(true);
+        return; // Don't proceed with submission
       }
 
-      console.log('🔍 Loading additional persons:', {
-        targetEventId,
-        actualEventId,
-        isVirtualEvent,
-        parentEventId: initialData?.parent_event_id,
-        isRecurring: initialData?.is_recurring
-      });
-
-      const { data: customers, error } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('event_id', actualEventId)
-        .eq('type', 'customer')
-        .is('deleted_at', null);
-
-      if (error) {
-        console.error('Error loading additional persons:', error);
-        return;
-      }
-
-      if (customers && customers.length > 0) {
-        const mappedPersons = customers.map(customer => ({
-          id: customer.id,
-          userSurname: customer.user_surname || customer.title || '',
-          userNumber: customer.user_number || '',
-          socialNetworkLink: customer.social_network_link || '',
-          eventNotes: customer.event_notes || '',
-          paymentStatus: customer.payment_status || '',
-          paymentAmount: customer.payment_amount?.toString() || ''
-        }));
-        console.log('✅ Loaded additional persons:', mappedPersons.length, 'persons for actualEventId:', actualEventId);
-        setAdditionalPersons(mappedPersons);
-      } else {
-        console.log('ℹ️ No additional persons found for actualEventId:', actualEventId);
-        setAdditionalPersons([]);
-      }
+      // No conflicts, proceed with normal submission
+      await proceedWithSubmission(data);
     } catch (error) {
-      console.error('Error loading additional persons:', error);
+      console.error('Error submitting event:', error);
     }
   };
 
-  const loadExistingFiles = async (targetEventId: string) => {
+  const proceedWithSubmission = async (data: z.infer<typeof formSchema>) => {
     try {
-      let actualEventId = targetEventId;
-
-      if (isVirtualInstance(targetEventId)) {
-        actualEventId = getParentEventId(targetEventId);
-        console.log('📁 Virtual instance detected, using parent ID for files:', actualEventId);
-      } else if (initialData?.parent_event_id) {
-        actualEventId = initialData.parent_event_id;
-        console.log('📁 Child instance detected, using parent ID for files:', actualEventId);
-      } else if (initialData?.is_recurring && !initialData?.parent_event_id) {
-        actualEventId = targetEventId;
-        console.log('📁 Parent recurring event, using own ID for files:', actualEventId);
-      }
-
-      console.log('📁 Loading existing files:', {
-        targetEventId,
-        actualEventId,
-        isVirtualEvent,
-        parentEventId: initialData?.parent_event_id,
-        isRecurring: initialData?.is_recurring
-      });
-
-      const { data: eventFiles, error } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', actualEventId);
-
-      if (error) {
-        console.error('Error loading event files:', error);
-        return;
-      }
-
-      console.log('✅ Loaded existing files:', eventFiles?.length || 0, 'files for actualEventId:', actualEventId);
-      setExistingFiles(eventFiles || []);
-    } catch (error) {
-      console.error('Error loading existing files:', error);
-    }
-  };
-
-  const loadEventData = async (targetEventId: string) => {
-    try {
-      const { data: eventData, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', targetEventId)
-        .single();
-
-      if (error) {
-        console.error('Error loading event data:', error);
-        return null;
-      }
-
-      console.log('✅ Loaded fresh event data:', eventData);
-      setCurrentEventData(eventData);
-      return eventData;
-    } catch (error) {
-      console.error('Error loading event data:', error);
-      return null;
-    }
-  };
-
-  useEffect(() => {
-    if (open) {
-      if (initialData || eventId) {
-        const targetEventId = eventId || initialData?.id;
-        if (targetEventId) {
-          loadEventData(targetEventId);
-          loadExistingFiles(targetEventId);
-          loadAdditionalPersons(targetEventId);
-        }
-
-        if (isVirtualEvent && eventId) {
-          const parentId = getParentEventId(eventId);
-          loadParentEventData(parentId);
-        }
-
-        const eventData = initialData;
-        if (eventData) {
-          setTitle(eventData.title || "");
-          setUserSurname(eventData.user_surname || "");
-          setUserNumber(eventData.user_number || "");
-          setSocialNetworkLink(eventData.social_network_link || "");
-          setEventNotes(eventData.event_notes || "");
-          setEventName(eventData.event_name || "");
-          setPaymentStatus(eventData.payment_status || "");
-          setPaymentAmount(eventData.payment_amount?.toString() || "");
-
-          if (isVirtualEvent && eventId) {
-            const instanceDate = getInstanceDate(eventId);
-            if (instanceDate && eventData) {
-              const baseStart = new Date(eventData.start_date);
-              const baseEnd = new Date(eventData.end_date);
-              const [year, month, day] = instanceDate.split('-');
-              const newStart = new Date(baseStart);
-              newStart.setFullYear(+year, +month - 1, +day);
-              const newEnd = new Date(baseEnd);
-              newEnd.setFullYear(+year, +month - 1, +day);
-
-              setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
-              setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
-            } else {
-              setStartDate(isoToLocalDateTimeInput(eventData.start_date));
-              setEndDate(isoToLocalDateTimeInput(eventData.end_date));
-            }
-          } else {
-            setStartDate(isoToLocalDateTimeInput(eventData.start_date));
-            setEndDate(isoToLocalDateTimeInput(eventData.end_date));
-          }
-
-          setIsRecurring(eventData.is_recurring || false);
-          setRepeatPattern(eventData.repeat_pattern || "");
-          setRepeatUntil(eventData.repeat_until || "");
-        }
-      } else if (selectedDate) {
-        const startDateTime = isoToLocalDateTimeInput(selectedDate.toISOString());
-        const endDateTime = new Date(selectedDate.getTime() + 60 * 60 * 1000);
-        setStartDate(startDateTime);
-        setEndDate(isoToLocalDateTimeInput(endDateTime.toISOString()));
-
-        setAdditionalPersons([]);
-        setTitle("");
-        setUserSurname("");
-        setUserNumber("");
-        setSocialNetworkLink("");
-        setEventNotes("");
-        setEventName("");
-        setPaymentStatus("");
-        setPaymentAmount("");
-        setIsRecurring(false);
-        setRepeatPattern("");
-        setRepeatUntil("");
-        setFiles([]);
-        setExistingFiles([]);
-        setCurrentEventData(null);
-      }
-    }
-  }, [open, selectedDate, initialData, eventId, isVirtualEvent]);
-
-  const loadParentEventData = async (parentId: string) => {
-    try {
-      const { data: parentEvent, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', parentId)
-        .single();
-
-      if (error) throw error;
-
-      if (parentEvent) {
-        setIsRecurring(parentEvent.is_recurring || false);
-        setRepeatPattern(parentEvent.repeat_pattern || "");
-        setRepeatUntil(parentEvent.repeat_until || "");
-      }
-    } catch (error) {
-      console.error('Error loading parent event:', error);
-    }
-  };
-
-  const resetForm = () => {
-    setTitle("");
-    setUserSurname("");
-    setUserNumber("");
-    setSocialNetworkLink("");
-    setEventNotes("");
-    setEventName("");
-    setPaymentStatus("");
-    setPaymentAmount("");
-    setStartDate("");
-    setEndDate("");
-    setIsRecurring(false);
-    setRepeatPattern("");
-    setRepeatUntil("");
-    setAdditionalPersons([]);
-    setFiles([]);
-    setExistingFiles([]);
-    setCurrentEventData(null);
-  };
-
-  const uploadFiles = async (eventId: string) => {
-    if (files.length === 0) return;
-    
-    console.log('📤 Uploading', files.length, 'files for event:', eventId);
-    
-    const uploadPromises = files.map(async file => {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${eventId}/${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from('event_attachments')
-        .upload(fileName, file);
-
-      if (uploadError) {
-        console.error('Error uploading file:', uploadError);
-        return null;
-      }
-
-      const { error: dbError } = await supabase
-        .from('event_files')
-        .insert({
-          filename: file.name,
-          file_path: fileName,
-          content_type: file.type,
-          size: file.size,
-          user_id: user?.id,
-          event_id: eventId
-        });
-
-      if (dbError) {
-        console.error('Error saving file record:', dbError);
-        return null;
-      }
-
-      return fileName;
-    });
-
-    await Promise.all(uploadPromises);
-    console.log('✅ Files uploaded successfully');
-  };
-
-  const sendEmailToAllPersons = async (eventData: any, additionalPersons: any[] = []) => {
-    try {
-      console.log(`🔔 Starting email notification process for event: ${eventData.title || eventData.user_surname}`);
-
-      const { data: businessData } = await supabase
-        .from('business_profiles')
-        .select('*')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-
-      if (!businessData) {
-        console.warn("❌ Missing business data for event notification - skipping email");
-        return;
-      }
-
-      const recipients: Array<{
-        email: string;
-        name: string;
-        paymentStatus: string;
-        paymentAmount: number | null;
-        eventNotes: string;
-      }> = [];
-
-      const mainCustomerEmail = eventData.social_network_link;
-      if (mainCustomerEmail && isValidEmail(mainCustomerEmail)) {
-        recipients.push({
-          email: mainCustomerEmail,
-          name: eventData.title || eventData.user_surname || '',
-          paymentStatus: eventData.payment_status || 'not_paid',
-          paymentAmount: eventData.payment_amount || null,
-          eventNotes: eventData.event_notes || ''
-        });
-      }
-
-      if (additionalPersons && additionalPersons.length > 0) {
-        additionalPersons.forEach(person => {
-          if (person.socialNetworkLink && isValidEmail(person.socialNetworkLink)) {
-            recipients.push({
-              email: person.socialNetworkLink,
-              name: person.userSurname || '',
-              paymentStatus: person.paymentStatus || 'not_paid',
-              paymentAmount: person.paymentAmount ? parseFloat(person.paymentAmount) : null,
-              eventNotes: person.eventNotes || ''
-            });
-          }
-        });
-      }
-
-      if (recipients.length === 0) {
-        console.warn("❌ No valid email addresses found for sending notifications");
-        return;
-      }
-
-      console.log(`📧 Found ${recipients.length} recipients for email notifications with language: ${language}`);
-
-      for (const recipient of recipients) {
-        try {
-          console.log(`📧 Sending email to ${recipient.email} with individual data:`, {
-            paymentStatus: recipient.paymentStatus,
-            paymentAmount: recipient.paymentAmount,
-            eventNotes: recipient.eventNotes
-          });
-
-          const emailResult = await sendEventCreationEmail(
-            recipient.email,
-            recipient.name,
-            businessData.business_name || '',
-            eventData.start_date,
-            eventData.end_date,
-            recipient.paymentStatus,
-            recipient.paymentAmount,
-            businessData.contact_address || '',
-            eventData.id,
-            language || 'en',
-            recipient.eventNotes
-          );
-
-          if (emailResult?.success) {
-            console.log(`✅ Event creation email sent successfully to: ${recipient.email} with individual data`);
-          } else {
-            console.warn(`❌ Failed to send event creation email to ${recipient.email}:`, emailResult?.error);
-          }
-        } catch (emailError) {
-          console.error(`❌ Error sending email to ${recipient.email}:`, emailError);
-        }
-      }
-
-      if (recipients.length > 0) {
-        toast({
-          title: "Notifications Sent",
-          description: `Booking confirmations sent to ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}`
-        });
-      }
-    } catch (error) {
-      console.error("❌ Error sending event creation emails:", error);
-      toast({
-        variant: "destructive",
-        title: "Email Error",
-        description: "Failed to send booking confirmation emails"
-      });
-    }
-  };
-
-  const isValidEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) {
-      toast({
-        title: t("common.error"),
-        description: t("common.authRequired")
-      });
-      return;
-    }
-
-    if (isRecurring) {
-      if (!repeatPattern || !repeatUntil) {
-        toast({
-          title: t("common.error"),
-          description: "Please select a repeat pattern and end date for recurring events",
-          variant: "destructive"
-        });
-        return;
-      }
-      const startDateObj = new Date(localDateTimeToISOString(startDate));
-      const repeatUntilObj = new Date(repeatUntil);
-      if (repeatUntilObj <= startDateObj) {
-        toast({
-          title: t("common.error"),
-          description: "Repeat until date must be after the event start date",
-          variant: "destructive"
-        });
-        return;
-      }
-    }
-
-    setIsLoading(true);
-    try {
-      console.log("🔄 Event creation debug:", {
-        isRecurring,
-        repeatPattern,
-        repeatUntil,
-        startDate,
-        endDate,
-        isNewEvent,
-        startDateConverted: localDateTimeToISOString(startDate),
-        endDateConverted: localDateTimeToISOString(endDate)
-      });
+      const startDateTime = data.startDate;
+      const endDateTime = data.endDate;
 
       const eventData = {
-        title,
-        user_surname: userSurname,
-        user_number: userNumber,
-        social_network_link: socialNetworkLink,
-        event_notes: eventNotes,
-        event_name: eventName,
-        start_date: localDateTimeToISOString(startDate),
-        end_date: localDateTimeToISOString(endDate),
-        payment_status: paymentStatus,
-        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-        is_recurring: isRecurring,
-        repeat_pattern: isRecurring && repeatPattern ? repeatPattern : null,
-        repeat_until: isRecurring && repeatUntil ? repeatUntil : null
+        title: data.title,
+        user_surname: data.title,
+        user_number: data.userNumber,
+        social_network_link: data.socialNetworkLink,
+        event_notes: data.eventNotes,
+        start_date: startDateTime,
+        end_date: endDateTime,
+        payment_status: data.paymentStatus,
+        payment_amount: data.paymentAmount ? Number(data.paymentAmount) : undefined,
+        file: data.file,
       };
 
-      console.log("📤 Sending event data to backend:", eventData);
-
-      let result;
-      if (eventId || initialData) {
-        let actualEventId = eventId || initialData?.id;
-        if (isVirtualEvent && eventId) {
-          actualEventId = getParentEventId(eventId);
-          console.log('🔄 Virtual instance update - using parent ID:', actualEventId);
-        } else if (initialData?.parent_event_id) {
-          actualEventId = initialData.parent_event_id;
-          console.log('🔄 Child instance update - using parent ID:', actualEventId);
-        }
-
-        result = await supabase.rpc('save_event_with_persons', {
-          p_event_data: eventData,
-          p_additional_persons: additionalPersons,
-          p_user_id: user.id,
-          p_event_id: actualEventId
-        });
-
-        if (result.error) throw result.error;
-
-        // Upload files after successful event update
-        if (files.length > 0) {
-          try {
-            await uploadFiles(actualEventId);
-            console.log('✅ Files uploaded successfully after event update');
-            
-            // Clear files state after successful upload
-            setFiles([]);
-            
-            // Refresh the existing files list to show newly uploaded files
-            await loadExistingFiles(actualEventId);
-          } catch (fileError) {
-            console.error('❌ Error uploading files during event update:', fileError);
-            toast({
-              title: t("common.warning"),
-              description: "Event updated successfully, but some files failed to upload",
-              variant: "destructive"
-            });
-          }
-        }
-
-        if (actualEventId) {
-          const freshEventData = await loadEventData(actualEventId);
-          if (freshEventData) {
-            setCurrentEventData(freshEventData);
-          }
-        }
-
-        toast({
-          title: t("common.success"),
-          description: t("events.eventUpdated")
-        });
-
-        await sendEmailToAllPersons({
-          ...eventData,
-          id: actualEventId
-        }, additionalPersons);
-
-        onEventUpdated?.();
+      if (selectedEvent) {
+        console.log("Updating existing event:", selectedEvent.id);
+        await onEventUpdate?.(eventData);
       } else {
-        result = await supabase.rpc('save_event_with_persons', {
-          p_event_data: eventData,
-          p_additional_persons: additionalPersons,
-          p_user_id: user.id
-        });
-
-        if (result.error) throw result.error;
-
-        const newEventId = result.data;
-        console.log("✅ Event created with ID:", newEventId);
-
-        if (files.length > 0) {
-          await uploadFiles(newEventId);
-        }
-
-        if (isRecurring && repeatPattern) {
-          console.log("⏳ Waiting for recurring instances to be generated...");
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-
-        await sendEmailToAllPersons({
-          ...eventData,
-          id: newEventId
-        }, additionalPersons);
-
-        if (isRecurring) {
-          toast({
-            title: t("common.success"),
-            description: t("events.recurringEventCreated")
-          });
-        } else {
-          toast({
-            title: t("common.success"),
-            description: t("events.eventCreated")
-          });
-        }
-
-        onEventCreated?.();
+        console.log("Creating new event");
+        await onEventCreate?.(eventData);
       }
-
-      resetForm();
-      onOpenChange(false);
-    } catch (error: any) {
-      console.error('Error saving event:', error);
-      toast({
-        title: t("common.error"),
-        description: error.message || "Failed to save event",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
+      
+      onClose();
+    } catch (error) {
+      console.error('Error in event submission:', error);
     }
   };
 
-  const handleDeleteThis = async () => {
-    if (!eventId && !initialData?.id) return;
-    setIsLoading(true);
-    try {
-      if (initialData?.type === 'booking_request' || initialData?.booking_request_id) {
-        await deleteCalendarEvent(initialData.id, initialData.type === 'booking_request' ? 'booking_request' : 'event', user?.id || '');
-      } else {
-        const { error } = await supabase
-          .from('events')
-          .update({
-            deleted_at: new Date().toISOString()
-          })
-          .eq('id', eventId || initialData?.id);
-
-        if (error) throw error;
-
-        clearCalendarCache();
-        window.dispatchEvent(new CustomEvent('calendar-event-deleted', {
-          detail: { timestamp: Date.now() }
-        }));
-        localStorage.setItem('calendar_event_deleted', JSON.stringify({
-          timestamp: Date.now()
-        }));
-        setTimeout(() => localStorage.removeItem('calendar_event_deleted'), 2000);
-      }
-
-      toast({
-        title: t("common.success"),
-        description: t("events.eventDeleted")
-      });
-
-      onEventDeleted?.();
-      setShowDeleteDialog(false);
-      onOpenChange(false);
-    } catch (error: any) {
-      console.error('Error deleting event:', error);
-      toast({
-        title: t("common.error"),
-        description: error.message || "Failed to delete event",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
+  const handleConflictProceed = async () => {
+    setShowConflictDialog(false);
+    if (pendingSubmission) {
+      await proceedWithSubmission(pendingSubmission);
+      setPendingSubmission(null);
     }
   };
 
-  const handleDeleteSeries = async () => {
-    if (!eventId && !initialData?.id) return;
-    setIsLoading(true);
-    try {
-      const targetEventId = eventId || initialData?.id;
-      const parentId = isVirtualEvent && eventId ? getParentEventId(eventId) : targetEventId;
-
-      const { error } = await supabase.rpc('delete_recurring_series', {
-        p_event_id: parentId,
-        p_user_id: user?.id,
-        p_delete_choice: 'series'
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: t("common.success"),
-        description: t("events.seriesDeleted")
-      });
-
-      onEventDeleted?.();
-      setShowDeleteDialog(false);
-      onOpenChange(false);
-    } catch (error: any) {
-      console.error('Error deleting event series:', error);
-      toast({
-        title: t("common.error"),
-        description: error.message || "Failed to delete event series",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleConflictCancel = () => {
+    setShowConflictDialog(false);
+    setPendingSubmission(null);
+    setConflictingEvents([]);
   };
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[525px]">
           <DialogHeader>
-            <DialogTitle>
-              {eventId || initialData ? t("events.editEvent") : language === 'ka' ? "მოვლენის დამატება" : t("events.addEvent")}
-            </DialogTitle>
+            <DialogTitle>{selectedEvent ? "Edit Event" : "Create Event"}</DialogTitle>
+            <DialogDescription>
+              {selectedEvent
+                ? "Make changes to your event here. Click save when you're done."
+                : "Create a new event here. Click save when you're done."}
+            </DialogDescription>
           </DialogHeader>
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <EventDialogFields 
-              title={title}
-              setTitle={setTitle}
-              userSurname={userSurname}
-              setUserSurname={setUserSurname}
-              userNumber={userNumber}
-              setUserNumber={setUserNumber}
-              socialNetworkLink={socialNetworkLink}
-              setSocialNetworkLink={setSocialNetworkLink}
-              eventNotes={eventNotes}
-              setEventNotes={setEventNotes}
-              eventName={eventName}
-              setEventName={setEventName}
-              paymentStatus={paymentStatus}
-              setPaymentStatus={setPaymentStatus}
-              paymentAmount={paymentAmount}
-              setPaymentAmount={setPaymentAmount}
-              startDate={startDate}
-              setStartDate={setStartDate}
-              endDate={endDate}
-              setEndDate={setEndDate}
-              isRecurring={isRecurring}
-              setIsRecurring={setIsRecurring}
-              repeatPattern={repeatPattern}
-              setRepeatPattern={setRepeatPattern}
-              repeatUntil={repeatUntil}
-              setRepeatUntil={setRepeatUntil}
-              files={files}
-              setFiles={setFiles}
-              existingFiles={existingFiles}
-              setExistingFiles={setExistingFiles}
-              additionalPersons={additionalPersons}
-              setAdditionalPersons={setAdditionalPersons}
-              isVirtualEvent={isVirtualEvent}
-              isNewEvent={isNewEvent}
-            />
-            
-            {(initialData || currentEventData) && (
-              <div className="flex items-center text-sm text-muted-foreground mb-4 rounded-md p-4 py-[8px] px-[8px] border border-border bg-card">
-                <span className="flex items-center mr-4">
-                  <Clock className="mr-1 h-4 w-4" />
-                  <span>
-                    {t("common.created")} {new Date((currentEventData || initialData)?.created_at || '').toLocaleString(language)}
-                  </span>
-                </span>
-                <span className="flex items-center">
-                  <RefreshCcw className="mr-1 h-4 w-4" />
-                  <span>
-                    {t("common.lastUpdated")} {new Date((currentEventData || initialData)?.updated_at || (currentEventData || initialData)?.created_at || '').toLocaleString(language)}
-                  </span>
-                </span>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Event title" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex items-center space-x-2">
+                <FormField
+                  control={form.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel>Start Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-[240px] pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(new Date(field.value), "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={date}
+                            onSelect={handleDateChange}
+                            disabled={disabled}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="endDate"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel>End Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-[240px] pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(new Date(field.value), "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={date}
+                            onSelect={handleDateChange}
+                            disabled={disabled}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-            )}
-            
-            <div className="flex flex-col sm:flex-row gap-2 pt-4">
-              <Button type="submit" disabled={isLoading} className="flex-1">
-                {isLoading ? t("common.loading") : eventId || initialData ? t("common.update") : t("common.add")}
-              </Button>
-              
-              {(eventId || initialData) && (
-                <Button 
-                  type="button" 
-                  variant="destructive" 
-                  onClick={() => setShowDeleteDialog(true)} 
-                  disabled={isLoading} 
-                  className="flex-1 sm:flex-none"
-                >
-                  {t("common.delete")}
-                </Button>
-              )}
-            </div>
-          </form>
+              <FormField
+                control={form.control}
+                name="userNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>User Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="User number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="socialNetworkLink"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Social Network Link</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Social network link" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="eventNotes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Event Notes</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Event notes"
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="paymentStatus"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Payment Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a payment status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="not_paid">Not Paid</SelectItem>
+                        <SelectItem value="partly_paid">Partly Paid</SelectItem>
+                        <SelectItem value="fully_paid">Fully Paid</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="paymentAmount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Payment Amount</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Payment amount" type="number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="file"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Attachment</FormLabel>
+                    <FormControl>
+                      <FileInput onChange={(file) => field.onChange(file)} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit">{selectedEvent ? "Update" : "Save"}</Button>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
 
-      <RecurringDeleteDialog 
-        open={showDeleteDialog} 
-        onOpenChange={setShowDeleteDialog} 
-        onDeleteThis={handleDeleteThis} 
-        onDeleteSeries={handleDeleteSeries} 
-        isRecurringEvent={isRecurringEvent} 
-        isLoading={isLoading} 
+      <TimeConflictDialog
+        isOpen={showConflictDialog}
+        onClose={handleConflictCancel}
+        onProceed={handleConflictProceed}
+        conflicts={conflictingEvents}
+        mode="warning"
+        title="Schedule Conflict Warning"
       />
     </>
   );
