@@ -3,7 +3,7 @@ import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useTimeConflictValidation } from "@/hooks/useTimeConflictValidation";
+import { isVirtualInstance } from "@/lib/recurringEvents";
 
 interface UseEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
@@ -19,19 +19,8 @@ export const useEventDialog = ({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [pendingEventData, setPendingEventData] = useState<Partial<CalendarEventType> | null>(null);
-  const [showConflictCheck, setShowConflictCheck] = useState(false);
-  
   const { toast } = useToast();
   const { language } = useLanguage();
-
-  // Time conflict validation hook
-  const conflictValidation = useTimeConflictValidation({
-    startDate: pendingEventData?.start_date || '',
-    endDate: pendingEventData?.end_date || '',
-    excludeEventId: selectedEvent?.id,
-    enabled: showConflictCheck && !!pendingEventData?.start_date && !!pendingEventData?.end_date
-  });
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
@@ -49,33 +38,15 @@ export const useEventDialog = ({
       
       if (!createEvent) throw new Error("Create event function not provided");
       
-      // Set up conflict checking
-      setPendingEventData(eventData);
-      setShowConflictCheck(true);
-      
-      // Wait a moment for the query to execute
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Check if we have conflict data
-      if (conflictValidation.data?.hasConflict) {
-        console.log("Time conflicts detected:", conflictValidation.data.conflicts);
-        // The UI will show the warning, but we still proceed with creation
-        // This is just informational
-      }
-      
       console.log("Creating event with data:", eventData);
       const createdEvent = await createEvent(eventData);
       
       setIsNewEventDialogOpen(false);
-      setPendingEventData(null);
-      setShowConflictCheck(false);
       console.log("Event created successfully:", createdEvent);
       
       return createdEvent;
     } catch (error: any) {
       console.error("Failed to create event:", error);
-      setPendingEventData(null);
-      setShowConflictCheck(false);
       toast({
         title: "Error",
         description: error.message || "Failed to create event",
@@ -101,20 +72,6 @@ export const useEventDialog = ({
       };
       
       console.log("Updating event with language:", eventData.language);
-      
-      // Set up conflict checking for updates
-      setPendingEventData(eventData);
-      setShowConflictCheck(true);
-      
-      // Wait a moment for the query to execute
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Check if we have conflict data
-      if (conflictValidation.data?.hasConflict) {
-        console.log("Time conflicts detected for update:", conflictValidation.data.conflicts);
-        // The UI will show the warning, but we still proceed with update
-      }
-      
       console.log("Updating event with data:", eventData);
       
       const updatedEvent = await updateEvent({
@@ -123,15 +80,11 @@ export const useEventDialog = ({
       });
       
       setSelectedEvent(null);
-      setPendingEventData(null);
-      setShowConflictCheck(false);
       console.log("Event updated successfully:", updatedEvent);
       
       return updatedEvent;
     } catch (error: any) {
       console.error("Failed to update event:", error);
-      setPendingEventData(null);
-      setShowConflictCheck(false);
       toast({
         title: "Error",
         description: error.message || "Failed to update event",
@@ -185,9 +138,5 @@ export const useEventDialog = ({
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
-    // Expose conflict validation data and state
-    conflictValidation,
-    showConflictCheck,
-    pendingEventData,
   };
 };
