@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, associateBookingFilesWithEvent } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -180,9 +179,9 @@ export const useBookingRequests = (businessId?: string) => {
 
       console.log("[useBookingRequests] Booking status updated to approved");
 
-      // Step 2: Create customer record from the approved booking
+      // Step 2: Create customer record from the approved booking with the SAME ID
       const customerData = {
-        id: bookingToApprove.id, // use booking request ID to link event and customer
+        id: bookingId, // Use booking request ID to link event and customer
         user_id: bookingToApprove.user_id || user.id,
         title: bookingToApprove.requester_name,
         user_surname: bookingToApprove.user_surname || null,
@@ -194,7 +193,8 @@ export const useBookingRequests = (businessId?: string) => {
         end_date: bookingToApprove.end_date,
         event_notes: bookingToApprove.description,
         type: 'booking_request',
-        create_event: true
+        create_event: true,
+        event_id: bookingId // Set event_id to the booking ID for file linking
       };
 
       const { data: newCustomer, error: customerError } = await supabase
@@ -210,11 +210,11 @@ export const useBookingRequests = (businessId?: string) => {
 
       console.log("[useBookingRequests] Customer created:", newCustomer.id);
 
-      // Step 3: Create calendar event from the approved booking
+      // Step 3: Create calendar event from the approved booking with the SAME ID
       const { data: newEvent, error: eventError } = await supabase
         .from('events')
         .insert([{
-          id: bookingId,
+          id: bookingId, // Use booking request ID to link event and customer
           user_id: bookingToApprove.user_id || user.id,
           title: bookingToApprove.title,
           user_surname: bookingToApprove.user_surname || bookingToApprove.requester_name,
@@ -244,7 +244,7 @@ export const useBookingRequests = (businessId?: string) => {
         console.log("[useBookingRequests] Associating booking files with event");
         const associatedFiles = await associateBookingFilesWithEvent(
           bookingId,
-          bookingId,
+          bookingId, // Same ID for both booking and event
           user.id
         );
         console.log("[useBookingRequests] Associated files:", associatedFiles.length);
