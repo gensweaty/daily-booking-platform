@@ -27,8 +27,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { CalendarEventType } from "@/lib/types/calendar";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { FileInput } from "@/components/ui/file-input";
 import { TimeConflictDialog } from "./TimeConflictDialog";
 import { checkTimeConflicts, checkBookingConflicts } from "@/utils/timeConflictChecker";
@@ -119,21 +117,33 @@ export const EventDialog = ({
 
     if (!startDate || !endDate) return { hasConflicts: false, conflicts: [] };
 
-    // Combine events from calendar data
-    const allEvents = [
-      ...(calendarData?.events || []),
-      ...(calendarData?.bookingRequests || [])
+    // Transform optimized data to match CalendarEventType interface
+    const transformedEvents = [
+      ...(calendarData?.events || []).map(event => ({
+        ...event,
+        created_at: event.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(), // Add missing updated_at
+        user_id: event.user_id,
+        type: event.type || 'event'
+      } as CalendarEventType)),
+      ...(calendarData?.bookingRequests || []).map(booking => ({
+        ...booking,
+        created_at: booking.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(), // Add missing updated_at
+        user_id: booking.business_id, // Map business_id to user_id
+        type: 'booking_request'
+      } as CalendarEventType))
     ];
 
     // Check conflicts with calendar events
     const eventConflicts = checkTimeConflicts(
       startDate,
       endDate,
-      allEvents,
+      transformedEvents,
       selectedEvent?.id // Exclude current event when editing
     );
 
-    // Check conflicts with approved bookings
+    // Check conflicts with approved bookings (separate check for booking requests)
     const bookingConflicts = checkBookingConflicts(
       startDate,
       endDate,
