@@ -1,5 +1,10 @@
-
 export type Language = 'en' | 'es' | 'ka';
+
+export interface LanguageContextType {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
+}
 
 export interface TranslationType {
   nav: {
@@ -331,7 +336,7 @@ export interface TranslationType {
     submitRequest: string;
     deleteEventConfirmTitle: string;
     deleteEventConfirmMessage: string;
-    timeConflictError: string; // Add this missing property
+    timeConflictError: string;
   };
   contact: {
     email: string;
@@ -492,7 +497,7 @@ export interface TranslationType {
     requestApproved: string;
     requestSubmitted: string;
     requestSubmittedDescription: string;
-    errorApproving: string; // Add these missing properties
+    errorApproving: string;
     errorRejecting: string;
     errorDeleting: string;
   };
