@@ -184,7 +184,7 @@ export const useBookingRequests = (businessId?: string) => {
       const { data: newCustomer, error: customerError } = await supabase
         .from('customers')
         .insert([{
-          user_id: bookingToApprove.user_id || user.id, // Ensure user_id is set
+          user_id: bookingToApprove.user_id || user.id,
           title: bookingToApprove.title || bookingToApprove.requester_name,
           user_surname: bookingToApprove.requester_name,
           user_number: bookingToApprove.requester_phone,
@@ -195,7 +195,7 @@ export const useBookingRequests = (businessId?: string) => {
           end_date: bookingToApprove.end_date,
           event_notes: bookingToApprove.description,
           type: 'customer',
-          create_event: true // Mark that this customer came from an event booking
+          create_event: true
         }])
         .select()
         .single();
@@ -263,12 +263,14 @@ export const useBookingRequests = (businessId?: string) => {
         if (businessError) {
           console.error("[useBookingRequests] Error fetching business profile:", businessError);
         } else if (businessProfile && bookingToApprove.requester_email) {
-          // Construct full name properly from the requester_name field
+          // Construct full name properly - use requester_name as the primary source
           const fullName = bookingToApprove.requester_name || bookingToApprove.title || 'Customer';
+          
+          console.log("[useBookingRequests] Sending email to:", bookingToApprove.requester_email, "with name:", fullName);
           
           await sendBookingConfirmationEmail(
             bookingToApprove.requester_email,
-            fullName,
+            fullName, // This should now contain the actual person's name
             businessProfile.business_name,
             bookingToApprove.start_date,
             bookingToApprove.end_date,
@@ -280,7 +282,7 @@ export const useBookingRequests = (businessId?: string) => {
             bookingToApprove.description || ''
           );
           
-          console.log("[useBookingRequests] Approval email sent successfully");
+          console.log("[useBookingRequests] Approval email sent successfully with name:", fullName);
         }
       } catch (emailError) {
         console.error("[useBookingRequests] Error sending approval email:", emailError);
