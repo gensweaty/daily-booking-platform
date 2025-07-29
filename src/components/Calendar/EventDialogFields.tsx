@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getRepeatOptions } from "@/lib/recurringEvents";
+import { TimeConflictWarning } from "./TimeConflictWarning";
 
 // Define interface for person data
 interface PersonData {
@@ -83,6 +84,12 @@ interface EventDialogFieldsProps {
   setAdditionalPersons: (persons: PersonData[]) => void;
   // Add missing prop
   isVirtualEvent?: boolean;
+  // Add conflict validation props
+  conflictValidation?: {
+    data?: { hasConflict: boolean; conflicts: Array<{ type: 'event' | 'booking'; title: string; start: string; end: string }> };
+    isLoading?: boolean;
+  };
+  showConflictCheck?: boolean;
 }
 
 export const EventDialogFields = ({
@@ -121,7 +128,9 @@ export const EventDialogFields = ({
   isNewEvent = false,
   additionalPersons,
   setAdditionalPersons,
-  isVirtualEvent = false
+  isVirtualEvent = false,
+  conflictValidation,
+  showConflictCheck = false
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -488,6 +497,11 @@ export const EventDialogFields = ({
           </div>
         </div>
       </div>
+
+      {/* Time Conflict Warning */}
+      {showConflictCheck && conflictValidation?.data?.hasConflict && (
+        <TimeConflictWarning conflicts={conflictValidation.data.conflicts} />
+      )}
 
       {/* Repeat Options - Only show for new events */}
       {isNewEvent && (
