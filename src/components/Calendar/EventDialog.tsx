@@ -6,10 +6,8 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { EventDialogFields } from "./EventDialogFields";
 import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
-import { ConflictWarning } from "./ConflictWarning";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useTimeConflictValidation } from "@/hooks/useTimeConflictValidation";
 import { sendEventCreationEmail } from "@/lib/api";
 import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
 import { deleteCalendarEvent, clearCalendarCache } from "@/services/calendarService";
@@ -24,7 +22,6 @@ interface EventDialogProps {
   onEventCreated?: () => void;
   onEventUpdated?: () => void;
   onEventDeleted?: () => void;
-  events?: CalendarEventType[];
 }
 
 // Helper function to convert datetime-local input values to ISO string in local timezone
@@ -54,8 +51,7 @@ export const EventDialog = ({
   initialData,
   onEventCreated,
   onEventUpdated,
-  onEventDeleted,
-  events = []
+  onEventDeleted
 }: EventDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -97,18 +93,6 @@ export const EventDialog = ({
   const isNewEvent = !initialData && !eventId;
   const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
   const isRecurringEvent = initialData?.is_recurring || isVirtualEvent || isRecurring;
-
-  // Initialize time conflict validation
-  const {
-    conflicts,
-    isValidating,
-    validateTimeSlot,
-    validateTimeSlotClient,
-    clearConflicts
-  } = useTimeConflictValidation({
-    events,
-    excludeEventId: eventId || initialData?.id
-  });
 
   const loadAdditionalPersons = async (targetEventId: string) => {
     try {
@@ -230,8 +214,6 @@ export const EventDialog = ({
 
   useEffect(() => {
     if (open) {
-      clearConflicts(); // Clear previous conflicts when opening dialog
-      
       if (initialData || eventId) {
         const targetEventId = eventId || initialData?.id;
         if (targetEventId) {
@@ -327,20 +309,6 @@ export const EventDialog = ({
     }
   };
 
-  // Add real-time validation when dates change
-  useEffect(() => {
-    if (startDate && endDate && open) {
-      const startISO = localDateTimeToISOString(startDate);
-      const endISO = localDateTimeToISOString(endDate);
-      
-      // Only validate if end date is after start date
-      if (new Date(endISO) > new Date(startISO)) {
-        // Use client-side validation first for immediate feedback
-        validateTimeSlotClient(startISO, endISO);
-      }
-    }
-  }, [startDate, endDate, open, validateTimeSlotClient]);
-
   const resetForm = () => {
     setTitle("");
     setUserSurname("");
@@ -359,7 +327,6 @@ export const EventDialog = ({
     setFiles([]);
     setExistingFiles([]);
     setCurrentEventData(null);
-    clearConflicts();
   };
 
   const uploadFiles = async (eventId: string) => {
@@ -541,20 +508,6 @@ export const EventDialog = ({
       }
     }
 
-    // Validate time conflicts before submitting
-    const startISO = localDateTimeToISOString(startDate);
-    const endISO = localDateTimeToISOString(endDate);
-    
-    const timeConflicts = await validateTimeSlot(startISO, endISO);
-    if (timeConflicts.length > 0) {
-      toast({
-        title: t("common.error"),
-        description: "Please resolve time conflicts before saving the event",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsLoading(true);
     try {
       console.log("🔄 Event creation debug:", {
@@ -575,8 +528,8 @@ export const EventDialog = ({
         social_network_link: socialNetworkLink,
         event_notes: eventNotes,
         event_name: eventName,
-        start_date: startISO,
-        end_date: endISO,
+        start_date: localDateTimeToISOString(startDate),
+        end_date: localDateTimeToISOString(endDate),
         payment_status: paymentStatus,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         is_recurring: isRecurring,
@@ -690,23 +643,11 @@ export const EventDialog = ({
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error saving event:', error);
-      
-      // Check if it's a time conflict error
-      if (error.message && error.message.includes('Time conflict detected')) {
-        toast({
-          title: t("common.error"),
-          description: error.message,
-          variant: "destructive"
-        });
-        // Refresh conflicts to show the latest state
-        await validateTimeSlot(startISO, endISO);
-      } else {
-        toast({
-          title: t("common.error"),
-          description: error.message || "Failed to save event",
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: t("common.error"),
+        description: error.message || "Failed to save event",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -804,14 +745,6 @@ export const EventDialog = ({
           </DialogHeader>
           
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Show conflict warning if there are any conflicts */}
-            {conflicts.length > 0 && (
-              <ConflictWarning 
-                conflicts={conflicts} 
-                className="mb-4"
-              />
-            )}
-
             <EventDialogFields 
               title={title}
               setTitle={setTitle}
@@ -867,11 +800,7 @@ export const EventDialog = ({
             )}
             
             <div className="flex flex-col sm:flex-row gap-2 pt-4">
-              <Button 
-                type="submit" 
-                disabled={isLoading || isValidating || conflicts.length > 0} 
-                className="flex-1"
-              >
+              <Button type="submit" disabled={isLoading} className="flex-1">
                 {isLoading ? t("common.loading") : eventId || initialData ? t("common.update") : t("common.add")}
               </Button>
               
