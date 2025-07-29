@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -21,7 +22,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         .gte('created_at', startDateStr)
         .lte('created_at', endDateStr)
         .is('deleted_at', null)
-        .order('created_at', { ascending: false }); // Order by creation date DESC
+        .order('created_at', { ascending: false });
 
       if (customersError) {
         console.error('Error fetching standalone customers:', customersError);
@@ -32,11 +33,11 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         .from('events')
         .select('*')
         .eq('user_id', userId)
-        .gte('created_at', startDateStr) // Filter by event creation date, not start_date
-        .lte('created_at', endDateStr)   // Filter by event creation date, not start_date
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
         .is('deleted_at', null)
-        .is('parent_event_id', null) // Only parent events
-        .order('created_at', { ascending: false }); // Order by creation date DESC
+        .is('parent_event_id', null)
+        .order('created_at', { ascending: false });
 
       if (eventsError) {
         console.error('Error fetching events:', eventsError);
@@ -48,10 +49,10 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         .select('*')
         .eq('user_id', userId)
         .eq('status', 'approved')
-        .gte('created_at', startDateStr) // Filter by booking creation date, not start_date
-        .lte('created_at', endDateStr)   // Filter by booking creation date, not start_date
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
         .is('deleted_at', null)
-        .order('created_at', { ascending: false }); // Order by creation date DESC
+        .order('created_at', { ascending: false });
 
       if (bookingRequestsError) {
         console.error('Error fetching booking requests:', bookingRequestsError);
@@ -63,10 +64,10 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         .select('*')
         .eq('user_id', userId)
         .eq('type', 'customer')
-        .gte('created_at', startDateStr) // Filter by customer creation date
-        .lte('created_at', endDateStr)   // Filter by customer creation date
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
         .is('deleted_at', null)
-        .order('created_at', { ascending: false }); // Order by creation date DESC
+        .order('created_at', { ascending: false });
 
       if (eventCustomersError) {
         console.error('Error fetching event customers:', eventCustomersError);
@@ -119,7 +120,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         });
       });
 
-      // Add transformed booking requests
+      // Add transformed booking requests - this ensures approved booking requests appear in CRM
       transformedBookingRequests.forEach(booking => {
         allData.push({
           ...booking,
@@ -163,7 +164,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         return dateB.getTime() - dateA.getTime(); // DESC order (newest first)
       });
 
-      console.log('CRM data result:', {
+      console.log('CRM data result (with booking requests):', {
         standaloneCustomers: standaloneCustomers?.length || 0,
         events: events?.length || 0,
         bookingRequests: bookingRequests?.length || 0,

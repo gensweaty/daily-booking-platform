@@ -81,7 +81,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
     gcTime: 10 * 60 * 1000, // 10 minutes - reduced from 30
   });
 
-  // Fixed event stats query to properly handle recurring series payments
+  // Fixed event stats query to properly handle booking requests in statistics
   const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
     queryKey: ['optimized-event-stats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async (): Promise<OptimizedEventStats> => {
@@ -100,7 +100,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const startDateStr = dateRange.start.toISOString();
       const endDateStr = dateRange.end.toISOString();
 
-      // Get regular events from events table (filter by date range)
+      // Get regular events from events table (filter by start_date for statistics display)
       const { data: regularEvents, error: eventsError } = await supabase
         .from('events')
         .select('*')
@@ -122,7 +122,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         };
       }
 
-      // Get approved booking requests from booking_requests table (filter by date range)
+      // Get approved booking requests from booking_requests table (filter by start_date for statistics)
       const { data: bookingRequests, error: bookingError } = await supabase
         .from('booking_requests')
         .select('*')
@@ -408,7 +408,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         events: allEvents || []
       };
 
-      console.log('🔧 Event stats result with recurring series payment fix:', {
+      console.log('🔧 Event stats result with booking requests included:', {
         dateRange: `${startDateStr} to ${endDateStr}`,
         total: result.total,
         partlyPaid: result.partlyPaid,
@@ -427,7 +427,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
     gcTime: 15 * 60 * 1000,
   });
 
-  // Fixed customer stats query to properly count all customers including CRM-only ones
+  // Fixed customer stats query to properly count booking request customers
   const { data: customerStats, isLoading: isLoadingCustomerStats } = useQuery({
     queryKey: ['optimized-customer-stats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async (): Promise<OptimizedCustomerStats> => {
@@ -442,13 +442,13 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const uniqueCustomers = new Set<string>();
       let totalCustomers = 0;
 
-      // Get regular events created in the date range (main persons)
+      // Get regular events in the date range (main persons)
       const { data: regularEvents, error: regularEventsError } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
-        .gte('created_at', startDateStr)
-        .lte('created_at', endDateStr)
+        .gte('start_date', startDateStr)  // Changed to start_date for statistics consistency
+        .lte('start_date', endDateStr)   // Changed to start_date for statistics consistency
         .is('deleted_at', null);
 
       if (regularEventsError) {
@@ -465,14 +465,14 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         });
       }
 
-      // Get approved booking requests created in the date range (main persons)
+      // Get approved booking requests in the date range (main persons)
       const { data: bookingRequests, error: bookingRequestsError } = await supabase
         .from('booking_requests')
         .select('*')
         .eq('user_id', userId)
         .eq('status', 'approved')
-        .gte('created_at', startDateStr)
-        .lte('created_at', endDateStr)
+        .gte('start_date', startDateStr)  // Changed to start_date for statistics consistency
+        .lte('start_date', endDateStr)   // Changed to start_date for statistics consistency
         .is('deleted_at', null);
 
       if (bookingRequestsError) {
@@ -513,8 +513,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         });
       }
 
-      // **FIXED: Get ALL standalone CRM customers (not just those created in date range)**
-      // This ensures customers added from CRM are always counted regardless of when they were created
+      // Get ALL standalone CRM customers (not just those created in date range)
       const { data: standaloneCrmCustomers, error: standaloneCrmError } = await supabase
         .from('customers')
         .select('*')
@@ -541,7 +540,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const withBooking = totalCustomers;
       const withoutBooking = 0; // No customers without booking in this context
 
-      console.log('Final customer stats calculation:', {
+      console.log('Final customer stats calculation (including booking requests):', {
         uniqueCustomersFound: uniqueCustomers.size,
         totalCustomers,
         withBooking,
