@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format, parseISO, startOfMonth, endOfMonth, addMonths } from 'date-fns';
@@ -82,7 +81,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
     gcTime: 10 * 60 * 1000, // 10 minutes - reduced from 30
   });
 
-  // Fixed event stats query to properly filter by date range and count correctly
+  // Fixed event stats query to properly handle recurring series payments
   const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
     queryKey: ['optimized-event-stats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async (): Promise<OptimizedEventStats> => {
@@ -184,6 +183,32 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         }
       }
 
+      // Separate recurring events by series for proper payment calculation
+      const recurringSeriesMap = new Map<string, any[]>();
+      const nonRecurringEvents: any[] = [];
+
+      allEvents.forEach(event => {
+        if (event.is_recurring && event.parent_event_id) {
+          // This is a recurring instance - group by parent
+          const parentId = event.parent_event_id;
+          if (!recurringSeriesMap.has(parentId)) {
+            recurringSeriesMap.set(parentId, []);
+          }
+          recurringSeriesMap.get(parentId)?.push(event);
+        } else if (event.is_recurring && !event.parent_event_id) {
+          // This is a recurring parent - group by its own ID
+          if (!recurringSeriesMap.has(event.id)) {
+            recurringSeriesMap.set(event.id, []);
+          }
+          recurringSeriesMap.get(event.id)?.push(event);
+        } else {
+          // Non-recurring event
+          nonRecurringEvents.push(event);
+        }
+      });
+
+      console.log(`Processing ${recurringSeriesMap.size} recurring series and ${nonRecurringEvents.length} non-recurring events`);
+
       // Count unique events in the selected date range
       const totalEvents = allEvents.length;
 
@@ -194,9 +219,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const dailyBookings = new Map<string, number>();
       const monthlyIncomeMap = new Map<string, number>();
 
-      // Process events for payment status and income calculation
-      allEvents.forEach(event => {
-        // Count payment status per event
+      // Process non-recurring events normally
+      nonRecurringEvents.forEach(event => {
         const paymentStatus = event.payment_status || '';
         
         if (paymentStatus.includes('partly')) {
@@ -243,8 +267,99 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         }
       });
 
-      // Add income from additional persons
-      additionalPersons.forEach(person => {
+      // Process recurring series - count payments only once per series per unique person
+      for (const [seriesId, seriesEvents] of recurringSeriesMap) {
+        console.log(`Processing recurring series ${seriesId} with ${seriesEvents.length} instances`);
+        
+        // For payment status, check if ANY instance in the series has payments
+        let hasPartlyPaid = false;
+        let hasFullyPaid = false;
+        
+        // For income calculation, use the payment amount from the FIRST instance only
+        // (assuming all instances in a series have the same payment details)
+        const firstInstance = seriesEvents[0];
+        
+        seriesEvents.forEach(instance => {
+          const paymentStatus = instance.payment_status || '';
+          if (paymentStatus.includes('partly')) hasPartlyPaid = true;
+          if (paymentStatus.includes('fully')) hasFullyPaid = true;
+
+          // Count each instance for daily stats
+          if (instance.start_date) {
+            try {
+              const eventDate = parseISO(instance.start_date);
+              const day = format(eventDate, 'yyyy-MM-dd');
+              dailyBookings.set(day, (dailyBookings.get(day) || 0) + 1);
+            } catch (dateError) {
+              console.warn('Invalid date in recurring instance:', instance.start_date);
+            }
+          }
+        });
+
+        // Count payment status once per series
+        if (hasPartlyPaid && !hasFullyPaid) partlyPaid++;
+        if (hasFullyPaid) fullyPaid++;
+
+        // Add income only once per series (from first instance)
+        if ((firstInstance.payment_status?.includes('partly') || 
+             firstInstance.payment_status?.includes('fully')) && 
+            firstInstance.payment_amount) {
+          const amount = typeof firstInstance.payment_amount === 'number' 
+            ? firstInstance.payment_amount 
+            : parseFloat(String(firstInstance.payment_amount));
+          if (!isNaN(amount) && amount > 0) {
+            totalIncome += amount;
+            console.log(`Added ${amount} from recurring series ${seriesId} (counted once)`);
+
+            // Add to monthly income only once per series
+            if (firstInstance.start_date) {
+              try {
+                const eventDate = parseISO(firstInstance.start_date);
+                const month = format(eventDate, 'MMM yyyy');
+                monthlyIncomeMap.set(month, (monthlyIncomeMap.get(month) || 0) + amount);
+              } catch (dateError) {
+                console.warn('Invalid date in recurring series:', firstInstance.start_date);
+              }
+            }
+          }
+        }
+
+        // Get additional persons for this series and count their payments only once
+        const seriesAdditionalPersons = additionalPersons.filter(person => 
+          person.event_id === seriesId
+        );
+
+        seriesAdditionalPersons.forEach(person => {
+          const personPaymentStatus = person.payment_status || '';
+          if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
+            const amount = typeof person.payment_amount === 'number' 
+              ? person.payment_amount 
+              : parseFloat(String(person.payment_amount));
+            if (!isNaN(amount) && amount > 0) {
+              totalIncome += amount;
+              console.log(`Added ${amount} from additional person in recurring series ${seriesId} (counted once)`);
+              
+              // Add to monthly income
+              if (person.start_date) {
+                try {
+                  const personDate = parseISO(person.start_date);
+                  const month = format(personDate, 'MMM yyyy');
+                  monthlyIncomeMap.set(month, (monthlyIncomeMap.get(month) || 0) + amount);
+                } catch (dateError) {
+                  console.warn('Invalid date in person:', person.start_date);
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // Add income from additional persons for non-recurring events
+      const nonRecurringAdditionalPersons = additionalPersons.filter(person => 
+        !recurringSeriesMap.has(person.event_id || '')
+      );
+
+      nonRecurringAdditionalPersons.forEach(person => {
         const personPaymentStatus = person.payment_status || '';
         if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
           const amount = typeof person.payment_amount === 'number' 
@@ -253,7 +368,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           if (!isNaN(amount) && amount > 0) {
             totalIncome += amount;
             
-            // Add to monthly income if person has valid date
+            // Add to monthly income
             if (person.start_date) {
               try {
                 const personDate = parseISO(person.start_date);
@@ -293,7 +408,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         events: allEvents || []
       };
 
-      console.log('🔧 Event stats result for date range:', {
+      console.log('🔧 Event stats result with recurring series payment fix:', {
         dateRange: `${startDateStr} to ${endDateStr}`,
         total: result.total,
         partlyPaid: result.partlyPaid,
@@ -301,7 +416,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         totalIncome: result.totalIncome,
         regularEventsCount: regularEvents?.length || 0,
         bookingRequestsCount: bookingRequests?.length || 0,
-        additionalPersonsCount: additionalPersons.length
+        additionalPersonsCount: additionalPersons.length,
+        recurringSeriesCount: recurringSeriesMap.size
       });
 
       return result;
