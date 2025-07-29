@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format, parseISO, startOfMonth, endOfMonth, addMonths } from 'date-fns';
@@ -310,7 +311,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
     gcTime: 15 * 60 * 1000,
   });
 
-  // Updated customer stats query to count customers by their creation date, not event date
+  // Fixed customer stats query to count unique customers properly and avoid double counting
   const { data: customerStats, isLoading: isLoadingCustomerStats } = useQuery({
     queryKey: ['optimized-customer-stats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async (): Promise<OptimizedCustomerStats> => {
@@ -321,64 +322,119 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const startDateStr = dateRange.start.toISOString();
       const endDateStr = dateRange.end.toISOString();
 
-      // Get all customers created in the date range (filter by customer creation date)
-      const { data: allCustomers, error: customersError } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('user_id', userId)
-        .gte('created_at', startDateStr) // Filter by customer creation date
-        .lte('created_at', endDateStr)   // Filter by customer creation date
-        .is('deleted_at', null);
+      // Create a Set to track unique customers by email/phone to avoid double counting
+      const uniqueCustomers = new Set<string>();
+      let totalCustomers = 0;
 
-      if (customersError) {
-        console.error('Error fetching customers:', customersError);
-        return { total: 0, withBooking: 0, withoutBooking: 0 };
-      }
-
-      // Get main persons from regular events created in the date range
+      // Get regular events created in the date range (main persons)
       const { data: regularEvents, error: regularEventsError } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
-        .gte('created_at', startDateStr) // Filter by event creation date
-        .lte('created_at', endDateStr)   // Filter by event creation date
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
         .is('deleted_at', null);
 
       if (regularEventsError) {
         console.error('Error fetching regular events for customer stats:', regularEventsError);
-        return { total: 0, withBooking: 0, withoutBooking: 0 };
+      } else if (regularEvents) {
+        // Add main event persons as unique customers
+        regularEvents.forEach(event => {
+          const customerKey = `${event.social_network_link || 'no-email'}_${event.user_number || 'no-phone'}_${event.user_surname || 'no-name'}`;
+          if (!uniqueCustomers.has(customerKey)) {
+            uniqueCustomers.add(customerKey);
+            totalCustomers++;
+            console.log('Added event customer:', { email: event.social_network_link, phone: event.user_number, name: event.user_surname });
+          }
+        });
       }
 
-      // Get main persons from approved booking requests created in the date range
+      // Get approved booking requests created in the date range (main persons)
       const { data: bookingRequests, error: bookingRequestsError } = await supabase
         .from('booking_requests')
         .select('*')
         .eq('user_id', userId)
         .eq('status', 'approved')
-        .gte('created_at', startDateStr) // Filter by booking request creation date
-        .lte('created_at', endDateStr)   // Filter by booking request creation date
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
         .is('deleted_at', null);
 
       if (bookingRequestsError) {
         console.error('Error fetching booking requests for customer stats:', bookingRequestsError);
-        return { total: 0, withBooking: 0, withoutBooking: 0 };
+      } else if (bookingRequests) {
+        // Add booking request persons as unique customers
+        bookingRequests.forEach(booking => {
+          const customerKey = `${booking.requester_email || 'no-email'}_${booking.requester_phone || 'no-phone'}_${booking.requester_name || 'no-name'}`;
+          if (!uniqueCustomers.has(customerKey)) {
+            uniqueCustomers.add(customerKey);
+            totalCustomers++;
+            console.log('Added booking request customer:', { email: booking.requester_email, phone: booking.requester_phone, name: booking.requester_name });
+          }
+        });
       }
 
-      // Count all persons/customers created in the date range
-      const customersCount = allCustomers?.length || 0;
-      const mainEventsCount = (regularEvents?.length || 0) + (bookingRequests?.length || 0);
-      const totalCustomers = customersCount + mainEventsCount;
+      // Get additional customers from CRM (type = 'customer') created in the date range
+      const { data: crmCustomers, error: crmCustomersError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('type', 'customer')
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
+        .is('deleted_at', null);
 
-      // All of these are "with booking" since they're all from events or are customers
+      if (crmCustomersError) {
+        console.error('Error fetching CRM customers for customer stats:', crmCustomersError);
+      } else if (crmCustomers) {
+        // Add CRM customers as unique customers (these are additional persons for events)
+        crmCustomers.forEach(customer => {
+          const customerKey = `${customer.social_network_link || 'no-email'}_${customer.user_number || 'no-phone'}_${customer.user_surname || customer.title || 'no-name'}`;
+          if (!uniqueCustomers.has(customerKey)) {
+            uniqueCustomers.add(customerKey);
+            totalCustomers++;
+            console.log('Added CRM customer:', { email: customer.social_network_link, phone: customer.user_number, name: customer.user_surname || customer.title });
+          }
+        });
+      }
+
+      // Get standalone CRM customers (not associated with events) created in the date range
+      const { data: standaloneCrmCustomers, error: standaloneCrmError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', userId)
+        .neq('type', 'customer') // These are standalone customers
+        .is('event_id', null) // Not associated with events
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
+        .is('deleted_at', null);
+
+      if (standaloneCrmError) {
+        console.error('Error fetching standalone CRM customers:', standaloneCrmError);
+      } else if (standaloneCrmCustomers) {
+        // Add standalone CRM customers
+        standaloneCrmCustomers.forEach(customer => {
+          const customerKey = `${customer.social_network_link || 'no-email'}_${customer.user_number || 'no-phone'}_${customer.user_surname || customer.title || 'no-name'}`;
+          if (!uniqueCustomers.has(customerKey)) {
+            uniqueCustomers.add(customerKey);
+            totalCustomers++;
+            console.log('Added standalone CRM customer:', { email: customer.social_network_link, phone: customer.user_number, name: customer.user_surname || customer.title });
+          }
+        });
+      }
+
+      // All customers found are "with booking" since they either come from events or are in CRM
       const withBooking = totalCustomers;
-      const withoutBooking = 0; // In this context, all customers are associated with events
+      const withoutBooking = 0; // No customers without booking in this context
 
-      console.log('Customer stats calculation (by creation date):', {
-        customersFromCRM: customersCount,
-        mainEvents: mainEventsCount,
-        total: totalCustomers,
+      console.log('Final customer stats calculation:', {
+        uniqueCustomersFound: uniqueCustomers.size,
+        totalCustomers,
         withBooking,
-        withoutBooking
+        withoutBooking,
+        regularEventsCount: regularEvents?.length || 0,
+        bookingRequestsCount: bookingRequests?.length || 0,
+        crmCustomersCount: crmCustomers?.length || 0,
+        standaloneCrmCustomersCount: standaloneCrmCustomers?.length || 0
       });
 
       return {
