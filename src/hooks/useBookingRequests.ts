@@ -175,16 +175,19 @@ export const useBookingRequests = (businessId?: string) => {
         .select()
         .single();
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("[useBookingRequests] Error updating booking status:", updateError);
+        throw updateError;
+      }
 
       console.log("[useBookingRequests] Booking status updated to approved");
 
-      // Step 2: Create customer record from the approved booking
+      // Step 2: Create customer record from the approved booking - CRITICAL FIX
       const customerData = {
         id: bookingToApprove.id, // use booking request ID to link event and customer
         user_id: bookingToApprove.user_id || user.id,
-        title: bookingToApprove.requester_name,
-        user_surname: bookingToApprove.user_surname || null,
+        title: bookingToApprove.requester_name || bookingToApprove.user_surname || 'Customer',
+        user_surname: bookingToApprove.user_surname || bookingToApprove.requester_name || null,
         user_number: bookingToApprove.requester_phone,
         social_network_link: bookingToApprove.requester_email,
         payment_status: bookingToApprove.payment_status || 'not_paid',
@@ -193,8 +196,11 @@ export const useBookingRequests = (businessId?: string) => {
         end_date: bookingToApprove.end_date,
         event_notes: bookingToApprove.description,
         type: 'booking_request',
-        create_event: true
+        create_event: true,
+        event_id: bookingToApprove.id // CRITICAL: Set event_id to booking ID for CRM file linking
       };
+
+      console.log("[useBookingRequests] Creating customer with data:", customerData);
 
       const { data: newCustomer, error: customerError } = await supabase
         .from('customers')
@@ -204,10 +210,10 @@ export const useBookingRequests = (businessId?: string) => {
 
       if (customerError) {
         console.error("[useBookingRequests] Error creating customer:", customerError);
-        throw customerError;
+        // Don't throw here, continue with event creation
+      } else {
+        console.log("[useBookingRequests] Customer created successfully:", newCustomer.id);
       }
-
-      console.log("[useBookingRequests] Customer created:", newCustomer.id);
 
       // Step 3: Create calendar event from the approved booking
       const { data: newEvent, error: eventError } = await supabase

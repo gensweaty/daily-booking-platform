@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 import { Task } from './types';
 
@@ -265,7 +264,7 @@ export const sendEventCreationEmail = async (
     const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
       body: {
         recipientEmail,
-        recipientName,
+        fullName: recipientName,
         businessName,
         startDate,
         endDate,
@@ -303,7 +302,7 @@ export const sendBookingConfirmationEmail = async (
     const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
       body: {
         recipientEmail,
-        recipientName,
+        fullName: recipientName,
         businessName,
         startDate,
         endDate,
