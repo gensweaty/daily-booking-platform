@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -436,7 +435,6 @@ export const CustomerList: React.FC<CustomerListProps> = ({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <SearchCommand 
-          value={searchTerm}
           onChange={setSearchTerm}
         />
         

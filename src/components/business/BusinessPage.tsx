@@ -322,10 +322,12 @@ export const BusinessPage = () => {
               </h2>
               <BookingRequestsList
                 requests={pendingRequests}
-                type="pending"
                 onApprove={approveRequest}
                 onReject={rejectRequest}
                 onDelete={deleteBookingRequest}
+                isApprovingBooking={false}
+                isRejectingBooking={false}
+                isDeletingBooking={false}
               />
             </div>
 
@@ -336,8 +338,8 @@ export const BusinessPage = () => {
               </h2>
               <BookingRequestsList
                 requests={approvedRequests}
-                type="approved"
                 onDelete={deleteBookingRequest}
+                showActions={true}
               />
             </div>
 
@@ -348,8 +350,8 @@ export const BusinessPage = () => {
               </h2>
               <BookingRequestsList
                 requests={rejectedRequests}
-                type="rejected"
                 onDelete={deleteBookingRequest}
+                showActions={true}
               />
             </div>
           </div>

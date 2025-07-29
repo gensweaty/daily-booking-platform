@@ -32,12 +32,12 @@ interface BookingRequest {
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
+  onApprove?: (id: string) => void;
+  onReject?: (id: string) => void;
   onDelete: (id: string) => void;
-  isApprovingBooking: boolean;
-  isRejectingBooking: boolean;
-  isDeletingBooking: boolean;
+  isApprovingBooking?: boolean;
+  isRejectingBooking?: boolean;
+  isDeletingBooking?: boolean;
   showActions?: boolean;
 }
 
@@ -113,12 +113,12 @@ const useBookingRequestFiles = (bookingId: string) => {
 
 const BookingRequestRow: React.FC<{
   request: BookingRequest;
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
+  onApprove?: (id: string) => void;
+  onReject?: (id: string) => void;
   onDelete: (id: string) => void;
-  isApprovingBooking: boolean;
-  isRejectingBooking: boolean;
-  isDeletingBooking: boolean;
+  isApprovingBooking?: boolean;
+  isRejectingBooking?: boolean;
+  isDeletingBooking?: boolean;
   showActions: boolean;
   isGeorgian: boolean;
   currencySymbol: string;
@@ -208,7 +208,7 @@ const BookingRequestRow: React.FC<{
       {showActions && (
         <td className="px-4 py-4">
           <div className="flex gap-2">
-            {request.status === 'pending' && (
+            {request.status === 'pending' && onApprove && onReject && (
               <>
                 <Button
                   size="sm"
@@ -252,9 +252,9 @@ export const BookingRequestsList: React.FC<BookingRequestsListProps> = ({
   onApprove,
   onReject,
   onDelete,
-  isApprovingBooking,
-  isRejectingBooking,
-  isDeletingBooking,
+  isApprovingBooking = false,
+  isRejectingBooking = false,
+  isDeletingBooking = false,
   showActions = true,
 }) => {
   const { t, language } = useLanguage();
