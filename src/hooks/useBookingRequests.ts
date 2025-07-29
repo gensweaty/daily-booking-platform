@@ -165,8 +165,8 @@ export const useBookingRequests = (businessId?: string) => {
 
       console.log("[useBookingRequests] No conflicts found, proceeding with approval");
 
-      // If no conflicts, proceed with approval
-      const { data, error } = await supabase
+      // Step 1: Update booking request status to approved
+      const { data: updatedBooking, error: updateError } = await supabase
         .from('booking_requests')
         .update({ 
           status: 'approved',
@@ -176,9 +176,67 @@ export const useBookingRequests = (businessId?: string) => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
-      // Get business profile to send confirmation email
+      console.log("[useBookingRequests] Booking status updated to approved");
+
+      // Step 2: Create customer record from the approved booking
+      const { data: newCustomer, error: customerError } = await supabase
+        .from('customers')
+        .insert([{
+          user_id: bookingToApprove.user_id || user.id, // Ensure user_id is set
+          title: bookingToApprove.title || bookingToApprove.requester_name,
+          user_surname: bookingToApprove.requester_name,
+          user_number: bookingToApprove.requester_phone,
+          social_network_link: bookingToApprove.requester_email,
+          payment_status: bookingToApprove.payment_status || 'not_paid',
+          payment_amount: bookingToApprove.payment_amount,
+          start_date: bookingToApprove.start_date,
+          end_date: bookingToApprove.end_date,
+          event_notes: bookingToApprove.description,
+          type: 'customer',
+          create_event: true // Mark that this customer came from an event booking
+        }])
+        .select()
+        .single();
+
+      if (customerError) {
+        console.error("[useBookingRequests] Error creating customer:", customerError);
+        throw customerError;
+      }
+
+      console.log("[useBookingRequests] Customer created:", newCustomer.id);
+
+      // Step 3: Create calendar event from the approved booking
+      const { data: newEvent, error: eventError } = await supabase
+        .from('events')
+        .insert([{
+          id: bookingId, // Use the same ID as the booking request
+          user_id: bookingToApprove.user_id || user.id,
+          title: bookingToApprove.title,
+          user_surname: bookingToApprove.requester_name,
+          user_number: bookingToApprove.requester_phone,
+          social_network_link: bookingToApprove.requester_email,
+          start_date: bookingToApprove.start_date,
+          end_date: bookingToApprove.end_date,
+          payment_status: bookingToApprove.payment_status || 'not_paid',
+          payment_amount: bookingToApprove.payment_amount,
+          type: 'booking_request',
+          booking_request_id: bookingId,
+          event_notes: bookingToApprove.description,
+          language: bookingToApprove.language || 'en'
+        }])
+        .select()
+        .single();
+
+      if (eventError) {
+        console.error("[useBookingRequests] Error creating event:", eventError);
+        throw eventError;
+      }
+
+      console.log("[useBookingRequests] Calendar event created:", newEvent.id);
+
+      // Step 4: Send confirmation email
       try {
         console.log("[useBookingRequests] Sending approval email for booking:", bookingId);
         
@@ -191,10 +249,12 @@ export const useBookingRequests = (businessId?: string) => {
         if (businessError) {
           console.error("[useBookingRequests] Error fetching business profile:", businessError);
         } else if (businessProfile && bookingToApprove.requester_email) {
-          // Send confirmation email
+          // Construct full name properly
+          const fullName = `${bookingToApprove.title || ''} ${bookingToApprove.requester_name || ''}`.trim() || bookingToApprove.requester_name || 'Customer';
+          
           await sendBookingConfirmationEmail(
             bookingToApprove.requester_email,
-            bookingToApprove.requester_name,
+            fullName,
             businessProfile.business_name,
             bookingToApprove.start_date,
             bookingToApprove.end_date,
@@ -213,14 +273,30 @@ export const useBookingRequests = (businessId?: string) => {
         // Don't fail the approval process if email fails
       }
 
-      return data;
+      return updatedBooking;
     },
     onSuccess: () => {
+      // Invalidate all relevant queries to refresh UI immediately
+      console.log("[useBookingRequests] Invalidating queries after successful approval");
+      
+      // Booking requests
       queryClient.invalidateQueries({ queryKey: ['booking-requests'] });
+      
+      // Calendar events
       queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['business-events'] });
+      queryClient.invalidateQueries({ queryKey: ['optimized-calendar-events'] });
+      
+      // CRM data
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['optimized-customers'] });
+      queryClient.invalidateQueries({ queryKey: ['optimized-crm-data'] });
+      
+      // Statistics
       queryClient.invalidateQueries({ queryKey: ['optimized-event-stats'] });
       queryClient.invalidateQueries({ queryKey: ['optimized-customer-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] });
+      
       toast({
         translateKeys: {
           titleKey: "common.success",
