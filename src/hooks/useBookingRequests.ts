@@ -248,7 +248,7 @@ export const useBookingRequests = (businessId?: string) => {
         console.error("[useBookingRequests] Error associating files:", fileError);
       }
 
-      // Step 5: Send confirmation email with proper full name construction
+      // Step 5: Send confirmation email with proper full name
       try {
         console.log("[useBookingRequests] Sending approval email for booking:", bookingId);
         
@@ -261,19 +261,13 @@ export const useBookingRequests = (businessId?: string) => {
         if (businessError) {
           console.error("[useBookingRequests] Error fetching business profile:", businessError);
         } else if (businessProfile && bookingToApprove.requester_email) {
-          // Construct full name using the same logic as event creation
-          // Priority: title > user_surname > requester_name > fallback
-          const fullName = bookingToApprove.title || 
-                           bookingToApprove.user_surname || 
+          // Fix: Construct full name properly using all available name fields
+          const fullName = bookingToApprove.user_surname || 
                            bookingToApprove.requester_name || 
+                           bookingToApprove.title || 
                            'Customer';
           
-          console.log("[useBookingRequests] Using full name for email:", {
-            fullName,
-            title: bookingToApprove.title,
-            user_surname: bookingToApprove.user_surname,
-            requester_name: bookingToApprove.requester_name
-          });
+          console.log("[useBookingRequests] Using full name for email:", fullName);
           
           await sendBookingConfirmationEmail(
             bookingToApprove.requester_email,
@@ -289,7 +283,7 @@ export const useBookingRequests = (businessId?: string) => {
             bookingToApprove.description || ''
           );
           
-          console.log("[useBookingRequests] Approval email sent successfully to:", bookingToApprove.requester_email);
+          console.log("[useBookingRequests] Approval email sent successfully");
         }
       } catch (emailError) {
         console.error("[useBookingRequests] Error sending approval email:", emailError);

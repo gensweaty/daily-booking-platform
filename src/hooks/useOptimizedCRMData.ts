@@ -131,8 +131,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
 
       // Add main persons from events as customers
       (events || []).forEach(event => {
-        // For events that were created from booking requests, fetch the files from event_files
-        const eventItem = {
+        allData.push({
           id: `event-${event.id}`,
           title: event.title || event.user_surname,
           user_surname: event.user_surname,
@@ -150,12 +149,10 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
           sort_date: event.created_at,
           // Map event_files to customer_files_new for UI compatibility
           customer_files_new: event.event_files || []
-        };
-
-        allData.push(eventItem);
+        });
       });
 
-      // Add transformed booking requests with their files
+      // Add transformed booking requests
       transformedBookingRequests.forEach(booking => {
         allData.push({
           ...booking,
@@ -163,7 +160,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         });
       });
 
-      // Add additional persons from events (but get their files from the parent event if applicable)
+      // Add additional persons from events
       (eventLinkedCustomers || []).forEach(customer => {
         allData.push({
           ...customer,
@@ -205,8 +202,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         bookingRequests: bookingRequests?.length || 0,
         eventLinkedCustomers: eventLinkedCustomers?.length || 0,
         totalUniqueCustomers: result.length,
-        dateRange: `${startDateStr} to ${endDateStr}`,
-        filesFound: result.filter(item => item.customer_files_new && item.customer_files_new.length > 0).length
+        dateRange: `${startDateStr} to ${endDateStr}`
       });
 
       return result;
