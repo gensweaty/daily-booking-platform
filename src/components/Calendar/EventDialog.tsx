@@ -52,29 +52,41 @@ const formSchema = z.object({
 });
 
 interface EventDialogProps {
-  selectedEvent: CalendarEventType | null;
-  onClose: () => void;
-  isOpen: boolean;
+  selectedEvent?: CalendarEventType | null;
+  onClose?: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   selectedDate: Date | undefined;
+  initialData?: CalendarEventType;
   onEventCreate?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType | void>;
   onEventUpdate?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType | void>;
   onEventDelete?: (id: string) => Promise<void>;
+  onEventCreated?: () => Promise<void>;
+  onEventUpdated?: () => Promise<void>;
+  onEventDeleted?: () => Promise<void>;
 }
 
 export const EventDialog = ({ 
   selectedEvent, 
   onClose, 
-  isOpen, 
+  open, 
+  onOpenChange,
   selectedDate,
+  initialData,
   onEventCreate,
   onEventUpdate,
-  onEventDelete
+  onEventDelete,
+  onEventCreated,
+  onEventUpdated,
+  onEventDeleted
 }: EventDialogProps) => {
   const [date, setDate] = useState<Date | undefined>(selectedDate);
   const { user } = useAuth();
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [conflictingEvents, setConflictingEvents] = useState<any[]>([]);
   const [pendingSubmission, setPendingSubmission] = useState<any>(null);
+
+  const eventToEdit = selectedEvent || initialData;
 
   // Get calendar data for conflict checking
   const { data: calendarData } = useOptimizedCalendarEvents(user?.id, selectedDate || new Date());
@@ -83,14 +95,14 @@ export const EventDialog = ({
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: selectedEvent?.title || "",
-      startDate: selectedEvent?.start_date || selectedDate?.toISOString() || "",
-      endDate: selectedEvent?.end_date || selectedDate?.toISOString() || "",
-      userNumber: selectedEvent?.user_number || "",
-      socialNetworkLink: selectedEvent?.social_network_link || "",
-      eventNotes: selectedEvent?.event_notes || "",
-      paymentStatus: selectedEvent?.payment_status || "not_paid",
-      paymentAmount: selectedEvent?.payment_amount?.toString() || "",
+      title: eventToEdit?.title || "",
+      startDate: eventToEdit?.start_date || selectedDate?.toISOString() || "",
+      endDate: eventToEdit?.end_date || selectedDate?.toISOString() || "",
+      userNumber: eventToEdit?.user_number || "",
+      socialNetworkLink: eventToEdit?.social_network_link || "",
+      eventNotes: eventToEdit?.event_notes || "",
+      paymentStatus: eventToEdit?.payment_status || "not_paid",
+      paymentAmount: eventToEdit?.payment_amount?.toString() || "",
     },
   });
 
@@ -122,15 +134,15 @@ export const EventDialog = ({
       ...(calendarData?.events || []).map(event => ({
         ...event,
         created_at: event.created_at || new Date().toISOString(),
-        updated_at: new Date().toISOString(), // Add missing updated_at
+        updated_at: event.updated_at || new Date().toISOString(),
         user_id: event.user_id,
         type: event.type || 'event'
       } as CalendarEventType)),
       ...(calendarData?.bookingRequests || []).map(booking => ({
         ...booking,
         created_at: booking.created_at || new Date().toISOString(),
-        updated_at: new Date().toISOString(), // Add missing updated_at
-        user_id: booking.business_id, // Map business_id to user_id
+        updated_at: booking.updated_at || new Date().toISOString(),
+        user_id: booking.business_id,
         type: 'booking_request'
       } as CalendarEventType))
     ];
@@ -140,7 +152,7 @@ export const EventDialog = ({
       startDate,
       endDate,
       transformedEvents,
-      selectedEvent?.id // Exclude current event when editing
+      eventToEdit?.id // Exclude current event when editing
     );
 
     // Check conflicts with approved bookings (separate check for booking requests)
@@ -199,15 +211,18 @@ export const EventDialog = ({
         file: data.file,
       };
 
-      if (selectedEvent) {
-        console.log("Updating existing event:", selectedEvent.id);
+      if (eventToEdit) {
+        console.log("Updating existing event:", eventToEdit.id);
         await onEventUpdate?.(eventData);
+        await onEventUpdated?.();
       } else {
         console.log("Creating new event");
         await onEventCreate?.(eventData);
+        await onEventCreated?.();
       }
       
-      onClose();
+      onClose?.();
+      onOpenChange(false);
     } catch (error) {
       console.error('Error in event submission:', error);
     }
@@ -229,12 +244,12 @@ export const EventDialog = ({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[525px]">
           <DialogHeader>
-            <DialogTitle>{selectedEvent ? "Edit Event" : "Create Event"}</DialogTitle>
+            <DialogTitle>{eventToEdit ? "Edit Event" : "Create Event"}</DialogTitle>
             <DialogDescription>
-              {selectedEvent
+              {eventToEdit
                 ? "Make changes to your event here. Click save when you're done."
                 : "Create a new event here. Click save when you're done."}
             </DialogDescription>
@@ -423,7 +438,7 @@ export const EventDialog = ({
                   </FormItem>
                 )}
               />
-              <Button type="submit">{selectedEvent ? "Update" : "Save"}</Button>
+              <Button type="submit">{eventToEdit ? "Update" : "Save"}</Button>
             </form>
           </Form>
         </DialogContent>

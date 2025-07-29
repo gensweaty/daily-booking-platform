@@ -4,17 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { checkTimeConflicts, checkBookingConflicts } from '@/utils/timeConflictChecker';
 import { CalendarEventType } from '@/lib/types/calendar';
-
-interface BookingRequest {
-  id: string;
-  title: string;
-  start_date: string;
-  end_date: string;
-  user_id: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
+import { BookingRequest } from '@/types/database';
 
 export const useBookingRequests = () => {
   const queryClient = useQueryClient();
@@ -84,8 +74,8 @@ export const useBookingRequests = () => {
       // Transform data to match CalendarEventType structure for conflict checking
       const transformedEvents = (existingEvents || []).map(event => ({
         ...event,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: event.created_at || new Date().toISOString(),
+        updated_at: event.updated_at || new Date().toISOString(),
         user_id: event.user_id,
         type: event.type || 'event'
       } as CalendarEventType));
