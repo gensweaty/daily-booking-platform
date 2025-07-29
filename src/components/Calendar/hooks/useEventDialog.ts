@@ -23,7 +23,7 @@ export const useEventDialog = ({
   const { toast } = useToast();
   const { language } = useLanguage();
 
-  // Helper function to check for time conflicts
+  // Helper function to check for time conflicts using simple queries
   const checkTimeConflicts = async (
     startDate: string,
     endDate: string,
@@ -31,27 +31,72 @@ export const useEventDialog = ({
     excludeEventId?: string
   ) => {
     try {
-      // Get user's business profile to check booking conflicts too
+      const conflicts: Array<{
+        event_title: string;
+        event_start: string;
+        event_end: string;
+        event_type: string;
+      }> = [];
+
+      // Check regular events for conflicts
+      const { data: eventConflicts, error: eventsError } = await supabase
+        .from('events')
+        .select('id, title, start_date, end_date, type')
+        .eq('user_id', userId)
+        .is('deleted_at', null)
+        .lt('start_date', endDate)
+        .gt('end_date', startDate);
+
+      if (eventsError) {
+        console.error('Error checking event conflicts:', eventsError);
+        return [];
+      }
+
+      if (eventConflicts && eventConflicts.length > 0) {
+        eventConflicts.forEach(event => {
+          if (!excludeEventId || event.id !== excludeEventId) {
+            conflicts.push({
+              event_title: event.title,
+              event_start: event.start_date,
+              event_end: event.end_date,
+              event_type: event.type || 'event'
+            });
+          }
+        });
+      }
+
+      // Check approved booking requests for conflicts
       const { data: businessProfile } = await supabase
         .from('business_profiles')
         .select('id')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
-      const { data: conflicts, error } = await supabase.rpc('check_time_overlap', {
-        p_user_id: userId,
-        p_start_date: startDate,
-        p_end_date: endDate,
-        p_exclude_event_id: excludeEventId || null,
-        p_business_id: businessProfile?.id || null
-      });
+      if (businessProfile) {
+        const { data: bookingConflicts, error: bookingsError } = await supabase
+          .from('booking_requests')
+          .select('id, title, start_date, end_date')
+          .eq('business_id', businessProfile.id)
+          .eq('status', 'approved')
+          .is('deleted_at', null)
+          .lt('start_date', endDate)
+          .gt('end_date', startDate);
 
-      if (error) {
-        console.error('Error checking time conflicts:', error);
-        return [];
+        if (!bookingsError && bookingConflicts && bookingConflicts.length > 0) {
+          bookingConflicts.forEach(booking => {
+            if (!excludeEventId || booking.id !== excludeEventId) {
+              conflicts.push({
+                event_title: booking.title,
+                event_start: booking.start_date,
+                event_end: booking.end_date,
+                event_type: 'booking_request'
+              });
+            }
+          });
+        }
       }
 
-      return conflicts || [];
+      return conflicts;
     } catch (error) {
       console.error('Error in checkTimeConflicts:', error);
       return [];
