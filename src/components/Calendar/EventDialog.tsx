@@ -783,7 +783,7 @@ export const EventDialog = ({
             />
             
             {(initialData || currentEventData) && (
-              <div className="flex items-center text-sm text-muted-foreground mb-4 rounded-md p-4 py-[8px] px-[8px] bg-gray-900">
+              <div className="flex items-center text-sm text-muted-foreground mb-4 rounded-md p-4 py-[8px] px-[8px] border border-border bg-card">
                 <span className="flex items-center mr-4">
                   <Clock className="mr-1 h-4 w-4" />
                   <span>
