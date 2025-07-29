@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format, parseISO, startOfMonth, endOfMonth, addMonths } from 'date-fns';
@@ -81,7 +82,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
     gcTime: 10 * 60 * 1000, // 10 minutes - reduced from 30
   });
 
-  // Fixed event stats query to properly handle booking requests in statistics
+  // Fixed event stats query to properly handle booking requests in statistics - filter by start_date
   const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
     queryKey: ['optimized-event-stats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async (): Promise<OptimizedEventStats> => {
@@ -100,7 +101,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const startDateStr = dateRange.start.toISOString();
       const endDateStr = dateRange.end.toISOString();
 
-      // Get regular events from events table (filter by start_date for statistics display)
+      // Get regular events from events table (filter by start_date for events happening in the selected period)
       const { data: regularEvents, error: eventsError } = await supabase
         .from('events')
         .select('*')
@@ -122,7 +123,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         };
       }
 
-      // Get approved booking requests from booking_requests table (filter by start_date for statistics)
+      // Get approved booking requests from booking_requests table (filter by start_date for events happening in the selected period)
       const { data: bookingRequests, error: bookingError } = await supabase
         .from('booking_requests')
         .select('*')
@@ -145,7 +146,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         };
       }
 
-      // Transform booking requests to match event structure
+      // Transform booking requests to match event structure for statistics
       const transformedBookingRequests = (bookingRequests || []).map(booking => ({
         ...booking,
         type: 'booking_request',
@@ -427,7 +428,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
     gcTime: 15 * 60 * 1000,
   });
 
-  // Fixed customer stats query to properly count booking request customers
+  // Fixed customer stats query to properly count booking request customers - filter by start_date
   const { data: customerStats, isLoading: isLoadingCustomerStats } = useQuery({
     queryKey: ['optimized-customer-stats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async (): Promise<OptimizedCustomerStats> => {
@@ -442,13 +443,13 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const uniqueCustomers = new Set<string>();
       let totalCustomers = 0;
 
-      // Get regular events in the date range (main persons)
+      // Get regular events in the date range (main persons) - filter by start_date for events happening in this period
       const { data: regularEvents, error: regularEventsError } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
-        .gte('start_date', startDateStr)  // Changed to start_date for statistics consistency
-        .lte('start_date', endDateStr)   // Changed to start_date for statistics consistency
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
         .is('deleted_at', null);
 
       if (regularEventsError) {
@@ -465,14 +466,14 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         });
       }
 
-      // Get approved booking requests in the date range (main persons)
+      // Get approved booking requests in the date range (main persons) - filter by start_date for events happening in this period
       const { data: bookingRequests, error: bookingRequestsError } = await supabase
         .from('booking_requests')
         .select('*')
         .eq('user_id', userId)
         .eq('status', 'approved')
-        .gte('start_date', startDateStr)  // Changed to start_date for statistics consistency
-        .lte('start_date', endDateStr)   // Changed to start_date for statistics consistency
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
         .is('deleted_at', null);
 
       if (bookingRequestsError) {

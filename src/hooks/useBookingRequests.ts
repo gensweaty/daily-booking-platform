@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { BookingRequest } from '@/types/database';
 import { CalendarEventType } from '@/lib/types/calendar';
+import { sendBookingConfirmationEmail } from '@/lib/api';
 
 // Helper function to check if two time ranges overlap
 const timeRangesOverlap = (start1: Date, end1: Date, start2: Date, end2: Date): boolean => {
@@ -177,11 +178,49 @@ export const useBookingRequests = (businessId?: string) => {
 
       if (error) throw error;
 
+      // Get business profile to send confirmation email
+      try {
+        console.log("[useBookingRequests] Sending approval email for booking:", bookingId);
+        
+        const { data: businessProfile, error: businessError } = await supabase
+          .from('business_profiles')
+          .select('*')
+          .eq('id', bookingToApprove.business_id)
+          .single();
+
+        if (businessError) {
+          console.error("[useBookingRequests] Error fetching business profile:", businessError);
+        } else if (businessProfile && bookingToApprove.requester_email) {
+          // Send confirmation email
+          await sendBookingConfirmationEmail(
+            bookingToApprove.requester_email,
+            bookingToApprove.requester_name,
+            businessProfile.business_name,
+            bookingToApprove.start_date,
+            bookingToApprove.end_date,
+            bookingToApprove.payment_status || 'not_paid',
+            bookingToApprove.payment_amount,
+            businessProfile.contact_address || '',
+            bookingId,
+            bookingToApprove.language || 'en',
+            bookingToApprove.description || ''
+          );
+          
+          console.log("[useBookingRequests] Approval email sent successfully");
+        }
+      } catch (emailError) {
+        console.error("[useBookingRequests] Error sending approval email:", emailError);
+        // Don't fail the approval process if email fails
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking-requests'] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['optimized-customers'] });
+      queryClient.invalidateQueries({ queryKey: ['optimized-event-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['optimized-customer-stats'] });
       toast({
         translateKeys: {
           titleKey: "common.success",

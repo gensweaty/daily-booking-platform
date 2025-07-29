@@ -28,13 +28,13 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         console.error('Error fetching standalone customers:', customersError);
       }
 
-      // Get events in date range (only parent events to avoid duplicates) - filter by EVENT created_at
+      // Get events in date range (only parent events to avoid duplicates) - filter by EVENT start_date to show events happening in this period
       const { data: events, error: eventsError } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
-        .gte('created_at', startDateStr)
-        .lte('created_at', endDateStr)
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
         .is('deleted_at', null)
         .is('parent_event_id', null)
         .order('created_at', { ascending: false });
@@ -43,14 +43,14 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         console.error('Error fetching events:', eventsError);
       }
 
-      // Get approved booking requests in date range - filter by booking request created_at
+      // Get approved booking requests in date range - filter by start_date to show bookings happening in this period
       const { data: bookingRequests, error: bookingRequestsError } = await supabase
         .from('booking_requests')
         .select('*')
         .eq('user_id', userId)
         .eq('status', 'approved')
-        .gte('created_at', startDateStr)
-        .lte('created_at', endDateStr)
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
@@ -73,17 +73,18 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         console.error('Error fetching event customers:', eventCustomersError);
       }
 
-      // Transform booking requests to match customer structure
+      // Transform booking requests to match customer structure for CRM display
       const transformedBookingRequests = (bookingRequests || []).map(booking => ({
         ...booking,
         id: `booking-${booking.id}`,
-        title: booking.title,
+        title: booking.title || booking.requester_name,
         user_surname: booking.requester_name,
         user_number: booking.requester_phone,
         social_network_link: booking.requester_email,
         event_notes: booking.description,
         source: 'booking_request',
-        create_event: true
+        create_event: true,
+        sort_date: booking.created_at
       }));
 
       // Combine all data into a single array to sort by creation date
@@ -124,7 +125,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
       transformedBookingRequests.forEach(booking => {
         allData.push({
           ...booking,
-          sort_date: booking.created_at
+          sort_date: booking.sort_date || booking.created_at
         });
       });
 
@@ -164,7 +165,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         return dateB.getTime() - dateA.getTime(); // DESC order (newest first)
       });
 
-      console.log('CRM data result (with booking requests):', {
+      console.log('CRM data result (with approved booking requests):', {
         standaloneCustomers: standaloneCustomers?.length || 0,
         events: events?.length || 0,
         bookingRequests: bookingRequests?.length || 0,
