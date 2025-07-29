@@ -331,6 +331,7 @@ export interface TranslationType {
     submitRequest: string;
     deleteEventConfirmTitle: string;
     deleteEventConfirmMessage: string;
+    timeConflictError: string; // Add this missing property
   };
   contact: {
     email: string;
@@ -491,6 +492,9 @@ export interface TranslationType {
     requestApproved: string;
     requestSubmitted: string;
     requestSubmittedDescription: string;
+    errorApproving: string; // Add these missing properties
+    errorRejecting: string;
+    errorDeleting: string;
   };
   notes: {
     title: string;
@@ -649,10 +653,4 @@ export interface TranslationType {
     november: string;
     december: string;
   };
-}
-
-export interface LanguageContextType {
-  language: Language;
-  setLanguage: (language: Language) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
 }

@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,7 +43,12 @@ export const useBookingRequests = (businessId?: string) => {
 
     const { data, error } = await query;
     if (error) throw error;
-    return data || [];
+    
+    // Cast the data to ensure status is properly typed
+    return (data || []).map(item => ({
+      ...item,
+      status: item.status as 'pending' | 'approved' | 'rejected'
+    })) as BookingRequest[];
   };
 
   const {

@@ -494,7 +494,10 @@ export const translations: TranslationType = {
     pendingRequestsCount: "Tiene {{count}} solicitudes de reserva pendientes",
     requestApproved: "Solicitud de reserva aprobada y correo electrónico enviado",
     requestSubmitted: "Solicitud de reserva enviada",
-    requestSubmittedDescription: "Su solicitud de reserva ha sido enviada y está pendiente de aprobación."
+    requestSubmittedDescription: "Su solicitud de reserva ha sido enviada y está pendiente de aprobación.",
+    errorApproving: "Error al aprobar la solicitud de reserva",
+    errorRejecting: "Error al rechazar la solicitud de reserva",
+    errorDeleting: "Error al eliminar la solicitud de reserva"
   },
   notes: {
     title: "Título",
