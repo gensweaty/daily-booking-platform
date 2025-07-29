@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { BookingRequest } from '@/types/database';
 import { CalendarEventType } from '@/lib/types/calendar';
 import { sendBookingConfirmationEmail } from '@/lib/api';
+import { associateBookingFilesWithEvent } from '@/integrations/supabase/client';
 
 // Helper function to check if two time ranges overlap
 const timeRangesOverlap = (start1: Date, end1: Date, start2: Date, end2: Date): boolean => {
@@ -184,7 +185,7 @@ export const useBookingRequests = (businessId?: string) => {
       const { data: newCustomer, error: customerError } = await supabase
         .from('customers')
         .insert([{
-          user_id: bookingToApprove.user_id || user.id, // Ensure user_id is set
+          user_id: bookingToApprove.user_id || user.id,
           title: bookingToApprove.title || bookingToApprove.requester_name,
           user_surname: bookingToApprove.requester_name,
           user_number: bookingToApprove.requester_phone,
@@ -195,7 +196,7 @@ export const useBookingRequests = (businessId?: string) => {
           end_date: bookingToApprove.end_date,
           event_notes: bookingToApprove.description,
           type: 'customer',
-          create_event: true // Mark that this customer came from an event booking
+          create_event: true
         }])
         .select()
         .single();
@@ -236,7 +237,17 @@ export const useBookingRequests = (businessId?: string) => {
 
       console.log("[useBookingRequests] Calendar event created:", newEvent.id);
 
-      // Step 4: Send confirmation email
+      // Step 4: Copy all attached files from booking request to the new event
+      try {
+        console.log("[useBookingRequests] Copying files from booking to event:", bookingId);
+        const copiedFiles = await associateBookingFilesWithEvent(bookingId, bookingId, user.id);
+        console.log("[useBookingRequests] Files copied successfully:", copiedFiles.length, "files");
+      } catch (fileError) {
+        console.error("[useBookingRequests] Error copying files:", fileError);
+        // Don't fail the approval process if file copying fails
+      }
+
+      // Step 5: Send confirmation email with properly constructed full name
       try {
         console.log("[useBookingRequests] Sending approval email for booking:", bookingId);
         
@@ -249,8 +260,11 @@ export const useBookingRequests = (businessId?: string) => {
         if (businessError) {
           console.error("[useBookingRequests] Error fetching business profile:", businessError);
         } else if (businessProfile && bookingToApprove.requester_email) {
-          // Construct full name properly
-          const fullName = `${bookingToApprove.title || ''} ${bookingToApprove.requester_name || ''}`.trim() || bookingToApprove.requester_name || 'Customer';
+          // Construct full name properly - filter out falsy values and join
+          const fullName = [bookingToApprove.title, bookingToApprove.requester_name]
+            .filter(Boolean)
+            .join(" ")
+            .trim() || bookingToApprove.requester_name || bookingToApprove.title || "Customer";
           
           await sendBookingConfirmationEmail(
             bookingToApprove.requester_email,
@@ -266,7 +280,7 @@ export const useBookingRequests = (businessId?: string) => {
             bookingToApprove.description || ''
           );
           
-          console.log("[useBookingRequests] Approval email sent successfully");
+          console.log("[useBookingRequests] Approval email sent successfully to:", fullName);
         }
       } catch (emailError) {
         console.error("[useBookingRequests] Error sending approval email:", emailError);
