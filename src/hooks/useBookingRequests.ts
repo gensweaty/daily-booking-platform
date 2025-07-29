@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -75,7 +74,7 @@ export const useBookingRequests = (businessId?: string) => {
 
       console.log("[useBookingRequests] Approving booking request:", bookingId);
 
-      // **NEW: Add conflict checking before approval**
+      // Find the booking request to approve
       const bookingToApprove = bookingRequests.find(req => req.id === bookingId);
       if (!bookingToApprove) {
         throw new Error("Booking request not found");
@@ -84,18 +83,53 @@ export const useBookingRequests = (businessId?: string) => {
       const bookingStart = new Date(bookingToApprove.start_date);
       const bookingEnd = new Date(bookingToApprove.end_date);
 
-      // Get existing events from React Query cache
-      const existingEvents = queryClient.getQueryData<CalendarEventType[]>(['events', user.id]) || [];
+      console.log("[useBookingRequests] Checking conflicts for booking:", {
+        id: bookingId,
+        start: bookingStart,
+        end: bookingEnd
+      });
+
+      // Get existing events from React Query cache - try multiple possible query keys
+      let existingEvents: CalendarEventType[] = [];
+      
+      // Try to get events from different possible cache keys
+      const eventsFromUserCache = queryClient.getQueryData<CalendarEventType[]>(['events', user.id]);
+      const eventsFromBusinessCache = businessId ? queryClient.getQueryData<CalendarEventType[]>(['business-events', businessId]) : null;
+      const optimizedEventsCache = queryClient.getQueryData<{events: CalendarEventType[], bookingRequests: any[]}>(['optimized-calendar-events', user.id, new Date().toISOString().slice(0, 7)]);
+      
+      if (eventsFromUserCache) {
+        existingEvents = eventsFromUserCache;
+      } else if (eventsFromBusinessCache) {
+        existingEvents = eventsFromBusinessCache;
+      } else if (optimizedEventsCache?.events) {
+        existingEvents = optimizedEventsCache.events;
+      }
+
+      console.log("[useBookingRequests] Found existing events for conflict check:", existingEvents.length);
       
       // Check for conflicts with existing events
       const conflictingEvent = existingEvents.find(event => {
         const eventStart = new Date(event.start_date);
         const eventEnd = new Date(event.end_date);
         
-        return timeRangesOverlap(bookingStart, bookingEnd, eventStart, eventEnd);
+        const hasOverlap = timeRangesOverlap(bookingStart, bookingEnd, eventStart, eventEnd);
+        
+        if (hasOverlap) {
+          console.log("[useBookingRequests] Found conflicting event:", {
+            eventId: event.id,
+            eventTitle: event.title,
+            eventStart: eventStart,
+            eventEnd: eventEnd,
+            bookingStart: bookingStart,
+            bookingEnd: bookingEnd
+          });
+        }
+        
+        return hasOverlap;
       });
 
       if (conflictingEvent) {
+        console.log("[useBookingRequests] Conflict detected with existing event, blocking approval");
         toast({
           variant: "destructive",
           translateKeys: {
@@ -117,6 +151,7 @@ export const useBookingRequests = (businessId?: string) => {
       );
 
       if (conflictingBooking) {
+        console.log("[useBookingRequests] Conflict detected with approved booking, blocking approval");
         toast({
           variant: "destructive",
           translateKeys: {
@@ -126,6 +161,8 @@ export const useBookingRequests = (businessId?: string) => {
         });
         throw new Error("time-conflict");
       }
+
+      console.log("[useBookingRequests] No conflicts found, proceeding with approval");
 
       // If no conflicts, proceed with approval
       const { data, error } = await supabase
