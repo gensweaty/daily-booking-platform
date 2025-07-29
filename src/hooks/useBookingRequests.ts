@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, associateBookingFilesWithEvent } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -180,22 +181,25 @@ export const useBookingRequests = (businessId?: string) => {
       console.log("[useBookingRequests] Booking status updated to approved");
 
       // Step 2: Create customer record from the approved booking
+      const customerData = {
+        id: bookingToApprove.id, // use booking request ID to link event and customer
+        user_id: bookingToApprove.user_id || user.id,
+        title: bookingToApprove.requester_name,
+        user_surname: bookingToApprove.user_surname || null,
+        user_number: bookingToApprove.requester_phone,
+        social_network_link: bookingToApprove.requester_email,
+        payment_status: bookingToApprove.payment_status || 'not_paid',
+        payment_amount: bookingToApprove.payment_amount,
+        start_date: bookingToApprove.start_date,
+        end_date: bookingToApprove.end_date,
+        event_notes: bookingToApprove.description,
+        type: 'booking_request',
+        create_event: true
+      };
+
       const { data: newCustomer, error: customerError } = await supabase
         .from('customers')
-        .insert([{
-          user_id: bookingToApprove.user_id || user.id,
-          title: bookingToApprove.title || bookingToApprove.user_surname || bookingToApprove.requester_name,
-          user_surname: bookingToApprove.user_surname || bookingToApprove.requester_name,
-          user_number: bookingToApprove.requester_phone,
-          social_network_link: bookingToApprove.requester_email,
-          payment_status: bookingToApprove.payment_status || 'not_paid',
-          payment_amount: bookingToApprove.payment_amount,
-          start_date: bookingToApprove.start_date,
-          end_date: bookingToApprove.end_date,
-          event_notes: bookingToApprove.description,
-          type: 'customer',
-          create_event: true
-        }])
+        .insert([customerData])
         .select()
         .single();
 
@@ -261,11 +265,10 @@ export const useBookingRequests = (businessId?: string) => {
         if (businessError) {
           console.error("[useBookingRequests] Error fetching business profile:", businessError);
         } else if (businessProfile && bookingToApprove.requester_email) {
-          // Fix: Use the same name priority as UI - title first, then user_surname, then requester_name
-          const fullName = bookingToApprove.title || 
-                           bookingToApprove.user_surname || 
-                           bookingToApprove.requester_name || 
-                           'Customer';
+          // Use full name in greeting if available, otherwise fallback to any provided name
+          const fullName = bookingToApprove.requester_name && bookingToApprove.user_surname 
+            ? `${bookingToApprove.requester_name} ${bookingToApprove.user_surname}` 
+            : (bookingToApprove.requester_name || bookingToApprove.user_surname || bookingToApprove.title || 'Customer');
           
           console.log("[useBookingRequests] Using full name for email:", fullName);
           

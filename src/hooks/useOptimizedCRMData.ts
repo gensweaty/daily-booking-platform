@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -17,8 +16,19 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
       const { data: standaloneCustomers, error: customersError } = await supabase
         .from('customers')
         .select(`
-          *,
-          customer_files_new(*)
+          id,
+          title,
+          user_surname,
+          user_number,
+          social_network_link,
+          start_date,
+          end_date,
+          payment_status,
+          payment_amount,
+          create_event,
+          created_at,
+          type,
+          customer_files_new!inner(count)
         `)
         .eq('user_id', userId)
         .is('event_id', null)
@@ -35,8 +45,15 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
       const { data: events, error: eventsError } = await supabase
         .from('events')
         .select(`
-          *,
-          event_files(*)
+          id,
+          booking_request_id,
+          title,
+          start_date,
+          end_date,
+          payment_status,
+          payment_amount,
+          created_at,
+          event_files!inner(count)
         `)
         .eq('user_id', userId)
         .gte('start_date', startDateStr)
@@ -68,8 +85,19 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
       const { data: eventLinkedCustomers, error: eventCustomersError } = await supabase
         .from('customers')
         .select(`
-          *,
-          customer_files_new(*)
+          id,
+          title,
+          user_surname,
+          user_number,
+          social_network_link,
+          start_date,
+          end_date,
+          payment_status,
+          payment_amount,
+          create_event,
+          created_at,
+          type,
+          customer_files_new!inner(count)
         `)
         .eq('user_id', userId)
         .eq('type', 'customer')
@@ -81,6 +109,103 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
       if (eventCustomersError) {
         console.error('Error fetching event customers:', eventCustomersError);
       }
+
+      // Helper function to fetch and process customer data
+      const fetchOptimizedCustomers = async (customersData: any[]) => {
+        let processedCustomers = customersData || [];
+        
+        // Map file counts and initialize file list for each customer
+        processedCustomers = processedCustomers.map(cust => {
+          const filesCount = cust.customer_files_new;
+          cust.file_count = filesCount?.count ?? (Array.isArray(filesCount) ? filesCount[0]?.count : 0);
+          cust.customer_files_new = [];  // prepare to fill with actual files
+          return cust;
+        });
+
+        // Fetch files for customers that originated from booking requests (approved requests)
+        const bookingCustIds = processedCustomers.filter(c => c.type === 'booking_request').map(c => c.id);
+        if (bookingCustIds.length) {
+          const { data: eventsMatch, error: matchErr } = await supabase
+            .from('events')
+            .select('id, booking_request_id')
+            .in('booking_request_id', bookingCustIds);
+          
+          if (!matchErr && eventsMatch?.length) {
+            const eventIds = eventsMatch.map(evt => evt.id);
+            const { data: eventFiles, error: filesErr } = await supabase
+              .from('event_files')
+              .select('*')
+              .in('event_id', eventIds);
+            
+            if (!filesErr && eventFiles) {
+              // Group files by the booking_request (customer) ID
+              const filesByRequest = new Map<string, any[]>();
+              for (const evt of eventsMatch) filesByRequest.set(evt.booking_request_id, []);
+              for (const file of eventFiles) {
+                const evt = eventsMatch.find(e => e.id === file.event_id);
+                if (evt && filesByRequest.has(evt.booking_request_id)) {
+                  const list = filesByRequest.get(evt.booking_request_id)!;
+                  if (!list.find(f => f.file_path === file.file_path)) {
+                    list.push(file);
+                  }
+                }
+              }
+              
+              // Attach files to the corresponding customer entries
+              processedCustomers = processedCustomers.map(cust => ({
+                ...cust,
+                customer_files_new: filesByRequest.get(cust.id) ?? []
+              }));
+            }
+          }
+        }
+        
+        return processedCustomers;
+      };
+
+      // Helper function to fetch and process event data
+      const fetchOptimizedEvents = async (eventsData: any[]) => {
+        let processedEvents = eventsData || [];
+        
+        // Map file counts and initialize file list for each event
+        processedEvents = processedEvents.map(evt => {
+          const filesCount = evt.event_files;
+          evt.file_count = filesCount?.count ?? (Array.isArray(filesCount) ? filesCount[0]?.count : 0);
+          evt.event_files = [];  // will fill if attachments exist
+          return evt;
+        });
+
+        // Fetch files for events that have attachments
+        const eventsWithFiles = processedEvents.filter(e => (e.file_count ?? 0) > 0).map(e => e.id);
+        if (eventsWithFiles.length) {
+          const { data: fileRecords, error: filesErr } = await supabase
+            .from('event_files')
+            .select('*')
+            .in('event_id', eventsWithFiles);
+          
+          if (!filesErr && fileRecords) {
+            const filesByEvent = new Map<string, any[]>();
+            for (const file of fileRecords) {
+              if (!file.event_id) continue;
+              if (!filesByEvent.has(file.event_id)) filesByEvent.set(file.event_id, []);
+              const list = filesByEvent.get(file.event_id)!;
+              if (!list.find(f => f.file_path === file.file_path)) {
+                list.push(file);
+              }
+            }
+            processedEvents = processedEvents.map(evt => ({
+              ...evt,
+              event_files: filesByEvent.get(evt.id) ?? []
+            }));
+          }
+        }
+        
+        return processedEvents;
+      };
+
+      // Process customers and events
+      const processedCustomers = await fetchOptimizedCustomers([...(standaloneCustomers || []), ...(eventLinkedCustomers || [])]);
+      const processedEvents = await fetchOptimizedEvents(events || []);
 
       // For each booking request, get its files from event_files table
       const bookingRequestsWithFiles = await Promise.all(
@@ -101,42 +226,6 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         })
       );
 
-      // For customers created from approved bookings (with create_event: true), get their files from event_files
-      const eventCustomersWithFiles = await Promise.all(
-        (eventLinkedCustomers || []).map(async (customer) => {
-          if (customer.create_event) {
-            // Find the corresponding event that was created from this customer's booking
-            const { data: correspondingEvent, error: eventError } = await supabase
-              .from('events')
-              .select('id')
-              .eq('user_id', userId)
-              .eq('title', customer.title)
-              .eq('user_surname', customer.user_surname)
-              .eq('start_date', customer.start_date)
-              .is('deleted_at', null)
-              .limit(1)
-              .single();
-
-            if (!eventError && correspondingEvent) {
-              // Fetch files from event_files using the event ID
-              const { data: eventFiles, error: filesError } = await supabase
-                .from('event_files')
-                .select('*')
-                .eq('event_id', correspondingEvent.id);
-
-              if (!filesError && eventFiles && eventFiles.length > 0) {
-                console.log('Found files for customer created from booking:', customer.id, 'files:', eventFiles.length);
-                return {
-                  ...customer,
-                  customer_files_new: [...(customer.customer_files_new || []), ...eventFiles]
-                };
-              }
-            }
-          }
-          return customer;
-        })
-      );
-
       // Transform booking requests to match customer structure for CRM display
       const transformedBookingRequests = bookingRequestsWithFiles.map(booking => ({
         ...booking,
@@ -154,74 +243,68 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
       }));
 
       // Combine all data into a single array to sort by creation date
-      const allData = [];
+      const combined: any[] = [];
+      const seenSignatures = new Set();
+      const customerIdSet = new Set(processedCustomers.map(c => c.id));
 
-      // Add standalone customers
-      (standaloneCustomers || []).forEach(customer => {
-        allData.push({
-          ...customer,
-          source: 'standalone',
-          create_event: customer.create_event || false,
-          sort_date: customer.created_at
-        });
-      });
+      // Add customers first
+      for (const customer of processedCustomers) {
+        if (!customer) continue;
+        
+        const signature = `${customer.title}:::${customer.start_date}:::${customer.user_number}`;
+        
+        if (!seenSignatures.has(signature)) {
+          combined.push({
+            ...customer,
+            create_event: customer.create_event ?? false
+          });
+          seenSignatures.add(signature);
+        }
+      }
 
-      // Add main persons from events as customers
-      (events || []).forEach(event => {
-        allData.push({
-          id: `event-${event.id}`,
-          title: event.title || event.user_surname,
-          user_surname: event.user_surname,
-          user_number: event.user_number,
-          social_network_link: event.social_network_link,
-          event_notes: event.event_notes,
-          payment_status: event.payment_status,
-          payment_amount: event.payment_amount,
-          start_date: event.start_date,
-          end_date: event.end_date,
-          created_at: event.created_at,
-          user_id: event.user_id,
-          source: 'event',
-          create_event: true,
-          sort_date: event.created_at,
-          // Map event_files to customer_files_new for UI compatibility
-          customer_files_new: event.event_files || []
-        });
-      });
+      // Add non-duplicate events
+      for (const event of processedEvents) {
+        if (!event) continue;
+        
+        // Skip event if its booking_request corresponds to an existing customer
+        if (event.booking_request_id && customerIdSet.has(event.booking_request_id)) continue;
+        
+        const signature = `${event.title}:::${event.start_date}`;
+        
+        if (!seenSignatures.has(signature)) {
+          combined.push({
+            ...event,
+            id: `event-${event.id}`,
+            customer_files_new: event.event_files ?? [],
+            create_event: false
+          });
+          seenSignatures.add(signature);
+        }
+      }
 
       // Add transformed booking requests
       transformedBookingRequests.forEach(booking => {
-        allData.push({
+        combined.push({
           ...booking,
           sort_date: booking.sort_date || booking.created_at
-        });
-      });
-
-      // Add customers with their files (including files from approved bookings)
-      eventCustomersWithFiles.forEach(customer => {
-        allData.push({
-          ...customer,
-          source: 'additional',
-          create_event: true,
-          sort_date: customer.created_at
         });
       });
 
       // Remove duplicates using a Map based on unique identifiers
       const uniqueData = new Map();
       
-      allData.forEach(item => {
+      combined.forEach(item => {
         let key;
-        if (item.source === 'event') {
-          key = `event-${item.id.replace('event-', '')}`;
-        } else if (item.source === 'booking_request') {
+        if (item.source === 'booking_request') {
           key = `booking-${item.id.replace('booking-', '')}`;
+        } else if (item.id && item.id.toString().startsWith('event-')) {
+          key = item.id;
         } else {
           key = `customer-${item.id}`;
         }
         
         // Keep the most recent version if duplicate found
-        if (!uniqueData.has(key) || new Date(item.sort_date) > new Date(uniqueData.get(key).sort_date)) {
+        if (!uniqueData.has(key) || new Date(item.sort_date || item.created_at) > new Date(uniqueData.get(key).sort_date || uniqueData.get(key).created_at)) {
           uniqueData.set(key, item);
         }
       });
