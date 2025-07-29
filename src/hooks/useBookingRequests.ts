@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, associateBookingFilesWithEvent } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,6 +10,23 @@ import { sendBookingConfirmationEmail } from '@/lib/api';
 // Helper function to check if two time ranges overlap
 const timeRangesOverlap = (start1: Date, end1: Date, start2: Date, end2: Date): boolean => {
   return start1 < end2 && end1 > start2;
+};
+
+// Helper function to construct a proper full name from booking request data
+const constructFullName = (booking: BookingRequest): string => {
+  // Try multiple fields in order of preference and filter out empty/null values
+  const nameOptions = [
+    booking.title,
+    booking.user_surname, 
+    booking.requester_name
+  ].filter(name => name && typeof name === 'string' && name.trim().length > 0);
+
+  if (nameOptions.length > 0) {
+    return nameOptions[0].trim();
+  }
+
+  // Fallback to 'Customer' if no name is available
+  return 'Customer';
 };
 
 export const useBookingRequests = (businessId?: string) => {
@@ -179,13 +197,17 @@ export const useBookingRequests = (businessId?: string) => {
 
       console.log("[useBookingRequests] Booking status updated to approved");
 
+      // Construct proper full name using the helper function
+      const fullName = constructFullName(bookingToApprove);
+      console.log("[useBookingRequests] Constructed full name for customer:", fullName);
+
       // Step 2: Create customer record from the approved booking
       const { data: newCustomer, error: customerError } = await supabase
         .from('customers')
         .insert([{
           user_id: bookingToApprove.user_id || user.id,
-          title: bookingToApprove.title || bookingToApprove.user_surname || bookingToApprove.requester_name,
-          user_surname: bookingToApprove.user_surname || bookingToApprove.requester_name,
+          title: fullName,
+          user_surname: fullName,
           user_number: bookingToApprove.requester_phone,
           social_network_link: bookingToApprove.requester_email,
           payment_status: bookingToApprove.payment_status || 'not_paid',
@@ -194,7 +216,8 @@ export const useBookingRequests = (businessId?: string) => {
           end_date: bookingToApprove.end_date,
           event_notes: bookingToApprove.description,
           type: 'customer',
-          create_event: true
+          create_event: true,
+          event_id: bookingId  // Link to the booking request/event for file access
         }])
         .select()
         .single();
@@ -212,8 +235,8 @@ export const useBookingRequests = (businessId?: string) => {
         .insert([{
           id: bookingId,
           user_id: bookingToApprove.user_id || user.id,
-          title: bookingToApprove.title,
-          user_surname: bookingToApprove.user_surname || bookingToApprove.requester_name,
+          title: fullName,
+          user_surname: fullName,
           user_number: bookingToApprove.requester_phone,
           social_network_link: bookingToApprove.requester_email,
           start_date: bookingToApprove.start_date,
@@ -261,12 +284,6 @@ export const useBookingRequests = (businessId?: string) => {
         if (businessError) {
           console.error("[useBookingRequests] Error fetching business profile:", businessError);
         } else if (businessProfile && bookingToApprove.requester_email) {
-          // Fix: Construct full name properly using all available name fields
-          const fullName = bookingToApprove.user_surname || 
-                           bookingToApprove.requester_name || 
-                           bookingToApprove.title || 
-                           'Customer';
-          
           console.log("[useBookingRequests] Using full name for email:", fullName);
           
           await sendBookingConfirmationEmail(
