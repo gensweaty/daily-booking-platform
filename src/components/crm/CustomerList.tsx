@@ -95,26 +95,27 @@ const useCustomerFiles = (customer: Customer) => {
           });
         }
 
-        // Also check if this is a booking request with direct file fields
+        // Also check booking_files table for booking request files
         if (customer.source === 'booking_request') {
-          const { data: bookingData, error: bookingError } = await supabase
-            .from('booking_requests')
-            .select('file_path, filename, content_type')
-            .eq('id', eventId)
-            .single();
+          const { data: bookingFiles, error: bookingFilesError } = await supabase
+            .from('booking_files')
+            .select('id, filename, file_path, content_type, size, created_at, user_id')
+            .eq('booking_request_id', eventId);
 
-          if (bookingError) {
-            console.error('Error fetching booking data:', bookingError);
-          } else if (bookingData && bookingData.file_path && bookingData.filename) {
-            allFiles.push({
-              id: `booking-${eventId}`,
-              filename: bookingData.filename,
-              file_path: bookingData.file_path,
-              content_type: bookingData.content_type || 'application/octet-stream',
-              size: 0,
-              created_at: customer.created_at,
-              user_id: customer.user_id,
-              source: 'booking_request'
+          if (bookingFilesError) {
+            console.error('Error fetching booking files:', bookingFilesError);
+          } else if (bookingFiles) {
+            bookingFiles.forEach(file => {
+              allFiles.push({
+                id: file.id,
+                filename: file.filename,
+                file_path: file.file_path,
+                content_type: file.content_type,
+                size: file.size,
+                created_at: file.created_at,
+                user_id: file.user_id,
+                source: 'booking_request'
+              });
             });
           }
         }

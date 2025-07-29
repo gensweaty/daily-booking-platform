@@ -28,10 +28,6 @@ interface BookingRequest {
   payment_amount?: number;
   language?: string;
   created_at: string;
-  // Add file fields that might exist on booking_requests
-  file_path?: string;
-  filename?: string;
-  content_type?: string;
 }
 
 interface BookingRequestsListProps {
@@ -52,7 +48,7 @@ const useBookingRequestFiles = (bookingId: string) => {
     queryFn: async () => {
       console.log('Fetching files for booking request:', bookingId);
       
-      // First try to get files from event_files table (since approved bookings use same ID)
+      // Get files from event_files table (since approved bookings create events with same ID)
       const { data: eventFiles, error: eventFilesError } = await supabase
         .from('event_files')
         .select('id, filename, file_path, content_type, size, created_at, user_id')
@@ -62,15 +58,14 @@ const useBookingRequestFiles = (bookingId: string) => {
         console.error('Error fetching event files:', eventFilesError);
       }
 
-      // Also check if there are files directly in booking_requests table
-      const { data: bookingData, error: bookingError } = await supabase
-        .from('booking_requests')
-        .select('file_path, filename, content_type')
-        .eq('id', bookingId)
-        .single();
+      // Also check booking_files table if it exists for this booking
+      const { data: bookingFiles, error: bookingFilesError } = await supabase
+        .from('booking_files')
+        .select('id, filename, file_path, content_type, size, created_at, user_id')
+        .eq('booking_request_id', bookingId);
 
-      if (bookingError) {
-        console.error('Error fetching booking data:', bookingError);
+      if (bookingFilesError) {
+        console.error('Error fetching booking files:', bookingFilesError);
       }
 
       const allFiles: FileRecord[] = [];
@@ -91,17 +86,19 @@ const useBookingRequestFiles = (bookingId: string) => {
         });
       }
 
-      // Add file from booking_requests table if it exists
-      if (bookingData && bookingData.file_path && bookingData.filename) {
-        allFiles.push({
-          id: `booking-${bookingId}`,
-          filename: bookingData.filename,
-          file_path: bookingData.file_path,
-          content_type: bookingData.content_type || 'application/octet-stream',
-          size: 0,
-          created_at: new Date().toISOString(),
-          user_id: '',
-          source: 'booking_request'
+      // Add files from booking_files table
+      if (bookingFiles && bookingFiles.length > 0) {
+        bookingFiles.forEach(file => {
+          allFiles.push({
+            id: file.id,
+            filename: file.filename,
+            file_path: file.file_path,
+            content_type: file.content_type,
+            size: file.size,
+            created_at: file.created_at,
+            user_id: file.user_id,
+            source: 'booking_request'
+          });
         });
       }
 
