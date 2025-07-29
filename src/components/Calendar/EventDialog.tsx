@@ -64,8 +64,15 @@ export const EventDialog = ({
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   
-  // Get conflict validation from the event dialog hook
+  // Get conflict validation from the event dialog hook and set selected event
   const eventDialogHook = useEventDialog({});
+  
+  // Set the selected event when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      eventDialogHook.setSelectedEvent(initialData);
+    }
+  }, [initialData]);
   
   const isGeorgian = language === 'ka';
 
@@ -327,7 +334,10 @@ export const EventDialog = ({
               isNewEvent={!initialData}
               additionalPersons={additionalPersons}
               setAdditionalPersons={setAdditionalPersons}
-              conflictValidation={eventDialogHook.conflictValidation}
+              conflictValidation={{
+                data: eventDialogHook.conflictValidation.data,
+                isLoading: eventDialogHook.conflictValidation.isLoading
+              }}
               showConflictCheck={eventDialogHook.showConflictCheck}
             />
             

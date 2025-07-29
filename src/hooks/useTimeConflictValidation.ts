@@ -1,7 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { parseISO, isBefore, isAfter, isEqual } from 'date-fns';
+import { parseISO, isBefore, isAfter } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface TimeConflictValidationProps {
@@ -11,17 +11,14 @@ interface TimeConflictValidationProps {
   enabled?: boolean;
 }
 
-interface ConflictEvent {
-  id: string;
-  title: string;
-  start_date: string;
-  end_date: string;
-  type: string;
-}
-
 interface ConflictValidationResult {
   hasConflict: boolean;
-  conflicts: ConflictEvent[];
+  conflicts: Array<{
+    type: 'event' | 'booking';
+    title: string;
+    start: string;
+    end: string;
+  }>;
 }
 
 export const useTimeConflictValidation = ({
@@ -73,7 +70,12 @@ export const useTimeConflictValidation = ({
         throw bookingsError;
       }
 
-      const conflicts: ConflictEvent[] = [];
+      const conflicts: Array<{
+        type: 'event' | 'booking';
+        title: string;
+        start: string;
+        end: string;
+      }> = [];
 
       // Check conflicts with existing events
       existingEvents?.forEach((event) => {
@@ -85,11 +87,10 @@ export const useTimeConflictValidation = ({
         
         if (hasOverlap) {
           conflicts.push({
-            id: event.id,
+            type: 'event',
             title: event.title,
-            start_date: event.start_date,
-            end_date: event.end_date,
-            type: event.type || 'event'
+            start: event.start_date,
+            end: event.end_date
           });
         }
       });
@@ -103,11 +104,10 @@ export const useTimeConflictValidation = ({
         
         if (hasOverlap) {
           conflicts.push({
-            id: booking.id,
+            type: 'booking',
             title: booking.requester_name || 'Booking Request',
-            start_date: booking.start_date,
-            end_date: booking.end_date,
-            type: 'booking_request'
+            start: booking.start_date,
+            end: booking.end_date
           });
         }
       });
