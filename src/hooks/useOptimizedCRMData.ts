@@ -122,7 +122,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
           return cust;
         });
 
-        // After fetching customers, add files for booking request customers
+        // After processing customers, but before returning:
         const bookingRequestCustomers = processedCustomers.filter(
           c => c.type === 'booking_request' || c.create_event
         );
