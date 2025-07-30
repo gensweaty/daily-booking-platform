@@ -84,21 +84,6 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete }: TaskCardProp
     onView(task);
   };
 
-  const cardVariants = {
-    idle: { 
-      scale: 1, 
-      y: 0,
-      boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-      transition: { duration: 0.2 }
-    },
-    hover: { 
-      scale: 1.02, 
-      y: -2,
-      boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
-      transition: { duration: 0.2 }
-    }
-  };
-
   const iconVariants = {
     idle: { scale: 1, rotate: 0 },
     hover: { scale: 1.1, rotate: 5, transition: { duration: 0.2 } }
@@ -107,19 +92,15 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete }: TaskCardProp
   return (
     <Draggable draggableId={String(task.id)} index={index}>
       {(provided, snapshot) => (
-        <motion.div
+        <div
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`p-4 bg-background dark:bg-gray-800 rounded-xl cursor-pointer relative overflow-hidden ${getTaskStyle(task.status)} ${
+          className={`p-4 bg-background dark:bg-gray-800 rounded-xl cursor-pointer relative overflow-hidden transition-all duration-200 hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-lg ${getTaskStyle(task.status)} ${
             snapshot.isDragging ? 'rotate-2 shadow-2xl z-50' : ''
           }`}
-          variants={cardVariants}
-          initial="idle"
-          animate={isHovered && !snapshot.isDragging ? "hover" : "idle"}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          whileTap={{ scale: 0.98 }}
         >
           {/* Subtle animated background gradient */}
           <motion.div
@@ -239,7 +220,7 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete }: TaskCardProp
               </motion.div>
             </div>
           </div>
-        </motion.div>
+        </div>
       )}
     </Draggable>
   );
