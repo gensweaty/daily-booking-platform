@@ -244,9 +244,9 @@ export const HeroSection = () => {
   const renderMobileMenu = () => {
     if (user) {
       return (
-        <div id="mobile-menu" className="absolute top-full left-0 right-0 glass-morphism border rounded-lg shadow-2xl mt-2 p-4 space-y-3 md:hidden animate-fade-in z-50" role="menu">
+        <div id="mobile-menu" className="fixed top-16 left-4 right-4 bg-background/95 backdrop-blur-md border rounded-lg shadow-2xl p-4 space-y-3 md:hidden animate-fade-in z-[100]" role="menu">
           <Link to="/contact" onClick={handleMenuClose} role="menuitem">
-            <Button variant="outline" className="w-full justify-start hover:bg-accent/10 transition-all">
+            <Button variant="outline" className="w-full justify-start hover:bg-accent/10 transition-all bg-background border-border">
               {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
             </Button>
           </Link>
@@ -254,9 +254,9 @@ export const HeroSection = () => {
       );
     } else {
       return (
-        <div id="mobile-menu" className="absolute top-full left-0 right-0 glass-morphism border rounded-lg shadow-2xl mt-2 p-4 space-y-3 md:hidden animate-fade-in z-50" role="menu">
+        <div id="mobile-menu" className="fixed top-16 left-4 right-4 bg-background/95 backdrop-blur-md border rounded-lg shadow-2xl p-4 space-y-3 md:hidden animate-fade-in z-[100]" role="menu">
           <Link to="/login" onClick={handleMenuClose} role="menuitem">
-            <Button variant="outline" className="w-full justify-start hover:bg-primary/10 transition-all">
+            <Button variant="outline" className="w-full justify-start hover:bg-primary/10 transition-all bg-background border-border">
               {language === 'ka' ? "შესვლა" : t('nav.signin')}
             </Button>
           </Link>
@@ -266,7 +266,7 @@ export const HeroSection = () => {
             </Button>
           </Link>
           <Link to="/contact" onClick={handleMenuClose} role="menuitem">
-            <Button variant="outline" className="w-full justify-start hover:bg-accent/10 transition-all">
+            <Button variant="outline" className="w-full justify-start hover:bg-accent/10 transition-all bg-background border-border">
               {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
             </Button>
           </Link>
@@ -280,7 +280,7 @@ export const HeroSection = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5 animate-gradient-shift" style={{backgroundSize: '400% 400%'}} />
         
         <div className="container mx-auto px-4 py-4 md:py-6 lg:py-8 relative">
-          <nav className="relative glass-morphism rounded-2xl px-4 py-3 mb-6" aria-label="Main navigation">
+          <nav className="relative glass-morphism rounded-2xl px-4 py-3 mb-6 z-50" aria-label="Main navigation">
             <div className="flex justify-between items-center">
               <Link to="/" className="flex items-center gap-2 hover:scale-105 transition-transform" aria-label="SmartBookly Home">
                 <img 
@@ -300,7 +300,8 @@ export const HeroSection = () => {
             {isMobileMenuOpen && renderMobileMenu()}
           </nav>
 
-          <main className="grid md:grid-cols-2 gap-6 md:gap-8 lg:gap-12 items-center mt-6 md:mt-8 lg:mt-12">
+          {/* Hero content with lower z-index on mobile when menu is open */}
+          <main className={`grid md:grid-cols-2 gap-6 md:gap-8 lg:gap-12 items-center mt-6 md:mt-8 lg:mt-12 ${isMobileMenuOpen ? 'relative z-10' : 'relative z-20'}`}>
             <div className="space-y-3 md:space-y-4 animate-fade-in">
               <article className="space-y-2 md:space-y-4">
                 <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold enhanced-gradient-text drop-shadow-lg">
