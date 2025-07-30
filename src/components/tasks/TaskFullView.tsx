@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Task } from "@/lib/types";
 import { SimpleFileDisplay } from "../shared/SimpleFileDisplay";
@@ -233,22 +234,15 @@ export const TaskFullView = ({
               // Active task view - show edit, archive, delete buttons
               <>
                 {onEdit && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        variant="secondary" 
-                        size="sm" 
-                        onClick={handleEditClick}
-                        className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-1 sm:px-4 sm:py-2"
-                      >
-                        <Pen className="h-3 w-3 sm:h-4 sm:w-4" />
-                        <span>{t("tasks.editTask")}</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{t("tasks.editTask")}</p>
-                    </TooltipContent>
-                  </Tooltip>
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={handleEditClick}
+                    className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-1 sm:px-4 sm:py-2"
+                  >
+                    <Pen className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span>{t("tasks.editTask")}</span>
+                  </Button>
                 )}
                 
                 {onArchive && (
