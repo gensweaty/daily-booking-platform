@@ -93,8 +93,8 @@ export const CustomerDialogFields = ({
   const isGeorgian = language === 'ka';
   const currencySymbol = getCurrencySymbol(language);
   
-  // Show payment amount field if payment status is partly paid or fully paid
-  const showPaymentAmount = paymentStatus === "partly" || paymentStatus === "fully";
+  // Show payment amount field if payment status is partly_paid or fully_paid
+  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
 
   // Helper function to format date and time for display
   const formatDateTime = (dateStr: string | null | undefined) => {
@@ -112,19 +112,16 @@ export const CustomerDialogFields = ({
   const renderPaymentStatus = () => {
     if (!isEventBased || !paymentStatus) return null;
 
-    // Normalize payment status to handle both 'partly' and 'partly_paid' formats
-    const normalizedStatus = 
-      paymentStatus.includes('partly') ? 'partly' : 
-      paymentStatus.includes('fully') ? 'fully' : 
-      'not_paid';
+    // Use the standardized payment status values
+    const normalizedStatus = paymentStatus;
     
     let textColorClass = '';
     
     switch(normalizedStatus) {
-      case 'fully':
+      case 'fully_paid':
         textColorClass = 'text-green-600';
         break;
-      case 'partly':
+      case 'partly_paid':
         textColorClass = 'text-amber-600';
         break;
       default: // not_paid
@@ -135,8 +132,8 @@ export const CustomerDialogFields = ({
     // Display labels in user language
     const statusTextMap = {
       'not_paid': t('crm.notPaid'),
-      'partly': t('crm.paidPartly'),
-      'fully': t('crm.paidFully')
+      'partly_paid': t('crm.paidPartly'),
+      'fully_paid': t('crm.paidFully')
     };
     
     const text = statusTextMap[normalizedStatus as keyof typeof statusTextMap];
@@ -148,7 +145,7 @@ export const CustomerDialogFields = ({
           <LanguageText>
             {text}
           </LanguageText>
-          {(normalizedStatus === 'partly' || normalizedStatus === 'fully') && paymentAmount && (
+          {(normalizedStatus === 'partly_paid' || normalizedStatus === 'fully_paid') && paymentAmount && (
             <div className="text-xs mt-0.5">
               ({currencySymbol}{paymentAmount})
             </div>
@@ -477,8 +474,8 @@ export const CustomerDialogFields = ({
               </SelectTrigger>
               <SelectContent className="bg-background">
                 <SelectItem value="not_paid">{t("crm.notPaid")}</SelectItem>
-                <SelectItem value="partly">{t("crm.paidPartly")}</SelectItem>
-                <SelectItem value="fully">{t("crm.paidFully")}</SelectItem>
+                <SelectItem value="partly_paid">{t("crm.paidPartly")}</SelectItem>
+                <SelectItem value="fully_paid">{t("crm.paidFully")}</SelectItem>
               </SelectContent>
             </Select>
           </div>

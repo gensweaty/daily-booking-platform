@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -110,6 +111,21 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         console.error('Error fetching event customers:', eventCustomersError);
       }
 
+      // Helper function to normalize payment status values
+      const normalizePaymentStatus = (status: string | undefined): string => {
+        if (!status) return 'not_paid';
+        
+        // Convert legacy values to standardized values
+        switch (status) {
+          case 'partly':
+            return 'partly_paid';
+          case 'fully':
+            return 'fully_paid';
+          default:
+            return status;
+        }
+      };
+
       // Helper function to fetch and process customer data
       const fetchOptimizedCustomers = async (customersData: any[]) => {
         let processedCustomers = customersData || [];
@@ -119,6 +135,8 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
           const filesCount = cust.customer_files_new;
           cust.file_count = filesCount?.count ?? (Array.isArray(filesCount) ? filesCount[0]?.count : 0);
           cust.customer_files_new = [];  // prepare to fill with actual files
+          // Normalize payment status
+          cust.payment_status = normalizePaymentStatus(cust.payment_status);
           return cust;
         });
 
@@ -153,6 +171,8 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
           const filesCount = evt.event_files;
           evt.file_count = filesCount?.count ?? (Array.isArray(filesCount) ? filesCount[0]?.count : 0);
           evt.event_files = [];  // will fill if attachments exist
+          // Normalize payment status
+          evt.payment_status = normalizePaymentStatus(evt.payment_status);
           return evt;
         });
 
@@ -202,7 +222,9 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
 
           return {
             ...booking,
-            event_files: eventFiles || []
+            event_files: eventFiles || [],
+            // Normalize payment status
+            payment_status: normalizePaymentStatus(booking.payment_status)
           };
         })
       );
