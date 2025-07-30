@@ -89,13 +89,13 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete }: TaskCardProp
       scale: 1, 
       y: 0,
       boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-      transition: { duration: 0.2, ease: "easeOut" }
+      transition: { duration: 0.2 }
     },
     hover: { 
       scale: 1.02, 
       y: -2,
       boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
-      transition: { duration: 0.2, ease: "easeOut" }
+      transition: { duration: 0.2 }
     }
   };
 

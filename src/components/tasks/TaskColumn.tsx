@@ -92,7 +92,6 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
       y: 0,
       transition: {
         duration: 0.5,
-        ease: [0.23, 1, 0.32, 1],
         staggerChildren: 0.1
       }
     }
@@ -103,7 +102,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
     visible: { 
       opacity: 1, 
       y: 0,
-      transition: { duration: 0.4, ease: "easeOut" }
+      transition: { duration: 0.4 }
     }
   };
 
@@ -113,13 +112,13 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
       opacity: 1, 
       y: 0, 
       scale: 1,
-      transition: { duration: 0.3, ease: [0.23, 1, 0.32, 1] }
+      transition: { duration: 0.3 }
     },
     exit: { 
       opacity: 0, 
       y: -10, 
       scale: 0.95,
-      transition: { duration: 0.2, ease: "easeIn" }
+      transition: { duration: 0.2 }
     }
   };
 
@@ -129,7 +128,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
       opacity: 1, 
       y: 0,
       scale: 1,
-      transition: { duration: 0.6, delay: 0.2, ease: [0.23, 1, 0.32, 1] }
+      transition: { duration: 0.6, delay: 0.2 }
     }
   };
 
@@ -154,8 +153,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
               backgroundPosition: snapshot.isDraggingOver ? "20px 20px" : "0px 0px"
             }}
             transition={{ 
-              duration: 0.4,
-              ease: [0.23, 1, 0.32, 1]
+              duration: 0.4
             }}
             style={{
               backgroundImage: "radial-gradient(circle, currentColor 2px, transparent 2px)",
@@ -177,8 +175,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
                   scale: snapshot.isDraggingOver ? 1.2 : 1
                 }}
                 transition={{ 
-                  duration: 0.4,
-                  ease: [0.23, 1, 0.32, 1]
+                  duration: 0.4
                 }}
                 className="flex-shrink-0"
               >
@@ -203,8 +200,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
               initial={{ scale: 1.3, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ 
-                duration: 0.4,
-                ease: [0.23, 1, 0.32, 1]
+                duration: 0.4
               }}
             >
               <motion.span 
@@ -215,8 +211,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
                   scale: tasks.length > 0 ? 1.05 : 1
                 }}
                 transition={{ 
-                  duration: 0.3,
-                  ease: [0.23, 1, 0.32, 1]
+                  duration: 0.3
                 }}
               >
                 {tasks.length}
@@ -262,8 +257,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
                     }}
                     transition={{ 
                       duration: 4,
-                      repeat: Infinity,
-                      ease: "easeInOut"
+                      repeat: Infinity
                     }}
                     className="mb-6"
                   >
@@ -309,8 +303,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
                     }}
                     transition={{ 
                       duration: 1.5, 
-                      repeat: Infinity,
-                      ease: [0.23, 1, 0.32, 1]
+                      repeat: Infinity
                     }}
                     className="text-primary/70 text-lg font-bold bg-background/80 px-4 py-2 rounded-lg shadow-lg"
                   >
