@@ -67,25 +67,6 @@
   }
 }
 
-/* Enhanced UI animations and effects */
-@layer components {
-  .hover-lift {
-    @apply transition-all duration-300 hover:scale-105 hover:shadow-lg;
-  }
-  
-  .hover-glow {
-    @apply transition-all duration-300 hover:shadow-[0_0_20px_rgba(155,135,245,0.3)];
-  }
-  
-  .gradient-text {
-    @apply bg-gradient-to-r from-primary via-purple-600 to-indigo-600 bg-clip-text text-transparent;
-  }
-  
-  .glass-effect {
-    @apply bg-white/80 backdrop-blur-sm border border-white/20 dark:bg-gray-900/80 dark:border-gray-700/20;
-  }
-}
-
 @layer base {
   * {
     @apply border-border;

@@ -2,7 +2,6 @@
 import { Card } from "@/components/ui/card";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { StatCard } from "./StatCard";
-import { EnhancedStatCard } from "./EnhancedStatCard";
 import {
   CheckCircle2,
   Users,
@@ -88,34 +87,34 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
   const customerDetailsText = `${customerStats.withBooking} ${withBookingText}, ${customerStats.withoutBooking} ${withoutBookingText}`;
 
   return (
-    <div className="grid gap-6 md:grid-cols-4">
-      <EnhancedStatCard
+    <div className="grid gap-4 md:grid-cols-4">
+      <StatCard
         title={t("dashboard.totalTasks")}
         value={taskStats.total}
         description={taskDetailsText}
         icon={CheckCircle2}
         color="purple"
       />
-      <EnhancedStatCard
+      <StatCard
         title={t("dashboard.totalCustomers")}
         value={customerStats.total}
         description={customerDetailsText}
         icon={Users}
         color="orange"
       />
-      <EnhancedStatCard
+      <StatCard
         title={t("dashboard.totalEvents")}
         value={eventStats.total}
         description={`${eventStats.partlyPaid} ${t("dashboard.partlyPaid")}, ${eventStats.fullyPaid} ${t("dashboard.fullyPaid")}`}
         icon={CalendarCheck}
         color="green"
       />
-      <EnhancedStatCard
+      <StatCard
         title={t("dashboard.totalIncome")}
         value={formattedIncome}
         description={t("dashboard.fromAllEvents")}
         icon={CurrencyIcon}
-        valueClassName="text-3xl"
+        valueClassName="text-2xl"
         color="blue"
       />
     </div>

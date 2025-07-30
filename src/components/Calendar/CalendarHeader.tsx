@@ -1,7 +1,5 @@
 
 import { Button } from "@/components/ui/button";
-import { EnhancedButton } from "@/components/ui/enhanced-button";
-import { EnhancedHeader } from "@/components/ui/enhanced-header";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { CalendarViewType } from "@/lib/types/calendar";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -70,9 +68,9 @@ export const CalendarHeader = ({
         <Button variant="outline" size="icon" onClick={onNext}>
           <ChevronRight className="h-4 w-4" />
         </Button>
-        <EnhancedHeader level={2} variant="gradient" className="ml-2">
+        <h2 className={cn("text-xl font-semibold ml-2", isGeorgian ? "font-georgian" : "")}>
           {getFormattedDate()}
-        </EnhancedHeader>
+        </h2>
       </div>
 
       <div className="flex flex-wrap gap-2 justify-between w-full sm:w-auto mt-2 sm:mt-0">
@@ -104,15 +102,14 @@ export const CalendarHeader = ({
         </div>
         
         {onAddEvent && (
-          <EnhancedButton 
+          <Button 
             onClick={onAddEvent} 
             size="sm" 
-            variant="success"
-            className="ml-auto sm:ml-0"
+            className={cn("ml-auto sm:ml-0", isGeorgian ? "font-georgian" : "")}
           >
             <Plus className="h-4 w-4 mr-1" />
             {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
-          </EnhancedButton>
+          </Button>
         )}
       </div>
     </div>

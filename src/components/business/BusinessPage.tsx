@@ -5,8 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { EnhancedButton } from "@/components/ui/enhanced-button";
-import { EnhancedHeader } from "@/components/ui/enhanced-header";
 import { BookingRequestsList } from "./BookingRequestsList";
 import { useBookingRequests } from "@/hooks/useBookingRequests";
 import { Badge } from "@/components/ui/badge";
@@ -137,14 +135,14 @@ export const BusinessPage = () => {
     
     return (
       <div className="flex flex-col gap-4">
-        <EnhancedButton 
+        <Button 
           variant="info"
           onClick={() => window.open(publicUrl, '_blank')}
           className="flex items-center gap-2 w-full"
         >
           <LanguageText>{t("business.viewPublicPage")}</LanguageText>
           <ExternalLink className="h-4 w-4" />
-        </EnhancedButton>
+        </Button>
         
         <div className="flex flex-col items-center justify-center p-2 bg-white rounded-lg border">
           <div className="text-sm text-gray-500 mb-2">
@@ -166,7 +164,7 @@ export const BusinessPage = () => {
             />
           </div>
           
-          <EnhancedButton
+          <Button
             onClick={handleShare}
             variant="secondary" 
             className="mt-2 w-full flex items-center justify-center gap-2"
@@ -177,7 +175,7 @@ export const BusinessPage = () => {
             ) : (
               <LanguageText>{t("common.share")}</LanguageText>
             )}
-          </EnhancedButton>
+          </Button>
         </div>
         
         <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
@@ -201,7 +199,7 @@ export const BusinessPage = () => {
                   className="rounded-md"
                 />
               </div>
-              <EnhancedButton
+              <Button
                 onClick={handleShare}
                 variant="secondary" 
                 className="mt-4 flex items-center justify-center gap-2"
@@ -212,7 +210,7 @@ export const BusinessPage = () => {
                 ) : (
                   <LanguageText>{t("common.share")}</LanguageText>
                 )}
-              </EnhancedButton>
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -267,13 +265,13 @@ export const BusinessPage = () => {
 
         <TabsContent value="profile" className="space-y-6">
           <div className="flex justify-between items-center">
-            <EnhancedHeader level={1} variant="gradient">
+            <h1 className="text-2xl font-bold">
               {isGeorgian ? (
                 <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
               ) : (
                 <LanguageText>{t("business.myBusiness")}</LanguageText>
               )}
-            </EnhancedHeader>
+            </h1>
             {!isMobile && publicUrl && renderViewPublicPageButton()}
           </div>
           
@@ -289,9 +287,9 @@ export const BusinessPage = () => {
         <TabsContent value="bookings" className="space-y-6 sm:-mt-12 -mt-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2">
             <div className="flex items-center gap-3">
-              <EnhancedHeader level={1} variant="gradient">
+              <h1 className="text-2xl font-bold">
                 <LanguageText>{t("business.bookingRequests")}</LanguageText>
-              </EnhancedHeader>
+              </h1>
               {pendingCount > 0 && (
                 <div className="flex items-center gap-2 text-orange-600 bg-orange-50 border border-orange-200 px-3 py-1 rounded-full animate-pulse">
                   <Bell className="h-4 w-4" />
@@ -318,10 +316,10 @@ export const BusinessPage = () => {
 
           <div className="space-y-4 -mt-1">
             <div>
-              <EnhancedHeader level={2} variant="default" className="mb-2 flex items-center gap-2">
+              <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
                 {renderSectionHeading("business.pendingRequests")} 
                 <Badge variant="orange" className="ml-2">({pendingRequests.length})</Badge>
-              </EnhancedHeader>
+              </h2>
               <BookingRequestsList
                 requests={pendingRequests}
                 onApprove={approveRequest}
@@ -331,10 +329,10 @@ export const BusinessPage = () => {
             </div>
 
             <div>
-              <EnhancedHeader level={2} variant="default" className="mb-2 flex items-center gap-2">
+              <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
                 {renderSectionHeading("business.approvedRequests")}
                 <Badge variant="green" className="ml-2">({approvedRequests.length})</Badge>
-              </EnhancedHeader>
+              </h2>
               <BookingRequestsList
                 requests={approvedRequests}
                 onDelete={deleteBookingRequest}
@@ -342,10 +340,10 @@ export const BusinessPage = () => {
             </div>
 
             <div>
-              <EnhancedHeader level={2} variant="default" className="mb-2 flex items-center gap-2">
+              <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
                 {renderSectionHeading("business.rejectedRequests")}
                 <Badge variant="destructive" className="ml-2">({rejectedRequests.length})</Badge>
-              </EnhancedHeader>
+              </h2>
               <BookingRequestsList
                 requests={rejectedRequests}
                 onDelete={deleteBookingRequest}
