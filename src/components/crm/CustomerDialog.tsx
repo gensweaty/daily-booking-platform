@@ -493,7 +493,7 @@ export const CustomerDialog = ({
             end_date: eventEndDate.toISOString(),
           };
 
-          console.log("Creating event from customer:", eventData);
+          console.log("Creating event from customer with payment status:", eventData.payment_status);
 
           const { data: eventResult, error: eventError } = await supabase
             .from('events')
@@ -509,7 +509,7 @@ export const CustomerDialog = ({
               variant: "destructive"
             });
           } else {
-            console.log("Event created successfully:", eventResult);
+            console.log("Event created successfully with payment status:", eventResult.payment_status);
             
             if (social_network_link && isValidEmail(social_network_link)) {
               await sendEventCreationEmail({
