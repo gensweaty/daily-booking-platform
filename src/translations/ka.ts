@@ -1,3 +1,4 @@
+
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -543,7 +544,7 @@ export const translations: TranslationType = {
     minutes: "წუთები",
     seconds: "წამები",
     trialIncluded: "სასინჯი პერიოდი 14 დღეა",
-    freeTrial: "უფასო 14 დღიანი სასინჯი, არ სჭირდება საკრედიტო ბარათი",
+    freeTrial: "გამოსცადეთ უფასოდ 14 დღით, საკრედიტო ბარათი არ არის საჭირო",
     startFreeTrial: "დაიწყეთ გამოცდა",
     trialThenBilling: "არ სჭირდება საკრედიტო ბარათი",
     ultimateSubscription: "უსაზღვრო გეგმა",
