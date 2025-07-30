@@ -144,7 +144,7 @@ export const TaskList = () => {
       </DragDropContext>
 
       <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
-        <DialogContent className="bg-background border-border max-w-sm sm:max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogContent>
           <AddTaskForm 
             onClose={() => setEditingTask(null)} 
             editingTask={editingTask}
