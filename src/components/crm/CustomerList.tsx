@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,14 +7,23 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { SearchCommand } from "./SearchCommand";
 import { CustomerDialog } from "./CustomerDialog";
 import { useOptimizedCRMData } from "@/hooks/useOptimizedCRMData";
-import { Customer } from "@/lib/types";
 import { Loader2, Plus, Users, UserPlus, Calendar, FileText } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { addDays, subDays, startOfMonth, endOfMonth } from "date-fns";
+import { startOfMonth, endOfMonth } from "date-fns";
 import { motion } from "framer-motion";
+
+// Define Customer type locally since it's not exported from lib/types
+interface Customer {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  bookings_count: number;
+  status: string;
+}
 
 export const CustomerList = () => {
   const { t, language } = useLanguage();
@@ -22,24 +32,15 @@ export const CustomerList = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [dateRange, setDateRange] = useState({
-    from: startOfMonth(new Date()),
-    to: endOfMonth(new Date())
-  });
+  const [filteredData, setFilteredData] = useState<any[]>([]);
 
   const { 
-    data: customers = [], 
-    isLoading, 
-    error 
-  } = useOptimizedCRMData(searchTerm, dateRange);
-
-  if (error) {
-    return (
-      <div className="p-4 text-center">
-        <p className="text-destructive">Error loading customers: {error.message}</p>
-      </div>
-    );
-  }
+    combinedData: customers = [], 
+    isLoading 
+  } = useOptimizedCRMData(searchTerm, { 
+    start: startOfMonth(new Date()), 
+    end: endOfMonth(new Date()) 
+  });
 
   const handleCustomerClick = (customer: Customer) => {
     setSelectedCustomer(customer);
@@ -55,6 +56,9 @@ export const CustomerList = () => {
     setSelectedCustomer(null);
     setIsDialogOpen(true);
   };
+
+  // Use filtered data if available, otherwise use customers
+  const displayCustomers = filteredData.length > 0 ? filteredData : customers;
 
   return (
     <div className="space-y-6">
@@ -108,7 +112,7 @@ export const CustomerList = () => {
               </DialogTrigger>
               <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                 <CustomerDialog
-                  customer={selectedCustomer}
+                  customerId={selectedCustomer?.id}
                   onClose={handleCloseDialog}
                 />
               </DialogContent>
@@ -118,8 +122,11 @@ export const CustomerList = () => {
       </div>
 
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-        <SearchCommand setSearchTerm={setSearchTerm} />
-        <DateRangePicker onDateChange={setDateRange} />
+        <SearchCommand 
+          data={customers}
+          setFilteredData={setFilteredData}
+          isLoading={isLoading}
+        />
       </div>
 
       <Card>
@@ -181,32 +188,32 @@ export const CustomerList = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {customers.map((customer) => (
+                  {displayCustomers.map((customer) => (
                     <tr key={customer.id} onClick={() => handleCustomerClick(customer)} className="hover:bg-accent/50 cursor-pointer transition-colors duration-200">
                       <td className="px-4 py-2 whitespace-nowrap">
-                        <div className="text-sm font-medium text-foreground">{customer.first_name} {customer.last_name}</div>
+                        <div className="text-sm font-medium text-foreground">{customer.first_name || customer.title} {customer.last_name || customer.user_surname}</div>
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap">
-                        <div className="text-sm text-muted-foreground">{customer.email}</div>
+                        <div className="text-sm text-muted-foreground">{customer.email || customer.social_network_link}</div>
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap">
-                        <div className="text-sm text-muted-foreground">{customer.phone}</div>
+                        <div className="text-sm text-muted-foreground">{customer.phone || customer.user_number}</div>
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap">
-                        <div className="text-sm text-muted-foreground">{customer.bookings_count}</div>
+                        <div className="text-sm text-muted-foreground">{customer.bookings_count || 0}</div>
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap">
                         {customer.status === 'active' ? (
                           <Badge variant="outline">{customer.status}</Badge>
                         ) : (
-                          <Badge>{customer.status}</Badge>
+                          <Badge>{customer.status || 'active'}</Badge>
                         )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {customers.length === 0 && !isLoading && (
+              {displayCustomers.length === 0 && !isLoading && (
                 <div className="p-4 text-center">
                   <Users className="w-6 h-6 mx-auto text-muted-foreground mb-2" />
                   <p className="text-sm text-muted-foreground">
