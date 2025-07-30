@@ -342,12 +342,12 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
-        <AlertDialogContent className="w-[85vw] max-w-md">
+        <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-sm">
+            <AlertDialogTitle className="text-sm sm:text-base">
               {isGeorgian ? "დავალების წაშლა" : t("tasks.deleteTaskConfirmTitle")}
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs">
+            <AlertDialogDescription className="text-xs sm:text-sm">
               {isGeorgian 
                 ? "ნამდვილად გსურთ ამ დავალების წაშლა? ეს მოქმედება შეუქცევადია." 
                 : t("tasks.deleteTaskConfirmation")
@@ -355,12 +355,12 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
-            <AlertDialogCancel onClick={() => setShowDeleteConfirmation(false)} className="text-xs">
+            <AlertDialogCancel onClick={() => setShowDeleteConfirmation(false)} className="text-xs sm:text-sm">
               {isGeorgian ? "გაუქმება" : t("common.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs sm:text-sm"
             >
               {isGeorgian ? "წაშლა" : t("common.delete")}
             </AlertDialogAction>
@@ -375,7 +375,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       <Sheet open={true} onOpenChange={onClose}>
         <SheetContent 
           side="bottom" 
-          className="h-[85vh] w-full p-0 overflow-y-auto"
+          className="h-[80vh] w-full p-0 overflow-y-auto"
         >
           {formContent}
         </SheetContent>
@@ -385,7 +385,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] max-w-[90vw] sm:w-auto sm:max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[90vw] max-w-[90vw] sm:w-auto sm:max-w-4xl max-h-[80vh] sm:max-h-[90vh] overflow-y-auto">
         {formContent}
       </DialogContent>
     </Dialog>
