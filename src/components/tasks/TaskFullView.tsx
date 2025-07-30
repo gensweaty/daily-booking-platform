@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Task } from "@/lib/types";
 import { SimpleFileDisplay } from "../shared/SimpleFileDisplay";
@@ -125,13 +124,13 @@ export const TaskFullView = ({
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6 bg-background border-border text-foreground">
+        <DialogContent className="w-[90vw] max-w-[90vw] sm:w-auto sm:max-w-2xl max-h-[80vh] sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6 bg-background border-border text-foreground">
           <DialogHeader className="pb-0 mt-1 sm:mt-3">
             {/* Highlighted Task Title */}
-            <div className="p-3 sm:p-4 rounded-lg border border-input bg-muted/50">
+            <div className="p-2 sm:p-4 rounded-lg border border-input bg-muted/50">
               <DialogTitle className="flex items-start gap-2 sm:gap-3 text-left">
                 <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary mt-0.5 flex-shrink-0" />
-                <span className="text-lg sm:text-xl font-bold leading-tight">{task.title}</span>
+                <span className="text-base sm:text-lg font-bold leading-tight break-words">{task.title}</span>
               </DialogTitle>
             </div>
           </DialogHeader>
@@ -139,14 +138,14 @@ export const TaskFullView = ({
           <div className="space-y-2 sm:space-y-3 mt-2 sm:mt-3">
             {/* Description Section */}
             <Card className="border-muted/40 bg-muted/20">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-2 mb-2 sm:mb-3">
+              <CardContent className="p-2 sm:p-4">
+                <div className="flex items-center gap-2 mb-1 sm:mb-3">
                   <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                   <h3 className="text-xs sm:text-sm font-medium text-muted-foreground">{t("tasks.descriptionLabel")}</h3>
                 </div>
                 {task.description ? (
                   <div 
-                    className="text-xs sm:text-sm text-foreground leading-relaxed prose-sm max-w-none bg-muted/30 rounded-md p-2 sm:p-3 border border-muted/40"
+                    className="text-xs sm:text-sm text-foreground leading-relaxed prose-sm max-w-none bg-muted/30 rounded-md p-2 sm:p-3 border border-muted/40 overflow-hidden"
                     dangerouslySetInnerHTML={{ __html: task.description }}
                   />
                 ) : (
@@ -160,8 +159,8 @@ export const TaskFullView = ({
             {/* Schedule Section */}
             {(task.deadline_at || task.reminder_at) && (
               <Card className="border-muted/40 bg-muted/20">
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                <CardContent className="p-2 sm:p-4">
+                  <div className="flex items-center gap-2 mb-1 sm:mb-3">
                     <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                     <h3 className="text-xs sm:text-sm font-medium text-muted-foreground">{t("common.schedule")}</h3>
                   </div>
@@ -175,8 +174,8 @@ export const TaskFullView = ({
             {/* Attachments Section */}
             {files && files.length > 0 && (
               <Card className="border-muted/40 bg-muted/20">
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                <CardContent className="p-2 sm:p-4">
+                  <div className="flex items-center gap-2 mb-1 sm:mb-3">
                     <Paperclip className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                     <h3 className="text-xs sm:text-sm font-medium text-muted-foreground">
                       {t("common.attachments")}
@@ -196,24 +195,22 @@ export const TaskFullView = ({
             )}
           </div>
 
-          {/* Created and Last Updated indicators - moved to bottom with theme-aware styling */}
-          <div className="px-2 py-1.5 rounded-md border border-border bg-card text-card-foreground w-fit">
-            <div className="flex items-center space-x-2 sm:space-x-3 text-xs text-muted-foreground">
+          {/* Created and Last Updated indicators - mobile optimized */}
+          <div className="px-2 py-1 sm:px-2 sm:py-1.5 rounded-md border border-border bg-card text-card-foreground w-fit">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 space-y-1 sm:space-y-0 text-xs text-muted-foreground">
               <div className="flex items-center">
                 <Calendar className="w-3 h-3 mr-1" />
-                <span className="hidden sm:inline">{t("common.created")}: {formattedCreatedDate}</span>
-                <span className="sm:hidden">{t("common.created")}: {format(parseISO(task.created_at), 'MM/dd')}</span>
+                <span className="truncate">{t("common.created")}: {format(parseISO(task.created_at), 'MM/dd/yy')}</span>
               </div>
               <div className="flex items-center">
                 <History className="w-3 h-3 mr-1" />
-                <span className="hidden sm:inline">{t("common.lastUpdated")}: {formattedUpdatedDate}</span>
-                <span className="sm:hidden">{t("common.lastUpdated")}: {format(parseISO(task.updated_at || task.created_at), 'MM/dd')}</span>
+                <span className="truncate">{t("common.lastUpdated")}: {format(parseISO(task.updated_at || task.created_at), 'MM/dd/yy')}</span>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-1 sm:gap-2 pt-3 sm:pt-4 border-t border-muted/20">
+          {/* Action Buttons - mobile optimized */}
+          <div className="flex flex-wrap justify-end gap-1 sm:gap-2 pt-2 sm:pt-4 border-t border-muted/20">
             {isArchived ? (
               // Archived view - only show restore button
               <Tooltip>
@@ -222,11 +219,10 @@ export const TaskFullView = ({
                     variant="default" 
                     size="sm" 
                     onClick={handleRestore}
-                    className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3"
+                    className="flex items-center gap-1 text-xs px-2 py-1"
                   >
-                    <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="hidden sm:inline">{t("tasks.restore")}</span>
-                    <span className="sm:hidden">Restore</span>
+                    <RefreshCw className="h-3 w-3" />
+                    <span>{t("tasks.restore")}</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -243,11 +239,11 @@ export const TaskFullView = ({
                         variant="secondary" 
                         size="sm" 
                         onClick={handleEditClick}
-                        className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3"
+                        className="flex items-center gap-1 text-xs px-2 py-1"
                       >
-                        <Pen className="h-3 w-3 sm:h-4 sm:w-4" />
-                        <span className="hidden sm:inline">{t("tasks.editTask")}</span>
-                        <span className="sm:hidden">Edit</span>
+                        <Pen className="h-3 w-3" />
+                        <span className="hidden xs:inline">{t("tasks.editTask")}</span>
+                        <span className="xs:hidden">Edit</span>
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -263,11 +259,11 @@ export const TaskFullView = ({
                         variant="secondary" 
                         size="sm" 
                         onClick={handleArchiveClick}
-                        className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3"
+                        className="flex items-center gap-1 text-xs px-2 py-1"
                       >
-                        <Archive className="h-3 w-3 sm:h-4 sm:w-4" />
-                        <span className="hidden sm:inline">{t("tasks.archive")}</span>
-                        <span className="sm:hidden">Archive</span>
+                        <Archive className="h-3 w-3" />
+                        <span className="hidden xs:inline">{t("tasks.archive")}</span>
+                        <span className="xs:hidden">Archive</span>
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -283,11 +279,11 @@ export const TaskFullView = ({
                         variant="destructive" 
                         size="sm" 
                         onClick={handleDeleteClick}
-                        className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3"
+                        className="flex items-center gap-1 text-xs px-2 py-1"
                       >
-                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                        <span className="hidden sm:inline">{t("common.delete")}</span>
-                        <span className="sm:hidden">Delete</span>
+                        <Trash2 className="h-3 w-3" />
+                        <span className="hidden xs:inline">{t("common.delete")}</span>
+                        <span className="xs:hidden">Delete</span>
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -303,19 +299,19 @@ export const TaskFullView = ({
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-        <AlertDialogContent className="w-[90vw] max-w-md">
+        <AlertDialogContent className="w-[85vw] max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-destructive" />
+            <AlertDialogTitle className="flex items-center gap-2 text-sm">
+              <AlertCircle className="h-4 w-4 text-destructive" />
               {t("tasks.deleteTaskConfirmTitle")}
             </AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="text-xs">
               {t("common.deleteConfirmMessage")}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel className="text-xs">{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs">
               {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -324,19 +320,19 @@ export const TaskFullView = ({
 
       {/* Archive Confirmation Dialog */}
       <AlertDialog open={isArchiveConfirmOpen} onOpenChange={setIsArchiveConfirmOpen}>
-        <AlertDialogContent className="w-[90vw] max-w-md">
+        <AlertDialogContent className="w-[85vw] max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Archive className="h-5 w-5 text-amber-600" />
+            <AlertDialogTitle className="flex items-center gap-2 text-sm">
+              <Archive className="h-4 w-4 text-amber-600" />
               {t("tasks.archiveTask")}
             </AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="text-xs">
               {t("tasks.archiveTaskConfirm")}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmArchive} className="bg-amber-600 text-white hover:bg-amber-700">
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel className="text-xs">{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmArchive} className="bg-amber-600 text-white hover:bg-amber-700 text-xs">
               {t("tasks.archive")}
             </AlertDialogAction>
           </AlertDialogFooter>

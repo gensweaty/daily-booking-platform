@@ -253,9 +253,9 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   };
 
   const formContent = (
-    <div className="w-full space-y-4 sm:space-y-6 p-2 sm:p-4">
+    <div className="w-full space-y-3 sm:space-y-6 p-2 sm:p-4">
       <TaskFormHeader editingTask={editingTask} />
-      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-6">
         <TaskFormFields
           title={title}
           setTitle={setTitle}
@@ -273,7 +273,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           emailReminder={emailReminder}
           setEmailReminder={setEmailReminder}
         />
-        <div className="flex justify-end gap-1 sm:gap-2 pt-3 sm:pt-4 border-t border-muted/20">
+        <div className="flex justify-end gap-1 sm:gap-2 pt-2 sm:pt-4 border-t border-muted/20">
           {editingTask && (
             <>
               <Button 
@@ -281,9 +281,9 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
                 variant="outline" 
                 onClick={handleArchive}
                 disabled={isArchiving}
-                className="min-w-[80px] sm:min-w-[120px] text-xs sm:text-sm px-2 sm:px-3"
+                className="text-xs px-2 py-1 sm:px-3 sm:py-2"
               >
-                <Archive className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <Archive className="mr-1 h-3 w-3" />
                 {isGeorgian ? (
                   <GeorgianAuthText fontWeight="bold">
                     <LanguageText>
@@ -301,9 +301,9 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
                 variant="destructive" 
                 onClick={handleDeleteClick}
                 disabled={isDeleting}
-                className="min-w-[80px] sm:min-w-[120px] text-xs sm:text-sm px-2 sm:px-3"
+                className="text-xs px-2 py-1 sm:px-3 sm:py-2"
               >
-                <Trash2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <Trash2 className="mr-1 h-3 w-3" />
                 {isGeorgian ? (
                   <GeorgianAuthText fontWeight="bold">
                     <LanguageText>
@@ -318,7 +318,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
               </Button>
             </>
           )}
-          <Button type="submit" className="min-w-[80px] sm:min-w-[120px] text-xs sm:text-sm px-2 sm:px-3" disabled={isSubmitting}>
+          <Button type="submit" className="text-xs px-2 py-1 sm:px-3 sm:py-2" disabled={isSubmitting}>
             {isGeorgian ? (
               <GeorgianAuthText fontWeight="bold">
                 <LanguageText>
@@ -342,25 +342,25 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
-        <AlertDialogContent className="w-[90vw] max-w-md">
+        <AlertDialogContent className="w-[85vw] max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>
+            <AlertDialogTitle className="text-sm">
               {isGeorgian ? "დავალების წაშლა" : t("tasks.deleteTaskConfirmTitle")}
             </AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="text-xs">
               {isGeorgian 
                 ? "ნამდვილად გსურთ ამ დავალების წაშლა? ეს მოქმედება შეუქცევადია." 
                 : t("tasks.deleteTaskConfirmation")
               }
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowDeleteConfirmation(false)}>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel onClick={() => setShowDeleteConfirmation(false)} className="text-xs">
               {isGeorgian ? "გაუქმება" : t("common.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs"
             >
               {isGeorgian ? "წაშლა" : t("common.delete")}
             </AlertDialogAction>
@@ -375,7 +375,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       <Sheet open={true} onOpenChange={onClose}>
         <SheetContent 
           side="bottom" 
-          className="h-[90vh] w-full p-0 overflow-y-auto"
+          className="h-[85vh] w-full p-0 overflow-y-auto"
         >
           {formContent}
         </SheetContent>
@@ -385,7 +385,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[90vw] max-w-[90vw] sm:w-auto sm:max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
         {formContent}
       </DialogContent>
     </Dialog>
