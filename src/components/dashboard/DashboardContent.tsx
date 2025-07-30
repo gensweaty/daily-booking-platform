@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -22,8 +23,6 @@ import { LanguageText } from "@/components/shared/LanguageText"
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText"
 import { cn } from "@/lib/utils"
 import { useQueryClient } from "@tanstack/react-query"
-import { EnhancedTabTrigger } from "./EnhancedTabNavigation"
-import { EnhancedCard } from "@/components/ui/enhanced-card"
 
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
@@ -126,78 +125,116 @@ export const DashboardContent = ({
 
   return (
     <>
+      {/* Add TaskReminderNotifications component */}
       <TaskReminderNotifications />
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
-        <motion.div 
-          className="bg-muted/30 backdrop-blur-sm border border-border/50 rounded-xl p-1 mb-4"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
+        <div className="bg-muted/50 border border-border/60 rounded-lg p-1 mb-2">
           <TabsList className="grid w-full grid-cols-5 bg-transparent p-0 gap-1 h-auto">
-            <EnhancedTabTrigger
-              value="calendar"
-              icon={CalendarIcon}
-              label={<LanguageText>{t("dashboard.bookingCalendar")}</LanguageText>}
-              isActive={activeTab === "calendar"}
-              onClick={handleTabChange}
-            />
-            <EnhancedTabTrigger
-              value="statistics"
-              icon={BarChart}
-              label={
-                isGeorgian ? (
+            <TabsTrigger 
+              value="calendar" 
+              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+            >
+              <motion.div
+                whileHover={{ rotate: 15 }}
+                transition={{ duration: 0.2 }}
+              >
+                <CalendarIcon className="w-4 h-4" />
+              </motion.div>
+              <span className="hidden sm:inline">
+                <LanguageText>{t("dashboard.bookingCalendar")}</LanguageText>
+              </span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="statistics" 
+              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+            >
+              <motion.div
+                whileHover={{ rotate: 15 }}
+                transition={{ duration: 0.2 }}
+              >
+                <BarChart className="w-4 h-4" />
+              </motion.div>
+              <span className="hidden sm:inline">
+                {isGeorgian ? (
                   <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტიკა</GeorgianAuthText>
                 ) : (
                   <LanguageText>{t("dashboard.statistics")}</LanguageText>
-                )
-              }
-              isActive={activeTab === "statistics"}
-              onClick={handleTabChange}
-            />
-            <EnhancedTabTrigger
-              value="tasks"
-              icon={ListTodo}
-              label={
-                isGeorgian ? (
+                )}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="tasks" 
+              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+            >
+              <motion.div
+                whileHover={{ rotate: 15 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ListTodo className="w-4 h-4" />
+              </motion.div>
+              <span className="hidden sm:inline">
+                {isGeorgian ? (
                   <GeorgianAuthText>დავალებები</GeorgianAuthText>
                 ) : (
                   <LanguageText>{t("dashboard.tasks")}</LanguageText>
-                )
-              }
-              isActive={activeTab === "tasks"}
-              onClick={handleTabChange}
-            />
-            <EnhancedTabTrigger
-              value="crm"
-              icon={Users}
-              label={
-                isGeorgian ? (
+                )}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="crm" 
+              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+            >
+              <motion.div
+                whileHover={{ rotate: 15 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Users className="w-4 h-4" />
+              </motion.div>
+              <span className="hidden sm:inline">
+                {isGeorgian ? (
                   <GeorgianAuthText>მომხმარებლების მართვა</GeorgianAuthText>
                 ) : (
                   <LanguageText>{t("dashboard.crm")}</LanguageText>
-                )
-              }
-              isActive={activeTab === "crm"}
-              onClick={handleTabChange}
-            />
-            <EnhancedTabTrigger
-              value="business"
-              icon={Briefcase}
-              label={
-                isGeorgian ? (
+                )}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="business" 
+              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02] relative"
+            >
+              <motion.div
+                whileHover={{ rotate: 15 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Briefcase className="w-4 h-4" />
+              </motion.div>
+              <span className="hidden sm:inline">
+                {isGeorgian ? (
                   <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
                 ) : (
                   <LanguageText>{t("business.myBusiness")}</LanguageText>
-                )
-              }
-              isActive={activeTab === "business"}
-              onClick={handleTabChange}
-              badge={pendingCount}
-            />
+                )}
+              </span>
+              {pendingCount > 0 && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                  className="absolute top-1/2 -translate-y-1/2 right-0 transform -translate-x-full ml-1"
+                >
+                  <Badge 
+                    variant="destructive" 
+                    className="flex items-center justify-center h-5 min-w-5 p-1 text-xs rounded-full gap-1 animate-pulse bg-orange-500 hover:bg-orange-600"
+                  >
+                    <Bell className="w-3 h-3" />
+                    {pendingCount}
+                  </Badge>
+                </motion.div>
+              )}
+            </TabsTrigger>
           </TabsList>
-        </motion.div>
+        </div>
 
         <AnimatePresence mode="wait">
           <TabsContent key="calendar" value="calendar" className="mt-0">
@@ -207,7 +244,7 @@ export const DashboardContent = ({
               animate="visible"
               exit="exit"
             >
-              <EnhancedCard className="min-h-[calc(100vh-12rem)] overflow-hidden" hover>
+              <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">
                 <CardContent className="p-0">
                   <div className="px-6 pt-6">
                     <motion.div
@@ -219,7 +256,7 @@ export const DashboardContent = ({
                     </motion.div>
                   </div>
                 </CardContent>
-              </EnhancedCard>
+              </Card>
             </motion.div>
           </TabsContent>
 
@@ -230,7 +267,7 @@ export const DashboardContent = ({
               animate="visible"
               exit="exit"
             >
-              <EnhancedCard className="min-h-[calc(100vh-12rem)]" hover>
+              <Card className="min-h-[calc(100vh-12rem)]">
                 <CardHeader>
                   <CardTitle>
                     {isGeorgian ? (
@@ -249,7 +286,7 @@ export const DashboardContent = ({
                     <Statistics />
                   </motion.div>
                 </CardContent>
-              </EnhancedCard>
+              </Card>
             </motion.div>
           </TabsContent>
 
@@ -260,7 +297,7 @@ export const DashboardContent = ({
               animate="visible"
               exit="exit"
             >
-              <EnhancedCard className="min-h-[calc(100vh-12rem)]" hover>
+              <Card className="min-h-[calc(100vh-12rem)]">
                 <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
                   <CardTitle>
                     {showArchive ? (
@@ -351,7 +388,7 @@ export const DashboardContent = ({
                     {showArchive ? <ArchivedTasksPage /> : <TaskList />}
                   </motion.div>
                 </CardContent>
-              </EnhancedCard>
+              </Card>
             </motion.div>
           </TabsContent>
 
@@ -362,7 +399,7 @@ export const DashboardContent = ({
               animate="visible"
               exit="exit"
             >
-              <EnhancedCard className="min-h-[calc(100vh-12rem)]" hover>
+              <Card className="min-h-[calc(100vh-12rem)]">
                 <CardContent className="pt-6">
                   <motion.div
                     variants={cardVariants}
@@ -372,7 +409,7 @@ export const DashboardContent = ({
                     <CustomerList />
                   </motion.div>
                 </CardContent>
-              </EnhancedCard>
+              </Card>
             </motion.div>
           </TabsContent>
 
@@ -383,7 +420,7 @@ export const DashboardContent = ({
               animate="visible"
               exit="exit"
             >
-              <EnhancedCard className="min-h-[calc(100vh-12rem)]" hover>
+              <Card className="min-h-[calc(100vh-12rem)]">
                 <CardContent className="pt-6">
                   <motion.div
                     variants={cardVariants}
@@ -393,7 +430,7 @@ export const DashboardContent = ({
                     <BusinessPage />
                   </motion.div>
                 </CardContent>
-              </EnhancedCard>
+              </Card>
             </motion.div>
           </TabsContent>
         </AnimatePresence>
