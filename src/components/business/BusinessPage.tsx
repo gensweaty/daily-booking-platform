@@ -1,48 +1,116 @@
-import { useState, useEffect } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ExternalLink, QrCode, Share2, User, Calendar } from "lucide-react";
 import { BusinessProfileForm } from "./BusinessProfileForm";
-import { BookingRequestsList } from "./BookingRequestsList";
-import { useBusinessProfile } from "@/hooks/useBusinessProfile";
-import { useBookingRequests } from "@/hooks/useBookingRequests";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
-import { LanguageText } from "@/components/shared/LanguageText";
-import QRCode from "qrcode.react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { BookingRequestsList } from "./BookingRequestsList";
+import { useBookingRequests } from "@/hooks/useBookingRequests";
+import { Badge } from "@/components/ui/badge";
+import { MessageSquare, ExternalLink, QrCode, Share, Bell } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageText } from "@/components/shared/LanguageText";
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import QRCode from "qrcode.react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
+import { toast } from "@/components/ui/use-toast";
+import { BookingNotificationManager } from "./BookingNotificationManager";
 
 export const BusinessPage = () => {
-  const { t, language } = useLanguage();
-  const isGeorgian = language === 'ka';
   const { user } = useAuth();
-  const { businessProfile } = useBusinessProfile();
-  const { pendingRequests } = useBookingRequests();
-  const [activeTab, setActiveTab] = useState("profile");
-  const [isQRDialogOpen, setIsQRDialogOpen] = useState(false);
+  const { t, language } = useLanguage();
+  const [activeTab, setActiveTab] = useState<"profile" | "bookings">("profile");
+  const { bookingRequests, pendingRequests, approvedRequests, rejectedRequests, approveRequest, rejectRequest, deleteBookingRequest, refetch } = useBookingRequests();
+  const pendingCount = pendingRequests?.length || 0;
+  const isGeorgian = language === 'ka';
+  const isMobile = useMediaQuery('(max-width: 640px)');
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
 
-  const businessUrl = businessProfile?.slug 
-    ? `${window.location.origin}/business/${businessProfile.slug}`
+  const { data: businessProfile, isLoading } = useQuery({
+    queryKey: ["businessProfile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("business_profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Auto-select "bookings" if profile exists, "profile" if not
+  useEffect(() => {
+    if (businessProfile) {
+      setActiveTab("bookings");
+    } else {
+      setActiveTab("profile");
+    }
+  }, [businessProfile]);
+
+  // Handle new booking request notifications
+  const handleNewBookingRequest = () => {
+    console.log('New booking request detected, refreshing data and showing notification...');
+    
+    // Show immediate notification about new request
+    const isGeorgian = language === 'ka';
+    toast({
+      title: isGeorgian ? "ახალი ჯავშნის მოთხოვნა მოვიდა!" : "New Booking Request Received!",
+      description: isGeorgian 
+        ? "გადახედეთ და დაამტკიცეთ ახალი მოთხოვნა"
+        : "Please review and approve the new request",
+      duration: 12000,
+      className: "bg-orange-50 border-orange-200 text-orange-900 shadow-lg",
+      action: (
+        <div className="flex items-center gap-2">
+          <Bell className="h-4 w-4" />
+          <span className="font-medium">
+            {isGeorgian ? "იხილეთ" : "View"}
+          </span>
+        </div>
+      ),
+    });
+    
+    // Switch to bookings tab if not already there
+    if (activeTab !== "bookings") {
+      setActiveTab("bookings");
+    }
+    
+    // Refresh the booking requests data
+    refetch();
+  };
+
+  if (isLoading) {
+    return <div className="text-center p-8"><LanguageText>{t("common.loading")}</LanguageText></div>;
+  }
+
+  const publicUrl = businessProfile?.slug 
+    ? `${window.location.protocol}//${window.location.host}/business/${businessProfile.slug}`
     : null;
 
-  const pendingCount = pendingRequests?.length || 0;
+  const handleTabChange = (value: string) => {
+    if (value === "profile" || value === "bookings") {
+      setActiveTab(value);
+    }
+  };
 
-  const shareProfile = async () => {
-    if (!businessUrl) return;
+  const handleShare = async () => {
+    if (!publicUrl) return;
     
-    if (navigator.share && window.innerWidth <= 768) {
+    if (navigator.share) {
       try {
         await navigator.share({
-          title: businessProfile?.business_name || 'My Business',
-          text: businessProfile?.description || 'Check out my business profile',
-          url: businessUrl,
+          title: businessProfile?.business_name || "Business Profile",
+          text: isGeorgian ? "გთხოვთ იხილოთ ჩემი ჯავშნის გვერდი:" : "Please visit my booking page:",
+          url: publicUrl
         });
-      } catch (error) {
-        console.log('Error sharing:', error);
+      } catch (err) {
+        console.error("Error sharing:", err);
         copyToClipboard();
       }
     } else {
@@ -51,159 +119,237 @@ export const BusinessPage = () => {
   };
 
   const copyToClipboard = () => {
-    if (!businessUrl) return;
+    if (!publicUrl) return;
     
-    navigator.clipboard.writeText(businessUrl);
+    navigator.clipboard.writeText(publicUrl).then(() => {
+      toast({
+        title: isGeorgian ? "ლინკი დაკოპირდა!" : "Link copied to clipboard!"
+      });
+    }).catch(err => {
+      console.error("Error copying to clipboard:", err);
+    });
   };
 
-  useEffect(() => {
-    if (pendingCount > 0) {
-      setActiveTab("booking-requests");
+  const renderViewPublicPageButton = () => {
+    if (!publicUrl) return null;
+    
+    return (
+      <div className="flex flex-col gap-4">
+        <Button 
+          variant="info"
+          onClick={() => window.open(publicUrl, '_blank')}
+          className="flex items-center gap-2 w-full"
+        >
+          <LanguageText>{t("business.viewPublicPage")}</LanguageText>
+          <ExternalLink className="h-4 w-4" />
+        </Button>
+        
+        <div className="flex flex-col items-center justify-center p-2 bg-white rounded-lg border">
+          <div className="text-sm text-gray-500 mb-2">
+            <LanguageText>{t("business.scanQrCode")}</LanguageText>
+          </div>
+          
+          <div 
+            onClick={() => setQrDialogOpen(true)}
+            className="cursor-pointer transition-all hover:opacity-90"
+          >
+            <QRCode 
+              value={publicUrl}
+              size={120}
+              bgColor={"#ffffff"}
+              fgColor={"#000000"}
+              level={"L"}
+              includeMargin={false}
+              className="rounded-md"
+            />
+          </div>
+          
+          <Button
+            onClick={handleShare}
+            variant="secondary" 
+            className="mt-2 w-full flex items-center justify-center gap-2"
+          >
+            <Share className="h-4 w-4" />
+            {isGeorgian ? (
+              <span>გაზიარება</span>
+            ) : (
+              <LanguageText>{t("common.share")}</LanguageText>
+            )}
+          </Button>
+        </div>
+        
+        <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+          <DialogContent className="sm:max-w-md p-6">
+            <div className="flex flex-col items-center justify-center">
+              <h3 className="text-lg font-medium mb-4">
+                {isGeorgian ? (
+                  "დაასკანერეთ QR კოდი"
+                ) : (
+                  <LanguageText>{t("business.scanQrCode")}</LanguageText>
+                )}
+              </h3>
+              <div className="bg-white p-4 rounded-md">
+                <QRCode 
+                  value={publicUrl}
+                  size={240}
+                  bgColor={"#ffffff"}
+                  fgColor={"#000000"}
+                  level={"L"}
+                  includeMargin={false}
+                  className="rounded-md"
+                />
+              </div>
+              <Button
+                onClick={handleShare}
+                variant="secondary" 
+                className="mt-4 flex items-center justify-center gap-2"
+              >
+                <Share className="h-4 w-4" />
+                {isGeorgian ? (
+                  <span>გაზიარება</span>
+                ) : (
+                  <LanguageText>{t("common.share")}</LanguageText>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  };
+
+  const renderSectionHeading = (key: string) => {
+    if (isGeorgian) {
+      if (key === "business.pendingRequests") return <GeorgianAuthText>მოთხოვნები მოლოდინში</GeorgianAuthText>;
+      if (key === "business.approvedRequests") return <GeorgianAuthText>დადასტურებული მოთხოვნები</GeorgianAuthText>;
+      if (key === "business.rejectedRequests") return <GeorgianAuthText>უარყოფილი მოთხოვნები</GeorgianAuthText>;
+      return <LanguageText>{t(key)}</LanguageText>;
     }
-  }, [pendingCount]);
+    return <LanguageText>{t(key)}</LanguageText>;
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <motion.h1 
-          className={`text-2xl font-bold bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent hover:from-primary hover:via-primary/90 hover:to-primary/70 transition-all duration-300 cursor-default ${isGeorgian ? 'font-georgian' : ''}`}
-          whileHover={{ scale: 1.02 }}
-          transition={{ duration: 0.2 }}
-        >
-          {isGeorgian ? (
-            <GeorgianAuthText fontWeight="bold">ჩემი ბიზნესი</GeorgianAuthText>
-          ) : (
-            <LanguageText>{t("business.myBusiness")}</LanguageText>
-          )}
-        </motion.h1>
-        
-        {businessUrl && (
-          <div className="flex items-center gap-2">
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Dialog open={isQRDialogOpen} onOpenChange={setIsQRDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="hover:bg-accent/50 hover:border-accent transition-all duration-200 hover:shadow-sm"
-                  >
-                    <QrCode className="h-4 w-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="text-center">
-                      <LanguageText>Scan QR code</LanguageText>
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="flex flex-col items-center space-y-4 p-6">
-                    <QRCode 
-                      value={businessUrl} 
-                      size={200}
-                      level="M"
-                      includeMargin={true}
-                    />
-                    <p className="text-sm text-muted-foreground text-center">
-                      <LanguageText>Scan this QR code to share your business profile</LanguageText>
-                    </p>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </motion.div>
-
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button 
-                onClick={shareProfile}
-                className="bg-green-500 hover:bg-green-600 text-white transition-all duration-200 shadow-md hover:shadow-lg"
-                size="sm"
+      <BookingNotificationManager 
+        businessProfileId={businessProfile?.id || null}
+        onNewRequest={handleNewBookingRequest}
+      />
+      
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="mb-6 bg-background/80 border rounded-lg p-1 shadow-sm">
+          <TabsTrigger 
+            value="profile" 
+            className="data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
+          >
+            {isGeorgian ? (
+              <GeorgianAuthText>ბიზნეს პროფილი</GeorgianAuthText>
+            ) : (
+              <LanguageText>{t("business.businessProfile")}</LanguageText>
+            )}
+          </TabsTrigger>
+          <TabsTrigger 
+            value="bookings" 
+            className="relative data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
+          >
+            <LanguageText>{t("business.bookingRequests")}</LanguageText>
+            {pendingCount > 0 && (
+              <Badge 
+                variant="orange" 
+                className="absolute -top-2 -right-2 flex items-center justify-center h-5 min-w-5 p-0 text-xs animate-pulse"
               >
-                <Share2 className="h-4 w-4 mr-1" />
-                {isGeorgian ? (
-                  <GeorgianAuthText fontWeight="bold">გაზიარება</GeorgianAuthText>
-                ) : (
-                  <LanguageText>share</LanguageText>
-                )}
-              </Button>
-            </motion.div>
+                {pendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button 
-                onClick={() => window.open(businessUrl, '_blank')}
-                className="bg-blue-500 hover:bg-blue-600 text-white transition-all duration-200 shadow-md hover:shadow-lg"
-                size="sm"
-              >
-                <ExternalLink className="h-4 w-4 mr-1" />
-                {isGeorgian ? (
-                  <GeorgianAuthText fontWeight="bold">საჯარო გვერდი</GeorgianAuthText>
-                ) : (
-                  <LanguageText>View Public Page</LanguageText>
-                )}
-              </Button>
-            </motion.div>
+        <TabsContent value="profile" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">
+              {isGeorgian ? (
+                <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
+              ) : (
+                <LanguageText>{t("business.myBusiness")}</LanguageText>
+              )}
+            </h1>
+            {!isMobile && publicUrl && renderViewPublicPageButton()}
           </div>
-        )}
-      </div>
+          
+          {isMobile && publicUrl && (
+            <div className="w-full mb-6">
+              {renderViewPublicPageButton()}
+            </div>
+          )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="bg-muted/30 border border-border/50 rounded-lg p-1 mb-4">
-          <TabsList className="grid w-full grid-cols-2 bg-transparent p-0 gap-1 h-auto">
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <TabsTrigger 
-                value="profile" 
-                className="flex items-center gap-2 text-sm text-foreground transition-all duration-300 bg-transparent rounded-md px-4 py-3 hover:bg-muted/60 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-border/50"
-              >
-                <User className="w-4 h-4" />
-                <span>
-                  {isGeorgian ? (
-                    <GeorgianAuthText>ბიზნეს პროფილი</GeorgianAuthText>
-                  ) : (
-                    <LanguageText>Business Profile</LanguageText>
-                  )}
-                </span>
-              </TabsTrigger>
-            </motion.div>
-            
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <TabsTrigger 
-                value="booking-requests" 
-                className="flex items-center gap-2 text-sm text-foreground transition-all duration-300 bg-transparent rounded-md px-4 py-3 hover:bg-muted/60 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-border/50 relative"
-              >
-                <Calendar className="w-4 h-4" />
-                <span>
-                  {isGeorgian ? (
-                    <GeorgianAuthText>ჯავშნის მოთხოვნები</GeorgianAuthText>
-                  ) : (
-                    <LanguageText>Booking Requests</LanguageText>
-                  )}
-                </span>
-                {pendingCount > 0 && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 25 }}
-                  >
-                    <Badge 
-                      variant="destructive" 
-                      className="ml-1 px-1.5 py-0.5 text-xs bg-orange-500 hover:bg-orange-600 animate-pulse"
-                    >
-                      {pendingCount}
-                    </Badge>
-                  </motion.div>
-                )}
-              </TabsTrigger>
-            </motion.div>
-          </TabsList>
-        </div>
-
-        <TabsContent value="profile" className="mt-0">
           <BusinessProfileForm />
         </TabsContent>
 
-        <TabsContent value="booking-requests" className="mt-0">
-          <BookingRequestsList 
-            requests={pendingRequests || []}
-            onDelete={() => {}}
-          />
+        <TabsContent value="bookings" className="space-y-6 sm:-mt-12 -mt-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2">
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold">
+                <LanguageText>{t("business.bookingRequests")}</LanguageText>
+              </h1>
+              {pendingCount > 0 && (
+                <div className="flex items-center gap-2 text-orange-600 bg-orange-50 border border-orange-200 px-3 py-1 rounded-full animate-pulse">
+                  <Bell className="h-4 w-4" />
+                  <span className="font-medium">
+                    {pendingCount} <LanguageText>{pendingCount === 1 ? t("common.new") : t("common.new")}</LanguageText>{" "}
+                    <LanguageText>{pendingCount === 1 ? t("common.request") : t("common.requests")}</LanguageText>
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            {isMobile && publicUrl && (
+              <div className="w-full mt-3 mb-2">
+                {renderViewPublicPageButton()}
+              </div>
+            )}
+            
+            {!isMobile && publicUrl && (
+              <div className="min-w-[180px]">
+                {renderViewPublicPageButton()}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4 -mt-1">
+            <div>
+              <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
+                {renderSectionHeading("business.pendingRequests")} 
+                <Badge variant="orange" className="ml-2">({pendingRequests.length})</Badge>
+              </h2>
+              <BookingRequestsList
+                requests={pendingRequests}
+                onApprove={approveRequest}
+                onReject={rejectRequest}
+                onDelete={deleteBookingRequest}
+              />
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
+                {renderSectionHeading("business.approvedRequests")}
+                <Badge variant="green" className="ml-2">({approvedRequests.length})</Badge>
+              </h2>
+              <BookingRequestsList
+                requests={approvedRequests}
+                onDelete={deleteBookingRequest}
+              />
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
+                {renderSectionHeading("business.rejectedRequests")}
+                <Badge variant="destructive" className="ml-2">({rejectedRequests.length})</Badge>
+              </h2>
+              <BookingRequestsList
+                requests={rejectedRequests}
+                onDelete={deleteBookingRequest}
+              />
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
