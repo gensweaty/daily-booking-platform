@@ -1,5 +1,7 @@
 
 import { Button } from "@/components/ui/button";
+import { EnhancedButton } from "@/components/ui/enhanced-button";
+import { EnhancedHeader } from "@/components/ui/enhanced-header";
 import { PlusCircle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Task } from "@/lib/types";
@@ -17,21 +19,16 @@ export const TaskFormHeader = ({ onAddTask, editingTask }: TaskFormHeaderProps) 
   
   return (
     <div className="flex items-center justify-between mb-6">
-      <h2 className="text-xl font-bold">
-        {isGeorgian ? (
-          <GeorgianAuthText fontWeight="bold">
-            <LanguageText>{editingTask ? t("tasks.editTask") : t("tasks.addTask")}</LanguageText>
-          </GeorgianAuthText>
-        ) : (
-          <LanguageText>{editingTask ? t("tasks.editTask") : t("tasks.addTask")}</LanguageText>
-        )}
-      </h2>
+      <EnhancedHeader level={2} variant="gradient">
+        {editingTask ? t("tasks.editTask") : t("tasks.addTask")}
+      </EnhancedHeader>
       {onAddTask && (
-        <Button 
+        <EnhancedButton 
           onClick={onAddTask} 
-          className="bg-primary hover:bg-primary/90 text-white flex items-center"
+          variant="default"
+          className="flex items-center gap-2"
         >
-          <PlusCircle className="mr-1 h-4 w-4" />
+          <PlusCircle className="h-4 w-4" />
           {isGeorgian ? (
             <GeorgianAuthText fontWeight="bold">
               <LanguageText>{t("tasks.addTask")}</LanguageText>
@@ -39,7 +36,7 @@ export const TaskFormHeader = ({ onAddTask, editingTask }: TaskFormHeaderProps) 
           ) : (
             <LanguageText>{t("tasks.addTask")}</LanguageText>
           )}
-        </Button>
+        </EnhancedButton>
       )}
     </div>
   );

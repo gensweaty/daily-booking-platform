@@ -1,5 +1,6 @@
 
 import { Button } from "../ui/button";
+import { EnhancedButton } from "../ui/enhanced-button";
 import { FileSpreadsheet } from "lucide-react";
 import { DateRangeSelect } from "./DateRangeSelect";
 import { memo, useCallback } from "react";
@@ -31,7 +32,7 @@ export const StatsHeader = memo(({ dateRange, onDateChange, onExport, isLoading 
         onDateChange={handleDateChange}
         disabled={isLoading}
       />
-      <Button
+      <EnhancedButton
         variant="info"
         size="icon"
         onClick={onExport}
@@ -40,7 +41,7 @@ export const StatsHeader = memo(({ dateRange, onDateChange, onExport, isLoading 
         disabled={isLoading}
       >
         <FileSpreadsheet className="h-5 w-5" />
-      </Button>
+      </EnhancedButton>
     </div>
   );
 });
