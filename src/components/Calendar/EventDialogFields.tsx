@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -238,6 +239,8 @@ export const EventDialogFields = ({
     const sectionUserNumber = isMain ? userNumber : (person?.userNumber || '');
     const sectionSocialNetworkLink = isMain ? socialNetworkLink : (person?.socialNetworkLink || '');
     const sectionEventNotes = isMain ? eventNotes : (person?.eventNotes || '');
+    
+    // Fix payment status synchronization - use the main paymentStatus prop for main person
     const sectionPaymentStatus = isMain ? paymentStatus : (person?.paymentStatus || 'not_paid');
     const sectionPaymentAmount = isMain ? paymentAmount : (person?.paymentAmount || '');
     const sectionShowPaymentAmount = sectionPaymentStatus === "partly_paid" || sectionPaymentStatus === "fully_paid";
