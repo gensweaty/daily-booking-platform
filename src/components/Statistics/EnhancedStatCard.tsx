@@ -19,31 +19,31 @@ export const EnhancedStatCard = ({
   valueClassName,
   color = "purple"
 }: EnhancedStatCardProps) => {
-  // Enhanced color mapping with gradients and modern styling
+  // Enhanced color mapping to match the design reference
   const colorStyles = {
     purple: {
-      gradient: "from-purple-500/10 to-indigo-500/10",
+      cardBg: "bg-gradient-to-br from-purple-900/90 to-indigo-900/90",
       iconBg: "bg-gradient-to-br from-purple-500 to-indigo-600",
-      border: "border-purple-200/50 dark:border-purple-800/50",
-      accent: "text-purple-600 dark:text-purple-400"
+      valueColor: "text-purple-400",
+      textColor: "text-gray-300"
     },
     green: {
-      gradient: "from-emerald-500/10 to-teal-500/10", 
+      cardBg: "bg-gradient-to-br from-emerald-900/90 to-teal-900/90", 
       iconBg: "bg-gradient-to-br from-emerald-500 to-teal-600",
-      border: "border-emerald-200/50 dark:border-emerald-800/50",
-      accent: "text-emerald-600 dark:text-emerald-400"
+      valueColor: "text-emerald-400",
+      textColor: "text-gray-300"
     },
     orange: {
-      gradient: "from-orange-500/10 to-amber-500/10",
+      cardBg: "bg-gradient-to-br from-orange-900/90 to-amber-900/90",
       iconBg: "bg-gradient-to-br from-orange-500 to-amber-600", 
-      border: "border-orange-200/50 dark:border-orange-800/50",
-      accent: "text-orange-600 dark:text-orange-400"
+      valueColor: "text-orange-400",
+      textColor: "text-gray-300"
     },
     blue: {
-      gradient: "from-blue-500/10 to-cyan-500/10",
+      cardBg: "bg-gradient-to-br from-blue-900/90 to-cyan-900/90",
       iconBg: "bg-gradient-to-br from-blue-500 to-cyan-600",
-      border: "border-blue-200/50 dark:border-blue-800/50", 
-      accent: "text-blue-600 dark:text-blue-400"
+      valueColor: "text-blue-400",
+      textColor: "text-gray-300"
     }
   };
 
@@ -54,53 +54,51 @@ export const EnhancedStatCard = ({
 
   return (
     <div className={cn(
-      "group relative overflow-hidden rounded-xl bg-gradient-to-br",
-      styles.gradient,
-      styles.border,
-      "border backdrop-blur-sm p-6 transition-all duration-300 hover:scale-105 hover:shadow-lg",
-      "bg-white/80 dark:bg-gray-900/80"
+      "group relative overflow-hidden rounded-xl p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl",
+      "border border-white/10 backdrop-blur-sm",
+      styles.cardBg
     )}>
       {/* Subtle animated background effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent dark:from-gray-800/50 transition-opacity duration-300 group-hover:opacity-75" />
+      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent transition-opacity duration-300 group-hover:opacity-100" />
       
-      <div className="relative z-10 space-y-4">
-        {/* Icon and title section */}
-        <div className="flex items-center justify-between">
+      <div className="relative z-10">
+        {/* Header with icon and title */}
+        <div className="flex items-start justify-between mb-4">
           <div className={cn(
-            "flex h-12 w-12 items-center justify-center rounded-lg",
+            "flex h-14 w-14 items-center justify-center rounded-xl",
             styles.iconBg,
-            "shadow-lg transition-transform duration-300 group-hover:scale-110"
+            "shadow-lg transition-all duration-300 group-hover:scale-110 group-hover:shadow-xl"
           )}>
-            <Icon className="h-6 w-6 text-white" />
+            <Icon className="h-7 w-7 text-white" />
           </div>
           
           <div className="text-right">
-            <h3 className="text-sm font-medium text-muted-foreground">
+            <h3 className={cn("text-sm font-medium", styles.textColor)}>
               <LanguageText>{title}</LanguageText>
             </h3>
           </div>
         </div>
 
-        {/* Value section */}
-        <div className={valueClassName || "text-3xl font-bold"}>
+        {/* Main value */}
+        <div className="mb-2">
           {isCurrencyValue ? (
-            <span className={styles.accent}>{value}</span>
+            <span className={cn("text-4xl font-bold", styles.valueColor)}>{value}</span>
           ) : (
             <LanguageText withFont={typeof value === 'string'}>
-              <span className={styles.accent}>{value}</span>
+              <span className={cn("text-4xl font-bold", styles.valueColor)}>{value}</span>
             </LanguageText>
           )}
         </div>
 
-        {/* Description section */}
-        <p className="text-xs text-muted-foreground/80 leading-relaxed">
+        {/* Description */}
+        <p className={cn("text-sm leading-relaxed", styles.textColor)}>
           <LanguageText>{description}</LanguageText>
         </p>
       </div>
 
       {/* Subtle glow effect on hover */}
       <div className={cn(
-        "absolute inset-0 rounded-xl opacity-0 transition-opacity duration-300 group-hover:opacity-20",
+        "absolute inset-0 rounded-xl opacity-0 transition-opacity duration-300 group-hover:opacity-10",
         styles.iconBg
       )} />
     </div>

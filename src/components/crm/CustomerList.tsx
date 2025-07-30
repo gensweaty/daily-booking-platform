@@ -4,6 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { EnhancedButton } from "@/components/ui/enhanced-button";
+import { EnhancedHeader } from "@/components/ui/enhanced-header";
 import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle } from "lucide-react";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
@@ -400,7 +402,7 @@ export const CustomerList = () => {
     <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
-          <h2 className="text-2xl font-bold md:mb-0 -mt-4">{t("crm.title")}</h2>
+          <EnhancedHeader level={2} variant="gradient" className="md:mb-0 -mt-4">{t("crm.title")}</EnhancedHeader>
           <div className="w-full md:w-auto md:min-w-[200px]">
             <DateRangeSelect 
               selectedDate={dateRange}
@@ -427,14 +429,15 @@ export const CustomerList = () => {
             <FileSpreadsheet className="h-5 w-5" />
           </Button>
         </div>
-        <Button 
+        <EnhancedButton 
           onClick={openCreateDialog} 
+          variant="success"
           className="flex items-center gap-2 whitespace-nowrap"
           disabled={isFetching}
         >
           <PlusCircle className="w-4 h-4" />
           {t("crm.addCustomer")}
-        </Button>
+        </EnhancedButton>
       </div>
 
       {!(isFetching && !isLoading) && filteredData.length > 0 && (
