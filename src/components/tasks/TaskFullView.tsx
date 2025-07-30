@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Task } from "@/lib/types";
 import { SimpleFileDisplay } from "../shared/SimpleFileDisplay";
@@ -124,7 +125,7 @@ export const TaskFullView = ({
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6 bg-background border-border text-foreground">
+        <DialogContent className="max-w-6xl w-[95vw] sm:w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6 bg-background border-border text-foreground">
           <DialogHeader className="pb-0 mt-1 sm:mt-3">
             {/* Highlighted Task Title */}
             <div className="p-2 sm:p-4 rounded-lg border border-input bg-muted/50">

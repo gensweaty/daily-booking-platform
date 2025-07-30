@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { createTask, updateTask, archiveTask } from "@/lib/api";
@@ -385,7 +386,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl w-[95vw] sm:w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto">
         {formContent}
       </DialogContent>
     </Dialog>
