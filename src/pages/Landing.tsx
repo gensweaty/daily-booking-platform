@@ -6,7 +6,7 @@ import { FooterSection } from "@/components/landing/FooterSection";
 import { CursorFollower } from "@/components/landing/CursorFollower";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ThemeProvider } from "@/components/theme-provider"; 
-import "./animations.css";
+import "@/components/landing/animations.css";
 
 export const Landing = () => {
   const { language } = useLanguage();
