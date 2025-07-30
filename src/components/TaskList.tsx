@@ -144,7 +144,26 @@ export const TaskList = () => {
       </DragDropContext>
 
       <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
-        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="
+            w-full 
+            max-w-[95vw] 
+            sm:max-w-2xl 
+            max-h-[90vh] 
+            overflow-y-auto 
+            p-4
+            rounded-xl
+            !left-1/2 !-translate-x-1/2
+          "
+          style={{
+            width: '100%',
+            maxWidth: '95vw',
+            padding: '1rem',
+            borderRadius: '1.5rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+          }}
+        >
           <AddTaskForm 
             onClose={() => setEditingTask(null)} 
             editingTask={editingTask}
