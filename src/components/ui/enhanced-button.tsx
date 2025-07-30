@@ -51,12 +51,20 @@ const EnhancedButton = React.forwardRef<HTMLButtonElement, EnhancedButtonProps>(
       );
     }
 
-    // Separate motion props from HTML props
+    // Separate HTML event handlers that conflict with Framer Motion
     const {
       onAnimationStart,
       onAnimationEnd,
       onAnimationIteration,
       onTransitionEnd,
+      onDrag,
+      onDragEnd,
+      onDragEnter,
+      onDragExit,
+      onDragLeave,
+      onDragOver,
+      onDragStart,
+      onDrop,
       ...htmlProps
     } = props;
 

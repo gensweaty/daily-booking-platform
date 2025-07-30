@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -10,12 +9,20 @@ const EnhancedCard = React.forwardRef<
     glow?: boolean;
   }
 >(({ className, hover = false, glow = false, children, ...props }, ref) => {
-  // Separate animation-related props from HTML props
+  // Separate HTML event handlers that conflict with Framer Motion
   const {
     onAnimationStart,
     onAnimationEnd,
     onAnimationIteration,
     onTransitionEnd,
+    onDrag,
+    onDragEnd,
+    onDragEnter,
+    onDragExit,
+    onDragLeave,
+    onDragOver,
+    onDragStart,
+    onDrop,
     ...htmlProps
   } = props;
 
