@@ -13,6 +13,7 @@ import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { startOfMonth, endOfMonth } from "date-fns";
 import { motion } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Define Customer type locally since it's not exported from lib/types
 interface Customer {
@@ -27,6 +28,7 @@ interface Customer {
 
 export const CustomerList = () => {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const isGeorgian = language === 'ka';
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -37,7 +39,7 @@ export const CustomerList = () => {
   const { 
     combinedData: customers = [], 
     isLoading 
-  } = useOptimizedCRMData(searchTerm, { 
+  } = useOptimizedCRMData(user?.id, { 
     start: startOfMonth(new Date()), 
     end: endOfMonth(new Date()) 
   });
@@ -91,31 +93,22 @@ export const CustomerList = () => {
             whileTap={{ scale: 0.95 }}
             transition={{ duration: 0.1 }}
           >
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button 
-                  onClick={handleNewCustomer}
-                  className="bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-all duration-200"
-                >
-                  <motion.div
-                    whileHover={{ rotate: 90 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <UserPlus className="w-4 h-4 mr-2" />
-                  </motion.div>
-                  {isGeorgian ? (
-                    <GeorgianAuthText fontWeight="bold">მომხმარებლის დამატება</GeorgianAuthText>
-                  ) : (
-                    <LanguageText>{t("crm.addCustomer")}</LanguageText>
-                  )}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-                <CustomerDialog
-                  customerId={selectedCustomer?.id}
-                />
-              </DialogContent>
-            </Dialog>
+            <Button 
+              onClick={handleNewCustomer}
+              className="bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-all duration-200"
+            >
+              <motion.div
+                whileHover={{ rotate: 90 }}
+                transition={{ duration: 0.2 }}
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+              </motion.div>
+              {isGeorgian ? (
+                <GeorgianAuthText fontWeight="bold">მომხმარებლის დამატება</GeorgianAuthText>
+              ) : (
+                <LanguageText>{t("crm.addCustomer")}</LanguageText>
+              )}
+            </Button>
           </motion.div>
         </div>
       </div>
@@ -127,6 +120,12 @@ export const CustomerList = () => {
           isLoading={isLoading}
         />
       </div>
+
+      <CustomerDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        customerId={selectedCustomer?.id}
+      />
 
       <Card>
         <CardHeader>
