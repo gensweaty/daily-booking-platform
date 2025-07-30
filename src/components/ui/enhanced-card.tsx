@@ -9,23 +9,34 @@ const EnhancedCard = React.forwardRef<
     hover?: boolean;
     glow?: boolean;
   }
->(({ className, hover = false, glow = false, children, ...props }, ref) => (
-  <motion.div
-    ref={ref}
-    className={cn(
-      "rounded-xl border bg-card text-card-foreground shadow-sm",
-      "transition-all duration-200",
-      hover && "hover:shadow-md hover:shadow-primary/5 hover:-translate-y-0.5",
-      glow && "ring-1 ring-primary/10",
-      className
-    )}
-    whileHover={hover ? { scale: 1.01 } : undefined}
-    transition={{ type: "spring", stiffness: 400, damping: 25 }}
-    {...props}
-  >
-    {children}
-  </motion.div>
-));
+>(({ className, hover = false, glow = false, children, ...props }, ref) => {
+  // Separate animation-related props from HTML props
+  const {
+    onAnimationStart,
+    onAnimationEnd,
+    onAnimationIteration,
+    onTransitionEnd,
+    ...htmlProps
+  } = props;
+
+  return (
+    <motion.div
+      ref={ref}
+      className={cn(
+        "rounded-xl border bg-card text-card-foreground shadow-sm",
+        "transition-all duration-200",
+        hover && "hover:shadow-md hover:shadow-primary/5 hover:-translate-y-0.5",
+        glow && "ring-1 ring-primary/10",
+        className
+      )}
+      whileHover={hover ? { scale: 1.01 } : undefined}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      {...htmlProps}
+    >
+      {children}
+    </motion.div>
+  );
+});
 EnhancedCard.displayName = "EnhancedCard";
 
 const EnhancedCardHeader = React.forwardRef<
