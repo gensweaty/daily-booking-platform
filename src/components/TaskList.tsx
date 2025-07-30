@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getTasks, updateTask, deleteTask, archiveTask } from "@/lib/api";
 import { Task } from "@/lib/types";
@@ -10,9 +11,11 @@ import { useToast } from "./ui/use-toast";
 import AddTaskForm from "./AddTaskForm";
 import { TaskFullView } from "./tasks/TaskFullView";
 import { TaskColumn } from "./tasks/TaskColumn";
+import { TaskCardSkeleton } from "./tasks/TaskCardSkeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { motion, AnimatePresence } from "framer-motion";
 
 export const TaskList = () => {
   const { user } = useAuth();
@@ -57,12 +60,21 @@ export const TaskList = () => {
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<Task> }) =>
       updateTask(id, updates),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      toast({
-        title: t("common.success"),
-        description: t("tasks.taskUpdated"),
-      });
+      
+      // Show celebration animation for completed tasks
+      if (variables.updates.status === 'done') {
+        toast({
+          title: "🎉 Task Completed!",
+          description: t("tasks.taskUpdated"),
+        });
+      } else {
+        toast({
+          title: t("common.success"),
+          description: t("tasks.taskUpdated"),
+        });
+      }
     },
   });
 
@@ -117,7 +129,43 @@ export const TaskList = () => {
     enabled: !!user?.id,
   });
 
-  if (isLoading) return <div className="text-foreground">Loading tasks...</div>;
+  // Loading skeleton
+  if (isLoading) {
+    return (
+      <motion.div 
+        className="grid grid-cols-1 md:grid-cols-3 gap-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        {['todo', 'in-progress', 'done'].map((status, columnIndex) => (
+          <motion.div
+            key={status}
+            className="p-4 rounded-xl border border-border/50 min-h-[400px]"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: columnIndex * 0.1 }}
+          >
+            {/* Column header skeleton */}
+            <div className="flex items-center justify-between mb-4 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 bg-muted rounded-full animate-pulse" />
+                <div className="w-20 h-6 bg-muted rounded animate-pulse" />
+              </div>
+              <div className="w-8 h-6 bg-muted rounded-full animate-pulse" />
+            </div>
+            
+            {/* Task cards skeleton */}
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <TaskCardSkeleton key={i} />
+              ))}
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
+    );
+  }
 
   // Map database status to UI status
   const columns = {
@@ -126,10 +174,26 @@ export const TaskList = () => {
     done: tasks.filter((task: Task) => task.status === 'done'),
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: 0.6,
+        staggerChildren: 0.1
+      }
+    }
+  };
+
   return (
     <>
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
           {Object.entries(columns).map(([status, statusTasks]) => (
             <TaskColumn
               key={status}
@@ -140,36 +204,47 @@ export const TaskList = () => {
               onDelete={handleDeleteClick}
             />
           ))}
-        </div>
+        </motion.div>
       </DragDropContext>
 
-      <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
-        <DialogContent
-          className="
-            w-full 
-            max-w-[95vw] 
-            sm:max-w-2xl 
-            max-h-[90vh] 
-            overflow-y-auto 
-            p-4
-            rounded-xl
-            !left-1/2 !-translate-x-1/2
-          "
-          style={{
-            width: '100%',
-            maxWidth: '95vw',
-            padding: '1rem',
-            borderRadius: '1.5rem',
-            left: '50%',
-            transform: 'translateX(-50%)',
-          }}
-        >
-          <AddTaskForm 
-            onClose={() => setEditingTask(null)} 
-            editingTask={editingTask}
-          />
-        </DialogContent>
-      </Dialog>
+      <AnimatePresence>
+        {editingTask && (
+          <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
+            <DialogContent
+              className="
+                w-full 
+                max-w-[95vw] 
+                sm:max-w-2xl 
+                max-h-[90vh] 
+                overflow-y-auto 
+                p-4
+                rounded-xl
+                !left-1/2 !-translate-x-1/2
+              "
+              style={{
+                width: '100%',
+                maxWidth: '95vw',
+                padding: '1rem',
+                borderRadius: '1.5rem',
+                left: '50%',
+                transform: 'translateX(-50%)',
+              }}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <AddTaskForm 
+                  onClose={() => setEditingTask(null)} 
+                  editingTask={editingTask}
+                />
+              </motion.div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </AnimatePresence>
 
       {viewingTask && (
         <TaskFullView
