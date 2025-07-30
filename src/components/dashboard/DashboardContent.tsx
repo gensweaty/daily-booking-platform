@@ -302,53 +302,85 @@ export const DashboardContent = ({
                   <CardTitle>
                     {showArchive ? (
                       isGeorgian ? (
-                        <GeorgianAuthText fontWeight="bold">
-                          {t("tasks.archivedTasks")}
-                        </GeorgianAuthText>
+                        <motion.div
+                          whileHover={{ scale: 1.02 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <GeorgianAuthText 
+                            fontWeight="bold"
+                            className="bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent hover:from-primary hover:via-primary/90 hover:to-primary/70 transition-all duration-300 cursor-default"
+                          >
+                            {t("tasks.archivedTasks")}
+                          </GeorgianAuthText>
+                        </motion.div>
                       ) : (
-                        <LanguageText>{t("tasks.archivedTasks")}</LanguageText>
+                        <motion.div
+                          whileHover={{ scale: 1.02 }}
+                          transition={{ duration: 0.2 }}
+                          className="bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent hover:from-primary hover:via-primary/90 hover:to-primary/70 transition-all duration-300 cursor-default"
+                        >
+                          <LanguageText>{t("tasks.archivedTasks")}</LanguageText>
+                        </motion.div>
                       )
                     ) : (
                       isGeorgian ? (
-                        <GeorgianAuthText>დავალებები</GeorgianAuthText>
+                        <motion.div
+                          whileHover={{ scale: 1.02 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <GeorgianAuthText className="bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent hover:from-primary hover:via-primary/90 hover:to-primary/70 transition-all duration-300 cursor-default">
+                            დავალებები
+                          </GeorgianAuthText>
+                        </motion.div>
                       ) : (
-                        <LanguageText>{t("dashboard.tasks")}</LanguageText>
+                        <motion.div
+                          whileHover={{ scale: 1.02 }}
+                          transition={{ duration: 0.2 }}
+                          className="bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent hover:from-primary hover:via-primary/90 hover:to-primary/70 transition-all duration-300 cursor-default"
+                        >
+                          <LanguageText>{t("dashboard.tasks")}</LanguageText>
+                        </motion.div>
                       )
                     )}
                   </CardTitle>
                   <div className="flex items-center gap-2">
                     {!showArchive && (
                       <>
-                        <Button
-                          onClick={handleArchiveClick}
-                          variant="outline"
-                          className="flex items-center gap-2"
-                        >
-                          <motion.div
-                            whileHover={{ rotate: 15 }}
-                            transition={{ duration: 0.3 }}
+                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                          <Button
+                            onClick={handleArchiveClick}
+                            variant="outline"
+                            className="flex items-center gap-2 hover:bg-accent/50 hover:border-accent transition-all duration-200 hover:shadow-sm"
                           >
-                            <Archive className="w-4 h-4" />
-                          </motion.div>
-                          {isGeorgian ? (
-                            <GeorgianAuthText>{t("tasks.archive")}</GeorgianAuthText>
-                          ) : (
-                            <LanguageText>{t("tasks.archive")}</LanguageText>
-                          )}
-                        </Button>
+                            <motion.div
+                              whileHover={{ rotate: 15 }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              <Archive className="w-4 h-4" />
+                            </motion.div>
+                            {isGeorgian ? (
+                              <GeorgianAuthText>{t("tasks.archive")}</GeorgianAuthText>
+                            ) : (
+                              <LanguageText>{t("tasks.archive")}</LanguageText>
+                            )}
+                          </Button>
+                        </motion.div>
+                        
                         <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
                           <DialogTrigger asChild>
-                            <Button 
-                              className="flex items-center gap-2 w-full sm:w-auto bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95"
-                            >
-                              <motion.div
-                                whileHover={{ rotate: 180 }}
-                                transition={{ duration: 0.3 }}
+                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                              <Button 
+                                className="flex items-center gap-2 w-full sm:w-auto bg-primary hover:bg-primary/90 text-white transition-all duration-300 shadow-md hover:shadow-lg"
                               >
-                                <PlusCircle className="w-4 h-4" />
-                              </motion.div>
-                              <LanguageText>{t("tasks.addTask")}</LanguageText>
-                            </Button>
+                                <motion.div
+                                  whileHover={{ rotate: 180 }}
+                                  transition={{ duration: 0.3 }}
+                                >
+                                  <PlusCircle className="w-4 h-4" />
+                                </motion.div>
+                                <LanguageText>{t("tasks.addTask")}</LanguageText>
+                              </Button>
+                            </motion.div>
                           </DialogTrigger>
                           <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                             <motion.div
@@ -364,18 +396,20 @@ export const DashboardContent = ({
                       </>
                     )}
                     {showArchive && (
-                      <Button
-                        onClick={() => setShowArchive(false)}
-                        variant="outline"
-                        className="flex items-center gap-2"
-                      >
-                        <ListTodo className="w-4 h-4" />
-                        {isGeorgian ? (
-                          <GeorgianAuthText>{t("tasks.backToTasks")}</GeorgianAuthText>
-                        ) : (
-                          <LanguageText>{t("tasks.backToTasks")}</LanguageText>
-                        )}
-                      </Button>
+                      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                        <Button
+                          onClick={() => setShowArchive(false)}
+                          variant="outline"
+                          className="flex items-center gap-2 hover:bg-accent/50 hover:border-accent transition-all duration-200 hover:shadow-sm"
+                        >
+                          <ListTodo className="w-4 h-4" />
+                          {isGeorgian ? (
+                            <GeorgianAuthText>{t("tasks.backToTasks")}</GeorgianAuthText>
+                          ) : (
+                            <LanguageText>{t("tasks.backToTasks")}</LanguageText>
+                          )}
+                        </Button>
+                      </motion.div>
                     )}
                   </div>
                 </CardHeader>
