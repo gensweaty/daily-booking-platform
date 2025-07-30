@@ -125,7 +125,7 @@ export const TaskFullView = ({
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="bg-background border-border text-foreground sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-background border-border text-foreground w-[95vw] max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader className="pb-0 mt-3">
             {/* Highlighted Task Title */}
             <div className="p-4 rounded-lg border border-input bg-muted/50">
