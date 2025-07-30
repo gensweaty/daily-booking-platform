@@ -14,6 +14,9 @@ import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
 import { GeorgianAuthText } from "./shared/GeorgianAuthText";
 import { Archive, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface AddTaskFormProps {
   onClose: () => void;
@@ -38,6 +41,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const { language, t } = useLanguage();
   const { validateDateTime } = useTimezoneValidation();
   const isGeorgian = language === 'ka';
+  const isMobile = useMediaQuery("(max-width: 640px)");
 
   useEffect(() => {
     if (editingTask) {
@@ -248,99 +252,97 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
     }
   };
 
-  return (
-    <>
-      <div className="w-full space-y-6 p-2">
-        <TaskFormHeader editingTask={editingTask} />
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <TaskFormFields
-            title={title}
-            setTitle={setTitle}
-            description={description}
-            setDescription={setDescription}
-            selectedFile={selectedFile}
-            setSelectedFile={setSelectedFile}
-            fileError={fileError}
-            setFileError={setFileError}
-            editingTask={editingTask}
-            deadline={deadline}
-            setDeadline={setDeadline}
-            reminderAt={reminderAt}
-            setReminderAt={setReminderAt}
-            emailReminder={emailReminder}
-            setEmailReminder={setEmailReminder}
-          />
-          <div className="flex justify-end gap-2 pt-4 border-t border-muted/20">
-            {editingTask && (
-              <>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={handleArchive}
-                  disabled={isArchiving}
-                  className="min-w-[120px]"
-                >
-                  <Archive className="mr-2 h-4 w-4" />
-                  {isGeorgian ? (
-                    <GeorgianAuthText fontWeight="bold">
-                      <LanguageText>
-                        {isArchiving ? t("common.saving") : t("tasks.archive")}
-                      </LanguageText>
-                    </GeorgianAuthText>
-                  ) : (
+  const formContent = (
+    <div className="w-full space-y-4 sm:space-y-6 p-2 sm:p-4">
+      <TaskFormHeader editingTask={editingTask} />
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+        <TaskFormFields
+          title={title}
+          setTitle={setTitle}
+          description={description}
+          setDescription={setDescription}
+          selectedFile={selectedFile}
+          setSelectedFile={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+          editingTask={editingTask}
+          deadline={deadline}
+          setDeadline={setDeadline}
+          reminderAt={reminderAt}
+          setReminderAt={setReminderAt}
+          emailReminder={emailReminder}
+          setEmailReminder={setEmailReminder}
+        />
+        <div className="flex justify-end gap-1 sm:gap-2 pt-3 sm:pt-4 border-t border-muted/20">
+          {editingTask && (
+            <>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleArchive}
+                disabled={isArchiving}
+                className="min-w-[80px] sm:min-w-[120px] text-xs sm:text-sm px-2 sm:px-3"
+              >
+                <Archive className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                {isGeorgian ? (
+                  <GeorgianAuthText fontWeight="bold">
                     <LanguageText>
                       {isArchiving ? t("common.saving") : t("tasks.archive")}
                     </LanguageText>
-                  )}
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="destructive" 
-                  onClick={handleDeleteClick}
-                  disabled={isDeleting}
-                  className="min-w-[120px]"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  {isGeorgian ? (
-                    <GeorgianAuthText fontWeight="bold">
-                      <LanguageText>
-                        {isDeleting ? t("common.saving") : t("tasks.deleteTask")}
-                      </LanguageText>
-                    </GeorgianAuthText>
-                  ) : (
+                  </GeorgianAuthText>
+                ) : (
+                  <LanguageText>
+                    {isArchiving ? t("common.saving") : t("tasks.archive")}
+                  </LanguageText>
+                )}
+              </Button>
+              <Button 
+                type="button" 
+                variant="destructive" 
+                onClick={handleDeleteClick}
+                disabled={isDeleting}
+                className="min-w-[80px] sm:min-w-[120px] text-xs sm:text-sm px-2 sm:px-3"
+              >
+                <Trash2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                {isGeorgian ? (
+                  <GeorgianAuthText fontWeight="bold">
                     <LanguageText>
                       {isDeleting ? t("common.saving") : t("tasks.deleteTask")}
                     </LanguageText>
-                  )}
-                </Button>
-              </>
-            )}
-            <Button type="submit" className="min-w-[120px]" disabled={isSubmitting}>
-              {isGeorgian ? (
-                <GeorgianAuthText fontWeight="bold">
+                  </GeorgianAuthText>
+                ) : (
                   <LanguageText>
-                    {isSubmitting 
-                      ? t("common.saving")
-                      : (editingTask ? t("tasks.editTask") : t("tasks.addTask"))
-                    }
+                    {isDeleting ? t("common.saving") : t("tasks.deleteTask")}
                   </LanguageText>
-                </GeorgianAuthText>
-              ) : (
+                )}
+              </Button>
+            </>
+          )}
+          <Button type="submit" className="min-w-[80px] sm:min-w-[120px] text-xs sm:text-sm px-2 sm:px-3" disabled={isSubmitting}>
+            {isGeorgian ? (
+              <GeorgianAuthText fontWeight="bold">
                 <LanguageText>
                   {isSubmitting 
                     ? t("common.saving")
                     : (editingTask ? t("tasks.editTask") : t("tasks.addTask"))
                   }
                 </LanguageText>
-              )}
-            </Button>
-          </div>
-        </form>
-      </div>
-
+              </GeorgianAuthText>
+            ) : (
+              <LanguageText>
+                {isSubmitting 
+                  ? t("common.saving")
+                  : (editingTask ? t("tasks.editTask") : t("tasks.addTask"))
+                }
+              </LanguageText>
+            )}
+          </Button>
+        </div>
+      </form>
+      
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[90vw] max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>
               {isGeorgian ? "დავალების წაშლა" : t("tasks.deleteTaskConfirmTitle")}
@@ -365,7 +367,28 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet open={true} onOpenChange={onClose}>
+        <SheetContent 
+          side="bottom" 
+          className="h-[90vh] w-full p-0 overflow-y-auto"
+        >
+          {formContent}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        {formContent}
+      </DialogContent>
+    </Dialog>
   );
 };
 
