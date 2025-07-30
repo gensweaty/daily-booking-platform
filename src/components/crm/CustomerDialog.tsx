@@ -142,6 +142,55 @@ export const CustomerDialog = ({
     }
   }, [open, customerId]);
 
+  const copyFileFromCustomerToEvent = async (eventId: string, uploadedFileData: any) => {
+    try {
+      console.log("Starting file copy from customer to event storage");
+      
+      const { data: fileData, error: fetchError } = await supabase.storage
+        .from('customer_attachments')
+        .download(uploadedFileData.file_path);
+        
+      if (fetchError) {
+        console.error("Error downloading file for copying:", fetchError);
+        throw fetchError;
+      }
+      
+      const newFilePath = `${eventId}/${uploadedFileData.filename}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('event_attachments')
+        .upload(newFilePath, fileData);
+        
+      if (uploadError) {
+        console.error("Error uploading file to event bucket:", uploadError);
+        throw uploadError;
+      }
+      
+      const eventFileData = {
+        event_id: eventId,
+        filename: uploadedFileData.filename,
+        file_path: newFilePath,
+        content_type: uploadedFileData.content_type,
+        size: uploadedFileData.size,
+        user_id: user.id
+      };
+      
+      console.log("Creating event file record:", eventFileData);
+      
+      const { error: eventFileError } = await supabase
+        .from('event_files')
+        .insert(eventFileData);
+        
+      if (eventFileError) {
+        console.error("Error associating file with event:", eventFileError);
+      } else {
+        console.log("File associated with event successfully");
+      }
+    } catch (fileAssociationError) {
+      console.error("Error copying file from customer to event:", fileAssociationError);
+    }
+  };
+
   const uploadFile = async (customerId: string, file: File) => {
     try {
       const fileExt = file.name.split('.').pop();
@@ -358,6 +407,16 @@ export const CustomerDialog = ({
 
         if (error) throw error;
 
+        let uploadedFileData = null;
+        if (selectedFile && customerId && !customerId.startsWith('event-')) {
+          try {
+            uploadedFileData = await uploadFile(customerId, selectedFile);
+            console.log("File uploaded for customer:", uploadedFileData);
+          } catch (uploadError) {
+            console.error("File upload failed:", uploadError);
+          }
+        }
+
         if (tableToUpdate === 'customers' && createEvent) {
           const { data: existingEvents, error: eventCheckError } = await supabase
             .from('events')
@@ -431,13 +490,9 @@ export const CustomerDialog = ({
               }, []);
             }
           }
-        }
 
-        if (selectedFile && customerId && !customerId.startsWith('event-')) {
-          try {
-            await uploadFile(customerId, selectedFile);
-          } catch (uploadError) {
-            console.error("File upload failed:", uploadError);
+          if (uploadedFileData && createdEventId) {
+            await copyFileFromCustomerToEvent(createdEventId, uploadedFileData);
           }
         }
       } else {
@@ -526,50 +581,7 @@ export const CustomerDialog = ({
             }
             
             if (uploadedFileData && eventResult) {
-              try {
-                const { data: fileData, error: fetchError } = await supabase.storage
-                  .from('customer_attachments')
-                  .download(uploadedFileData.file_path);
-                  
-                if (fetchError) {
-                  console.error("Error downloading file for copying:", fetchError);
-                  throw fetchError;
-                }
-                
-                const newFilePath = `${eventResult.id}/${uploadedFileData.filename}`;
-                
-                const { error: uploadError } = await supabase.storage
-                  .from('event_attachments')
-                  .upload(newFilePath, fileData);
-                  
-                if (uploadError) {
-                  console.error("Error uploading file to event bucket:", uploadError);
-                  throw uploadError;
-                }
-                
-                const eventFileData = {
-                  event_id: eventResult.id,
-                  filename: uploadedFileData.filename,
-                  file_path: newFilePath,
-                  content_type: uploadedFileData.content_type,
-                  size: uploadedFileData.size,
-                  user_id: user.id
-                };
-                
-                console.log("Creating event file record:", eventFileData);
-                
-                const { error: eventFileError } = await supabase
-                  .from('event_files')
-                  .insert(eventFileData);
-                  
-                if (eventFileError) {
-                  console.error("Error associating file with event:", eventFileError);
-                } else {
-                  console.log("File associated with event successfully");
-                }
-              } catch (fileAssociationError) {
-                console.error("Error associating file with event:", fileAssociationError);
-              }
+              await copyFileFromCustomerToEvent(eventResult.id, uploadedFileData);
             }
           }
         }
