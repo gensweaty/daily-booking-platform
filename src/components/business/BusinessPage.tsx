@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -201,7 +200,10 @@ export const BusinessPage = () => {
         </TabsContent>
 
         <TabsContent value="booking-requests" className="mt-0">
-          <BookingRequestsList />
+          <BookingRequestsList 
+            requests={pendingRequests || []}
+            onDelete={() => {}}
+          />
         </TabsContent>
       </Tabs>
     </div>

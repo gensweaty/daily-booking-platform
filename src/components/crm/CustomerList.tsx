@@ -113,7 +113,6 @@ export const CustomerList = () => {
               <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                 <CustomerDialog
                   customerId={selectedCustomer?.id}
-                  onClose={handleCloseDialog}
                 />
               </DialogContent>
             </Dialog>
