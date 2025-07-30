@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,7 +69,18 @@ export const PricingSection = () => {
     'ყოვლისმომცველი ანალიტიკა',
     'ულიმიტო ჯავშნების დასტური ემაილით',
     'QR კოდით სწრაფი დაჯავშნის სისტემა',
+    'შეუზღუდავი დავალებების შეხსენებები ელექტრონული ფოსტით',
     'თანამედროვე, ყველა დევაისზე ოპტიმიზირებული სამართავი პანელი'
+  ] : language === 'es' ? [
+    'Sitio web gratuito para su negocio',
+    'Reservas en vivo ilimitadas',
+    'Clientes CRM ilimitados',
+    'Tareas ilimitadas en el tablero',
+    'Analítica integral',
+    'Aprobaciones de reserva ilimitadas con correo electrónico',
+    'Sistema de reserva rápida con código QR',
+    'Recordatorios de tareas ilimitados por correo electrónico',
+    'Panel de control moderno y responsivo para cualquier dispositivo'
   ] : [
     'Free website for your business',
     'Unlimited live bookings',
@@ -79,6 +89,7 @@ export const PricingSection = () => {
     'Comprehensive Analytics',
     'Unlimited Booking approvals with email',
     'QR code fast booking system',
+    'Unlimited Task Reminders With email',
     'Modern, responsive dashboard for any device'
   ];
 
