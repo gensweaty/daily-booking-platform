@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getTasks, updateTask, deleteTask, archiveTask } from "@/lib/api";
 import { Task } from "@/lib/types";
@@ -146,22 +147,28 @@ export const TaskList = () => {
       <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
         <DialogContent
           className="
-            w-full 
-            max-w-[95vw] 
-            sm:max-w-2xl 
-            max-h-[90vh] 
-            overflow-y-auto 
+            w-full
+            max-w-[380px]
+            sm:max-w-2xl
+            mx-auto
+            max-h-[90vh]
+            overflow-y-auto
             p-4
-            rounded-xl
+            rounded-2xl
             !left-1/2 !-translate-x-1/2
+            !top-[6vh]
+            min-h-[60vh]
           "
           style={{
-            width: '100%',
-            maxWidth: '95vw',
-            padding: '1rem',
-            borderRadius: '1.5rem',
+            padding: '1.25rem',
+            borderRadius: '1.25rem',
             left: '50%',
             transform: 'translateX(-50%)',
+            maxWidth: '380px',
+            width: '100%',
+            top: '6vh',
+            minHeight: '60vh',
+            boxSizing: 'border-box',
           }}
         >
           <AddTaskForm 
