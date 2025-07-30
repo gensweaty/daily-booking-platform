@@ -133,7 +133,7 @@ export const HeroSection = () => {
       <div className="hidden md:flex items-center gap-3">
         <Button 
           onClick={handleDashboardClick}
-          className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm flex items-center gap-2"
+          className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm flex items-center gap-2 glass-morphism animate-pulse-glow"
         >
           <Avatar className="h-6 w-6">
             <AvatarImage src={user?.user_metadata?.avatar_url} />
@@ -147,14 +147,14 @@ export const HeroSection = () => {
         <Button 
           onClick={handleSignOut}
           variant="outline" 
-          className="hover:scale-105 transition-transform text-sm flex items-center gap-2"
+          className="hover:scale-105 transition-transform text-sm flex items-center gap-2 glass-morphism hover:bg-primary/10"
         >
           <LogOut className="h-4 w-4" />
           <LanguageText>{language === 'ka' ? "გამოსვლა" : t('nav.signOut')}</LanguageText>
         </Button>
         
         <Link to="/contact">
-          <Button variant="outline" className="hover:scale-105 transition-transform text-sm">
+          <Button variant="outline" className="hover:scale-105 transition-transform text-sm glass-morphism hover:bg-accent/10">
             {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
           </Button>
         </Link>
@@ -166,7 +166,7 @@ export const HeroSection = () => {
           onClick={handleDashboardClick}
           variant="ghost"
           size="sm"
-          className="p-2"
+          className="p-2 glass-morphism hover:bg-primary/20 transition-all hover:scale-105"
           aria-label="Go to Dashboard"
         >
           <Avatar className="h-7 w-7">
@@ -181,13 +181,13 @@ export const HeroSection = () => {
           onClick={handleSignOut}
           variant="outline" 
           size="sm"
-          className="p-2"
+          className="p-2 glass-morphism hover:bg-primary/10 transition-all hover:scale-105"
           aria-label={language === 'ka' ? "გამოსვლა" : t('nav.signOut')}
         >
           <LogOut className="h-4 w-4" />
         </Button>
         
-        <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-expanded={isMobileMenuOpen} aria-controls="mobile-menu" aria-label="Toggle menu">
+        <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-expanded={isMobileMenuOpen} aria-controls="mobile-menu" aria-label="Toggle menu" className="glass-morphism hover:bg-accent/10 transition-all hover:scale-105">
           {isMobileMenuOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
         </Button>
       </div>
@@ -201,24 +201,40 @@ export const HeroSection = () => {
       
       <div className="hidden md:flex items-center space-x-3 lg:space-x-4" role="navigation">
         <Link to="/login">
-          <Button variant="outline" className="hover:scale-105 transition-transform text-sm md:text-base">
+          <Button variant="outline" className="hover:scale-105 transition-all text-sm md:text-base glass-morphism hover:bg-primary/10 ripple-container" onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const ripple = document.createElement('span');
+            ripple.classList.add('ripple-effect');
+            ripple.style.left = `${e.clientX - rect.left}px`;
+            ripple.style.top = `${e.clientY - rect.top}px`;
+            e.currentTarget.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 600);
+          }}>
             {language === 'ka' ? "შესვლა" : t('nav.signin')}
           </Button>
         </Link>
         <Link to="/signup">
-          <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm md:text-base">
+          <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm md:text-base animate-gradient-shift ripple-container" style={{backgroundSize: '200% 200%'}} onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const ripple = document.createElement('span');
+            ripple.classList.add('ripple-effect');
+            ripple.style.left = `${e.clientX - rect.left}px`;
+            ripple.style.top = `${e.clientY - rect.top}px`;
+            e.currentTarget.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 600);
+          }}>
             {language === 'ka' ? "რეგისტრაცია" : "Sign Up"}
           </Button>
         </Link>
         <Link to="/contact">
-          <Button variant="outline" className="hover:scale-105 transition-transform text-sm md:text-base">
+          <Button variant="outline" className="hover:scale-105 transition-all text-sm md:text-base glass-morphism hover:bg-accent/10">
             {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
           </Button>
         </Link>
       </div>
 
       <div className="flex items-center gap-3 md:hidden">
-        <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-expanded={isMobileMenuOpen} aria-controls="mobile-menu" aria-label="Toggle menu">
+        <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-expanded={isMobileMenuOpen} aria-controls="mobile-menu" aria-label="Toggle menu" className="glass-morphism hover:bg-accent/10 transition-all hover:scale-105">
           {isMobileMenuOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
         </Button>
       </div>
@@ -228,9 +244,9 @@ export const HeroSection = () => {
   const renderMobileMenu = () => {
     if (user) {
       return (
-        <div id="mobile-menu" className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-2 p-4 space-y-3 md:hidden animate-fade-in z-50" role="menu">
+        <div id="mobile-menu" className="absolute top-full left-0 right-0 glass-morphism border rounded-lg shadow-2xl mt-2 p-4 space-y-3 md:hidden animate-fade-in z-50" role="menu">
           <Link to="/contact" onClick={handleMenuClose} role="menuitem">
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start hover:bg-accent/10 transition-all">
               {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
             </Button>
           </Link>
@@ -238,19 +254,19 @@ export const HeroSection = () => {
       );
     } else {
       return (
-        <div id="mobile-menu" className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg mt-2 p-4 space-y-3 md:hidden animate-fade-in z-50" role="menu">
+        <div id="mobile-menu" className="absolute top-full left-0 right-0 glass-morphism border rounded-lg shadow-2xl mt-2 p-4 space-y-3 md:hidden animate-fade-in z-50" role="menu">
           <Link to="/login" onClick={handleMenuClose} role="menuitem">
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start hover:bg-primary/10 transition-all">
               {language === 'ka' ? "შესვლა" : t('nav.signin')}
             </Button>
           </Link>
           <Link to="/signup" onClick={handleMenuClose} role="menuitem">
-            <Button className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90">
+            <Button className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90 animate-gradient-shift" style={{backgroundSize: '200% 200%'}}>
               {language === 'ka' ? "რეგისტრაცია" : "Sign Up"}
             </Button>
           </Link>
           <Link to="/contact" onClick={handleMenuClose} role="menuitem">
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start hover:bg-accent/10 transition-all">
               {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
             </Button>
           </Link>
@@ -261,16 +277,16 @@ export const HeroSection = () => {
 
   return <>
       <header className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-light via-background to-accent-light opacity-10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5 animate-gradient-shift" style={{backgroundSize: '400% 400%'}} />
         
         <div className="container mx-auto px-4 py-4 md:py-6 lg:py-8 relative">
-          <nav className="relative" aria-label="Main navigation">
+          <nav className="relative glass-morphism rounded-2xl px-4 py-3 mb-6" aria-label="Main navigation">
             <div className="flex justify-between items-center">
-              <Link to="/" className="flex items-center gap-2" aria-label="SmartBookly Home">
+              <Link to="/" className="flex items-center gap-2 hover:scale-105 transition-transform" aria-label="SmartBookly Home">
                 <img 
                   src={currentLogo}
                   alt="SmartBookly Logo" 
-                  className="h-7 md:h-8 lg:h-10 w-auto" 
+                  className="h-7 md:h-8 lg:h-10 w-auto drop-shadow-lg" 
                   width="160" 
                   height="40" 
                   loading="eager" 
@@ -287,19 +303,33 @@ export const HeroSection = () => {
           <main className="grid md:grid-cols-2 gap-6 md:gap-8 lg:gap-12 items-center mt-6 md:mt-8 lg:mt-12">
             <div className="space-y-3 md:space-y-4 animate-fade-in">
               <article className="space-y-2 md:space-y-4">
-                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary">
+                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold enhanced-gradient-text drop-shadow-lg">
                   <LanguageText>{t('hero.title')}</LanguageText>
                 </h1>
-                <h2 className="text-xl md:text-2xl font-semibold text-foreground/90">
+                <h2 className="text-xl md:text-2xl font-semibold text-foreground/90 drop-shadow-sm">
                   <LanguageText>{t('hero.subtitle')}</LanguageText>
                 </h2>
                 <h3 className="text-base md:text-lg text-muted-foreground leading-relaxed">
                   <LanguageText>{t('hero.description')}</LanguageText>
                 </h3>
               </article>
-              <div className="pt-2 md:pt-3">
+              <div className="pt-2 md:pt-3 relative">
+                {/* Floating particles around CTA */}
+                <div className="absolute -inset-4 pointer-events-none">
+                  <div className="absolute top-0 left-0 w-2 h-2 bg-primary/30 rounded-full animate-float" />
+                  <div className="absolute top-2 right-0 w-1 h-1 bg-accent/40 rounded-full animate-float-slow" />
+                  <div className="absolute bottom-0 left-1/2 w-1.5 h-1.5 bg-primary/20 rounded-full animate-float" style={{animationDelay: '1s'}} />
+                </div>
                 <Link to="/signup">
-                  <Button size={isMobile ? "default" : "lg"} className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105">
+                  <Button size={isMobile ? "default" : "lg"} className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 ripple-container animate-pulse-glow" onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const ripple = document.createElement('span');
+                    ripple.classList.add('ripple-effect');
+                    ripple.style.left = `${e.clientX - rect.left}px`;
+                    ripple.style.top = `${e.clientY - rect.top}px`;
+                    e.currentTarget.appendChild(ripple);
+                    setTimeout(() => ripple.remove(), 600);
+                  }}>
                     <span className="flex items-center gap-2">
                       {language === 'ka' ? "გამოსცადეთ უფასოდ" : t('nav.startJourney')}
                       <Sparkles className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} animate-pulse`} aria-hidden="true" />
@@ -308,13 +338,15 @@ export const HeroSection = () => {
                 </Link>
               </div>
             </div>
-            <div className="animate-fade-in">
-              <ImageCarousel 
-                images={productImages} 
-                permanentArrows={true} 
-                imageHeight="h-[480px]"
-                objectFit="object-contain"
-              />
+            <div className="animate-fade-in transform-3d">
+              <div className="hover-tilt transition-all duration-300">
+                <ImageCarousel 
+                  images={productImages} 
+                  permanentArrows={true} 
+                  imageHeight="h-[480px]"
+                  objectFit="object-contain"
+                />
+              </div>
             </div>
           </main>
         </div>

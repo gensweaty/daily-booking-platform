@@ -1,0 +1,164 @@
+
+/* Global Animation Enhancements */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-10px) rotate(1deg); }
+  66% { transform: translateY(5px) rotate(-1deg); }
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-15px) rotate(2deg); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 5px rgba(155, 135, 245, 0.3); }
+  50% { box-shadow: 0 0 25px rgba(155, 135, 245, 0.6), 0 0 50px rgba(155, 135, 245, 0.3); }
+}
+
+@keyframes ripple {
+  0% { transform: scale(0); opacity: 1; }
+  100% { transform: scale(4); opacity: 0; }
+}
+
+@keyframes slideInStagger {
+  0% { transform: translateY(30px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes meshMove {
+  0%, 100% { transform: translateX(0%) translateY(0%) rotate(0deg); }
+  33% { transform: translateX(30%) translateY(-30%) rotate(120deg); }
+  66% { transform: translateX(-20%) translateY(20%) rotate(240deg); }
+}
+
+/* Utility Classes */
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-float-slow { animation: floatSlow 8s ease-in-out infinite; }
+.animate-shimmer { animation: shimmer 2s linear infinite; }
+.animate-gradient-shift { animation: gradientShift 4s ease infinite; }
+.animate-pulse-glow { animation: pulseGlow 2s ease-in-out infinite; }
+.animate-mesh-move { animation: meshMove 20s ease-in-out infinite; }
+
+/* Glass Morphism */
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass-morphism {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 3D Transform Effects */
+.transform-3d {
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.hover-tilt:hover {
+  transform: rotateX(5deg) rotateY(5deg) scale(1.02);
+}
+
+/* Enhanced Text Gradients */
+.enhanced-gradient-text {
+  background: linear-gradient(45deg, #9b87f5, #f97316, #4ade80, #9b87f5);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientShift 3s ease infinite;
+}
+
+/* Floating Shapes */
+.floating-shape {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.floating-shape-1 {
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(45deg, #9b87f5, #f97316);
+  top: 20%;
+  right: 10%;
+  animation: float 8s ease-in-out infinite;
+}
+
+.floating-shape-2 {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(45deg, #4ade80, #9b87f5);
+  top: 60%;
+  left: 5%;
+  animation: floatSlow 10s ease-in-out infinite reverse;
+}
+
+.floating-shape-3 {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(45deg, #f97316, #4ade80);
+  top: 80%;
+  right: 20%;
+  animation: float 7s ease-in-out infinite 2s;
+}
+
+/* Ripple Effect */
+.ripple-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(155, 135, 245, 0.3);
+  transform: scale(0);
+  animation: ripple 0.6s linear;
+  pointer-events: none;
+}
+
+/* Stagger Animation */
+.stagger-child:nth-child(1) { animation-delay: 0ms; }
+.stagger-child:nth-child(2) { animation-delay: 100ms; }
+.stagger-child:nth-child(3) { animation-delay: 200ms; }
+.stagger-child:nth-child(4) { animation-delay: 300ms; }
+.stagger-child:nth-child(5) { animation-delay: 400ms; }
+
+/* Enhanced Card Styles */
+.enhanced-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: all 0.3s ease;
+}
+
+.enhanced-card:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+  border-color: rgba(155, 135, 245, 0.3);
+}
+
+.dark .enhanced-card {
+  background: linear-gradient(135deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.1) 100%);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.dark .enhanced-card:hover {
+  border-color: rgba(155, 135, 245, 0.5);
+  box-shadow: 0 20px 40px rgba(155, 135, 245, 0.1);
+}

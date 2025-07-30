@@ -16,8 +16,8 @@ interface ImageCarouselProps {
     src: string;
     alt: string;
     title?: string;
-    customStyle?: string; // For custom styling per image
-    customPadding?: string; // New prop for custom padding per image
+    customStyle?: string;
+    customPadding?: string;
   }[];
   className?: string;
   showTitles?: boolean;
@@ -35,11 +35,20 @@ export const ImageCarousel = ({
   imageHeight = "h-[400px]"
 }: ImageCarouselProps) => {
   const [api, setApi] = useState<CarouselApi>();
+  const [current, setCurrent] = useState(0);
+  const [count, setCount] = useState(0);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const isTablet = useMediaQuery("(max-width: 1024px)");
 
   useEffect(() => {
     if (!api) return;
+
+    setCount(api.scrollSnapList().length);
+    setCurrent(api.selectedScrollSnap() + 1);
+
+    api.on("select", () => {
+      setCurrent(api.selectedScrollSnap() + 1);
+    });
 
     // Set up auto-sliding interval
     const interval = setInterval(() => {
@@ -70,22 +79,23 @@ export const ImageCarousel = ({
           {images.map((image, index) => (
             <CarouselItem key={index} className="md:basis-1/1">
               <div className="p-1">
-                <div className={`rounded-xl overflow-hidden transition-all ${responsiveHeight} hover:shadow-lg`}>
-                  <div className={`relative h-full w-full flex items-center justify-center bg-white ${image.customPadding || 'p-0'}`}>
+                <div className={`rounded-xl overflow-hidden transition-all duration-500 ${responsiveHeight} hover:shadow-lg enhanced-card`}>
+                  <div className={`relative h-full w-full flex items-center justify-center bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm ${image.customPadding || 'p-0'} group`}>
                     <img
                       src={image.src}
                       alt={image.alt}
                       className={cn(
-                        "w-full h-full",
-                        // Apply custom style per image if provided, otherwise use the default objectFit
+                        "w-full h-full transition-all duration-300 group-hover:scale-105",
                         image.customStyle || objectFit
                       )}
                     />
                     {showTitles && image.title && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-2 text-center">
-                        {image.title}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white p-4 text-center backdrop-blur-sm">
+                        <span className="font-medium drop-shadow-lg">{image.title}</span>
                       </div>
                     )}
+                    {/* Subtle overlay gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   </div>
                 </div>
               </div>
@@ -95,22 +105,40 @@ export const ImageCarousel = ({
         <CarouselPrevious 
           className={cn(
             permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-            "transition-opacity duration-300",
-            "absolute left-2 md:-left-16 bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800",
-            "border-none shadow-lg hover:shadow-xl",
+            "transition-all duration-300 hover:scale-110",
+            "absolute left-2 md:-left-16 glass-morphism hover:bg-white/90 dark:hover:bg-gray-800/90",
+            "border-none shadow-lg hover:shadow-xl animate-pulse-glow",
             "w-8 h-8 md:w-10 md:h-10 rounded-full"
           )}
         />
         <CarouselNext 
           className={cn(
             permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-            "transition-opacity duration-300",
-            "absolute right-2 md:-right-16 bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800",
-            "border-none shadow-lg hover:shadow-xl",
+            "transition-all duration-300 hover:scale-110",
+            "absolute right-2 md:-right-16 glass-morphism hover:bg-white/90 dark:hover:bg-gray-800/90",
+            "border-none shadow-lg hover:shadow-xl animate-pulse-glow",
             "w-8 h-8 md:w-10 md:h-10 rounded-full"
           )}
         />
       </Carousel>
+      
+      {/* Carousel Indicators */}
+      {count > 1 && (
+        <div className="flex justify-center space-x-1 mt-4">
+          {Array.from({ length: count }, (_, index) => (
+            <button
+              key={index}
+              className={cn(
+                "w-2 h-2 rounded-full transition-all duration-300",
+                current === index + 1
+                  ? "bg-primary w-6 animate-pulse-glow"
+                  : "bg-primary/30 hover:bg-primary/60"
+              )}
+              onClick={() => api?.scrollTo(index)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

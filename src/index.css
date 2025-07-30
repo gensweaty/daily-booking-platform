@@ -1,3 +1,4 @@
+@import './components/landing/animations.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
