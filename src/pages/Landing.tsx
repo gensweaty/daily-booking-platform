@@ -13,18 +13,18 @@ export const Landing = () => {
   
   return (
     <div className={`min-h-screen bg-background font-sans relative overflow-hidden ${language === 'ka' ? 'lang-ka' : ''}`}>
-      {/* Animated Background Elements */}
+      {/* Reduced intensity background elements */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5 animate-gradient-shift" style={{backgroundSize: '400% 400%'}} />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-background to-accent/3 animate-gradient-shift" style={{backgroundSize: '400% 400%'}} />
         
-        {/* Floating Geometric Shapes */}
+        {/* Reduced Floating Geometric Shapes */}
         <div className="floating-shape floating-shape-1" />
         <div className="floating-shape floating-shape-2" />
         <div className="floating-shape floating-shape-3" />
         
-        {/* Mesh Gradient Overlay */}
-        <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-gradient-radial from-primary/10 to-transparent animate-mesh-move" />
-        <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-gradient-radial from-accent/10 to-transparent animate-mesh-move" style={{animationDelay: '5s'}} />
+        {/* Reduced Mesh Gradient Overlay */}
+        <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-gradient-radial from-primary/5 to-transparent animate-mesh-move" />
+        <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-gradient-radial from-accent/5 to-transparent animate-mesh-move" style={{animationDelay: '5s'}} />
       </div>
 
       <div className="relative z-10">

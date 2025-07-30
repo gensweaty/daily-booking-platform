@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,7 +98,7 @@ export const PricingSection = () => {
   const getCheaperText = () => {
     switch (language) {
       case 'ka':
-        return 'ყოველთვიურზე 17%-ით იაფი';
+        return '17%-ით იაფი ყოველთვიურზე';
       case 'es':
         return '17% más barato que el mensual';
       default:
@@ -107,33 +108,37 @@ export const PricingSection = () => {
 
   return (
     <section className="py-16 bg-gradient-to-br from-slate-900 via-primary/20 to-slate-800 text-white relative overflow-hidden">
-      {/* Enhanced Background Elements */}
-      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-blue-600/10 animate-gradient-shift" style={{backgroundSize: '400% 400%'}} />
+      {/* Reduced Background Elements */}
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-blue-600/5 animate-gradient-shift" style={{backgroundSize: '400% 400%'}} />
       <div 
-        className="absolute top-0 left-0 w-full h-full opacity-20"
+        className="absolute top-0 left-0 w-full h-full opacity-10"
         style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
         }}
       />
       
-      {/* Floating Shapes */}
-      <div className="absolute top-10 left-10 w-20 h-20 bg-gradient-to-br from-primary/20 to-accent/20 rounded-full blur-xl animate-float" />
-      <div className="absolute bottom-20 right-20 w-16 h-16 bg-gradient-to-br from-accent/20 to-primary/20 rounded-full blur-xl animate-float-slow" />
-      <div className="absolute top-1/2 left-1/4 w-12 h-12 bg-gradient-to-br from-primary/15 to-accent/15 rounded-full blur-lg animate-float" style={{animationDelay: '2s'}} />
+      {/* Reduced Floating Shapes */}
+      <div className="absolute top-10 left-10 w-16 h-16 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full blur-xl animate-float" />
+      <div className="absolute bottom-20 right-20 w-12 h-12 bg-gradient-to-br from-accent/10 to-primary/10 rounded-full blur-xl animate-float-slow" />
+      <div className="absolute top-1/2 left-1/4 w-8 h-8 bg-gradient-to-br from-primary/5 to-accent/5 rounded-full blur-lg animate-float" style={{animationDelay: '2s'}} />
       
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center mb-10">
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white enhanced-gradient-text drop-shadow-lg">
             <LanguageText>{t('cta.title')}</LanguageText>
           </h2>
-          <p className="text-lg text-gray-200 mb-3 max-w-2xl mx-auto drop-shadow-sm">
+          <p className="text-lg text-gray-200 mb-6 max-w-2xl mx-auto drop-shadow-sm">
             <LanguageText>{t('cta.subtitle')}</LanguageText>
           </p>
-          <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-3 py-1 rounded-full text-base font-semibold inline-block mb-6 glass-morphism animate-pulse-glow">
-            <LanguageText>{t('subscription.freeTrial')}</LanguageText>
+          
+          {/* Free Trial Badge on its own line */}
+          <div className="mb-4">
+            <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-4 py-2 rounded-full text-base font-semibold inline-block glass-morphism animate-pulse-glow">
+              <LanguageText>{t('subscription.freeTrial')}</LanguageText>
+            </div>
           </div>
           
-          {/* Enhanced Pricing Toggle */}
+          {/* Pricing Toggle on separate line */}
           <div className="flex items-center justify-center gap-3 mb-8 glass-morphism rounded-full p-2 inline-flex">
             <span className={`text-base font-medium transition-all duration-300 px-3 py-1 rounded-full ${!isYearly ? 'text-white bg-white/10' : 'text-gray-300'}`}>
               <LanguageText>{t('subscription.monthlyPlan')}</LanguageText>
@@ -220,6 +225,7 @@ export const PricingSection = () => {
 
           {/* Yearly Plan */}
           <div className={`relative enhanced-card bg-slate-800/80 backdrop-blur-sm border-slate-600 text-white transition-all duration-300 hover:scale-105 hover:bg-slate-700/80 shadow-2xl rounded-xl p-6 transform-3d hover-tilt ${isYearly ? 'ring-2 ring-yellow-500 shadow-yellow-500/25 animate-pulse-glow' : ''}`}>
+            {/* Restore the top green badge for yearly savings */}
             {isYearly && (
               <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-10">
                 <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-black px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 animate-pulse-glow">
