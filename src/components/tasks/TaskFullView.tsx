@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Task } from "@/lib/types";
 import { SimpleFileDisplay } from "../shared/SimpleFileDisplay";
@@ -200,11 +201,11 @@ export const TaskFullView = ({
             <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-muted-foreground">
               <div className="flex items-center">
                 <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                <span className="truncate">{t("common.created")}: {format(parseISO(task.created_at), 'MM/dd/yy HH:mm')}</span>
+                <span className="truncate">{t("common.created")} {format(parseISO(task.created_at), 'MM/dd/yy HH:mm')}</span>
               </div>
               <div className="flex items-center">
                 <History className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                <span className="truncate">{t("common.lastUpdated")}: {format(parseISO(task.updated_at || task.created_at), 'MM/dd/yy HH:mm')}</span>
+                <span className="truncate">{t("common.lastUpdated")} {format(parseISO(task.updated_at || task.created_at), 'MM/dd/yy HH:mm')}</span>
               </div>
             </div>
           </div>
