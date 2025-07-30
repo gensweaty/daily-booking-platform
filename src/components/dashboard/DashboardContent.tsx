@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -33,7 +34,7 @@ const tabVariants = {
   visible: { 
     opacity: 1, 
     y: 0,
-    transition: { duration: 0.3, ease: [0.4, 0.0, 0.2, 1] }
+    transition: { duration: 0.3, ease: "easeOut" }
   },
   exit: { 
     opacity: 0, 
@@ -47,7 +48,7 @@ const cardVariants = {
   visible: {
     opacity: 1,
     scale: 1,
-    transition: { duration: 0.3, ease: [0.4, 0.0, 0.2, 1] }
+    transition: { duration: 0.3, ease: "easeOut" }
   }
 }
 
