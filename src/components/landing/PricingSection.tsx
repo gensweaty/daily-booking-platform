@@ -133,7 +133,7 @@ export const PricingSection = () => {
           
           {/* Free Trial Badge on its own line */}
           <div className="mb-4">
-            <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-4 py-2 rounded-full text-base font-semibold inline-block glass-morphism animate-pulse-glow">
+            <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-4 py-2 rounded-full text-base font-semibold inline-block glass-morphism">
               <LanguageText>{t('subscription.freeTrial')}</LanguageText>
             </div>
           </div>
@@ -150,21 +150,21 @@ export const PricingSection = () => {
                 className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-primary data-[state=checked]:to-accent data-[state=unchecked]:bg-gray-600 border-2 border-gray-400 transition-all duration-300"
               />
             </div>
-            <span className={`text-base font-medium transition-all duration-300 px-3 py-1 rounded-full ${isYearly ? 'text-white bg-white/10' : 'text-gray-300'}`}>
+            <span className={`text-base font-medium transition-all duration-300 px-3 py-1 rounded-full flex items-center gap-2 ${isYearly ? 'text-white bg-white/10' : 'text-gray-300'}`}>
               <LanguageText>{t('subscription.annualPlan')}</LanguageText>
+              {isYearly && (
+                <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-black px-2 py-1 rounded-full text-xs font-bold">
+                  {getCheaperText()}
+                </span>
+              )}
             </span>
-            {isYearly && (
-              <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-black px-2 py-1 rounded-full text-xs font-bold ml-2 animate-pulse-glow">
-                {getCheaperText()}
-              </span>
-            )}
           </div>
         </div>
 
         {/* Enhanced Pricing Cards */}
         <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {/* Monthly Plan */}
-          <div className={`relative enhanced-card bg-slate-800/80 backdrop-blur-sm border-slate-600 text-white transition-all duration-300 hover:scale-105 hover:bg-slate-700/80 shadow-2xl rounded-xl p-6 transform-3d ${!isYearly ? 'ring-2 ring-primary shadow-primary/25 animate-pulse-glow' : ''}`}>
+          <div className={`relative enhanced-card bg-slate-800/80 backdrop-blur-sm border-slate-600 text-white transition-all duration-300 hover:scale-105 hover:bg-slate-700/80 shadow-2xl rounded-xl p-6 transform-3d ${!isYearly ? 'ring-2 ring-primary shadow-primary/25' : ''}`}>
             {/* Floating decorative elements */}
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent/40 rounded-full animate-float blur-sm" />
             <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-primary/40 rounded-full animate-float-slow blur-sm" />
@@ -183,7 +183,7 @@ export const PricingSection = () => {
                 </div>
                 <div className="flex items-center justify-center gap-2 mt-1">
                   <span className="text-base line-through text-gray-400">{monthlyOriginalPrice}</span>
-                  <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-2 py-1 rounded text-xs font-medium animate-pulse-glow">
+                  <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-2 py-1 rounded text-xs font-medium">
                     <LanguageText>{t('subscription.discount50')}</LanguageText>
                   </span>
                 </div>
@@ -224,17 +224,7 @@ export const PricingSection = () => {
           </div>
 
           {/* Yearly Plan */}
-          <div className={`relative enhanced-card bg-slate-800/80 backdrop-blur-sm border-slate-600 text-white transition-all duration-300 hover:scale-105 hover:bg-slate-700/80 shadow-2xl rounded-xl p-6 transform-3d hover-tilt ${isYearly ? 'ring-2 ring-yellow-500 shadow-yellow-500/25 animate-pulse-glow' : ''}`}>
-            {/* Restore the top green badge for yearly savings */}
-            {isYearly && (
-              <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-10">
-                <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-black px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 animate-pulse-glow">
-                  <Star className="h-3 w-3" />
-                  {getCheaperText()}
-                </div>
-              </div>
-            )}
-            
+          <div className={`relative enhanced-card bg-slate-800/80 backdrop-blur-sm border-slate-600 text-white transition-all duration-300 hover:scale-105 hover:bg-slate-700/80 shadow-2xl rounded-xl p-6 transform-3d hover-tilt ${isYearly ? 'ring-2 ring-yellow-500 shadow-yellow-500/25' : ''}`}>
             {/* Floating decorative elements */}
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400/40 rounded-full animate-float blur-sm" />
             <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-orange-400/40 rounded-full animate-float-slow blur-sm" />
@@ -243,11 +233,8 @@ export const PricingSection = () => {
               <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2 animate-shimmer" style={{backgroundSize: '200% 100%'}}>
                 <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
               </div>
-              <h3 className="text-xl font-bold text-white flex items-center justify-center gap-2 enhanced-gradient-text">
+              <h3 className="text-xl font-bold text-white enhanced-gradient-text">
                 <LanguageText>{t('subscription.annualPlan')}</LanguageText>
-                <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-black px-2 py-1 rounded-full text-xs font-bold animate-pulse-glow">
-                  {getCheaperText()}
-                </span>
               </h3>
               <div className="mt-3">
                 <div className="flex items-center justify-center gap-2">
@@ -256,7 +243,7 @@ export const PricingSection = () => {
                 </div>
                 <div className="flex items-center justify-center gap-2 mt-1">
                   <span className="text-base line-through text-gray-400">{yearlyOriginalPrice}</span>
-                  <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-2 py-1 rounded text-xs font-medium animate-pulse-glow">
+                  <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-2 py-1 rounded text-xs font-medium">
                     <LanguageText>{t('subscription.discount50')}</LanguageText>
                   </span>
                 </div>

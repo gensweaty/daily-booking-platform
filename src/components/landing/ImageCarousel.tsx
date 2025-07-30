@@ -107,7 +107,7 @@ export const ImageCarousel = ({
             permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             "transition-all duration-300 hover:scale-110",
             "absolute left-2 md:-left-16 glass-morphism hover:bg-white/90 dark:hover:bg-gray-800/90",
-            "border-none shadow-lg hover:shadow-xl animate-pulse-glow",
+            "border-none shadow-lg hover:shadow-xl",
             "w-8 h-8 md:w-10 md:h-10 rounded-full"
           )}
         />
@@ -116,7 +116,7 @@ export const ImageCarousel = ({
             permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             "transition-all duration-300 hover:scale-110",
             "absolute right-2 md:-right-16 glass-morphism hover:bg-white/90 dark:hover:bg-gray-800/90",
-            "border-none shadow-lg hover:shadow-xl animate-pulse-glow",
+            "border-none shadow-lg hover:shadow-xl",
             "w-8 h-8 md:w-10 md:h-10 rounded-full"
           )}
         />
@@ -131,7 +131,7 @@ export const ImageCarousel = ({
               className={cn(
                 "w-2 h-2 rounded-full transition-all duration-300",
                 current === index + 1
-                  ? "bg-primary w-6 animate-pulse-glow"
+                  ? "bg-primary w-6"
                   : "bg-primary/30 hover:bg-primary/60"
               )}
               onClick={() => api?.scrollTo(index)}

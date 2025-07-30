@@ -42,6 +42,12 @@
   66% { transform: translateX(-20%) translateY(20%) rotate(240deg); }
 }
 
+/* Controlled gradient animation - only on load and hover */
+@keyframes gradientLoadAnimation {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
 /* Reduced intensity animations for scroll-triggered elements */
 @keyframes gentleGlow {
   0% { opacity: 0.05; }
@@ -61,7 +67,7 @@
 .animate-pulse-glow { animation: pulseGlow 3s ease-in-out infinite; }
 .animate-mesh-move { animation: meshMove 20s ease-in-out infinite; }
 
-/* Glass Morphism */
+/* Glass Morphism - removed glow effects */
 .glass-morphism {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
@@ -83,13 +89,17 @@
   transform: rotateX(5deg) rotateY(5deg) scale(1.02);
 }
 
-/* Enhanced Text Gradients */
+/* Controlled Text Gradients - animate only on load and hover */
 .enhanced-gradient-text {
   background: linear-gradient(45deg, #9b87f5, #f97316, #4ade80, #9b87f5);
   background-size: 300% 300%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  animation: gradientLoadAnimation 2s ease forwards;
+}
+
+.enhanced-gradient-text:hover {
   animation: subtleShift 4s ease infinite;
 }
 
@@ -150,7 +160,7 @@
 .stagger-child:nth-child(4) { animation-delay: 300ms; }
 .stagger-child:nth-child(5) { animation-delay: 400ms; }
 
-/* Enhanced Card Styles */
+/* Enhanced Card Styles - removed glow effects */
 .enhanced-card {
   background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
   backdrop-filter: blur(10px);
