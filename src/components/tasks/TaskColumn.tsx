@@ -23,26 +23,26 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
   const [isDragOver, setIsDragOver] = useState(false);
   
   const getColumnStyle = (status: string) => {
-    const baseStyle = "border rounded-xl transition-all duration-300";
+    const baseStyle = "border rounded-xl transition-all duration-300 backdrop-blur-sm";
     
     if (isDragOver) {
       switch (status) {
         case 'in-progress':
-          return `${baseStyle} bg-amber-50/70 dark:bg-amber-900/30 border-amber-300 dark:border-amber-600 shadow-lg shadow-amber-500/20`;
+          return `${baseStyle} bg-gradient-to-br from-amber-50/80 to-amber-100/60 dark:from-amber-900/40 dark:to-amber-800/20 border-amber-300 dark:border-amber-600 shadow-xl shadow-amber-500/30`;
         case 'done':
-          return `${baseStyle} bg-green-50/70 dark:bg-green-900/30 border-green-300 dark:border-green-600 shadow-lg shadow-green-500/20`;
+          return `${baseStyle} bg-gradient-to-br from-green-50/80 to-green-100/60 dark:from-green-900/40 dark:to-green-800/20 border-green-300 dark:border-green-600 shadow-xl shadow-green-500/30`;
         default:
-          return `${baseStyle} bg-blue-50/70 dark:bg-blue-900/30 border-blue-300 dark:border-blue-600 shadow-lg shadow-blue-500/20`;
+          return `${baseStyle} bg-gradient-to-br from-blue-50/80 to-blue-100/60 dark:from-blue-900/40 dark:to-blue-800/20 border-blue-300 dark:border-blue-600 shadow-xl shadow-blue-500/30`;
       }
     }
     
     switch (status) {
       case 'in-progress':
-        return `${baseStyle} bg-amber-50/30 dark:bg-amber-900/10 border-amber-200/50 dark:border-amber-700/50`;
+        return `${baseStyle} bg-gradient-to-br from-amber-50/30 to-amber-100/10 dark:from-amber-900/10 dark:to-amber-800/5 border-amber-200/50 dark:border-amber-700/30 shadow-lg shadow-amber-500/10`;
       case 'done':
-        return `${baseStyle} bg-green-50/30 dark:bg-green-900/10 border-green-200/50 dark:border-green-700/50`;
+        return `${baseStyle} bg-gradient-to-br from-green-50/30 to-green-100/10 dark:from-green-900/10 dark:to-green-800/5 border-green-200/50 dark:border-green-700/30 shadow-lg shadow-green-500/10`;
       default:
-        return `${baseStyle} bg-gray-50/30 dark:bg-gray-900/10 border-gray-200/50 dark:border-gray-700/50`;
+        return `${baseStyle} bg-gradient-to-br from-gray-50/30 to-gray-100/10 dark:from-gray-900/10 dark:to-gray-800/5 border-gray-200/50 dark:border-gray-700/30 shadow-lg`;
     }
   };
 
@@ -91,9 +91,19 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.4,
+        duration: 0.5,
+        ease: [0.23, 1, 0.32, 1],
         staggerChildren: 0.1
       }
+    }
+  };
+
+  const headerVariants = {
+    hidden: { opacity: 0, y: -10 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { duration: 0.4, ease: "easeOut" }
     }
   };
 
@@ -103,36 +113,33 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
       opacity: 1, 
       y: 0, 
       scale: 1,
-      transition: { duration: 0.3, ease: "easeOut" }
+      transition: { duration: 0.3, ease: [0.23, 1, 0.32, 1] }
     },
     exit: { 
       opacity: 0, 
       y: -10, 
       scale: 0.95,
-      transition: { duration: 0.2 }
+      transition: { duration: 0.2, ease: "easeIn" }
     }
   };
 
   const emptyStateVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 20, scale: 0.9 },
     visible: { 
       opacity: 1, 
       y: 0,
-      transition: { duration: 0.5, delay: 0.2 }
+      scale: 1,
+      transition: { duration: 0.6, delay: 0.2, ease: [0.23, 1, 0.32, 1] }
     }
   };
 
   return (
-    <Droppable 
-      droppableId={status}
-      onDragEnter={() => setIsDragOver(true)}
-      onDragLeave={() => setIsDragOver(false)}
-    >
+    <Droppable droppableId={status}>
       {(provided, snapshot) => (
         <motion.div
           ref={provided.innerRef}
           {...provided.droppableProps}
-          className={`p-4 min-h-[400px] flex flex-col relative overflow-hidden ${getColumnStyle(status)}`}
+          className={`p-6 min-h-[500px] flex flex-col relative overflow-hidden ${getColumnStyle(status)}`}
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -141,36 +148,44 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
         >
           {/* Animated background pattern */}
           <motion.div
-            className="absolute inset-0 opacity-0"
+            className="absolute inset-0 opacity-0 pointer-events-none"
             animate={{ 
-              opacity: isDragOver ? 0.1 : 0,
-              backgroundPosition: isDragOver ? "20px 20px" : "0px 0px"
+              opacity: snapshot.isDraggingOver ? 0.15 : 0,
+              backgroundPosition: snapshot.isDraggingOver ? "20px 20px" : "0px 0px"
             }}
-            transition={{ duration: 0.3 }}
+            transition={{ 
+              duration: 0.4,
+              ease: [0.23, 1, 0.32, 1]
+            }}
             style={{
-              backgroundImage: "radial-gradient(circle, currentColor 1px, transparent 1px)",
+              backgroundImage: "radial-gradient(circle, currentColor 2px, transparent 2px)",
               backgroundSize: "20px 20px"
             }}
           />
           
           {/* Column Header */}
           <motion.div 
-            className="flex items-center justify-between mb-4 pb-3 border-b border-border/50"
-            whileHover={{ y: -1 }}
+            className="flex items-center justify-between mb-6 pb-4 border-b border-border/40"
+            variants={headerVariants}
+            whileHover={{ y: -2 }}
             transition={{ duration: 0.2 }}
           >
             <div className="flex items-center gap-3">
               <motion.div
                 animate={{ 
-                  rotate: isDragOver ? 180 : 0,
-                  scale: isDragOver ? 1.1 : 1
+                  rotate: snapshot.isDraggingOver ? 180 : 0,
+                  scale: snapshot.isDraggingOver ? 1.2 : 1
                 }}
-                transition={{ duration: 0.3 }}
+                transition={{ 
+                  duration: 0.4,
+                  ease: [0.23, 1, 0.32, 1]
+                }}
+                className="flex-shrink-0"
               >
                 {getColumnIcon(status)}
               </motion.div>
               
-              <h3 className="font-semibold text-foreground flex-shrink-0 text-lg">
+              <h3 className="font-bold text-foreground flex-shrink-0 text-lg tracking-tight">
                 {isGeorgian ? (
                   <GeorgianAuthText fontWeight="bold">
                     <LanguageText>{getColumnTitle(status)}</LanguageText>
@@ -185,21 +200,28 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
             <motion.div
               className="flex items-center gap-2"
               key={tasks.length}
-              initial={{ scale: 1.2, opacity: 0 }}
+              initial={{ scale: 1.3, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.3 }}
+              transition={{ 
+                duration: 0.4,
+                ease: [0.23, 1, 0.32, 1]
+              }}
             >
               <motion.span 
-                className="bg-muted text-muted-foreground px-3 py-1 rounded-full text-sm font-medium"
+                className="bg-muted/60 text-muted-foreground px-3 py-1.5 rounded-full text-sm font-bold min-w-[2rem] text-center backdrop-blur-sm"
                 animate={{ 
-                  backgroundColor: tasks.length > 0 ? "hsl(var(--primary) / 0.1)" : "hsl(var(--muted))",
-                  color: tasks.length > 0 ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"
+                  backgroundColor: tasks.length > 0 ? "hsl(var(--primary) / 0.15)" : "hsl(var(--muted) / 0.6)",
+                  color: tasks.length > 0 ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+                  scale: tasks.length > 0 ? 1.05 : 1
                 }}
-                transition={{ duration: 0.3 }}
+                transition={{ 
+                  duration: 0.3,
+                  ease: [0.23, 1, 0.32, 1]
+                }}
               >
                 {tasks.length}
               </motion.span>
-            </div>
+            </motion.div>
           </motion.div>
           
           {/* Tasks Container */}
@@ -230,32 +252,37 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
                   variants={emptyStateVariants}
                   initial="hidden"
                   animate="visible"
-                  className="flex flex-col items-center justify-center py-12 text-center"
+                  className="flex flex-col items-center justify-center py-16 text-center"
                 >
                   <motion.div
                     animate={{ 
-                      y: [0, -5, 0],
-                      opacity: [0.5, 0.8, 0.5]
+                      y: [0, -8, 0],
+                      rotate: [0, 10, -10, 0],
+                      opacity: [0.4, 0.8, 0.4]
                     }}
                     transition={{ 
-                      duration: 3,
+                      duration: 4,
                       repeat: Infinity,
                       ease: "easeInOut"
                     }}
-                    className="mb-4"
+                    className="mb-6"
                   >
-                    <Plus className="h-12 w-12 text-muted-foreground/40" />
+                    <Plus className="h-16 w-16 text-muted-foreground/30" />
                   </motion.div>
                   
-                  <p className="text-muted-foreground text-sm">
+                  <motion.p 
+                    className="text-muted-foreground text-base font-medium mb-2"
+                    animate={{ opacity: [0.6, 1, 0.6] }}
+                    transition={{ duration: 3, repeat: Infinity }}
+                  >
                     {getEmptyStateMessage(status)}
-                  </p>
+                  </motion.p>
                   
                   {status === 'todo' && (
                     <motion.p 
-                      className="text-xs text-muted-foreground/60 mt-2"
-                      animate={{ opacity: [0.6, 1, 0.6] }}
-                      transition={{ duration: 2, repeat: Infinity }}
+                      className="text-sm text-muted-foreground/60"
+                      animate={{ opacity: [0.4, 0.8, 0.4] }}
+                      transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }}
                     >
                       Drag tasks here or create a new one
                     </motion.p>
@@ -266,21 +293,28 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
             
             {provided.placeholder}
             
-            {/* Drop Zone Indicator */}
+            {/* Enhanced Drop Zone Indicator */}
             <AnimatePresence>
               {snapshot.isDraggingOver && (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
+                  initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  className="absolute inset-0 border-2 border-dashed border-primary/30 bg-primary/5 rounded-lg flex items-center justify-center pointer-events-none"
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  className="absolute inset-0 border-2 border-dashed border-primary/40 bg-primary/5 rounded-xl flex items-center justify-center pointer-events-none backdrop-blur-sm"
                 >
                   <motion.div
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{ duration: 1, repeat: Infinity }}
-                    className="text-primary/60 text-sm font-medium"
+                    animate={{ 
+                      scale: [1, 1.2, 1],
+                      rotate: [0, 5, -5, 0]
+                    }}
+                    transition={{ 
+                      duration: 1.5, 
+                      repeat: Infinity,
+                      ease: [0.23, 1, 0.32, 1]
+                    }}
+                    className="text-primary/70 text-lg font-bold bg-background/80 px-4 py-2 rounded-lg shadow-lg"
                   >
-                    Drop here
+                    Drop here ✨
                   </motion.div>
                 </motion.div>
               )}
