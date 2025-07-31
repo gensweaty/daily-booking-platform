@@ -1,4 +1,3 @@
-
 import { Card } from "@/components/ui/card";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { StatCard } from "./StatCard";
@@ -87,13 +86,15 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
   const customerDetailsText = `${customerStats.withBooking} ${withBookingText}, ${customerStats.withoutBooking} ${withoutBookingText}`;
 
   return (
-    <div className="grid gap-4 md:grid-cols-4">
+    <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
       <StatCard
         title={t("dashboard.totalTasks")}
         value={taskStats.total}
         description={taskDetailsText}
         icon={CheckCircle2}
         color="purple"
+        trend="+12%"
+        trendLabel="from last month"
       />
       <StatCard
         title={t("dashboard.totalCustomers")}
@@ -101,6 +102,8 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
         description={customerDetailsText}
         icon={Users}
         color="orange"
+        trend="+8%"
+        trendLabel="from last month"
       />
       <StatCard
         title={t("dashboard.totalEvents")}
@@ -108,14 +111,18 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
         description={`${eventStats.partlyPaid} ${t("dashboard.partlyPaid")}, ${eventStats.fullyPaid} ${t("dashboard.fullyPaid")}`}
         icon={CalendarCheck}
         color="green"
+        trend="+23%"
+        trendLabel="from last month"
       />
       <StatCard
         title={t("dashboard.totalIncome")}
         value={formattedIncome}
         description={t("dashboard.fromAllEvents")}
         icon={CurrencyIcon}
-        valueClassName="text-2xl"
+        valueClassName="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent"
         color="blue"
+        trend="+15%"
+        trendLabel="from last month"
       />
     </div>
   );
