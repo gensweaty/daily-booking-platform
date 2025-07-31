@@ -105,9 +105,10 @@ export const CalendarHeader = ({
           <Button 
             onClick={onAddEvent} 
             size="sm" 
-            className={cn("ml-auto sm:ml-0", isGeorgian ? "font-georgian" : "")}
+            variant="dynamic"
+            className={cn("ml-auto sm:ml-0 font-semibold", isGeorgian ? "font-georgian" : "")}
           >
-            <Plus className="h-4 w-4 mr-1" />
+            <Plus className="h-4 w-4" />
             {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
           </Button>
         )}

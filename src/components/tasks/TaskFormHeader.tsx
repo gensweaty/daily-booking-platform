@@ -29,9 +29,10 @@ export const TaskFormHeader = ({ onAddTask, editingTask }: TaskFormHeaderProps) 
       {onAddTask && (
         <Button 
           onClick={onAddTask} 
-          className="bg-primary hover:bg-primary/90 text-white flex items-center"
+          variant="dynamic"
+          className="font-semibold text-white flex items-center gap-1"
         >
-          <PlusCircle className="mr-1 h-4 w-4" />
+          <PlusCircle className="h-4 w-4" />
           {isGeorgian ? (
             <GeorgianAuthText fontWeight="bold">
               <LanguageText>{t("tasks.addTask")}</LanguageText>

@@ -8,11 +8,11 @@ import { useLanguage } from "@/contexts/LanguageContext"
 import { GeorgianAuthText } from "../shared/GeorgianAuthText"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 relative overflow-hidden group",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md transform hover:-translate-y-0.5",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:
@@ -21,14 +21,16 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        purple: "bg-[#9b87f5] text-white hover:bg-[#8a76e4]",
-        green: "bg-[#4ade80] text-white hover:bg-[#22c55e]",
-        orange: "bg-[#f97316] text-white hover:bg-[#ea580c]",
+        purple: "bg-gradient-to-r from-[#9b87f5] to-[#b8a8f8] text-white hover:from-[#8a76e4] hover:to-[#a396f0] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/20 before:to-transparent before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100",
+        green: "bg-gradient-to-r from-[#4ade80] to-[#86efac] text-white hover:from-[#22c55e] hover:to-[#6ee7b7] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/20 before:to-transparent before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100",
+        orange: "bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white hover:from-[#ea580c] hover:to-[#f97316] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/20 before:to-transparent before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100",
         success: "bg-[#10b981] text-white hover:bg-[#059669]",
         info: "bg-[#3b82f6] text-white hover:bg-[#2563eb]",
         warning: "bg-[#f59e0b] text-white hover:bg-[#d97706]",
-        // Approve variant with proper styling
-        approve: "bg-[#10b981] text-white hover:bg-[#059669] border-green-500",
+        // Enhanced approve variant with gradient and animations
+        approve: "bg-gradient-to-r from-[#10b981] to-[#34d399] text-white hover:from-[#059669] hover:to-[#10b981] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-green-500/20 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/20 before:to-transparent before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100",
+        // New dynamic variant for action buttons
+        dynamic: "bg-gradient-to-r from-primary via-primary/90 to-primary text-primary-foreground shadow-lg hover:shadow-xl transform hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 ease-out border-0 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/10 before:via-white/20 before:to-white/10 before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100 after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-white/5 after:to-transparent after:translate-x-[-100%] after:transition-transform after:duration-700 hover:after:translate-x-[100%]"
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -89,12 +91,16 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <Component
         className={cn(
           buttonVariants({ variant, size, className }),
-          isGeorgian ? "ka-text georgian-text-fix" : ""
+          isGeorgian ? "ka-text georgian-text-fix" : "",
+          // Add pulse animation for dynamic buttons on focus
+          variant === "dynamic" ? "focus:animate-pulse" : ""
         )}
         ref={ref}
         {...props}
       >
-        {wrappedChildren}
+        <span className="relative z-10 flex items-center gap-2">
+          {wrappedChildren}
+        </span>
       </Component>
     )
   }
