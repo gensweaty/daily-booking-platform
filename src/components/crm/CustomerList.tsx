@@ -404,8 +404,8 @@ export const CustomerList = () => {
             <h2 className="text-lg sm:text-xl font-bold leading-tight">
               {isGeorgian ? (
                 <>
-                  <span className="block">მომხმარებლებთან მურთიერთობის</span>
-                  <span className="block">მენეჯმენტი</span>
+                  <span className="block">მომხმარებლებთან</span>
+                  <span className="block">ურთიერთობის მენეჯმენტი</span>
                 </>
               ) : (
                 <>
