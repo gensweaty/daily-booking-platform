@@ -546,21 +546,47 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         </div>
       </div>
       
-      <div className="text-center mb-2">
-        <h1 className="text-xl sm:text-2xl font-bold text-primary">
-          {isGeorgian ? (
-            <GeorgianAuthText>მოგესალმებით</GeorgianAuthText>
-          ) : (
-            <LanguageText>{t('dashboard.welcome')}</LanguageText>
-          )}
-        </h1>
-        <p className="text-sm text-foreground/80 font-bold">
-          {isGeorgian ? (
-            <GeorgianAuthText>თქვენი პროდუქტიულობის ცენტრი</GeorgianAuthText>
-          ) : (
-            <LanguageText>{t('dashboard.subtitle')}</LanguageText>
-          )}
-        </p>
+      <div className="text-center mb-2 relative">
+        {/* Enhanced Welcome Message with modern styling */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-background/80 via-background/60 to-background/40 backdrop-blur-sm border border-border/50 p-6 md:p-8 shadow-lg">
+          {/* Subtle animated background pattern */}
+          <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.05]">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-secondary/10 animate-pulse"></div>
+            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,rgba(155,135,245,0.1)_0%,transparent_50%)]"></div>
+          </div>
+          
+          {/* Main content with enhanced typography */}
+          <div className="relative z-10 space-y-3">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-foreground via-foreground/90 to-foreground/80 bg-clip-text text-transparent leading-tight tracking-tight">
+              <span className="inline-block transform transition-all duration-500 hover:scale-105">
+                {isGeorgian ? (
+                  <GeorgianAuthText fontWeight="bold">მოგესალმებით</GeorgianAuthText>
+                ) : (
+                  <LanguageText>{t('dashboard.welcome')}</LanguageText>
+                )}
+              </span>
+            </h1>
+            
+            <div className="relative">
+              <p className="text-sm sm:text-base md:text-lg font-semibold bg-gradient-to-r from-muted-foreground via-foreground/70 to-muted-foreground bg-clip-text text-transparent leading-relaxed">
+                <span className="inline-block transform transition-all duration-300 hover:translate-y-[-1px]">
+                  {isGeorgian ? (
+                    <GeorgianAuthText fontWeight="semibold">თქვენი პროდუქტიულობის ცენტრი</GeorgianAuthText>
+                  ) : (
+                    <LanguageText>{t('dashboard.subtitle')}</LanguageText>
+                  )}
+                </span>
+              </p>
+              
+              {/* Subtle underline decoration */}
+              <div className="absolute bottom-[-8px] left-1/2 transform -translate-x-1/2 w-16 h-0.5 bg-gradient-to-r from-transparent via-primary/40 to-transparent rounded-full"></div>
+            </div>
+          </div>
+          
+          {/* Corner accent elements */}
+          <div className="absolute top-0 left-0 w-20 h-20 bg-gradient-to-br from-primary/5 to-transparent rounded-br-full"></div>
+          <div className="absolute bottom-0 right-0 w-20 h-20 bg-gradient-to-tl from-secondary/5 to-transparent rounded-tl-full"></div>
+        </div>
       </div>
 
       <ManageSubscriptionDialog 
