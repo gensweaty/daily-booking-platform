@@ -1,231 +1,181 @@
 
-/* Global Animation Enhancements - Performance Optimized */
-@keyframes float {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-5px) rotate(0.5deg); }
+/* Performance-Optimized Animation System */
+
+/* Core keyframes - GPU accelerated */
+@keyframes gentleFloat {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -3px, 0); }
 }
 
-@keyframes floatSlow {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-8px) rotate(1deg); }
-}
-
-/* Optimized shimmer - only on hover */
-@keyframes shimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-
-/* Reduced intensity shimmer */
-@keyframes subtleShimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-
-/* Static gradient for better performance */
-@keyframes staticGradient {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 30% 50%; }
-}
-
-/* Much gentler pulse - optimized */
-@keyframes gentlePulseGlow {
+@keyframes subtlePulse {
   0%, 100% { 
-    box-shadow: 0 0 6px rgba(155, 135, 245, 0.12), 
-                0 0 12px rgba(155, 135, 245, 0.06);
+    box-shadow: 0 0 0 0 rgba(155, 135, 245, 0); 
+    transform: scale(1);
   }
   50% { 
-    box-shadow: 0 0 8px rgba(155, 135, 245, 0.15), 
-                0 0 16px rgba(155, 135, 245, 0.08);
+    box-shadow: 0 0 0 4px rgba(155, 135, 245, 0.1); 
+    transform: scale(1.002);
   }
 }
 
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 3px rgba(155, 135, 245, 0.15); }
-  50% { box-shadow: 0 0 8px rgba(155, 135, 245, 0.2); }
+@keyframes smoothShimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
 }
 
-@keyframes ripple {
-  0% { transform: scale(0); opacity: 1; }
-  100% { transform: scale(4); opacity: 0; }
+@keyframes fadeSlideIn {
+  0% { 
+    opacity: 0; 
+    transform: translate3d(0, 15px, 0); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: translate3d(0, 0, 0); 
+  }
 }
 
-@keyframes slideInStagger {
-  0% { transform: translateY(20px); opacity: 0; }
-  100% { transform: translateY(0); opacity: 1; }
+/* Dashboard button specific animation - smooth and subtle */
+@keyframes dashboardGlow {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(155, 135, 245, 0),
+                0 2px 4px rgba(0, 0, 0, 0.1);
+    background-position: 0% 50%;
+  }
+  50% { 
+    box-shadow: 0 0 0 2px rgba(155, 135, 245, 0.15),
+                0 4px 12px rgba(155, 135, 245, 0.2);
+    background-position: 100% 50%;
+  }
 }
 
-/* Simplified mesh move - less intensive */
-@keyframes simpleMeshMove {
-  0%, 100% { transform: translateX(0%) translateY(0%); }
-  50% { transform: translateX(10%) translateY(-10%); }
+/* Minimal mesh background movement */
+@keyframes subtleMeshMove {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(5px, -5px, 0) scale(1.01); }
 }
 
-/* Simple load animation for gradients */
-@keyframes gradientLoadAnimation {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 100% 50%; }
+/* Performance-focused utility classes */
+.animate-gentle-float { 
+  animation: gentleFloat 6s ease-in-out infinite;
+  will-change: transform;
 }
 
-/* Mobile-optimized gentle float */
-@keyframes mobileFloat {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-2px); }
+.animate-subtle-pulse { 
+  animation: subtlePulse 4s ease-in-out infinite;
+  will-change: transform, box-shadow;
 }
 
-/* Performance-optimized utility classes */
-.animate-float { animation: float 8s ease-in-out infinite; will-change: transform; }
-.animate-float-slow { animation: floatSlow 12s ease-in-out infinite; will-change: transform; }
-.animate-shimmer { animation: shimmer 3s linear infinite; }
-.animate-subtle-shimmer { animation: subtleShimmer 6s linear infinite; }
-.animate-mobile-float { animation: mobileFloat 10s ease-in-out infinite; }
-.animate-static-gradient { animation: staticGradient 15s ease infinite; }
-.animate-gentle-pulse-glow { animation: gentlePulseGlow 8s ease-in-out infinite; }
-.animate-simple-mesh-move { animation: simpleMeshMove 30s ease-in-out infinite; }
+.animate-dashboard-glow {
+  animation: dashboardGlow 3s ease-in-out infinite;
+  background: linear-gradient(45deg, var(--primary), var(--primary), #b8a8f8);
+  background-size: 200% 100%;
+  will-change: box-shadow, background-position;
+}
 
-/* Optimized Glass Morphism */
+.animate-fade-slide-in {
+  animation: fadeSlideIn 0.6s ease-out forwards;
+  will-change: opacity, transform;
+}
+
+.animate-subtle-mesh-move {
+  animation: subtleMeshMove 20s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Enhanced glass morphism - performance optimized */
 .glass-morphism {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   will-change: backdrop-filter;
 }
 
 .dark .glass-morphism {
-  background: rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Mobile-optimized glass morphism */
+/* Mobile optimizations */
 @media (max-width: 768px) {
   .glass-morphism {
-    backdrop-filter: blur(3px);
-    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(4px);
+    background: rgba(255, 255, 255, 0.15);
   }
   
-  .dark .glass-morphism {
-    background: rgba(0, 0, 0, 0.2);
+  .animate-gentle-float,
+  .animate-subtle-pulse {
+    animation-duration: 8s;
   }
 }
 
-/* 3D Transform Effects - Optimized */
-.transform-3d {
-  transform-style: preserve-3d;
-  perspective: 1000px;
-}
-
-.hover-tilt:hover {
-  transform: rotateX(2deg) rotateY(2deg) scale(1.01);
-  transition: transform 0.3s ease;
-}
-
-.hover-scale-102:hover {
-  transform: scale(1.01);
-  transition: transform 0.2s ease;
-}
-
-/* Performance-optimized text gradients */
-.enhanced-gradient-text {
-  background: linear-gradient(45deg, #9b87f5, #f97316, #4ade80, #9b87f5);
-  background-size: 200% 200%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.enhanced-gradient-text:hover {
-  animation: gradientLoadAnimation 2s ease forwards;
-}
-
-/* Reduced floating shapes - only one now */
-.floating-shape {
-  position: absolute;
-  border-radius: 50%;
-  opacity: 0.02;
-  pointer-events: none;
-  will-change: transform;
-}
-
-.floating-shape-1 {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(45deg, #9b87f5, #f97316);
-  top: 20%;
-  right: 10%;
-  animation: float 15s ease-in-out infinite;
-}
-
-/* Ripple Effect - Optimized */
-.ripple-container {
-  position: relative;
-  overflow: hidden;
-}
-
-.ripple-effect {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(155, 135, 245, 0.2);
-  transform: scale(0);
-  animation: ripple 0.5s linear;
-  pointer-events: none;
-}
-
-/* Optimized stagger animation */
-.stagger-child:nth-child(1) { animation-delay: 0ms; }
-.stagger-child:nth-child(2) { animation-delay: 50ms; }
-.stagger-child:nth-child(3) { animation-delay: 100ms; }
-.stagger-child:nth-child(4) { animation-delay: 150ms; }
-.stagger-child:nth-child(5) { animation-delay: 200ms; }
-
-/* Performance-optimized card styles */
+/* Enhanced card hover effects - no white overlay */
 .enhanced-card {
-  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%);
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(255,255,255,0.08);
-  transition: all 0.3s ease;
-  will-change: transform, box-shadow;
+  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, box-shadow, border-color;
 }
 
 .enhanced-card:hover {
-  transform: translateY(-3px) scale(1.01);
-  box-shadow: 0 15px 30px rgba(0,0,0,0.08);
-  border-color: rgba(155, 135, 245, 0.2);
+  transform: translate3d(0, -2px, 0) scale(1.005);
+  box-shadow: 0 8px 25px rgba(155, 135, 245, 0.15);
+  border-color: rgba(155, 135, 245, 0.3);
+  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%);
 }
 
 .dark .enhanced-card {
-  background: linear-gradient(135deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.08) 100%);
-  border: 1px solid rgba(255,255,255,0.04);
+  background: linear-gradient(135deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.05) 100%);
+  border: 1px solid rgba(255,255,255,0.05);
 }
 
 .dark .enhanced-card:hover {
-  border-color: rgba(155, 135, 245, 0.3);
-  box-shadow: 0 15px 30px rgba(155, 135, 245, 0.08);
+  border-color: rgba(155, 135, 245, 0.4);
+  background: linear-gradient(135deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.08) 100%);
+  box-shadow: 0 8px 25px rgba(155, 135, 245, 0.2);
 }
 
-/* Mobile-specific optimizations */
-@media (max-width: 768px) {
-  .animate-float,
-  .animate-float-slow,
-  .floating-shape {
-    animation-duration: 20s;
-  }
-  
-  .hover-tilt:hover,
-  .hover-scale-102:hover {
-    transform: none;
-  }
-  
-  .enhanced-card:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 16px rgba(0,0,0,0.06);
-  }
+/* Minimal image hover effects */
+.image-hover-effect {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
 }
 
-/* Performance hints for browsers */
-.animate-float,
-.animate-float-slow,
-.animate-mobile-float,
-.enhanced-card,
-.floating-shape {
-  contain: layout style paint;
+.image-hover-effect:hover {
+  transform: translate3d(0, 0, 0) scale(1.02);
+}
+
+/* Stagger animation for feature cards */
+.stagger-child:nth-child(1) { animation-delay: 0ms; }
+.stagger-child:nth-child(2) { animation-delay: 100ms; }
+.stagger-child:nth-child(3) { animation-delay: 200ms; }
+.stagger-child:nth-child(4) { animation-delay: 300ms; }
+
+/* Button enhancements */
+.button-smooth-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, box-shadow;
+}
+
+.button-smooth-hover:hover {
+  transform: translate3d(0, -1px, 0);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Performance hints */
+.gpu-accelerated {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

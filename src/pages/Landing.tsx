@@ -6,39 +6,71 @@ import { FooterSection } from "@/components/landing/FooterSection";
 import { CursorFollower } from "@/components/landing/CursorFollower";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { Link } from "react-router-dom";
 import "@/components/landing/animations.css";
 
 export const Landing = () => {
   const { language } = useLanguage();
+  const { user } = useAuth();
   const isMobile = useMediaQuery("(max-width: 768px)");
   
   return (
-    <div className={`min-h-screen bg-background font-sans relative overflow-hidden ${language === 'ka' ? 'lang-ka' : ''}`}>
-      {/* Optimized background elements - reduced for mobile */}
+    <div className={`min-h-screen bg-background font-sans relative overflow-hidden gpu-accelerated ${language === 'ka' ? 'lang-ka' : ''}`}>
+      {/* Dashboard return button for logged in users */}
+      {user && (
+        <div className="fixed top-4 left-4 z-50 animate-fade-slide-in">
+          <Link to="/dashboard">
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="animate-dashboard-glow shadow-lg backdrop-blur-sm bg-background/90 border-primary/20 hover:bg-background/95"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Dashboard
+            </Button>
+          </Link>
+        </div>
+      )}
+
+      {/* Highly optimized background elements */}
       <div className="fixed inset-0 pointer-events-none">
-        {/* Simplified background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/2 via-background to-accent/2 animate-static-gradient" />
+        {/* Single gradient background - no animation on mobile */}
+        <div className={cn(
+          "absolute inset-0 bg-gradient-to-br from-primary/3 via-background to-accent/2",
+          !isMobile && "animate-subtle-mesh-move"
+        )} />
         
-        {/* Single floating shape - hidden on mobile */}
+        {/* Minimal floating element - desktop only */}
         {!isMobile && (
-          <div className="floating-shape floating-shape-1" />
+          <div className="absolute top-1/4 right-1/6 w-8 h-8 bg-gradient-to-br from-primary/5 to-accent/5 rounded-full animate-gentle-float blur-sm" />
         )}
         
-        {/* Reduced mesh gradient overlay - desktop only */}
+        {/* Subtle mesh accents - desktop only */}
         {!isMobile && (
           <>
-            <div className="absolute top-0 right-0 w-1/4 h-1/4 bg-gradient-radial from-primary/3 to-transparent animate-simple-mesh-move" />
-            <div className="absolute bottom-0 left-0 w-1/3 h-1/3 bg-gradient-radial from-accent/3 to-transparent animate-simple-mesh-move" style={{animationDelay: '15s'}} />
+            <div className="absolute top-0 right-0 w-1/6 h-1/6 bg-gradient-radial from-primary/2 to-transparent animate-subtle-mesh-move opacity-60" />
+            <div className="absolute bottom-0 left-0 w-1/5 h-1/5 bg-gradient-radial from-accent/2 to-transparent animate-subtle-mesh-move opacity-60" style={{animationDelay: '10s'}} />
           </>
         )}
       </div>
 
       <div className="relative z-10">
         <CursorFollower />
-        <HeroSection />
-        <FeatureSection />
-        <PricingSection />
-        <FooterSection />
+        <div className="animate-fade-slide-in">
+          <HeroSection />
+        </div>
+        <div className="animate-fade-slide-in stagger-child" style={{animationDelay: '0.2s'}}>
+          <FeatureSection />
+        </div>
+        <div className="animate-fade-slide-in stagger-child" style={{animationDelay: '0.4s'}}>
+          <PricingSection />
+        </div>
+        <div className="animate-fade-slide-in stagger-child" style={{animationDelay: '0.6s'}}>
+          <FooterSection />
+        </div>
       </div>
     </div>
   );

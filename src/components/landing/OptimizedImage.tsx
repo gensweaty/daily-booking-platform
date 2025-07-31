@@ -1,42 +1,41 @@
 
-import { useState, useRef, useEffect } from 'react';
-import { cn } from "@/lib/utils";
+import React, { useState, useRef, useEffect } from 'react';
+import { cn } from '@/lib/utils';
 
 interface OptimizedImageProps {
   src: string;
   alt: string;
   className?: string;
-  placeholder?: string;
   priority?: boolean;
-  onLoad?: () => void;
+  placeholder?: string;
 }
 
-export const OptimizedImage = ({ 
-  src, 
-  alt, 
-  className, 
-  placeholder = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y3ZjdmNyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0iY2VudHJhbCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI2NjYyI+TG9hZGluZy4uLjwvdGV4dD48L3N2Zz4=",
+export const OptimizedImage: React.FC<OptimizedImageProps> = ({
+  src,
+  alt,
+  className,
   priority = false,
-  onLoad
-}: OptimizedImageProps) => {
+  placeholder = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjZjNmNGY2Ii8+CjxwYXRoIGQ9Im0xNSAxNSA2IDYgNi02IiBzdHJva2U9IiM5Y2EzYWYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo="
+}) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isInView, setIsInView] = useState(priority);
   const [hasError, setHasError] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    if (priority) return;
-
+    if (priority) return; // Skip intersection observer for priority images
+    
     const observer = new IntersectionObserver(
-      ([entry]) => {
+      (entries) => {
+        const [entry] = entries;
         if (entry.isIntersecting) {
           setIsInView(true);
           observer.disconnect();
         }
       },
-      { 
+      {
         threshold: 0.1,
-        rootMargin: '50px'
+        rootMargin: '50px' // Start loading 50px before image comes into view
       }
     );
 
@@ -49,7 +48,6 @@ export const OptimizedImage = ({
 
   const handleLoad = () => {
     setIsLoaded(true);
-    onLoad?.();
   };
 
   const handleError = () => {
@@ -58,30 +56,41 @@ export const OptimizedImage = ({
   };
 
   return (
-    <div className={cn("relative overflow-hidden", className)}>
-      <img
-        ref={imgRef}
-        src={isInView ? src : placeholder}
-        alt={alt}
-        className={cn(
-          "transition-opacity duration-300",
-          isLoaded ? "opacity-100" : "opacity-0",
-          className
-        )}
-        onLoad={handleLoad}
-        onError={handleError}
-        loading={priority ? "eager" : "lazy"}
-      />
-      
-      {!isLoaded && !hasError && (
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 animate-pulse flex items-center justify-center">
-          <div className="text-gray-400 text-sm">Loading...</div>
+    <div ref={imgRef} className={cn("relative overflow-hidden", className)}>
+      {/* Placeholder */}
+      {!isLoaded && (
+        <div className="absolute inset-0 bg-gradient-to-br from-muted/50 to-muted/30 animate-subtle-pulse flex items-center justify-center">
+          <div className="w-8 h-8 opacity-40">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21,15 16,10 5,21"/>
+            </svg>
+          </div>
         </div>
       )}
       
+      {/* Actual image */}
+      {(isInView || priority) && !hasError && (
+        <img
+          src={src}
+          alt={alt}
+          className={cn(
+            "transition-all duration-500 ease-out",
+            isLoaded ? "opacity-100" : "opacity-0",
+            className
+          )}
+          onLoad={handleLoad}
+          onError={handleError}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+        />
+      )}
+      
+      {/* Error fallback */}
       {hasError && (
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-          <div className="text-gray-500 text-sm">Failed to load image</div>
+        <div className="absolute inset-0 bg-muted/20 flex items-center justify-center">
+          <div className="text-muted-foreground text-sm">Image not available</div>
         </div>
       )}
     </div>

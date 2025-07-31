@@ -52,13 +52,13 @@ export const ImageCarousel = ({
       setCurrent(api.selectedScrollSnap() + 1);
     });
 
-    // Only enable auto-slide on desktop and when user is not interacting
+    // Auto-slide only on desktop and with longer intervals
     let interval: NodeJS.Timeout | null = null;
     
     if (!isMobile && autoSlideEnabled) {
       interval = setInterval(() => {
         api.scrollNext();
-      }, 6000); // Slower auto-slide for better performance
+      }, 8000); // Slower for better performance
     }
 
     return () => {
@@ -66,16 +66,15 @@ export const ImageCarousel = ({
     };
   }, [api, isMobile, autoSlideEnabled]);
 
-  // Enable auto-slide after initial load to prevent performance impact
+  // Enable auto-slide after user interaction delay
   useEffect(() => {
     const timer = setTimeout(() => {
       setAutoSlideEnabled(true);
-    }, 2000);
+    }, 3000);
     
     return () => clearTimeout(timer);
   }, []);
 
-  // Determine appropriate height based on screen size
   const responsiveHeight = isMobile 
     ? "h-[240px]" 
     : isTablet 
@@ -97,34 +96,35 @@ export const ImageCarousel = ({
             <CarouselItem key={index} className="md:basis-1/1">
               <div className="p-1">
                 <div className={cn(
-                  "rounded-xl overflow-hidden transition-all duration-300",
+                  "rounded-xl overflow-hidden transition-all duration-500 ease-out",
                   responsiveHeight,
-                  "hover:shadow-md enhanced-card"
+                  "enhanced-card gpu-accelerated"
                 )}>
                   <div className={cn(
                     "relative h-full w-full flex items-center justify-center",
-                    "bg-gradient-to-br from-white/95 to-white/80 backdrop-blur-sm",
-                    image.customPadding || 'p-0',
-                    "group"
+                    "bg-gradient-to-br from-background/95 via-background/90 to-background/95",
+                    image.customPadding || 'p-2',
+                    "group/image"
                   )}>
                     <OptimizedImage
                       src={image.src}
                       alt={image.alt}
                       className={cn(
-                        "w-full h-full transition-all duration-300 group-hover:scale-102",
-                        image.customStyle || objectFit
+                        "w-full h-full transition-all duration-500 ease-out image-hover-effect",
+                        image.customStyle || objectFit,
+                        "group-hover/image:brightness-105"
                       )}
-                      priority={index === 0} // Only first image is priority
+                      priority={index === 0}
                     />
                     
                     {showTitles && image.title && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent text-white p-3 text-center backdrop-blur-sm">
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent text-white p-3 text-center">
                         <span className="font-medium text-sm drop-shadow-lg">{image.title}</span>
                       </div>
                     )}
                     
-                    {/* Reduced overlay gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-primary/3 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    {/* Subtle highlight overlay - no white background */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-primary/1 via-transparent to-primary/1 pointer-events-none opacity-0 group-hover/image:opacity-100 transition-opacity duration-500" />
                   </div>
                 </div>
               </div>
@@ -135,34 +135,36 @@ export const ImageCarousel = ({
         <CarouselPrevious 
           className={cn(
             permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-            "transition-all duration-300",
-            "absolute left-2 md:-left-12 glass-morphism hover:bg-white/90 dark:hover:bg-gray-800/90",
-            "border-none shadow-md hover:shadow-lg",
-            "w-8 h-8 md:w-9 md:h-9 rounded-full"
+            "transition-all duration-300 button-smooth-hover",
+            "absolute left-2 md:-left-12 glass-morphism",
+            "border-none shadow-lg hover:shadow-xl",
+            "w-8 h-8 md:w-10 md:h-10 rounded-full",
+            "hover:bg-white/20 dark:hover:bg-gray-800/30"
           )}
         />
         <CarouselNext 
           className={cn(
             permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-            "transition-all duration-300",
-            "absolute right-2 md:-right-12 glass-morphism hover:bg-white/90 dark:hover:bg-gray-800/90",
-            "border-none shadow-md hover:shadow-lg",
-            "w-8 h-8 md:w-9 md:h-9 rounded-full"
+            "transition-all duration-300 button-smooth-hover",
+            "absolute right-2 md:-right-12 glass-morphism",
+            "border-none shadow-lg hover:shadow-xl",
+            "w-8 h-8 md:w-10 md:h-10 rounded-full",
+            "hover:bg-white/20 dark:hover:bg-gray-800/30"
           )}
         />
       </Carousel>
       
-      {/* Optimized Carousel Indicators */}
+      {/* Enhanced carousel indicators */}
       {count > 1 && (
-        <div className="flex justify-center space-x-1 mt-3">
+        <div className="flex justify-center space-x-2 mt-4">
           {Array.from({ length: count }, (_, index) => (
             <button
               key={index}
               className={cn(
-                "w-1.5 h-1.5 rounded-full transition-all duration-200",
+                "transition-all duration-300 rounded-full",
                 current === index + 1
-                  ? "bg-primary w-4"
-                  : "bg-primary/40 hover:bg-primary/70"
+                  ? "bg-primary w-6 h-2"
+                  : "bg-primary/30 hover:bg-primary/60 w-2 h-2"
               )}
               onClick={() => api?.scrollTo(index)}
             />
