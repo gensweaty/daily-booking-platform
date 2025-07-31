@@ -5,57 +5,34 @@ import { PricingSection } from "@/components/landing/PricingSection";
 import { FooterSection } from "@/components/landing/FooterSection";
 import { CursorFollower } from "@/components/landing/CursorFollower";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import { ThemeProvider } from "@/components/theme-provider"; 
 import "@/components/landing/animations.css";
 
 export const Landing = () => {
   const { language } = useLanguage();
-  const { user } = useAuth();
-  const isMobile = useMediaQuery("(max-width: 768px)");
   
   return (
-    <div className={`min-h-screen bg-background font-sans relative overflow-hidden gpu-accelerated ${language === 'ka' ? 'lang-ka' : ''}`}>
-      {/* Highly optimized background elements */}
+    <div className={`min-h-screen bg-background font-sans relative overflow-hidden ${language === 'ka' ? 'lang-ka' : ''}`}>
+      {/* Reduced intensity background elements */}
       <div className="fixed inset-0 pointer-events-none">
-        {/* Single gradient background - no animation on mobile */}
-        <div className={cn(
-          "absolute inset-0 bg-gradient-to-br from-primary/3 via-background to-accent/2",
-          !isMobile && "animate-subtle-mesh-move"
-        )} />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-background to-accent/3 animate-gradient-shift" style={{backgroundSize: '400% 400%'}} />
         
-        {/* Minimal floating element - desktop only */}
-        {!isMobile && (
-          <div className="absolute top-1/4 right-1/6 w-8 h-8 bg-gradient-to-br from-primary/5 to-accent/5 rounded-full animate-gentle-float blur-sm" />
-        )}
+        {/* Reduced Floating Geometric Shapes */}
+        <div className="floating-shape floating-shape-1" />
+        <div className="floating-shape floating-shape-2" />
+        <div className="floating-shape floating-shape-3" />
         
-        {/* Subtle mesh accents - desktop only */}
-        {!isMobile && (
-          <>
-            <div className="absolute top-0 right-0 w-1/6 h-1/6 bg-gradient-radial from-primary/2 to-transparent animate-subtle-mesh-move opacity-60" />
-            <div className="absolute bottom-0 left-0 w-1/5 h-1/5 bg-gradient-radial from-accent/2 to-transparent animate-subtle-mesh-move opacity-60" style={{animationDelay: '10s'}} />
-          </>
-        )}
+        {/* Reduced Mesh Gradient Overlay */}
+        <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-gradient-radial from-primary/5 to-transparent animate-mesh-move" />
+        <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-gradient-radial from-accent/5 to-transparent animate-mesh-move" style={{animationDelay: '5s'}} />
       </div>
 
       <div className="relative z-10">
         <CursorFollower />
-        <div className="animate-fade-slide-in">
-          <HeroSection />
-        </div>
-        <div className="animate-fade-slide-in stagger-child" style={{animationDelay: '0.2s'}}>
-          <FeatureSection />
-        </div>
-        <div className="animate-fade-slide-in stagger-child" style={{animationDelay: '0.4s'}}>
-          <PricingSection />
-        </div>
-        <div className="animate-fade-slide-in stagger-child" style={{animationDelay: '0.6s'}}>
-          <FooterSection />
-        </div>
+        <HeroSection />
+        <FeatureSection />
+        <PricingSection />
+        <FooterSection />
       </div>
     </div>
   );

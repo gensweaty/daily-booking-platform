@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { LogOut, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -267,7 +266,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   return (
     <header className="mb-4">
       <div className="flex items-center justify-between mb-3">
-        <Link to="/" className="flex items-center gap-2 animate-dashboard-glow">
+        <Link to="/" className="flex items-center gap-2">
           <img 
             src={theme === 'dark' 
               ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
@@ -535,14 +534,14 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       <div className="text-center mb-2 relative">
         <div className="relative rounded-xl bg-gradient-to-r from-background/90 to-background/70 backdrop-blur-sm border border-border/30 p-4 shadow-sm">
           <div className="space-y-1">
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground transition-colors duration-300 hover:text-primary cursor-default">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">
               {isGeorgian ? (
                 <GeorgianAuthText fontWeight="bold">მოგესალმებით</GeorgianAuthText>
               ) : (
                 <LanguageText>{t('dashboard.welcome')}</LanguageText>
               )}
             </h1>
-            <p className="text-xs sm:text-sm md:text-base font-medium text-muted-foreground transition-colors duration-300 hover:text-foreground cursor-default">
+            <p className="text-xs sm:text-sm md:text-base font-medium text-muted-foreground">
               {isGeorgian ? (
                 <GeorgianAuthText fontWeight="medium">თქვენი პროდუქტიულობის ცენტრი</GeorgianAuthText>
               ) : (
