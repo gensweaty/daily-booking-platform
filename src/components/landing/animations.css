@@ -16,7 +16,8 @@
   100% { background-position: 200% center; }
 }
 
-@keyframes subtleShimmer {
+/* Ultra subtle shimmer - 3x slower, 3x less intense */
+@keyframes ultraSubtleShimmer {
   0% { background-position: -200% center; }
   100% { background-position: 200% center; }
 }
@@ -64,11 +65,19 @@
   50% { background-position: 100% 50%; }
 }
 
+/* Ultra gentle float - 3x slower */
+@keyframes ultraGentleFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-3px); }
+}
+
 /* Utility Classes */
 .animate-float { animation: float 6s ease-in-out infinite; }
 .animate-float-slow { animation: floatSlow 8s ease-in-out infinite; }
 .animate-shimmer { animation: shimmer 2s linear infinite; }
 .animate-subtle-shimmer { animation: subtleShimmer 4s linear infinite; }
+.animate-ultra-subtle-shimmer { animation: ultraSubtleShimmer 12s linear infinite; }
+.animate-ultra-gentle-float { animation: ultraGentleFloat 18s ease-in-out infinite; }
 .animate-gradient-shift { animation: subtleShift 8s ease infinite; }
 .animate-pulse-glow { animation: pulseGlow 3s ease-in-out infinite; }
 .animate-mesh-move { animation: meshMove 20s ease-in-out infinite; }

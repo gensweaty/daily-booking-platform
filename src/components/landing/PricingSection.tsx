@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -118,9 +117,9 @@ export const PricingSection = () => {
       />
       
       {/* Reduced Floating Shapes */}
-      <div className="absolute top-10 left-10 w-16 h-16 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full blur-xl animate-float" />
-      <div className="absolute bottom-20 right-20 w-12 h-12 bg-gradient-to-br from-accent/10 to-primary/10 rounded-full blur-xl animate-float-slow" />
-      <div className="absolute top-1/2 left-1/4 w-8 h-8 bg-gradient-to-br from-primary/5 to-accent/5 rounded-full blur-lg animate-float" style={{animationDelay: '2s'}} />
+      <div className="absolute top-10 left-10 w-16 h-16 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full blur-xl animate-ultra-gentle-float" />
+      <div className="absolute bottom-20 right-20 w-12 h-12 bg-gradient-to-br from-accent/10 to-primary/10 rounded-full blur-xl animate-ultra-gentle-float" style={{animationDelay: '6s'}} />
+      <div className="absolute top-1/2 left-1/4 w-8 h-8 bg-gradient-to-br from-primary/5 to-accent/5 rounded-full blur-lg animate-ultra-gentle-float" style={{animationDelay: '12s'}} />
       
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center mb-10">
@@ -166,11 +165,11 @@ export const PricingSection = () => {
           {/* Monthly Plan */}
           <div className={`relative enhanced-card bg-slate-800/80 backdrop-blur-sm border-slate-600 text-white transition-all duration-300 hover:scale-105 hover:bg-slate-700/80 shadow-2xl rounded-xl p-6 transform-3d ${!isYearly ? 'ring-2 ring-primary shadow-primary/25' : ''}`}>
             {/* Floating decorative elements */}
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent/40 rounded-full animate-float blur-sm" />
-            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-primary/40 rounded-full animate-float-slow blur-sm" />
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent/40 rounded-full animate-ultra-gentle-float blur-sm" />
+            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-primary/40 rounded-full animate-ultra-gentle-float blur-sm" style={{animationDelay: '9s'}} />
             
             <div className="text-center pb-3">
-              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2 animate-subtle-shimmer" style={{backgroundSize: '200% 100%'}}>
+              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2 animate-ultra-subtle-shimmer" style={{backgroundSize: '200% 100%'}}>
                 <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
               </div>
               <h3 className="text-xl font-bold text-white enhanced-gradient-text">
@@ -201,7 +200,7 @@ export const PricingSection = () => {
               <Button
                 onClick={() => handleSubscribe('monthly')}
                 disabled={loading !== null}
-                className="w-full bg-gradient-to-r from-white to-gray-100 text-slate-900 hover:from-gray-100 hover:to-white font-semibold py-2 transition-all duration-500 text-sm ripple-container hover:scale-102 animate-subtle-shimmer" 
+                className="w-full bg-gradient-to-r from-white/90 to-gray-100/90 text-slate-900 hover:from-gray-100/90 hover:to-white/90 font-semibold py-2 transition-all duration-1500 text-sm ripple-container hover:scale-101 animate-ultra-subtle-shimmer" 
                 style={{backgroundSize: '200% 100%'}}
                 onMouseDown={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
@@ -226,11 +225,11 @@ export const PricingSection = () => {
           {/* Yearly Plan */}
           <div className={`relative enhanced-card bg-slate-800/80 backdrop-blur-sm border-slate-600 text-white transition-all duration-300 hover:scale-105 hover:bg-slate-700/80 shadow-2xl rounded-xl p-6 transform-3d hover-tilt ${isYearly ? 'ring-2 ring-yellow-500 shadow-yellow-500/25' : ''}`}>
             {/* Floating decorative elements */}
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400/40 rounded-full animate-float blur-sm" />
-            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-orange-400/40 rounded-full animate-float-slow blur-sm" />
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400/40 rounded-full animate-ultra-gentle-float blur-sm" />
+            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-orange-400/40 rounded-full animate-ultra-gentle-float blur-sm" style={{animationDelay: '6s'}} />
             
             <div className="text-center pb-3">
-              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2 animate-subtle-shimmer" style={{backgroundSize: '200% 100%'}}>
+              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2 animate-ultra-subtle-shimmer" style={{backgroundSize: '200% 100%'}}>
                 <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
               </div>
               <h3 className="text-xl font-bold text-white enhanced-gradient-text">
@@ -261,7 +260,7 @@ export const PricingSection = () => {
               <Button
                 onClick={() => handleSubscribe('yearly')}
                 disabled={loading !== null}
-                className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:from-yellow-400 hover:to-orange-400 font-semibold py-2 transition-all duration-500 text-sm ripple-container hover:scale-102 animate-subtle-shimmer"
+                className="w-full bg-gradient-to-r from-yellow-500/90 to-orange-500/90 text-black hover:from-yellow-400/90 hover:to-orange-400/90 font-semibold py-2 transition-all duration-1500 text-sm ripple-container hover:scale-101 animate-ultra-subtle-shimmer"
                 style={{backgroundSize: '200% 100%'}}
                 onMouseDown={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
