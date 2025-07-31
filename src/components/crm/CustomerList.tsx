@@ -400,7 +400,12 @@ export const CustomerList = () => {
     <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto min-w-0">
-          <h2 className="text-2xl font-bold flex-shrink-0 sm:mb-0 -mt-4">{t("crm.title")}</h2>
+          <div className="flex-shrink-0 sm:mb-0 -mt-4">
+            <h2 className="text-lg sm:text-xl font-bold leading-tight">
+              <span className="block">Customer Relationship</span>
+              <span className="block">Management</span>
+            </h2>
+          </div>
           <div className="w-full sm:w-auto sm:min-w-[200px] flex-shrink-0">
             <DateRangeSelect 
               selectedDate={dateRange}
