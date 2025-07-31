@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -216,7 +217,21 @@ export const BookingRequestsList = ({
   };
 
   if (requests.length === 0) {
-    return null;
+    return (
+      <div className="text-center p-10 border border-dashed rounded-lg">
+        <div className="flex justify-center mb-4">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full border-2 border-muted-foreground border-dashed"></div>
+          </div>
+        </div>
+        <h3 className="text-lg font-medium">
+          <LanguageText>{t("business.noRequestsYet")}</LanguageText>
+        </h3>
+        <p className="text-muted-foreground mt-2">
+          <LanguageText>{t("business.requestsWillAppearHere")}</LanguageText>
+        </p>
+      </div>
+    );
   }
 
   return (
