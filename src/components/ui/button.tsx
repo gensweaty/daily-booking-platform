@@ -29,8 +29,8 @@ const buttonVariants = cva(
         warning: "bg-[#f59e0b] text-white hover:bg-[#d97706]",
         // Enhanced approve variant with gradient and animations
         approve: "bg-gradient-to-r from-[#10b981] to-[#34d399] text-white hover:from-[#059669] hover:to-[#10b981] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-green-500/20 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/20 before:to-transparent before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100",
-        // New dynamic variant for action buttons
-        dynamic: "bg-gradient-to-r from-primary via-primary/90 to-primary text-primary-foreground shadow-lg hover:shadow-xl transform hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 ease-out border-0 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/10 before:via-white/20 before:to-white/10 before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100 after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-white/5 after:to-transparent after:translate-x-[-100%] after:transition-transform after:duration-700 hover:after:translate-x-[100%]"
+        // Toned down dynamic variant for action buttons
+        dynamic: "bg-gradient-to-r from-primary via-primary/95 to-primary text-primary-foreground shadow-md hover:shadow-lg transform hover:-translate-y-0.5 hover:scale-[1.01] transition-all duration-500 ease-out border-0 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/5 before:via-white/10 before:to-white/5 before:opacity-0 before:transition-opacity before:duration-500 hover:before:opacity-100 after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-white/3 after:to-transparent after:translate-x-[-100%] after:transition-transform after:duration-1000 hover:after:translate-x-[100%]"
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -92,7 +92,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(
           buttonVariants({ variant, size, className }),
           isGeorgian ? "ka-text georgian-text-fix" : "",
-          // Add pulse animation for dynamic buttons on focus
+          // Add subtle pulse animation for dynamic buttons on focus
           variant === "dynamic" ? "focus:animate-pulse" : ""
         )}
         ref={ref}

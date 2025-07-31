@@ -170,7 +170,7 @@ export const PricingSection = () => {
             <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-primary/40 rounded-full animate-float-slow blur-sm" />
             
             <div className="text-center pb-3">
-              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2 animate-shimmer" style={{backgroundSize: '200% 100%'}}>
+              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2 animate-subtle-shimmer" style={{backgroundSize: '200% 100%'}}>
                 <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
               </div>
               <h3 className="text-xl font-bold text-white enhanced-gradient-text">
@@ -201,7 +201,7 @@ export const PricingSection = () => {
               <Button
                 onClick={() => handleSubscribe('monthly')}
                 disabled={loading !== null}
-                className="w-full bg-gradient-to-r from-white to-gray-100 text-slate-900 hover:from-gray-100 hover:to-white font-semibold py-2 transition-all text-sm ripple-container hover:scale-105 animate-shimmer" 
+                className="w-full bg-gradient-to-r from-white to-gray-100 text-slate-900 hover:from-gray-100 hover:to-white font-semibold py-2 transition-all duration-500 text-sm ripple-container hover:scale-102 animate-subtle-shimmer" 
                 style={{backgroundSize: '200% 100%'}}
                 onMouseDown={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
@@ -230,7 +230,7 @@ export const PricingSection = () => {
             <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-orange-400/40 rounded-full animate-float-slow blur-sm" />
             
             <div className="text-center pb-3">
-              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2 animate-shimmer" style={{backgroundSize: '200% 100%'}}>
+              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2 animate-subtle-shimmer" style={{backgroundSize: '200% 100%'}}>
                 <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
               </div>
               <h3 className="text-xl font-bold text-white enhanced-gradient-text">
@@ -261,7 +261,7 @@ export const PricingSection = () => {
               <Button
                 onClick={() => handleSubscribe('yearly')}
                 disabled={loading !== null}
-                className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:from-yellow-400 hover:to-orange-400 font-semibold py-2 transition-all text-sm ripple-container hover:scale-105 animate-shimmer"
+                className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:from-yellow-400 hover:to-orange-400 font-semibold py-2 transition-all duration-500 text-sm ripple-container hover:scale-102 animate-subtle-shimmer"
                 style={{backgroundSize: '200% 100%'}}
                 onMouseDown={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
