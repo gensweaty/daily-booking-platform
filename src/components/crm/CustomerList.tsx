@@ -398,12 +398,21 @@ export const CustomerList = () => {
 
   return (
     <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto min-w-0">
-          <div className="flex-shrink-0 sm:mb-0 -mt-4">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 w-full lg:w-auto min-w-0">
+          <div className="flex-shrink-0">
             <h2 className="text-lg sm:text-xl font-bold leading-tight">
-              <span className="block">Customer Relationship</span>
-              <span className="block">Management</span>
+              {isGeorgian ? (
+                <>
+                  <span className="block">მომხმარებლებთან მურთიერთობის</span>
+                  <span className="block">მენეჯმენტი</span>
+                </>
+              ) : (
+                <>
+                  <span className="block">Customer Relationship</span>
+                  <span className="block">Management</span>
+                </>
+              )}
             </h2>
           </div>
           <div className="w-full sm:w-auto sm:min-w-[200px] flex-shrink-0">
@@ -425,7 +434,7 @@ export const CustomerList = () => {
             variant="ghost"
             size="icon"
             onClick={handleExcelDownload}
-            className="h-9 w-9 flex-shrink-0 self-start sm:self-center sm:-mt-4"
+            className="h-9 w-9 flex-shrink-0 self-start sm:self-center"
             title={language === 'es' ? "Descargar como Excel" : "Download as Excel"}
             disabled={isFetching || filteredData.length === 0}
           >
