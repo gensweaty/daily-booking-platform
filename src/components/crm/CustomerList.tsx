@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -396,71 +397,44 @@ export const CustomerList = () => {
   }
 
   return (
-    <div className="space-y-3 w-full max-w-[100vw] px-2 md:px-4">
-      <div className="flex flex-col gap-3">
-        {/* Header Section */}
-        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3">
-          <div className="flex-shrink-0">
-            <h2 className="text-base sm:text-lg font-bold leading-tight">
-              {isGeorgian ? (
-                <>
-                  <span className="block">მომხმარებლებთან</span>
-                  <span className="block">ურთიერთობის მენეჯმენტი</span>
-                </>
-              ) : (
-                <>
-                  <span className="block">Customer Relationship</span>
-                  <span className="block">Management</span>
-                </>
-              )}
-            </h2>
+    <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
+          <h2 className="text-2xl font-bold md:mb-0 -mt-4">{t("crm.title")}</h2>
+          <div className="w-full md:w-auto md:min-w-[200px]">
+            <DateRangeSelect 
+              selectedDate={dateRange}
+              onDateChange={handleDateRangeChange}
+              disabled={isFetching}
+            />
           </div>
-          
-          {/* Controls Section - Fixed alignment and spacing */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3 w-full xl:w-auto">
-            <div className="flex flex-col md:flex-row items-start md:items-end gap-3 w-full xl:w-auto">
-              <div className="w-full md:w-auto md:min-w-[200px] flex-shrink-0">
-                <DateRangeSelect 
-                  selectedDate={dateRange}
-                  onDateChange={handleDateRangeChange}
-                  disabled={isFetching}
-                />
-              </div>
-              
-              <div className="w-full md:w-auto md:min-w-[200px] flex-shrink-0">
-                <SearchCommand
-                  data={combinedData}
-                  setFilteredData={setFilteredData}
-                  isLoading={isFetching}
-                  resetPagination={resetPagination}
-                />
-              </div>
-            </div>
-            
-            <div className="flex items-end gap-2 w-full sm:w-auto justify-start">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleExcelDownload}
-                className="h-10 w-10 flex-shrink-0"
-                title={language === 'es' ? "Descargar como Excel" : "Download as Excel"}
-                disabled={isFetching || filteredData.length === 0}
-              >
-                <FileSpreadsheet className="h-5 w-5" />
-              </Button>
-              
-              <Button 
-                onClick={openCreateDialog} 
-                variant="dynamic"
-                className="flex items-center gap-2 flex-shrink-0 px-4 py-2 h-10 font-semibold whitespace-nowrap"
-                disabled={isFetching}
-              >
-                <PlusCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{t("crm.addCustomer")}</span>
-              </Button>
-            </div>
+          <div className="w-full md:w-auto">
+            <SearchCommand
+              data={combinedData}
+              setFilteredData={setFilteredData}
+              isLoading={isFetching}
+              resetPagination={resetPagination}
+            />
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleExcelDownload}
+            className="h-9 w-9 sm:-mt-4"
+            title={language === 'es' ? "Descargar como Excel" : "Download as Excel"}
+            disabled={isFetching || filteredData.length === 0}
+          >
+            <FileSpreadsheet className="h-5 w-5" />
+          </Button>
         </div>
+        <Button 
+          onClick={openCreateDialog} 
+          className="flex items-center gap-2 whitespace-nowrap"
+          disabled={isFetching}
+        >
+          <PlusCircle className="w-4 h-4" />
+          {t("crm.addCustomer")}
+        </Button>
       </div>
 
       {!(isFetching && !isLoading) && filteredData.length > 0 && (
