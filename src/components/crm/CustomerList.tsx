@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -397,10 +396,10 @@ export const CustomerList = () => {
   }
 
   return (
-    <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4">
-      <div className="flex flex-col gap-4">
+    <div className="space-y-3 w-full max-w-[100vw] px-2 md:px-4">
+      <div className="flex flex-col gap-3">
         {/* Header Section */}
-        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3">
           <div className="flex-shrink-0">
             <h2 className="text-base sm:text-lg font-bold leading-tight">
               {isGeorgian ? (
@@ -417,9 +416,9 @@ export const CustomerList = () => {
             </h2>
           </div>
           
-          {/* Controls Section - Better responsive layout */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full xl:w-auto">
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-3 w-full xl:w-auto">
+          {/* Controls Section - Fixed alignment and spacing */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3 w-full xl:w-auto">
+            <div className="flex flex-col md:flex-row items-start md:items-end gap-3 w-full xl:w-auto">
               <div className="w-full md:w-auto md:min-w-[200px] flex-shrink-0">
                 <DateRangeSelect 
                   selectedDate={dateRange}
@@ -438,7 +437,7 @@ export const CustomerList = () => {
               </div>
             </div>
             
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-start">
+            <div className="flex items-end gap-2 w-full sm:w-auto justify-start">
               <Button
                 variant="ghost"
                 size="icon"
@@ -457,8 +456,7 @@ export const CustomerList = () => {
                 disabled={isFetching}
               >
                 <PlusCircle className="w-4 h-4 flex-shrink-0" />
-                <span className="hidden sm:inline">{t("crm.addCustomer")}</span>
-                <span className="sm:hidden">+</span>
+                <span>{t("crm.addCustomer")}</span>
               </Button>
             </div>
           </div>
