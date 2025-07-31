@@ -46,8 +46,8 @@ export const usePerformanceMonitor = () => {
         }
       }
 
-      // Calculate load time
-      const loadTime = navigation.loadEventEnd - navigation.navigationStart;
+      // Calculate load time using correct PerformanceNavigationTiming properties
+      const loadTime = navigation.loadEventEnd - navigation.fetchStart;
 
       const performanceMetrics: PerformanceMetrics = {
         loadTime,
