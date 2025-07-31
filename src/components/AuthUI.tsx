@@ -87,14 +87,14 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
 
   return (
     <div className="min-h-screen bg-background p-4" lang={language}>
-      <header className="mb-4">
-        <div className="flex items-center justify-between mb-4">
+      <header className="mb-8">
+        <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <Button 
               variant="ghost" 
               size="icon"
               onClick={() => navigate("/")}
-              className="hover:bg-accent"
+              className="hover:bg-accent transition-all duration-200 hover:scale-105"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -102,7 +102,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
               <img 
                 src={currentLogo}
                 alt="SmartBookly Logo" 
-                className="h-8 md:h-10 w-auto"
+                className="h-8 md:h-10 w-auto transition-transform duration-200 hover:scale-105"
               />
             </Link>
           </div>
@@ -111,28 +111,62 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
             <ThemeToggle />
           </div>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-1 text-center">
-          <LanguageText>{t("auth.welcome")}</LanguageText>
-        </h1>
-        <p className="text-foreground/80 text-center text-sm mb-4">
-          <LanguageText>{t("auth.description")}</LanguageText>
-        </p>
+
+        {/* Enhanced Welcome Section */}
+        <div className="text-center space-y-4 relative">
+          {/* Animated Background Gradient */}
+          <div className="absolute inset-0 -z-10 opacity-30">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-gradient-to-r from-primary/20 via-accent/15 to-secondary/20 blur-3xl rounded-full animate-pulse"></div>
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 w-80 h-24 bg-gradient-to-r from-secondary/15 via-primary/20 to-accent/15 blur-2xl rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
+          </div>
+
+          {/* Main Welcome Text */}
+          <div className="relative">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-2 animate-fade-in">
+              <span className="bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent animate-pulse">
+                <LanguageText>{t("auth.welcome")}</LanguageText>
+              </span>
+            </h1>
+            
+            {/* Subtle accent line */}
+            <div className="mx-auto w-24 h-1 bg-gradient-to-r from-primary to-accent rounded-full opacity-60 animate-scale-in" style={{ animationDelay: '0.3s' }}></div>
+          </div>
+
+          {/* Enhanced Description */}
+          <div className="animate-fade-in" style={{ animationDelay: '0.5s' }}>
+            <p className="text-lg sm:text-xl text-muted-foreground max-w-md mx-auto leading-relaxed">
+              <LanguageText>{t("auth.description")}</LanguageText>
+            </p>
+          </div>
+
+          {/* Floating Elements for Visual Interest */}
+          <div className="absolute -top-8 left-8 w-3 h-3 bg-primary/30 rounded-full animate-bounce" style={{ animationDelay: '0.5s', animationDuration: '3s' }}></div>
+          <div className="absolute -top-4 right-12 w-2 h-2 bg-accent/40 rounded-full animate-bounce" style={{ animationDelay: '1.5s', animationDuration: '3s' }}></div>
+          <div className="absolute top-16 left-16 w-1.5 h-1.5 bg-secondary/35 rounded-full animate-bounce" style={{ animationDelay: '2s', animationDuration: '3s' }}></div>
+          <div className="absolute top-12 right-8 w-2.5 h-2.5 bg-primary/25 rounded-full animate-bounce" style={{ animationDelay: '0.8s', animationDuration: '3s' }}></div>
+        </div>
       </header>
 
-      <div className="w-full max-w-sm mx-auto">
+      <div className="w-full max-w-sm mx-auto animate-fade-in" style={{ animationDelay: '0.7s' }}>
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "signin" | "signup")} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="signin" className={language === 'ka' ? 'ka-text georgian-tab' : ''}>
+          <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50 backdrop-blur-sm border border-border/50">
+            <TabsTrigger 
+              value="signin" 
+              className={`transition-all duration-200 ${language === 'ka' ? 'ka-text georgian-tab' : ''} data-[state=active]:bg-background data-[state=active]:shadow-md`}
+            >
               {language === 'ka' ? <GeorgianAuthText>შესვლა</GeorgianAuthText> : t("auth.signInButton")}
             </TabsTrigger>
-            <TabsTrigger value="signup" className={language === 'ka' ? 'ka-text georgian-tab' : ''}>
+            <TabsTrigger 
+              value="signup" 
+              className={`transition-all duration-200 ${language === 'ka' ? 'ka-text georgian-tab' : ''} data-[state=active]:bg-background data-[state=active]:shadow-md`}
+            >
               {language === 'ka' ? <GeorgianAuthText>რეგისტრაცია</GeorgianAuthText> : t("auth.signUpButton")}
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="signin">
+          <TabsContent value="signin" className="animate-fade-in">
             <SignIn />
           </TabsContent>
-          <TabsContent value="signup">
+          <TabsContent value="signup" className="animate-fade-in">
             <SignUp />
           </TabsContent>
         </Tabs>
@@ -140,4 +174,3 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
     </div>
   );
 };
-
