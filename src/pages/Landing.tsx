@@ -20,22 +20,6 @@ export const Landing = () => {
   
   return (
     <div className={`min-h-screen bg-background font-sans relative overflow-hidden gpu-accelerated ${language === 'ka' ? 'lang-ka' : ''}`}>
-      {/* Dashboard return button for logged in users */}
-      {user && (
-        <div className="fixed top-4 left-4 z-50 animate-fade-slide-in">
-          <Link to="/dashboard">
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="animate-dashboard-glow shadow-lg backdrop-blur-sm bg-background/90 border-primary/20 hover:bg-background/95"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Dashboard
-            </Button>
-          </Link>
-        </div>
-      )}
-
       {/* Highly optimized background elements */}
       <div className="fixed inset-0 pointer-events-none">
         {/* Single gradient background - no animation on mobile */}

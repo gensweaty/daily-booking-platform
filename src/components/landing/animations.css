@@ -34,17 +34,17 @@
   }
 }
 
-/* Dashboard button specific animation - smooth and subtle */
+/* Dashboard button specific animation - gentle and smooth */
 @keyframes dashboardGlow {
   0%, 100% { 
     box-shadow: 0 0 0 0 rgba(155, 135, 245, 0),
-                0 2px 4px rgba(0, 0, 0, 0.1);
-    background-position: 0% 50%;
+                0 2px 4px rgba(0, 0, 0, 0.05);
+    filter: brightness(1);
   }
   50% { 
-    box-shadow: 0 0 0 2px rgba(155, 135, 245, 0.15),
-                0 4px 12px rgba(155, 135, 245, 0.2);
-    background-position: 100% 50%;
+    box-shadow: 0 0 0 1px rgba(155, 135, 245, 0.1),
+                0 4px 8px rgba(155, 135, 245, 0.08);
+    filter: brightness(1.02);
   }
 }
 
@@ -66,10 +66,8 @@
 }
 
 .animate-dashboard-glow {
-  animation: dashboardGlow 3s ease-in-out infinite;
-  background: linear-gradient(45deg, var(--primary), var(--primary), #b8a8f8);
-  background-size: 200% 100%;
-  will-change: box-shadow, background-position;
+  animation: dashboardGlow 4s ease-in-out infinite;
+  will-change: box-shadow, filter;
 }
 
 .animate-fade-slide-in {
@@ -105,6 +103,10 @@
   .animate-gentle-float,
   .animate-subtle-pulse {
     animation-duration: 8s;
+  }
+  
+  .animate-dashboard-glow {
+    animation-duration: 5s;
   }
 }
 
@@ -167,6 +169,72 @@
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   perspective: 1000;
+}
+
+/* Enhanced heading styles with original colors and hover effects */
+h1, .h1 {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% 100%;
+  transition: all 0.3s ease-in-out;
+  animation: smoothShimmer 3s linear infinite;
+}
+
+h1:hover, .h1:hover {
+  background-position: 100% 0;
+  transform: scale(1.02);
+}
+
+h2, .h2 {
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% 100%;
+  transition: all 0.3s ease-in-out;
+}
+
+h2:hover, .h2:hover {
+  background-position: 100% 0;
+  transform: scale(1.01);
+}
+
+h3, .h3 {
+  background: linear-gradient(135deg, #10b981 0%, #3b82f6 50%, #6366f1 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% 100%;
+  transition: all 0.3s ease-in-out;
+}
+
+h3:hover, .h3:hover {
+  background-position: 100% 0;
+  transform: scale(1.005);
+}
+
+/* Dark mode adjustments for headings */
+.dark h1, .dark .h1 {
+  background: linear-gradient(135deg, #818cf8 0%, #a78bfa 50%, #f472b6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.dark h2, .dark .h2 {
+  background: linear-gradient(135deg, #60a5fa 0%, #818cf8 50%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.dark h3, .dark .h3 {
+  background: linear-gradient(135deg, #34d399 0%, #60a5fa 50%, #818cf8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 /* Reduced motion support */
