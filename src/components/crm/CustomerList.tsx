@@ -398,17 +398,17 @@ export const CustomerList = () => {
 
   return (
     <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
-          <h2 className="text-2xl font-bold md:mb-0 -mt-4">{t("crm.title")}</h2>
-          <div className="w-full md:w-auto md:min-w-[200px]">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto min-w-0">
+          <h2 className="text-2xl font-bold flex-shrink-0 sm:mb-0 -mt-4">{t("crm.title")}</h2>
+          <div className="w-full sm:w-auto sm:min-w-[200px] flex-shrink-0">
             <DateRangeSelect 
               selectedDate={dateRange}
               onDateChange={handleDateRangeChange}
               disabled={isFetching}
             />
           </div>
-          <div className="w-full md:w-auto">
+          <div className="w-full sm:w-auto min-w-[200px] flex-shrink">
             <SearchCommand
               data={combinedData}
               setFilteredData={setFilteredData}
@@ -420,7 +420,7 @@ export const CustomerList = () => {
             variant="ghost"
             size="icon"
             onClick={handleExcelDownload}
-            className="h-9 w-9 sm:-mt-4"
+            className="h-9 w-9 flex-shrink-0 self-start sm:self-center sm:-mt-4"
             title={language === 'es' ? "Descargar como Excel" : "Download as Excel"}
             disabled={isFetching || filteredData.length === 0}
           >
@@ -429,11 +429,12 @@ export const CustomerList = () => {
         </div>
         <Button 
           onClick={openCreateDialog} 
-          className="flex items-center gap-2 whitespace-nowrap"
+          variant="dynamic"
+          className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto justify-center lg:justify-start px-4 py-2 h-10 font-semibold"
           disabled={isFetching}
         >
-          <PlusCircle className="w-4 h-4" />
-          {t("crm.addCustomer")}
+          <PlusCircle className="w-4 h-4 flex-shrink-0" />
+          <span className="truncate">{t("crm.addCustomer")}</span>
         </Button>
       </div>
 
