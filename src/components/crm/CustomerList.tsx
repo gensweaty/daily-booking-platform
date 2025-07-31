@@ -400,7 +400,7 @@ export const CustomerList = () => {
     <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4">
       <div className="flex flex-col gap-4">
         {/* Header Section */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
           <div className="flex-shrink-0">
             <h2 className="text-base sm:text-lg font-bold leading-tight">
               {isGeorgian ? (
@@ -417,26 +417,28 @@ export const CustomerList = () => {
             </h2>
           </div>
           
-          {/* Controls Section - Responsive flex layout */}
-          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-            <div className="w-full sm:w-auto sm:min-w-[200px] flex-shrink-0">
-              <DateRangeSelect 
-                selectedDate={dateRange}
-                onDateChange={handleDateRangeChange}
-                disabled={isFetching}
-              />
+          {/* Controls Section - Better responsive layout */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full xl:w-auto">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-3 w-full xl:w-auto">
+              <div className="w-full md:w-auto md:min-w-[200px] flex-shrink-0">
+                <DateRangeSelect 
+                  selectedDate={dateRange}
+                  onDateChange={handleDateRangeChange}
+                  disabled={isFetching}
+                />
+              </div>
+              
+              <div className="w-full md:w-auto md:min-w-[200px] flex-shrink-0">
+                <SearchCommand
+                  data={combinedData}
+                  setFilteredData={setFilteredData}
+                  isLoading={isFetching}
+                  resetPagination={resetPagination}
+                />
+              </div>
             </div>
             
-            <div className="w-full sm:w-auto min-w-[200px] flex-shrink">
-              <SearchCommand
-                data={combinedData}
-                setFilteredData={setFilteredData}
-                isLoading={isFetching}
-                resetPagination={resetPagination}
-              />
-            </div>
-            
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-start">
               <Button
                 variant="ghost"
                 size="icon"
