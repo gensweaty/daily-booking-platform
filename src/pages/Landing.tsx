@@ -6,7 +6,7 @@ import { FooterSection } from "@/components/landing/FooterSection";
 import { CursorFollower } from "@/components/landing/CursorFollower";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
-import { lazy, Suspense, memo, useEffect, useState, useMemo } from "react";
+import { lazy, Suspense, memo, useEffect, useState } from "react";
 import "@/components/landing/animations.css";
 
 // Lazy load non-critical components for better performance
@@ -20,70 +20,63 @@ const LazyFooterSection = lazy(() =>
   import("@/components/landing/FooterSection").then(module => ({ default: module.FooterSection }))
 );
 
-// Ultra lightweight skeleton
+// Optimized loading placeholder component
 const SectionSkeleton = memo(({ className }: { className?: string }) => (
-  <div className={cn("bg-background/30 rounded-lg", className)}>
-    <div className="h-96 bg-gradient-to-r from-background via-muted/5 to-background" />
+  <div className={cn("animate-pulse bg-background/30 rounded-lg", className)}>
+    <div className="h-96 bg-gradient-to-r from-background via-muted/10 to-background" />
   </div>
 ));
 
-// Lightweight cursor follower with better device detection
-const OptimizedCursorFollower = memo(() => {
-  const [showCursor, setShowCursor] = useState(false);
+// Memoized cursor follower that only renders on desktop
+const MemoizedCursorFollower = memo(() => {
+  const [isDesktop, setIsDesktop] = useState(false);
   
   useEffect(() => {
-    const isDesktopWithMouse = () => {
-      return window.innerWidth >= 1024 && 
-             !('ontouchstart' in window) && 
-             matchMedia('(pointer: fine)').matches;
-    };
-    
-    if (isDesktopWithMouse()) {
-      setShowCursor(true);
-    }
+    const checkDevice = () => setIsDesktop(window.innerWidth >= 1024 && !('ontouchstart' in window));
+    checkDevice();
+    window.addEventListener('resize', checkDevice);
+    return () => window.removeEventListener('resize', checkDevice);
   }, []);
   
-  return showCursor ? <CursorFollower /> : null;
+  return isDesktop ? <CursorFollower /> : null;
 });
 
-// Minimal background with conditional rendering
-const MinimalBackground = memo(() => {
-  const [showAnimations, setShowAnimations] = useState(false);
-  
-  const deviceCapability = useMemo(() => {
-    // Type-safe navigator property access
-    const connection = (navigator as any).connection;
-    const deviceMemory = (navigator as any).deviceMemory;
-    
-    return {
-      isDesktop: window.innerWidth >= 1024,
-      hasGoodConnection: !connection || connection.effectiveType === '4g',
-      hasEnoughMemory: !deviceMemory || deviceMemory >= 4
-    };
-  }, []);
+// Reduced background elements component for better performance
+const OptimizedBackground = memo(() => {
+  const [showComplexAnimations, setShowComplexAnimations] = useState(false);
   
   useEffect(() => {
-    // Only show complex backgrounds on capable devices after initial load
+    // Only show complex animations on high-performance devices
     const timer = setTimeout(() => {
-      if (deviceCapability.isDesktop && deviceCapability.hasGoodConnection && deviceCapability.hasEnoughMemory) {
-        setShowAnimations(true);
-      }
-    }, 1500);
+      const isHighPerformance = window.innerWidth >= 1024 && 
+                               !('ontouchstart' in window) &&
+                               navigator.hardwareConcurrency >= 4;
+      setShowComplexAnimations(isHighPerformance);
+    }, 1000); // Delay to prioritize initial render
     
     return () => clearTimeout(timer);
-  }, [deviceCapability]);
+  }, []);
 
   return (
-    <div className="fixed inset-0 pointer-events-none">
-      {/* Simple gradient background */}
+    <div className="fixed inset-0 pointer-events-none gpu-layer opacity-70">
+      {/* Simplified background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/1 via-background to-accent/1" />
       
-      {/* Minimal floating elements - only on high-end devices */}
-      {showAnimations && (
-        <>
-          <div className="floating-shape floating-shape-1" />
-          <div className="floating-shape floating-shape-2" />
-        </>
+      {/* Only show floating shapes on high-performance devices */}
+      {showComplexAnimations && (
+        <div className="hidden xl:block">
+          <div className="floating-shape floating-shape-1 will-animate" />
+          <div className="floating-shape floating-shape-2 will-animate" />
+          <div className="floating-shape floating-shape-3 will-animate" />
+        </div>
+      )}
+      
+      {/* Minimal mesh overlay - only on desktop */}
+      {showComplexAnimations && (
+        <div className="hidden lg:block opacity-30">
+          <div className="absolute top-0 right-0 w-1/4 h-1/4 bg-gradient-radial from-primary/2 to-transparent will-animate" />
+          <div className="absolute bottom-0 left-0 w-1/3 h-1/3 bg-gradient-radial from-accent/2 to-transparent will-animate" />
+        </div>
       )}
     </div>
   );
@@ -91,35 +84,29 @@ const MinimalBackground = memo(() => {
 
 export const Landing = () => {
   const { language } = useLanguage();
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   
-  // Fast initialization
+  // Optimize initial loading
   useEffect(() => {
-    setIsInitialized(true);
+    const timer = setTimeout(() => setIsLoaded(true), 100);
+    return () => clearTimeout(timer);
   }, []);
-  
-  if (!isInitialized) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-      </div>
-    );
-  }
   
   return (
     <div className={cn(
-      "min-h-screen bg-background font-sans relative overflow-hidden",
-      language === 'ka' ? 'lang-ka' : ''
+      "min-h-screen bg-background font-sans relative overflow-hidden gpu-layer",
+      language === 'ka' ? 'lang-ka' : '',
+      !isLoaded ? 'opacity-0' : 'opacity-100 transition-opacity duration-500'
     )}>
-      {/* Minimal background */}
-      <MinimalBackground />
+      {/* Optimized background with performance considerations */}
+      <OptimizedBackground />
 
       <div className="relative z-10">
-        {/* Above-the-fold content loads immediately */}
-        <OptimizedCursorFollower />
+        {/* Critical above-the-fold content loads immediately */}
+        <MemoizedCursorFollower />
         <HeroSection />
         
-        {/* Below-the-fold content with intersection observer lazy loading */}
+        {/* Non-critical content loads lazily with optimized suspense */}
         <Suspense fallback={<SectionSkeleton className="my-20 mx-4 h-80" />}>
           <LazyFeatureSection />
         </Suspense>
