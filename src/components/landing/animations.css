@@ -27,6 +27,20 @@
   50% { background-position: 100% 50%; }
 }
 
+/* Ultra slow gentle signup glow - 3x slower than the previous version (27s total) */
+@keyframes ultraSlowGentleSignUpGlow {
+  0%, 100% { 
+    box-shadow: 0 0 8px rgba(155, 135, 245, 0.15), 
+                0 0 16px rgba(155, 135, 245, 0.08),
+                0 0 24px rgba(155, 135, 245, 0.04);
+  }
+  50% { 
+    box-shadow: 0 0 12px rgba(155, 135, 245, 0.2), 
+                0 0 24px rgba(155, 135, 245, 0.12),
+                0 0 36px rgba(155, 135, 245, 0.06);
+  }
+}
+
 /* Much slower, gentler pulse glow for Sign Up button - 3x slower than before */
 @keyframes verySlowGentleSignUpGlow {
   0%, 100% { 
@@ -119,6 +133,12 @@
   100% { transform: scale(1.05); }
 }
 
+/* Restored gradient text animations with hover effects */
+@keyframes gradientTextShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
 /* Utility Classes */
 .animate-float { animation: float 6s ease-in-out infinite; }
 .animate-float-slow { animation: floatSlow 8s ease-in-out infinite; }
@@ -129,6 +149,7 @@
 .animate-gradient-shift { animation: subtleShift 8s ease infinite; }
 .animate-pulse-glow { animation: ultraGentlePulseGlow 12s ease-in-out infinite; }
 .animate-gentle-signup-glow { animation: verySlowGentleSignUpGlow 9s ease-in-out infinite; }
+.animate-ultra-slow-gentle-signup-glow { animation: ultraSlowGentleSignUpGlow 27s ease-in-out infinite; }
 .animate-mesh-move { animation: meshMove 20s ease-in-out infinite; }
 
 /* Glass Morphism - removed glow effects */
@@ -166,7 +187,7 @@
   transform: scale(1.05);
 }
 
-/* Controlled Text Gradients - animate only on load and hover */
+/* Restored Enhanced Text Gradients with original colors and hover effects */
 .enhanced-gradient-text {
   background: linear-gradient(45deg, #9b87f5, #f97316, #4ade80, #9b87f5);
   background-size: 300% 300%;
@@ -177,7 +198,7 @@
 }
 
 .enhanced-gradient-text:hover {
-  animation: subtleShift 4s ease infinite;
+  animation: gradientTextShift 4s ease infinite;
 }
 
 /* Floating Shapes - Reduced opacity and size */
