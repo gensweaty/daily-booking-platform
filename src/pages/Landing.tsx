@@ -51,10 +51,14 @@ const MinimalBackground = memo(() => {
   const [showAnimations, setShowAnimations] = useState(false);
   
   const deviceCapability = useMemo(() => {
+    // Type-safe navigator property access
+    const connection = (navigator as any).connection;
+    const deviceMemory = (navigator as any).deviceMemory;
+    
     return {
       isDesktop: window.innerWidth >= 1024,
-      hasGoodConnection: !navigator.connection || navigator.connection.effectiveType === '4g',
-      hasEnoughMemory: navigator.deviceMemory ? navigator.deviceMemory >= 4 : true
+      hasGoodConnection: !connection || connection.effectiveType === '4g',
+      hasEnoughMemory: !deviceMemory || deviceMemory >= 4
     };
   }, []);
   
@@ -64,7 +68,7 @@ const MinimalBackground = memo(() => {
       if (deviceCapability.isDesktop && deviceCapability.hasGoodConnection && deviceCapability.hasEnoughMemory) {
         setShowAnimations(true);
       }
-    }, 2000);
+    }, 1500);
     
     return () => clearTimeout(timer);
   }, [deviceCapability]);
