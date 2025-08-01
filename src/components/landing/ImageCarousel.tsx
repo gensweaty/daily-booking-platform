@@ -27,7 +27,7 @@ interface ImageCarouselProps {
   imageHeight?: string;
 }
 
-// Memoized image component for better performance
+// Simplified image component with better loading handling
 const CarouselImage = memo(({ 
   src, 
   alt, 
@@ -42,23 +42,35 @@ const CarouselImage = memo(({
   loading?: 'lazy' | 'eager';
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
   
   return (
     <div className="relative overflow-hidden">
-      <img
-        src={src}
-        alt={alt}
-        loading={loading}
-        className={cn(
-          "w-full h-full transition-all duration-300 hover:scale-105",
-          customStyle || objectFit,
-          isLoaded ? "opacity-100" : "opacity-0"
-        )}
-        onLoad={() => setIsLoaded(true)}
-        style={{ imageRendering: 'auto' }}
-      />
-      {!isLoaded && (
-        <div className="absolute inset-0 bg-gradient-to-r from-background via-muted/20 to-background animate-pulse" />
+      {!hasError ? (
+        <img
+          src={src}
+          alt={alt}
+          loading={loading}
+          className={cn(
+            "w-full h-full transition-transform duration-300 hover:scale-105",
+            customStyle || objectFit,
+            isLoaded ? "opacity-100" : "opacity-0"
+          )}
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setHasError(true)}
+          style={{ 
+            imageRendering: 'auto',
+            backfaceVisibility: 'hidden',
+            transform: 'translateZ(0)' // Force hardware acceleration
+          }}
+        />
+      ) : (
+        <div className="w-full h-full bg-muted/20 flex items-center justify-center">
+          <span className="text-muted-foreground text-sm">Image not available</span>
+        </div>
+      )}
+      {!isLoaded && !hasError && (
+        <div className="absolute inset-0 bg-gradient-to-r from-background via-muted/10 to-background animate-pulse" />
       )}
     </div>
   );
@@ -78,13 +90,13 @@ export const ImageCarousel = ({
   const isMobile = useMediaQuery("(max-width: 640px)");
   const isTablet = useMediaQuery("(max-width: 1024px)");
 
-  // Memoized interval setup for auto-sliding
+  // Simplified auto-slide setup
   const setupAutoSlide = useCallback(() => {
     if (!api) return;
 
     const interval = setInterval(() => {
       api.scrollNext();
-    }, 5000); // 5 seconds
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [api]);
@@ -129,11 +141,11 @@ export const ImageCarousel = ({
             <CarouselItem key={index} className="md:basis-1/1">
               <div className="p-1">
                 <div className={cn(
-                  "rounded-xl overflow-hidden transition-shadow duration-300 hover:shadow-lg",
+                  "rounded-xl overflow-hidden transition-shadow duration-200 hover:shadow-lg",
                   responsiveHeight
                 )}>
                   <div className={cn(
-                    "relative h-full w-full flex items-center justify-center bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm",
+                    "relative h-full w-full flex items-center justify-center bg-gradient-to-br from-white/90 to-white/70",
                     image.customPadding || 'p-0'
                   )}>
                     <CarouselImage
@@ -141,11 +153,11 @@ export const ImageCarousel = ({
                       alt={image.alt}
                       customStyle={image.customStyle}
                       objectFit={objectFit}
-                      loading={index === 0 ? 'eager' : 'lazy'} // Load first image eagerly
+                      loading={index === 0 ? 'eager' : 'lazy'}
                     />
                     {showTitles && image.title && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white p-4 text-center backdrop-blur-sm">
-                        <span className="font-medium drop-shadow-lg">{image.title}</span>
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white p-4 text-center">
+                        <span className="font-medium">{image.title}</span>
                       </div>
                     )}
                   </div>
@@ -155,37 +167,35 @@ export const ImageCarousel = ({
           ))}
         </CarouselContent>
         
-        {/* Optimized navigation arrows */}
+        {/* Simplified navigation arrows */}
         <CarouselPrevious 
           className={cn(
             permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-            "transition-opacity duration-300",
-            "absolute left-2 md:-left-16 glass-morphism hover:bg-white/90 dark:hover:bg-gray-800/90",
-            "border-none shadow-lg",
-            "w-8 h-8 md:w-10 md:h-10 rounded-full",
-            "gpu-layer" // GPU acceleration for smooth animations
+            "transition-opacity duration-200",
+            "absolute left-2 md:-left-16 bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800",
+            "border border-gray-200 dark:border-gray-700 shadow-lg",
+            "w-8 h-8 md:w-10 md:h-10 rounded-full"
           )}
         />
         <CarouselNext 
           className={cn(
             permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-            "transition-opacity duration-300",
-            "absolute right-2 md:-right-16 glass-morphism hover:bg-white/90 dark:hover:bg-gray-800/90",
-            "border-none shadow-lg",
-            "w-8 h-8 md:w-10 md:h-10 rounded-full",
-            "gpu-layer" // GPU acceleration for smooth animations
+            "transition-opacity duration-200",
+            "absolute right-2 md:-right-16 bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800",
+            "border border-gray-200 dark:border-gray-700 shadow-lg",
+            "w-8 h-8 md:w-10 md:h-10 rounded-full"
           )}
         />
       </Carousel>
       
-      {/* Optimized Carousel Indicators */}
+      {/* Simplified Carousel Indicators */}
       {count > 1 && (
         <div className="flex justify-center space-x-1 mt-4">
           {Array.from({ length: count }, (_, index) => (
             <button
               key={index}
               className={cn(
-                "w-2 h-2 rounded-full transition-all duration-300 gpu-layer",
+                "w-2 h-2 rounded-full transition-all duration-200",
                 current === index + 1
                   ? "bg-primary w-6"
                   : "bg-primary/30 hover:bg-primary/60"
