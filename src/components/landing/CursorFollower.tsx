@@ -1,89 +1,70 @@
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect } from "react";
 
 export const CursorFollower = () => {
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [isVisible, setIsVisible] = useState(false);
-  const rafRef = useRef<number>();
-  const lastPositionRef = useRef({ x: 0, y: 0 });
-
   useEffect(() => {
-    console.log("CursorFollower mounted");
+    // Create the ball elements
+    const blur = document.createElement("div");
+    blur.style.position = "fixed";
+    blur.style.zIndex = "999999";
+    blur.style.pointerEvents = "none";
+    blur.style.width = "32px";
+    blur.style.height = "32px";
+    blur.style.borderRadius = "50%";
+    blur.style.background = "radial-gradient(circle at 50% 50%, #8b5cf6cc 40%, #a3e63544 100%)"; // adjust for your colors
+    blur.style.filter = "blur(6px)";
+    blur.style.transition = "opacity 0.15s, background 0.15s";
+    blur.style.opacity = "1";
+    blur.style.left = "0px";
+    blur.style.top = "0px";
+    blur.style.transform = "translate(-16px, -16px)";
     
-    const updateMousePosition = (e: MouseEvent) => {
-      // Cancel any pending animation frame
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-      }
-      
-      // Store the latest mouse position
-      lastPositionRef.current = { x: e.clientX, y: e.clientY };
-      
-      // Use requestAnimationFrame for smooth updates
-      rafRef.current = requestAnimationFrame(() => {
-        setMousePosition({ x: lastPositionRef.current.x, y: lastPositionRef.current.y });
-        if (!isVisible) setIsVisible(true);
-      });
+    const dot = document.createElement("div");
+    dot.style.position = "fixed";
+    dot.style.zIndex = "999999";
+    dot.style.pointerEvents = "none";
+    dot.style.width = "8px";
+    dot.style.height = "8px";
+    dot.style.borderRadius = "50%";
+    dot.style.background = "#8b5cf6"; // your main color
+    dot.style.left = "0px";
+    dot.style.top = "0px";
+    dot.style.opacity = "1";
+    dot.style.transform = "translate(-4px, -4px)";
+
+    document.body.appendChild(blur);
+    document.body.appendChild(dot);
+
+    const move = (e: MouseEvent) => {
+      blur.style.left = `${e.clientX}px`;
+      blur.style.top = `${e.clientY}px`;
+      dot.style.left = `${e.clientX}px`;
+      dot.style.top = `${e.clientY}px`;
+      blur.style.opacity = "1";
+      dot.style.opacity = "1";
+    };
+    const hide = () => {
+      blur.style.opacity = "0";
+      dot.style.opacity = "0";
+    };
+    const show = () => {
+      blur.style.opacity = "1";
+      dot.style.opacity = "1";
     };
 
-    const handleMouseLeave = () => {
-      setIsVisible(false);
-    };
-
-    const handleMouseEnter = () => {
-      setIsVisible(true);
-    };
-
-    // Add event listeners to document.body for better coverage
-    document.body.addEventListener('mousemove', updateMousePosition, { passive: true });
-    document.body.addEventListener('mouseleave', handleMouseLeave);
-    document.body.addEventListener('mouseenter', handleMouseEnter);
-    
-    // Also add to window as fallback
-    window.addEventListener('mousemove', updateMousePosition, { passive: true });
+    window.addEventListener("mousemove", move, { passive: true });
+    window.addEventListener("mouseleave", hide);
+    window.addEventListener("mouseenter", show);
 
     return () => {
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-      }
-      document.body.removeEventListener('mousemove', updateMousePosition);
-      document.body.removeEventListener('mouseleave', handleMouseLeave);
-      document.body.removeEventListener('mouseenter', handleMouseEnter);
-      window.removeEventListener('mousemove', updateMousePosition);
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseleave", hide);
+      window.removeEventListener("mouseenter", show);
+      blur.remove();
+      dot.remove();
     };
-  }, [isVisible]);
+  }, []);
 
-  if (!isVisible) return null;
-
-  return (
-    <>
-      {/* Outer blur circle */}
-      <div
-        className="fixed pointer-events-none z-[9999]"
-        style={{
-          left: mousePosition.x - 16,
-          top: mousePosition.y - 16,
-          width: '32px',
-          height: '32px',
-          willChange: 'transform',
-        }}
-      >
-        <div className="w-8 h-8 bg-gradient-to-r from-primary/30 to-accent/30 rounded-full blur-sm" />
-      </div>
-      
-      {/* Inner dot */}
-      <div
-        className="fixed pointer-events-none z-[9999]"
-        style={{
-          left: mousePosition.x - 4,
-          top: mousePosition.y - 4,
-          width: '8px',
-          height: '8px',
-          willChange: 'transform',
-        }}
-      >
-        <div className="w-2 h-2 bg-primary rounded-full" />
-      </div>
-    </>
-  );
+  // Nothing rendered by React, all managed via DOM for speed
+  return null;
 };
