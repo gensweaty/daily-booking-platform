@@ -20,13 +20,15 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        purple: "bg-gradient-to-r from-[#9b87f5] to-[#f97316] text-white hover:from-[#8a76e4] hover:to-[#ea580c] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/20 before:to-transparent before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 animate-ultra-slow-gentle-signup-glow",
+        purple: "bg-gradient-to-r from-[#9b87f5] to-[#b8a8f8] text-white hover:from-[#8a76e4] hover:to-[#a396f0] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/20 before:to-transparent before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 animate-ultra-slow-gentle-signup-glow",
         green: "bg-gradient-to-r from-[#4ade80] to-[#86efac] text-white hover:from-[#22c55e] hover:to-[#6ee7b7] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/20 before:to-transparent before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100",
         orange: "bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white hover:from-[#ea580c] hover:to-[#f97316] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/20 before:to-transparent before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100",
         success: "bg-[#10b981] text-white hover:bg-[#059669]",
         info: "bg-[#3b82f6] text-white hover:bg-[#2563eb]",
         warning: "bg-[#f59e0b] text-white hover:bg-[#d97706]",
+        // Enhanced approve variant with gradient and animations
         approve: "bg-gradient-to-r from-[#10b981] to-[#34d399] text-white hover:from-[#059669] hover:to-[#10b981] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-green-500/20 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/20 before:to-transparent before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100",
+        // Ultra toned down dynamic variant for action buttons - 3x less intense
         dynamic: "bg-gradient-to-r from-primary/70 via-primary/75 to-primary/70 text-primary-foreground shadow-sm hover:shadow-md transform hover:-translate-y-0.5 hover:scale-[1.005] transition-all duration-1500 ease-out border-0 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/2 before:via-white/3 before:to-white/2 before:opacity-0 before:transition-opacity before:duration-1500 hover:before:opacity-100 after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-white/1 after:to-transparent after:translate-x-[-100%] after:transition-transform after:duration-3000 hover:after:translate-x-[100%]"
       },
       size: {
