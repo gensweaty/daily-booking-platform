@@ -187,9 +187,9 @@
   transform: scale(1.05);
 }
 
-/* Restored Enhanced Text Gradients with original colors and hover effects */
+/* Enhanced Text Gradients with swapped colors - now orange is primary, green on hover */
 .enhanced-gradient-text {
-  background: linear-gradient(45deg, #9b87f5, #f97316, #4ade80, #9b87f5);
+  background: linear-gradient(45deg, #f97316, #4ade80, #9b87f5, #f97316);
   background-size: 300% 300%;
   -webkit-background-clip: text;
   background-clip: text;
