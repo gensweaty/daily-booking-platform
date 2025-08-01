@@ -92,8 +92,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(
           buttonVariants({ variant, size, className }),
           isGeorgian ? "ka-text georgian-text-fix" : "",
-          // Remove aggressive pulse animation for dynamic buttons
-          variant === "dynamic" ? "" : ""
+          // Add GPU optimization for animated buttons
+          (variant === "purple" || variant === "dynamic") ? "gpu-layer will-animate" : ""
         )}
         ref={ref}
         {...props}

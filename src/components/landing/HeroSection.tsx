@@ -1,10 +1,11 @@
+
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Menu, X, Sparkles, LogOut } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -13,30 +14,35 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const productImages = [{
   src: "/lovable-uploads/89b6a836-d818-4753-a3f8-9d0d83dc7406.png", // Pet Grooming Salon
   alt: "Pet Grooming Salon",
-  loading: "lazy",
+  loading: "lazy" as const,
   customStyle: "object-cover", 
   customPadding: "p-4" // Adding padding specifically for this image
 }, {
   src: "/lovable-uploads/a00576d5-fb16-4a4b-a313-0e1cbb61b00c.png",
   alt: "Calendar Preview",
-  loading: "lazy"
+  loading: "lazy" as const
 }, {
   src: "/lovable-uploads/7a8c5cac-2431-44db-8e9b-ca6e5ba6d633.png",
   alt: "Analytics Preview",
-  loading: "lazy"
+  loading: "lazy" as const
 }, {
   src: "/lovable-uploads/292b8b91-64ee-4bf3-b4e6-1e68f77a6563.png",
   alt: "Tasks Preview",
-  loading: "lazy"
+  loading: "lazy" as const
 }, {
   src: "/lovable-uploads/f35ff4e8-3ae5-4bc2-95f6-c3bef5d53689.png",
   alt: "CRM Preview",
-  loading: "lazy"
+  loading: "lazy" as const
 }];
+
+// Memoized components for better performance
+const MemoizedImageCarousel = memo(ImageCarousel);
+const MemoizedAvatar = memo(Avatar);
 
 export const HeroSection = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -135,12 +141,12 @@ export const HeroSection = () => {
           onClick={handleDashboardClick}
           className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm flex items-center gap-2 glass-morphism animate-pulse-glow"
         >
-          <Avatar className="h-6 w-6">
+          <MemoizedAvatar className="h-6 w-6">
             <AvatarImage src={user?.user_metadata?.avatar_url} />
             <AvatarFallback className="bg-white text-primary text-xs">
               {user?.email?.charAt(0)?.toUpperCase() || 'U'}
             </AvatarFallback>
-          </Avatar>
+          </MemoizedAvatar>
           <LanguageText>{language === 'ka' ? "მართვის პანელი" : "Dashboard"}</LanguageText>
         </Button>
         
@@ -169,12 +175,12 @@ export const HeroSection = () => {
           className="p-2 glass-morphism hover:bg-primary/20 transition-all hover:scale-105"
           aria-label="Go to Dashboard"
         >
-          <Avatar className="h-7 w-7">
+          <MemoizedAvatar className="h-7 w-7">
             <AvatarImage src={user?.user_metadata?.avatar_url} />
             <AvatarFallback className="bg-primary text-primary-foreground text-xs">
               {user?.email?.charAt(0)?.toUpperCase() || 'U'}
             </AvatarFallback>
-          </Avatar>
+          </MemoizedAvatar>
         </Button>
         
         <Button 
@@ -214,7 +220,7 @@ export const HeroSection = () => {
           </Button>
         </Link>
         <Link to="/signup">
-          <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm md:text-base animate-gradient-shift ripple-container" style={{backgroundSize: '200% 200%'}} onClick={(e) => {
+          <Button variant="purple" className="text-sm md:text-base ripple-container will-animate gpu-layer" onClick={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             const ripple = document.createElement('span');
             ripple.classList.add('ripple-effect');
@@ -261,7 +267,7 @@ export const HeroSection = () => {
             </Button>
           </Link>
           <Link to="/signup" onClick={handleMenuClose} role="menuitem">
-            <Button className="w-full justify-start bg-gradient-to-r from-primary to-accent hover:opacity-90 animate-gradient-shift" style={{backgroundSize: '200% 200%'}}>
+            <Button variant="purple" className="w-full justify-start gpu-layer will-animate">
               {language === 'ka' ? "რეგისტრაცია" : "Sign Up"}
             </Button>
           </Link>
@@ -301,7 +307,10 @@ export const HeroSection = () => {
           </nav>
 
           {/* Hero content with lower z-index on mobile when menu is open */}
-          <main className={`grid md:grid-cols-2 gap-6 md:gap-8 lg:gap-12 items-center mt-6 md:mt-8 lg:mt-12 ${isMobileMenuOpen ? 'relative z-10' : 'relative z-20'}`}>
+          <main className={cn(
+            "grid md:grid-cols-2 gap-6 md:gap-8 lg:gap-12 items-center mt-6 md:mt-8 lg:mt-12 relative",
+            isMobileMenuOpen ? 'z-10' : 'z-20'
+          )}>
             <div className="space-y-3 md:space-y-4 animate-fade-in">
               <article className="space-y-2 md:space-y-4">
                 <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold enhanced-gradient-text drop-shadow-lg">
@@ -315,22 +324,27 @@ export const HeroSection = () => {
                 </h3>
               </article>
               <div className="pt-2 md:pt-3 relative">
-                {/* Floating particles around CTA */}
-                <div className="absolute -inset-4 pointer-events-none">
-                  <div className="absolute top-0 left-0 w-2 h-2 bg-primary/30 rounded-full animate-float" />
-                  <div className="absolute top-2 right-0 w-1 h-1 bg-accent/40 rounded-full animate-float-slow" />
-                  <div className="absolute bottom-0 left-1/2 w-1.5 h-1.5 bg-primary/20 rounded-full animate-float" style={{animationDelay: '1s'}} />
+                {/* Floating particles around CTA - only on larger screens for performance */}
+                <div className="absolute -inset-4 pointer-events-none hidden lg:block">
+                  <div className="absolute top-0 left-0 w-2 h-2 bg-primary/30 rounded-full animate-float will-animate" />
+                  <div className="absolute top-2 right-0 w-1 h-1 bg-accent/40 rounded-full animate-float-slow will-animate" />
+                  <div className="absolute bottom-0 left-1/2 w-1.5 h-1.5 bg-primary/20 rounded-full animate-float will-animate" style={{animationDelay: '1s'}} />
                 </div>
                 <Link to="/signup">
-                  <Button size={isMobile ? "default" : "lg"} className="group relative bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 ripple-container animate-pulse-glow" onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const ripple = document.createElement('span');
-                    ripple.classList.add('ripple-effect');
-                    ripple.style.left = `${e.clientX - rect.left}px`;
-                    ripple.style.top = `${e.clientY - rect.top}px`;
-                    e.currentTarget.appendChild(ripple);
-                    setTimeout(() => ripple.remove(), 600);
-                  }}>
+                  <Button 
+                    size={isMobile ? "default" : "lg"} 
+                    variant="purple"
+                    className="group relative ripple-container will-animate gpu-layer" 
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const ripple = document.createElement('span');
+                      ripple.classList.add('ripple-effect');
+                      ripple.style.left = `${e.clientX - rect.left}px`;
+                      ripple.style.top = `${e.clientY - rect.top}px`;
+                      e.currentTarget.appendChild(ripple);
+                      setTimeout(() => ripple.remove(), 600);
+                    }}
+                  >
                     <span className="flex items-center gap-2">
                       {language === 'ka' ? "გამოსცადეთ უფასოდ" : t('nav.startJourney')}
                       <Sparkles className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} animate-pulse`} aria-hidden="true" />
@@ -341,7 +355,7 @@ export const HeroSection = () => {
             </div>
             <div className="animate-fade-in transform-3d">
               <div className="hover-tilt transition-all duration-300">
-                <ImageCarousel 
+                <MemoizedImageCarousel 
                   images={productImages} 
                   permanentArrows={true} 
                   imageHeight="h-[480px]"

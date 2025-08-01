@@ -27,6 +27,20 @@
   50% { background-position: 100% 50%; }
 }
 
+/* Much slower, gentler pulse glow for Sign Up button - 3x slower than before */
+@keyframes verySlowGentleSignUpGlow {
+  0%, 100% { 
+    box-shadow: 0 0 8px rgba(155, 135, 245, 0.15), 
+                0 0 16px rgba(155, 135, 245, 0.08),
+                0 0 24px rgba(155, 135, 245, 0.04);
+  }
+  50% { 
+    box-shadow: 0 0 12px rgba(155, 135, 245, 0.2), 
+                0 0 24px rgba(155, 135, 245, 0.12),
+                0 0 36px rgba(155, 135, 245, 0.06);
+  }
+}
+
 /* Slower, gentler pulse glow for Sign Up button - matches pricing section timing */
 @keyframes gentleSignUpGlow {
   0%, 100% { 
@@ -114,7 +128,7 @@
 .animate-ultra-gentle-float { animation: ultraGentleFloat 18s ease-in-out infinite; }
 .animate-gradient-shift { animation: subtleShift 8s ease infinite; }
 .animate-pulse-glow { animation: ultraGentlePulseGlow 12s ease-in-out infinite; }
-.animate-gentle-signup-glow { animation: gentleSignUpGlow 3s ease-in-out infinite; }
+.animate-gentle-signup-glow { animation: verySlowGentleSignUpGlow 9s ease-in-out infinite; }
 .animate-mesh-move { animation: meshMove 20s ease-in-out infinite; }
 
 /* Glass Morphism - removed glow effects */
@@ -245,4 +259,23 @@
 .dark .enhanced-card:hover {
   border-color: rgba(155, 135, 245, 0.5);
   box-shadow: 0 20px 40px rgba(155, 135, 245, 0.1);
+}
+
+/* Performance optimizations */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Layer separation for better performance */
+.will-animate {
+  will-change: transform, opacity;
+}
+
+.gpu-layer {
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
