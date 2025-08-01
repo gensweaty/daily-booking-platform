@@ -9,43 +9,34 @@ export const CursorFollower = () => {
   useEffect(() => {
     console.log("CursorFollower mounted");
     
-    let animationFrameId: number;
-    
     const updateMousePosition = (e: MouseEvent) => {
-      // Cancel previous animation frame to avoid redundant updates
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
+      console.log("Mouse moving:", e.clientX, e.clientY);
+      // Update position immediately without requestAnimationFrame
+      setMousePosition({ x: e.clientX, y: e.clientY });
+      if (!isVisible) {
+        setIsVisible(true);
       }
-      
-      animationFrameId = requestAnimationFrame(() => {
-        console.log("Mouse moving:", e.clientX, e.clientY);
-        setMousePosition({ x: e.clientX, y: e.clientY });
-        if (!isVisible) {
-          setIsVisible(true);
-        }
-      });
     };
 
     const handleMouseLeave = () => {
+      console.log("Mouse left viewport");
       setIsVisible(false);
     };
 
     const handleMouseEnter = () => {
+      console.log("Mouse entered viewport");
       setIsVisible(true);
     };
 
-    // Use only window events for more consistent tracking
-    window.addEventListener('mousemove', updateMousePosition, { passive: true });
-    window.addEventListener('mouseleave', handleMouseLeave, { passive: true });
-    window.addEventListener('mouseenter', handleMouseEnter, { passive: true });
+    // Use document.body for more reliable tracking across the entire page
+    document.body.addEventListener('mousemove', updateMousePosition, { passive: true });
+    document.addEventListener('mouseleave', handleMouseLeave, { passive: true });
+    document.addEventListener('mouseenter', handleMouseEnter, { passive: true });
 
     return () => {
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-      window.removeEventListener('mousemove', updateMousePosition);
-      window.removeEventListener('mouseleave', handleMouseLeave);
-      window.removeEventListener('mouseenter', handleMouseEnter);
+      document.body.removeEventListener('mousemove', updateMousePosition);
+      document.removeEventListener('mouseleave', handleMouseLeave);
+      document.removeEventListener('mouseenter', handleMouseEnter);
     };
   }, [isVisible]);
 
@@ -53,45 +44,30 @@ export const CursorFollower = () => {
 
   return (
     <>
+      {/* Outer glow */}
       <motion.div
         className="fixed pointer-events-none z-[9999]"
         style={{
           left: mousePosition.x - 16,
           top: mousePosition.y - 16,
         }}
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ 
-          opacity: 1, 
-          scale: 1 
-        }}
-        exit={{ opacity: 0, scale: 0.8 }}
-        transition={{
-          type: "spring",
-          mass: 0.2,
-          stiffness: 100,
-          damping: 15,
-        }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.1 }}
       >
         <div className="w-8 h-8 bg-gradient-to-r from-primary/30 to-accent/30 rounded-full blur-sm" />
       </motion.div>
+      
+      {/* Inner dot */}
       <motion.div
         className="fixed pointer-events-none z-[9999]"
         style={{
           left: mousePosition.x - 4,
           top: mousePosition.y - 4,
         }}
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ 
-          opacity: 1, 
-          scale: 1 
-        }}
-        exit={{ opacity: 0, scale: 0.8 }}
-        transition={{
-          type: "spring",
-          mass: 0.1,
-          stiffness: 150,
-          damping: 10,
-        }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.1 }}
       >
         <div className="w-2 h-2 bg-primary rounded-full" />
       </motion.div>
