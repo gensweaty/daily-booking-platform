@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -5,7 +6,7 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { memo } from "react";
 
 export const HeroSection = memo(() => {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
 
   return (
     <section className="relative min-h-screen flex items-center justify-center px-4 py-20 overflow-hidden gpu-layer">
@@ -31,27 +32,23 @@ export const HeroSection = memo(() => {
         <div className="space-y-6">
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight">
             <span className="enhanced-gradient-text block">
-              <LanguageText 
-                en="Organize Your Life"
-                es="Organiza Tu Vida" 
-                ka="მოაწყვე შენი ცხოვრება"
-              />
+              <LanguageText>
+                {language === 'en' ? 'Organize Your Life' : language === 'es' ? 'Organiza Tu Vida' : 'მოაწყვე შენი ცხოვრება'}
+              </LanguageText>
             </span>
             <span className="block mt-2">
-              <LanguageText 
-                en="Effortlessly"
-                es="Sin Esfuerzo"
-                ka="უდანაშაულოდ"
-              />
+              <LanguageText>
+                {language === 'en' ? 'Effortlessly' : language === 'es' ? 'Sin Esfuerzo' : 'უდანაშაულოდ'}
+              </LanguageText>
             </span>
           </h1>
           
           <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            <LanguageText 
-              en="Transform your productivity with our all-in-one platform. Manage tasks, schedule events, track progress, and collaborate seamlessly."
-              es="Transforma tu productividad con nuestra plataforma todo en uno. Gestiona tareas, programa eventos, rastrea el progreso y colabora sin problemas."
-              ka="გარდაქმენი შენი პროდუქტივობა ჩვენი ყველაფერ-ერთ-ში პლატფორმით. მართე ამოცანები, დაგეგმე ღონისძიებები, თვალყუარი გაუტანე პროგრესს და თანამშრომლობდი უსწორფლოდ."
-            />
+            <LanguageText>
+              {language === 'en' ? 'Transform your productivity with our all-in-one platform. Manage tasks, schedule events, track progress, and collaborate seamlessly.' : 
+               language === 'es' ? 'Transforma tu productividad con nuestra plataforma todo en uno. Gestiona tareas, programa eventos, rastrea el progreso y colabora sin problemas.' : 
+               'გარდაქმენი შენი პროდუქტივობა ჩვენი ყველაფერ-ერთ-ში პლატფორმით. მართე ამოცანები, დაგეგმე ღონისძიებები, თვალყუარი გაუტანე პროგრესს და თანამშრომლობდი უსწორფლოდ.'}
+            </LanguageText>
           </p>
         </div>
 
@@ -61,7 +58,7 @@ export const HeroSection = memo(() => {
             size="lg" 
             className="group transition-all duration-300 px-8 py-4 text-lg font-semibold"
           >
-            <LanguageText en="Start Journey" es="Comenzar Viaje" ka="დაიწყე მგზავრობა" />
+            <LanguageText>{language === 'en' ? 'Start Journey' : language === 'es' ? 'Comenzar Viaje' : 'დაიწყე მგზავრობა'}</LanguageText>
             <Sparkles className="ml-2 h-5 w-5 group-hover:rotate-12 transition-transform" />
           </Button>
           
@@ -70,7 +67,7 @@ export const HeroSection = memo(() => {
             size="lg"
             className="group transition-all duration-300 px-8 py-4 text-lg font-semibold"
           >
-            <LanguageText en="Sign Up" es="Registrarse" ka="რეგისტრაცია" />
+            <LanguageText>{language === 'en' ? 'Sign Up' : language === 'es' ? 'Registrarse' : 'რეგისტრაცია'}</LanguageText>
             <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Button>
         </div>
@@ -82,14 +79,14 @@ export const HeroSection = memo(() => {
               <Sparkles className="h-6 w-6 text-white" />
             </div>
             <h3 className="font-semibold text-lg mb-2">
-              <LanguageText en="Smart Organization" es="Organización Inteligente" ka="ჭკვიანი ორგანიზაცია" />
+              <LanguageText>{language === 'en' ? 'Smart Organization' : language === 'es' ? 'Organización Inteligente' : 'ჭკვიანი ორგანიზაცია'}</LanguageText>
             </h3>
             <p className="text-muted-foreground text-sm">
-              <LanguageText 
-                en="AI-powered task management that adapts to your workflow"
-                es="Gestión de tareas impulsada por IA que se adapta a tu flujo de trabajo"
-                ka="AI-ით მართული ამოცანების მენეჯმენტი, რომელიც ადაპტირდება შენს სამუშაო პროცესთან"
-              />
+              <LanguageText>
+                {language === 'en' ? 'AI-powered task management that adapts to your workflow' : 
+                 language === 'es' ? 'Gestión de tareas impulsada por IA que se adapta a tu flujo de trabajo' : 
+                 'AI-ით მართული ამოცანების მენეჯმენტი, რომელიც ადაპტირდება შენს სამუშაო პროცესთან'}
+              </LanguageText>
             </p>
           </div>
 
@@ -98,14 +95,14 @@ export const HeroSection = memo(() => {
               <ArrowRight className="h-6 w-6 text-white" />
             </div>
             <h3 className="font-semibold text-lg mb-2">
-              <LanguageText en="Seamless Collaboration" es="Colaboración Perfecta" ka="უწყვეტი თანამშრომლობა" />
+              <LanguageText>{language === 'en' ? 'Seamless Collaboration' : language === 'es' ? 'Colaboración Perfecta' : 'უწყვეტი თანამშრომლობა'}</LanguageText>
             </h3>
             <p className="text-muted-foreground text-sm">
-              <LanguageText 
-                en="Work together in real-time with your team members"
-                es="Trabaja en tiempo real con los miembros de tu equipo"
-                ka="იმუშავე რეალურ დროში შენი გუნდის წევრებთან ერთად"
-              />
+              <LanguageText>
+                {language === 'en' ? 'Work together in real-time with your team members' : 
+                 language === 'es' ? 'Trabaja en tiempo real con los miembros de tu equipo' : 
+                 'იმუშავე რეალურ დროში შენი გუნდის წევრებთან ერთად'}
+              </LanguageText>
             </p>
           </div>
 
@@ -114,14 +111,14 @@ export const HeroSection = memo(() => {
               <Sparkles className="h-6 w-6 text-white" />
             </div>
             <h3 className="font-semibold text-lg mb-2">
-              <LanguageText en="Progress Tracking" es="Seguimiento del Progreso" ka="პროგრესის თვალყურისდევნება" />
+              <LanguageText>{language === 'en' ? 'Progress Tracking' : language === 'es' ? 'Seguimiento del Progreso' : 'პროგრესის თვალყურისდევნება'}</LanguageText>
             </h3>
             <p className="text-muted-foreground text-sm">
-              <LanguageText 
-                en="Visualize your achievements and stay motivated"
-                es="Visualiza tus logros y mantente motivado"
-                ka="ვიზუალიზაცია გაუკეთე შენს მიღწევებს და დარჩი მოტივირებული"
-              />
+              <LanguageText>
+                {language === 'en' ? 'Visualize your achievements and stay motivated' : 
+                 language === 'es' ? 'Visualiza tus logros y mantente motivado' : 
+                 'ვიზუალიზაცია გაუკეთე შენს მიღწევებს და დარჩი მოტივირებული'}
+              </LanguageText>
             </p>
           </div>
         </div>
