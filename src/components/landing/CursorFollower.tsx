@@ -19,25 +19,38 @@ export const CursorFollower = () => {
       setIsVisible(false);
     };
 
-    window.addEventListener('mousemove', updateMousePosition);
-    window.addEventListener('mouseleave', handleMouseLeave);
+    const handleMouseEnter = () => {
+      setIsVisible(true);
+    };
+
+    // Add event listeners to both window and document to ensure coverage
+    document.addEventListener('mousemove', updateMousePosition, { passive: true });
+    document.addEventListener('mouseleave', handleMouseLeave);
+    document.addEventListener('mouseenter', handleMouseEnter);
+    window.addEventListener('mousemove', updateMousePosition, { passive: true });
 
     return () => {
+      document.removeEventListener('mousemove', updateMousePosition);
+      document.removeEventListener('mouseleave', handleMouseLeave);
+      document.removeEventListener('mouseenter', handleMouseEnter);
       window.removeEventListener('mousemove', updateMousePosition);
-      window.removeEventListener('mouseleave', handleMouseLeave);
     };
   }, [isVisible]);
 
   return (
     <>
       <motion.div
-        className="fixed pointer-events-none z-50 block"
+        className="fixed pointer-events-none z-[9999] block"
+        style={{
+          left: 0,
+          top: 0,
+          position: 'fixed'
+        }}
         animate={{
           x: mousePosition.x - 16,
           y: mousePosition.y - 16,
           opacity: isVisible ? 1 : 0,
           scale: isVisible ? 1 : 0.8,
-          transformOrigin: "center center"
         }}
         transition={{
           type: "spring",
@@ -49,13 +62,17 @@ export const CursorFollower = () => {
         <div className="w-8 h-8 bg-gradient-to-r from-primary/30 to-accent/30 rounded-full blur-sm" />
       </motion.div>
       <motion.div
-        className="fixed pointer-events-none z-50 block"
+        className="fixed pointer-events-none z-[9999] block"
+        style={{
+          left: 0,
+          top: 0,
+          position: 'fixed'
+        }}
         animate={{
           x: mousePosition.x - 4,
           y: mousePosition.y - 4,
           opacity: isVisible ? 1 : 0,
           scale: isVisible ? 1 : 0.8,
-          transformOrigin: "center center"
         }}
         transition={{
           type: "spring",
