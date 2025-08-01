@@ -1,4 +1,3 @@
-
 import {
   Carousel,
   CarouselContent,
@@ -79,13 +78,13 @@ export const ImageCarousel = ({
           {images.map((image, index) => (
             <CarouselItem key={index} className="md:basis-1/1">
               <div className="p-1">
-                <div className={`rounded-xl overflow-hidden transition-all duration-500 ${responsiveHeight} hover:shadow-lg enhanced-card`}>
-                  <div className={`relative h-full w-full flex items-center justify-center bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm ${image.customPadding || 'p-0'} group`}>
+                <div className={`rounded-xl overflow-hidden transition-all duration-300 ${responsiveHeight} hover:shadow-lg`}>
+                  <div className={`relative h-full w-full flex items-center justify-center bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm ${image.customPadding || 'p-0'}`}>
                     <img
                       src={image.src}
                       alt={image.alt}
                       className={cn(
-                        "w-full h-full transition-all duration-300 group-hover:scale-105",
+                        "w-full h-full carousel-image-hover",
                         image.customStyle || objectFit
                       )}
                     />
@@ -94,8 +93,6 @@ export const ImageCarousel = ({
                         <span className="font-medium drop-shadow-lg">{image.title}</span>
                       </div>
                     )}
-                    {/* Subtle overlay gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   </div>
                 </div>
               </div>
@@ -105,18 +102,18 @@ export const ImageCarousel = ({
         <CarouselPrevious 
           className={cn(
             permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-            "transition-all duration-300 hover:scale-110",
+            "transition-opacity duration-300",
             "absolute left-2 md:-left-16 glass-morphism hover:bg-white/90 dark:hover:bg-gray-800/90",
-            "border-none shadow-lg hover:shadow-xl",
+            "border-none shadow-lg",
             "w-8 h-8 md:w-10 md:h-10 rounded-full"
           )}
         />
         <CarouselNext 
           className={cn(
             permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-            "transition-all duration-300 hover:scale-110",
+            "transition-opacity duration-300",
             "absolute right-2 md:-right-16 glass-morphism hover:bg-white/90 dark:hover:bg-gray-800/90",
-            "border-none shadow-lg hover:shadow-xl",
+            "border-none shadow-lg",
             "w-8 h-8 md:w-10 md:h-10 rounded-full"
           )}
         />

@@ -27,6 +27,20 @@
   50% { background-position: 100% 50%; }
 }
 
+/* Slower, gentler pulse glow for Sign Up button - matches pricing section timing */
+@keyframes gentleSignUpGlow {
+  0%, 100% { 
+    box-shadow: 0 0 8px rgba(155, 135, 245, 0.15), 
+                0 0 16px rgba(155, 135, 245, 0.08),
+                0 0 24px rgba(155, 135, 245, 0.04);
+  }
+  50% { 
+    box-shadow: 0 0 12px rgba(155, 135, 245, 0.2), 
+                0 0 24px rgba(155, 135, 245, 0.12),
+                0 0 36px rgba(155, 135, 245, 0.06);
+  }
+}
+
 /* Ultra gentle pulse glow - much slower and less intense but still visible */
 @keyframes ultraGentlePulseGlow {
   0%, 100% { 
@@ -85,6 +99,12 @@
   50% { transform: translateY(-3px); }
 }
 
+/* Simple zoom animation for carousel images */
+@keyframes gentleZoom {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.05); }
+}
+
 /* Utility Classes */
 .animate-float { animation: float 6s ease-in-out infinite; }
 .animate-float-slow { animation: floatSlow 8s ease-in-out infinite; }
@@ -94,6 +114,7 @@
 .animate-ultra-gentle-float { animation: ultraGentleFloat 18s ease-in-out infinite; }
 .animate-gradient-shift { animation: subtleShift 8s ease infinite; }
 .animate-pulse-glow { animation: ultraGentlePulseGlow 12s ease-in-out infinite; }
+.animate-gentle-signup-glow { animation: gentleSignUpGlow 3s ease-in-out infinite; }
 .animate-mesh-move { animation: meshMove 20s ease-in-out infinite; }
 
 /* Glass Morphism - removed glow effects */
@@ -120,6 +141,15 @@
 
 .hover-scale-102:hover {
   transform: scale(1.02);
+}
+
+/* Simple carousel image hover effect */
+.carousel-image-hover {
+  transition: transform 0.4s ease;
+}
+
+.carousel-image-hover:hover {
+  transform: scale(1.05);
 }
 
 /* Controlled Text Gradients - animate only on load and hover */
