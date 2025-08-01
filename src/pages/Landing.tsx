@@ -27,19 +27,8 @@ const SectionSkeleton = memo(({ className }: { className?: string }) => (
   </div>
 ));
 
-// Memoized cursor follower that only renders on desktop
-const MemoizedCursorFollower = memo(() => {
-  const [isDesktop, setIsDesktop] = useState(false);
-  
-  useEffect(() => {
-    const checkDevice = () => setIsDesktop(window.innerWidth >= 1024 && !('ontouchstart' in window));
-    checkDevice();
-    window.addEventListener('resize', checkDevice);
-    return () => window.removeEventListener('resize', checkDevice);
-  }, []);
-  
-  return isDesktop ? <CursorFollower /> : null;
-});
+// Always show cursor follower
+const MemoizedCursorFollower = memo(() => <CursorFollower />);
 
 // Reduced background elements component for better performance
 const OptimizedBackground = memo(() => {
