@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
 import { Resend } from "npm:resend@2.0.0";
@@ -210,7 +211,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       // Check if email reminder is enabled and email exists
-      if (!event.email_reminder_enabled && !event.reminder_enabled) {
+      if (!event.email_reminder_enabled) {
         console.log('📧 Email reminder not enabled for event:', eventId);
         return new Response(
           JSON.stringify({ message: 'Email reminder not enabled for this event' }),
@@ -309,8 +310,7 @@ const handler = async (req: Request): Promise<Response> => {
         .from('events')
         .update({ 
           reminder_sent_at: new Date().toISOString(),
-          email_reminder_enabled: false,
-          reminder_enabled: false
+          email_reminder_enabled: false
         })
         .eq('id', event.id);
 
@@ -341,7 +341,7 @@ const handler = async (req: Request): Promise<Response> => {
       .from('events')
       .select('*')
       .lte('reminder_at', now)
-      .or('email_reminder_enabled.eq.true,reminder_enabled.eq.true')
+      .eq('email_reminder_enabled', true)
       .is('reminder_sent_at', null)
       .is('deleted_at', null);
 
@@ -440,8 +440,7 @@ const handler = async (req: Request): Promise<Response> => {
           .from('events')
           .update({ 
             reminder_sent_at: new Date().toISOString(),
-            email_reminder_enabled: false,
-            reminder_enabled: false
+            email_reminder_enabled: false
           })
           .eq('id', event.id);
 

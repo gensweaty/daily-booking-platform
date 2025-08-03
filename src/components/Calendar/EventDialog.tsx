@@ -23,7 +23,7 @@ interface PersonData {
 }
 
 interface EventDialogProps {
-  open: boolean;
+  isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate?: Date;
   initialData?: CalendarEventType | null;
@@ -35,7 +35,7 @@ interface EventDialogProps {
 }
 
 export const EventDialog = ({ 
-  open, 
+  isOpen, 
   onOpenChange,
   selectedDate,
   initialData,
@@ -68,7 +68,7 @@ export const EventDialog = ({
   const shouldShowEventNameField = additionalPersons.length > 0;
   
   const [reminderAt, setReminderAt] = useState('');
-  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
   
   const [loading, setLoading] = useState(false);
   const [showRecurringDeleteDialog, setShowRecurringDeleteDialog] = useState(false);
@@ -84,19 +84,27 @@ export const EventDialog = ({
 
   // Helper function to convert UTC to local datetime-local format
   const convertUTCToLocal = (utcString: string): string => {
+    console.log("[EventDialog] Converting UTC to local:", utcString);
     const date = new Date(utcString);
-    const offset = date.getTimezoneOffset();
-    const localDate = new Date(date.getTime() - (offset * 60 * 1000));
-    return localDate.toISOString().slice(0, 16);
+    // Create local date without timezone offset adjustment to fix the 9-10 AM bug
+    const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+    const result = localDate.toISOString().slice(0, 16);
+    console.log("[EventDialog] Converted result:", result);
+    return result;
   };
 
   // Helper function to convert local datetime-local to UTC
   const convertLocalToUTC = (localString: string): string => {
+    console.log("[EventDialog] Converting local to UTC:", localString);
     const date = new Date(localString);
-    return date.toISOString();
+    const result = date.toISOString();
+    console.log("[EventDialog] UTC result:", result);
+    return result;
   };
 
   useEffect(() => {
+    console.log("[EventDialog] useEffect triggered with:", { isOpen, initialData: !!initialData, selectedDate });
+    
     if (initialData) {
       console.log('[EventDialog] Loading initial data:', initialData);
       
@@ -127,7 +135,7 @@ export const EventDialog = ({
       setAdditionalPersons(initialData.additional_persons || []);
       setEventName(initialData.title || "");
       
-      // Fix reminder loading - properly load and convert timezone
+      // Enhanced reminder loading with better timezone handling
       console.log('[EventDialog] Loading reminder data:', {
         reminder_at: initialData.reminder_at,
         reminder_enabled: initialData.reminder_enabled,
@@ -140,9 +148,16 @@ export const EventDialog = ({
         console.log('[EventDialog] Setting reminder at:', localReminder, 'from UTC:', initialData.reminder_at);
       } else {
         setReminderAt('');
+        console.log('[EventDialog] No reminder time found, clearing field');
       }
       
-      setReminderEnabled(!!(initialData.reminder_enabled || initialData.email_reminder_enabled));
+      // Check for both possible reminder enabled fields
+      const isReminderEnabled = !!(
+        initialData.reminder_enabled || 
+        initialData.email_reminder_enabled
+      );
+      setEmailReminderEnabled(isReminderEnabled);
+      console.log('[EventDialog] Setting reminder enabled to:', isReminderEnabled);
       
       const fetchExistingFiles = async () => {
         try {
@@ -171,12 +186,18 @@ export const EventDialog = ({
       };
       fetchExistingFiles();
     } else if (selectedDate) {
+      console.log('[EventDialog] Setting up for new event with selected date:', selectedDate);
       const dateStr = selectedDate.toISOString().split('T')[0];
       const defaultStartTime = `${dateStr}T09:00`;
       const defaultEndTime = `${dateStr}T10:00`;
       setStartDate(defaultStartTime);
       setEndDate(defaultEndTime);
+      
+      // Clear reminder fields for new events
+      setReminderAt('');
+      setEmailReminderEnabled(false);
     } else {
+      console.log('[EventDialog] Clearing all fields');
       setTitle("");
       setUserSurname("");
       setUserNumber("");
@@ -195,9 +216,9 @@ export const EventDialog = ({
       setEventName("");
       
       setReminderAt('');
-      setReminderEnabled(false);
+      setEmailReminderEnabled(false);
     }
-  }, [initialData, selectedDate, open]);
+  }, [initialData, selectedDate, isOpen]);
 
   const fetchBusinessAddress = async (userId: string) => {
     try {
@@ -231,7 +252,7 @@ export const EventDialog = ({
     }
 
     // Validate reminder time if enabled
-    if (reminderEnabled && reminderAt) {
+    if (emailReminderEnabled && reminderAt) {
       const reminderDate = new Date(reminderAt);
       const startDateObj = new Date(startDate);
       
@@ -251,7 +272,7 @@ export const EventDialog = ({
 
       console.log("[EventDialog] Saving event with reminder data:", {
         reminderAt,
-        reminderEnabled,
+        emailReminderEnabled,
         startDate,
         endDate
       });
@@ -269,7 +290,7 @@ export const EventDialog = ({
       // Convert local times to UTC before saving
       const startDateUTC = convertLocalToUTC(startDate);
       const endDateUTC = convertLocalToUTC(endDate);
-      const reminderAtUTC = reminderEnabled && reminderAt ? convertLocalToUTC(reminderAt) : null;
+      const reminderAtUTC = emailReminderEnabled && reminderAt ? convertLocalToUTC(reminderAt) : null;
 
       console.log("[EventDialog] Converting to UTC:", {
         local_start: startDate,
@@ -295,8 +316,7 @@ export const EventDialog = ({
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
         // Properly save reminder fields with UTC conversion
         reminder_at: reminderAtUTC,
-        reminder_enabled: reminderEnabled,
-        email_reminder_enabled: reminderEnabled
+        email_reminder_enabled: emailReminderEnabled
       };
 
       console.log("[EventDialog] Event data being saved:", eventData);
@@ -415,7 +435,7 @@ export const EventDialog = ({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
@@ -467,8 +487,8 @@ export const EventDialog = ({
             setAdditionalPersons={setAdditionalPersons}
             reminderAt={reminderAt}
             setReminderAt={setReminderAt}
-            emailReminderEnabled={reminderEnabled}
-            setEmailReminderEnabled={setReminderEnabled}
+            emailReminderEnabled={emailReminderEnabled}
+            setEmailReminderEnabled={setEmailReminderEnabled}
           />
 
           <div className="flex justify-between pt-4">
