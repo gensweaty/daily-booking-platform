@@ -45,10 +45,11 @@ export interface CalendarEventType {
     content_type?: string;
     size?: number;
   }>;
-  // Reminder fields
+  // Reminder fields - updated structure
   reminder_at?: string;
-  email_reminder_enabled?: boolean;
+  reminder_enabled?: boolean;
   reminder_sent_at?: string;
+  email_reminder_enabled?: boolean;
   // Additional compatibility fields
   event_name?: string;
   requester_name?: string;

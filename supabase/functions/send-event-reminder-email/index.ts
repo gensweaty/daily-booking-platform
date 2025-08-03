@@ -53,24 +53,59 @@ const getEventReminderEmailContent = (
   eventTitle: string, 
   startTime: string,
   endTime: string,
-  eventNotes?: string
+  businessName?: string,
+  businessAddress?: string,
+  eventNotes?: string,
+  paymentStatus?: string,
+  paymentAmount?: number | null
 ) => {
   let subject, body;
   
+  // Create business info section if available
+  const businessInfo = businessName ? `
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+      <p style="margin: 0 0 10px 0; font-size: 16px; color: #333;">
+        <strong>🏢 ${language === 'ka' ? 'ბიზნესი' : language === 'es' ? 'Negocio' : 'Business'}:</strong> ${businessName}
+      </p>
+      ${businessAddress ? `<p style="margin: 10px 0; font-size: 14px; color: #666;"><strong>${language === 'ka' ? 'მისამართი' : language === 'es' ? 'Dirección' : 'Address'}:</strong> ${businessAddress}</p>` : ''}
+      <p style="margin: 10px 0 0 0; font-size: 16px; color: #333;">
+        <strong>📅 ${language === 'ka' ? 'დრო' : language === 'es' ? 'Hora' : 'Time'}:</strong> ${startTime} - ${endTime}
+      </p>
+      ${eventNotes ? `<p style="margin: 10px 0 0 0; font-size: 14px; color: #666;"><strong>${language === 'ka' ? 'შენიშვნები' : language === 'es' ? 'Notas' : 'Notes'}:</strong> ${eventNotes}</p>` : ''}
+    </div>
+  ` : `
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+      <p style="margin: 0 0 10px 0; font-size: 16px; color: #333;">
+        <strong>📅 ${language === 'ka' ? 'დრო' : language === 'es' ? 'Hora' : 'Time'}:</strong> ${startTime} - ${endTime}
+      </p>
+      ${eventNotes ? `<p style="margin: 10px 0 0 0; font-size: 14px; color: #666;"><strong>${language === 'ka' ? 'შენიშვნები' : language === 'es' ? 'Notas' : 'Notes'}:</strong> ${eventNotes}</p>` : ''}
+    </div>
+  `;
+
+  // Create payment info section if available
+  const paymentInfo = paymentStatus && paymentStatus !== 'not_paid' ? `
+    <div style="background-color: #e8f5e8; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; margin: 20px 0;">
+      <p style="margin: 0; font-size: 16px; color: #155724;">
+        💳 ${language === 'ka' ? 'გადახდის სტატუსი' : language === 'es' ? 'Estado de pago' : 'Payment Status'}: 
+        ${paymentStatus === 'fully_paid' ? 
+          (language === 'ka' ? 'სრულად გადახდილი' : language === 'es' ? 'Pagado completamente' : 'Fully Paid') :
+          (language === 'ka' ? 'ნაწილობრივ გადახდილი' : language === 'es' ? 'Pagado parcialmente' : 'Partially Paid')
+        }
+        ${paymentAmount ? ` (${paymentAmount} ${language === 'ka' ? 'ლარი' : language === 'es' ? 'EUR' : 'USD'})` : ''}
+      </p>
+    </div>
+  ` : '';
+  
   if (language === 'ka') {
-    subject = "📅 მოვლენის შეხსენება!";
+    subject = "📅 შეხსენება: თქვენი ჯავშანი!";
     body = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333; text-align: center;">მოვლენის შეხსენება</h2>
+        <h2 style="color: #333; text-align: center;">ჯავშნის შეხსენება</h2>
         <p style="font-size: 16px; line-height: 1.6;">
           შეგახსენებთ თქვენს მოვლენაზე: <strong>${eventTitle}</strong>
         </p>
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0 0 10px 0; font-size: 16px; color: #333;">
-            <strong>📅 დრო:</strong> ${startTime} - ${endTime}
-          </p>
-          ${eventNotes ? `<p style="margin: 10px 0 0 0; font-size: 14px; color: #666;"><strong>შენიშვნები:</strong> ${eventNotes}</p>` : ''}
-        </div>
+        ${businessInfo}
+        ${paymentInfo}
         <div style="background-color: #e8f5e8; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
           <p style="margin: 0; font-size: 16px; color: #155724;">✨ არ დაგავიწყდეს თქვენი მოვლენა!</p>
         </div>
@@ -81,21 +116,17 @@ const getEventReminderEmailContent = (
       </div>
     `;
   } else if (language === 'es') {
-    subject = "📅 ¡Recordatorio de evento!";
+    subject = "📅 ¡Recordatorio: Su reserva!";
     body = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333; text-align: center;">Recordatorio de Evento</h2>
+        <h2 style="color: #333; text-align: center;">Recordatorio de Reserva</h2>
         <p style="font-size: 16px; line-height: 1.6;">
-          Este es un recordatorio de tu evento: <strong>${eventTitle}</strong>
+          Este es un recordatorio de su evento: <strong>${eventTitle}</strong>
         </p>
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0 0 10px 0; font-size: 16px; color: #333;">
-            <strong>📅 Hora:</strong> ${startTime} - ${endTime}
-          </p>
-          ${eventNotes ? `<p style="margin: 10px 0 0 0; font-size: 14px; color: #666;"><strong>Notas:</strong> ${eventNotes}</p>` : ''}
-        </div>
+        ${businessInfo}
+        ${paymentInfo}
         <div style="background-color: #e8f5e8; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
-          <p style="margin: 0; font-size: 16px; color: #155724;">✨ ¡No olvides tu evento!</p>
+          <p style="margin: 0; font-size: 16px; color: #155724;">✨ ¡No olvide su evento!</p>
         </div>
         <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
         <p style="font-size: 12px; color: #999; text-align: center;">
@@ -104,19 +135,15 @@ const getEventReminderEmailContent = (
       </div>
     `;
   } else {
-    subject = "📅 Event Reminder!";
+    subject = "📅 Reminder: Your Booking!";
     body = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333; text-align: center;">Event Reminder</h2>
+        <h2 style="color: #333; text-align: center;">Booking Reminder</h2>
         <p style="font-size: 16px; line-height: 1.6;">
           This is a reminder for your event: <strong>${eventTitle}</strong>
         </p>
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0 0 10px 0; font-size: 16px; color: #333;">
-            <strong>📅 Time:</strong> ${startTime} - ${endTime}
-          </p>
-          ${eventNotes ? `<p style="margin: 10px 0 0 0; font-size: 14px; color: #666;"><strong>Notes:</strong> ${eventNotes}</p>` : ''}
-        </div>
+        ${businessInfo}
+        ${paymentInfo}
         <div style="background-color: #e8f5e8; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
           <p style="margin: 0; font-size: 16px; color: #155724;">✨ Don't forget your event!</p>
         </div>
@@ -184,7 +211,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       // Check if email reminder is enabled
-      if (!event.email_reminder_enabled) {
+      if (!event.email_reminder_enabled && !event.reminder_enabled) {
         console.log('📧 Email reminder not enabled for event:', eventId);
         return new Response(
           JSON.stringify({ message: 'Email reminder not enabled for this event' }),
@@ -223,26 +250,38 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      // Get user's language preference from profiles table
+      // Get user's language and business info
       const { data: profileData } = await supabase
         .from('profiles')
         .select('language')
         .eq('id', event.user_id)
         .single();
 
+      const { data: businessData } = await supabase
+        .from('business_profiles')
+        .select('business_name, contact_address')
+        .eq('user_id', event.user_id)
+        .single();
+
       const language = profileData?.language || 'en';
+      const businessName = businessData?.business_name;
+      const businessAddress = businessData?.contact_address;
       
       // Format event times using the new function with proper locale and timezone
       const formattedStartTime = formatEventTimeForLocale(event.start_date, language);
       const formattedEndTime = formatEventTimeForLocale(event.end_date, language);
 
-      // Get localized email content
+      // Get localized email content with business info
       const { subject, body: emailBody } = getEventReminderEmailContent(
         language, 
         event.title || event.user_surname, 
         formattedStartTime,
         formattedEndTime,
-        event.event_notes
+        businessName,
+        businessAddress,
+        event.event_notes,
+        event.payment_status,
+        event.payment_amount
       );
 
       // Send email
@@ -271,7 +310,8 @@ const handler = async (req: Request): Promise<Response> => {
         .from('events')
         .update({ 
           reminder_sent_at: new Date().toISOString(),
-          email_reminder_enabled: false
+          email_reminder_enabled: false,
+          reminder_enabled: false
         })
         .eq('id', event.id);
 
@@ -302,7 +342,7 @@ const handler = async (req: Request): Promise<Response> => {
       .from('events')
       .select('*')
       .lte('reminder_at', now)
-      .eq('email_reminder_enabled', true)
+      .or('email_reminder_enabled.eq.true,reminder_enabled.eq.true')
       .is('reminder_sent_at', null)
       .is('deleted_at', null);
 
@@ -352,26 +392,38 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
-        // Get user's language preference
+        // Get user's language and business info
         const { data: profileData } = await supabase
           .from('profiles')
           .select('language')
           .eq('id', event.user_id)
           .single();
 
+        const { data: businessData } = await supabase
+          .from('business_profiles')
+          .select('business_name, contact_address')
+          .eq('user_id', event.user_id)
+          .single();
+
         const language = profileData?.language || 'en';
+        const businessName = businessData?.business_name;
+        const businessAddress = businessData?.contact_address;
         
         // Format event times using the new function with proper locale and timezone
         const formattedStartTime = formatEventTimeForLocale(event.start_date, language);
         const formattedEndTime = formatEventTimeForLocale(event.end_date, language);
 
-        // Get localized email content
+        // Get localized email content with business info
         const { subject, body: emailBody } = getEventReminderEmailContent(
           language, 
           event.title || event.user_surname, 
           formattedStartTime,
           formattedEndTime,
-          event.event_notes
+          businessName,
+          businessAddress,
+          event.event_notes,
+          event.payment_status,
+          event.payment_amount
         );
 
         // Send email
@@ -394,7 +446,8 @@ const handler = async (req: Request): Promise<Response> => {
           .from('events')
           .update({ 
             reminder_sent_at: new Date().toISOString(),
-            email_reminder_enabled: false
+            email_reminder_enabled: false,
+            reminder_enabled: false
           })
           .eq('id', event.id);
 

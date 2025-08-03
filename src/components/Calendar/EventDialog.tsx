@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,6 @@ import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
 import { cn } from "@/lib/utils";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { LanguageText } from "@/components/shared/LanguageText";
-import { associateBookingFilesWithEvent } from '@/integrations/supabase/client';
 
 interface PersonData {
   id: string;
@@ -74,9 +72,8 @@ export const EventDialog = ({
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
   const shouldShowEventNameField = additionalPersons.length > 0;
   
-  // Add reminder state
   const [reminderAt, setReminderAt] = useState('');
-  const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
+  const [reminderEnabled, setReminderEnabled] = useState(false);
   
   const [loading, setLoading] = useState(false);
   const [showRecurringDeleteDialog, setShowRecurringDeleteDialog] = useState(false);
@@ -98,7 +95,6 @@ export const EventDialog = ({
       setSocialNetworkLink(initialData.social_network_link || "");
       setEventNotes(initialData.event_notes || "");
       
-      // Fix date synchronization - properly format datetime-local values
       if (initialData.start_date) {
         const startDate = new Date(initialData.start_date);
         const formattedStart = new Date(startDate.getTime() - startDate.getTimezoneOffset() * 60000)
@@ -123,11 +119,9 @@ export const EventDialog = ({
       setAdditionalPersons(initialData.additional_persons || []);
       setEventName(initialData.title || "");
       
-      // Fix reminder fields synchronization - show existing reminder data
       setReminderAt(initialData.reminder_at || '');
-      setEmailReminderEnabled(initialData.email_reminder_enabled || false);
+      setReminderEnabled(initialData.reminder_enabled || initialData.email_reminder_enabled || false);
       
-      // Load existing files
       const fetchExistingFiles = async () => {
         try {
           const { data, error } = await supabase
@@ -146,14 +140,12 @@ export const EventDialog = ({
       };
       fetchExistingFiles();
     } else if (selectedDate) {
-      // Set start and end date to selected date with default times
       const dateStr = selectedDate.toISOString().split('T')[0];
       const defaultStartTime = `${dateStr}T09:00`;
       const defaultEndTime = `${dateStr}T10:00`;
       setStartDate(defaultStartTime);
       setEndDate(defaultEndTime);
     } else {
-      // Reset form for new event
       setTitle("");
       setUserSurname("");
       setUserNumber("");
@@ -171,11 +163,30 @@ export const EventDialog = ({
       setAdditionalPersons([]);
       setEventName("");
       
-      // Reset reminder fields
       setReminderAt('');
-      setEmailReminderEnabled(false);
+      setReminderEnabled(false);
     }
   }, [initialData, selectedDate, open]);
+
+  const fetchBusinessAddress = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('business_profiles')
+        .select('contact_address')
+        .eq('user_id', userId)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching business address:', error);
+        return null;
+      }
+      
+      return data?.contact_address || null;
+    } catch (error) {
+      console.error('Error fetching business address:', error);
+      return null;
+    }
+  };
 
   const handleSave = async () => {
     if (!userSurname.trim()) {
@@ -188,8 +199,7 @@ export const EventDialog = ({
       return;
     }
 
-    // Validate reminder time
-    if (emailReminderEnabled && (!reminderAt || new Date(reminderAt) >= new Date(startDate))) {
+    if (reminderEnabled && (!reminderAt || new Date(reminderAt) >= new Date(startDate))) {
       toast.error(isGeorgian ? "შეხსენების დრო უნდა იყოს მოვლენის დაწყებამდე" : "Reminder time must be before event start time");
       return;
     }
@@ -204,12 +214,11 @@ export const EventDialog = ({
 
       console.log("[EventDialog] Saving event with reminder data:", {
         reminderAt,
-        emailReminderEnabled,
+        reminderEnabled,
         startDate,
         endDate
       });
 
-      // Convert additional persons to JSON-compatible format
       const additionalPersonsJson = additionalPersons.map(person => ({
         id: person.id,
         userSurname: person.userSurname,
@@ -220,7 +229,6 @@ export const EventDialog = ({
         paymentAmount: person.paymentAmount
       }));
 
-      // Prepare event data object with proper field names for the RPC function
       const eventData = {
         title: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
         user_surname: userSurname.trim(),
@@ -235,11 +243,11 @@ export const EventDialog = ({
         is_recurring: isRecurring && repeatPattern && repeatPattern !== 'none',
         repeat_pattern: isRecurring && repeatPattern && repeatPattern !== 'none' ? repeatPattern : null,
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
-        reminder_at: emailReminderEnabled ? reminderAt : null,
-        email_reminder_enabled: emailReminderEnabled
+        reminder_at: reminderEnabled ? reminderAt : null,
+        reminder_enabled: reminderEnabled,
+        email_reminder_enabled: reminderEnabled
       };
 
-      // Use the save_event_with_persons RPC function with correct parameter structure
       const { data: savedEventId, error: saveError } = await supabase.rpc('save_event_with_persons', {
         p_event_data: eventData,
         p_additional_persons: additionalPersonsJson,
@@ -254,30 +262,29 @@ export const EventDialog = ({
 
       console.log("[EventDialog] Event saved successfully with ID:", savedEventId);
 
-      // Handle file uploads if needed
       if (files.length > 0) {
         console.log("[EventDialog] Uploading files...");
-        // File upload logic would go here if needed
       }
 
-      // If this is a new event and we have a valid email, send booking approval email with proper data
       if (!initialData && socialNetworkLink.trim() && socialNetworkLink.includes('@')) {
-        console.log("[EventDialog] Triggering booking approval email with event data...");
+        console.log("[EventDialog] Triggering booking approval email with business address...");
         
         try {
+          const businessAddress = await fetchBusinessAddress(currentUser.data.user.id);
+          
           const { error: emailError } = await supabase.functions.invoke('send-booking-approval-email', {
             body: { 
               eventId: savedEventId,
               recipientEmail: socialNetworkLink.trim(),
               language: language,
-              // Pass event details to ensure they're included in the email
               fullName: userSurname.trim(),
               eventTitle: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
               startDate: startDate,
               endDate: endDate,
               eventNotes: eventNotes.trim(),
               paymentStatus: paymentStatus,
-              paymentAmount: showPaymentAmount ? parseFloat(paymentAmount) || null : null
+              paymentAmount: showPaymentAmount ? parseFloat(paymentAmount) || null : null,
+              businessAddress: businessAddress
             }
           });
 
@@ -293,7 +300,6 @@ export const EventDialog = ({
 
       onOpenChange(false);
       
-      // Call the appropriate callback
       if (initialData) {
         console.log("[EventDialog] Calling onEventUpdated");
         if (onEventUpdated) await onEventUpdated();
@@ -394,8 +400,8 @@ export const EventDialog = ({
             setAdditionalPersons={setAdditionalPersons}
             reminderAt={reminderAt}
             setReminderAt={setReminderAt}
-            emailReminderEnabled={emailReminderEnabled}
-            setEmailReminderEnabled={setEmailReminderEnabled}
+            emailReminderEnabled={reminderEnabled}
+            setEmailReminderEnabled={setReminderEnabled}
           />
 
           <div className="flex justify-between pt-4">
