@@ -436,7 +436,9 @@ export const EventDialogFields = ({
                 filename: file.filename,
                 file_path: file.file_path,
                 content_type: file.content_type,
-                size: file.size
+                size: file.size,
+                created_at: new Date().toISOString(),
+                user_id: null
               }))}
               parentType="event"
               allowDelete={true}
@@ -462,7 +464,9 @@ export const EventDialogFields = ({
                 filename: file.name,
                 file_path: '',
                 content_type: file.type,
-                size: file.size
+                size: file.size,
+                created_at: new Date().toISOString(),
+                user_id: null
               }))}
               parentType="event"
               allowDelete={true}

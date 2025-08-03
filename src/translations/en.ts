@@ -456,6 +456,7 @@ export const translations: TranslationType = {
     onDate: "On {date}",
     eventConflict: "Event conflicts with existing booking",
     timeConflictError: "Selected time conflicts with an existing event",
-    reminderTime: "Reminder Time"
+    reminderTime: "Reminder Time",
+    setReminder: "Set Reminder"
   }
 };
