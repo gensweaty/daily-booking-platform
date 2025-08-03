@@ -10,7 +10,6 @@ import { CustomerList } from '@/components/crm/CustomerList';
 import { BookingRequestsList } from '@/components/business/BookingRequestsList';
 import { BusinessPage } from '@/components/business/BusinessPage';
 import { ArchivedTasksPage } from '@/components/tasks/ArchivedTasksPage';
-import { ReminderNotifications } from '@/components/reminder/ReminderNotifications';
 import { TaskReminderNotifications } from '@/components/tasks/TaskReminderNotifications';
 import { EventReminderNotifications } from '@/components/Calendar/EventReminderNotifications';
 import { LanguageText } from '@/components/shared/LanguageText';
@@ -27,11 +26,6 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
 }) => {
   const { language, t } = useLanguage();
   const isGeorgian = language === 'ka';
-  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
-
-  const handleTaskDialogClose = () => {
-    setTaskDialogOpen(false);
-  };
 
   const renderContent = () => {
     switch (activeSection) {
@@ -68,8 +62,7 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
 
   return (
     <div className="flex-1 p-6">
-      {/* Notification components that run in background */}
-      <ReminderNotifications />
+      {/* Background notification components */}
       <TaskReminderNotifications />
       <EventReminderNotifications />
       
