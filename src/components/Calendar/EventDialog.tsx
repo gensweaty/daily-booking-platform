@@ -73,7 +73,6 @@ export const EventDialog = ({
     MozOsxFontSmoothing: 'grayscale'
   } : undefined;
 
-  // Create the event dialog hook with proper functions that maintain existing email flow
   const {
     handleCreateEvent,
     handleUpdateEvent,
@@ -148,7 +147,7 @@ export const EventDialog = ({
       setStartDate(format(startDateTime, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(endDateTime, "yyyy-MM-dd'T'HH:mm"));
 
-      // Load existing files - FIXED: pass the string ID, not the entire object
+      // Load existing files - FIXED: pass the string ID correctly
       if (initialData.id) {
         loadExistingFiles(initialData.id);
       }
