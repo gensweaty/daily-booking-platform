@@ -5,70 +5,121 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { CalendarEventType } from "@/lib/types/calendar";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { EventReminderFields } from "./EventReminderFields";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface EventDialogFieldsProps {
-  event: Partial<CalendarEventType>;
-  onEventChange: (updates: Partial<CalendarEventType>) => void;
-  onFileChange: (file: File | null) => void;
+  title: string;
+  setTitle: (value: string) => void;
+  userSurname: string;
+  setUserSurname: (value: string) => void;
+  userNumber: string;
+  setUserNumber: (value: string) => void;
+  socialNetworkLink: string;
+  setSocialNetworkLink: (value: string) => void;
+  eventNotes: string;
+  setEventNotes: (value: string) => void;
+  eventName: string;
+  setEventName: (value: string) => void;
+  paymentStatus: string;
+  setPaymentStatus: (value: string) => void;
+  paymentAmount: string;
+  setPaymentAmount: (value: string) => void;
+  startDate: string;
+  setStartDate: (value: string) => void;
+  endDate: string;
+  setEndDate: (value: string) => void;
+  isRecurring: boolean;
+  setIsRecurring: (value: boolean) => void;
+  repeatPattern: string;
+  setRepeatPattern: (value: string) => void;
+  repeatUntil: string;
+  setRepeatUntil: (value: string) => void;
+  files: File[];
+  setFiles: (files: File[]) => void;
+  existingFiles: Array<{
+    id: string;
+    filename: string;
+    file_path: string;
+    content_type?: string;
+    size?: number;
+  }>;
+  setExistingFiles: (files: Array<{
+    id: string;
+    filename: string;
+    file_path: string;
+    content_type?: string;
+    size?: number;
+  }>) => void;
+  additionalPersons: Array<{
+    id: string;
+    userSurname: string;
+    userNumber: string;
+    socialNetworkLink: string;
+    eventNotes: string;
+    paymentStatus: string;
+    paymentAmount: string;
+  }>;
+  setAdditionalPersons: (persons: Array<{
+    id: string;
+    userSurname: string;
+    userNumber: string;
+    socialNetworkLink: string;
+    eventNotes: string;
+    paymentStatus: string;
+    paymentAmount: string;
+  }>) => void;
+  isVirtualEvent: boolean;
+  isNewEvent: boolean;
 }
 
-export const EventDialogFields = ({ event = {}, onEventChange, onFileChange }: EventDialogFieldsProps) => {
+export const EventDialogFields = ({
+  title,
+  setTitle,
+  userSurname,
+  setUserSurname,
+  userNumber,
+  setUserNumber,
+  socialNetworkLink,
+  setSocialNetworkLink,
+  eventNotes,
+  setEventNotes,
+  eventName,
+  setEventName,
+  paymentStatus,
+  setPaymentStatus,
+  paymentAmount,
+  setPaymentAmount,
+  startDate,
+  setStartDate,
+  endDate,
+  setEndDate,
+  isRecurring,
+  setIsRecurring,
+  repeatPattern,
+  setRepeatPattern,
+  repeatUntil,
+  setRepeatUntil,
+  files,
+  setFiles,
+  existingFiles,
+  setExistingFiles,
+  additionalPersons,
+  setAdditionalPersons,
+  isVirtualEvent,
+  isNewEvent
+}: EventDialogFieldsProps) => {
   const { t } = useLanguage();
   
-  console.log('EventDialogFields received props:', { event, onEventChange, onFileChange });
-  
-  const [startDateTime, setStartDateTime] = useState("");
-  const [endDateTime, setEndDateTime] = useState("");
+  // Email reminder state - add these since they're not passed as props yet
+  const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
+  const [reminderAt, setReminderAt] = useState("");
 
-  useEffect(() => {
-    if (event.start_date) {
-      const date = new Date(event.start_date);
-      const localDateTime = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-        .toISOString()
-        .slice(0, 16);
-      setStartDateTime(localDateTime);
+  const handleFileChange = (file: File | null) => {
+    if (file) {
+      setFiles([...files, file]);
     }
-  }, [event.start_date]);
-
-  useEffect(() => {
-    if (event.end_date) {
-      const date = new Date(event.end_date);
-      const localDateTime = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-        .toISOString()
-        .slice(0, 16);
-      setEndDateTime(localDateTime);
-    }
-  }, [event.end_date]);
-
-  const handleStartDateChange = (value: string) => {
-    setStartDateTime(value);
-    const utcDate = new Date(value).toISOString();
-    onEventChange({ ...event, start_date: utcDate });
-  };
-
-  const handleEndDateChange = (value: string) => {
-    setEndDateTime(value);
-    const utcDate = new Date(value).toISOString();
-    onEventChange({ ...event, end_date: utcDate });
-  };
-
-  const handleReminderEnabledChange = (enabled: boolean) => {
-    onEventChange({
-      ...event,
-      email_reminder_enabled: enabled,
-      reminder_at: enabled ? event.reminder_at : undefined,
-    });
-  };
-
-  const handleReminderAtChange = (reminderAt: string) => {
-    onEventChange({
-      ...event,
-      reminder_at: reminderAt,
-    });
   };
 
   return (
@@ -79,8 +130,11 @@ export const EventDialogFields = ({ event = {}, onEventChange, onFileChange }: E
         </Label>
         <Input
           id="title"
-          value={event.user_surname || event.title || ""}
-          onChange={(e) => onEventChange({ ...event, user_surname: e.target.value, title: e.target.value })}
+          value={userSurname || title || ""}
+          onChange={(e) => {
+            setUserSurname(e.target.value);
+            setTitle(e.target.value);
+          }}
           className="col-span-3"
         />
       </div>
@@ -91,8 +145,8 @@ export const EventDialogFields = ({ event = {}, onEventChange, onFileChange }: E
         </Label>
         <Input
           id="phone"
-          value={event.user_number || ""}
-          onChange={(e) => onEventChange({ ...event, user_number: e.target.value })}
+          value={userNumber || ""}
+          onChange={(e) => setUserNumber(e.target.value)}
           className="col-span-3"
         />
       </div>
@@ -104,8 +158,8 @@ export const EventDialogFields = ({ event = {}, onEventChange, onFileChange }: E
         <Input
           id="email"
           type="email"
-          value={event.social_network_link || ""}
-          onChange={(e) => onEventChange({ ...event, social_network_link: e.target.value })}
+          value={socialNetworkLink || ""}
+          onChange={(e) => setSocialNetworkLink(e.target.value)}
           className="col-span-3"
         />
       </div>
@@ -118,8 +172,8 @@ export const EventDialogFields = ({ event = {}, onEventChange, onFileChange }: E
           id="start-date"
           type="datetime-local"
           className="col-span-3"
-          value={startDateTime}
-          onChange={(e) => handleStartDateChange(e.target.value)}
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
         />
       </div>
 
@@ -131,8 +185,8 @@ export const EventDialogFields = ({ event = {}, onEventChange, onFileChange }: E
           id="end-date"
           type="datetime-local"
           className="col-span-3"
-          value={endDateTime}
-          onChange={(e) => handleEndDateChange(e.target.value)}
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
         />
       </div>
 
@@ -141,8 +195,8 @@ export const EventDialogFields = ({ event = {}, onEventChange, onFileChange }: E
           {t('calendar.paymentStatus')}
         </Label>
         <Select
-          value={event.payment_status || "not_paid"}
-          onValueChange={(value) => onEventChange({ ...event, payment_status: value })}
+          value={paymentStatus || "not_paid"}
+          onValueChange={(value) => setPaymentStatus(value)}
         >
           <SelectTrigger className="col-span-3">
             <SelectValue />
@@ -162,8 +216,8 @@ export const EventDialogFields = ({ event = {}, onEventChange, onFileChange }: E
         <Input
           id="payment-amount"
           type="number"
-          value={event.payment_amount || ""}
-          onChange={(e) => onEventChange({ ...event, payment_amount: parseFloat(e.target.value) || null })}
+          value={paymentAmount || ""}
+          onChange={(e) => setPaymentAmount(e.target.value)}
           className="col-span-3"
         />
       </div>
@@ -174,8 +228,8 @@ export const EventDialogFields = ({ event = {}, onEventChange, onFileChange }: E
         </Label>
         <Textarea
           id="notes"
-          value={event.event_notes || ""}
-          onChange={(e) => onEventChange({ ...event, event_notes: e.target.value })}
+          value={eventNotes || ""}
+          onChange={(e) => setEventNotes(e.target.value)}
           className="col-span-3"
           rows={3}
         />
@@ -187,7 +241,7 @@ export const EventDialogFields = ({ event = {}, onEventChange, onFileChange }: E
         </Label>
         <div className="col-span-3">
           <FileUploadField
-            onFileChange={onFileChange}
+            onFileChange={handleFileChange}
           />
         </div>
       </div>
@@ -198,33 +252,33 @@ export const EventDialogFields = ({ event = {}, onEventChange, onFileChange }: E
         </div>
         <div className="col-span-3 space-y-4">
           <EventReminderFields
-            emailReminderEnabled={event.email_reminder_enabled || false}
-            reminderAt={event.reminder_at}
-            eventStartDate={event.start_date || startDateTime}
-            onReminderEnabledChange={handleReminderEnabledChange}
-            onReminderAtChange={handleReminderAtChange}
+            emailReminderEnabled={emailReminderEnabled}
+            reminderAt={reminderAt}
+            eventStartDate={startDate}
+            onReminderEnabledChange={setEmailReminderEnabled}
+            onReminderAtChange={setReminderAt}
           />
 
           <div className="flex items-center space-x-3">
             <Switch
               id="recurring"
-              checked={event.is_recurring || false}
-              onCheckedChange={(checked) => onEventChange({ ...event, is_recurring: checked })}
+              checked={isRecurring || false}
+              onCheckedChange={(checked) => setIsRecurring(checked)}
             />
             <Label htmlFor="recurring" className="text-sm font-medium">
               {t('calendar.makeRecurring')}
             </Label>
           </div>
 
-          {event.is_recurring && (
+          {isRecurring && (
             <div className="ml-6 space-y-4">
               <div>
                 <Label htmlFor="repeat-pattern" className="text-sm text-muted-foreground">
                   {t('calendar.repeatPattern')}
                 </Label>
                 <Select
-                  value={event.repeat_pattern || "weekly"}
-                  onValueChange={(value) => onEventChange({ ...event, repeat_pattern: value })}
+                  value={repeatPattern || "weekly"}
+                  onValueChange={(value) => setRepeatPattern(value)}
                 >
                   <SelectTrigger className="w-full mt-1">
                     <SelectValue />
@@ -245,8 +299,8 @@ export const EventDialogFields = ({ event = {}, onEventChange, onFileChange }: E
                 <Input
                   id="repeat-until"
                   type="date"
-                  value={event.repeat_until ? new Date(event.repeat_until).toISOString().split('T')[0] : ""}
-                  onChange={(e) => onEventChange({ ...event, repeat_until: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
+                  value={repeatUntil ? new Date(repeatUntil).toISOString().split('T')[0] : ""}
+                  onChange={(e) => setRepeatUntil(e.target.value ? new Date(e.target.value).toISOString() : "")}
                   className="w-full mt-1"
                 />
               </div>
