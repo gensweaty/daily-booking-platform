@@ -75,6 +75,7 @@ export const EventDialog = ({
     MozOsxFontSmoothing: 'grayscale'
   } : undefined;
 
+  // Create the event dialog hook with proper functions
   const {
     handleCreateEvent,
     handleUpdateEvent,
@@ -125,7 +126,21 @@ export const EventDialog = ({
       
       return result;
     },
-    deleteEvent: handleDeleteEvent
+    deleteEvent: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
+      try {
+        const { error } = await supabase
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', id);
+
+        if (error) throw error;
+
+        return { success: true };
+      } catch (error) {
+        console.error('Error deleting event:', error);
+        throw error;
+      }
+    }
   });
 
   // Function to schedule event reminder
@@ -376,7 +391,7 @@ export const EventDialog = ({
     }
     
     try {
-      await handleDeleteEvent();
+      await handleDeleteEvent({ id: initialData.id });
       onEventDeleted?.();
       onOpenChange(false);
     } catch (error) {
@@ -388,7 +403,7 @@ export const EventDialog = ({
     if (!initialData) return;
     
     try {
-      await handleDeleteEvent(deleteChoice);
+      await handleDeleteEvent({ id: initialData.id, deleteChoice });
       onEventDeleted?.();
       onOpenChange(false);
       setShowRecurringDeleteDialog(false);
@@ -496,8 +511,10 @@ export const EventDialog = ({
       <RecurringDeleteDialog
         open={showRecurringDeleteDialog}
         onOpenChange={setShowRecurringDeleteDialog}
-        onConfirm={handleRecurringDelete}
-        eventTitle={initialData?.title || ""}
+        onDeleteThis={() => handleRecurringDelete("this")}
+        onDeleteSeries={() => handleRecurringDelete("series")}
+        isRecurringEvent={true}
+        isLoading={loading}
       />
     </>
   );
