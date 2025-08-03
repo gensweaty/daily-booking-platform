@@ -130,7 +130,7 @@ export const EventDialog = ({
       setStartDate(format(startDateTime, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(endDateTime, "yyyy-MM-dd'T'HH:mm"));
 
-      // Load existing files
+      // Load existing files - FIX: pass the id string, not the entire object
       if (initialData.id) {
         loadExistingFiles(initialData.id);
       }
