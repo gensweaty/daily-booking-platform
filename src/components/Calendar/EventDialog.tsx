@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,6 @@ import { cn } from "@/lib/utils";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { associateBookingFilesWithEvent } from '@/integrations/supabase/client';
-import { FileRecord } from '@/types/files';
 
 interface PersonData {
   id: string;
@@ -60,7 +60,13 @@ export const EventDialog = ({
   const [paymentStatus, setPaymentStatus] = useState("not_paid");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const [existingFiles, setExistingFiles] = useState<FileRecord[]>([]);
+  const [existingFiles, setExistingFiles] = useState<Array<{
+    id: string;
+    filename: string;
+    file_path: string;
+    content_type?: string;
+    size?: number;
+  }>>([]);
   const [isRecurring, setIsRecurring] = useState(false);
   const [repeatPattern, setRepeatPattern] = useState("");
   const [repeatUntil, setRepeatUntil] = useState("");
@@ -117,7 +123,7 @@ export const EventDialog = ({
       setAdditionalPersons(initialData.additional_persons || []);
       setEventName(initialData.title || "");
       
-      // Load reminder fields for existing events
+      // Fix reminder fields synchronization - show existing reminder data
       setReminderAt(initialData.reminder_at || '');
       setEmailReminderEnabled(initialData.email_reminder_enabled || false);
       
@@ -132,18 +138,7 @@ export const EventDialog = ({
           if (error) {
             console.error('Error fetching existing files:', error);
           } else {
-            // Map the database response to FileRecord format
-            const mappedFiles: FileRecord[] = (data || []).map(file => ({
-              id: file.id,
-              filename: file.filename,
-              file_path: file.file_path,
-              content_type: file.content_type || null,
-              size: file.size || null,
-              created_at: file.created_at || new Date().toISOString(),
-              user_id: file.user_id || null,
-              event_id: file.event_id
-            }));
-            setExistingFiles(mappedFiles);
+            setExistingFiles(data || []);
           }
         } catch (error) {
           console.error('Error fetching existing files:', error);
@@ -181,27 +176,6 @@ export const EventDialog = ({
       setEmailReminderEnabled(false);
     }
   }, [initialData, selectedDate, open]);
-
-  // Function to fetch business address
-  const fetchBusinessAddress = async (userId: string): Promise<string> => {
-    try {
-      const { data, error } = await supabase
-        .from('business_profiles')
-        .select('contact_address')
-        .eq('user_id', userId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching business address:', error);
-        return '';
-      }
-
-      return data?.contact_address || '';
-    } catch (error) {
-      console.error('Error fetching business address:', error);
-      return '';
-    }
-  };
 
   const handleSave = async () => {
     if (!userSurname.trim()) {
@@ -286,14 +260,11 @@ export const EventDialog = ({
         // File upload logic would go here if needed
       }
 
-      // If this is a new event and we have a valid email, send booking approval email with business address
+      // If this is a new event and we have a valid email, send booking approval email with proper data
       if (!initialData && socialNetworkLink.trim() && socialNetworkLink.includes('@')) {
-        console.log("[EventDialog] Triggering booking approval email with business address...");
+        console.log("[EventDialog] Triggering booking approval email with event data...");
         
         try {
-          // Fetch business address
-          const businessAddress = await fetchBusinessAddress(currentUser.data.user.id);
-          
           const { error: emailError } = await supabase.functions.invoke('send-booking-approval-email', {
             body: { 
               eventId: savedEventId,
@@ -306,8 +277,7 @@ export const EventDialog = ({
               endDate: endDate,
               eventNotes: eventNotes.trim(),
               paymentStatus: paymentStatus,
-              paymentAmount: showPaymentAmount ? parseFloat(paymentAmount) || null : null,
-              businessAddress: businessAddress
+              paymentAmount: showPaymentAmount ? parseFloat(paymentAmount) || null : null
             }
           });
 
