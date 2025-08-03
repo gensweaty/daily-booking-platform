@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -123,7 +122,7 @@ export const EventDialog = ({
       setAdditionalPersons(initialData.additional_persons || []);
       setEventName(initialData.title || "");
       
-      // Fix reminder fields synchronization - show existing reminder data
+      // Load reminder fields for existing events
       setReminderAt(initialData.reminder_at || '');
       setEmailReminderEnabled(initialData.email_reminder_enabled || false);
       
@@ -176,6 +175,27 @@ export const EventDialog = ({
       setEmailReminderEnabled(false);
     }
   }, [initialData, selectedDate, open]);
+
+  // Function to fetch business address
+  const fetchBusinessAddress = async (userId: string): Promise<string> => {
+    try {
+      const { data, error } = await supabase
+        .from('business_profiles')
+        .select('contact_address')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching business address:', error);
+        return '';
+      }
+
+      return data?.contact_address || '';
+    } catch (error) {
+      console.error('Error fetching business address:', error);
+      return '';
+    }
+  };
 
   const handleSave = async () => {
     if (!userSurname.trim()) {
@@ -260,11 +280,14 @@ export const EventDialog = ({
         // File upload logic would go here if needed
       }
 
-      // If this is a new event and we have a valid email, send booking approval email with proper data
+      // If this is a new event and we have a valid email, send booking approval email with business address
       if (!initialData && socialNetworkLink.trim() && socialNetworkLink.includes('@')) {
-        console.log("[EventDialog] Triggering booking approval email with event data...");
+        console.log("[EventDialog] Triggering booking approval email with business address...");
         
         try {
+          // Fetch business address
+          const businessAddress = await fetchBusinessAddress(currentUser.data.user.id);
+          
           const { error: emailError } = await supabase.functions.invoke('send-booking-approval-email', {
             body: { 
               eventId: savedEventId,
@@ -277,7 +300,8 @@ export const EventDialog = ({
               endDate: endDate,
               eventNotes: eventNotes.trim(),
               paymentStatus: paymentStatus,
-              paymentAmount: showPaymentAmount ? parseFloat(paymentAmount) || null : null
+              paymentAmount: showPaymentAmount ? parseFloat(paymentAmount) || null : null,
+              businessAddress: businessAddress
             }
           });
 
