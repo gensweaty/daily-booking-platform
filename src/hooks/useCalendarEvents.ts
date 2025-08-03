@@ -182,6 +182,24 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("[useCalendarEvents] Creating event with data:", eventData);
 
+      // Calculate reminder time (24 hours before event start)
+      let reminderAt = null;
+      if (eventData.start_date) {
+        const eventStart = new Date(eventData.start_date);
+        const reminderTime = new Date(eventStart.getTime() - 24 * 60 * 60 * 1000); // 24 hours before
+        
+        // Only set reminder if event is more than 24 hours away
+        if (reminderTime.getTime() > Date.now()) {
+          reminderAt = reminderTime.toISOString();
+        } else {
+          // For events within 24 hours, set reminder for 1 hour before (if possible)
+          const oneHourBefore = new Date(eventStart.getTime() - 60 * 60 * 1000);
+          if (oneHourBefore.getTime() > Date.now()) {
+            reminderAt = oneHourBefore.toISOString();
+          }
+        }
+      }
+
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
         p_event_data: {
           title: eventData.user_surname || eventData.title,
@@ -197,7 +215,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           type: eventData.type || 'event',
           is_recurring: eventData.is_recurring || false,
           repeat_pattern: eventData.repeat_pattern,
-          repeat_until: eventData.repeat_until
+          repeat_until: eventData.repeat_until,
+          language: eventData.language || 'en'
         },
         p_additional_persons: [],
         p_user_id: user.id,
@@ -205,6 +224,17 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       });
 
       if (error) throw error;
+
+      // Update the event with reminder time if calculated
+      if (reminderAt && savedEventId) {
+        await supabase
+          .from('events')
+          .update({ 
+            reminder_at: reminderAt,
+            email_reminder_enabled: true
+          })
+          .eq('id', savedEventId);
+      }
 
       clearCalendarCache();
 
@@ -216,6 +246,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         user_id: user.id,
         type: eventData.type || 'event',
         created_at: new Date().toISOString(),
+        reminder_at: reminderAt,
+        email_reminder_enabled: true,
         ...eventData
       } as CalendarEventType;
     },
@@ -246,32 +278,48 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("[useCalendarEvents] Updating event with data:", eventData);
 
+      // Recalculate reminder time if start_date is being updated
+      let reminderAt = undefined;
+      if (eventData.start_date) {
+        const eventStart = new Date(eventData.start_date);
+        const reminderTime = new Date(eventStart.getTime() - 24 * 60 * 60 * 1000); // 24 hours before
+        
+        // Only set reminder if event is more than 24 hours away
+        if (reminderTime.getTime() > Date.now()) {
+          reminderAt = reminderTime.toISOString();
+        } else {
+          // For events within 24 hours, set reminder for 1 hour before (if possible)
+          const oneHourBefore = new Date(eventStart.getTime() - 60 * 60 * 1000);
+          if (oneHourBefore.getTime() > Date.now()) {
+            reminderAt = oneHourBefore.toISOString();
+          } else {
+            // If event is too soon, disable reminder
+            reminderAt = null;
+          }
+        }
+      }
+
       // Check if this is a booking_request (type === 'booking_request') or regular event
       if (eventData.type === 'booking_request') {
         // Update booking_request table
+        const updateData: any = {
+          title: eventData.user_surname || eventData.title,
+          requester_name: eventData.user_surname || eventData.title,
+          requester_phone: eventData.user_number,
+          requester_email: eventData.social_network_link,
+          description: eventData.event_notes,
+          start_date: eventData.start_date,
+          end_date: eventData.end_date,
+          payment_status: eventData.payment_status || 'not_paid',
+          payment_amount: eventData.payment_amount || null,
+        };
+
         const { error } = await supabase
           .from('booking_requests')
-          .update({
-            title: eventData.user_surname || eventData.title,
-            requester_name: eventData.user_surname || eventData.title,
-            requester_phone: eventData.user_number,
-            requester_email: eventData.social_network_link,
-            description: eventData.event_notes,
-            start_date: eventData.start_date,
-            end_date: eventData.end_date,
-            payment_status: eventData.payment_status || 'not_paid',
-            payment_amount: eventData.payment_amount || null,
-          })
+          .update(updateData)
           .eq('id', eventData.id);
 
         if (error) throw error;
-
-        clearCalendarCache();
-
-        return {
-          ...eventData,
-          title: eventData.user_surname || eventData.title || 'Untitled Event',
-        } as CalendarEventType;
       } else {
         // Update regular event using the existing RPC function
         const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
@@ -289,7 +337,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             type: eventData.type || 'event',
             is_recurring: eventData.is_recurring || false,
             repeat_pattern: eventData.repeat_pattern,
-            repeat_until: eventData.repeat_until
+            repeat_until: eventData.repeat_until,
+            language: eventData.language || 'en'
           },
           p_additional_persons: [],
           p_user_id: user.id,
@@ -298,19 +347,32 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
         if (error) throw error;
 
-        clearCalendarCache();
-
-        return {
-          id: savedEventId,
-          title: eventData.user_surname || eventData.title || 'Untitled Event',
-          start_date: eventData.start_date || new Date().toISOString(),
-          end_date: eventData.end_date || new Date().toISOString(),
-          user_id: user.id,
-          type: eventData.type || 'event',
-          created_at: eventData.created_at || new Date().toISOString(),
-          ...eventData
-        } as CalendarEventType;
+        // Update reminder time if calculated and it's a regular event
+        if (reminderAt !== undefined) {
+          await supabase
+            .from('events')
+            .update({ 
+              reminder_at: reminderAt,
+              email_reminder_enabled: reminderAt !== null
+            })
+            .eq('id', eventData.id);
+        }
       }
+
+      clearCalendarCache();
+
+      return {
+        id: eventData.id,
+        title: eventData.user_surname || eventData.title || 'Untitled Event',
+        start_date: eventData.start_date || new Date().toISOString(),
+        end_date: eventData.end_date || new Date().toISOString(),
+        user_id: user.id,
+        type: eventData.type || 'event',
+        created_at: eventData.created_at || new Date().toISOString(),
+        reminder_at: reminderAt,
+        email_reminder_enabled: reminderAt !== null,
+        ...eventData
+      } as CalendarEventType;
     },
     onSuccess: async () => {
       await new Promise(resolve => setTimeout(resolve, 300));
