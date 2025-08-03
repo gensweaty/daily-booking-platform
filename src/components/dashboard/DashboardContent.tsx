@@ -1,3 +1,4 @@
+
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { TaskList } from "@/components/TaskList";
@@ -39,7 +40,6 @@ export const DashboardContent = () => {
       {/* Notification Components */}
       <TaskReminderNotifications />
       <EventReminderNotifications />
-      <ReminderNotifications />
       
       {/* Calendar Section */}
       <div>

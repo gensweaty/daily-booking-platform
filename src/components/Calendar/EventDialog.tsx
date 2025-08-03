@@ -21,20 +21,24 @@ interface PersonData {
   paymentAmount: string;
 }
 
-interface EventDialogProps {
-  event?: CalendarEventType;
-  date?: Date;
-  isOpen: boolean;
-  onClose: () => void;
-  onSave?: () => void;
+export interface EventDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedDate?: Date;
+  initialData?: CalendarEventType;
+  onEventCreated?: () => Promise<void>;
+  onEventUpdated?: () => Promise<void>;
+  onEventDeleted?: () => Promise<void>;
 }
 
 export const EventDialog: React.FC<EventDialogProps> = ({
-  event,
-  date,
-  isOpen,
-  onClose,
-  onSave
+  open,
+  onOpenChange,
+  selectedDate,
+  initialData: event,
+  onEventCreated,
+  onEventUpdated,
+  onEventDeleted
 }) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -194,6 +198,30 @@ export const EventDialog: React.FC<EventDialogProps> = ({
     return true;
   };
 
+  const handleClose = () => {
+    // Reset form state
+    setTitle('');
+    setUserSurname('');
+    setUserNumber('');
+    setSocialNetworkLink('');
+    setEventNotes('');
+    setEventName('');
+    setStartDate('');
+    setEndDate('');
+    setPaymentStatus('not_paid');
+    setPaymentAmount('');
+    setFiles([]);
+    setExistingFiles([]);
+    setIsRecurring(false);
+    setRepeatPattern('');
+    setRepeatUntil('');
+    setAdditionalPersons([]);
+    setReminderAt('');
+    setEmailReminderEnabled(false);
+    
+    onOpenChange(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -284,8 +312,13 @@ export const EventDialog: React.FC<EventDialogProps> = ({
           (event ? "Event updated successfully" : "Event created successfully")
       });
 
-      onSave?.();
-      onClose();
+      if (event) {
+        onEventUpdated?.();
+      } else {
+        onEventCreated?.();
+      }
+      
+      handleClose();
 
     } catch (error) {
       console.error('Error saving event:', error);
@@ -299,32 +332,8 @@ export const EventDialog: React.FC<EventDialogProps> = ({
     }
   };
 
-  const handleClose = () => {
-    // Reset form state
-    setTitle('');
-    setUserSurname('');
-    setUserNumber('');
-    setSocialNetworkLink('');
-    setEventNotes('');
-    setEventName('');
-    setStartDate('');
-    setEndDate('');
-    setPaymentStatus('not_paid');
-    setPaymentAmount('');
-    setFiles([]);
-    setExistingFiles([]);
-    setIsRecurring(false);
-    setRepeatPattern('');
-    setRepeatUntil('');
-    setAdditionalPersons([]);
-    setReminderAt('');
-    setEmailReminderEnabled(false);
-    
-    onClose();
-  };
-
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")} style={isGeorgian ? {
