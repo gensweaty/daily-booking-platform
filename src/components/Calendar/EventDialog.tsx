@@ -125,10 +125,10 @@ export const EventDialog = ({
               id: file.id,
               filename: file.filename,
               file_path: file.file_path,
-              content_type: file.content_type || undefined,
-              size: file.size || undefined,
+              content_type: file.content_type || null,
+              size: file.size || null,
               created_at: file.created_at,
-              user_id: file.user_id
+              user_id: file.user_id || null
             }));
             setExistingFiles(fileRecords);
           }
