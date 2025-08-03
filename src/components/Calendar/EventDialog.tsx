@@ -12,6 +12,8 @@ import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 
 export interface EventDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   selectedDate: Date;
   initialData?: CalendarEventType;
   onEventCreated?: () => Promise<void>;
@@ -31,6 +33,8 @@ interface PersonData {
 }
 
 export const EventDialog = ({ 
+  open: externalOpen,
+  onOpenChange: externalOnOpenChange,
   selectedDate, 
   initialData, 
   onEventCreated, 
@@ -42,7 +46,10 @@ export const EventDialog = ({
   const isGeorgian = language === 'ka';
 
   // State management
-  const [open, setOpen] = useState(!!initialData);
+  const [internalOpen, setInternalOpen] = useState(!!initialData);
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = externalOnOpenChange || setInternalOpen;
+  
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -101,14 +108,30 @@ export const EventDialog = ({
         setRecurringType(initialData.recurring_type as "weekly" | "monthly");
       }
       setRecurringEndDate(initialData.recurring_end_date || "");
-      setAdditionalPersons(initialData.additional_persons || []);
-      setOpen(true);
+      
+      // Properly transform additional_persons with type casting
+      const transformedPersons: PersonData[] = (initialData.additional_persons || []).map(person => ({
+        id: person.id,
+        userSurname: person.userSurname,
+        userNumber: person.userNumber,
+        socialNetworkLink: person.socialNetworkLink,
+        eventNotes: person.eventNotes,
+        paymentStatus: person.paymentStatus as "not_paid" | "partly_paid" | "fully_paid",
+        paymentAmount: person.paymentAmount,
+      }));
+      setAdditionalPersons(transformedPersons);
+      
+      if (externalOpen === undefined) {
+        setInternalOpen(true);
+      }
     } else {
       // Reset form for new event
       resetForm();
-      setOpen(true);
+      if (externalOpen === undefined) {
+        setInternalOpen(true);
+      }
     }
-  }, [initialData]);
+  }, [initialData, externalOpen]);
 
   const resetForm = () => {
     setTitle("");
@@ -215,7 +238,7 @@ export const EventDialog = ({
               socialNetworkLink={socialNetworkLink}
               setSocialNetworkLink={setSocialNetworkLink}
               paymentStatus={paymentStatus}
-              setPaymentStatus={(value: string) => setPaymentStatus(value as "not_paid" | "partly_paid" | "fully_paid")}
+              setPaymentStatus={setPaymentStatus}
               paymentAmount={paymentAmount}
               setPaymentAmount={setPaymentAmount}
               eventNotes={eventNotes}

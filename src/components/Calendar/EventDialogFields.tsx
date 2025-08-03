@@ -50,7 +50,7 @@ interface EventDialogFieldsProps {
   endDate: string;
   setEndDate: (value: string) => void;
   paymentStatus: string;
-  setPaymentStatus: (value: string) => void;
+  setPaymentStatus: (value: "not_paid" | "partly_paid" | "fully_paid") => void;
   paymentAmount: string;
   setPaymentAmount: (value: string) => void;
   files: File[];
@@ -89,6 +89,10 @@ interface EventDialogFieldsProps {
   setEmailReminder: (value: boolean) => void;
   // Add missing prop
   isVirtualEvent?: boolean;
+  selectedDate?: Date;
+  initialData?: any;
+  description?: string;
+  setDescription?: (value: string) => void;
 }
 
 export const EventDialogFields = ({
@@ -131,7 +135,9 @@ export const EventDialogFields = ({
   setReminderAt,
   emailReminder,
   setEmailReminder,
-  isVirtualEvent = false
+  isVirtualEvent = false,
+  description = "",
+  setDescription = () => {}
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -280,7 +286,7 @@ export const EventDialogFields = ({
             setEventNotes(value);
             break;
           case 'paymentStatus':
-            setPaymentStatus(value);
+            setPaymentStatus(value as "not_paid" | "partly_paid" | "fully_paid");
             break;
           case 'paymentAmount':
             setPaymentAmount(value);
