@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,14 +10,14 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { EventDialogFields } from "./EventDialogFields";
 import { ReminderField } from "@/components/shared/ReminderField";
 import { useToast } from "@/hooks/use-toast";
-import type { Event } from "@/lib/types";
+import type { CalendarEventType } from "@/lib/types";
 
 interface EventDialogProps {
   open: boolean;
   onClose: () => void;
   onSave: (eventData: any) => void;
   onDelete?: (eventId: string, deleteAll?: boolean) => void;
-  initialData?: Event;
+  initialData?: CalendarEventType;
   selectedDate?: Date;
   mode?: 'create' | 'edit';
 }
@@ -42,6 +43,7 @@ export const EventDialog: React.FC<EventDialogProps> = ({
   const [userNumber, setUserNumber] = useState('');
   const [socialNetworkLink, setSocialNetworkLink] = useState('');
   const [eventNotes, setEventNotes] = useState('');
+  const [eventName, setEventName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('');
@@ -52,6 +54,23 @@ export const EventDialog: React.FC<EventDialogProps> = ({
   const [isRecurring, setIsRecurring] = useState(false);
   const [repeatPattern, setRepeatPattern] = useState('');
   const [repeatUntil, setRepeatUntil] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
+  const [existingFiles, setExistingFiles] = useState<Array<{
+    id: string;
+    filename: string;
+    file_path: string;
+    content_type?: string;
+    size?: number;
+  }>>([]);
+  const [additionalPersons, setAdditionalPersons] = useState<Array<{
+    id: string;
+    userSurname: string;
+    userNumber: string;
+    socialNetworkLink: string;
+    eventNotes: string;
+    paymentStatus: string;
+    paymentAmount: string;
+  }>>([]);
 
   // ✅ FIX: Correct timezone handling - no double conversion
   useEffect(() => {
@@ -61,6 +80,7 @@ export const EventDialog: React.FC<EventDialogProps> = ({
       setUserNumber(initialData.user_number || '');
       setSocialNetworkLink(initialData.social_network_link || '');
       setEventNotes(initialData.event_notes || '');
+      setEventName(initialData.event_name || '');
       setPaymentStatus(initialData.payment_status || '');
       setPaymentAmount(initialData.payment_amount?.toString() || '');
       setIsRecurring(initialData.is_recurring || false);
@@ -85,6 +105,16 @@ export const EventDialog: React.FC<EventDialogProps> = ({
       
       // ✅ FIX: Check both possible reminder enabled fields
       setEmailReminderEnabled(!!(initialData.email_reminder_enabled || initialData.reminder_enabled));
+
+      // Load additional persons if they exist
+      if (initialData.additional_persons) {
+        setAdditionalPersons(initialData.additional_persons);
+      }
+
+      // Load files if they exist
+      if (initialData.files) {
+        setExistingFiles(initialData.files);
+      }
       
     } else if (selectedDate && open) {
       // New event with selected date
@@ -152,6 +182,7 @@ export const EventDialog: React.FC<EventDialogProps> = ({
         user_number: userNumber.trim(),
         social_network_link: socialNetworkLink.trim(),
         event_notes: eventNotes.trim(),
+        event_name: eventName.trim(),
         start_date: startISO,
         end_date: endISO,
         payment_status: paymentStatus,
@@ -161,7 +192,9 @@ export const EventDialog: React.FC<EventDialogProps> = ({
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
         reminder_at: reminderISO,
         email_reminder_enabled: emailReminderEnabled,
-        type: 'event'
+        type: 'event',
+        additional_persons: additionalPersons,
+        files: files
       };
 
       console.log('Saving event with data:', {
@@ -246,6 +279,8 @@ export const EventDialog: React.FC<EventDialogProps> = ({
               setSocialNetworkLink={setSocialNetworkLink}
               eventNotes={eventNotes}
               setEventNotes={setEventNotes}
+              eventName={eventName}
+              setEventName={setEventName}
               startDate={startDate}
               setStartDate={setStartDate}
               endDate={endDate}
@@ -260,16 +295,18 @@ export const EventDialog: React.FC<EventDialogProps> = ({
               setRepeatPattern={setRepeatPattern}
               repeatUntil={repeatUntil}
               setRepeatUntil={setRepeatUntil}
-            />
-
-            {/* ✅ FIX: Add ReminderField component */}
-            <ReminderField
+              files={files}
+              setFiles={setFiles}
+              existingFiles={existingFiles}
+              setExistingFiles={setExistingFiles}
+              eventId={initialData?.id}
+              isNewEvent={mode === 'create'}
+              additionalPersons={additionalPersons}
+              setAdditionalPersons={setAdditionalPersons}
               reminderAt={reminderAt}
               setReminderAt={setReminderAt}
               emailReminderEnabled={emailReminderEnabled}
               setEmailReminderEnabled={setEmailReminderEnabled}
-              startDate={startDate}
-              className="mt-4"
             />
           </div>
 

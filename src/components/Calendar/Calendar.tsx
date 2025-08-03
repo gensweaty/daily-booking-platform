@@ -1,370 +1,313 @@
-
-import { useState, useEffect } from "react";
-import {
-  startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
-  addDays,
-  startOfMonth,
-  endOfMonth,
-  addMonths,
-  subMonths,
-  setHours,
-  startOfDay,
-  format,
-} from "date-fns";
-import { useCalendarEvents } from "@/hooks/useCalendarEvents";
-import { CalendarHeader } from "./CalendarHeader";
-import { CalendarView } from "./CalendarView";
-import { EventDialog } from "./EventDialog";
-import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
-import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { TimeIndicator } from "./TimeIndicator";
-import { useEventDialog } from "./hooks/useEventDialog";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { BookingRequestForm } from "../business/BookingRequestForm";
+import React, { useState, useEffect, useCallback } from 'react';
+import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { EventDialog } from "@/components/Calendar/EventDialog";
 import { useToast } from "@/hooks/use-toast";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { useTheme } from "next-themes";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CalendarEventType } from "@/lib/types";
+import { Main } from "@/components/ui/main";
+import { useUser } from "@clerk/clerk-react";
+import { supabase } from '@/integrations/supabase/client';
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ReloadIcon } from "@radix-ui/react-icons";
 
-interface CalendarProps {
-  defaultView?: CalendarViewType;
-  currentView?: CalendarViewType;
-  onViewChange?: (view: CalendarViewType) => void;
-  isExternalCalendar?: boolean;
-  businessId?: string;
-  businessUserId?: string | null;
-  showAllEvents?: boolean;
-  allowBookingRequests?: boolean;
-  directEvents?: CalendarEventType[];
+interface Filter {
+  label: string;
+  value: string;
+  checked: boolean;
 }
 
-export const Calendar = ({ 
-  defaultView = "week", 
-  currentView,
-  onViewChange,
-  isExternalCalendar = false,
-  businessId,
-  businessUserId,
-  showAllEvents = false,
-  allowBookingRequests = false,
-  directEvents
-}: CalendarProps) => {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [view, setView] = useState<CalendarViewType>(defaultView);
-  const isMobile = useMediaQuery("(max-width: 640px)");
-  const { theme } = useTheme();
-  
-  const { events: fetchedEvents, isLoading: isLoadingFromHook, error, createEvent, updateEvent, deleteEvent } = useCalendarEvents(
-    !directEvents && (isExternalCalendar && businessId ? businessId : undefined),
-    !directEvents && (isExternalCalendar && businessUserId ? businessUserId : undefined)
-  );
-  
-  const events = directEvents || fetchedEvents;
-  const isLoading = !directEvents && isLoadingFromHook;
-  
-  const [isBookingFormOpen, setIsBookingFormOpen] = useState(false);
-  const [bookingDate, setBookingDate] = useState<Date | undefined>(undefined);
-  const [bookingStartTime, setBookingStartTime] = useState<string>("");
-  const [bookingEndTime, setBookingEndTime] = useState<string>("");
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
+const defaultFilters: Filter[] = [
+  { label: 'Show Bookings', value: 'booking', checked: true },
+  { label: 'Show Events', value: 'event', checked: true },
+];
+
+export function CalendarPage() {
+  const [date, setDate] = useState<Date>(new Date());
+  const [isCreateEventDialogOpen, setIsCreateEventDialogOpen] = useState(false);
+  const [events, setEvents] = useState<CalendarEventType[]>([]);
+  const [selectedEventForEdit, setSelectedEventForEdit] = useState<CalendarEventType | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { t } = useLanguage();
   const { toast } = useToast();
+  const { user } = useUser();
+  const [filters, setFilters] = useState(defaultFilters);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isAllDay, setIsAllDay] = useState(false);
 
-  useEffect(() => {
-    if (currentView) {
-      setView(currentView);
-    }
-  }, [currentView]);
+  // Function to toggle filter
+  const toggleFilter = (value: string) => {
+    setFilters(
+      filters.map((filter) =>
+        filter.value === value ? { ...filter, checked: !filter.checked } : filter
+      )
+    );
+  };
 
-  useEffect(() => {
-    console.log("[Calendar] Rendering with props:", { 
-      isExternalCalendar, 
-      businessId,
-      businessUserId, 
-      allowBookingRequests,
-      directEvents: directEvents?.length || 0,
-      fetchedEvents: fetchedEvents?.length || 0,
-      eventsCount: events?.length || 0,
-      view
-    });
-    
-    if (events?.length > 0) {
-      console.log("[Calendar] First event:", events[0]);
-      console.log("[Calendar] All events:", events); // Log all events to debug
-    }
-  }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
+  // Function to check if a type is active
+  const isTypeActive = (type: string) => {
+    return filters.find((filter) => filter.value === type)?.checked || false;
+  };
 
-  const {
-    selectedEvent,
-    setSelectedEvent,
-    isNewEventDialogOpen,
-    setIsNewEventDialogOpen,
-    selectedDate: dialogSelectedDate,
-    setSelectedDate: setDialogSelectedDate,
-    handleCreateEvent,
-    handleUpdateEvent,
-    handleDeleteEvent,
-  } = useEventDialog({
-    createEvent: async (data) => {
-      const result = await createEvent?.(data);
-      return result;
-    },
-    updateEvent: async (data) => {
-      if (!selectedEvent) throw new Error("No event selected");
-      console.log("Calendar passing to updateEvent:", { data, id: selectedEvent.id, type: selectedEvent.type });
-      
-      const result = await updateEvent?.({
-        ...data,
-        id: selectedEvent.id,
-        type: selectedEvent.type  // Make sure to pass the type from the selected event
-      });
-      return result;
-    },
-    deleteEvent: deleteEvent
-  });
-
-  if (!isExternalCalendar && !user && !window.location.pathname.includes('/business/')) {
-    navigate("/signin");
-    return null;
-  }
-
-  const getDaysForView = () => {
-    switch (view) {
-      case "month": {
-        const monthStart = startOfMonth(selectedDate);
-        return eachDayOfInterval({
-          start: monthStart,
-          end: endOfMonth(selectedDate),
-        });
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (!user) {
+        console.warn('User not available, skipping fetch.');
+        return;
       }
-      case "week":
-        return eachDayOfInterval({
-          start: startOfWeek(selectedDate),
-          end: endOfWeek(selectedDate),
-        });
-      case "day":
-        return [startOfDay(selectedDate)];
+
+      let query = supabase
+        .from('events')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('start_date', { ascending: true });
+
+      // Apply date filter
+      const startOfDay = format(date, 'yyyy-MM-dd') + 'T00:00:00.000Z';
+      const endOfDay = format(date, 'yyyy-MM-dd') + 'T23:59:59.999Z';
+
+      query = query.gte('start_date', startOfDay).lte('start_date', endOfDay);
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Error fetching events:", error);
+        setError(t("calendar.fetchEventsError"));
+      } else {
+        const typedData = data as CalendarEventType[];
+        setEvents(typedData || []);
+      }
+    } catch (err) {
+      console.error("Unexpected error fetching events:", err);
+      setError(t("calendar.fetchEventsError"));
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [date, user, t]);
 
-  const handlePrevious = () => {
-    switch (view) {
-      case "month":
-        setSelectedDate(subMonths(selectedDate, 1));
-        break;
-      case "week":
-        setSelectedDate(addDays(selectedDate, -7));
-        break;
-      case "day":
-        setSelectedDate(addDays(selectedDate, -1));
-        break;
-    }
-  };
-
-  const handleNext = () => {
-    switch (view) {
-      case "month":
-        setSelectedDate(addMonths(selectedDate, 1));
-        break;
-      case "week":
-        setSelectedDate(addDays(selectedDate, 7));
-        break;
-      case "day":
-        setSelectedDate(addDays(selectedDate, 1));
-        break;
-    }
-  };
-
-  const handleViewChange = (newView: CalendarViewType) => {
-    setView(newView);
-    if (onViewChange) {
-      onViewChange(newView);
-    }
-  };
-
-  const handleCalendarDayClick = (date: Date, hour?: number) => {
-    const clickedDate = new Date(date);
-    
-    clickedDate.setHours(hour !== undefined ? hour : 9, 0, 0, 0);
-    
-    if (isExternalCalendar && allowBookingRequests) {
-      setBookingDate(clickedDate);
-      
-      const startHour = format(clickedDate, "HH:mm");
-      const endDate = new Date(clickedDate);
-      endDate.setHours(clickedDate.getHours() + 1);
-      const endHour = format(endDate, "HH:mm");
-      
-      setBookingStartTime(startHour);
-      setBookingEndTime(endHour);
-      
-      setIsBookingFormOpen(true);
-    } else if (!isExternalCalendar) {
-      setDialogSelectedDate(clickedDate);
-      setTimeout(() => setIsNewEventDialogOpen(true), 0);
-    }
-  };
-
-  const handleAddEventClick = () => {
-    if (isExternalCalendar && allowBookingRequests) {
-      const now = new Date();
-      setBookingDate(now);
-      
-      const startHour = format(now, "HH:mm");
-      const endDate = new Date(now);
-      endDate.setHours(now.getHours() + 1);
-      const endHour = format(endDate, "HH:mm");
-      
-      setBookingStartTime(startHour);
-      setBookingEndTime(endHour);
-      
-      setIsBookingFormOpen(true);
-    } else if (!isExternalCalendar) {
-      const now = new Date();
-      now.setHours(9, 0, 0, 0);
-      
-      setDialogSelectedDate(now);
-      setTimeout(() => setIsNewEventDialogOpen(true), 0);
-    }
-  };
-
-  const handleEventClick = (event: CalendarEventType) => {
-    if (!isExternalCalendar) {
-      setSelectedEvent(event);
-    } else if (isExternalCalendar && allowBookingRequests) {
-      toast({
-        title: "Time slot not available",
-        description: "This time slot is already booked. Please select a different time.",
-      });
-    }
-  };
-
-  const handleBookingSuccess = () => {
-    setIsBookingFormOpen(false);
-    queryClient.invalidateQueries({ queryKey: ['booking_requests'] });
-    
-    toast.event.bookingSubmitted();
-  };
-
-  // Functions to handle event operations and refresh calendar
-  const refreshCalendar = async () => {
-    const queryKey = businessId ? ['business-events', businessId] : ['events', user?.id];
-    
-    // Wait a bit for database operations to complete
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    queryClient.invalidateQueries({ queryKey });
-  };
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleEventCreated = async () => {
-    console.log("Event created, refreshing calendar...");
-    await refreshCalendar();
+    toast({
+      title: t("success.title"),
+      description: t("calendar.eventCreated"),
+    });
+    await fetchData();
+    setIsCreateEventDialogOpen(false);
   };
 
   const handleEventUpdated = async () => {
-    console.log("Event updated, refreshing calendar...");
-    await refreshCalendar();
+    toast({
+      title: t("success.title"),
+      description: t("calendar.eventUpdated"),
+    });
+    await fetchData();
+    setSelectedEventForEdit(null);
   };
 
-  const handleEventDeleted = async () => {
-    console.log("Event deleted, refreshing calendar...");
-    await refreshCalendar();
+  const handleEventDeleted = async (eventId: string, deleteAll?: boolean) => {
+    try {
+      // Optimistically update the UI
+      setEvents(prevEvents => prevEvents.filter(event => event.id !== eventId));
+
+      // Delete the event using Supabase
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId);
+
+      if (error) {
+        console.error("Error deleting event:", error);
+        toast({
+          title: t("error.title"),
+          description: t("calendar.eventDeleteError"),
+          variant: "destructive",
+        });
+        // Revert the UI update if the deletion fails
+        await fetchData();
+        return;
+      }
+
+      toast({
+        title: t("success.title"),
+        description: t("calendar.eventDeleted"),
+      });
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      toast({
+        title: t("error.title"),
+        description: t("calendar.eventDeleteError"),
+        variant: "destructive",
+      });
+      // Revert the UI update if an error occurs
+      await fetchData();
+    } finally {
+      setSelectedEventForEdit(null);
+    }
   };
 
-  if (error && !directEvents) {
-    console.error("Calendar error:", error);
-    return <div className="text-red-500">Error loading calendar: {error.message}</div>;
-  }
+  // Filter events based on search term and type
+  const filteredEvents = events.filter((event) => {
+    const searchTermLower = searchTerm.toLowerCase();
+    const matchesSearch =
+      event.title.toLowerCase().includes(searchTermLower) ||
+      event.user_surname.toLowerCase().includes(searchTermLower) ||
+      (event.event_notes?.toLowerCase().includes(searchTermLower) ?? false);
 
-  if (isLoading && !directEvents) {
-    return (
-      <div className="space-y-4">
-        <div className="h-10 w-full bg-gray-200 animate-pulse rounded" />
-        <div className="grid grid-cols-7 gap-px">
-          {Array.from({ length: 35 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-  
-  const isDarkTheme = theme === "dark";
-  const gridBgClass = isDarkTheme ? "bg-gray-900" : "bg-white";
-  const textClass = isDarkTheme ? "text-white" : "text-foreground";
+    return matchesSearch && isTypeActive(event.type || 'event');
+  });
 
   return (
-    <div className={`h-full flex flex-col ${isMobile ? 'gap-2 -mx-4' : 'gap-4'}`}>
-      <CalendarHeader
-        selectedDate={selectedDate}
-        view={view}
-        onViewChange={handleViewChange}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        onAddEvent={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleAddEventClick : undefined}
-        isExternalCalendar={isExternalCalendar}
-      />
-
-      <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
-        {view !== 'month' && <TimeIndicator />}
-        <div className={`flex-1 ${gridBgClass} ${textClass}`}>
-          <CalendarView
-            days={getDaysForView()}
-            events={events || []} // Pass all events (including recurring instances)
-            selectedDate={selectedDate}
-            view={view}
-            onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}
-            onEventClick={handleEventClick}
-            isExternalCalendar={isExternalCalendar}
-          />
-        </div>
-      </div>
-
-      {!isExternalCalendar && (
-        <>
-          <EventDialog
-            key={dialogSelectedDate?.getTime()}
-            isOpen={isNewEventDialogOpen}
-            onOpenChange={setIsNewEventDialogOpen}
-            selectedDate={dialogSelectedDate}
-            onEventCreated={handleEventCreated}
-          />
-
-          {selectedEvent && (
-            <EventDialog
-              key={selectedEvent.id}
-              isOpen={!!selectedEvent}
-              onOpenChange={() => setSelectedEvent(null)}
-              selectedDate={new Date(selectedEvent.start_date)}
-              initialData={selectedEvent}
-              onEventUpdated={handleEventUpdated}
-              onEventDeleted={handleEventDeleted}
+    <Main>
+      <div className="md:px-10 px-4 py-6 w-full">
+        <div className="md:flex flex-row justify-between items-center mb-4">
+          <div className="flex-1 flex items-center space-x-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-[300px] justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, "PPP") : <span>{t("common.pickDate")}</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            <Button onClick={fetchData} disabled={loading}>
+              {loading && <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />}
+              {t("common.refresh")}
+            </Button>
+          </div>
+          <div className="md:flex-none flex flex-row items-center justify-end w-full md:w-auto">
+            <Input
+              type="search"
+              placeholder={t("calendar.searchEvents")}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-md md:mr-4"
             />
-          )}
-        </>
-      )}
+            <Button onClick={() => setIsCreateEventDialogOpen(true)}>
+              {t("calendar.addEvent")}
+            </Button>
+          </div>
+        </div>
 
-      {isExternalCalendar && allowBookingRequests && businessId && (
-        <Dialog open={isBookingFormOpen} onOpenChange={setIsBookingFormOpen}>
-          <DialogContent className="sm:max-w-md">
-            {bookingDate && (
-              <BookingRequestForm
-                businessId={businessId}
-                selectedDate={bookingDate}
-                startTime={bookingStartTime}
-                endTime={bookingEndTime}
-                onSuccess={handleBookingSuccess}
-                isExternalBooking={true}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
-      )}
-    </div>
+        <div className="mb-4">
+          <Label className="block text-sm font-medium text-gray-700">{t("common.filters")}</Label>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {filters.map((filter) => (
+              <div key={filter.value} className="flex items-center space-x-2">
+                <Checkbox
+                  id={filter.value}
+                  checked={filter.checked}
+                  onCheckedChange={() => toggleFilter(filter.value)}
+                />
+                <Label htmlFor={filter.value} className="text-gray-900">
+                  {filter.label}
+                </Label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {error && (
+          <div className="rounded-md bg-red-50 p-4">
+            <div className="flex">
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">{t("error.title")}</h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>{error}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex items-center justify-center h-48">
+            <ReloadIcon className="mr-2 h-6 w-6 animate-spin" />
+            <span>{t("common.loading")}</span>
+          </div>
+        ) : filteredEvents.length === 0 ? (
+          <div className="flex items-center justify-center h-48">
+            <span>{t("calendar.noEvents")}</span>
+          </div>
+        ) : (
+          <ScrollArea className="h-[400px] w-full rounded-md border">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 p-4">
+              {filteredEvents.map((event) => (
+                <Card key={event.id} onClick={() => setSelectedEventForEdit(event)} className="cursor-pointer">
+                  <CardHeader>
+                    <CardTitle>{event.title}</CardTitle>
+                    <CardDescription>
+                      {format(new Date(event.start_date), "Pp")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p>{event.user_surname}</p>
+                    {event.type === 'booking' && (
+                      <Badge variant="secondary">{t("common.booking")}</Badge>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </ScrollArea>
+        )}
+
+        {/* Create Event Dialog */}
+        {isCreateEventDialogOpen && (
+          <EventDialog
+            key={selectedDate?.getTime() || 0}
+            open={isCreateEventDialogOpen}
+            onClose={() => setIsCreateEventDialogOpen(false)}
+            selectedDate={selectedDate}
+            onSave={handleEventCreated}
+          />
+        )}
+
+        {/* Edit Event Dialog */}
+        {selectedEventForEdit && (
+          <EventDialog
+            key={selectedEventForEdit.id}
+            open={!!selectedEventForEdit}
+            onClose={() => setSelectedEventForEdit(null)}
+            selectedDate={date}
+            initialData={selectedEventForEdit}
+            onSave={handleEventUpdated}
+            onDelete={handleEventDeleted}
+            mode="edit"
+          />
+        )}
+      </div>
+    </Main>
   );
-};
+}
+
+export default CalendarPage;
