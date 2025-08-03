@@ -21,7 +21,7 @@ export interface EventDialogProps {
   onEventDeleted?: () => Promise<void>;
 }
 
-// Define PersonData interface for additional persons
+// Define PersonData interface consistent with EventDialogFields
 interface PersonData {
   id: string;
   userSurname: string;
@@ -100,7 +100,15 @@ export const EventDialog = ({
       setEmailReminder(initialData.email_reminder_enabled || false);
       setUserSurname(initialData.user_surname || "");
       setSocialNetworkLink(initialData.social_network_link || "");
-      setPaymentStatus((initialData.payment_status as "not_paid" | "partly_paid" | "fully_paid") || "not_paid");
+      
+      // Properly cast payment status with validation
+      const paymentStatusValue = initialData.payment_status;
+      if (paymentStatusValue === "not_paid" || paymentStatusValue === "partly_paid" || paymentStatusValue === "fully_paid") {
+        setPaymentStatus(paymentStatusValue);
+      } else {
+        setPaymentStatus("not_paid");
+      }
+      
       setPaymentAmount(initialData.payment_amount?.toString() || "");
       setEventNotes(initialData.event_notes || "");
       setIsRecurring(!!initialData.recurring_type);
@@ -109,16 +117,24 @@ export const EventDialog = ({
       }
       setRecurringEndDate(initialData.recurring_end_date || "");
       
-      // Properly transform additional_persons with type casting
-      const transformedPersons: PersonData[] = (initialData.additional_persons || []).map(person => ({
-        id: person.id,
-        userSurname: person.userSurname,
-        userNumber: person.userNumber,
-        socialNetworkLink: person.socialNetworkLink,
-        eventNotes: person.eventNotes,
-        paymentStatus: person.paymentStatus as "not_paid" | "partly_paid" | "fully_paid",
-        paymentAmount: person.paymentAmount,
-      }));
+      // Properly transform additional_persons with proper type casting and validation
+      const transformedPersons: PersonData[] = (initialData.additional_persons || []).map(person => {
+        // Validate and cast payment status
+        let validPaymentStatus: "not_paid" | "partly_paid" | "fully_paid" = "not_paid";
+        if (person.paymentStatus === "not_paid" || person.paymentStatus === "partly_paid" || person.paymentStatus === "fully_paid") {
+          validPaymentStatus = person.paymentStatus;
+        }
+        
+        return {
+          id: person.id,
+          userSurname: person.userSurname,
+          userNumber: person.userNumber,
+          socialNetworkLink: person.socialNetworkLink,
+          eventNotes: person.eventNotes,
+          paymentStatus: validPaymentStatus,
+          paymentAmount: person.paymentAmount,
+        };
+      });
       setAdditionalPersons(transformedPersons);
       
       if (externalOpen === undefined) {

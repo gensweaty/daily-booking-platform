@@ -1,11 +1,12 @@
+
 import React, { useState } from "react";
 import { Calendar } from "@/components/Calendar/Calendar";
-import { CustomerList } from "@/components/CRM/CustomerList";
-import { Statistics } from "@/components/Statistics/Statistics";
-import { BusinessPage } from "@/components/Business/BusinessPage";
-import { BookingRequestsList } from "@/components/BookingRequests/BookingRequestsList";
-import { EventReminderNotifications } from "@/components/EventReminders/EventReminderNotifications";
-import { ReminderNotificationManager } from "@/components/reminder/ReminderNotificationManager";
+import { CustomerList } from "@/components/crm/CustomerList";
+import { Statistics } from "@/components/Statistics";
+import { BusinessPage } from "@/components/business/BusinessPage";
+import { BookingRequestsList } from "@/components/business/BookingRequestsList";
+import { EventReminderNotifications } from "@/components/events/EventReminderNotifications";
+import { ReminderNotifications } from "@/components/reminder/ReminderNotifications";
 
 export const DashboardContent = () => {
   const [activeSection, setActiveSection] = useState("calendar");
@@ -13,7 +14,7 @@ export const DashboardContent = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Notification components */}
-      <ReminderNotificationManager onClose={() => {}} />
+      <ReminderNotifications reminders={[]} />
       
       {/* Calendar Section */}
       {activeSection === "calendar" && (
