@@ -1,3 +1,4 @@
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +35,7 @@ interface EventDialogProps {
   onUpdate: (data: Partial<CalendarEventType>) => Promise<void>;
   onDelete: () => Promise<void>;
   isBookingRequest?: boolean;
+  dialogSelectedDate?: Date;
 }
 
 export const EventDialog = ({
@@ -44,6 +46,7 @@ export const EventDialog = ({
   onUpdate,
   onDelete,
   isBookingRequest = false,
+  dialogSelectedDate,
 }) => {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
@@ -75,6 +78,21 @@ export const EventDialog = ({
     size?: number;
   }>>([]);
 
+  // Helper function to get default times
+  const getDefaultTimes = (selectedDate?: Date) => {
+    const baseDate = selectedDate || new Date();
+    const startTime = new Date(baseDate);
+    startTime.setHours(9, 0, 0, 0); // Default start time 9:00 AM
+    
+    const endTime = new Date(baseDate);
+    endTime.setHours(10, 0, 0, 0); // Default end time 10:00 AM (1 hour duration)
+    
+    return {
+      start: startTime.toISOString().slice(0, 16),
+      end: endTime.toISOString().slice(0, 16)
+    };
+  };
+
   useEffect(() => {
     if (selectedEvent) {
       setTitle(selectedEvent.title || "");
@@ -83,8 +101,22 @@ export const EventDialog = ({
       setSocialNetworkLink(selectedEvent.social_network_link || "");
       setEventNotes(selectedEvent.event_notes || "");
       setEventName(selectedEvent.event_name || "");
-      setStartDate(selectedEvent.start_date || "");
-      setEndDate(selectedEvent.end_date || "");
+      
+      // Properly format existing dates for datetime-local input
+      if (selectedEvent.start_date) {
+        const startDateObj = new Date(selectedEvent.start_date);
+        setStartDate(startDateObj.toISOString().slice(0, 16));
+      } else {
+        setStartDate("");
+      }
+      
+      if (selectedEvent.end_date) {
+        const endDateObj = new Date(selectedEvent.end_date);
+        setEndDate(endDateObj.toISOString().slice(0, 16));
+      } else {
+        setEndDate("");
+      }
+      
       setPaymentStatus(selectedEvent.payment_status || "not_paid");
       setPaymentAmount(selectedEvent.payment_amount?.toString() || "");
       setIsRecurring(selectedEvent.is_recurring || false);
@@ -93,17 +125,22 @@ export const EventDialog = ({
       setAdditionalPersons(selectedEvent.additionalPersons || []);
       
       // Set reminder data
-      setReminderAt(selectedEvent.reminder_at);
+      setReminderAt(selectedEvent.reminder_at ? new Date(selectedEvent.reminder_at).toISOString().slice(0, 16) : undefined);
       setEmailReminderEnabled(selectedEvent.email_reminder_enabled || false);
     } else {
+      // Reset for new event and set default times
       setTitle("");
       setUserSurname("");
       setUserNumber("");
       setSocialNetworkLink("");
       setEventNotes("");
       setEventName("");
-      setStartDate("");
-      setEndDate("");
+      
+      // Set default times for new event
+      const defaultTimes = getDefaultTimes(dialogSelectedDate);
+      setStartDate(defaultTimes.start);
+      setEndDate(defaultTimes.end);
+      
       setPaymentStatus("not_paid");
       setPaymentAmount("");
       setIsRecurring(false);
@@ -115,7 +152,7 @@ export const EventDialog = ({
       setReminderAt(undefined);
       setEmailReminderEnabled(false);
     }
-  }, [selectedEvent]);
+  }, [selectedEvent, dialogSelectedDate]);
 
   // Function to handle file uploads
   const uploadFiles = async (eventId: string) => {
@@ -169,15 +206,15 @@ export const EventDialog = ({
         social_network_link: socialNetworkLink,
         event_notes: eventNotes,
         event_name: eventName,
-        start_date: startDate,
-        end_date: endDate,
+        start_date: startDate ? new Date(startDate).toISOString() : undefined,
+        end_date: endDate ? new Date(endDate).toISOString() : undefined,
         payment_status: paymentStatus,
-        payment_amount: parseFloat(paymentAmount),
+        payment_amount: parseFloat(paymentAmount) || undefined,
         is_recurring: isRecurring,
         repeat_pattern: repeatPattern,
         repeat_until: repeatUntil,
         additionalPersons: additionalPersons,
-        reminder_at: reminderAt,
+        reminder_at: reminderAt ? new Date(reminderAt).toISOString() : undefined,
         email_reminder_enabled: emailReminderEnabled,
       };
 
@@ -248,6 +285,10 @@ export const EventDialog = ({
             isNewEvent={!selectedEvent}
             additionalPersons={additionalPersons}
             setAdditionalPersons={setAdditionalPersons}
+            reminderAt={reminderAt}
+            setReminderAt={setReminderAt}
+            emailReminderEnabled={emailReminderEnabled}
+            setEmailReminderEnabled={setEmailReminderEnabled}
           />
           
           <DialogFooter>

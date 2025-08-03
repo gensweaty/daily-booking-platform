@@ -100,6 +100,10 @@ export const Calendar = ({
     try {
       console.log("Creating event with data:", data);
       
+      // Set default time if not provided
+      const startDate = data.start_date || new Date().toISOString();
+      const endDate = data.end_date || new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      
       const eventData = {
         ...data,
         type: 'event',
@@ -107,6 +111,8 @@ export const Calendar = ({
         user_surname: data.user_surname || data.title,
         payment_status: data.payment_status || 'not_paid',
         language: data.language || 'en',
+        start_date: startDate,
+        end_date: endDate,
         // Include reminder fields
         reminder_at: data.reminder_at,
         email_reminder_enabled: data.email_reminder_enabled || false
@@ -345,6 +351,7 @@ export const Calendar = ({
           onCreate={handleCreateEvent}
           onUpdate={handleUpdateEvent}
           onDelete={handleDeleteEvent}
+          dialogSelectedDate={dialogSelectedDate}
         />
 
         {selectedEvent && (
