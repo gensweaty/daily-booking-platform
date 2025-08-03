@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -82,44 +83,6 @@ export const EventDialog = ({
     MozOsxFontSmoothing: 'grayscale' as const
   } : undefined;
 
-  // Helper function to convert UTC to local datetime-local format
-  const convertUTCToLocal = (utcString: string): string => {
-    if (!utcString) return '';
-    console.log("[EventDialog] Converting UTC to local:", utcString);
-    
-    try {
-      const date = new Date(utcString);
-      if (isNaN(date.getTime())) {
-        console.error("[EventDialog] Invalid date:", utcString);
-        return '';
-      }
-      
-      // Convert to local datetime-local format
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      
-      const result = `${year}-${month}-${day}T${hours}:${minutes}`;
-      console.log("[EventDialog] Converted result:", result);
-      return result;
-    } catch (error) {
-      console.error("[EventDialog] Error converting time:", error);
-      return '';
-    }
-  };
-
-  // Helper function to convert local datetime-local to UTC
-  const convertLocalToUTC = (localString: string): string => {
-    if (!localString) return '';
-    console.log("[EventDialog] Converting local to UTC:", localString);
-    const date = new Date(localString);
-    const result = date.toISOString();
-    console.log("[EventDialog] UTC result:", result);
-    return result;
-  };
-
   useEffect(() => {
     console.log("[EventDialog] useEffect triggered with:", { isOpen, initialData: !!initialData, selectedDate });
     
@@ -132,17 +95,17 @@ export const EventDialog = ({
       setSocialNetworkLink(initialData.social_network_link || "");
       setEventNotes(initialData.event_notes || "");
       
-      // Fix timezone issue - convert UTC to local time for display
+      // ✅ FIX: Use simple slice to avoid timezone double conversion
       if (initialData.start_date) {
-        const localStart = convertUTCToLocal(initialData.start_date);
-        setStartDate(localStart);
-        console.log('[EventDialog] Setting start date:', localStart, 'from UTC:', initialData.start_date);
+        const formattedStart = initialData.start_date.slice(0, 16);
+        setStartDate(formattedStart);
+        console.log('[EventDialog] Setting start date:', formattedStart, 'from DB:', initialData.start_date);
       }
       
       if (initialData.end_date) {
-        const localEnd = convertUTCToLocal(initialData.end_date);
-        setEndDate(localEnd);
-        console.log('[EventDialog] Setting end date:', localEnd, 'from UTC:', initialData.end_date);
+        const formattedEnd = initialData.end_date.slice(0, 16);
+        setEndDate(formattedEnd);
+        console.log('[EventDialog] Setting end date:', formattedEnd, 'from DB:', initialData.end_date);
       }
       
       setPaymentStatus(initialData.payment_status || "not_paid");
@@ -153,29 +116,24 @@ export const EventDialog = ({
       setAdditionalPersons(initialData.additional_persons || []);
       setEventName(initialData.title || "");
       
-      // ✅ FIX: Proper reminder data loading with debugging
+      // ✅ FIX: Proper reminder data loading with slice method
       console.log('[EventDialog] 🔍 Loading reminder data from initialData:', {
         reminder_at: initialData.reminder_at,
         email_reminder_enabled: initialData.email_reminder_enabled,
       });
       
-      // Set reminder time - convert UTC to local for display
+      // Set reminder time using slice to avoid timezone issues
       if (initialData.reminder_at) {
-        try {
-          const localReminder = convertUTCToLocal(initialData.reminder_at);
-          setReminderAt(localReminder);
-          console.log('[EventDialog] ✅ Setting reminder at:', localReminder, 'from UTC:', initialData.reminder_at);
-        } catch (error) {
-          console.error('[EventDialog] ❌ Error converting reminder time:', error);
-          setReminderAt('');
-        }
+        const formattedReminder = initialData.reminder_at.slice(0, 16);
+        setReminderAt(formattedReminder);
+        console.log('[EventDialog] ✅ Setting reminder at:', formattedReminder, 'from DB:', initialData.reminder_at);
       } else {
         setReminderAt('');
         console.log('[EventDialog] No reminder time found, clearing field');
       }
       
       // Set email reminder enabled flag
-      const isEmailReminderEnabled = !!initialData.email_reminder_enabled;
+      const isEmailReminderEnabled = !!(initialData.email_reminder_enabled || initialData.reminder_enabled);
       setEmailReminderEnabled(isEmailReminderEnabled);
       console.log('[EventDialog] ✅ Setting email reminder enabled to:', isEmailReminderEnabled);
       
@@ -308,10 +266,10 @@ export const EventDialog = ({
         paymentAmount: person.paymentAmount
       }));
 
-      // Convert local times to UTC before saving
-      const startDateUTC = convertLocalToUTC(startDate);
-      const endDateUTC = convertLocalToUTC(endDate);
-      const reminderAtUTC = emailReminderEnabled && reminderAt ? convertLocalToUTC(reminderAt) : null;
+      // ✅ FIX: Convert local datetime-local values to UTC ISO strings properly
+      const startDateUTC = new Date(startDate).toISOString();
+      const endDateUTC = new Date(endDate).toISOString();
+      const reminderAtUTC = emailReminderEnabled && reminderAt ? new Date(reminderAt).toISOString() : null;
 
       console.log("[EventDialog] Converting to UTC:", {
         local_start: startDate,
@@ -335,7 +293,7 @@ export const EventDialog = ({
         is_recurring: isRecurring && repeatPattern && repeatPattern !== 'none',
         repeat_pattern: isRecurring && repeatPattern && repeatPattern !== 'none' ? repeatPattern : null,
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
-        // Properly save reminder fields with UTC conversion
+        // ✅ FIX: Properly save reminder fields with UTC conversion
         reminder_at: reminderAtUTC,
         email_reminder_enabled: emailReminderEnabled
       };
