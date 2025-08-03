@@ -25,6 +25,16 @@ interface Database {
           deleted_at: string | null;
         };
       };
+      customers: {
+        Row: {
+          id: string;
+          event_id: string | null;
+          user_surname: string;
+          social_network_link: string | null;
+          payment_status: string | null;
+          payment_amount: number | null;
+        };
+      };
     };
   };
 }
@@ -39,93 +49,6 @@ const supabase = createClient<Database>(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
-const formatEventTimeForLocale = (dateTimeString: string, language: string = 'en') => {
-  try {
-    const date = new Date(dateTimeString);
-    
-    // Ensure date is valid
-    if (isNaN(date.getTime())) {
-      console.error('Invalid date string:', dateTimeString);
-      return dateTimeString;
-    }
-
-    console.log('🌍 Formatting time for locale:', {
-      input: dateTimeString,
-      language,
-      utcTime: date.toISOString(),
-      timezone: 'Asia/Tbilisi'
-    });
-
-    // Always use Asia/Tbilisi timezone regardless of language for Georgian users
-    const locale = language === 'ka' ? 'ka-GE' : language === 'es' ? 'es-ES' : 'en-US';
-    
-    const formatter = new Intl.DateTimeFormat(locale, {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      timeZone: 'Asia/Tbilisi', // ✅ FIX: Always use Georgia timezone
-    });
-
-    const formatted = formatter.format(date);
-    console.log('🕐 Formatted time:', {
-      original: dateTimeString,
-      formatted,
-      timezone: 'Asia/Tbilisi'
-    });
-
-    return formatted;
-  } catch (error) {
-    console.error('Error formatting time:', error);
-    return dateTimeString;
-  }
-};
-
-const getTranslations = (language: string = 'en') => {
-  const translations = {
-    en: {
-      subject: "Event Reminder",
-      greeting: "Hello",
-      reminderText: "This is a reminder about your upcoming event:",
-      eventDetails: "Event Details",
-      eventTime: "Time",
-      notes: "Notes",
-      contactInfo: "Contact Information",
-      phone: "Phone",
-      email: "Email",
-      footer: "Thank you for using SmartBookly!",
-    },
-    ka: {
-      subject: "მოვლენის შეხსენება",
-      greeting: "გამარჯობა",
-      reminderText: "ეს არის შეხსენება თქვენი მოვლენის შესახებ:",
-      eventDetails: "მოვლენის დეტალები",
-      eventTime: "დრო",
-      notes: "ჩანაწერები",
-      contactInfo: "საკონტაქტო ინფორმაცია",
-      phone: "ტელეფონი",
-      email: "ელ. ფოსტა",
-      footer: "გმადლობთ SmartBookly-ს გამოყენებისთვის!",
-    },
-    es: {
-      subject: "Recordatorio de Evento",
-      greeting: "Hola",
-      reminderText: "Este es un recordatorio sobre tu próximo evento:",
-      eventDetails: "Detalles del Evento",
-      eventTime: "Hora",
-      notes: "Notas",
-      contactInfo: "Información de Contacto",
-      phone: "Teléfono",
-      email: "Correo",
-      footer: "¡Gracias por usar SmartBookly!",
-    }
-  };
-
-  return translations[language as keyof typeof translations] || translations.en;
-};
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -134,22 +57,18 @@ serve(async (req) => {
   try {
     console.log('🔔 Event reminder function triggered');
 
-    // Get current time in UTC
     const now = new Date().toISOString();
     console.log('⏰ Current UTC time:', now);
 
-    // ✅ FIXED QUERY: Find events that are due for reminder AND haven't been sent yet
     console.log('🔍 Querying for due reminder events...');
     const { data: dueEvents, error: queryError } = await supabase
       .from('events')
       .select('*')
-      .not('reminder_at', 'is', null) // Must have a reminder time set
-      .eq('email_reminder_enabled', true) // Only events with email reminders enabled
-      .is('reminder_sent_at', null) // Only events where reminder hasn't been sent
-      .is('deleted_at', null) // Only non-deleted events
-      .not('social_network_link', 'is', null) // Only events with email addresses
-      .ilike('social_network_link', '%@%') // Only valid email addresses
-      .lte('reminder_at', now); // Events where reminder time has passed
+      .not('reminder_at', 'is', null)
+      .eq('email_reminder_enabled', true)
+      .is('reminder_sent_at', null)
+      .is('deleted_at', null)
+      .lte('reminder_at', now);
 
     if (queryError) {
       console.error('❌ Error querying due events:', queryError);
@@ -183,7 +102,6 @@ serve(async (req) => {
       );
     }
 
-    // Process each due event
     let emailsSent = 0;
     let errors = 0;
 
@@ -191,48 +109,109 @@ serve(async (req) => {
       try {
         console.log(`📮 Processing reminder for event: ${event.id} - ${event.title}`);
         console.log(`⏰ Event reminder was due at: ${event.reminder_at}`);
-        console.log(`📧 Sending to email: ${event.social_network_link}`);
-        
-        // ✅ FIXED: Call the send-booking-approval-email function with reminder flag
-        const { error: emailError } = await supabase.functions.invoke('send-booking-approval-email', {
-          body: {
-            recipientEmail: event.social_network_link,
-            fullName: event.user_surname,
-            eventTitle: event.title,
-            startDate: event.start_date,
-            endDate: event.end_date,
-            eventNotes: event.event_notes,
-            paymentStatus: event.payment_status,
-            paymentAmount: event.payment_amount,
-            language: event.language || 'en',
-            source: 'event-reminder' // Special flag to indicate this is a reminder email
-          }
-        });
 
-        if (emailError) {
-          console.error(`❌ Failed to send reminder email for event ${event.id}:`, emailError);
+        // Build the list of recipients (primary + additional persons)
+        const recipients: { email: string, name: string }[] = [];
+
+        // Primary person (event's main contact)
+        if (event.social_network_link && event.social_network_link.includes('@')) {
+          recipients.push({ 
+            email: event.social_network_link, 
+            name: event.user_surname || 'Guest' 
+          });
+        }
+
+        // Fetch additional persons associated with this event from customers table
+        const { data: persons, error: personsError } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('event_id', event.id);
+
+        if (personsError) {
+          console.error(`❌ Error fetching additional persons for event ${event.id}:`, personsError);
           errors++;
           continue;
         }
 
-        // ✅ FIX: Mark reminder as sent
-        const { error: updateError } = await supabase
-          .from('events')
-          .update({ 
-            reminder_sent_at: now 
-          })
-          .eq('id', event.id);
+        if (persons && persons.length > 0) {
+          console.log(`👥 Found ${persons.length} additional person(s) for event ${event.id}. Adding them as recipients.`);
+          for (const person of persons) {
+            // Only add if there's a valid email
+            if (person.social_network_link && person.social_network_link.includes('@')) {
+              recipients.push({ 
+                email: person.social_network_link, 
+                name: person.user_surname || 'Guest' 
+              });
+            }
+          }
+        }
 
-        if (updateError) {
-          console.error(`❌ Failed to update reminder_sent_at for event ${event.id}:`, updateError);
-          errors++;
+        if (recipients.length === 0) {
+          console.log(`⚠️ No valid email recipients for event ${event.id}, skipping...`);
+          // Still mark as sent to avoid retrying events with no valid emails
+          const { error: updateError } = await supabase
+            .from('events')
+            .update({ reminder_sent_at: now })
+            .eq('id', event.id);
+          if (updateError) {
+            console.error(`❌ Error updating reminder_sent_at for event ${event.id}:`, updateError);
+            errors++;
+          }
+          continue;
+        }
+
+        console.log(`📬 Sending reminders to ${recipients.length} recipient(s) for event ${event.id}`);
+
+        // Send email to each recipient
+        let anyFailed = false;
+        for (const recipient of recipients) {
+          console.log(`📧 Sending reminder email to: ${recipient.email} (${recipient.name})`);
+          
+          const { error: emailError } = await supabase.functions.invoke('send-booking-approval-email', {
+            body: {
+              recipientEmail: recipient.email,
+              fullName: recipient.name,
+              eventTitle: event.title,
+              startDate: event.start_date,
+              endDate: event.end_date,
+              eventNotes: event.event_notes,
+              paymentStatus: event.payment_status,
+              paymentAmount: event.payment_amount,
+              language: event.language || 'en',
+              source: 'event-reminder'
+            }
+          });
+
+          if (emailError) {
+            console.error(`❌ Failed to send reminder to ${recipient.email} for event ${event.id}:`, emailError);
+            errors++;
+            anyFailed = true;
+          } else {
+            console.log(`✅ Reminder email sent to ${recipient.email} for event ${event.id}`);
+            emailsSent++;
+          }
+        }
+
+        // Mark the event as having its reminder sent only if all emails succeeded
+        if (!anyFailed) {
+          const { error: updateError } = await supabase
+            .from('events')
+            .update({ reminder_sent_at: now })
+            .eq('id', event.id);
+
+          if (updateError) {
+            console.error(`❌ Error updating reminder_sent_at for event ${event.id}:`, updateError);
+            errors++;
+          } else {
+            console.log(`🎉 Marked event ${event.id} as reminder sent (all ${recipients.length} recipients notified)`);
+          }
         } else {
-          console.log(`✅ Reminder email sent successfully for event: ${event.id}`);
-          emailsSent++;
+          console.log(`↩️ One or more emails failed for event ${event.id}. It will be retried on the next run.`);
+          // Do not set reminder_sent_at so the function will retry next time
         }
 
       } catch (eventError) {
-        console.error(`❌ Error processing event ${event.id}:`, eventError);
+        console.error(`💥 Unexpected error processing event ${event.id}:`, eventError);
         errors++;
       }
     }
