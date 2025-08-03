@@ -72,6 +72,11 @@ interface EventDialogFieldsProps {
   }>) => void;
   isVirtualEvent: boolean;
   isNewEvent: boolean;
+  // Email reminder props
+  emailReminderEnabled: boolean;
+  setEmailReminderEnabled: (enabled: boolean) => void;
+  reminderAt: string;
+  setReminderAt: (reminderAt: string) => void;
 }
 
 export const EventDialogFields = ({
@@ -108,13 +113,13 @@ export const EventDialogFields = ({
   additionalPersons,
   setAdditionalPersons,
   isVirtualEvent,
-  isNewEvent
+  isNewEvent,
+  emailReminderEnabled,
+  setEmailReminderEnabled,
+  reminderAt,
+  setReminderAt
 }: EventDialogFieldsProps) => {
   const { t } = useLanguage();
-  
-  // Email reminder state - add these since they're not passed as props yet
-  const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
-  const [reminderAt, setReminderAt] = useState("");
 
   const handleFileChange = (file: File | null) => {
     if (file) {
