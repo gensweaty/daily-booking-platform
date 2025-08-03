@@ -305,37 +305,58 @@ BEGIN
 END;
 $function$;
 
--- Create or update cron job with correct project URL
+-- ✅ FIX: Create the correct cron job to invoke event reminders every minute
 DO $$
 BEGIN
-  -- Delete existing cron job if it exists
-  PERFORM cron.unschedule('send-event-reminders');
-EXCEPTION
-  WHEN undefined_function THEN
-    RAISE NOTICE 'Cron extension not available';
-  WHEN others THEN
-    RAISE NOTICE 'Could not unschedule existing job: %', SQLERRM;
+  -- First, try to unschedule any existing event reminder jobs
+  BEGIN
+    PERFORM cron.unschedule('send-event-reminders');
+    RAISE NOTICE 'Successfully unscheduled existing event reminder job';
+  EXCEPTION
+    WHEN undefined_function THEN
+      RAISE NOTICE 'pg_cron extension not available, cannot unschedule';
+    WHEN others THEN
+      RAISE NOTICE 'Could not unschedule existing job (may not exist): %', SQLERRM;
+  END;
+
+  -- Create the new cron job to call the event reminder function every minute
+  BEGIN
+    PERFORM cron.schedule(
+      'send-event-reminders',
+      '* * * * *', -- Every minute
+      $$
+      SELECT
+        net.http_post(
+          url:='https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-event-reminder-email',
+          headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ydWVxcGZmemF1dmR4bXV3aGZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM0OTU5MTgsImV4cCI6MjA0OTA3MTkxOH0.tntt0C1AgzJN-x3XrmIKb4j9iow8m4DZq3imEhJt9-0"}'::jsonb,
+          body:='{"trigger": "cron", "timestamp": "'||NOW()||'"}'::jsonb
+        ) as request_id;
+      $$
+    );
+    RAISE NOTICE 'Successfully created cron job for event reminders';
+  EXCEPTION
+    WHEN undefined_function THEN
+      RAISE NOTICE 'pg_cron extension is not available. Please enable pg_cron extension in your Supabase dashboard under Database > Extensions.';
+    WHEN others THEN
+      RAISE NOTICE 'Error creating cron job: %', SQLERRM;
+  END;
 END $$;
 
--- Create new cron job with correct URL
-DO $$
+-- ✅ FIX: Add a test function to manually trigger event reminders (for debugging)
+CREATE OR REPLACE FUNCTION public.test_trigger_event_reminders()
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $function$
+DECLARE
+  v_result json;
 BEGIN
-  PERFORM cron.schedule(
-    'send-event-reminders',
-    '* * * * *', -- Every minute
-    $$
-    SELECT
-      net.http_post(
-        url:='https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-event-reminder-email',
-        headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ydWVxcGZmemF1dmR4bXV3aGZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM0OTU5MTgsImV4cCI6MjA0OTA3MTkxOH0.tntt0C1AgzJN-x3XrmIKb4j9iow8m4DZq3imEhJt9-0"}'::jsonb,
-        body:='{"trigger": "cron"}'::jsonb
-      ) as request_id;
-    $$
-  );
-  RAISE NOTICE 'Cron job created successfully with correct URL';
-EXCEPTION
-  WHEN undefined_function THEN
-    RAISE NOTICE 'pg_cron extension is not available. Please enable it in your Supabase dashboard.';
-  WHEN others THEN
-    RAISE NOTICE 'Error creating cron job: %', SQLERRM;
-END $$;
+  SELECT net.http_post(
+    url:='https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-event-reminder-email',
+    headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ydWVxcGZmemF1dmR4bXV3aGZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM0OTU5MTgsImV4cCI6MjA0OTA3MTkxOH0.tntt0C1AgzJN-x3XrmIKb4j9iow8m4DZq3imEhJt9-0"}'::jsonb,
+    body:='{"trigger": "manual_test", "timestamp": "'||NOW()||'"}'::jsonb
+  ) INTO v_result;
+  
+  RETURN v_result;
+END;
+$function$;
