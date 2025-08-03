@@ -1,3 +1,5 @@
+export type CalendarViewType = "day" | "week" | "month";
+
 export interface TaskType {
   id: string;
   title: string;
