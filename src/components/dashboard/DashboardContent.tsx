@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,7 +59,7 @@ export const DashboardContent = () => {
             </div>
             <TaskList />
             {showAddTask && (
-              <AddTaskForm onClose={() => setShowAddTask(false)} />
+              <AddTaskForm />
             )}
           </div>
         );
@@ -78,7 +77,7 @@ export const DashboardContent = () => {
             </div>
             <NoteList />
             {showAddNote && (
-              <AddNoteForm onClose={() => setShowAddNote(false)} />
+              <AddNoteForm />
             )}
           </div>
         );
@@ -96,7 +95,7 @@ export const DashboardContent = () => {
             </div>
             <ReminderList />
             {showAddReminder && (
-              <AddReminderForm onClose={() => setShowAddReminder(false)} />
+              <AddReminderForm />
             )}
           </div>
         );
@@ -167,4 +166,3 @@ export const DashboardContent = () => {
     </div>
   );
 };
-
