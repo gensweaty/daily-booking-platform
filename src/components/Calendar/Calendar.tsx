@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useRef } from 'react';
 import { CalendarGrid } from './CalendarGrid';
 import { CalendarHeader } from './CalendarHeader';
@@ -14,27 +15,59 @@ import { supabase } from '@/lib/supabase';
 interface CalendarProps {
   businessId?: string;
   businessUserId?: string;
+  defaultView?: CalendarViewType;
+  currentView?: CalendarViewType;
+  onViewChange?: (view: CalendarViewType) => void;
+  isExternalCalendar?: boolean;
+  showAllEvents?: boolean;
+  allowBookingRequests?: boolean;
+  directEvents?: CalendarEventType[];
 }
 
-export const Calendar = ({ businessId, businessUserId }: CalendarProps) => {
+export const Calendar = ({ 
+  businessId, 
+  businessUserId,
+  defaultView = 'month',
+  currentView,
+  onViewChange,
+  isExternalCalendar = false,
+  showAllEvents = false,
+  allowBookingRequests = false,
+  directEvents
+}: CalendarProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useLanguage();
   
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewType, setViewType] = useState<CalendarViewType>('month');
+  const [viewType, setViewType] = useState<CalendarViewType>(currentView || defaultView);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [dialogSelectedDate, setDialogSelectedDate] = useState<Date | undefined>(undefined);
 
+  // Use external events if provided, otherwise fetch from hook
   const {
-    events,
+    events: fetchedEvents,
     isLoading,
     createEvent,
     updateEvent,
     deleteEvent,
     refetch
   } = useCalendarEvents(businessId, businessUserId);
+
+  const events = directEvents || fetchedEvents;
+
+  // Sync view type with external prop
+  useEffect(() => {
+    if (currentView && currentView !== viewType) {
+      setViewType(currentView);
+    }
+  }, [currentView, viewType]);
+
+  const handleViewChange = (newView: CalendarViewType) => {
+    setViewType(newView);
+    onViewChange?.(newView);
+  };
 
   const handleEventClick = (event: CalendarEventType) => {
     setSelectedEvent(event);
@@ -225,7 +258,7 @@ export const Calendar = ({ businessId, businessUserId }: CalendarProps) => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && !directEvents) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-lg">{t('common.loading')}</div>
@@ -238,29 +271,45 @@ export const Calendar = ({ businessId, businessUserId }: CalendarProps) => {
       <div className="flex-none mb-4 space-y-4">
         <div className="flex items-center justify-between">
           <CalendarHeader 
-            currentDate={currentDate}
-            viewType={viewType}
-            onDateChange={setCurrentDate}
-            onViewChange={setViewType}
-          />
-          <Button
-            onClick={() => {
+            selectedDate={currentDate}
+            view={viewType}
+            onViewChange={handleViewChange}
+            onPrevious={() => {
+              const newDate = new Date(currentDate);
+              if (viewType === 'month') {
+                newDate.setMonth(newDate.getMonth() - 1);
+              } else if (viewType === 'week') {
+                newDate.setDate(newDate.getDate() - 7);
+              } else {
+                newDate.setDate(newDate.getDate() - 1);
+              }
+              setCurrentDate(newDate);
+            }}
+            onNext={() => {
+              const newDate = new Date(currentDate);
+              if (viewType === 'month') {
+                newDate.setMonth(newDate.getMonth() + 1);
+              } else if (viewType === 'week') {
+                newDate.setDate(newDate.getDate() + 7);
+              } else {
+                newDate.setDate(newDate.getDate() + 1);
+              }
+              setCurrentDate(newDate);
+            }}
+            onAddEvent={() => {
               setDialogSelectedDate(new Date());
               setIsNewEventDialogOpen(true);
             }}
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            {t('events.addEvent')}
-          </Button>
+            isExternalCalendar={isExternalCalendar}
+          />
         </div>
       </div>
 
       <div className="flex-1 min-h-0">
         <CalendarGrid
           events={events}
-          currentDate={currentDate}
-          viewType={viewType}
+          selectedDate={currentDate}
+          view={viewType}
           onEventClick={handleEventClick}
           onDateSelect={handleDateSelect}
         />
