@@ -14,8 +14,14 @@ export const ReminderTestPanel = () => {
     try {
       console.log("🔔 Testing event reminder function...");
       
-      // First check what events should get reminders
-      const { data: checkData, error: checkError } = await supabase.rpc('debug_check_upcoming_reminders');
+      // First check what events should get reminders using a direct query
+      const { data: checkData, error: checkError } = await supabase
+        .from('events')
+        .select('*')
+        .not('reminder_at', 'is', null)
+        .is('reminder_sent_at', null)
+        .lte('reminder_at', new Date().toISOString())
+        .is('deleted_at', null);
       
       if (checkError) {
         console.error("Error checking reminders:", checkError);

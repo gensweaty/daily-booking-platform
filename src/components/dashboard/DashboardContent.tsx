@@ -2,14 +2,14 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TaskList } from "../TaskList";
-import { AddTaskForm } from "../AddTaskForm";
+import AddTaskForm from "../AddTaskForm";
 import { NoteList } from "../NoteList";
 import { AddNoteForm } from "../AddNoteForm";
 import { ReminderList } from "../ReminderList";
 import { AddReminderForm } from "../AddReminderForm";
-import { CalendarPage } from "../Calendar/Calendar";
+import { Calendar } from "../Calendar/Calendar";
 import { Statistics } from "../Statistics";
-import { Plus, Calendar, BarChart3, CheckSquare, FileText, Bell, Settings } from "lucide-react";
+import { Plus, Calendar as CalendarIcon, BarChart3, CheckSquare, FileText, Bell, Settings } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { GeorgianAuthText } from "../shared/GeorgianAuthText";
 import { LanguageText } from "../shared/LanguageText";
@@ -25,7 +25,7 @@ export const DashboardContent = () => {
   const [showDebugPanel, setShowDebugPanel] = useState(false);
 
   const tabs = [
-    { id: "calendar", label: isGeorgian ? "კალენდარი" : "Calendar", icon: Calendar },
+    { id: "calendar", label: isGeorgian ? "კალენდარი" : "Calendar", icon: CalendarIcon },
     { id: "tasks", label: isGeorgian ? "ამოცანები" : "Tasks", icon: CheckSquare },
     { id: "notes", label: isGeorgian ? "ჩანაწერები" : "Notes", icon: FileText },
     { id: "reminders", label: isGeorgian ? "შეხსენებები" : "Reminders", icon: Bell },
@@ -43,7 +43,7 @@ export const DashboardContent = () => {
   const renderContent = () => {
     switch (activeTab) {
       case "calendar":
-        return <CalendarPage />;
+        return <Calendar />;
       case "tasks":
         return (
           <div className="space-y-6">
@@ -108,7 +108,7 @@ export const DashboardContent = () => {
           </div>
         );
       default:
-        return <CalendarPage />;
+        return <Calendar />;
     }
   };
 
