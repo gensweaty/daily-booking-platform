@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { CalendarView } from "@/components/Calendar/CalendarView";
 import { TaskList } from "@/components/TaskList";
-import { AddTaskForm } from "@/components/AddTaskForm";
+import AddTaskForm from "@/components/AddTaskForm";
 import { ReminderList } from "@/components/ReminderList";
 import { AddReminderForm } from "@/components/AddReminderForm";
 import { NoteList } from "@/components/NoteList";
@@ -14,7 +14,7 @@ import { CustomerList } from "@/components/crm/CustomerList";
 import { ExternalCalendar } from "@/components/Calendar/ExternalCalendar";
 import { ArchivedTasksPage } from "@/components/tasks/ArchivedTasksPage";
 import { TaskReminderNotifications } from "@/components/tasks/TaskReminderNotifications";
-import { EventReminderNotifications } from "@/components/events/EventReminderNotifications"; // NEW
+import { EventReminderNotifications } from "@/components/events/EventReminderNotifications";
 import { ReminderNotifications } from "@/components/reminder/ReminderNotifications";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Calendar, CheckSquare, Bell, FileText, BarChart3, Users, ExternalLink, Archive } from "lucide-react";
@@ -23,6 +23,7 @@ export const DashboardContent = () => {
   const { user } = useAuth();
   const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState("calendar");
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
 
   useEffect(() => {
     const savedTab = localStorage.getItem('dashboard-active-tab');
@@ -52,7 +53,7 @@ export const DashboardContent = () => {
     <div className="container mx-auto p-6 max-w-7xl">
       {/* Background notification components */}
       <TaskReminderNotifications />
-      <EventReminderNotifications /> {/* NEW - Add event reminder notifications */}
+      <EventReminderNotifications />
       <ReminderNotifications />
       
       <div className="mb-8">
@@ -107,7 +108,12 @@ export const DashboardContent = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <CalendarView />
+              <CalendarView 
+                days={[]}
+                events={[]}
+                selectedDate={new Date()}
+                view="month"
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -122,7 +128,7 @@ export const DashboardContent = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <AddTaskForm />
+                <AddTaskForm onClose={() => setIsTaskDialogOpen(false)} />
               </CardContent>
             </Card>
 
@@ -205,7 +211,7 @@ export const DashboardContent = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <CustomerList />
+              <CustomerList businessId={user.id} />
             </CardContent>
           </Card>
         </TabsContent>
