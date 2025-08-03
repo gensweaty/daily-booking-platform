@@ -82,6 +82,20 @@ export const EventDialog = ({
     MozOsxFontSmoothing: 'grayscale' as const
   } : undefined;
 
+  // Helper function to convert UTC to local datetime-local format
+  const convertUTCToLocal = (utcString: string): string => {
+    const date = new Date(utcString);
+    const offset = date.getTimezoneOffset();
+    const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+    return localDate.toISOString().slice(0, 16);
+  };
+
+  // Helper function to convert local datetime-local to UTC
+  const convertLocalToUTC = (localString: string): string => {
+    const date = new Date(localString);
+    return date.toISOString();
+  };
+
   useEffect(() => {
     if (initialData) {
       console.log('[EventDialog] Loading initial data:', initialData);
@@ -92,21 +106,17 @@ export const EventDialog = ({
       setSocialNetworkLink(initialData.social_network_link || "");
       setEventNotes(initialData.event_notes || "");
       
-      // Fix timezone issue - use the date directly without double offset adjustment
+      // Fix timezone issue - convert UTC to local time for display
       if (initialData.start_date) {
-        const startDateObj = new Date(initialData.start_date);
-        // Just convert to local input format without timezone manipulation
-        const formattedStart = startDateObj.toISOString().slice(0, 16);
-        setStartDate(formattedStart);
-        console.log('[EventDialog] Setting start date:', formattedStart, 'from:', initialData.start_date);
+        const localStart = convertUTCToLocal(initialData.start_date);
+        setStartDate(localStart);
+        console.log('[EventDialog] Setting start date:', localStart, 'from UTC:', initialData.start_date);
       }
       
       if (initialData.end_date) {
-        const endDateObj = new Date(initialData.end_date);
-        // Just convert to local input format without timezone manipulation
-        const formattedEnd = endDateObj.toISOString().slice(0, 16);
-        setEndDate(formattedEnd);
-        console.log('[EventDialog] Setting end date:', formattedEnd, 'from:', initialData.end_date);
+        const localEnd = convertUTCToLocal(initialData.end_date);
+        setEndDate(localEnd);
+        console.log('[EventDialog] Setting end date:', localEnd, 'from UTC:', initialData.end_date);
       }
       
       setPaymentStatus(initialData.payment_status || "not_paid");
@@ -117,14 +127,21 @@ export const EventDialog = ({
       setAdditionalPersons(initialData.additional_persons || []);
       setEventName(initialData.title || "");
       
-      // Fix reminder loading - properly map the database fields
+      // Fix reminder loading - properly load and convert timezone
       console.log('[EventDialog] Loading reminder data:', {
         reminder_at: initialData.reminder_at,
         reminder_enabled: initialData.reminder_enabled,
         email_reminder_enabled: initialData.email_reminder_enabled
       });
       
-      setReminderAt(initialData.reminder_at || '');
+      if (initialData.reminder_at) {
+        const localReminder = convertUTCToLocal(initialData.reminder_at);
+        setReminderAt(localReminder);
+        console.log('[EventDialog] Setting reminder at:', localReminder, 'from UTC:', initialData.reminder_at);
+      } else {
+        setReminderAt('');
+      }
+      
       setReminderEnabled(!!(initialData.reminder_enabled || initialData.email_reminder_enabled));
       
       const fetchExistingFiles = async () => {
@@ -213,9 +230,15 @@ export const EventDialog = ({
       return;
     }
 
-    if (reminderEnabled && (!reminderAt || new Date(reminderAt) >= new Date(startDate))) {
-      toast.error(isGeorgian ? "შეხსენების დრო უნდა იყოს მოვლენის დაწყებამდე" : "Reminder time must be before event start time");
-      return;
+    // Validate reminder time if enabled
+    if (reminderEnabled && reminderAt) {
+      const reminderDate = new Date(reminderAt);
+      const startDateObj = new Date(startDate);
+      
+      if (reminderDate >= startDateObj) {
+        toast.error(isGeorgian ? "შეხსენების დრო უნდა იყოს მოვლენის დაწყებამდე" : "Reminder must be before event start time");
+        return;
+      }
     }
 
     setLoading(true);
@@ -243,23 +266,35 @@ export const EventDialog = ({
         paymentAmount: person.paymentAmount
       }));
 
-      // Ensure reminder fields are properly included in eventData
+      // Convert local times to UTC before saving
+      const startDateUTC = convertLocalToUTC(startDate);
+      const endDateUTC = convertLocalToUTC(endDate);
+      const reminderAtUTC = reminderEnabled && reminderAt ? convertLocalToUTC(reminderAt) : null;
+
+      console.log("[EventDialog] Converting to UTC:", {
+        local_start: startDate,
+        utc_start: startDateUTC,
+        local_reminder: reminderAt,
+        utc_reminder: reminderAtUTC
+      });
+
+      // Properly include reminder fields in eventData
       const eventData = {
         title: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
         user_surname: userSurname.trim(),
         user_number: userNumber.trim(),
         social_network_link: socialNetworkLink.trim(),
         event_notes: eventNotes.trim(),
-        start_date: startDate,
-        end_date: endDate,
+        start_date: startDateUTC,
+        end_date: endDateUTC,
         payment_status: paymentStatus,
         payment_amount: showPaymentAmount ? parseFloat(paymentAmount) || null : null,
         language: language,
         is_recurring: isRecurring && repeatPattern && repeatPattern !== 'none',
         repeat_pattern: isRecurring && repeatPattern && repeatPattern !== 'none' ? repeatPattern : null,
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
-        // Properly save reminder fields
-        reminder_at: reminderEnabled && reminderAt ? reminderAt : null,
+        // Properly save reminder fields with UTC conversion
+        reminder_at: reminderAtUTC,
         reminder_enabled: reminderEnabled,
         email_reminder_enabled: reminderEnabled
       };
@@ -298,8 +333,8 @@ export const EventDialog = ({
               language: language,
               fullName: userSurname.trim(),
               eventTitle: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
-              startDate: startDate,
-              endDate: endDate,
+              startDate: startDateUTC,
+              endDate: endDateUTC,
               eventNotes: eventNotes.trim(),
               paymentStatus: paymentStatus,
               paymentAmount: showPaymentAmount ? parseFloat(paymentAmount) || null : null,
