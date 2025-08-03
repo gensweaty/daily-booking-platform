@@ -1,504 +1,343 @@
-
-import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import React, { useEffect, useState, useRef } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { EventDialogFields } from "./EventDialogFields";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { CalendarEventType } from "@/lib/types/calendar";
-import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
-import { cn } from "@/lib/utils";
-import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
-import { LanguageText } from "@/components/shared/LanguageText";
-import { FileRecord } from "@/types/files";
-
-interface PersonData {
-  id: string;
-  userSurname: string;
-  userNumber: string;
-  socialNetworkLink: string;
-  eventNotes: string;
-  paymentStatus: string;
-  paymentAmount: string;
-}
+import { EventDialogFields } from "./EventDialogFields";
+import { ReminderField } from "@/components/shared/ReminderField";
+import { useToast } from "@/hooks/use-toast";
+import type { Event } from "@/lib/types";
 
 interface EventDialogProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  onClose: () => void;
+  onSave: (eventData: any) => void;
+  onDelete?: (eventId: string, deleteAll?: boolean) => void;
+  initialData?: Event;
   selectedDate?: Date;
-  initialData?: CalendarEventType | null;
-  onEventCreated?: () => void;
-  onEventUpdated?: () => void;
-  onEventDeleted?: () => void;
-  isBookingRequest?: boolean;
-  businessId?: string;
+  mode?: 'create' | 'edit';
 }
 
-export const EventDialog = ({ 
-  isOpen, 
-  onOpenChange,
-  selectedDate,
+export const EventDialog: React.FC<EventDialogProps> = ({
+  open,
+  onClose,
+  onSave,
+  onDelete,
   initialData,
-  onEventCreated,
-  onEventUpdated,
-  onEventDeleted,
-  isBookingRequest = false,
-  businessId 
-}: EventDialogProps) => {
-  const { t, language } = useLanguage();
-  const isGeorgian = language === 'ka';
+  selectedDate,
+  mode = 'create'
+}) => {
+  const { t } = useLanguage();
+  const { toast } = useToast();
   
-  const [title, setTitle] = useState("");
-  const [userSurname, setUserSurname] = useState("");
-  const [userNumber, setUserNumber] = useState("");
-  const [socialNetworkLink, setSocialNetworkLink] = useState("");
-  const [eventNotes, setEventNotes] = useState("");
-  const [eventName, setEventName] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("not_paid");
-  const [paymentAmount, setPaymentAmount] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
-  const [existingFiles, setExistingFiles] = useState<FileRecord[]>([]);
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [repeatPattern, setRepeatPattern] = useState("");
-  const [repeatUntil, setRepeatUntil] = useState("");
-  const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
-  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
-  const shouldShowEventNameField = additionalPersons.length > 0;
+  const [deleteEventId, setDeleteEventId] = useState<string | null>(null);
+  const [deleteAllRecurring, setDeleteAllRecurring] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   
+  const [title, setTitle] = useState('');
+  const [userSurname, setUserSurname] = useState('');
+  const [userNumber, setUserNumber] = useState('');
+  const [socialNetworkLink, setSocialNetworkLink] = useState('');
+  const [eventNotes, setEventNotes] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
   const [reminderAt, setReminderAt] = useState('');
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
-  
-  const [loading, setLoading] = useState(false);
-  const [showRecurringDeleteDialog, setShowRecurringDeleteDialog] = useState(false);
-  
-  const user = supabase.auth.getUser();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [repeatPattern, setRepeatPattern] = useState('');
+  const [repeatUntil, setRepeatUntil] = useState('');
 
-  const georgianStyle = isGeorgian ? {
-    fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-    letterSpacing: '-0.2px',
-    WebkitFontSmoothing: 'antialiased' as const,
-    MozOsxFontSmoothing: 'grayscale' as const
-  } : undefined;
-
+  // ✅ FIX: Correct timezone handling - no double conversion
   useEffect(() => {
-    console.log("[EventDialog] useEffect triggered with:", { isOpen, initialData: !!initialData, selectedDate });
-    
     if (initialData) {
-      console.log('[EventDialog] Loading initial data:', initialData);
-      
-      setTitle(initialData.title || "");
-      setUserSurname(initialData.user_surname || "");
-      setUserNumber(initialData.user_number || "");
-      setSocialNetworkLink(initialData.social_network_link || "");
-      setEventNotes(initialData.event_notes || "");
-      
-      // ✅ FIX: Use simple slice to avoid timezone double conversion - no manual offset calculation
+      setTitle(initialData.title || '');
+      setUserSurname(initialData.user_surname || '');
+      setUserNumber(initialData.user_number || '');
+      setSocialNetworkLink(initialData.social_network_link || '');
+      setEventNotes(initialData.event_notes || '');
+      setPaymentStatus(initialData.payment_status || '');
+      setPaymentAmount(initialData.payment_amount?.toString() || '');
+      setIsRecurring(initialData.is_recurring || false);
+      setRepeatPattern(initialData.repeat_pattern || '');
+      setRepeatUntil(initialData.repeat_until || '');
+
+      // ✅ FIX: Load dates without timezone conversion - just slice to get local format
       if (initialData.start_date) {
-        const formattedStart = initialData.start_date.slice(0, 16);
-        setStartDate(formattedStart);
-        console.log('[EventDialog] Setting start date:', formattedStart, 'from DB:', initialData.start_date);
+        setStartDate(initialData.start_date.slice(0, 16));
       }
       
       if (initialData.end_date) {
-        const formattedEnd = initialData.end_date.slice(0, 16);
-        setEndDate(formattedEnd);
-        console.log('[EventDialog] Setting end date:', formattedEnd, 'from DB:', initialData.end_date);
+        setEndDate(initialData.end_date.slice(0, 16));
       }
       
-      setPaymentStatus(initialData.payment_status || "not_paid");
-      setPaymentAmount(initialData.payment_amount?.toString() || "");
-      setIsRecurring(!!initialData.recurring_pattern || !!initialData.is_recurring);
-      setRepeatPattern(initialData.recurring_pattern || initialData.repeat_pattern || "");
-      setRepeatUntil(initialData.recurring_until || initialData.repeat_until || "");
-      setAdditionalPersons(initialData.additional_persons || []);
-      setEventName(initialData.title || "");
-      
-      // ✅ FIX: Set reminder data using slice method to avoid timezone issues
-      console.log('[EventDialog] 🔍 Loading reminder data from initialData:', {
-        reminder_at: initialData.reminder_at,
-        email_reminder_enabled: initialData.email_reminder_enabled,
-      });
-      
-      // Set reminder time using slice to avoid timezone issues
+      // ✅ FIX: Load reminder properly
       if (initialData.reminder_at) {
-        const formattedReminder = initialData.reminder_at.slice(0, 16);
-        setReminderAt(formattedReminder);
-        console.log('[EventDialog] ✅ Setting reminder at:', formattedReminder, 'from DB:', initialData.reminder_at);
+        setReminderAt(initialData.reminder_at.slice(0, 16));
       } else {
         setReminderAt('');
-        console.log('[EventDialog] No reminder time found, clearing field');
       }
       
-      // Set email reminder enabled flag
-      const isEmailReminderEnabled = !!(initialData.email_reminder_enabled || initialData.reminder_enabled);
-      setEmailReminderEnabled(isEmailReminderEnabled);
-      console.log('[EventDialog] ✅ Setting email reminder enabled to:', isEmailReminderEnabled);
+      // ✅ FIX: Check both possible reminder enabled fields
+      setEmailReminderEnabled(!!(initialData.email_reminder_enabled || initialData.reminder_enabled));
       
-      // Fetch existing files
-      const fetchExistingFiles = async () => {
-        try {
-          const { data, error } = await supabase
-            .from('event_files')
-            .select('id, filename, file_path, content_type, size, created_at, user_id')
-            .eq('event_id', initialData.id);
-
-          if (error) {
-            console.error('Error fetching existing files:', error);
-          } else {
-            const fileRecords: FileRecord[] = (data || []).map(file => ({
-              id: file.id,
-              filename: file.filename,
-              file_path: file.file_path,
-              content_type: file.content_type || null,
-              size: file.size || null,
-              created_at: file.created_at || new Date().toISOString(),
-              user_id: file.user_id || null
-            }));
-            setExistingFiles(fileRecords);
-          }
-        } catch (error) {
-          console.error('Error fetching existing files:', error);
-        }
-      };
-      fetchExistingFiles();
-    } else if (selectedDate) {
-      console.log('[EventDialog] Setting up for new event with selected date:', selectedDate);
-      const dateStr = selectedDate.toISOString().split('T')[0];
-      const defaultStartTime = `${dateStr}T09:00`;
-      const defaultEndTime = `${dateStr}T10:00`;
-      setStartDate(defaultStartTime);
-      setEndDate(defaultEndTime);
+    } else if (selectedDate && open) {
+      // New event with selected date
+      const dateStr = selectedDate.toISOString().slice(0, 16);
+      setStartDate(dateStr);
+      const endDateTime = new Date(selectedDate.getTime() + 60 * 60 * 1000);
+      setEndDate(endDateTime.toISOString().slice(0, 16));
       
-      // Clear reminder fields for new events
-      setReminderAt('');
-      setEmailReminderEnabled(false);
-    } else {
-      console.log('[EventDialog] Clearing all fields');
-      setTitle("");
-      setUserSurname("");
-      setUserNumber("");
-      setSocialNetworkLink("");
-      setEventNotes("");
-      setStartDate("");
-      setEndDate("");
-      setPaymentStatus("not_paid");
-      setPaymentAmount("");
-      setFiles([]);
-      setExistingFiles([]);
-      setIsRecurring(false);
-      setRepeatPattern("");
-      setRepeatUntil("");
-      setAdditionalPersons([]);
-      setEventName("");
-      
+      // Reset reminder fields for new event
       setReminderAt('');
       setEmailReminderEnabled(false);
     }
-  }, [initialData, selectedDate, isOpen]);
-
-  const fetchBusinessAddress = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('business_profiles')
-        .select('contact_address')
-        .eq('user_id', userId)
-        .single();
-      
-      if (error) {
-        console.error('Error fetching business address:', error);
-        return null;
-      }
-      
-      return data?.contact_address || null;
-    } catch (error) {
-      console.error('Error fetching business address:', error);
-      return null;
-    }
-  };
+  }, [initialData, selectedDate, open]);
 
   const handleSave = async () => {
-    if (!userSurname.trim()) {
-      toast.error(t("events.fullNameRequired"));
-      return;
-    }
-
-    if (!startDate || !endDate) {
-      toast.error(t("events.dateTimeRequired"));
-      return;
-    }
-
-    // Validate reminder time if enabled
-    if (emailReminderEnabled && reminderAt) {
-      const reminderDate = new Date(reminderAt);
-      const startDateObj = new Date(startDate);
-      
-      if (reminderDate >= startDateObj) {
-        toast.error(isGeorgian ? "შეხსენების დრო უნდა იყოს მოვლენის დაწყებამდე" : "Reminder must be before event start time");
+    try {
+      if (!title.trim()) {
+        toast({
+          title: t("error.title"),
+          description: "Title is required",
+          variant: "destructive",
+        });
         return;
       }
-    }
 
-    setLoading(true);
-    
-    try {
-      const currentUser = await supabase.auth.getUser();
-      if (!currentUser.data.user) {
-        throw new Error("User not authenticated");
+      if (!startDate || !endDate) {
+        toast({
+          title: t("error.title"),
+          description: "Start date and end date are required",
+          variant: "destructive",
+        });
+        return;
       }
 
-      console.log("[EventDialog] Saving event with reminder data:", {
-        reminderAt,
-        emailReminderEnabled,
-        startDate,
-        endDate
-      });
+      // ✅ FIX: Convert local datetime to UTC ISO string for storage
+      const startISO = new Date(startDate).toISOString();
+      const endISO = new Date(endDate).toISOString();
+      const reminderISO = reminderAt ? new Date(reminderAt).toISOString() : null;
 
-      const additionalPersonsJson = additionalPersons.map(person => ({
-        id: person.id,
-        userSurname: person.userSurname,
-        userNumber: person.userNumber,
-        socialNetworkLink: person.socialNetworkLink,
-        eventNotes: person.eventNotes,
-        paymentStatus: person.paymentStatus,
-        paymentAmount: person.paymentAmount
-      }));
+      // Validate reminder time if enabled
+      if (emailReminderEnabled) {
+        if (!reminderISO) {
+          toast({
+            title: t("error.title"),
+            description: "Reminder time is required when email reminder is enabled",
+            variant: "destructive",
+          });
+          return;
+        }
 
-      // ✅ FIX: Convert datetime-local values to UTC ISO strings properly without double conversion
-      const startDateUTC = new Date(startDate).toISOString();
-      const endDateUTC = new Date(endDate).toISOString();
-      const reminderAtUTC = emailReminderEnabled && reminderAt ? new Date(reminderAt).toISOString() : null;
+        if (new Date(reminderISO) >= new Date(startISO)) {
+          toast({
+            title: t("error.title"),
+            description: "Reminder time must be before event start time",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
 
-      console.log("[EventDialog] Converting to UTC:", {
-        local_start: startDate,
-        utc_start: startDateUTC,
-        local_reminder: reminderAt,
-        utc_reminder: reminderAtUTC
-      });
-
-      // Properly include reminder fields in eventData
       const eventData = {
-        title: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
+        id: initialData?.id,
+        title: title.trim(),
         user_surname: userSurname.trim(),
         user_number: userNumber.trim(),
         social_network_link: socialNetworkLink.trim(),
         event_notes: eventNotes.trim(),
-        start_date: startDateUTC,
-        end_date: endDateUTC,
+        start_date: startISO,
+        end_date: endISO,
         payment_status: paymentStatus,
-        payment_amount: showPaymentAmount ? parseFloat(paymentAmount) || null : null,
-        language: language,
-        is_recurring: isRecurring && repeatPattern && repeatPattern !== 'none',
-        repeat_pattern: isRecurring && repeatPattern && repeatPattern !== 'none' ? repeatPattern : null,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+        is_recurring: isRecurring,
+        repeat_pattern: isRecurring ? repeatPattern : null,
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
-        // ✅ FIX: Properly save reminder fields with UTC conversion
-        reminder_at: reminderAtUTC,
-        email_reminder_enabled: emailReminderEnabled
+        reminder_at: reminderISO,
+        email_reminder_enabled: emailReminderEnabled,
+        type: 'event'
       };
 
-      console.log("[EventDialog] Event data being saved:", eventData);
-
-      const { data: savedEventId, error: saveError } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: eventData,
-        p_additional_persons: additionalPersonsJson,
-        p_user_id: currentUser.data.user.id,
-        p_event_id: initialData?.id || null
+      console.log('Saving event with data:', {
+        ...eventData,
+        reminderDebug: {
+          reminderAt,
+          reminderISO,
+          emailReminderEnabled
+        }
       });
 
-      if (saveError) {
-        console.error("[EventDialog] Error saving event:", saveError);
-        throw saveError;
-      }
-
-      console.log("[EventDialog] Event saved successfully with ID:", savedEventId);
-
-      if (files.length > 0) {
-        console.log("[EventDialog] Uploading files...");
-      }
-
-      // Send booking approval email if needed
-      if (!initialData && socialNetworkLink.trim() && socialNetworkLink.includes('@')) {
-        console.log("[EventDialog] Triggering booking approval email with business address...");
-        
-        try {
-          const businessAddress = await fetchBusinessAddress(currentUser.data.user.id);
-          
-          const { error: emailError } = await supabase.functions.invoke('send-booking-approval-email', {
-            body: { 
-              eventId: savedEventId,
-              recipientEmail: socialNetworkLink.trim(),
-              language: language,
-              fullName: userSurname.trim(),
-              eventTitle: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
-              startDate: startDateUTC,
-              endDate: endDateUTC,
-              eventNotes: eventNotes.trim(),
-              paymentStatus: paymentStatus,
-              paymentAmount: showPaymentAmount ? parseFloat(paymentAmount) || null : null,
-              businessAddress: businessAddress
-            }
-          });
-
-          if (emailError) {
-            console.error("[EventDialog] Error sending booking approval email:", emailError);
-          } else {
-            console.log("[EventDialog] Booking approval email sent successfully");
-          }
-        } catch (emailError) {
-          console.error("[EventDialog] Error invoking email function:", emailError);
-        }
-      }
-
-      onOpenChange(false);
-      
-      if (initialData) {
-        console.log("[EventDialog] Calling onEventUpdated");
-        if (onEventUpdated) await onEventUpdated();
-      } else {
-        console.log("[EventDialog] Calling onEventCreated");
-        if (onEventCreated) await onEventCreated();
-      }
-
-      toast.success(initialData ? t("events.eventUpdated") : t("events.eventCreated"));
-
+      await onSave(eventData);
+      onClose();
     } catch (error) {
-      console.error('[EventDialog] Error saving event:', error);
-      toast.error(t("events.saveError"));
-    } finally {
-      setLoading(false);
+      console.error('Error saving event:', error);
+      toast({
+        title: t("error.title"),
+        description: "Failed to save event",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleDelete = async (deleteChoice?: "this" | "series") => {
-    if (!initialData?.id) return;
-
-    if (initialData.recurring_parent_id && !deleteChoice) {
-      setShowRecurringDeleteDialog(true);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      if (onEventDeleted) {
-        await onEventDeleted();
-        onOpenChange(false);
-        toast.success(t("events.eventDeleted"));
+  const handleDelete = async (deleteAll: boolean = false) => {
+    if (initialData?.id && onDelete) {
+      try {
+        await onDelete(initialData.id, deleteAll);
+        toast({
+          title: t("success.title"),
+          description: t("calendar.eventDeleted"),
+        });
+        onClose();
+      } catch (error) {
+        console.error("Error deleting event:", error);
+        toast({
+          title: t("error.title"),
+          description: t("calendar.eventDeleteError"),
+          variant: "destructive",
+        });
       }
-    } catch (error) {
-      console.error('Error deleting event:', error);
-      toast.error(t("events.deleteError"));
-    } finally {
-      setLoading(false);
-      setShowRecurringDeleteDialog(false);
     }
+  };
+
+  const confirmDelete = (eventId: string, deleteAll: boolean = false) => {
+    setDeleteEventId(eventId);
+    setDeleteAllRecurring(deleteAll);
+    setIsDeleteOpen(true);
   };
 
   const closeDeleteDialog = () => {
-    setShowRecurringDeleteDialog(false);
+    setIsDeleteOpen(false);
+    setDeleteEventId(null);
+    setDeleteAllRecurring(false);
   };
 
-  const handleExistingFilesChange = (files: { id: string; filename: string; file_path: string; content_type?: string; size?: number; }[]) => {
-    const fileRecords: FileRecord[] = files.map(file => ({
-      id: file.id,
-      filename: file.filename,
-      file_path: file.file_path,
-      content_type: file.content_type || null,
-      size: file.size || null,
-      created_at: new Date().toISOString(),
-      user_id: null
-    }));
-    setExistingFiles(fileRecords);
+  const handleConfirmDelete = async () => {
+    if (deleteEventId) {
+      await handleDelete(deleteAllRecurring);
+      closeDeleteDialog();
+    }
   };
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-              {isBookingRequest ? (
-                isGeorgian ? <GeorgianAuthText>ჯავშნის მოთხოვნის დეტალები</GeorgianAuthText> : <LanguageText>{t("booking.bookingDetails")}</LanguageText>
-              ) : (
-                initialData ? 
-                  (isGeorgian ? <GeorgianAuthText>მოვლენის რედაქტირება</GeorgianAuthText> : <LanguageText>{t("events.editEvent")}</LanguageText>) :
-                  (isGeorgian ? <GeorgianAuthText>ახალი მოვლენა</GeorgianAuthText> : <LanguageText>{t("events.newEvent")}</LanguageText>)
-              )}
+            <DialogTitle>
+              {mode === 'edit' ? t("calendar.editEvent") : t("calendar.addEvent")}
             </DialogTitle>
           </DialogHeader>
 
-          <EventDialogFields
-            title={title}
-            setTitle={setTitle}
-            userSurname={userSurname}
-            setUserSurname={setUserSurname}
-            userNumber={userNumber}
-            setUserNumber={setUserNumber}
-            socialNetworkLink={socialNetworkLink}
-            setSocialNetworkLink={setSocialNetworkLink}
-            eventNotes={eventNotes}
-            setEventNotes={setEventNotes}
-            eventName={eventName}
-            setEventName={setEventName}
-            startDate={startDate}
-            setStartDate={setStartDate}
-            endDate={endDate}
-            setEndDate={setEndDate}
-            paymentStatus={paymentStatus}
-            setPaymentStatus={setPaymentStatus}
-            paymentAmount={paymentAmount}
-            setPaymentAmount={setPaymentAmount}
-            files={files}
-            setFiles={setFiles}
-            existingFiles={existingFiles}
-            setExistingFiles={handleExistingFilesChange}
-            eventId={initialData?.id}
-            isBookingRequest={isBookingRequest}
-            isRecurring={isRecurring}
-            setIsRecurring={setIsRecurring}
-            repeatPattern={repeatPattern}
-            setRepeatPattern={setRepeatPattern}
-            repeatUntil={repeatUntil}
-            setRepeatUntil={setRepeatUntil}
-            isNewEvent={!initialData}
-            additionalPersons={additionalPersons}
-            setAdditionalPersons={setAdditionalPersons}
-            reminderAt={reminderAt}
-            setReminderAt={setReminderAt}
-            emailReminderEnabled={emailReminderEnabled}
-            setEmailReminderEnabled={setEmailReminderEnabled}
-          />
+          <div className="space-y-4">
+            <EventDialogFields
+              title={title}
+              setTitle={setTitle}
+              userSurname={userSurname}
+              setUserSurname={setUserSurname}
+              userNumber={userNumber}
+              setUserNumber={setUserNumber}
+              socialNetworkLink={socialNetworkLink}
+              setSocialNetworkLink={setSocialNetworkLink}
+              eventNotes={eventNotes}
+              setEventNotes={setEventNotes}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              paymentStatus={paymentStatus}
+              setPaymentStatus={setPaymentStatus}
+              paymentAmount={paymentAmount}
+              setPaymentAmount={setPaymentAmount}
+              isRecurring={isRecurring}
+              setIsRecurring={setIsRecurring}
+              repeatPattern={repeatPattern}
+              setRepeatPattern={setRepeatPattern}
+              repeatUntil={repeatUntil}
+              setRepeatUntil={setRepeatUntil}
+            />
 
-          <div className="flex justify-between pt-4">
-            {initialData && !isBookingRequest && (
-              <Button variant="destructive" onClick={() => handleDelete()} disabled={loading}>
-                {isGeorgian ? <GeorgianAuthText>წაშლა</GeorgianAuthText> : <LanguageText>{t("common.delete")}</LanguageText>}
+            {/* ✅ FIX: Add ReminderField component */}
+            <ReminderField
+              reminderAt={reminderAt}
+              setReminderAt={setReminderAt}
+              emailReminderEnabled={emailReminderEnabled}
+              setEmailReminderEnabled={setEmailReminderEnabled}
+              startDate={startDate}
+              className="mt-4"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>
+              {t("common.cancel")}
+            </Button>
+            {mode === 'edit' && onDelete && (
+              <Button 
+                variant="destructive" 
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                {t("common.delete")}
               </Button>
             )}
-            
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-                {isGeorgian ? <GeorgianAuthText>გაუქმება</GeorgianAuthText> : <LanguageText>{t("common.cancel")}</LanguageText>}
-              </Button>
-              <Button onClick={handleSave} disabled={loading}>
-                {loading ? "..." : (initialData ? 
-                  (isGeorgian ? <GeorgianAuthText>განახლება</GeorgianAuthText> : <LanguageText>{t("common.update")}</LanguageText>) : 
-                  (isGeorgian ? <GeorgianAuthText>შენახვა</GeorgianAuthText> : <LanguageText>{t("common.save")}</LanguageText>)
-                )}
-              </Button>
-            </div>
-          </div>
+            <Button onClick={handleSave}>
+              {t("common.save")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <RecurringDeleteDialog
-        open={showRecurringDeleteDialog}
-        onOpenChange={closeDeleteDialog}
-        onDeleteThis={() => handleDelete("this")}
-        onDeleteSeries={() => handleDelete("series")}
-        isRecurringEvent={!!initialData?.recurring_parent_id}
-      />
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("common.deleteConfirmation")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("calendar.deleteThisEvent")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDeleteDialog(false)}>
+              {t("common.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setShowDeleteDialog(false);
+              if (initialData?.is_recurring) {
+                confirmDelete(initialData.id, true);
+              } else {
+                confirmDelete(initialData.id);
+              }
+            }}>
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("common.deleteConfirmation")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteAllRecurring
+                ? t("calendar.deleteAllRecurring")
+                : t("calendar.deleteThisEvent")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeDeleteDialog}>
+              {t("common.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete}>
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
