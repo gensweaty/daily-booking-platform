@@ -1,4 +1,6 @@
 
+export type CalendarViewType = "month" | "week" | "day";
+
 export interface CalendarEventType {
   id: string;
   title: string;
@@ -19,6 +21,11 @@ export interface CalendarEventType {
   recurring_parent_id?: string;
   recurring_pattern?: string;
   recurring_until?: string;
+  parent_event_id?: string;
+  // Additional recurring fields for compatibility
+  is_recurring?: boolean;
+  repeat_pattern?: string;
+  repeat_until?: string;
   // Additional persons data
   additional_persons?: Array<{
     id: string;
@@ -42,4 +49,7 @@ export interface CalendarEventType {
   reminder_at?: string;
   email_reminder_enabled?: boolean;
   reminder_sent_at?: string;
+  // Additional compatibility fields
+  event_name?: string;
+  requester_name?: string;
 }

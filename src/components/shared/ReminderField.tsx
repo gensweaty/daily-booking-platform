@@ -68,12 +68,12 @@ export const ReminderField = ({
       
       {emailReminderEnabled && (
         <TaskDateTimePicker
-          selectedDate={reminderAt}
-          onDateChange={setReminderAt}
+          date={reminderAt ? new Date(reminderAt) : undefined}
+          onDateChange={(date) => setReminderAt(date ? date.toISOString() : '')}
           isOpen={isReminderPickerOpen}
           onOpenChange={setIsReminderPickerOpen}
-          minDate={startDate}
           placeholder={isGeorgian ? "შეხსენების დრო" : "Reminder time"}
+          className="ml-2"
         />
       )}
     </div>
