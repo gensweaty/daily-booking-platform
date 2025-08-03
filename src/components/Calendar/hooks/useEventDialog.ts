@@ -3,7 +3,7 @@ import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { isVirtualInstance } from "@/lib/recurringEvents";
+import { supabase } from "@/lib/supabase";
 
 interface UseEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
@@ -43,6 +43,30 @@ export const useEventDialog = ({
       if (!createEvent) throw new Error("Create event function not provided");
       
       const createdEvent = await createEvent(eventData);
+      
+      // Handle reminder email if enabled
+      if (createdEvent.email_reminder_enabled && createdEvent.reminder_at) {
+        try {
+          console.log("Sending event reminder email for:", createdEvent.id);
+          
+          const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-event-reminder-email', {
+            body: { eventId: createdEvent.id }
+          });
+
+          if (emailError) {
+            console.error("❌ Error sending event reminder email:", emailError);
+            toast({
+              title: "Warning",
+              description: "Event created but reminder email failed to send",
+              variant: "default",
+            });
+          } else {
+            console.log("✅ Event reminder email sent successfully:", emailResult);
+          }
+        } catch (emailError) {
+          console.error("❌ Failed to send event reminder email:", emailError);
+        }
+      }
       
       setIsNewEventDialogOpen(false);
       console.log("Event created successfully:", createdEvent);
@@ -84,6 +108,30 @@ export const useEventDialog = ({
         ...eventData,
         id: selectedEvent.id,
       });
+      
+      // Handle reminder email if enabled
+      if (updatedEvent.email_reminder_enabled && updatedEvent.reminder_at) {
+        try {
+          console.log("Sending event reminder email for updated event:", updatedEvent.id);
+          
+          const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-event-reminder-email', {
+            body: { eventId: updatedEvent.id }
+          });
+
+          if (emailError) {
+            console.error("❌ Error sending event reminder email:", emailError);
+            toast({
+              title: "Warning",
+              description: "Event updated but reminder email failed to send",
+              variant: "default",
+            });
+          } else {
+            console.log("✅ Event reminder email sent successfully:", emailResult);
+          }
+        } catch (emailError) {
+          console.error("❌ Failed to send event reminder email:", emailError);
+        }
+      }
       
       setSelectedEvent(null);
       console.log("Event updated successfully:", updatedEvent);
