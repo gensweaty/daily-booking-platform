@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   startOfWeek,
@@ -276,6 +275,19 @@ export const Calendar = ({
     await refreshCalendar();
   };
 
+  // Create wrapper functions that match the EventDialog interface
+  const handleEventDialogSave = async (event: Partial<CalendarEventType>) => {
+    await handleCreateEvent(event);
+  };
+
+  const handleEventDialogUpdate = async (event: Partial<CalendarEventType>) => {
+    await handleUpdateEvent(event);
+  };
+
+  const handleEventDialogDelete = async (id: string, deleteChoice?: "this" | "series") => {
+    await handleDeleteEvent(deleteChoice);
+  };
+
   if (error && !directEvents) {
     console.error("Calendar error:", error);
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
@@ -331,7 +343,7 @@ export const Calendar = ({
             key={dialogSelectedDate?.getTime()}
             isOpen={isNewEventDialogOpen}
             onClose={() => setIsNewEventDialogOpen(false)}
-            onSave={handleCreateEvent}
+            onSave={handleEventDialogSave}
             onDelete={undefined}
             businessId={businessId}
             isNewEvent={true}
@@ -343,8 +355,8 @@ export const Calendar = ({
               isOpen={!!selectedEvent}
               onClose={() => setSelectedEvent(null)}
               event={selectedEvent}
-              onSave={handleUpdateEvent}
-              onDelete={handleDeleteEvent}
+              onSave={handleEventDialogUpdate}
+              onDelete={handleEventDialogDelete}
               businessId={businessId}
               isNewEvent={false}
             />
