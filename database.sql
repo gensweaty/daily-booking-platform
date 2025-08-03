@@ -1,150 +1,100 @@
 
--- Update the save_event_with_persons function to handle reminder fields
-CREATE OR REPLACE FUNCTION public.save_event_with_persons(
-  p_event_id uuid DEFAULT NULL,
-  p_user_id uuid DEFAULT NULL,
-  p_title text DEFAULT NULL,
-  p_user_surname text DEFAULT NULL,
-  p_user_number text DEFAULT NULL,
-  p_social_network_link text DEFAULT NULL,
-  p_event_notes text DEFAULT NULL,
-  p_start_date timestamp with time zone DEFAULT NULL,
-  p_end_date timestamp with time zone DEFAULT NULL,
-  p_payment_status text DEFAULT 'not_paid',
-  p_payment_amount numeric DEFAULT NULL,
-  p_language text DEFAULT 'en',
-  p_additional_persons jsonb DEFAULT '[]'::jsonb,
-  p_recurring_pattern text DEFAULT NULL,
-  p_recurring_until date DEFAULT NULL,
-  p_reminder_at timestamp with time zone DEFAULT NULL,
-  p_email_reminder_enabled boolean DEFAULT false
-)
-RETURNS uuid
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
+-- Update the get_public_events_by_user_id function to handle deleted events properly
+CREATE OR REPLACE FUNCTION public.get_public_events_by_user_id(user_id_param uuid)
+ RETURNS SETOF events
+ LANGUAGE sql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT * FROM events 
+  WHERE user_id = user_id_param
+  AND deleted_at IS NULL
+  ORDER BY start_date ASC;
+$function$;
+
+-- Create a new function to get all calendar data (events + booking requests) for a business
+-- This ensures the external calendar gets the exact same data as the internal calendar
+CREATE OR REPLACE FUNCTION public.get_public_calendar_events(business_id_param uuid)
+ RETURNS TABLE(
+   event_id uuid,
+   event_title text,
+   event_start_date timestamp with time zone,
+   event_end_date timestamp with time zone,
+   event_type text,
+   event_user_id uuid,
+   event_user_surname text,
+   event_user_number text,
+   event_social_network_link text,
+   event_notes text,
+   event_payment_status text,
+   event_payment_amount numeric,
+   event_language text,
+   event_created_at timestamp with time zone,
+   event_deleted_at timestamp with time zone
+ )
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
 AS $function$
 DECLARE
-  v_event_id uuid;
-  v_person jsonb;
-  v_person_event_id uuid;
+  business_user_id uuid;
 BEGIN
-  -- Validate required parameters
-  IF p_user_id IS NULL THEN
-    RAISE EXCEPTION 'User ID is required';
-  END IF;
+  -- Get the business owner's user ID
+  SELECT user_id INTO business_user_id
+  FROM business_profiles
+  WHERE id = business_id_param;
   
-  IF p_title IS NULL OR p_title = '' THEN
-    RAISE EXCEPTION 'Title is required';
-  END IF;
-  
-  IF p_start_date IS NULL OR p_end_date IS NULL THEN
-    RAISE EXCEPTION 'Start date and end date are required';
-  END IF;
-  
-  -- Validate reminder time if enabled
-  IF p_email_reminder_enabled AND (p_reminder_at IS NULL OR p_reminder_at >= p_start_date) THEN
-    RAISE EXCEPTION 'Reminder time must be before event start time when reminder is enabled';
+  IF business_user_id IS NULL THEN
+    RAISE EXCEPTION 'Business not found: %', business_id_param;
   END IF;
 
-  -- Insert or update the main event
-  INSERT INTO events (
-    id,
-    user_id,
-    title,
-    user_surname,
-    user_number,
-    social_network_link,
-    event_notes,
-    start_date,
-    end_date,
-    payment_status,
-    payment_amount,
-    language,
-    recurring_pattern,
-    recurring_until,
-    reminder_at,
-    email_reminder_enabled
-  ) VALUES (
-    COALESCE(p_event_id, gen_random_uuid()),
-    p_user_id,
-    p_title,
-    p_user_surname,
-    p_user_number,
-    p_social_network_link,
-    p_event_notes,
-    p_start_date,
-    p_end_date,
-    p_payment_status,
-    p_payment_amount,
-    p_language,
-    p_recurring_pattern,
-    p_recurring_until,
-    p_reminder_at,
-    p_email_reminder_enabled
-  )
-  ON CONFLICT (id) DO UPDATE SET
-    title = EXCLUDED.title,
-    user_surname = EXCLUDED.user_surname,
-    user_number = EXCLUDED.user_number,
-    social_network_link = EXCLUDED.social_network_link,
-    event_notes = EXCLUDED.event_notes,
-    start_date = EXCLUDED.start_date,
-    end_date = EXCLUDED.end_date,
-    payment_status = EXCLUDED.payment_status,
-    payment_amount = EXCLUDED.payment_amount,
-    language = EXCLUDED.language,
-    recurring_pattern = EXCLUDED.recurring_pattern,
-    recurring_until = EXCLUDED.recurring_until,
-    reminder_at = EXCLUDED.reminder_at,
-    email_reminder_enabled = EXCLUDED.email_reminder_enabled,
-    updated_at = CURRENT_TIMESTAMP
-  RETURNING id INTO v_event_id;
-
-  -- Handle additional persons if provided
-  IF p_additional_persons IS NOT NULL AND jsonb_array_length(p_additional_persons) > 0 THEN
-    -- Loop through each additional person
-    FOR v_person IN SELECT * FROM jsonb_array_elements(p_additional_persons)
-    LOOP
-      -- Insert additional person as a separate event
-      INSERT INTO events (
-        user_id,
-        title,
-        user_surname,
-        user_number,
-        social_network_link,
-        event_notes,
-        start_date,
-        end_date,
-        payment_status,
-        payment_amount,
-        language,
-        recurring_parent_id,
-        reminder_at,
-        email_reminder_enabled
-      ) VALUES (
-        p_user_id,
-        p_title,
-        v_person->>'userSurname',
-        v_person->>'userNumber',
-        v_person->>'socialNetworkLink',
-        v_person->>'eventNotes',
-        p_start_date,
-        p_end_date,
-        COALESCE(v_person->>'paymentStatus', 'not_paid'),
-        CASE 
-          WHEN v_person->>'paymentAmount' IS NOT NULL AND v_person->>'paymentAmount' != '' 
-          THEN (v_person->>'paymentAmount')::numeric 
-          ELSE NULL 
-        END,
-        p_language,
-        v_event_id,
-        p_reminder_at,
-        p_email_reminder_enabled
-      );
-    END LOOP;
-  END IF;
-
-  RETURN v_event_id;
+  -- Return ALL events from the events table (this includes all types of events)
+  -- regular events, recurring events, CRM-created events, etc.
+  RETURN QUERY
+  SELECT 
+    e.id as event_id,
+    e.title as event_title,
+    e.start_date as event_start_date,
+    e.end_date as event_end_date,
+    COALESCE(e.type, 'event') as event_type,
+    e.user_id as event_user_id,
+    e.user_surname as event_user_surname,
+    e.user_number as event_user_number,
+    e.social_network_link as event_social_network_link,
+    e.event_notes as event_notes,
+    e.payment_status as event_payment_status,
+    e.payment_amount as event_payment_amount,
+    COALESCE(e.language, 'en') as event_language,
+    e.created_at as event_created_at,
+    e.deleted_at as event_deleted_at
+  FROM events e
+  WHERE e.user_id = business_user_id
+    AND e.deleted_at IS NULL  -- Only non-deleted events
+  
+  UNION ALL
+  
+  -- Return approved booking requests as events
+  SELECT 
+    br.id as event_id,
+    br.title as event_title,
+    br.start_date as event_start_date,
+    br.end_date as event_end_date,
+    'booking_request' as event_type,
+    br.user_id as event_user_id,
+    br.requester_name as event_user_surname,
+    br.requester_phone as event_user_number,
+    br.requester_email as event_social_network_link,
+    br.description as event_notes,
+    br.payment_status as event_payment_status,
+    br.payment_amount as event_payment_amount,
+    COALESCE(br.language, 'en') as event_language,
+    br.created_at as event_created_at,
+    br.deleted_at as event_deleted_at
+  FROM booking_requests br
+  WHERE br.business_id = business_id_param
+    AND br.status = 'approved'  -- Only approved bookings
+    AND br.deleted_at IS NULL   -- Only non-deleted bookings
+  
+  ORDER BY event_start_date ASC;
 END;
 $function$;

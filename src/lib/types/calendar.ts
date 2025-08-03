@@ -1,42 +1,41 @@
 
-export type CalendarViewType = "month" | "week" | "day";
+export type CalendarViewType = 'month' | 'week' | 'day';
 
 export interface CalendarEventType {
   id: string;
   title: string;
-  user_surname: string;
+  user_surname?: string;
   user_number?: string;
-  social_network_link?: string; // This is the email field
+  social_network_link?: string;
   event_notes?: string;
   start_date: string;
   end_date: string;
-  user_id: string;
+  type: 'birthday' | 'private_party' | 'booking_request' | string;
   payment_status?: string;
-  payment_amount?: number | null;
+  payment_amount?: number;
+  created_at: string;
+  updated_at: string; // Now properly typed as required field
+  user_id: string;
+  requester_name?: string;
+  requester_email?: string;
+  requester_phone?: string;
+  description?: string;
+  file?: File;
+  deleted_at?: string; 
+  file_path?: string;
+  filename?: string;
+  content_type?: string;
+  size?: number;
+  checkAvailability?: boolean;
   language?: string;
-  type?: string;
-  created_at?: string;
-  deleted_at?: string;
-  // Recurring event fields
-  recurring_parent_id?: string;
-  recurring_pattern?: string;
-  recurring_until?: string;
-  parent_event_id?: string;
-  // Additional recurring fields for compatibility
+  customer_id?: string;
+  event_name?: string;
+  booking_request_id?: string;
+  // Recurring event properties
   is_recurring?: boolean;
   repeat_pattern?: string;
   repeat_until?: string;
-  // Additional persons data
-  additional_persons?: Array<{
-    id: string;
-    userSurname: string;
-    userNumber: string;
-    socialNetworkLink: string;
-    eventNotes: string;
-    paymentStatus: string;
-    paymentAmount: string;
-  }>;
-  // File attachments
+  parent_event_id?: string;
   files?: Array<{
     id: string;
     event_id: string;
@@ -45,12 +44,4 @@ export interface CalendarEventType {
     content_type?: string;
     size?: number;
   }>;
-  // Reminder fields - updated structure
-  reminder_at?: string;
-  reminder_enabled?: boolean;
-  reminder_sent_at?: string;
-  email_reminder_enabled?: boolean;
-  // Additional compatibility fields
-  event_name?: string;
-  requester_name?: string;
 }

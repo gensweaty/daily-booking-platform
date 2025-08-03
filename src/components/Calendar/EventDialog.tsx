@@ -1,53 +1,110 @@
-
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { EventDialogFields } from "./EventDialogFields";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CalendarEventType } from "@/lib/types/calendar";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { EventDialogFields } from "./EventDialogFields";
 import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
-import { cn } from "@/lib/utils";
-import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
-import { LanguageText } from "@/components/shared/LanguageText";
-import { FileRecord } from "@/types/files";
-
-interface PersonData {
-  id: string;
-  userSurname: string;
-  userNumber: string;
-  socialNetworkLink: string;
-  eventNotes: string;
-  paymentStatus: string;
-  paymentAmount: string;
-}
+import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { sendEventCreationEmail } from "@/lib/api";
+import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
+import { deleteCalendarEvent, clearCalendarCache } from "@/services/calendarService";
+import { Clock, RefreshCcw } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface EventDialogProps {
-  isOpen: boolean;
+  open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate?: Date;
-  initialData?: CalendarEventType | null;
+  eventId?: string;
+  initialData?: CalendarEventType;
   onEventCreated?: () => void;
   onEventUpdated?: () => void;
   onEventDeleted?: () => void;
-  isBookingRequest?: boolean;
-  businessId?: string;
 }
 
-export const EventDialog = ({ 
-  isOpen, 
+// Helper function to check if two time ranges overlap
+const timeRangesOverlap = (start1: Date, end1: Date, start2: Date, end2: Date): boolean => {
+  return start1 < end2 && end1 > start2;
+};
+
+// Helper function to generate recurring event occurrences for conflict checking
+const generateRecurringOccurrences = (startDate: Date, endDate: Date, repeatPattern: string, repeatUntil: string): Array<{ start: Date; end: Date }> => {
+  const occurrences = [];
+  const duration = endDate.getTime() - startDate.getTime();
+  const endLimit = new Date(repeatUntil);
+  let currentDate = new Date(startDate);
+
+  // Limit to prevent infinite loops - max 100 occurrences
+  let count = 0;
+  const maxOccurrences = 100;
+
+  while (currentDate <= endLimit && count < maxOccurrences) {
+    const occurrenceEnd = new Date(currentDate.getTime() + duration);
+    occurrences.push({
+      start: new Date(currentDate),
+      end: occurrenceEnd
+    });
+
+    // Calculate next occurrence based on pattern
+    switch (repeatPattern) {
+      case 'daily':
+        currentDate.setDate(currentDate.getDate() + 1);
+        break;
+      case 'weekly':
+        currentDate.setDate(currentDate.getDate() + 7);
+        break;
+      case 'monthly':
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        break;
+      case 'yearly':
+        currentDate.setFullYear(currentDate.getFullYear() + 1);
+        break;
+      default:
+        break;
+    }
+
+    count++;
+  }
+
+  return occurrences;
+};
+
+// Helper function to convert datetime-local input values to ISO string in local timezone
+const localDateTimeToISOString = (dtStr: string): string => {
+  if (!dtStr) return new Date().toISOString();
+  const [datePart, timePart] = dtStr.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hour, minute] = timePart.split(':').map(Number);
+  // Create date in local timezone
+  const localDate = new Date(year, month - 1, day, hour, minute);
+  return localDate.toISOString();
+};
+
+// Helper function to convert ISO string from DB to datetime-local input format
+const isoToLocalDateTimeInput = (isoString: string): string => {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+export const EventDialog = ({
+  open,
   onOpenChange,
   selectedDate,
+  eventId,
   initialData,
   onEventCreated,
   onEventUpdated,
-  onEventDeleted,
-  isBookingRequest = false,
-  businessId 
+  onEventDeleted
 }: EventDialogProps) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const { t, language } = useLanguage();
-  const isGeorgian = language === 'ka';
+  const queryClient = useQueryClient();
   
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
@@ -55,449 +112,899 @@ export const EventDialog = ({
   const [socialNetworkLink, setSocialNetworkLink] = useState("");
   const [eventNotes, setEventNotes] = useState("");
   const [eventName, setEventName] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("not_paid");
-  const [paymentAmount, setPaymentAmount] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
-  const [existingFiles, setExistingFiles] = useState<FileRecord[]>([]);
   const [isRecurring, setIsRecurring] = useState(false);
   const [repeatPattern, setRepeatPattern] = useState("");
   const [repeatUntil, setRepeatUntil] = useState("");
-  const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
-  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
-  const shouldShowEventNameField = additionalPersons.length > 0;
-  
-  const [reminderAt, setReminderAt] = useState('');
-  const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
-  
-  const [loading, setLoading] = useState(false);
-  const [showRecurringDeleteDialog, setShowRecurringDeleteDialog] = useState(false);
-  
-  const user = supabase.auth.getUser();
+  const [files, setFiles] = useState<File[]>([]);
+  const [existingFiles, setExistingFiles] = useState<Array<{
+    id: string;
+    filename: string;
+    file_path: string;
+    content_type?: string;
+    size?: number;
+  }>>([]);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [additionalPersons, setAdditionalPersons] = useState<Array<{
+    id: string;
+    userSurname: string;
+    userNumber: string;
+    socialNetworkLink: string;
+    eventNotes: string;
+    paymentStatus: string;
+    paymentAmount: string;
+  }>>([]);
+  const [currentEventData, setCurrentEventData] = useState<CalendarEventType | null>(null);
 
-  const georgianStyle = isGeorgian ? {
-    fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
-    letterSpacing: '-0.2px',
-    WebkitFontSmoothing: 'antialiased' as const,
-    MozOsxFontSmoothing: 'grayscale' as const
-  } : undefined;
+  const isNewEvent = !initialData && !eventId;
+  const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
+  const isRecurringEvent = initialData?.is_recurring || isVirtualEvent || isRecurring;
 
-  useEffect(() => {
-    console.log("[EventDialog] useEffect triggered with:", { isOpen, initialData: !!initialData, selectedDate });
-    
-    if (initialData) {
-      console.log('[EventDialog] Loading initial data:', initialData);
-      
-      setTitle(initialData.title || "");
-      setUserSurname(initialData.user_surname || "");
-      setUserNumber(initialData.user_number || "");
-      setSocialNetworkLink(initialData.social_network_link || "");
-      setEventNotes(initialData.event_notes || "");
-      
-      // ✅ FIX: Use simple slice to avoid timezone double conversion - no manual offset calculation
-      if (initialData.start_date) {
-        const formattedStart = initialData.start_date.slice(0, 16);
-        setStartDate(formattedStart);
-        console.log('[EventDialog] Setting start date:', formattedStart, 'from DB:', initialData.start_date);
-      }
-      
-      if (initialData.end_date) {
-        const formattedEnd = initialData.end_date.slice(0, 16);
-        setEndDate(formattedEnd);
-        console.log('[EventDialog] Setting end date:', formattedEnd, 'from DB:', initialData.end_date);
-      }
-      
-      setPaymentStatus(initialData.payment_status || "not_paid");
-      setPaymentAmount(initialData.payment_amount?.toString() || "");
-      setIsRecurring(!!initialData.recurring_pattern || !!initialData.is_recurring);
-      setRepeatPattern(initialData.recurring_pattern || initialData.repeat_pattern || "");
-      setRepeatUntil(initialData.recurring_until || initialData.repeat_until || "");
-      setAdditionalPersons(initialData.additional_persons || []);
-      setEventName(initialData.title || "");
-      
-      // ✅ FIX: Set reminder data using slice method to avoid timezone issues
-      console.log('[EventDialog] 🔍 Loading reminder data from initialData:', {
-        reminder_at: initialData.reminder_at,
-        email_reminder_enabled: initialData.email_reminder_enabled,
-      });
-      
-      // Set reminder time using slice to avoid timezone issues
-      if (initialData.reminder_at) {
-        const formattedReminder = initialData.reminder_at.slice(0, 16);
-        setReminderAt(formattedReminder);
-        console.log('[EventDialog] ✅ Setting reminder at:', formattedReminder, 'from DB:', initialData.reminder_at);
-      } else {
-        setReminderAt('');
-        console.log('[EventDialog] No reminder time found, clearing field');
-      }
-      
-      // Set email reminder enabled flag
-      const isEmailReminderEnabled = !!(initialData.email_reminder_enabled || initialData.reminder_enabled);
-      setEmailReminderEnabled(isEmailReminderEnabled);
-      console.log('[EventDialog] ✅ Setting email reminder enabled to:', isEmailReminderEnabled);
-      
-      // Fetch existing files
-      const fetchExistingFiles = async () => {
-        try {
-          const { data, error } = await supabase
-            .from('event_files')
-            .select('id, filename, file_path, content_type, size, created_at, user_id')
-            .eq('event_id', initialData.id);
-
-          if (error) {
-            console.error('Error fetching existing files:', error);
-          } else {
-            const fileRecords: FileRecord[] = (data || []).map(file => ({
-              id: file.id,
-              filename: file.filename,
-              file_path: file.file_path,
-              content_type: file.content_type || null,
-              size: file.size || null,
-              created_at: file.created_at || new Date().toISOString(),
-              user_id: file.user_id || null
-            }));
-            setExistingFiles(fileRecords);
-          }
-        } catch (error) {
-          console.error('Error fetching existing files:', error);
-        }
-      };
-      fetchExistingFiles();
-    } else if (selectedDate) {
-      console.log('[EventDialog] Setting up for new event with selected date:', selectedDate);
-      const dateStr = selectedDate.toISOString().split('T')[0];
-      const defaultStartTime = `${dateStr}T09:00`;
-      const defaultEndTime = `${dateStr}T10:00`;
-      setStartDate(defaultStartTime);
-      setEndDate(defaultEndTime);
-      
-      // Clear reminder fields for new events
-      setReminderAt('');
-      setEmailReminderEnabled(false);
-    } else {
-      console.log('[EventDialog] Clearing all fields');
-      setTitle("");
-      setUserSurname("");
-      setUserNumber("");
-      setSocialNetworkLink("");
-      setEventNotes("");
-      setStartDate("");
-      setEndDate("");
-      setPaymentStatus("not_paid");
-      setPaymentAmount("");
-      setFiles([]);
-      setExistingFiles([]);
-      setIsRecurring(false);
-      setRepeatPattern("");
-      setRepeatUntil("");
-      setAdditionalPersons([]);
-      setEventName("");
-      
-      setReminderAt('');
-      setEmailReminderEnabled(false);
-    }
-  }, [initialData, selectedDate, isOpen]);
-
-  const fetchBusinessAddress = async (userId: string) => {
+  const loadAdditionalPersons = async (targetEventId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('business_profiles')
-        .select('contact_address')
-        .eq('user_id', userId)
-        .single();
-      
+      let actualEventId = targetEventId;
+
+      if (isVirtualInstance(targetEventId)) {
+        actualEventId = getParentEventId(targetEventId);
+        console.log('🔍 Virtual instance detected, using parent ID:', actualEventId);
+      } else if (initialData?.parent_event_id) {
+        actualEventId = initialData.parent_event_id;
+        console.log('🔍 Child instance detected, using parent ID:', actualEventId);
+      } else if (initialData?.is_recurring && !initialData?.parent_event_id) {
+        actualEventId = targetEventId;
+        console.log('🔍 Parent recurring event, using own ID:', actualEventId);
+      }
+
+      console.log('🔍 Loading additional persons:', {
+        targetEventId,
+        actualEventId,
+        isVirtualEvent,
+        parentEventId: initialData?.parent_event_id,
+        isRecurring: initialData?.is_recurring
+      });
+
+      const { data: customers, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('event_id', actualEventId)
+        .eq('type', 'customer')
+        .is('deleted_at', null);
+
       if (error) {
-        console.error('Error fetching business address:', error);
+        console.error('Error loading additional persons:', error);
+        return;
+      }
+
+      if (customers && customers.length > 0) {
+        const mappedPersons = customers.map(customer => ({
+          id: customer.id,
+          userSurname: customer.user_surname || customer.title || '',
+          userNumber: customer.user_number || '',
+          socialNetworkLink: customer.social_network_link || '',
+          eventNotes: customer.event_notes || '',
+          paymentStatus: customer.payment_status || '',
+          paymentAmount: customer.payment_amount?.toString() || ''
+        }));
+        console.log('✅ Loaded additional persons:', mappedPersons.length, 'persons for actualEventId:', actualEventId);
+        setAdditionalPersons(mappedPersons);
+      } else {
+        console.log('ℹ️ No additional persons found for actualEventId:', actualEventId);
+        setAdditionalPersons([]);
+      }
+    } catch (error) {
+      console.error('Error loading additional persons:', error);
+    }
+  };
+
+  const loadExistingFiles = async (targetEventId: string) => {
+    try {
+      let actualEventId = targetEventId;
+
+      if (isVirtualInstance(targetEventId)) {
+        actualEventId = getParentEventId(targetEventId);
+        console.log('📁 Virtual instance detected, using parent ID for files:', actualEventId);
+      } else if (initialData?.parent_event_id) {
+        actualEventId = initialData.parent_event_id;
+        console.log('📁 Child instance detected, using parent ID for files:', actualEventId);
+      } else if (initialData?.is_recurring && !initialData?.parent_event_id) {
+        actualEventId = targetEventId;
+        console.log('📁 Parent recurring event, using own ID for files:', actualEventId);
+      }
+
+      console.log('📁 Loading existing files:', {
+        targetEventId,
+        actualEventId,
+        isVirtualEvent,
+        parentEventId: initialData?.parent_event_id,
+        isRecurring: initialData?.is_recurring
+      });
+
+      const { data: eventFiles, error } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', actualEventId);
+
+      if (error) {
+        console.error('Error loading event files:', error);
+        return;
+      }
+
+      console.log('✅ Loaded existing files:', eventFiles?.length || 0, 'files for actualEventId:', actualEventId);
+      setExistingFiles(eventFiles || []);
+    } catch (error) {
+      console.error('Error loading existing files:', error);
+    }
+  };
+
+  const loadEventData = async (targetEventId: string) => {
+    try {
+      const { data: eventData, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', targetEventId)
+        .single();
+
+      if (error) {
+        console.error('Error loading event data:', error);
         return null;
       }
-      
-      return data?.contact_address || null;
+
+      console.log('✅ Loaded fresh event data:', eventData);
+      setCurrentEventData(eventData);
+      return eventData;
     } catch (error) {
-      console.error('Error fetching business address:', error);
+      console.error('Error loading event data:', error);
       return null;
     }
   };
 
-  const handleSave = async () => {
-    if (!userSurname.trim()) {
-      toast.error(t("events.fullNameRequired"));
+  useEffect(() => {
+    if (open) {
+      if (initialData || eventId) {
+        const targetEventId = eventId || initialData?.id;
+        if (targetEventId) {
+          loadEventData(targetEventId);
+          loadExistingFiles(targetEventId);
+          loadAdditionalPersons(targetEventId);
+        }
+
+        if (isVirtualEvent && eventId) {
+          const parentId = getParentEventId(eventId);
+          loadParentEventData(parentId);
+        }
+
+        const eventData = initialData;
+        if (eventData) {
+          setTitle(eventData.title || "");
+          setUserSurname(eventData.user_surname || "");
+          setUserNumber(eventData.user_number || "");
+          setSocialNetworkLink(eventData.social_network_link || "");
+          setEventNotes(eventData.event_notes || "");
+          setEventName(eventData.event_name || "");
+          setPaymentStatus(eventData.payment_status || "");
+          setPaymentAmount(eventData.payment_amount?.toString() || "");
+
+          if (isVirtualEvent && eventId) {
+            const instanceDate = getInstanceDate(eventId);
+            if (instanceDate && eventData) {
+              const baseStart = new Date(eventData.start_date);
+              const baseEnd = new Date(eventData.end_date);
+              const [year, month, day] = instanceDate.split('-');
+              const newStart = new Date(baseStart);
+              newStart.setFullYear(+year, +month - 1, +day);
+              const newEnd = new Date(baseEnd);
+              newEnd.setFullYear(+year, +month - 1, +day);
+
+              setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
+              setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
+            } else {
+              setStartDate(isoToLocalDateTimeInput(eventData.start_date));
+              setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+            }
+          } else {
+            setStartDate(isoToLocalDateTimeInput(eventData.start_date));
+            setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+          }
+
+          setIsRecurring(eventData.is_recurring || false);
+          setRepeatPattern(eventData.repeat_pattern || "");
+          setRepeatUntil(eventData.repeat_until || "");
+        }
+      } else if (selectedDate) {
+        const startDateTime = isoToLocalDateTimeInput(selectedDate.toISOString());
+        const endDateTime = new Date(selectedDate.getTime() + 60 * 60 * 1000);
+        setStartDate(startDateTime);
+        setEndDate(isoToLocalDateTimeInput(endDateTime.toISOString()));
+
+        setAdditionalPersons([]);
+        setTitle("");
+        setUserSurname("");
+        setUserNumber("");
+        setSocialNetworkLink("");
+        setEventNotes("");
+        setEventName("");
+        setPaymentStatus("");
+        setPaymentAmount("");
+        setIsRecurring(false);
+        setRepeatPattern("");
+        setRepeatUntil("");
+        setFiles([]);
+        setExistingFiles([]);
+        setCurrentEventData(null);
+      }
+    }
+  }, [open, selectedDate, initialData, eventId, isVirtualEvent]);
+
+  const loadParentEventData = async (parentId: string) => {
+    try {
+      const { data: parentEvent, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', parentId)
+        .single();
+
+      if (error) throw error;
+
+      if (parentEvent) {
+        setIsRecurring(parentEvent.is_recurring || false);
+        setRepeatPattern(parentEvent.repeat_pattern || "");
+        setRepeatUntil(parentEvent.repeat_until || "");
+      }
+    } catch (error) {
+      console.error('Error loading parent event:', error);
+    }
+  };
+
+  const resetForm = () => {
+    setTitle("");
+    setUserSurname("");
+    setUserNumber("");
+    setSocialNetworkLink("");
+    setEventNotes("");
+    setEventName("");
+    setPaymentStatus("");
+    setPaymentAmount("");
+    setStartDate("");
+    setEndDate("");
+    setIsRecurring(false);
+    setRepeatPattern("");
+    setRepeatUntil("");
+    setAdditionalPersons([]);
+    setFiles([]);
+    setExistingFiles([]);
+    setCurrentEventData(null);
+  };
+
+  const uploadFiles = async (eventId: string) => {
+    if (files.length === 0) return;
+    
+    console.log('📤 Uploading', files.length, 'files for event:', eventId);
+    
+    const uploadPromises = files.map(async file => {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${eventId}/${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('event_attachments')
+        .upload(fileName, file);
+
+      if (uploadError) {
+        console.error('Error uploading file:', uploadError);
+        return null;
+      }
+
+      const { error: dbError } = await supabase
+        .from('event_files')
+        .insert({
+          filename: file.name,
+          file_path: fileName,
+          content_type: file.type,
+          size: file.size,
+          user_id: user?.id,
+          event_id: eventId
+        });
+
+      if (dbError) {
+        console.error('Error saving file record:', dbError);
+        return null;
+      }
+
+      return fileName;
+    });
+
+    await Promise.all(uploadPromises);
+    console.log('✅ Files uploaded successfully');
+  };
+
+  const sendEmailToAllPersons = async (eventData: any, additionalPersons: any[] = []) => {
+    try {
+      console.log(`🔔 Starting email notification process for event: ${eventData.title || eventData.user_surname}`);
+
+      const { data: businessData } = await supabase
+        .from('business_profiles')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+
+      if (!businessData) {
+        console.warn("❌ Missing business data for event notification - skipping email");
+        return;
+      }
+
+      const recipients: Array<{
+        email: string;
+        name: string;
+        paymentStatus: string;
+        paymentAmount: number | null;
+        eventNotes: string;
+      }> = [];
+
+      const mainCustomerEmail = eventData.social_network_link;
+      if (mainCustomerEmail && isValidEmail(mainCustomerEmail)) {
+        recipients.push({
+          email: mainCustomerEmail,
+          name: eventData.title || eventData.user_surname || '',
+          paymentStatus: eventData.payment_status || 'not_paid',
+          paymentAmount: eventData.payment_amount || null,
+          eventNotes: eventData.event_notes || ''
+        });
+      }
+
+      if (additionalPersons && additionalPersons.length > 0) {
+        additionalPersons.forEach(person => {
+          if (person.socialNetworkLink && isValidEmail(person.socialNetworkLink)) {
+            recipients.push({
+              email: person.socialNetworkLink,
+              name: person.userSurname || '',
+              paymentStatus: person.paymentStatus || 'not_paid',
+              paymentAmount: person.paymentAmount ? parseFloat(person.paymentAmount) : null,
+              eventNotes: person.eventNotes || ''
+            });
+          }
+        });
+      }
+
+      if (recipients.length === 0) {
+        console.warn("❌ No valid email addresses found for sending notifications");
+        return;
+      }
+
+      console.log(`📧 Found ${recipients.length} recipients for email notifications with language: ${language}`);
+
+      for (const recipient of recipients) {
+        try {
+          console.log(`📧 Sending email to ${recipient.email} with individual data:`, {
+            paymentStatus: recipient.paymentStatus,
+            paymentAmount: recipient.paymentAmount,
+            eventNotes: recipient.eventNotes
+          });
+
+          const emailResult = await sendEventCreationEmail(
+            recipient.email,
+            recipient.name,
+            businessData.business_name || '',
+            eventData.start_date,
+            eventData.end_date,
+            recipient.paymentStatus,
+            recipient.paymentAmount,
+            businessData.contact_address || '',
+            eventData.id,
+            language || 'en',
+            recipient.eventNotes
+          );
+
+          if (emailResult?.success) {
+            console.log(`✅ Event creation email sent successfully to: ${recipient.email} with individual data`);
+          } else {
+            console.warn(`❌ Failed to send event creation email to ${recipient.email}:`, emailResult?.error);
+          }
+        } catch (emailError) {
+          console.error(`❌ Error sending email to ${recipient.email}:`, emailError);
+        }
+      }
+
+      if (recipients.length > 0) {
+        toast({
+          title: "Notifications Sent",
+          description: `Booking confirmations sent to ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}`
+        });
+      }
+    } catch (error) {
+      console.error("❌ Error sending event creation emails:", error);
+      toast({
+        variant: "destructive",
+        title: "Email Error",
+        description: "Failed to send booking confirmation emails"
+      });
+    }
+  };
+
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      toast({
+        title: t("common.error"),
+        description: t("common.authRequired")
+      });
       return;
     }
 
-    if (!startDate || !endDate) {
-      toast.error(t("events.dateTimeRequired"));
-      return;
-    }
-
-    // Validate reminder time if enabled
-    if (emailReminderEnabled && reminderAt) {
-      const reminderDate = new Date(reminderAt);
-      const startDateObj = new Date(startDate);
-      
-      if (reminderDate >= startDateObj) {
-        toast.error(isGeorgian ? "შეხსენების დრო უნდა იყოს მოვლენის დაწყებამდე" : "Reminder must be before event start time");
+    if (isRecurring) {
+      if (!repeatPattern || !repeatUntil) {
+        toast({
+          title: t("common.error"),
+          description: "Please select a repeat pattern and end date for recurring events",
+          variant: "destructive"
+        });
+        return;
+      }
+      const startDateObj = new Date(localDateTimeToISOString(startDate));
+      const repeatUntilObj = new Date(repeatUntil);
+      if (repeatUntilObj <= startDateObj) {
+        toast({
+          title: t("common.error"),
+          description: "Repeat until date must be after the event start date",
+          variant: "destructive"
+        });
         return;
       }
     }
 
-    setLoading(true);
+    // **ENHANCED: More comprehensive conflict checking for recurring events**
+    const newStartTime = new Date(localDateTimeToISOString(startDate));
+    const newEndTime = new Date(localDateTimeToISOString(endDate));
+
+    // Get existing events from React Query cache
+    const existingEvents = queryClient.getQueryData<CalendarEventType[]>(['events', user.id]) || [];
     
-    try {
-      const currentUser = await supabase.auth.getUser();
-      if (!currentUser.data.user) {
-        throw new Error("User not authenticated");
-      }
-
-      console.log("[EventDialog] Saving event with reminder data:", {
-        reminderAt,
-        emailReminderEnabled,
-        startDate,
-        endDate
-      });
-
-      const additionalPersonsJson = additionalPersons.map(person => ({
-        id: person.id,
-        userSurname: person.userSurname,
-        userNumber: person.userNumber,
-        socialNetworkLink: person.socialNetworkLink,
-        eventNotes: person.eventNotes,
-        paymentStatus: person.paymentStatus,
-        paymentAmount: person.paymentAmount
-      }));
-
-      // ✅ FIX: Convert datetime-local values to UTC ISO strings properly without double conversion
-      const startDateUTC = new Date(startDate).toISOString();
-      const endDateUTC = new Date(endDate).toISOString();
-      const reminderAtUTC = emailReminderEnabled && reminderAt ? new Date(reminderAt).toISOString() : null;
-
-      console.log("[EventDialog] Converting to UTC:", {
-        local_start: startDate,
-        utc_start: startDateUTC,
-        local_reminder: reminderAt,
-        utc_reminder: reminderAtUTC
-      });
-
-      // Properly include reminder fields in eventData
-      const eventData = {
-        title: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
-        user_surname: userSurname.trim(),
-        user_number: userNumber.trim(),
-        social_network_link: socialNetworkLink.trim(),
-        event_notes: eventNotes.trim(),
-        start_date: startDateUTC,
-        end_date: endDateUTC,
-        payment_status: paymentStatus,
-        payment_amount: showPaymentAmount ? parseFloat(paymentAmount) || null : null,
-        language: language,
-        is_recurring: isRecurring && repeatPattern && repeatPattern !== 'none',
-        repeat_pattern: isRecurring && repeatPattern && repeatPattern !== 'none' ? repeatPattern : null,
-        repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
-        // ✅ FIX: Properly save reminder fields with UTC conversion
-        reminder_at: reminderAtUTC,
-        email_reminder_enabled: emailReminderEnabled
-      };
-
-      console.log("[EventDialog] Event data being saved:", eventData);
-
-      const { data: savedEventId, error: saveError } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: eventData,
-        p_additional_persons: additionalPersonsJson,
-        p_user_id: currentUser.data.user.id,
-        p_event_id: initialData?.id || null
-      });
-
-      if (saveError) {
-        console.error("[EventDialog] Error saving event:", saveError);
-        throw saveError;
-      }
-
-      console.log("[EventDialog] Event saved successfully with ID:", savedEventId);
-
-      if (files.length > 0) {
-        console.log("[EventDialog] Uploading files...");
-      }
-
-      // Send booking approval email if needed
-      if (!initialData && socialNetworkLink.trim() && socialNetworkLink.includes('@')) {
-        console.log("[EventDialog] Triggering booking approval email with business address...");
-        
-        try {
-          const businessAddress = await fetchBusinessAddress(currentUser.data.user.id);
-          
-          const { error: emailError } = await supabase.functions.invoke('send-booking-approval-email', {
-            body: { 
-              eventId: savedEventId,
-              recipientEmail: socialNetworkLink.trim(),
-              language: language,
-              fullName: userSurname.trim(),
-              eventTitle: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
-              startDate: startDateUTC,
-              endDate: endDateUTC,
-              eventNotes: eventNotes.trim(),
-              paymentStatus: paymentStatus,
-              paymentAmount: showPaymentAmount ? parseFloat(paymentAmount) || null : null,
-              businessAddress: businessAddress
-            }
-          });
-
-          if (emailError) {
-            console.error("[EventDialog] Error sending booking approval email:", emailError);
-          } else {
-            console.log("[EventDialog] Booking approval email sent successfully");
-          }
-        } catch (emailError) {
-          console.error("[EventDialog] Error invoking email function:", emailError);
-        }
-      }
-
-      onOpenChange(false);
-      
-      if (initialData) {
-        console.log("[EventDialog] Calling onEventUpdated");
-        if (onEventUpdated) await onEventUpdated();
-      } else {
-        console.log("[EventDialog] Calling onEventCreated");
-        if (onEventCreated) await onEventCreated();
-      }
-
-      toast.success(initialData ? t("events.eventUpdated") : t("events.eventCreated"));
-
-    } catch (error) {
-      console.error('[EventDialog] Error saving event:', error);
-      toast.error(t("events.saveError"));
-    } finally {
-      setLoading(false);
+    // **CRITICAL FIX: Determine all event IDs to exclude from conflict checking**
+    let eventIdsToExclude: string[] = [];
+    let parentEventId: string | null = null;
+    
+    // For virtual instances, we need to exclude the entire recurring series
+    if (isVirtualEvent && eventId) {
+      parentEventId = getParentEventId(eventId);
+      eventIdsToExclude.push(parentEventId);
+      console.log('🔄 Virtual instance conflict check - excluding parent ID:', parentEventId);
+    } else if (initialData?.parent_event_id) {
+      parentEventId = initialData.parent_event_id;
+      eventIdsToExclude.push(parentEventId);
+      console.log('🔄 Child instance conflict check - excluding parent ID:', parentEventId);
+    } else if (eventId || initialData?.id) {
+      // For regular events or parent recurring events, exclude the event itself
+      const currentEventId = eventId || initialData?.id;
+      eventIdsToExclude.push(currentEventId);
+      parentEventId = currentEventId;
+      console.log('🔄 Regular event conflict check - excluding event ID:', currentEventId);
     }
-  };
 
-  const handleDelete = async (deleteChoice?: "this" | "series") => {
-    if (!initialData?.id) return;
+    // **NEW: If this is a recurring event, exclude all instances of the same series**
+    if (parentEventId && (isRecurringEvent || initialData?.is_recurring)) {
+      // Find all virtual instances that belong to this series
+      const seriesInstances = existingEvents.filter(event => {
+        // Check if event is a virtual instance of the same parent
+        if (isVirtualInstance(event.id)) {
+          return getParentEventId(event.id) === parentEventId;
+        }
+        // Check if event has the same parent_event_id
+        return event.parent_event_id === parentEventId || event.id === parentEventId;
+      });
+      
+      seriesInstances.forEach(instance => {
+        if (!eventIdsToExclude.includes(instance.id)) {
+          eventIdsToExclude.push(instance.id);
+        }
+      });
+      
+      console.log('🔄 Recurring series conflict check - excluding all series instances:', eventIdsToExclude);
+    }
 
-    if (initialData.recurring_parent_id && !deleteChoice) {
-      setShowRecurringDeleteDialog(true);
+    console.log('🔍 Enhanced conflict checking details:', {
+      eventId,
+      initialDataId: initialData?.id,
+      eventIdsToExclude,
+      isVirtualEvent,
+      isRecurringEvent,
+      parentEventId,
+      newStartTime: newStartTime.toISOString(),
+      newEndTime: newEndTime.toISOString()
+    });
+    
+    // Check for conflicts with existing events
+    const conflictingEvent = existingEvents.find(event => {
+      // Skip checking against any event in the exclusion list
+      if (eventIdsToExclude.includes(event.id)) {
+        console.log('⏭️ Skipping conflict check with excluded event:', event.id);
+        return false;
+      }
+      
+      const eventStart = new Date(event.start_date);
+      const eventEnd = new Date(event.end_date);
+      
+      const hasConflict = timeRangesOverlap(newStartTime, newEndTime, eventStart, eventEnd);
+      
+      if (hasConflict) {
+        console.log('⚠️ Conflict detected with event:', {
+          conflictingEventId: event.id,
+          conflictingEventTitle: event.title,
+          conflictingEventStart: eventStart.toISOString(),
+          conflictingEventEnd: eventEnd.toISOString()
+        });
+      }
+      
+      return hasConflict;
+    });
+
+    if (conflictingEvent) {
+      console.log('❌ Time conflict detected, blocking submission');
+      toast({
+        variant: "destructive",
+        translateKeys: {
+          titleKey: "common.error",
+          descriptionKey: "events.timeConflictError"
+        }
+      });
       return;
     }
 
-    setLoading(true);
-    try {
-      if (onEventDeleted) {
-        await onEventDeleted();
-        onOpenChange(false);
-        toast.success(t("events.eventDeleted"));
+    // If creating a recurring event, check all occurrences for conflicts
+    if (isRecurring && repeatPattern && repeatUntil) {
+      const occurrences = generateRecurringOccurrences(newStartTime, newEndTime, repeatPattern, repeatUntil);
+      
+      for (const occurrence of occurrences) {
+        const conflictingEventInOccurrence = existingEvents.find(event => {
+          // Skip checking against any event in the exclusion list
+          if (eventIdsToExclude.includes(event.id)) {
+            return false;
+          }
+          
+          const eventStart = new Date(event.start_date);
+          const eventEnd = new Date(event.end_date);
+          
+          return timeRangesOverlap(occurrence.start, occurrence.end, eventStart, eventEnd);
+        });
+
+        if (conflictingEventInOccurrence) {
+          console.log('❌ Recurring event conflict detected, blocking submission');
+          toast({
+            variant: "destructive",
+            translateKeys: {
+              titleKey: "common.error",
+              descriptionKey: "events.timeConflictError"
+            }
+          });
+          return;
+        }
       }
-    } catch (error) {
-      console.error('Error deleting event:', error);
-      toast.error(t("events.deleteError"));
+    }
+
+    setIsLoading(true);
+    try {
+      console.log("🔄 Event creation debug:", {
+        isRecurring,
+        repeatPattern,
+        repeatUntil,
+        startDate,
+        endDate,
+        isNewEvent,
+        startDateConverted: localDateTimeToISOString(startDate),
+        endDateConverted: localDateTimeToISOString(endDate)
+      });
+
+      const eventData = {
+        title,
+        user_surname: userSurname,
+        user_number: userNumber,
+        social_network_link: socialNetworkLink,
+        event_notes: eventNotes,
+        event_name: eventName,
+        start_date: localDateTimeToISOString(startDate),
+        end_date: localDateTimeToISOString(endDate),
+        payment_status: paymentStatus,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+        is_recurring: isRecurring,
+        repeat_pattern: isRecurring && repeatPattern ? repeatPattern : null,
+        repeat_until: isRecurring && repeatUntil ? repeatUntil : null
+      };
+
+      console.log("📤 Sending event data to backend:", eventData);
+
+      let result;
+      if (eventId || initialData) {
+        let actualEventId = eventId || initialData?.id;
+        if (isVirtualEvent && eventId) {
+          actualEventId = getParentEventId(eventId);
+          console.log('🔄 Virtual instance update - using parent ID:', actualEventId);
+        } else if (initialData?.parent_event_id) {
+          actualEventId = initialData.parent_event_id;
+          console.log('🔄 Child instance update - using parent ID:', actualEventId);
+        }
+
+        result = await supabase.rpc('save_event_with_persons', {
+          p_event_data: eventData,
+          p_additional_persons: additionalPersons,
+          p_user_id: user.id,
+          p_event_id: actualEventId
+        });
+
+        if (result.error) throw result.error;
+
+        // Upload files after successful event update
+        if (files.length > 0) {
+          try {
+            await uploadFiles(actualEventId);
+            console.log('✅ Files uploaded successfully after event update');
+            
+            // Clear files state after successful upload
+            setFiles([]);
+            
+            // Refresh the existing files list to show newly uploaded files
+            await loadExistingFiles(actualEventId);
+          } catch (fileError) {
+            console.error('❌ Error uploading files during event update:', fileError);
+            toast({
+              title: t("common.warning"),
+              description: "Event updated successfully, but some files failed to upload",
+              variant: "destructive"
+            });
+          }
+        }
+
+        if (actualEventId) {
+          const freshEventData = await loadEventData(actualEventId);
+          if (freshEventData) {
+            setCurrentEventData(freshEventData);
+          }
+        }
+
+        toast({
+          title: t("common.success"),
+          description: t("events.eventUpdated")
+        });
+
+        await sendEmailToAllPersons({
+          ...eventData,
+          id: actualEventId
+        }, additionalPersons);
+
+        onEventUpdated?.();
+      } else {
+        result = await supabase.rpc('save_event_with_persons', {
+          p_event_data: eventData,
+          p_additional_persons: additionalPersons,
+          p_user_id: user.id
+        });
+
+        if (result.error) throw result.error;
+
+        const newEventId = result.data;
+        console.log("✅ Event created with ID:", newEventId);
+
+        if (files.length > 0) {
+          await uploadFiles(newEventId);
+        }
+
+        if (isRecurring && repeatPattern) {
+          console.log("⏳ Waiting for recurring instances to be generated...");
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        await sendEmailToAllPersons({
+          ...eventData,
+          id: newEventId
+        }, additionalPersons);
+
+        if (isRecurring) {
+          toast({
+            title: t("common.success"),
+            description: t("events.recurringEventCreated")
+          });
+        } else {
+          toast({
+            title: t("common.success"),
+            description: t("events.eventCreated")
+          });
+        }
+
+        onEventCreated?.();
+      }
+
+      resetForm();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Error saving event:', error);
+      toast({
+        title: t("common.error"),
+        description: error.message || "Failed to save event",
+        variant: "destructive"
+      });
     } finally {
-      setLoading(false);
-      setShowRecurringDeleteDialog(false);
+      setIsLoading(false);
     }
   };
 
-  const closeDeleteDialog = () => {
-    setShowRecurringDeleteDialog(false);
+  const handleDeleteThis = async () => {
+    if (!eventId && !initialData?.id) return;
+    setIsLoading(true);
+    try {
+      if (initialData?.type === 'booking_request' || initialData?.booking_request_id) {
+        await deleteCalendarEvent(initialData.id, initialData.type === 'booking_request' ? 'booking_request' : 'event', user?.id || '');
+      } else {
+        const { error } = await supabase
+          .from('events')
+          .update({
+            deleted_at: new Date().toISOString()
+          })
+          .eq('id', eventId || initialData?.id);
+
+        if (error) throw error;
+
+        clearCalendarCache();
+        window.dispatchEvent(new CustomEvent('calendar-event-deleted', {
+          detail: { timestamp: Date.now() }
+        }));
+        localStorage.setItem('calendar_event_deleted', JSON.stringify({
+          timestamp: Date.now()
+        }));
+        setTimeout(() => localStorage.removeItem('calendar_event_deleted'), 2000);
+      }
+
+      toast({
+        title: t("common.success"),
+        description: t("events.eventDeleted")
+      });
+
+      onEventDeleted?.();
+      setShowDeleteDialog(false);
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Error deleting event:', error);
+      toast({
+        title: t("common.error"),
+        description: error.message || "Failed to delete event",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleExistingFilesChange = (files: { id: string; filename: string; file_path: string; content_type?: string; size?: number; }[]) => {
-    const fileRecords: FileRecord[] = files.map(file => ({
-      id: file.id,
-      filename: file.filename,
-      file_path: file.file_path,
-      content_type: file.content_type || null,
-      size: file.size || null,
-      created_at: new Date().toISOString(),
-      user_id: null
-    }));
-    setExistingFiles(fileRecords);
+  const handleDeleteSeries = async () => {
+    if (!eventId && !initialData?.id) return;
+    setIsLoading(true);
+    try {
+      const targetEventId = eventId || initialData?.id;
+      const parentId = isVirtualEvent && eventId ? getParentEventId(eventId) : targetEventId;
+
+      const { error } = await supabase.rpc('delete_recurring_series', {
+        p_event_id: parentId,
+        p_user_id: user?.id,
+        p_delete_choice: 'series'
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: t("common.success"),
+        description: t("events.seriesDeleted")
+      });
+
+      onEventDeleted?.();
+      setShowDeleteDialog(false);
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Error deleting event series:', error);
+      toast({
+        title: t("common.error"),
+        description: error.message || "Failed to delete event series",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
           <DialogHeader>
-            <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-              {isBookingRequest ? (
-                isGeorgian ? <GeorgianAuthText>ჯავშნის მოთხოვნის დეტალები</GeorgianAuthText> : <LanguageText>{t("booking.bookingDetails")}</LanguageText>
-              ) : (
-                initialData ? 
-                  (isGeorgian ? <GeorgianAuthText>მოვლენის რედაქტირება</GeorgianAuthText> : <LanguageText>{t("events.editEvent")}</LanguageText>) :
-                  (isGeorgian ? <GeorgianAuthText>ახალი მოვლენა</GeorgianAuthText> : <LanguageText>{t("events.newEvent")}</LanguageText>)
-              )}
+            <DialogTitle>
+              {eventId || initialData ? t("events.editEvent") : language === 'ka' ? "მოვლენის დამატება" : t("events.addEvent")}
             </DialogTitle>
           </DialogHeader>
-
-          <EventDialogFields
-            title={title}
-            setTitle={setTitle}
-            userSurname={userSurname}
-            setUserSurname={setUserSurname}
-            userNumber={userNumber}
-            setUserNumber={setUserNumber}
-            socialNetworkLink={socialNetworkLink}
-            setSocialNetworkLink={setSocialNetworkLink}
-            eventNotes={eventNotes}
-            setEventNotes={setEventNotes}
-            eventName={eventName}
-            setEventName={setEventName}
-            startDate={startDate}
-            setStartDate={setStartDate}
-            endDate={endDate}
-            setEndDate={setEndDate}
-            paymentStatus={paymentStatus}
-            setPaymentStatus={setPaymentStatus}
-            paymentAmount={paymentAmount}
-            setPaymentAmount={setPaymentAmount}
-            files={files}
-            setFiles={setFiles}
-            existingFiles={existingFiles}
-            setExistingFiles={handleExistingFilesChange}
-            eventId={initialData?.id}
-            isBookingRequest={isBookingRequest}
-            isRecurring={isRecurring}
-            setIsRecurring={setIsRecurring}
-            repeatPattern={repeatPattern}
-            setRepeatPattern={setRepeatPattern}
-            repeatUntil={repeatUntil}
-            setRepeatUntil={setRepeatUntil}
-            isNewEvent={!initialData}
-            additionalPersons={additionalPersons}
-            setAdditionalPersons={setAdditionalPersons}
-            reminderAt={reminderAt}
-            setReminderAt={setReminderAt}
-            emailReminderEnabled={emailReminderEnabled}
-            setEmailReminderEnabled={setEmailReminderEnabled}
-          />
-
-          <div className="flex justify-between pt-4">
-            {initialData && !isBookingRequest && (
-              <Button variant="destructive" onClick={() => handleDelete()} disabled={loading}>
-                {isGeorgian ? <GeorgianAuthText>წაშლა</GeorgianAuthText> : <LanguageText>{t("common.delete")}</LanguageText>}
-              </Button>
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <EventDialogFields 
+              title={title}
+              setTitle={setTitle}
+              userSurname={userSurname}
+              setUserSurname={setUserSurname}
+              userNumber={userNumber}
+              setUserNumber={setUserNumber}
+              socialNetworkLink={socialNetworkLink}
+              setSocialNetworkLink={setSocialNetworkLink}
+              eventNotes={eventNotes}
+              setEventNotes={setEventNotes}
+              eventName={eventName}
+              setEventName={setEventName}
+              paymentStatus={paymentStatus}
+              setPaymentStatus={setPaymentStatus}
+              paymentAmount={paymentAmount}
+              setPaymentAmount={setPaymentAmount}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              isRecurring={isRecurring}
+              setIsRecurring={setIsRecurring}
+              repeatPattern={repeatPattern}
+              setRepeatPattern={setRepeatPattern}
+              repeatUntil={repeatUntil}
+              setRepeatUntil={setRepeatUntil}
+              files={files}
+              setFiles={setFiles}
+              existingFiles={existingFiles}
+              setExistingFiles={setExistingFiles}
+              additionalPersons={additionalPersons}
+              setAdditionalPersons={setAdditionalPersons}
+              isVirtualEvent={isVirtualEvent}
+              isNewEvent={isNewEvent}
+            />
+            
+            {(initialData || currentEventData) && (
+              <div className="flex items-center text-sm text-muted-foreground mb-4 rounded-md p-4 py-[8px] px-[8px] border border-border bg-card">
+                <span className="flex items-center mr-4">
+                  <Clock className="mr-1 h-4 w-4" />
+                  <span>
+                    {t("common.created")} {new Date((currentEventData || initialData)?.created_at || '').toLocaleString(language)}
+                  </span>
+                </span>
+                <span className="flex items-center">
+                  <RefreshCcw className="mr-1 h-4 w-4" />
+                  <span>
+                    {t("common.lastUpdated")} {new Date((currentEventData || initialData)?.updated_at || (currentEventData || initialData)?.created_at || '').toLocaleString(language)}
+                  </span>
+                </span>
+              </div>
             )}
             
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-                {isGeorgian ? <GeorgianAuthText>გაუქმება</GeorgianAuthText> : <LanguageText>{t("common.cancel")}</LanguageText>}
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <Button type="submit" disabled={isLoading} className="flex-1">
+                {isLoading ? t("common.loading") : eventId || initialData ? t("common.update") : t("common.add")}
               </Button>
-              <Button onClick={handleSave} disabled={loading}>
-                {loading ? "..." : (initialData ? 
-                  (isGeorgian ? <GeorgianAuthText>განახლება</GeorgianAuthText> : <LanguageText>{t("common.update")}</LanguageText>) : 
-                  (isGeorgian ? <GeorgianAuthText>შენახვა</GeorgianAuthText> : <LanguageText>{t("common.save")}</LanguageText>)
-                )}
-              </Button>
+              
+              {(eventId || initialData) && (
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  onClick={() => setShowDeleteDialog(true)} 
+                  disabled={isLoading} 
+                  className="flex-1 sm:flex-none"
+                >
+                  {t("common.delete")}
+                </Button>
+              )}
             </div>
-          </div>
+          </form>
         </DialogContent>
       </Dialog>
 
-      <RecurringDeleteDialog
-        open={showRecurringDeleteDialog}
-        onOpenChange={closeDeleteDialog}
-        onDeleteThis={() => handleDelete("this")}
-        onDeleteSeries={() => handleDelete("series")}
-        isRecurringEvent={!!initialData?.recurring_parent_id}
+      <RecurringDeleteDialog 
+        open={showDeleteDialog} 
+        onOpenChange={setShowDeleteDialog} 
+        onDeleteThis={handleDeleteThis} 
+        onDeleteSeries={handleDeleteSeries} 
+        isRecurringEvent={isRecurringEvent} 
+        isLoading={isLoading} 
       />
     </>
   );
