@@ -330,7 +330,8 @@ export const translations: TranslationType = {
     submitRequest: "Enviar Solicitud",
     deleteEventConfirmTitle: "¿Eliminar Evento?",
     deleteEventConfirmMessage: "¿Está seguro de que desea eliminar este evento? Esta acción no se puede deshacer.",
-    timeConflictError: "Ya tienes un evento programado en este horario."
+    timeConflictError: "Ya tienes un evento programado en este horario.",
+    setReminder: "Establecer recordatorio"
   },
   contact: {
     email: "Correo Electrónico",

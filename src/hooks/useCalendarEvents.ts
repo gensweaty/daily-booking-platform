@@ -197,7 +197,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           type: eventData.type || 'event',
           is_recurring: eventData.is_recurring || false,
           repeat_pattern: eventData.repeat_pattern,
-          repeat_until: eventData.repeat_until
+          repeat_until: eventData.repeat_until,
+          reminder_time: eventData.reminder_time,
         },
         p_additional_persons: [],
         p_user_id: user.id,
@@ -205,6 +206,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
       });
 
       if (error) throw error;
+
+      // Schedule reminder if reminder_time is set
+      if (eventData.reminder_time) {
+        await scheduleEventReminder(savedEventId, eventData.reminder_time, user.id);
+      }
 
       clearCalendarCache();
 
@@ -216,6 +222,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         user_id: user.id,
         type: eventData.type || 'event',
         created_at: new Date().toISOString(),
+        reminder_time: eventData.reminder_time,
         ...eventData
       } as CalendarEventType;
     },
@@ -246,7 +253,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
 
       console.log("[useCalendarEvents] Updating event with data:", eventData);
 
-      // Check if this is a booking_request (type === 'booking_request') or regular event
       if (eventData.type === 'booking_request') {
         // Update booking_request table
         const { error } = await supabase
@@ -273,7 +279,6 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           title: eventData.user_surname || eventData.title || 'Untitled Event',
         } as CalendarEventType;
       } else {
-        // Update regular event using the existing RPC function
         const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
           p_event_data: {
             title: eventData.user_surname || eventData.title,
@@ -289,7 +294,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             type: eventData.type || 'event',
             is_recurring: eventData.is_recurring || false,
             repeat_pattern: eventData.repeat_pattern,
-            repeat_until: eventData.repeat_until
+            repeat_until: eventData.repeat_until,
+            reminder_time: eventData.reminder_time,
           },
           p_additional_persons: [],
           p_user_id: user.id,
@@ -297,6 +303,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         });
 
         if (error) throw error;
+
+        // Schedule reminder if reminder_time is set
+        if (eventData.reminder_time) {
+          await scheduleEventReminder(eventData.id, eventData.reminder_time, user.id);
+        }
 
         clearCalendarCache();
 
@@ -308,6 +319,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           user_id: user.id,
           type: eventData.type || 'event',
           created_at: eventData.created_at || new Date().toISOString(),
+          reminder_time: eventData.reminder_time,
           ...eventData
         } as CalendarEventType;
       }
@@ -413,4 +425,19 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     updateEvent: updateEventMutation.mutateAsync,
     deleteEvent: deleteEventMutation.mutateAsync,
   };
+};
+
+// Helper function to schedule event reminder
+const scheduleEventReminder = async (eventId: string, reminderTime: string, userId: string) => {
+  try {
+    await supabase.functions.invoke('send-event-reminder-email', {
+      body: {
+        eventId,
+        reminderTime,
+        userId
+      }
+    });
+  } catch (error) {
+    console.error('Error scheduling event reminder:', error);
+  }
 };

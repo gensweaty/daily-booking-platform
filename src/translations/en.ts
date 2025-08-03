@@ -3,7 +3,7 @@ import { TranslationType } from './types';
 export const translations: TranslationType = {
   nav: {
     signin: "Sign In",
-    startJourney: "Start Journey",
+    startJourney: "Start Journey", 
     contact: "Contact",
   },
   hero: {
@@ -15,7 +15,7 @@ export const translations: TranslationType = {
     title: "What We Offer",
     mainTitle: "Everything you need to make your business thrive",
     booking: "Bookings",
-    tasks: "Tasks",
+    tasks: "Tasks", 
     crm: "CRM",
     analytics: "Analytics",
     website: "Website",
@@ -343,7 +343,8 @@ export const translations: TranslationType = {
     submitRequest: "Submit Request",
     deleteEventConfirmTitle: "Delete Event?",
     deleteEventConfirmMessage: "Are you sure you want to delete this event? This action cannot be undone.",
-    timeConflictError: "You already have an event scheduled during this time."
+    timeConflictError: "You already have an event scheduled during this time.",
+    setReminder: "Set reminder"
   },
   contact: {
     email: "Email",
