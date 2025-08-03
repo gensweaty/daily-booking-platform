@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -264,6 +263,22 @@ export const EventDialog = ({
       if (!initialData && socialNetworkLink.trim() && socialNetworkLink.includes('@')) {
         console.log("[EventDialog] Triggering booking approval email with event data...");
         
+        // Get business profile data for address
+        let businessAddress = "Address to be confirmed";
+        try {
+          const { data: businessProfile } = await supabase
+            .from('business_profiles')
+            .select('contact_address')
+            .eq('user_id', currentUser.data.user.id)
+            .single();
+          
+          if (businessProfile?.contact_address) {
+            businessAddress = businessProfile.contact_address;
+          }
+        } catch (error) {
+          console.log("[EventDialog] No business profile found, using default address");
+        }
+        
         try {
           const { error: emailError } = await supabase.functions.invoke('send-booking-approval-email', {
             body: { 
@@ -277,7 +292,8 @@ export const EventDialog = ({
               endDate: endDate,
               eventNotes: eventNotes.trim(),
               paymentStatus: paymentStatus,
-              paymentAmount: showPaymentAmount ? parseFloat(paymentAmount) || null : null
+              paymentAmount: showPaymentAmount ? parseFloat(paymentAmount) || null : null,
+              businessAddress: businessAddress
             }
           });
 

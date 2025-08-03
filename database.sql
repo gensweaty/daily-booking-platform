@@ -1,23 +1,10 @@
 
 -- Update the save_event_with_persons function to handle reminder fields
 CREATE OR REPLACE FUNCTION public.save_event_with_persons(
-  p_event_id uuid DEFAULT NULL,
-  p_user_id uuid DEFAULT NULL,
-  p_title text DEFAULT NULL,
-  p_user_surname text DEFAULT NULL,
-  p_user_number text DEFAULT NULL,
-  p_social_network_link text DEFAULT NULL,
-  p_event_notes text DEFAULT NULL,
-  p_start_date timestamp with time zone DEFAULT NULL,
-  p_end_date timestamp with time zone DEFAULT NULL,
-  p_payment_status text DEFAULT 'not_paid',
-  p_payment_amount numeric DEFAULT NULL,
-  p_language text DEFAULT 'en',
+  p_event_data jsonb,
   p_additional_persons jsonb DEFAULT '[]'::jsonb,
-  p_recurring_pattern text DEFAULT NULL,
-  p_recurring_until date DEFAULT NULL,
-  p_reminder_at timestamp with time zone DEFAULT NULL,
-  p_email_reminder_enabled boolean DEFAULT false
+  p_user_id uuid DEFAULT NULL,
+  p_event_id uuid DEFAULT NULL
 )
 RETURNS uuid
 LANGUAGE plpgsql
@@ -34,16 +21,18 @@ BEGIN
     RAISE EXCEPTION 'User ID is required';
   END IF;
   
-  IF p_title IS NULL OR p_title = '' THEN
+  IF p_event_data->>'title' IS NULL OR p_event_data->>'title' = '' THEN
     RAISE EXCEPTION 'Title is required';
   END IF;
   
-  IF p_start_date IS NULL OR p_end_date IS NULL THEN
+  IF p_event_data->>'start_date' IS NULL OR p_event_data->>'end_date' IS NULL THEN
     RAISE EXCEPTION 'Start date and end date are required';
   END IF;
   
   -- Validate reminder time if enabled
-  IF p_email_reminder_enabled AND (p_reminder_at IS NULL OR p_reminder_at >= p_start_date) THEN
+  IF (p_event_data->>'email_reminder_enabled')::boolean = true AND 
+     (p_event_data->>'reminder_at' IS NULL OR 
+      (p_event_data->>'reminder_at')::timestamptz >= (p_event_data->>'start_date')::timestamptz) THEN
     RAISE EXCEPTION 'Reminder time must be before event start time when reminder is enabled';
   END IF;
 
@@ -61,27 +50,35 @@ BEGIN
     payment_status,
     payment_amount,
     language,
-    recurring_pattern,
-    recurring_until,
+    is_recurring,
+    repeat_pattern,
+    repeat_until,
     reminder_at,
     email_reminder_enabled
   ) VALUES (
     COALESCE(p_event_id, gen_random_uuid()),
     p_user_id,
-    p_title,
-    p_user_surname,
-    p_user_number,
-    p_social_network_link,
-    p_event_notes,
-    p_start_date,
-    p_end_date,
-    p_payment_status,
-    p_payment_amount,
-    p_language,
-    p_recurring_pattern,
-    p_recurring_until,
-    p_reminder_at,
-    p_email_reminder_enabled
+    p_event_data->>'title',
+    p_event_data->>'user_surname',
+    p_event_data->>'user_number',
+    p_event_data->>'social_network_link',
+    p_event_data->>'event_notes',
+    (p_event_data->>'start_date')::timestamptz,
+    (p_event_data->>'end_date')::timestamptz,
+    p_event_data->>'payment_status',
+    CASE WHEN p_event_data->>'payment_amount' = '' OR p_event_data->>'payment_amount' IS NULL 
+         THEN NULL 
+         ELSE (p_event_data->>'payment_amount')::numeric END,
+    p_event_data->>'language',
+    COALESCE((p_event_data->>'is_recurring')::boolean, false),
+    p_event_data->>'repeat_pattern',
+    CASE WHEN p_event_data->>'repeat_until' = '' OR p_event_data->>'repeat_until' IS NULL 
+         THEN NULL 
+         ELSE (p_event_data->>'repeat_until')::date END,
+    CASE WHEN (p_event_data->>'email_reminder_enabled')::boolean = true 
+         THEN (p_event_data->>'reminder_at')::timestamptz 
+         ELSE NULL END,
+    COALESCE((p_event_data->>'email_reminder_enabled')::boolean, false)
   )
   ON CONFLICT (id) DO UPDATE SET
     title = EXCLUDED.title,
@@ -94,8 +91,9 @@ BEGIN
     payment_status = EXCLUDED.payment_status,
     payment_amount = EXCLUDED.payment_amount,
     language = EXCLUDED.language,
-    recurring_pattern = EXCLUDED.recurring_pattern,
-    recurring_until = EXCLUDED.recurring_until,
+    is_recurring = EXCLUDED.is_recurring,
+    repeat_pattern = EXCLUDED.repeat_pattern,
+    repeat_until = EXCLUDED.repeat_until,
     reminder_at = EXCLUDED.reminder_at,
     email_reminder_enabled = EXCLUDED.email_reminder_enabled,
     updated_at = CURRENT_TIMESTAMP
@@ -124,23 +122,25 @@ BEGIN
         email_reminder_enabled
       ) VALUES (
         p_user_id,
-        p_title,
+        p_event_data->>'title',
         v_person->>'userSurname',
         v_person->>'userNumber',
         v_person->>'socialNetworkLink',
         v_person->>'eventNotes',
-        p_start_date,
-        p_end_date,
+        (p_event_data->>'start_date')::timestamptz,
+        (p_event_data->>'end_date')::timestamptz,
         COALESCE(v_person->>'paymentStatus', 'not_paid'),
         CASE 
           WHEN v_person->>'paymentAmount' IS NOT NULL AND v_person->>'paymentAmount' != '' 
           THEN (v_person->>'paymentAmount')::numeric 
           ELSE NULL 
         END,
-        p_language,
+        p_event_data->>'language',
         v_event_id,
-        p_reminder_at,
-        p_email_reminder_enabled
+        CASE WHEN (p_event_data->>'email_reminder_enabled')::boolean = true 
+             THEN (p_event_data->>'reminder_at')::timestamptz 
+             ELSE NULL END,
+        COALESCE((p_event_data->>'email_reminder_enabled')::boolean, false)
       );
     END LOOP;
   END IF;
