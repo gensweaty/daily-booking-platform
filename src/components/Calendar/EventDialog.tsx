@@ -73,55 +73,6 @@ export const EventDialog = ({
     MozOsxFontSmoothing: 'grayscale'
   } : undefined;
 
-  // Function to schedule event reminder
-  const scheduleEventReminder = async (eventId: string, reminderTime: string, eventData: any) => {
-    try {
-      // Update the event with reminder information
-      const { error } = await supabase
-        .from('events')
-        .update({ 
-          email_reminder_enabled: true,
-          reminder_at: reminderTime,
-          reminder_sent_at: null // Reset if changing reminder time
-        })
-        .eq('id', eventId);
-
-      if (error) {
-        console.error('Error scheduling event reminder:', error);
-        throw error;
-      }
-
-      console.log('Event reminder scheduled successfully for:', reminderTime);
-    } catch (error) {
-      console.error('Failed to schedule event reminder:', error);
-      toast({
-        title: "Warning",
-        description: "Event saved but failed to schedule email reminder",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Function to cancel event reminder
-  const cancelEventReminder = async (eventId: string) => {
-    try {
-      const { error } = await supabase
-        .from('events')
-        .update({ 
-          email_reminder_enabled: false,
-          reminder_at: null,
-          reminder_sent_at: null
-        })
-        .eq('id', eventId);
-
-      if (error) {
-        console.error('Error canceling event reminder:', error);
-      }
-    } catch (error) {
-      console.error('Failed to cancel event reminder:', error);
-    }
-  };
-
   // Create the event dialog hook with proper functions
   const {
     handleCreateEvent,
@@ -135,26 +86,33 @@ export const EventDialog = ({
         ...eventData 
       });
       
-      // Create the event first
-      const { data, error } = await supabase
-        .from('events')
-        .insert({
+      // Create the event using existing RPC function
+      const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
+        p_event_data: {
           ...eventData,
-          user_id: user?.id,
           email_reminder_enabled: emailReminderEnabled,
           reminder_at: reminderAt || null
-        })
-        .select()
-        .single();
+        },
+        p_additional_persons: [],
+        p_user_id: user?.id,
+        p_event_id: null
+      });
 
       if (error) throw error;
-
-      // Schedule email reminder if enabled
-      if (emailReminderEnabled && reminderAt && data) {
-        await scheduleEventReminder(data.id, reminderAt, eventData);
-      }
       
-      return data;
+      return {
+        id: savedEventId,
+        title: eventData.user_surname || eventData.title || 'Untitled Event',
+        start_date: eventData.start_date || new Date().toISOString(),
+        end_date: eventData.end_date || new Date().toISOString(),
+        user_id: user?.id || '',
+        type: eventData.type || 'event',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        email_reminder_enabled: emailReminderEnabled,
+        reminder_at: reminderAt || undefined,
+        ...eventData
+      } as CalendarEventType;
     },
     updateEvent: async (eventData) => {
       if (!initialData?.id) throw new Error("No event ID to update");
@@ -165,29 +123,33 @@ export const EventDialog = ({
         ...eventData 
       });
       
-      // Update the event
-      const { data, error } = await supabase
-        .from('events')
-        .update({
+      // Update the event using existing RPC function
+      const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
+        p_event_data: {
           ...eventData,
           email_reminder_enabled: emailReminderEnabled,
           reminder_at: reminderAt || null
-        })
-        .eq('id', initialData.id)
-        .select()
-        .single();
+        },
+        p_additional_persons: [],
+        p_user_id: user?.id,
+        p_event_id: initialData.id
+      });
 
       if (error) throw error;
-
-      // Update email reminder scheduling
-      if (emailReminderEnabled && reminderAt) {
-        await scheduleEventReminder(initialData.id, reminderAt, eventData);
-      } else {
-        // Cancel existing reminder if disabled
-        await cancelEventReminder(initialData.id);
-      }
       
-      return data;
+      return {
+        id: savedEventId,
+        title: eventData.user_surname || eventData.title || 'Untitled Event',
+        start_date: eventData.start_date || new Date().toISOString(),
+        end_date: eventData.end_date || new Date().toISOString(),
+        user_id: user?.id || '',
+        type: eventData.type || 'event',
+        created_at: initialData.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        email_reminder_enabled: emailReminderEnabled,
+        reminder_at: reminderAt || undefined,
+        ...eventData
+      } as CalendarEventType;
     },
     deleteEvent: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
       try {
@@ -267,7 +229,6 @@ export const EventDialog = ({
     }
   }, [initialData, selectedDate]);
 
-  // Function to load existing files
   const loadExistingFiles = async (eventId: string) => {
     try {
       const { data: files, error } = await supabase
@@ -286,7 +247,6 @@ export const EventDialog = ({
     }
   };
 
-  // Handle file upload
   const uploadFiles = async (eventId: string) => {
     if (files.length === 0) return;
 
