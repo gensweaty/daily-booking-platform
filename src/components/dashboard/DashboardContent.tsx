@@ -1,91 +1,79 @@
 
-import { useAuth } from "@/contexts/AuthContext";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { TaskList } from "@/components/TaskList";
-import { NoteList } from "@/components/NoteList";
-import { ReminderList } from "@/components/ReminderList";
-import { Statistics } from "@/components/Statistics";
-import { Calendar } from "@/components/Calendar/Calendar";
-import AddTaskForm from "@/components/AddTaskForm";
-import { AddNoteForm } from "@/components/AddNoteForm";
-import { AddReminderForm } from "@/components/AddReminderForm";
-import { CustomerList } from "@/components/crm/CustomerList";
-import { TaskReminderNotifications } from "@/components/tasks/TaskReminderNotifications";
-import { EventReminderNotifications } from "@/components/Calendar/EventReminderNotifications";
-import { ReminderNotifications } from "@/components/reminder/ReminderNotifications";
-import { useState } from "react";
-import { LanguageText } from "@/components/shared/LanguageText";
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { Statistics } from '@/components/Statistics';
+import { NoteList } from '@/components/NoteList';
+import { TaskList } from '@/components/TaskList';
+import { Calendar } from '@/components/Calendar/Calendar';
+import { CustomerList } from '@/components/crm/CustomerList';
+import { BookingRequestsList } from '@/components/business/BookingRequestsList';
+import { BusinessPage } from '@/components/business/BusinessPage';
+import { ArchivedTasksPage } from '@/components/tasks/ArchivedTasksPage';
+import { ReminderNotifications } from '@/components/reminder/ReminderNotifications';
+import { TaskReminderNotifications } from '@/components/tasks/TaskReminderNotifications';
+import { EventReminderNotifications } from '@/components/Calendar/EventReminderNotifications';
+import { LanguageText } from '@/components/shared/LanguageText';
+import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
 
-export const DashboardContent = () => {
-  const { user } = useAuth();
-  const { language } = useLanguage();
-  const [showAddTaskForm, setShowAddTaskForm] = useState(false);
-  const [showAddNoteForm, setShowAddNoteForm] = useState(false);
-  const [showAddReminderForm, setShowAddReminderForm] = useState(false);
+interface DashboardContentProps {
+  activeSection: string;
+  setActiveSection: (section: string) => void;
+}
 
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">
-            <LanguageText>Please sign in to access your dashboard</LanguageText>
-          </h2>
-        </div>
-      </div>
-    );
-  }
+export const DashboardContent: React.FC<DashboardContentProps> = ({
+  activeSection,
+  setActiveSection
+}) => {
+  const { language, t } = useLanguage();
+  const isGeorgian = language === 'ka';
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+
+  const handleTaskDialogClose = () => {
+    setTaskDialogOpen(false);
+  };
+
+  const renderContent = () => {
+    switch (activeSection) {
+      case 'statistics':
+        return <Statistics />;
+      case 'notes':
+        return <NoteList />;
+      case 'tasks':
+        return <TaskList />;
+      case 'calendar':
+        return <Calendar />;
+      case 'crm':
+        return <CustomerList />;
+      case 'booking-requests':
+        return <BookingRequestsList />;
+      case 'business':
+        return <BusinessPage />;
+      case 'archived-tasks':
+        return <ArchivedTasksPage />;
+      default:
+        return (
+          <div className="flex items-center justify-center h-64">
+            <p className="text-lg text-gray-500">
+              {isGeorgian ? (
+                <GeorgianAuthText>აირჩიეთ სექცია მენიუდან</GeorgianAuthText>
+              ) : (
+                <LanguageText>{t('dashboard.selectSection')}</LanguageText>
+              )}
+            </p>
+          </div>
+        );
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Notification Components */}
+    <div className="flex-1 p-6">
+      {/* Notification components that run in background */}
+      <ReminderNotifications />
       <TaskReminderNotifications />
       <EventReminderNotifications />
       
-      {/* Calendar Section */}
-      <div>
-        <Calendar />
-      </div>
-
-      {/* Statistics */}
-      <div>
-        <Statistics />
-      </div>
-
-      {/* Tasks Section */}
-      <div>
-        <TaskList />
-      </div>
-
-      {/* Notes Section */}
-      <div>
-        <NoteList />
-      </div>
-
-      {/* Reminders Section */}
-      <div>
-        <ReminderList />
-      </div>
-
-      {/* CRM Section */}
-      <div>
-        <CustomerList />
-      </div>
-
-      {/* Modal Forms */}
-      {showAddTaskForm && (
-        <AddTaskForm onClose={() => setShowAddTaskForm(false)} />
-      )}
-
-      {showAddNoteForm && (
-        <AddNoteForm 
-          onClose={() => setShowAddNoteForm(false)}
-          onSave={() => setShowAddNoteForm(false)} 
-        />
-      )}
-
-      {showAddReminderForm && (
-        <AddReminderForm onClose={() => setShowAddReminderForm(false)} />
-      )}
+      {renderContent()}
     </div>
   );
 };

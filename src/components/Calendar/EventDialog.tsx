@@ -22,7 +22,7 @@ interface PersonData {
 }
 
 export interface EventDialogProps {
-  open: boolean;
+  isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate?: Date;
   initialData?: CalendarEventType;
@@ -32,7 +32,7 @@ export interface EventDialogProps {
 }
 
 export const EventDialog: React.FC<EventDialogProps> = ({
-  open,
+  isOpen,
   onOpenChange,
   selectedDate,
   initialData: event,
@@ -103,8 +103,8 @@ export const EventDialog: React.FC<EventDialogProps> = ({
       if (event.files && event.files.length > 0) {
         setExistingFiles(event.files);
       }
-    } else if (date) {
-      const defaultStart = new Date(date);
+    } else if (selectedDate) {
+      const defaultStart = new Date(selectedDate);
       defaultStart.setHours(12, 0, 0, 0);
       const defaultEnd = new Date(defaultStart);
       defaultEnd.setHours(13, 0, 0, 0);
@@ -112,7 +112,7 @@ export const EventDialog: React.FC<EventDialogProps> = ({
       setStartDate(defaultStart.toISOString().slice(0, 16));
       setEndDate(defaultEnd.toISOString().slice(0, 16));
     }
-  }, [event, date]);
+  }, [event, selectedDate]);
 
   const loadAdditionalPersons = async (eventId: string) => {
     try {
@@ -333,7 +333,7 @@ export const EventDialog: React.FC<EventDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")} style={isGeorgian ? {
