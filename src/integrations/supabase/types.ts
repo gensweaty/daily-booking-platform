@@ -509,6 +509,7 @@ export type Database = {
           content_type: string | null
           created_at: string | null
           deleted_at: string | null
+          email_reminder_enabled: boolean | null
           end_date: string
           event_name: string | null
           event_notes: string | null
@@ -527,6 +528,9 @@ export type Database = {
           payment_amount: number | null
           payment_status: string | null
           recurrence_instance_date: string | null
+          reminder_at: string | null
+          reminder_sent_at: string | null
+          reminder_time: string | null
           repeat_pattern: string | null
           repeat_until: string | null
           size: number | null
@@ -544,6 +548,7 @@ export type Database = {
           content_type?: string | null
           created_at?: string | null
           deleted_at?: string | null
+          email_reminder_enabled?: boolean | null
           end_date: string
           event_name?: string | null
           event_notes?: string | null
@@ -562,6 +567,9 @@ export type Database = {
           payment_amount?: number | null
           payment_status?: string | null
           recurrence_instance_date?: string | null
+          reminder_at?: string | null
+          reminder_sent_at?: string | null
+          reminder_time?: string | null
           repeat_pattern?: string | null
           repeat_until?: string | null
           size?: number | null
@@ -579,6 +587,7 @@ export type Database = {
           content_type?: string | null
           created_at?: string | null
           deleted_at?: string | null
+          email_reminder_enabled?: boolean | null
           end_date?: string
           event_name?: string | null
           event_notes?: string | null
@@ -597,6 +606,9 @@ export type Database = {
           payment_amount?: number | null
           payment_status?: string | null
           recurrence_instance_date?: string | null
+          reminder_at?: string | null
+          reminder_sent_at?: string | null
+          reminder_time?: string | null
           repeat_pattern?: string | null
           repeat_until?: string | null
           size?: number | null
@@ -1136,6 +1148,7 @@ export type Database = {
           content_type: string | null
           created_at: string | null
           deleted_at: string | null
+          email_reminder_enabled: boolean | null
           end_date: string
           event_name: string | null
           event_notes: string | null
@@ -1154,6 +1167,9 @@ export type Database = {
           payment_amount: number | null
           payment_status: string | null
           recurrence_instance_date: string | null
+          reminder_at: string | null
+          reminder_sent_at: string | null
+          reminder_time: string | null
           repeat_pattern: string | null
           repeat_until: string | null
           size: number | null

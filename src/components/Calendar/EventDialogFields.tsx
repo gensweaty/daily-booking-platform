@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getRepeatOptions } from "@/lib/recurringEvents";
+import { ReminderField } from "@/components/shared/ReminderField";
 
 // Define interface for person data
 interface PersonData {
@@ -84,6 +84,11 @@ interface EventDialogFieldsProps {
   setAdditionalPersons: (persons: PersonData[]) => void;
   // Add missing prop
   isVirtualEvent?: boolean;
+  // Add reminder props
+  reminderAt: string;
+  setReminderAt: (value: string) => void;
+  emailReminderEnabled: boolean;
+  setEmailReminderEnabled: (value: boolean) => void;
 }
 
 export const EventDialogFields = ({
@@ -122,7 +127,11 @@ export const EventDialogFields = ({
   isNewEvent = false,
   additionalPersons,
   setAdditionalPersons,
-  isVirtualEvent = false
+  isVirtualEvent = false,
+  reminderAt,
+  setReminderAt,
+  emailReminderEnabled,
+  setEmailReminderEnabled
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -492,23 +501,35 @@ export const EventDialogFields = ({
         </div>
       </div>
 
-      {/* Repeat Options - Only show for new events */}
+      {/* Repeat and Reminder Options - Only show for new events */}
       {isNewEvent && (
         <div className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="isRecurring"
-              checked={isRecurring}
-              onCheckedChange={handleRecurringToggle}
+          <div className="flex items-center justify-between gap-4">
+            {/* Recurring checkbox on the left */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="isRecurring"
+                checked={isRecurring}
+                onCheckedChange={handleRecurringToggle}
+              />
+              <Label 
+                htmlFor="isRecurring" 
+                className={cn("flex items-center gap-2", isGeorgian ? "font-georgian" : "")}
+                style={georgianStyle}
+              >
+                <Repeat className="h-4 w-4" />
+                {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორება</GeorgianAuthText> : <LanguageText>Make this event recurring</LanguageText>}
+              </Label>
+            </div>
+
+            {/* Reminder checkbox on the right */}
+            <ReminderField
+              reminderAt={reminderAt}
+              setReminderAt={setReminderAt}
+              emailReminderEnabled={emailReminderEnabled}
+              setEmailReminderEnabled={setEmailReminderEnabled}
+              startDate={startDate}
             />
-            <Label 
-              htmlFor="isRecurring" 
-              className={cn("flex items-center gap-2", isGeorgian ? "font-georgian" : "")}
-              style={georgianStyle}
-            >
-              <Repeat className="h-4 w-4" />
-              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორება</GeorgianAuthText> : <LanguageText>Make this event recurring</LanguageText>}
-            </Label>
           </div>
           
           {isRecurring && (
