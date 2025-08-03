@@ -4,7 +4,7 @@ import { CalendarIcon } from 'lucide-react';
 import { format, addMonths, subMonths } from 'date-fns';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
+import { Calendar as UICalendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -122,7 +122,7 @@ export const CalendarComponent: React.FC<Props> = () => {
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
+            <UICalendar
               mode="single"
               selected={selectedDate}
               onSelect={handleDateSelect}
@@ -218,7 +218,4 @@ export const CalendarComponent: React.FC<Props> = () => {
   );
 };
 
-// Export as Calendar for backward compatibility
-export const Calendar = CalendarComponent;
-// Also export as default
 export default CalendarComponent;
