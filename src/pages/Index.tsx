@@ -35,7 +35,7 @@ export default function Index() {
     <div className="min-h-screen bg-background">
       <DashboardHeader 
         activeSection={activeSection}
-        setActiveSection={handleSectionChange}
+        onSectionChange={handleSectionChange}
       />
       
       <DashboardContent 
