@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -86,13 +87,16 @@ export const EventDialog = ({
         ...eventData 
       });
       
+      // Prepare the event data as a JSON object
+      const eventPayload = {
+        ...eventData,
+        email_reminder_enabled: emailReminderEnabled,
+        reminder_at: reminderAt || null
+      };
+      
       // Create the event using existing RPC function
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: {
-          ...eventData,
-          email_reminder_enabled: emailReminderEnabled,
-          reminder_at: reminderAt || null
-        },
+        p_event_data: eventPayload as any, // Cast to any to handle Json type
         p_additional_persons: [],
         p_user_id: user?.id,
         p_event_id: null
@@ -123,13 +127,16 @@ export const EventDialog = ({
         ...eventData 
       });
       
+      // Prepare the event data as a JSON object
+      const eventPayload = {
+        ...eventData,
+        email_reminder_enabled: emailReminderEnabled,
+        reminder_at: reminderAt || null
+      };
+      
       // Update the event using existing RPC function
       const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: {
-          ...eventData,
-          email_reminder_enabled: emailReminderEnabled,
-          reminder_at: reminderAt || null
-        },
+        p_event_data: eventPayload as any, // Cast to any to handle Json type
         p_additional_persons: [],
         p_user_id: user?.id,
         p_event_id: initialData.id
