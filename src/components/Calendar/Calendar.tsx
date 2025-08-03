@@ -328,34 +328,21 @@ export const Calendar = ({
         <>
           <EventDialog
             key={dialogSelectedDate?.getTime()}
-            isOpen={isNewEventDialogOpen}
-            onClose={() => setIsNewEventDialogOpen(false)}
-            date={dialogSelectedDate?.toISOString()}
-            onSave={async (eventData, file) => {
-              await handleCreateEvent(eventData, file);
-              await handleEventCreated();
-            }}
-            onDelete={async (id) => {
-              await handleDeleteEvent(id);
-              await handleEventDeleted();
-            }}
+            open={isNewEventDialogOpen}
+            onOpenChange={setIsNewEventDialogOpen}
+            selectedDate={dialogSelectedDate}
+            onEventCreated={handleEventCreated}
           />
 
           {selectedEvent && (
             <EventDialog
               key={selectedEvent.id}
-              isOpen={!!selectedEvent}
-              onClose={() => setSelectedEvent(null)}
-              event={selectedEvent}
-              date={new Date(selectedEvent.start_date).toISOString()}
-              onSave={async (eventData, file) => {
-                await handleUpdateEvent(eventData, file);
-                await handleEventUpdated();
-              }}
-              onDelete={async (id) => {
-                await handleDeleteEvent(id);
-                await handleEventDeleted();
-              }}
+              open={!!selectedEvent}
+              onOpenChange={() => setSelectedEvent(null)}
+              selectedDate={new Date(selectedEvent.start_date)}
+              initialData={selectedEvent}
+              onEventUpdated={handleEventUpdated}
+              onEventDeleted={handleEventDeleted}
             />
           )}
         </>
