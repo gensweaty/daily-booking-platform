@@ -1,3 +1,4 @@
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +27,7 @@ interface EventDialogProps {
   onUpdate?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
   onDelete?: ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => Promise<{ success: boolean; }>;
   isNewEvent?: boolean;
+  selectedDate?: Date;
 }
 
 export const EventDialog = ({
@@ -35,7 +37,8 @@ export const EventDialog = ({
   onCreate,
   onUpdate,
   onDelete,
-  isNewEvent = false
+  isNewEvent = false,
+  selectedDate
 }) => {
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");

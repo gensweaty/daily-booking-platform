@@ -1,5 +1,5 @@
+import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Checkbox,
   FormControl,
   FormField,
   FormItem,
@@ -38,6 +38,7 @@ interface EventDialogFieldsProps {
   setFiles: (files: File[]) => void;
   existingFiles: Array<{
     id: string;
+    event_id: string;
     filename: string;
     file_path: string;
     content_type?: string;
@@ -46,6 +47,7 @@ interface EventDialogFieldsProps {
   setExistingFiles: (
     existingFiles: Array<{
       id: string;
+      event_id: string;
       filename: string;
       file_path: string;
       content_type?: string;
@@ -127,6 +129,7 @@ export const EventDialogFields = ({
 
   return (
     <div className="space-y-6">
+      
       <div className="space-y-2">
         <Label htmlFor="title">{t("events.fullName")}</Label>
         <Input
