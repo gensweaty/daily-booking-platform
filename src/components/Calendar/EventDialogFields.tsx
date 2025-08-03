@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getRepeatOptions } from "@/lib/recurringEvents";
+import { TaskDateTimePicker } from "@/components/tasks/TaskDateTimePicker";
 
 // Define interface for person data
 interface PersonData {
@@ -84,6 +85,9 @@ interface EventDialogFieldsProps {
   setAdditionalPersons: (persons: PersonData[]) => void;
   // Add missing prop
   isVirtualEvent?: boolean;
+  // Add reminder props
+  reminderTime: Date | null;
+  setReminderTime: (date: Date | null) => void;
 }
 
 export const EventDialogFields = ({
@@ -122,7 +126,9 @@ export const EventDialogFields = ({
   isNewEvent = false,
   additionalPersons,
   setAdditionalPersons,
-  isVirtualEvent = false
+  isVirtualEvent = false,
+  reminderTime,
+  setReminderTime
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -131,6 +137,8 @@ export const EventDialogFields = ({
   const [loading, setLoading] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isRepeatUntilPickerOpen, setIsRepeatUntilPickerOpen] = useState(false);
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [isReminderPickerOpen, setIsReminderPickerOpen] = useState(false);
   const isGeorgian = language === 'ka';
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
@@ -153,6 +161,25 @@ export const EventDialogFields = ({
     WebkitFontSmoothing: 'antialiased',
     MozOsxFontSmoothing: 'grayscale'
   } : undefined;
+
+  // Set reminderEnabled based on reminderTime
+  useEffect(() => {
+    setReminderEnabled(!!reminderTime);
+  }, [reminderTime]);
+
+  // Handle reminder enabled change
+  const handleReminderEnabledChange = (enabled: boolean) => {
+    setReminderEnabled(enabled);
+    if (!enabled) {
+      setReminderTime(null);
+    }
+  };
+
+  // Handle reminder time selection
+  const handleReminderTimeSelect = (date: Date) => {
+    setReminderTime(date);
+    setIsReminderPickerOpen(false);
+  };
   
   // Helper function for Georgian label text
   const renderGeorgianLabel = (text: string) => {
@@ -492,24 +519,70 @@ export const EventDialogFields = ({
         </div>
       </div>
 
-      {/* Repeat Options - Only show for new events */}
+      {/* Repeat Options and Reminder - Only show for new events */}
       {isNewEvent && (
         <div className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="isRecurring"
-              checked={isRecurring}
-              onCheckedChange={handleRecurringToggle}
-            />
-            <Label 
-              htmlFor="isRecurring" 
-              className={cn("flex items-center gap-2", isGeorgian ? "font-georgian" : "")}
-              style={georgianStyle}
-            >
-              <Repeat className="h-4 w-4" />
-              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორება</GeorgianAuthText> : <LanguageText>Make this event recurring</LanguageText>}
-            </Label>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="isRecurring"
+                checked={isRecurring}
+                onCheckedChange={handleRecurringToggle}
+              />
+              <Label 
+                htmlFor="isRecurring" 
+                className={cn("flex items-center gap-2", isGeorgian ? "font-georgian" : "")}
+                style={georgianStyle}
+              >
+                <Repeat className="h-4 w-4" />
+                {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორება</GeorgianAuthText> : <LanguageText>Make this event recurring</LanguageText>}
+              </Label>
+            </div>
+
+            <div className="flex items-center space-x-2 ml-4">
+              <Checkbox
+                id="reminderEnabled"
+                checked={reminderEnabled}
+                onCheckedChange={handleReminderEnabledChange}
+              />
+              <Label 
+                htmlFor="reminderEnabled" 
+                className={cn(isGeorgian ? "font-georgian" : "")}
+                style={georgianStyle}
+              >
+                {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">შეხსენების დაყენება</GeorgianAuthText> : <LanguageText>{t("events.setReminder")}</LanguageText>}
+              </Label>
+            </div>
           </div>
+
+          {/* Reminder time picker */}
+          {reminderEnabled && (
+            <div>
+              <Label className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+                {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">შეხსენების დრო</GeorgianAuthText> : <LanguageText>Reminder Time</LanguageText>}
+              </Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsReminderPickerOpen(true)}
+                  className="justify-start text-left font-normal"
+                >
+                  {reminderTime ? format(reminderTime, 'PPpp') : (isGeorgian ? 'აირჩიეთ დრო' : 'Pick reminder time')}
+                </Button>
+                {reminderTime && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setReminderTime(null)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
           
           {isRecurring && (
             <div className="grid grid-cols-2 gap-2">
@@ -718,5 +791,14 @@ export const EventDialogFields = ({
           />
         </div>
       )}
+
+      {/* Reminder Picker Dialog */}
+      <TaskDateTimePicker
+        isOpen={isReminderPickerOpen}
+        onClose={() => setIsReminderPickerOpen(false)}
+        onConfirm={handleReminderTimeSelect}
+        initialDate={reminderTime || new Date()}
+        title={isGeorgian ? "შეხსენების დროის არჩევა" : "Set Reminder Time"}
+      />
     </>;
 };

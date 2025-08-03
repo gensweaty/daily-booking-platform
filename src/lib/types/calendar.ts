@@ -36,6 +36,8 @@ export interface CalendarEventType {
   repeat_pattern?: string;
   repeat_until?: string;
   parent_event_id?: string;
+  // Event reminder field
+  reminder_time?: string;
   files?: Array<{
     id: string;
     event_id: string;
