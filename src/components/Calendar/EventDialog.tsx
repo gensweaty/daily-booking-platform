@@ -135,26 +135,42 @@ export const EventDialog = ({
       setAdditionalPersons(initialData.additional_persons || []);
       setEventName(initialData.title || "");
       
-      // ✅ FIX: Use only email_reminder_enabled field consistently
-      console.log('[EventDialog] Loading reminder data:', {
+      // ✅ FIX: Debug logging and consistent field usage for reminders
+      console.log('[EventDialog] Loading reminder data from initialData:', {
         reminder_at: initialData.reminder_at,
-        email_reminder_enabled: initialData.email_reminder_enabled
+        email_reminder_enabled: initialData.email_reminder_enabled,
+        reminder_enabled: initialData.reminder_enabled // This should not exist but check anyway
       });
       
+      // Set reminder time - convert UTC to local for display
       if (initialData.reminder_at) {
-        const localReminder = convertUTCToLocal(initialData.reminder_at);
-        setReminderAt(localReminder);
-        console.log('[EventDialog] Setting reminder at:', localReminder, 'from UTC:', initialData.reminder_at);
+        try {
+          const localReminder = convertUTCToLocal(initialData.reminder_at);
+          setReminderAt(localReminder);
+          console.log('[EventDialog] ✅ Setting reminder at:', localReminder, 'from UTC:', initialData.reminder_at);
+        } catch (error) {
+          console.error('[EventDialog] ❌ Error converting reminder time:', error);
+          setReminderAt('');
+        }
       } else {
         setReminderAt('');
         console.log('[EventDialog] No reminder time found, clearing field');
       }
       
-      // ✅ FIX: Only use email_reminder_enabled, not reminder_enabled
-      const isReminderEnabled = !!initialData.email_reminder_enabled;
-      setEmailReminderEnabled(isReminderEnabled);
-      console.log('[EventDialog] Setting email reminder enabled to:', isReminderEnabled);
+      // ✅ FIX: Only use email_reminder_enabled field consistently
+      const isEmailReminderEnabled = !!initialData.email_reminder_enabled;
+      setEmailReminderEnabled(isEmailReminderEnabled);
+      console.log('[EventDialog] ✅ Setting email reminder enabled to:', isEmailReminderEnabled);
       
+      // ✅ Additional debug: Check if we have data but it's not showing
+      if (initialData.reminder_at || initialData.email_reminder_enabled) {
+        console.log('[EventDialog] 🔍 REMINDER DATA FOUND - Should be visible in UI:', {
+          reminderAt: initialData.reminder_at,
+          emailReminderEnabled: initialData.email_reminder_enabled
+        });
+      }
+      
+      // Fetch existing files
       const fetchExistingFiles = async () => {
         try {
           const { data, error } = await supabase

@@ -1,43 +1,64 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
-import { Resend } from "npm:resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+
+interface Database {
+  public: {
+    Tables: {
+      events: {
+        Row: {
+          id: string;
+          title: string;
+          user_surname: string;
+          user_number: string | null;
+          social_network_link: string | null;
+          event_notes: string | null;
+          start_date: string;
+          end_date: string;
+          payment_status: string | null;
+          payment_amount: number | null;
+          user_id: string;
+          language: string | null;
+          reminder_at: string | null;
+          email_reminder_enabled: boolean | null;
+          reminder_sent_at: string | null;
+          deleted_at: string | null;
+        };
+      };
+    };
+  };
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Create a map to track recently sent emails to avoid duplicates
-const recentlySentEmails = new Map<string, number>();
+const supabase = createClient<Database>(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
 
-// Clean up old entries every 10 minutes
-setInterval(() => {
-  const now = Date.now();
-  const tenMinutesAgo = now - 10 * 60 * 1000;
-  
-  for (const [key, timestamp] of recentlySentEmails.entries()) {
-    if (timestamp < tenMinutesAgo) {
-      recentlySentEmails.delete(key);
-    }
-  }
-}, 10 * 60 * 1000);
-
-// Helper function to format time with proper timezone and locale
-const formatEventTimeForLocale = (dateISO: string, lang: string): string => {
-  console.log("Original event date ISO string:", dateISO);
-  
+const formatEventTimeForLocale = (dateTimeString: string, language: string = 'en') => {
   try {
-    const date = new Date(dateISO);
+    const date = new Date(dateTimeString);
     
-    // Validate the date is valid
+    // Ensure date is valid
     if (isNaN(date.getTime())) {
-      console.error("Invalid date string:", dateISO);
-      return dateISO; // Return original if invalid
+      console.error('Invalid date string:', dateTimeString);
+      return dateTimeString;
     }
-    
-    const locale = lang === 'ka' ? 'ka-GE' : lang === 'es' ? 'es-ES' : 'en-US';
 
+    console.log('🌍 Formatting time for locale:', {
+      input: dateTimeString,
+      language,
+      utcTime: date.toISOString(),
+      timezone: 'Asia/Tbilisi'
+    });
+
+    // Always use Asia/Tbilisi timezone regardless of language for Georgian users
+    const locale = language === 'ka' ? 'ka-GE' : language === 'es' ? 'es-ES' : 'en-US';
+    
     const formatter = new Intl.DateTimeFormat(locale, {
       year: 'numeric',
       month: 'short',
@@ -45,466 +66,225 @@ const formatEventTimeForLocale = (dateISO: string, lang: string): string => {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
-      timeZone: 'Asia/Tbilisi', // Always use Georgia timezone
+      timeZone: 'Asia/Tbilisi', // ✅ FIX: Always use Georgia timezone
     });
 
-    const formattedResult = formatter.format(date);
-    console.log("Formatted event time for locale:", locale, "Result:", formattedResult);
-    console.log("Original UTC time:", date.toISOString(), "-> Georgia time:", formattedResult);
-    
-    return formattedResult;
+    const formatted = formatter.format(date);
+    console.log('🕐 Formatted time:', {
+      original: dateTimeString,
+      formatted,
+      timezone: 'Asia/Tbilisi'
+    });
+
+    return formatted;
   } catch (error) {
-    console.error("Error formatting date:", error, "Original date:", dateISO);
-    return dateISO; // Return original if formatting fails
+    console.error('Error formatting time:', error);
+    return dateTimeString;
   }
 };
 
-// Multi-language email content for event reminders
-const getEventReminderEmailContent = (
-  language: string, 
-  eventTitle: string, 
-  startTime: string,
-  endTime: string,
-  businessName?: string,
-  businessAddress?: string,
-  eventNotes?: string,
-  paymentStatus?: string,
-  paymentAmount?: number | null
-) => {
-  let subject, body;
-  
-  // Create business info section if available
-  const businessInfo = businessName ? `
-    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-      <p style="margin: 0 0 10px 0; font-size: 16px; color: #333;">
-        <strong>🏢 ${language === 'ka' ? 'ბიზნესი' : language === 'es' ? 'Negocio' : 'Business'}:</strong> ${businessName}
-      </p>
-      ${businessAddress ? `<p style="margin: 10px 0; font-size: 14px; color: #666;"><strong>${language === 'ka' ? 'მისამართი' : language === 'es' ? 'Dirección' : 'Address'}:</strong> ${businessAddress}</p>` : ''}
-      <p style="margin: 10px 0 0 0; font-size: 16px; color: #333;">
-        <strong>📅 ${language === 'ka' ? 'დრო' : language === 'es' ? 'Hora' : 'Time'}:</strong> ${startTime} - ${endTime}
-      </p>
-      ${eventNotes ? `<p style="margin: 10px 0 0 0; font-size: 14px; color: #666;"><strong>${language === 'ka' ? 'შენიშვნები' : language === 'es' ? 'Notas' : 'Notes'}:</strong> ${eventNotes}</p>` : ''}
-    </div>
-  ` : `
-    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-      <p style="margin: 0 0 10px 0; font-size: 16px; color: #333;">
-        <strong>📅 ${language === 'ka' ? 'დრო' : language === 'es' ? 'Hora' : 'Time'}:</strong> ${startTime} - ${endTime}
-      </p>
-      ${eventNotes ? `<p style="margin: 10px 0 0 0; font-size: 14px; color: #666;"><strong>${language === 'ka' ? 'შენიშვნები' : language === 'es' ? 'Notas' : 'Notes'}:</strong> ${eventNotes}</p>` : ''}
-    </div>
-  `;
+const getTranslations = (language: string = 'en') => {
+  const translations = {
+    en: {
+      subject: "Event Reminder",
+      greeting: "Hello",
+      reminderText: "This is a reminder about your upcoming event:",
+      eventDetails: "Event Details",
+      eventTime: "Time",
+      notes: "Notes",
+      contactInfo: "Contact Information",
+      phone: "Phone",
+      email: "Email",
+      footer: "Thank you for using SmartBookly!",
+    },
+    ka: {
+      subject: "მოვლენის შეხსენება",
+      greeting: "გამარჯობა",
+      reminderText: "ეს არის შეხსენება თქვენი მოვლენის შესახებ:",
+      eventDetails: "მოვლენის დეტალები",
+      eventTime: "დრო",
+      notes: "ჩანაწერები",
+      contactInfo: "საკონტაქტო ინფორმაცია",
+      phone: "ტელეფონი",
+      email: "ელ. ფოსტა",
+      footer: "გმადლობთ SmartBookly-ს გამოყენებისთვის!",
+    },
+    es: {
+      subject: "Recordatorio de Evento",
+      greeting: "Hola",
+      reminderText: "Este es un recordatorio sobre tu próximo evento:",
+      eventDetails: "Detalles del Evento",
+      eventTime: "Hora",
+      notes: "Notas",
+      contactInfo: "Información de Contacto",
+      phone: "Teléfono",
+      email: "Correo",
+      footer: "¡Gracias por usar SmartBookly!",
+    }
+  };
 
-  // Create payment info section if available
-  const paymentInfo = paymentStatus && paymentStatus !== 'not_paid' ? `
-    <div style="background-color: #e8f5e8; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; margin: 20px 0;">
-      <p style="margin: 0; font-size: 16px; color: #155724;">
-        💳 ${language === 'ka' ? 'გადახდის სტატუსი' : language === 'es' ? 'Estado de pago' : 'Payment Status'}: 
-        ${paymentStatus === 'fully_paid' ? 
-          (language === 'ka' ? 'სრულად გადახდილი' : language === 'es' ? 'Pagado completamente' : 'Fully Paid') :
-          (language === 'ka' ? 'ნაწილობრივ გადახდილი' : language === 'es' ? 'Pagado parcialmente' : 'Partially Paid')
-        }
-        ${paymentAmount ? ` (${paymentAmount} ${language === 'ka' ? 'ლარი' : language === 'es' ? 'EUR' : 'USD'})` : ''}
-      </p>
-    </div>
-  ` : '';
-  
-  if (language === 'ka') {
-    subject = "📅 შეხსენება: თქვენი ჯავშანი!";
-    body = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333; text-align: center;">ჯავშნის შეხსენება</h2>
-        <p style="font-size: 16px; line-height: 1.6;">
-          შეგახსენებთ თქვენს მოვლენაზე: <strong>${eventTitle}</strong>
-        </p>
-        ${businessInfo}
-        ${paymentInfo}
-        <div style="background-color: #e8f5e8; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
-          <p style="margin: 0; font-size: 16px; color: #155724;">✨ არ დაგავიწყდეს თქვენი მოვლენა!</p>
-        </div>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="font-size: 12px; color: #999; text-align: center;">
-          SmartBookly-დან მიღებული შეხსენება
-        </p>
-      </div>
-    `;
-  } else if (language === 'es') {
-    subject = "📅 ¡Recordatorio: Su reserva!";
-    body = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333; text-align: center;">Recordatorio de Reserva</h2>
-        <p style="font-size: 16px; line-height: 1.6;">
-          Este es un recordatorio de su evento: <strong>${eventTitle}</strong>
-        </p>
-        ${businessInfo}
-        ${paymentInfo}
-        <div style="background-color: #e8f5e8; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
-          <p style="margin: 0; font-size: 16px; color: #155724;">✨ ¡No olvide su evento!</p>
-        </div>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="font-size: 12px; color: #999; text-align: center;">
-          Recordatorio de SmartBookly
-        </p>
-      </div>
-    `;
-  } else {
-    subject = "📅 Reminder: Your Booking!";
-    body = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333; text-align: center;">Booking Reminder</h2>
-        <p style="font-size: 16px; line-height: 1.6;">
-          This is a reminder for your event: <strong>${eventTitle}</strong>
-        </p>
-        ${businessInfo}
-        ${paymentInfo}
-        <div style="background-color: #e8f5e8; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
-          <p style="margin: 0; font-size: 16px; color: #155724;">✨ Don't forget your event!</p>
-        </div>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="font-size: 12px; color: #999; text-align: center;">
-          Reminder from SmartBookly
-        </p>
-      </div>
-    `;
-  }
-  
-  return { subject, body };
+  return translations[language as keyof typeof translations] || translations.en;
 };
 
-const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('📅 Event reminder email function started');
-    
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    console.log('🔔 Event reminder function triggered');
 
-    if (!supabaseUrl || !supabaseServiceKey || !resendApiKey) {
-      console.error('Missing required environment variables');
-      return new Response(
-        JSON.stringify({ error: 'Missing environment variables' }),
-        { 
-          status: 500, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        }
-      );
-    }
-
-    // Create Supabase client with service role key
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const resend = new Resend(resendApiKey);
-
-    const body = await req.json();
-    const { eventId } = body;
-
-    // If eventId is provided, send email for specific event
-    if (eventId) {
-      console.log('📧 Sending reminder email for specific event:', eventId);
-      
-      const { data: event, error: eventError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', eventId)
-        .single();
-
-      if (eventError || !event) {
-        console.error('Error fetching event:', eventError);
-        return new Response(
-          JSON.stringify({ error: 'Event not found' }),
-          { 
-            status: 404, 
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          }
-        );
-      }
-
-      // Check if email reminder is enabled and email exists
-      if (!event.email_reminder_enabled) {
-        console.log('📧 Email reminder not enabled for event:', eventId);
-        return new Response(
-          JSON.stringify({ message: 'Email reminder not enabled for this event' }),
-          { 
-            status: 200, 
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          }
-        );
-      }
-
-      // Get recipient email from social_network_link field
-      const recipientEmail = event.social_network_link;
-      if (!recipientEmail || !recipientEmail.includes('@')) {
-        console.error(`No valid email found for event ${event.id}`);
-        return new Response(
-          JSON.stringify({ error: 'No valid email address for event' }),
-          { 
-            status: 400, 
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          }
-        );
-      }
-
-      const deduplicationKey = `${event.id}_${recipientEmail}`;
-
-      // Check if we've recently sent this email (prevent duplicates)
-      const recentSendTime = recentlySentEmails.get(deduplicationKey);
-      if (recentSendTime && Date.now() - recentSendTime < 10 * 60 * 1000) {
-        console.log(`⏭️ Skipping duplicate email for event ${event.id}`);
-        return new Response(
-          JSON.stringify({ message: 'Email already sent recently' }),
-          { 
-            status: 200, 
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          }
-        );
-      }
-
-      // Get user's language and business info
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('language')
-        .eq('id', event.user_id)
-        .single();
-
-      const { data: businessData } = await supabase
-        .from('business_profiles')
-        .select('business_name, contact_address')
-        .eq('user_id', event.user_id)
-        .single();
-
-      const language = profileData?.language || 'en';
-      const businessName = businessData?.business_name;
-      const businessAddress = businessData?.contact_address;
-      
-      // Format event times using the new function with proper locale and timezone
-      const formattedStartTime = formatEventTimeForLocale(event.start_date, language);
-      const formattedEndTime = formatEventTimeForLocale(event.end_date, language);
-
-      // Get localized email content with business info
-      const { subject, body: emailBody } = getEventReminderEmailContent(
-        language, 
-        event.title || event.user_surname, 
-        formattedStartTime,
-        formattedEndTime,
-        businessName,
-        businessAddress,
-        event.event_notes,
-        event.payment_status,
-        event.payment_amount
-      );
-
-      // Send email
-      const emailResult = await resend.emails.send({
-        from: 'SmartBookly <noreply@smartbookly.com>',
-        to: [recipientEmail],
-        subject: subject,
-        html: emailBody
-      });
-
-      if (emailResult.error) {
-        console.error(`Failed to send reminder email for event ${event.id}:`, emailResult.error);
-        return new Response(
-          JSON.stringify({ error: 'Failed to send email' }),
-          { 
-            status: 500, 
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          }
-        );
-      }
-
-      console.log(`✅ Reminder email sent for event ${event.id} to ${recipientEmail} in language ${language}`);
-      
-      // Mark the event as email sent and disable future sends
-      await supabase
-        .from('events')
-        .update({ 
-          reminder_sent_at: new Date().toISOString(),
-          email_reminder_enabled: false
-        })
-        .eq('id', event.id);
-
-      // Track in deduplication map
-      recentlySentEmails.set(deduplicationKey, Date.now());
-
-      return new Response(
-        JSON.stringify({
-          message: 'Event reminder email sent successfully',
-          emailsSent: 1,
-          eventId: event.id,
-          language: language
-        }),
-        { 
-          status: 200, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        }
-      );
-    }
-
-    // If no eventId provided, process all due event reminders
+    // Get current time in UTC
     const now = new Date().toISOString();
-    
-    console.log('📋 Querying for due event reminders at:', now);
-    
-    // BUG FIX #1: Properly query for due reminders using correct field names and logic
-    const { data: dueEvents, error: eventsError } = await supabase
+    console.log('⏰ Current UTC time:', now);
+
+    // ✅ FIX: Query for due reminder events with precise filtering
+    console.log('🔍 Querying for due reminder events...');
+    const { data: dueEvents, error: queryError } = await supabase
       .from('events')
       .select('*')
-      .lte('reminder_at', now)  // reminder_at <= NOW() (UTC comparison)
-      .eq('email_reminder_enabled', true)  // email_reminder_enabled = true
-      .is('reminder_sent_at', null)  // reminder_sent_at IS NULL
-      .is('deleted_at', null);  // deleted_at IS NULL
+      .lte('reminder_at', now) // ✅ Events where reminder time has passed
+      .eq('email_reminder_enabled', true) // ✅ Only events with email reminders enabled
+      .is('reminder_sent_at', null) // ✅ Only events where reminder hasn't been sent
+      .is('deleted_at', null) // ✅ Only non-deleted events
+      .not('social_network_link', 'is', null) // ✅ Only events with email addresses
+      .ilike('social_network_link', '%@%'); // ✅ Only valid email addresses
 
-    if (eventsError) {
-      console.error('Error fetching due events:', eventsError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch due events' }),
-        { 
-          status: 500, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        }
-      );
+    if (queryError) {
+      console.error('❌ Error querying due events:', queryError);
+      throw queryError;
     }
 
-    console.log(`📝 Found ${dueEvents?.length || 0} due events with email reminders`);
-    
-    // Debug: Log each found event for verification
-    if (dueEvents && dueEvents.length > 0) {
-      dueEvents.forEach(event => {
-        console.log(`🔍 Due event: ${event.id}, reminder_at: ${event.reminder_at}, current time: ${now}`);
-      });
-    }
+    console.log(`📧 Found ${dueEvents?.length || 0} events due for reminder emails`);
 
     if (!dueEvents || dueEvents.length === 0) {
+      console.log('✅ No reminder emails to send at this time');
       return new Response(
         JSON.stringify({ 
-          message: 'No due event reminders found',
-          currentTime: now,
-          query: 'reminder_at <= NOW() AND email_reminder_enabled = true AND reminder_sent_at IS NULL AND deleted_at IS NULL'
+          success: true, 
+          message: 'No reminder emails to send',
+          timestamp: now
         }),
-        { 
-          status: 200, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
         }
       );
     }
 
+    // Process each due event
     let emailsSent = 0;
-    let emailsSkipped = 0;
+    let errors = 0;
 
     for (const event of dueEvents) {
       try {
-        // Get recipient email from social_network_link field
-        const recipientEmail = event.social_network_link;
-        if (!recipientEmail || !recipientEmail.includes('@')) {
-          console.error(`No valid email found for event ${event.id}, skipping`);
-          emailsSkipped++;
-          continue;
-        }
-
-        const deduplicationKey = `${event.id}_${recipientEmail}`;
-
-        // Check if we've recently sent this email
-        const recentSendTime = recentlySentEmails.get(deduplicationKey);
-        if (recentSendTime && Date.now() - recentSendTime < 10 * 60 * 1000) {
-          console.log(`⏭️ Skipping duplicate email for event ${event.id}`);
-          emailsSkipped++;
-          continue;
-        }
-
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('language')
-          .eq('id', event.user_id)
-          .single();
-
-        const { data: businessData } = await supabase
-          .from('business_profiles')
-          .select('business_name, contact_address')
-          .eq('user_id', event.user_id)
-          .single();
-
-        const language = profileData?.language || 'en';
-        const businessName = businessData?.business_name;
-        const businessAddress = businessData?.contact_address;
+        console.log(`📮 Processing reminder for event: ${event.id} - ${event.title}`);
+        console.log(`⏰ Event reminder was due at: ${event.reminder_at}`);
         
-        // BUG FIX #2: Format times correctly in Asia/Tbilisi timezone
-        const formattedStartTime = formatEventTimeForLocale(event.start_date, language);
-        const formattedEndTime = formatEventTimeForLocale(event.end_date, language);
+        const t = getTranslations(event.language || 'en');
+        
+        // Format event times for Georgia timezone
+        const startTimeFormatted = formatEventTimeForLocale(event.start_date, event.language || 'en');
+        const endTimeFormatted = formatEventTimeForLocale(event.end_date, event.language || 'en');
 
-        const { subject, body: emailBody } = getEventReminderEmailContent(
-          language, 
-          event.title || event.user_surname, 
-          formattedStartTime,
-          formattedEndTime,
-          businessName,
-          businessAddress,
-          event.event_notes,
-          event.payment_status,
-          event.payment_amount
-        );
+        // Create email content
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2563eb;">${t.subject}</h2>
+            <p>${t.greeting} ${event.user_surname},</p>
+            <p>${t.reminderText}</p>
+            
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #374151;">${t.eventDetails}</h3>
+              <p><strong>${event.title}</strong></p>
+              <p><strong>${t.eventTime}:</strong> ${startTimeFormatted} - ${endTimeFormatted}</p>
+              ${event.event_notes ? `<p><strong>${t.notes}:</strong> ${event.event_notes}</p>` : ''}
+            </div>
 
-        const emailResult = await resend.emails.send({
-          from: 'SmartBookly <noreply@smartbookly.com>',
-          to: [recipientEmail],
-          subject: subject,
-          html: emailBody
+            ${event.user_number || event.social_network_link ? `
+              <div style="background-color: #e5f3ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <h4 style="margin-top: 0; color: #1e40af;">${t.contactInfo}</h4>
+                ${event.user_number ? `<p><strong>${t.phone}:</strong> ${event.user_number}</p>` : ''}
+                ${event.social_network_link ? `<p><strong>${t.email}:</strong> ${event.social_network_link}</p>` : ''}
+              </div>
+            ` : ''}
+
+            <p style="color: #6b7280; font-size: 14px;">${t.footer}</p>
+          </div>
+        `;
+
+        // Send email via Resend
+        const { error: emailError } = await supabase.functions.invoke('send-booking-approval-email', {
+          body: {
+            recipientEmail: event.social_network_link,
+            fullName: event.user_surname,
+            eventTitle: event.title,
+            startDate: event.start_date,
+            endDate: event.end_date,
+            eventNotes: event.event_notes,
+            paymentStatus: event.payment_status,
+            paymentAmount: event.payment_amount,
+            language: event.language,
+            source: 'event-reminder' // Special flag to indicate this is a reminder email
+          }
         });
 
-        if (emailResult.error) {
-          console.error(`Failed to send reminder email for event ${event.id}:`, emailResult.error);
+        if (emailError) {
+          console.error(`❌ Failed to send reminder email for event ${event.id}:`, emailError);
+          errors++;
           continue;
         }
 
-        console.log(`✅ Reminder email sent for event ${event.id} to ${recipientEmail} in language ${language}`);
-        console.log(`📧 Email times - Start: ${formattedStartTime}, End: ${formattedEndTime} (Asia/Tbilisi)`);
-        
-        // Mark as sent and disable future sends
-        await supabase
+        // ✅ FIX: Mark reminder as sent
+        const { error: updateError } = await supabase
           .from('events')
           .update({ 
-            reminder_sent_at: new Date().toISOString(),
-            email_reminder_enabled: false
+            reminder_sent_at: now 
           })
           .eq('id', event.id);
 
-        recentlySentEmails.set(deduplicationKey, Date.now());
-        emailsSent++;
+        if (updateError) {
+          console.error(`❌ Failed to update reminder_sent_at for event ${event.id}:`, updateError);
+          errors++;
+        } else {
+          console.log(`✅ Reminder email sent successfully for event: ${event.id}`);
+          emailsSent++;
+        }
 
-      } catch (error) {
-        console.error(`Error processing event ${event.id}:`, error);
-        continue;
+      } catch (eventError) {
+        console.error(`❌ Error processing event ${event.id}:`, eventError);
+        errors++;
       }
     }
 
-    console.log(`📊 Event reminder email summary: ${emailsSent} sent, ${emailsSkipped} skipped`);
+    console.log(`📊 Email processing complete. Sent: ${emailsSent}, Errors: ${errors}`);
 
     return new Response(
       JSON.stringify({
-        message: 'Event reminder emails processed',
+        success: true,
         emailsSent,
-        emailsSkipped,
-        totalEvents: dueEvents.length,
-        currentTime: now
+        errors,
+        totalProcessed: dueEvents.length,
+        timestamp: now
       }),
-      { 
-        status: 200, 
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
       }
     );
 
   } catch (error) {
-    console.error('Error in event reminder email function:', error);
+    console.error('💥 Fatal error in send-event-reminder-email function:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { 
-        status: 500, 
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      JSON.stringify({ 
+        error: error.message,
+        success: false,
+        timestamp: new Date().toISOString()
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
       }
     );
   }
-};
-
-serve(handler);
+});
