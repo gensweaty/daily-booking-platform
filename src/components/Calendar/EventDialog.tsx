@@ -177,8 +177,6 @@ export const EventDialog = ({
         repeat_pattern: repeatPattern,
         repeat_until: repeatUntil,
         additionalPersons: additionalPersons,
-        
-        // Add reminder data
         reminder_at: reminderAt,
         email_reminder_enabled: emailReminderEnabled,
       };
@@ -191,7 +189,7 @@ export const EventDialog = ({
       } else {
         await onCreate(eventData);
         // Fetch the events again to update the calendar
-        queryClient.invalidateQueries(['events']);
+        queryClient.invalidateQueries({ queryKey: ['events'] });
         // Optionally, show a success message
         toast({
           title: "Success",
