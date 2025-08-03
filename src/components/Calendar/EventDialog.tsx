@@ -11,6 +11,7 @@ import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
 import { cn } from "@/lib/utils";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { associateBookingFilesWithEvent } from '@/integrations/supabase/client';
 
 interface PersonData {
   id: string;
@@ -122,16 +123,8 @@ export const EventDialog = ({
       setAdditionalPersons(initialData.additional_persons || []);
       setEventName(initialData.title || "");
       
-      // Fix reminder fields synchronization - properly format reminder data
-      if (initialData.reminder_at) {
-        const reminderDate = new Date(initialData.reminder_at);
-        const formattedReminder = new Date(reminderDate.getTime() - reminderDate.getTimezoneOffset() * 60000)
-          .toISOString()
-          .slice(0, 16);
-        setReminderAt(formattedReminder);
-      } else {
-        setReminderAt('');
-      }
+      // Fix reminder fields synchronization - show existing reminder data
+      setReminderAt(initialData.reminder_at || '');
       setEmailReminderEnabled(initialData.email_reminder_enabled || false);
       
       // Load existing files
@@ -227,25 +220,31 @@ export const EventDialog = ({
         paymentAmount: person.paymentAmount
       }));
 
-      // Use the save_event_with_persons RPC function with correct parameter names
+      // Prepare event data object with proper field names for the RPC function
+      const eventData = {
+        title: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
+        user_surname: userSurname.trim(),
+        user_number: userNumber.trim(),
+        social_network_link: socialNetworkLink.trim(),
+        event_notes: eventNotes.trim(),
+        start_date: startDate,
+        end_date: endDate,
+        payment_status: paymentStatus,
+        payment_amount: showPaymentAmount ? parseFloat(paymentAmount) || null : null,
+        language: language,
+        is_recurring: isRecurring && repeatPattern && repeatPattern !== 'none',
+        repeat_pattern: isRecurring && repeatPattern && repeatPattern !== 'none' ? repeatPattern : null,
+        repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
+        reminder_at: emailReminderEnabled ? reminderAt : null,
+        email_reminder_enabled: emailReminderEnabled
+      };
+
+      // Use the save_event_with_persons RPC function with correct parameter structure
       const { data: savedEventId, error: saveError } = await supabase.rpc('save_event_with_persons', {
-        p_event_id: initialData?.id || null,
-        p_user_id: currentUser.data.user.id,
-        p_title: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
-        p_user_surname: userSurname.trim(),
-        p_user_number: userNumber.trim(),
-        p_social_network_link: socialNetworkLink.trim(),
-        p_event_notes: eventNotes.trim(),
-        p_start_date: startDate,
-        p_end_date: endDate,
-        p_payment_status: paymentStatus,
-        p_payment_amount: showPaymentAmount ? parseFloat(paymentAmount) || null : null,
-        p_language: language,
+        p_event_data: eventData,
         p_additional_persons: additionalPersonsJson,
-        p_recurring_pattern: isRecurring && repeatPattern && repeatPattern !== 'none' ? repeatPattern : null,
-        p_recurring_until: isRecurring && repeatUntil ? repeatUntil : null,
-        p_reminder_at: emailReminderEnabled ? reminderAt : null,
-        p_email_reminder_enabled: emailReminderEnabled
+        p_user_id: currentUser.data.user.id,
+        p_event_id: initialData?.id || null
       });
 
       if (saveError) {
@@ -273,14 +272,12 @@ export const EventDialog = ({
               language: language,
               // Pass event details to ensure they're included in the email
               fullName: userSurname.trim(),
-              businessName: businessId ? "SmartBookly Business" : undefined,
               eventTitle: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
               startDate: startDate,
               endDate: endDate,
               eventNotes: eventNotes.trim(),
               paymentStatus: paymentStatus,
-              paymentAmount: showPaymentAmount ? parseFloat(paymentAmount) || null : null,
-              hasBusinessAddress: !!businessId
+              paymentAmount: showPaymentAmount ? parseFloat(paymentAmount) || null : null
             }
           });
 
