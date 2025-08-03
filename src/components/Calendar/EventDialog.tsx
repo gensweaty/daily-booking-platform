@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -53,6 +54,8 @@ export const EventDialog: React.FC<EventDialogProps> = ({
     repeat_pattern: '',
     repeat_until: '',
     language: language,
+    client_name: '',
+    phone_number: '',
     // Initialize reminder fields
     reminder_at: undefined,
     reminder_sent_at: undefined,
@@ -62,8 +65,23 @@ export const EventDialog: React.FC<EventDialogProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
 
-  const handleFileChange = (file: File | null) => {
+  const handleDataChange = (field: keyof CalendarEventType, value: any) => {
+    setEventData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleFileSelect = (file: File) => {
     setSelectedFile(file);
+  };
+
+  const handleDeleteFile = () => {
+    setSelectedFile(null);
+    setEventData(prev => ({
+      ...prev,
+      attachment: undefined
+    }));
   };
 
   useEffect(() => {
@@ -101,9 +119,9 @@ export const EventDialog: React.FC<EventDialogProps> = ({
         user_id: user.id,
         language: language,
         // Include reminder fields in save data
-        reminder_at: eventData.email_reminder_enabled ? eventData.reminder_at : null,
+        reminder_at: eventData.email_reminder_enabled ? eventData.reminder_at : undefined,
         email_reminder_enabled: eventData.email_reminder_enabled || false,
-        reminder_sent_at: eventData.reminder_sent_at || null,
+        reminder_sent_at: eventData.reminder_sent_at || undefined,
       };
 
       await onSave(eventToSave, selectedFile);
@@ -144,10 +162,9 @@ export const EventDialog: React.FC<EventDialogProps> = ({
 
         <EventDialogFields
           eventData={eventData}
-          setEventData={setEventData}
-          onFileChange={handleFileChange}
-          isEditing={!!event}
-          onClose={onClose}
+          onDataChange={handleDataChange}
+          onFileSelect={handleFileSelect}
+          onDeleteFile={handleDeleteFile}
         />
 
         <DialogFooter className="flex justify-between">

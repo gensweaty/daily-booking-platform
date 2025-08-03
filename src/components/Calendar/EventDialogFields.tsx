@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CalendarEventType } from "@/lib/types/calendar";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { SimpleFileDisplay } from "@/components/shared/SimpleFileDisplay";
-import { TaskDateTimePicker } from "@/components/tasks/TaskDateTimePicker";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface EventDialogFieldsProps {
@@ -25,11 +24,9 @@ export const EventDialogFields: React.FC<EventDialogFieldsProps> = ({
   onDeleteFile,
 }) => {
   const { t } = useLanguage();
-  const [isReminderPickerOpen, setIsReminderPickerOpen] = React.useState(false);
 
   const handleReminderTimeConfirm = (date: Date) => {
-    onDataChange('reminder_at', date);
-    setIsReminderPickerOpen(false);
+    onDataChange('reminder_at', date.toISOString());
   };
 
   return (
@@ -132,10 +129,8 @@ export const EventDialogFields: React.FC<EventDialogFieldsProps> = ({
             checked={eventData.email_reminder_enabled || false}
             onCheckedChange={(checked) => {
               onDataChange('email_reminder_enabled', checked);
-              if (checked) {
-                setIsReminderPickerOpen(true);
-              } else {
-                onDataChange('reminder_at', null);
+              if (!checked) {
+                onDataChange('reminder_at', undefined);
               }
             }}
           />
@@ -149,27 +144,17 @@ export const EventDialogFields: React.FC<EventDialogFieldsProps> = ({
         <Label>{t("events.attachment")}</Label>
         {eventData.attachment ? (
           <SimpleFileDisplay
-            fileName={eventData.attachment}
+            filename={eventData.attachment}
             onDelete={onDeleteFile}
           />
         ) : (
           <FileUploadField
             onFileSelect={onFileSelect}
-            accept="image/*,.pdf,.doc,.docx"
-            maxSizeInMB={5}
+            acceptedTypes={["image/*", ".pdf", ".doc", ".docx"]}
+            maxSizeMB={5}
           />
         )}
       </div>
-
-      {isReminderPickerOpen && (
-        <TaskDateTimePicker
-          open={isReminderPickerOpen}
-          onClose={() => setIsReminderPickerOpen(false)}
-          onConfirm={handleReminderTimeConfirm}
-          initialDate={eventData.reminder_at ? new Date(eventData.reminder_at) : new Date()}
-          title={t("events.setEventReminder")}
-        />
-      )}
     </div>
   );
 };
