@@ -192,6 +192,17 @@ export const EventDialog = ({
         endDate
       });
 
+      // Convert additional persons to JSON-compatible format
+      const additionalPersonsJson = additionalPersons.map(person => ({
+        id: person.id,
+        userSurname: person.userSurname,
+        userNumber: person.userNumber,
+        socialNetworkLink: person.socialNetworkLink,
+        eventNotes: person.eventNotes,
+        paymentStatus: person.paymentStatus,
+        paymentAmount: person.paymentAmount
+      }));
+
       // Use the save_event_with_persons RPC function
       const { data: savedEventId, error: saveError } = await supabase.rpc('save_event_with_persons', {
         p_event_id: initialData?.id || null,
@@ -206,7 +217,7 @@ export const EventDialog = ({
         p_payment_status: paymentStatus,
         p_payment_amount: showPaymentAmount ? parseFloat(paymentAmount) || null : null,
         p_language: language,
-        p_additional_persons: additionalPersons,
+        p_additional_persons: additionalPersonsJson,
         p_recurring_pattern: isRecurring && repeatPattern && repeatPattern !== 'none' ? repeatPattern : null,
         p_recurring_until: isRecurring && repeatUntil ? repeatUntil : null,
         p_reminder_at: emailReminderEnabled ? reminderAt : null,
