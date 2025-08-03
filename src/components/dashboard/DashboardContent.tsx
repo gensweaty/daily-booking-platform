@@ -59,7 +59,7 @@ export const DashboardContent = () => {
             </div>
             <TaskList />
             {showAddTask && (
-              <AddTaskForm />
+              <AddTaskForm onClose={() => setShowAddTask(false)} />
             )}
           </div>
         );
@@ -95,7 +95,7 @@ export const DashboardContent = () => {
             </div>
             <ReminderList />
             {showAddReminder && (
-              <AddReminderForm />
+              <AddReminderForm onClose={() => setShowAddReminder(false)} />
             )}
           </div>
         );
