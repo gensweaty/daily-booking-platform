@@ -39,7 +39,7 @@ export const DashboardContent = ({ activeSection, setActiveSection }: DashboardC
       case "crm":
         return <CustomerList />;
       case "bookings":
-        return <BookingRequestsList />;
+        return <BookingRequestsList requests={[]} onDelete={() => {}} />;
       default:
         return <TaskList />;
     }

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -5,13 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SimpleFileDisplay } from "@/components/shared/SimpleFileDisplay";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
-import { TaskDateTimePicker } from "@/components/tasks/TaskDateTimePicker";
 import { cn } from "@/lib/utils";
 
 interface PersonData {
@@ -260,7 +261,7 @@ export const EventDialogFields = ({
 
       <div>
         <Label htmlFor="eventName">
-          <LanguageText>{t("events.eventName")}</LanguageText>
+          <LanguageText>{t("events.title")}</LanguageText>
         </Label>
         <Input
           id="eventName"
@@ -581,13 +582,28 @@ export const EventDialogFields = ({
         </div>
       )}
 
-      <TaskDateTimePicker
-        isOpen={isReminderDialogOpen}
-        onClose={handleReminderCancel}
-        onConfirm={handleReminderConfirm}
-        initialDate={reminderTime || new Date()}
-        title={t("events.setReminder")}
-      />
+      <Dialog open={isReminderDialogOpen} onOpenChange={setIsReminderDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("events.setReminder")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              type="datetime-local"
+              value={reminderTime ? reminderTime.toISOString().slice(0, 16) : ''}
+              onChange={(e) => setReminderTime(new Date(e.target.value))}
+            />
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={handleReminderCancel}>
+                Cancel
+              </Button>
+              <Button onClick={() => reminderTime && handleReminderConfirm(reminderTime)}>
+                Set Reminder
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -66,8 +66,8 @@ export default function Index() {
         />
 
         <TrialExpiredDialog 
-          isOpen={isTrialExpiredDialogOpen}
-          onClose={() => setIsTrialExpiredDialogOpen(false)}
+          open={isTrialExpiredDialogOpen}
+          onOpenChange={setIsTrialExpiredDialogOpen}
           onManageSubscription={() => {
             setIsTrialExpiredDialogOpen(false);
             setIsManageSubscriptionOpen(true);
@@ -75,8 +75,8 @@ export default function Index() {
         />
 
         <ManageSubscriptionDialog 
-          isOpen={isManageSubscriptionOpen}
-          onClose={() => setIsManageSubscriptionOpen(false)}
+          open={isManageSubscriptionOpen}
+          onOpenChange={setIsManageSubscriptionOpen}
         />
       </div>
     </>
