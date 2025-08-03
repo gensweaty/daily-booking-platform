@@ -135,10 +135,9 @@ export const EventDialog = ({
       setAdditionalPersons(initialData.additional_persons || []);
       setEventName(initialData.title || "");
       
-      // Enhanced reminder loading with better timezone handling
+      // ✅ FIX: Use only email_reminder_enabled field consistently
       console.log('[EventDialog] Loading reminder data:', {
         reminder_at: initialData.reminder_at,
-        reminder_enabled: initialData.reminder_enabled,
         email_reminder_enabled: initialData.email_reminder_enabled
       });
       
@@ -151,13 +150,10 @@ export const EventDialog = ({
         console.log('[EventDialog] No reminder time found, clearing field');
       }
       
-      // Check for both possible reminder enabled fields
-      const isReminderEnabled = !!(
-        initialData.reminder_enabled || 
-        initialData.email_reminder_enabled
-      );
+      // ✅ FIX: Only use email_reminder_enabled, not reminder_enabled
+      const isReminderEnabled = !!initialData.email_reminder_enabled;
       setEmailReminderEnabled(isReminderEnabled);
-      console.log('[EventDialog] Setting reminder enabled to:', isReminderEnabled);
+      console.log('[EventDialog] Setting email reminder enabled to:', isReminderEnabled);
       
       const fetchExistingFiles = async () => {
         try {

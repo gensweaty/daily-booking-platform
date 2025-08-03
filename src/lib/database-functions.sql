@@ -16,7 +16,6 @@ DECLARE
   v_start_date TIMESTAMPTZ;
   v_end_date TIMESTAMPTZ;
   v_reminder_at TIMESTAMPTZ;
-  v_reminder_enabled BOOLEAN;
   v_email_reminder_enabled BOOLEAN;
   v_instances_created INTEGER := 0;
 BEGIN
@@ -37,11 +36,11 @@ BEGIN
     v_repeat_until := NULL;
   END;
   
-  -- Parse dates and reminder
+  -- Parse dates and reminder fields
   v_start_date := (p_event_data->>'start_date')::timestamptz;
   v_end_date := (p_event_data->>'end_date')::timestamptz;
   
-  -- Parse reminder fields
+  -- Parse reminder fields safely
   BEGIN
     v_reminder_at := CASE 
       WHEN p_event_data->>'reminder_at' IS NOT NULL AND 
@@ -54,12 +53,11 @@ BEGIN
     v_reminder_at := NULL;
   END;
   
-  v_reminder_enabled := COALESCE((p_event_data->>'reminder_enabled')::boolean, false);
   v_email_reminder_enabled := COALESCE((p_event_data->>'email_reminder_enabled')::boolean, false);
 
   -- Enhanced debug logging
-  RAISE NOTICE '🔍 Event data received: is_recurring=%, repeat_pattern=%, repeat_until=%, start_date=%, reminder_at=%, reminder_enabled=%', 
-               v_is_recurring, v_repeat_pattern, v_repeat_until, v_start_date::date, v_reminder_at, v_reminder_enabled;
+  RAISE NOTICE '🔍 Event data received: is_recurring=%, repeat_pattern=%, repeat_until=%, start_date=%, reminder_at=%, email_reminder_enabled=%', 
+               v_is_recurring, v_repeat_pattern, v_repeat_until, v_start_date::date, v_reminder_at, v_email_reminder_enabled;
 
   -- Validate recurring event parameters
   IF v_is_recurring = true THEN
@@ -100,7 +98,7 @@ BEGIN
       title, user_surname, user_number, social_network_link, event_notes,
       event_name, start_date, end_date, payment_status, payment_amount,
       user_id, type, is_recurring, repeat_pattern, repeat_until, 
-      reminder_at, reminder_enabled, email_reminder_enabled,
+      reminder_at, email_reminder_enabled,
       created_at, updated_at
     ) VALUES (
       v_safe_title,
@@ -120,16 +118,15 @@ BEGIN
       v_repeat_pattern,
       v_repeat_until,
       v_reminder_at,
-      v_reminder_enabled,
       v_email_reminder_enabled,
       NOW(),
       NOW()
     ) RETURNING id INTO v_event_id;
     
-    RAISE NOTICE '📝 Created parent event: % with recurring: %, pattern: %, until: %, reminder: %', 
-                 v_event_id, v_is_recurring, v_repeat_pattern, v_repeat_until, v_reminder_at;
+    RAISE NOTICE '📝 Created parent event: % with recurring: %, pattern: %, until: %, reminder: %, email_reminder: %', 
+                 v_event_id, v_is_recurring, v_repeat_pattern, v_repeat_until, v_reminder_at, v_email_reminder_enabled;
     
-    -- Generate recurring instances if needed
+    -- ✅ FIX: Pass reminder fields to generate_recurring_events
     IF v_is_recurring = true AND 
        v_repeat_pattern IS NOT NULL AND 
        v_repeat_pattern IN ('daily', 'weekly', 'biweekly', 'monthly', 'yearly') AND
@@ -141,7 +138,9 @@ BEGIN
         v_end_date,
         v_repeat_pattern,
         v_repeat_until,
-        p_user_id
+        p_user_id,
+        v_reminder_at,
+        v_email_reminder_enabled
       ) INTO v_instances_created;
       
       RAISE NOTICE '✅ Generated % recurring instances for event %', v_instances_created, v_event_id;
@@ -165,11 +164,14 @@ BEGIN
       repeat_pattern = v_repeat_pattern,
       repeat_until = v_repeat_until,
       reminder_at = v_reminder_at,
-      reminder_enabled = v_reminder_enabled,
-      email_reminder_enabled = v_email_reminder_enabled
+      email_reminder_enabled = v_email_reminder_enabled,
+      updated_at = NOW()
     WHERE id = p_event_id AND user_id = p_user_id;
     
     v_event_id := p_event_id;
+    
+    RAISE NOTICE '📝 Updated event: % with reminder: %, email_reminder: %', 
+                 v_event_id, v_reminder_at, v_email_reminder_enabled;
     
     -- Delete existing additional persons for this event
     DELETE FROM customers 
@@ -201,5 +203,104 @@ BEGIN
   END LOOP;
 
   RETURN v_event_id;
+END;
+$function$;
+
+-- ✅ FIX: Update generate_recurring_events to accept and set reminder fields
+CREATE OR REPLACE FUNCTION public.generate_recurring_events(
+  p_parent_event_id uuid, 
+  p_start_date timestamp with time zone, 
+  p_end_date timestamp with time zone, 
+  p_repeat_pattern text, 
+  p_repeat_until date, 
+  p_user_id uuid,
+  p_reminder_at timestamp with time zone DEFAULT NULL,
+  p_email_reminder_enabled boolean DEFAULT false
+)
+RETURNS integer
+LANGUAGE plpgsql
+AS $function$
+DECLARE
+  v_current_start TIMESTAMPTZ := p_start_date;
+  v_current_end TIMESTAMPTZ := p_end_date;
+  v_counter INTEGER := 0;
+  v_duration INTERVAL;
+  v_max_iterations INTEGER := 1000; -- Safety limit
+  v_reminder_duration INTERVAL;
+  v_current_reminder_at TIMESTAMPTZ;
+BEGIN
+  v_duration := p_end_date - p_start_date;
+  
+  -- Calculate reminder offset if reminder is set
+  IF p_reminder_at IS NOT NULL AND p_email_reminder_enabled THEN
+    v_reminder_duration := p_reminder_at - p_start_date;
+    RAISE NOTICE '⏰ Reminder duration calculated: %', v_reminder_duration;
+  END IF;
+
+  RAISE NOTICE '🔄 Starting recurring event generation: parent=%, pattern=%, until=%, duration=%, reminder_enabled=%', 
+               p_parent_event_id, p_repeat_pattern, p_repeat_until, v_duration, p_email_reminder_enabled;
+
+  LOOP
+    -- Calculate next occurrence (INCREMENT FIRST, BEFORE INSERT)
+    IF p_repeat_pattern = 'daily' THEN
+      v_current_start := v_current_start + INTERVAL '1 day';
+    ELSIF p_repeat_pattern = 'weekly' THEN
+      v_current_start := v_current_start + INTERVAL '1 week';
+    ELSIF p_repeat_pattern = 'biweekly' THEN
+      v_current_start := v_current_start + INTERVAL '2 week';
+    ELSIF p_repeat_pattern = 'monthly' THEN
+      v_current_start := v_current_start + INTERVAL '1 month';
+    ELSIF p_repeat_pattern = 'yearly' THEN
+      v_current_start := v_current_start + INTERVAL '1 year';
+    ELSE
+      RAISE WARNING 'Invalid repeat pattern: %', p_repeat_pattern;
+      EXIT;
+    END IF;
+
+    v_current_end := v_current_start + v_duration;
+    
+    -- ✅ FIX: Calculate reminder time for this instance
+    IF p_reminder_at IS NOT NULL AND p_email_reminder_enabled THEN
+      v_current_reminder_at := v_current_start + v_reminder_duration;
+    ELSE
+      v_current_reminder_at := NULL;
+    END IF;
+
+    -- Stop if we've passed the repeat_until date
+    IF v_current_start::date > p_repeat_until THEN
+      RAISE NOTICE '📅 Reached repeat_until date. Current start: %, repeat_until: %', 
+                   v_current_start::date, p_repeat_until;
+      EXIT;
+    END IF;
+
+    -- ✅ FIX: Insert child instance WITH reminder fields
+    INSERT INTO events (
+      title, user_surname, user_number, social_network_link, event_notes, event_name,
+      start_date, end_date, payment_status, payment_amount,
+      user_id, type, is_recurring, repeat_pattern, repeat_until, parent_event_id,
+      reminder_at, email_reminder_enabled,
+      created_at
+    )
+    SELECT
+      title, user_surname, user_number, social_network_link, event_notes, event_name,
+      v_current_start, v_current_end, payment_status, payment_amount,
+      user_id, type, is_recurring, repeat_pattern, repeat_until, id,
+      v_current_reminder_at, p_email_reminder_enabled,
+      NOW()
+    FROM events WHERE id = p_parent_event_id;
+
+    v_counter := v_counter + 1;
+    
+    RAISE NOTICE '✅ Created recurring instance #% with start_date: %, reminder_at: %', 
+                 v_counter, v_current_start, v_current_reminder_at;
+    
+    IF v_counter >= v_max_iterations THEN
+      RAISE WARNING 'Reached max iterations in recurring event loop!';
+      EXIT;
+    END IF;
+  END LOOP;
+
+  RAISE NOTICE '🎯 Completed recurring event generation: created % instances with reminder settings', v_counter;
+  RETURN v_counter;
 END;
 $function$;
