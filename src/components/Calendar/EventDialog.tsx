@@ -50,6 +50,7 @@ export const EventDialog = ({
   const [files, setFiles] = useState<File[]>([]);
   const [existingFiles, setExistingFiles] = useState<Array<{
     id: string;
+    event_id: string;
     filename: string;
     file_path: string;
     content_type?: string;
@@ -191,7 +192,7 @@ export const EventDialog = ({
         is_recurring: isRecurring,
         repeat_pattern: repeatPattern,
         repeat_until: repeatUntil,
-        files,
+        files: files,
         additionalPersons,
         reminder_time: reminderEnabled && reminderTime ? reminderTime.toISOString() : null,
       };

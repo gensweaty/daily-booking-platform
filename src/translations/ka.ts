@@ -1,4 +1,5 @@
-export const ka = {
+
+export const translations = {
   common: {
     edit: 'რედაქტირება',
     delete: 'წაშლა',
@@ -175,6 +176,14 @@ export const ka = {
     start: 'დაწყება',
     end: 'დასრულება',
     details: 'დეტალები',
+    fullName: 'სრული სახელი',
+    phoneNumber: 'ტელეფონის ნომერი',
+    socialLinkEmail: 'ელფოსტა',
+    eventNotes: 'შენიშვნები',
+    addEventNotes: 'დაამატეთ შენიშვნები თქვენი ჯავშნის შესახებ',
+    paymentStatus: 'გადახდის სტატუსი',
+    selectPaymentStatus: 'აირჩიეთ გადახდის სტატუსი',
+    paymentAmount: 'გადახდის თანხა',
     dateAndTime: 'თარიღი და დრო',
   },
   crm: {
