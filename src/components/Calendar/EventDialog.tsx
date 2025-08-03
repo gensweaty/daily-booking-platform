@@ -344,6 +344,19 @@ export const EventDialog = ({
     setShowRecurringDeleteDialog(false);
   };
 
+  const handleExistingFilesChange = (files: { id: string; filename: string; file_path: string; content_type?: string; size?: number; }[]) => {
+    const fileRecords: FileRecord[] = files.map(file => ({
+      id: file.id,
+      filename: file.filename,
+      file_path: file.file_path,
+      content_type: file.content_type || null,
+      size: file.size || null,
+      created_at: new Date().toISOString(), // Provide default value
+      user_id: null // Provide default value
+    }));
+    setExistingFiles(fileRecords);
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -384,7 +397,7 @@ export const EventDialog = ({
             files={files}
             setFiles={setFiles}
             existingFiles={existingFiles}
-            setExistingFiles={setExistingFiles}
+            setExistingFiles={handleExistingFilesChange}
             eventId={initialData?.id}
             isBookingRequest={isBookingRequest}
             isRecurring={isRecurring}
