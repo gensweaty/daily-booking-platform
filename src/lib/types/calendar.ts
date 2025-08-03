@@ -1,4 +1,5 @@
 
+
 export type CalendarViewType = 'month' | 'week' | 'day';
 
 export interface CalendarEventType {
@@ -36,10 +37,23 @@ export interface CalendarEventType {
   repeat_pattern?: string;
   repeat_until?: string;
   parent_event_id?: string;
+  recurring_type?: string;
+  recurring_end_date?: string;
   // Reminder properties - NEW
   reminder_at?: string;
   email_reminder_enabled?: boolean;
   reminder_sent_at?: string;
+  // Additional persons property
+  additional_persons?: Array<{
+    id: string;
+    userSurname: string;
+    userNumber: string;
+    socialNetworkLink: string;
+    eventNotes: string;
+    paymentStatus: string;
+    paymentAmount: string;
+  }>;
+  virtual_instance_id?: string;
   files?: Array<{
     id: string;
     event_id: string;
@@ -49,3 +63,4 @@ export interface CalendarEventType {
     size?: number;
   }>;
 }
+

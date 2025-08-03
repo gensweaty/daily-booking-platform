@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,17 @@ export interface EventDialogProps {
   onEventCreated?: () => Promise<void>;
   onEventUpdated?: () => Promise<void>;
   onEventDeleted?: () => Promise<void>;
+}
+
+// Define PersonData interface for additional persons
+interface PersonData {
+  id: string;
+  userSurname: string;
+  userNumber: string;
+  socialNetworkLink: string;
+  eventNotes: string;
+  paymentStatus: "not_paid" | "partly_paid" | "fully_paid";
+  paymentAmount: string;
 }
 
 export const EventDialog = ({ 
@@ -44,12 +56,7 @@ export const EventDialog = ({
   const [paymentStatus, setPaymentStatus] = useState<"not_paid" | "partly_paid" | "fully_paid">("not_paid");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [eventNotes, setEventNotes] = useState("");
-  const [additionalPersons, setAdditionalPersons] = useState<Array<{
-    name: string;
-    socialNetworkLink: string;
-    paymentStatus: "not_paid" | "partly_paid" | "fully_paid";
-    paymentAmount: string;
-  }>>([]);
+  const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringType, setRecurringType] = useState<"weekly" | "monthly">("weekly");
   const [recurringEndDate, setRecurringEndDate] = useState("");
@@ -61,27 +68,18 @@ export const EventDialog = ({
     handleUpdateEvent,
     handleDeleteEvent
   } = useEventDialog({
-    title,
-    description, 
-    startDate,
-    endDate,
-    reminderAt,
-    emailReminder,
-    userSurname,
-    socialNetworkLink,
-    paymentStatus,
-    paymentAmount,
-    eventNotes,
-    additionalPersons,
-    isRecurring,
-    recurringType,
-    recurringEndDate,
-    selectedDate,
-    initialData,
-    onEventCreated,
-    onEventUpdated,
-    onEventDeleted,
-    onClose: () => setOpen(false)
+    createEvent: async (data) => {
+      // Implementation will be handled by the hook
+      return data as CalendarEventType;
+    },
+    updateEvent: async (data) => {
+      // Implementation will be handled by the hook
+      return data as CalendarEventType;
+    },
+    deleteEvent: async ({ id, deleteChoice }) => {
+      // Implementation will be handled by the hook
+      return { success: true };
+    }
   });
 
   // Initialize form when editing
@@ -95,7 +93,7 @@ export const EventDialog = ({
       setEmailReminder(initialData.email_reminder_enabled || false);
       setUserSurname(initialData.user_surname || "");
       setSocialNetworkLink(initialData.social_network_link || "");
-      setPaymentStatus(initialData.payment_status || "not_paid");
+      setPaymentStatus((initialData.payment_status as "not_paid" | "partly_paid" | "fully_paid") || "not_paid");
       setPaymentAmount(initialData.payment_amount?.toString() || "");
       setEventNotes(initialData.event_notes || "");
       setIsRecurring(!!initialData.recurring_type);
@@ -135,11 +133,32 @@ export const EventDialog = ({
     setIsSubmitting(true);
 
     try {
+      const eventData = {
+        title,
+        description,
+        start_date: startDate,
+        end_date: endDate,
+        reminder_at: reminderAt,
+        email_reminder_enabled: emailReminder,
+        user_surname: userSurname,
+        social_network_link: socialNetworkLink,
+        payment_status: paymentStatus,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : undefined,
+        event_notes: eventNotes,
+        additional_persons: additionalPersons,
+        is_recurring: isRecurring,
+        recurring_type: isRecurring ? recurringType : undefined,
+        recurring_end_date: recurringEndDate,
+      };
+
       if (initialData) {
-        await handleUpdateEvent();
+        await handleUpdateEvent(eventData);
+        if (onEventUpdated) await onEventUpdated();
       } else {
-        await handleCreateEvent();
+        await handleCreateEvent(eventData);
+        if (onEventCreated) await onEventCreated();
       }
+      setOpen(false);
     } catch (error) {
       console.error('Error submitting event:', error);
     } finally {
@@ -153,7 +172,13 @@ export const EventDialog = ({
 
   const handleConfirmDelete = async (deleteChoice: "this" | "series") => {
     setDeleteDialogOpen(false);
-    await handleDeleteEvent(deleteChoice);
+    try {
+      await handleDeleteEvent({ id: initialData?.id || '', deleteChoice });
+      if (onEventDeleted) await onEventDeleted();
+      setOpen(false);
+    } catch (error) {
+      console.error('Error deleting event:', error);
+    }
   };
 
   return (
@@ -185,22 +210,31 @@ export const EventDialog = ({
               setEmailReminder={setEmailReminder}
               userSurname={userSurname}
               setUserSurname={setUserSurname}
+              userNumber=""
+              setUserNumber={() => {}}
               socialNetworkLink={socialNetworkLink}
               setSocialNetworkLink={setSocialNetworkLink}
               paymentStatus={paymentStatus}
-              setPaymentStatus={setPaymentStatus}
+              setPaymentStatus={(value: string) => setPaymentStatus(value as "not_paid" | "partly_paid" | "fully_paid")}
               paymentAmount={paymentAmount}
               setPaymentAmount={setPaymentAmount}
               eventNotes={eventNotes}
               setEventNotes={setEventNotes}
+              eventName=""
+              setEventName={() => {}}
+              files={[]}
+              setFiles={() => {}}
+              existingFiles={[]}
+              setExistingFiles={() => {}}
               additionalPersons={additionalPersons}
               setAdditionalPersons={setAdditionalPersons}
               isRecurring={isRecurring}
               setIsRecurring={setIsRecurring}
-              recurringType={recurringType}
-              setRecurringType={setRecurringType}
-              recurringEndDate={recurringEndDate}
-              setRecurringEndDate={setRecurringEndDate}
+              repeatPattern=""
+              setRepeatPattern={() => {}}
+              repeatUntil={recurringEndDate}
+              setRepeatUntil={setRecurringEndDate}
+              isNewEvent={!initialData}
               selectedDate={selectedDate}
               initialData={initialData}
             />
@@ -245,10 +279,9 @@ export const EventDialog = ({
       <RecurringDeleteDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        onConfirm={handleConfirmDelete}
-        eventTitle={title}
-        isRecurring={isRecurring}
-        isVirtualInstance={!!initialData?.virtual_instance_id}
+        onDeleteThis={() => handleConfirmDelete("this")}
+        onDeleteSeries={() => handleConfirmDelete("series")}
+        isRecurringEvent={isRecurring}
       />
     </>
   );

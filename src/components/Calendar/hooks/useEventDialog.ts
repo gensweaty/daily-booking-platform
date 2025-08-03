@@ -1,4 +1,5 @@
 
+
 import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
@@ -27,7 +28,6 @@ export const useEventDialog = ({
       const eventData = {
         ...data,
         type: 'event',
-        title: data.user_surname || data.title,
         user_surname: data.user_surname || data.title,
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
         checkAvailability: false,
@@ -69,7 +69,6 @@ export const useEventDialog = ({
       const eventData = {
         ...data,
         type: selectedEvent.type || 'event',
-        title: data.user_surname || data.title || selectedEvent.title,
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
         language: data.language || selectedEvent.language || language || 'en',
@@ -102,14 +101,14 @@ export const useEventDialog = ({
     }
   };
 
-  const handleDeleteEvent = async (deleteChoice?: "this" | "series") => {
+  const handleDeleteEvent = async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
     try {
-      if (!deleteEvent || !selectedEvent) throw new Error("Delete event function not provided or no event selected");
+      if (!deleteEvent) throw new Error("Delete event function not provided");
       
-      const result = await deleteEvent({ id: selectedEvent.id, deleteChoice });
+      const result = await deleteEvent({ id, deleteChoice });
       
       setSelectedEvent(null);
-      console.log("Event deleted successfully:", selectedEvent.id);
+      console.log("Event deleted successfully:", id);
       
       return result;
     } catch (error: any) {
@@ -148,3 +147,4 @@ export const useEventDialog = ({
     handleDeleteEvent,
   };
 };
+

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,7 +16,6 @@ import { ExternalCalendar } from "@/components/Calendar/ExternalCalendar";
 import { ArchivedTasksPage } from "@/components/tasks/ArchivedTasksPage";
 import { TaskReminderNotifications } from "@/components/tasks/TaskReminderNotifications";
 import { EventReminderNotifications } from "@/components/events/EventReminderNotifications";
-import { ReminderNotifications } from "@/components/reminder/ReminderNotifications";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Calendar, CheckSquare, Bell, FileText, BarChart3, Users, ExternalLink, Archive } from "lucide-react";
 
@@ -54,7 +54,6 @@ export const DashboardContent = () => {
       {/* Background notification components */}
       <TaskReminderNotifications />
       <EventReminderNotifications />
-      <ReminderNotifications />
       
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">{t('dashboard.welcome')}</h1>
@@ -211,7 +210,7 @@ export const DashboardContent = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <CustomerList businessId={user.id} />
+              <CustomerList />
             </CardContent>
           </Card>
         </TabsContent>
