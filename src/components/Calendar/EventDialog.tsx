@@ -73,74 +73,6 @@ export const EventDialog = ({
     MozOsxFontSmoothing: 'grayscale'
   } : undefined;
 
-  // Create the event dialog hook with proper functions
-  const {
-    handleCreateEvent,
-    handleUpdateEvent,
-    handleDeleteEvent,
-  } = useEventDialog({
-    createEvent: async (eventData) => {
-      console.log("Creating event with email reminder data:", { 
-        emailReminderEnabled, 
-        reminderAt,
-        ...eventData 
-      });
-      
-      const result = await handleCreateEvent({
-        ...eventData,
-        email_reminder_enabled: emailReminderEnabled,
-        reminder_at: reminderAt || null
-      });
-      
-      // Schedule email reminder if enabled
-      if (emailReminderEnabled && reminderAt && result) {
-        await scheduleEventReminder(result.id, reminderAt, eventData);
-      }
-      
-      return result;
-    },
-    updateEvent: async (eventData) => {
-      console.log("Updating event with email reminder data:", { 
-        emailReminderEnabled, 
-        reminderAt,
-        ...eventData 
-      });
-      
-      const result = await handleUpdateEvent({
-        ...eventData,
-        email_reminder_enabled: emailReminderEnabled,
-        reminder_at: reminderAt || null
-      });
-      
-      // Update email reminder scheduling
-      if (initialData?.id) {
-        if (emailReminderEnabled && reminderAt) {
-          await scheduleEventReminder(initialData.id, reminderAt, eventData);
-        } else {
-          // Cancel existing reminder if disabled
-          await cancelEventReminder(initialData.id);
-        }
-      }
-      
-      return result;
-    },
-    deleteEvent: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
-      try {
-        const { error } = await supabase
-          .from('events')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('id', id);
-
-        if (error) throw error;
-
-        return { success: true };
-      } catch (error) {
-        console.error('Error deleting event:', error);
-        throw error;
-      }
-    }
-  });
-
   // Function to schedule event reminder
   const scheduleEventReminder = async (eventId: string, reminderTime: string, eventData: any) => {
     try {
@@ -190,7 +122,90 @@ export const EventDialog = ({
     }
   };
 
-  // Initialize form with default or existing data
+  // Create the event dialog hook with proper functions
+  const {
+    handleCreateEvent,
+    handleUpdateEvent,
+    handleDeleteEvent,
+  } = useEventDialog({
+    createEvent: async (eventData) => {
+      console.log("Creating event with email reminder data:", { 
+        emailReminderEnabled, 
+        reminderAt,
+        ...eventData 
+      });
+      
+      // Create the event first
+      const { data, error } = await supabase
+        .from('events')
+        .insert({
+          ...eventData,
+          user_id: user?.id,
+          email_reminder_enabled: emailReminderEnabled,
+          reminder_at: reminderAt || null
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Schedule email reminder if enabled
+      if (emailReminderEnabled && reminderAt && data) {
+        await scheduleEventReminder(data.id, reminderAt, eventData);
+      }
+      
+      return data;
+    },
+    updateEvent: async (eventData) => {
+      if (!initialData?.id) throw new Error("No event ID to update");
+      
+      console.log("Updating event with email reminder data:", { 
+        emailReminderEnabled, 
+        reminderAt,
+        ...eventData 
+      });
+      
+      // Update the event
+      const { data, error } = await supabase
+        .from('events')
+        .update({
+          ...eventData,
+          email_reminder_enabled: emailReminderEnabled,
+          reminder_at: reminderAt || null
+        })
+        .eq('id', initialData.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update email reminder scheduling
+      if (emailReminderEnabled && reminderAt) {
+        await scheduleEventReminder(initialData.id, reminderAt, eventData);
+      } else {
+        // Cancel existing reminder if disabled
+        await cancelEventReminder(initialData.id);
+      }
+      
+      return data;
+    },
+    deleteEvent: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
+      try {
+        const { error } = await supabase
+          .from('events')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', id);
+
+        if (error) throw error;
+
+        return { success: true };
+      } catch (error) {
+        console.error('Error deleting event:', error);
+        throw error;
+      }
+    }
+  });
+
   useEffect(() => {
     if (initialData) {
       // Editing existing event
@@ -330,9 +345,7 @@ export const EventDialog = ({
         is_recurring: isRecurring,
         repeat_pattern: isRecurring ? repeatPattern : null,
         repeat_until: (isRecurring && repeatUntil) ? repeatUntil : null,
-        language: language,
-        email_reminder_enabled: emailReminderEnabled,
-        reminder_at: reminderAt || null
+        language: language
       };
 
       let result;
