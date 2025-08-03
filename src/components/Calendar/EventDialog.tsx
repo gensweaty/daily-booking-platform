@@ -203,7 +203,7 @@ export const EventDialog = ({
         paymentAmount: person.paymentAmount
       }));
 
-      // Use the save_event_with_persons RPC function
+      // Use the save_event_with_persons RPC function with correct parameter names
       const { data: savedEventId, error: saveError } = await supabase.rpc('save_event_with_persons', {
         p_event_id: initialData?.id || null,
         p_user_id: currentUser.data.user.id,
