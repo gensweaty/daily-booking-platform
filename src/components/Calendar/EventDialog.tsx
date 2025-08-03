@@ -210,7 +210,6 @@ export const EventDialog = ({
         repeat_pattern: repeatPattern,
         repeat_until: repeatUntil,
         files: files as any, // Type assertion to handle the File[] vs expected type mismatch
-        additionalPersons,
         reminder_time: reminderEnabled && reminderTime ? reminderTime.toISOString() : null,
       };
 

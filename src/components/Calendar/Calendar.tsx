@@ -341,7 +341,7 @@ export const Calendar = ({
               selectedDate={new Date(selectedEvent.start_date)}
               initialData={selectedEvent}
               onUpdate={handleUpdateEvent}
-              onDelete={handleDeleteEvent}
+              onDelete={({ id, deleteChoice }) => handleDeleteEvent(deleteChoice)}
               onEventUpdated={handleEventUpdated}
               onEventDeleted={handleEventDeleted}
             />
