@@ -31,9 +31,12 @@ export default function Index() {
     setActiveSection(section as "tasks" | "calendar");
   };
 
+  // Extract username from email if no display name is available
+  const username = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+
   return (
     <div className="min-h-screen bg-background">
-      <DashboardHeader />
+      <DashboardHeader username={username} />
       
       <DashboardContent 
         activeSection={activeSection}
