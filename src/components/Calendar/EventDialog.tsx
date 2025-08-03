@@ -96,24 +96,8 @@ export const EventDialog = ({
       setUserNumber(initialData.user_number || "");
       setSocialNetworkLink(initialData.social_network_link || "");
       setEventNotes(initialData.event_notes || "");
-      
-      // Fix date synchronization - properly format datetime-local values
-      if (initialData.start_date) {
-        const startDate = new Date(initialData.start_date);
-        const formattedStart = new Date(startDate.getTime() - startDate.getTimezoneOffset() * 60000)
-          .toISOString()
-          .slice(0, 16);
-        setStartDate(formattedStart);
-      }
-      
-      if (initialData.end_date) {
-        const endDate = new Date(initialData.end_date);
-        const formattedEnd = new Date(endDate.getTime() - endDate.getTimezoneOffset() * 60000)
-          .toISOString()
-          .slice(0, 16);
-        setEndDate(formattedEnd);
-      }
-      
+      setStartDate(initialData.start_date);
+      setEndDate(initialData.end_date);
       setPaymentStatus(initialData.payment_status || "not_paid");
       setPaymentAmount(initialData.payment_amount?.toString() || "");
       setIsRecurring(!!initialData.recurring_pattern || !!initialData.is_recurring);
@@ -122,7 +106,7 @@ export const EventDialog = ({
       setAdditionalPersons(initialData.additional_persons || []);
       setEventName(initialData.title || "");
       
-      // Fix reminder fields synchronization - show existing reminder data
+      // Populate reminder fields
       setReminderAt(initialData.reminder_at || '');
       setEmailReminderEnabled(initialData.email_reminder_enabled || false);
       
@@ -219,7 +203,7 @@ export const EventDialog = ({
         paymentAmount: person.paymentAmount
       }));
 
-      // Prepare event data object with proper field names for the RPC function
+      // Prepare event data object
       const eventData = {
         title: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
         user_surname: userSurname.trim(),
@@ -259,41 +243,16 @@ export const EventDialog = ({
         // File upload logic would go here if needed
       }
 
-      // If this is a new event and we have a valid email, send booking approval email with proper data
+      // If this is a new event and we have a valid email, potentially send booking approval email
       if (!initialData && socialNetworkLink.trim() && socialNetworkLink.includes('@')) {
-        console.log("[EventDialog] Triggering booking approval email with event data...");
-        
-        // Get business profile data for address
-        let businessAddress = "Address to be confirmed";
-        try {
-          const { data: businessProfile } = await supabase
-            .from('business_profiles')
-            .select('contact_address')
-            .eq('user_id', currentUser.data.user.id)
-            .single();
-          
-          if (businessProfile?.contact_address) {
-            businessAddress = businessProfile.contact_address;
-          }
-        } catch (error) {
-          console.log("[EventDialog] No business profile found, using default address");
-        }
+        console.log("[EventDialog] Triggering booking approval email...");
         
         try {
           const { error: emailError } = await supabase.functions.invoke('send-booking-approval-email', {
             body: { 
               eventId: savedEventId,
               recipientEmail: socialNetworkLink.trim(),
-              language: language,
-              // Pass event details to ensure they're included in the email
-              fullName: userSurname.trim(),
-              eventTitle: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
-              startDate: startDate,
-              endDate: endDate,
-              eventNotes: eventNotes.trim(),
-              paymentStatus: paymentStatus,
-              paymentAmount: showPaymentAmount ? parseFloat(paymentAmount) || null : null,
-              businessAddress: businessAddress
+              language: language 
             }
           });
 
