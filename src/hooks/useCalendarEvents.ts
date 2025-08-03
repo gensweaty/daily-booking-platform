@@ -197,7 +197,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           type: eventData.type || 'event',
           is_recurring: eventData.is_recurring || false,
           repeat_pattern: eventData.repeat_pattern,
-          repeat_until: eventData.repeat_until
+          repeat_until: eventData.repeat_until,
+          // Add reminder fields - NEW
+          reminder_at: eventData.reminder_at,
+          email_reminder_enabled: eventData.email_reminder_enabled || false
         },
         p_additional_persons: [],
         p_user_id: user.id,
@@ -216,6 +219,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         user_id: user.id,
         type: eventData.type || 'event',
         created_at: new Date().toISOString(),
+        // Include reminder fields in response - NEW
+        reminder_at: eventData.reminder_at,
+        email_reminder_enabled: eventData.email_reminder_enabled || false,
         ...eventData
       } as CalendarEventType;
     },
@@ -289,7 +295,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             type: eventData.type || 'event',
             is_recurring: eventData.is_recurring || false,
             repeat_pattern: eventData.repeat_pattern,
-            repeat_until: eventData.repeat_until
+            repeat_until: eventData.repeat_until,
+            // Add reminder fields - NEW
+            reminder_at: eventData.reminder_at,
+            email_reminder_enabled: eventData.email_reminder_enabled || false
           },
           p_additional_persons: [],
           p_user_id: user.id,
@@ -308,6 +317,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           user_id: user.id,
           type: eventData.type || 'event',
           created_at: eventData.created_at || new Date().toISOString(),
+          // Include reminder fields in response - NEW
+          reminder_at: eventData.reminder_at,
+          email_reminder_enabled: eventData.email_reminder_enabled || false,
           ...eventData
         } as CalendarEventType;
       }

@@ -31,10 +31,14 @@ export const useEventDialog = ({
         user_surname: data.user_surname || data.title,
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
         checkAvailability: false,
-        language: data.language || language || 'en'
+        language: data.language || language || 'en',
+        // Include reminder fields - NEW
+        reminder_at: data.reminder_at && data.reminder_at.trim() !== '' ? data.reminder_at : undefined,
+        email_reminder_enabled: data.email_reminder_enabled && data.reminder_at ? data.email_reminder_enabled : false
       };
       
       console.log("Creating event with language:", eventData.language);
+      console.log("Creating event with reminder:", eventData.reminder_at, eventData.email_reminder_enabled);
       
       if (!createEvent) throw new Error("Create event function not provided");
       
@@ -68,10 +72,14 @@ export const useEventDialog = ({
         title: data.user_surname || data.title || selectedEvent.title,
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
-        language: data.language || selectedEvent.language || language || 'en'
+        language: data.language || selectedEvent.language || language || 'en',
+        // Include reminder fields - NEW
+        reminder_at: data.reminder_at && data.reminder_at.trim() !== '' ? data.reminder_at : undefined,
+        email_reminder_enabled: data.email_reminder_enabled && data.reminder_at ? data.email_reminder_enabled : false
       };
       
       console.log("Updating event with language:", eventData.language);
+      console.log("Updating event with reminder:", eventData.reminder_at, eventData.email_reminder_enabled);
       console.log("Updating event with data:", eventData);
       
       const updatedEvent = await updateEvent({
