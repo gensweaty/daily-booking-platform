@@ -25,7 +25,7 @@ export const DashboardContent = ({ activeSection, setActiveSection }: DashboardC
         return (
           <>
             <TaskList />
-            <AddTaskForm open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen} />
+            <AddTaskForm isOpen={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen} />
           </>
         );
       case "calendar":

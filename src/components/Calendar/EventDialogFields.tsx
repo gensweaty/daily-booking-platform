@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -431,13 +430,24 @@ export const EventDialogFields = ({
             <p className="text-sm text-muted-foreground">
               <LanguageText>Existing files:</LanguageText>
             </p>
-            {existingFiles.map((file) => (
-              <SimpleFileDisplay
-                key={file.id}
-                filename={file.filename}
-                onDelete={() => handleDeleteExistingFile(file.id, file.file_path)}
-              />
-            ))}
+            <SimpleFileDisplay
+              files={existingFiles.map(file => ({
+                id: file.id,
+                filename: file.filename,
+                file_path: file.file_path,
+                content_type: file.content_type,
+                size: file.size
+              }))}
+              parentType="event"
+              allowDelete={true}
+              onFileDeleted={(fileId) => {
+                const file = existingFiles.find(f => f.id === fileId);
+                if (file) {
+                  handleDeleteExistingFile(fileId, file.file_path);
+                }
+              }}
+              parentId={eventId}
+            />
           </div>
         )}
 
@@ -446,13 +456,18 @@ export const EventDialogFields = ({
             <p className="text-sm text-muted-foreground">
               <LanguageText>New files to upload:</LanguageText>
             </p>
-            {files.map((file, index) => (
-              <SimpleFileDisplay
-                key={index}
-                filename={file.name}
-                onDelete={() => handleRemoveFile(index)}
-              />
-            ))}
+            <SimpleFileDisplay
+              files={files.map((file, index) => ({
+                id: index.toString(),
+                filename: file.name,
+                file_path: '',
+                content_type: file.type,
+                size: file.size
+              }))}
+              parentType="event"
+              allowDelete={true}
+              onFileDeleted={(fileId) => handleRemoveFile(parseInt(fileId))}
+            />
           </div>
         )}
 

@@ -54,8 +54,6 @@ export default function Index() {
       
       <div className="min-h-screen bg-background">
         <DashboardHeader 
-          showNav={showNav}
-          setShowNav={setShowNav}
           activeSection={activeSection}
           setActiveSection={handleSectionChange}
         />
