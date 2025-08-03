@@ -305,7 +305,7 @@ BEGIN
 END;
 $function$;
 
--- ✅ FIX: Create the correct cron job to invoke event reminders every minute
+-- ✅ FIX: Create the correct cron job to invoke event reminders every 2 minutes
 DO $$
 BEGIN
   -- First, try to unschedule any existing event reminder jobs
@@ -319,21 +319,21 @@ BEGIN
       RAISE NOTICE 'Could not unschedule existing job (may not exist): %', SQLERRM;
   END;
 
-  -- Create the new cron job to call the event reminder function every minute
+  -- Create the new cron job to call the event reminder function every 2 minutes
   BEGIN
     PERFORM cron.schedule(
       'send-event-reminders',
-      '* * * * *', -- Every minute
+      '*/2 * * * *', -- Every 2 minutes
       $$
       SELECT
         net.http_post(
           url:='https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-event-reminder-email',
-          headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ydWVxcGZmemF1dmR4bXV3aGZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM0OTU5MTgsImV4cCI6MjA0OTA3MTkxOH0.tntt0C1AgzJN-x3XrmIKb4j9iow8m4DZq3imEhJt9-0"}'::jsonb,
+          headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ydWVxcGZmemF1dmR4bXV3aGZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczMzQ5NTkxOCwiZXhwIjoyMDQ5MDcxOTE4fQ.Uo1pBw01cBZqrOvRdFMtlpGcPMuaJ4OWNV6mO-Fhxjk"}'::jsonb,
           body:='{"trigger": "cron", "timestamp": "'||NOW()||'"}'::jsonb
         ) as request_id;
       $$
     );
-    RAISE NOTICE 'Successfully created cron job for event reminders';
+    RAISE NOTICE 'Successfully created cron job for event reminders (every 2 minutes)';
   EXCEPTION
     WHEN undefined_function THEN
       RAISE NOTICE 'pg_cron extension is not available. Please enable pg_cron extension in your Supabase dashboard under Database > Extensions.';
@@ -353,10 +353,52 @@ DECLARE
 BEGIN
   SELECT net.http_post(
     url:='https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-event-reminder-email',
-    headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ydWVxcGZmemF1dmR4bXV3aGZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM0OTU5MTgsImV4cCI6MjA0OTA3MTkxOH0.tntt0C1AgzJN-x3XrmIKb4j9iow8m4DZq3imEhJt9-0"}'::jsonb,
+    headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ydWVxcGZmemF1dmR4bXV3aGZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczMzQ5NTkxOCwiZXhwIjoyMDQ5MDcxOTE4fQ.Uo1pBw01cBZqrOvRdFMtlpGcPMuaJ4OWNV6mO-Fhxjk"}'::jsonb,
     body:='{"trigger": "manual_test", "timestamp": "'||NOW()||'"}'::jsonb
   ) INTO v_result;
   
   RETURN v_result;
+END;
+$function$;
+
+-- Add a debug function to check events ready for reminders
+CREATE OR REPLACE FUNCTION public.debug_check_reminder_events()
+RETURNS TABLE(
+  event_id uuid,
+  event_title text,
+  reminder_at timestamptz,
+  email_reminder_enabled boolean,
+  reminder_sent_at timestamptz,
+  time_until_reminder text,
+  is_due boolean
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $function$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    e.id,
+    e.title,
+    e.reminder_at,
+    e.email_reminder_enabled,
+    e.reminder_sent_at,
+    CASE 
+      WHEN e.reminder_at IS NOT NULL THEN
+        CASE 
+          WHEN e.reminder_at <= NOW() THEN 'OVERDUE by ' || EXTRACT(EPOCH FROM (NOW() - e.reminder_at))/60 || ' minutes'
+          ELSE 'Due in ' || EXTRACT(EPOCH FROM (e.reminder_at - NOW()))/60 || ' minutes'
+        END
+      ELSE 'No reminder set'
+    END as time_until_reminder,
+    (e.reminder_at IS NOT NULL AND 
+     e.email_reminder_enabled = true AND 
+     e.reminder_sent_at IS NULL AND 
+     e.deleted_at IS NULL AND
+     e.reminder_at <= NOW()) as is_due
+  FROM events e
+  WHERE e.reminder_at IS NOT NULL
+  AND e.deleted_at IS NULL
+  ORDER BY e.reminder_at ASC;
 END;
 $function$;
