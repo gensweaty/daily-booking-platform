@@ -11,11 +11,11 @@ import { CalendarEventType, CalendarViewType } from '@/lib/types/calendar';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, startOfDay, endOfDay } from 'date-fns';
 
 interface CalendarProps {
   businessId?: string;
   businessUserId?: string;
-  defaultView?: CalendarViewType;
   currentView?: CalendarViewType;
   onViewChange?: (view: CalendarViewType) => void;
   isExternalCalendar?: boolean;
@@ -27,7 +27,6 @@ interface CalendarProps {
 export const Calendar = ({ 
   businessId, 
   businessUserId,
-  defaultView = 'month',
   currentView,
   onViewChange,
   isExternalCalendar = false,
@@ -40,7 +39,7 @@ export const Calendar = ({
   const { t } = useLanguage();
   
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewType, setViewType] = useState<CalendarViewType>(currentView || defaultView);
+  const [viewType, setViewType] = useState<CalendarViewType>(currentView || 'month');
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [dialogSelectedDate, setDialogSelectedDate] = useState<Date | undefined>(undefined);
@@ -63,6 +62,25 @@ export const Calendar = ({
       setViewType(currentView);
     }
   }, [currentView, viewType]);
+
+  // Generate days array based on current view
+  const getDaysForView = () => {
+    if (viewType === 'month') {
+      const monthStart = startOfMonth(currentDate);
+      const monthEnd = endOfMonth(currentDate);
+      const calendarStart = startOfWeek(monthStart);
+      const calendarEnd = endOfWeek(monthEnd);
+      return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+    } else if (viewType === 'week') {
+      const weekStart = startOfWeek(currentDate);
+      const weekEnd = endOfWeek(currentDate);
+      return eachDayOfInterval({ start: weekStart, end: weekEnd });
+    } else { // day view
+      return [currentDate];
+    }
+  };
+
+  const days = getDaysForView();
 
   const handleViewChange = (newView: CalendarViewType) => {
     setViewType(newView);
@@ -307,11 +325,13 @@ export const Calendar = ({
 
       <div className="flex-1 min-h-0">
         <CalendarGrid
+          days={days}
           events={events}
-          selectedDate={currentDate}
+          formattedSelectedDate={currentDate.toISOString().split('T')[0]}
           view={viewType}
+          onDayClick={handleDateSelect}
           onEventClick={handleEventClick}
-          onDateSelect={handleDateSelect}
+          isExternalCalendar={isExternalCalendar}
         />
       </div>
 
