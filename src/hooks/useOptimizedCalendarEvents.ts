@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -49,7 +50,7 @@ export const useOptimizedCalendarEvents = () => {
     },
     enabled: !!user?.id,
     staleTime: 30000, // 30 seconds
-    cacheTime: 300000, // 5 minutes
+    gcTime: 300000, // 5 minutes (replaced cacheTime)
   });
 
   return {

@@ -141,7 +141,7 @@ export const EventDialog = ({
       const uploadedFiles = await response.json();
       setExistingFiles([...existingFiles, ...uploadedFiles]);
       setFiles([]); // Clear the selected files after successful upload
-      queryClient.invalidateQueries(['eventFiles', eventId]);
+      queryClient.invalidateQueries({ queryKey: ['eventFiles', eventId] });
     } catch (error) {
       console.error('Error uploading files:', error);
     }
@@ -248,9 +248,6 @@ export const EventDialog = ({
             isNewEvent={!selectedEvent}
             additionalPersons={additionalPersons}
             setAdditionalPersons={setAdditionalPersons}
-            
-            // Add reminder props - but don't expose them in EventDialogFields yet
-            // The reminder functionality is handled internally in EventDialogFields
           />
           
           <DialogFooter>

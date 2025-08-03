@@ -1,5 +1,22 @@
+
 import { supabase } from '@/lib/supabase';
 import { CalendarEventType } from '@/lib/types/calendar';
+
+// Add cache management
+let cacheInvalidationSignal = 0;
+
+export const clearCalendarCache = () => {
+  cacheInvalidationSignal++;
+  console.log('[calendarService] Cache cleared, signal:', cacheInvalidationSignal);
+  
+  // Broadcast cache invalidation across components
+  window.dispatchEvent(new CustomEvent('calendar-cache-invalidated', {
+    detail: { signal: cacheInvalidationSignal, timestamp: Date.now() }
+  }));
+  
+  // Cross-tab synchronization
+  localStorage.setItem('calendar_invalidation_signal', cacheInvalidationSignal.toString());
+};
 
 export const fetchEvents = async (userId: string): Promise<CalendarEventType[]> => {
   const { data, error } = await supabase
@@ -56,7 +73,7 @@ export const fetchEvents = async (userId: string): Promise<CalendarEventType[]> 
     parent_event_id: event.parent_event_id,
     language: event.language,
     reminder_at: event.reminder_at,
-    email_reminder_enabled: false, // Default value since column doesn't exist
+    email_reminder_enabled: false, // Default value since column doesn't exist in database
     created_at: event.created_at,
     updated_at: event.updated_at || event.created_at,
     deleted_at: event.deleted_at,
@@ -137,4 +154,79 @@ export const deleteRecurringEvent = async ({ id, deleteChoice }: { id: string; d
     // Just delete the single event
     return deleteEvent(id);
   }
+};
+
+// Enhanced unified calendar service functions
+export const getUnifiedCalendarEvents = async (businessId?: string, userId?: string) => {
+  const events: CalendarEventType[] = [];
+  const bookings: CalendarEventType[] = [];
+  
+  if (userId) {
+    try {
+      const eventsData = await fetchEvents(userId);
+      events.push(...eventsData);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+    }
+  }
+  
+  if (businessId) {
+    try {
+      const { data: bookingData, error } = await supabase
+        .from('booking_requests')
+        .select('*')
+        .eq('business_id', businessId)
+        .eq('status', 'approved');
+      
+      if (error) throw error;
+      
+      bookings.push(...(bookingData || []).map(booking => ({
+        id: booking.id,
+        title: booking.requester_name || booking.title || 'Booking',
+        start_date: booking.start_date,
+        end_date: booking.end_date,
+        user_surname: booking.requester_name,
+        user_number: booking.requester_phone,
+        social_network_link: booking.requester_email,
+        event_notes: booking.description,
+        payment_status: booking.payment_status,
+        payment_amount: booking.payment_amount,
+        type: 'booking_request',
+        created_at: booking.created_at,
+        updated_at: booking.updated_at,
+        reminder_at: undefined,
+        email_reminder_enabled: false,
+      } as CalendarEventType)));
+    } catch (error) {
+      console.error('Error fetching approved bookings:', error);
+    }
+  }
+  
+  return { events, bookings };
+};
+
+export const deleteCalendarEvent = async (id: string, eventType: 'event' | 'booking_request', userId: string) => {
+  if (eventType === 'booking_request') {
+    const { error } = await supabase
+      .from('booking_requests')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+    
+    if (error) throw error;
+  }
+  
+  clearCalendarCache();
+  
+  // Signal cross-tab deletion
+  localStorage.setItem('calendar_event_deleted', JSON.stringify({ id, timestamp: Date.now() }));
+  
+  return { success: true };
 };
