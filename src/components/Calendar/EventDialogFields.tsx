@@ -1,9 +1,11 @@
+
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { FileUploadField } from "@/components/shared/FileUploadField";
 import { SimpleFileDisplay } from "@/components/shared/SimpleFileDisplay";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -51,6 +53,8 @@ interface EventDialogFieldsProps {
     file_path: string;
     content_type?: string;
     size?: number;
+    created_at?: string;
+    user_id?: string;
   }>;
   setExistingFiles: (files: Array<{
     id: string;
@@ -58,6 +62,8 @@ interface EventDialogFieldsProps {
     file_path: string;
     content_type?: string;
     size?: number;
+    created_at?: string;
+    user_id?: string;
   }>) => void;
   eventId?: string;
   isBookingRequest?: boolean;
@@ -156,6 +162,12 @@ export const EventDialogFields = ({
         person.id === id ? { ...person, [field]: value } : person
       )
     );
+  };
+
+  const handleFileChange = (file: File | null) => {
+    if (file) {
+      setFiles([...files, file]);
+    }
   };
 
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
@@ -445,7 +457,7 @@ export const EventDialogFields = ({
       )}
 
       <FileUploadField
-        onChange={setFiles}
+        onChange={handleFileChange}
         acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
       />
     </div>
