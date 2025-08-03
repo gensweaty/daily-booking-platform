@@ -35,15 +35,6 @@ export const CalendarGrid = ({
   isExternalCalendar = false,
   theme,
 }: CalendarGridProps) => {
-  // Safety check for days array
-  if (!days || days.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading calendar...</div>
-      </div>
-    );
-  }
-
   const startDate = startOfWeek(days[0]);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const isDarkTheme = theme === "dark";

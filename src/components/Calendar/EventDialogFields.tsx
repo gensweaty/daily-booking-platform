@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,7 +20,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getRepeatOptions } from "@/lib/recurringEvents";
-import { TaskDateTimePicker } from "@/components/tasks/TaskDateTimePicker";
 
 // Define interface for person data
 interface PersonData {
@@ -131,12 +131,6 @@ export const EventDialogFields = ({
   const [loading, setLoading] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isRepeatUntilPickerOpen, setIsRepeatUntilPickerOpen] = useState(false);
-  
-  // Add reminder state management
-  const [reminderEnabled, setReminderEnabled] = useState(false);
-  const [reminderTime, setReminderTime] = useState<string | undefined>(undefined);
-  const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
-  
   const isGeorgian = language === 'ka';
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
@@ -515,20 +509,6 @@ export const EventDialogFields = ({
               <Repeat className="h-4 w-4" />
               {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორება</GeorgianAuthText> : <LanguageText>Make this event recurring</LanguageText>}
             </Label>
-            
-            <Checkbox
-              id="reminderEnabled"
-              checked={reminderEnabled}
-              onCheckedChange={(checked) => setReminderEnabled(!!checked)}
-              className="ml-4"
-            />
-            <Label 
-              htmlFor="reminderEnabled" 
-              className={cn("flex items-center gap-2", isGeorgian ? "font-georgian" : "")}
-              style={georgianStyle}
-            >
-              <LanguageText>{t("events.setReminder")}</LanguageText>
-            </Label>
           </div>
           
           {isRecurring && (
@@ -603,28 +583,6 @@ export const EventDialogFields = ({
               )}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Reminder Time Picker - Show when reminder is enabled */}
-      {reminderEnabled && (
-        <div>
-          <Label 
-            className={cn(isGeorgian ? "font-georgian" : "")}
-            style={georgianStyle}
-          >
-            <LanguageText>Reminder Time</LanguageText>
-          </Label>
-          <TaskDateTimePicker
-            label="Reminder"
-            value={reminderTime}
-            onChange={setReminderTime}
-            placeholder="Set reminder time"
-            type="reminder"
-            deadlineValue={endDate}
-            emailReminder={emailReminderEnabled}
-            onEmailReminderChange={setEmailReminderEnabled}
-          />
         </div>
       )}
 

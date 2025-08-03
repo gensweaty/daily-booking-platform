@@ -3,7 +3,7 @@ import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { supabase } from "@/lib/supabase";
+import { isVirtualInstance } from "@/lib/recurringEvents";
 
 interface UseEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
@@ -31,42 +31,15 @@ export const useEventDialog = ({
         user_surname: data.user_surname || data.title,
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
         checkAvailability: false,
-        language: data.language || language || 'en',
-        // Include reminder fields
-        reminder_at: data.reminder_at,
-        email_reminder_enabled: data.email_reminder_enabled || false
+        language: data.language || language || 'en'
       };
       
       console.log("Creating event with language:", eventData.language);
-      console.log("Creating event with reminder:", eventData.reminder_at, eventData.email_reminder_enabled);
       
       if (!createEvent) throw new Error("Create event function not provided");
       
+      console.log("Creating event with data:", eventData);
       const createdEvent = await createEvent(eventData);
-      
-      // Handle reminder email if enabled
-      if (createdEvent.email_reminder_enabled && createdEvent.reminder_at) {
-        try {
-          console.log("Sending event reminder email for:", createdEvent.id);
-          
-          const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-event-reminder-email', {
-            body: { eventId: createdEvent.id }
-          });
-
-          if (emailError) {
-            console.error("❌ Error sending event reminder email:", emailError);
-            toast({
-              title: "Warning",
-              description: "Event created but reminder email failed to send",
-              variant: "default",
-            });
-          } else {
-            console.log("✅ Event reminder email sent successfully:", emailResult);
-          }
-        } catch (emailError) {
-          console.error("❌ Failed to send event reminder email:", emailError);
-        }
-      }
       
       setIsNewEventDialogOpen(false);
       console.log("Event created successfully:", createdEvent);
@@ -95,43 +68,16 @@ export const useEventDialog = ({
         title: data.user_surname || data.title || selectedEvent.title,
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
-        language: data.language || selectedEvent.language || language || 'en',
-        // Include reminder fields
-        reminder_at: data.reminder_at,
-        email_reminder_enabled: data.email_reminder_enabled || false
+        language: data.language || selectedEvent.language || language || 'en'
       };
       
       console.log("Updating event with language:", eventData.language);
-      console.log("Updating event with reminder:", eventData.reminder_at, eventData.email_reminder_enabled);
+      console.log("Updating event with data:", eventData);
       
       const updatedEvent = await updateEvent({
         ...eventData,
         id: selectedEvent.id,
       });
-      
-      // Handle reminder email if enabled
-      if (updatedEvent.email_reminder_enabled && updatedEvent.reminder_at) {
-        try {
-          console.log("Sending event reminder email for updated event:", updatedEvent.id);
-          
-          const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-event-reminder-email', {
-            body: { eventId: updatedEvent.id }
-          });
-
-          if (emailError) {
-            console.error("❌ Error sending event reminder email:", emailError);
-            toast({
-              title: "Warning",
-              description: "Event updated but reminder email failed to send",
-              variant: "default",
-            });
-          } else {
-            console.log("✅ Event reminder email sent successfully:", emailResult);
-          }
-        } catch (emailError) {
-          console.error("❌ Failed to send event reminder email:", emailError);
-        }
-      }
       
       setSelectedEvent(null);
       console.log("Event updated successfully:", updatedEvent);

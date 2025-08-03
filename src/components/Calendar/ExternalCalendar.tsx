@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Calendar } from "./Calendar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -314,6 +315,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           )}
           
           <Calendar 
+            defaultView={view}
             currentView={view}
             onViewChange={setView}
             isExternalCalendar={true}
