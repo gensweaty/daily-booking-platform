@@ -6,8 +6,14 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { isVirtualInstance } from "@/lib/recurringEvents";
 
 interface UseEventDialogProps {
-  createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
-  updateEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
+  createEvent?: (data: Partial<CalendarEventType> & {
+    email_reminder_enabled?: boolean;
+    reminder_at?: string | null;
+  }) => Promise<CalendarEventType>;
+  updateEvent?: (data: Partial<CalendarEventType> & {
+    email_reminder_enabled?: boolean;
+    reminder_at?: string | null;
+  }) => Promise<CalendarEventType>;
   deleteEvent?: ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => Promise<{ success: boolean; }>;
 }
 
@@ -22,7 +28,10 @@ export const useEventDialog = ({
   const { toast } = useToast();
   const { language } = useLanguage();
 
-  const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
+  const handleCreateEvent = async (data: Partial<CalendarEventType> & {
+    email_reminder_enabled?: boolean;
+    reminder_at?: string | null;
+  }) => {
     try {
       const eventData = {
         ...data,
@@ -32,7 +41,6 @@ export const useEventDialog = ({
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
         checkAvailability: false,
         language: data.language || language || 'en',
-        // Include email reminder fields
         email_reminder_enabled: data.email_reminder_enabled || false,
         reminder_at: data.reminder_at || null
       };
@@ -63,7 +71,10 @@ export const useEventDialog = ({
     }
   };
 
-  const handleUpdateEvent = async (data: Partial<CalendarEventType>) => {
+  const handleUpdateEvent = async (data: Partial<CalendarEventType> & {
+    email_reminder_enabled?: boolean;
+    reminder_at?: string | null;
+  }) => {
     try {
       if (!updateEvent || !selectedEvent) {
         throw new Error("Update event function not provided or no event selected");
@@ -76,7 +87,6 @@ export const useEventDialog = ({
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
         language: data.language || selectedEvent.language || language || 'en',
-        // Include email reminder fields
         email_reminder_enabled: data.email_reminder_enabled !== undefined ? data.email_reminder_enabled : selectedEvent.email_reminder_enabled || false,
         reminder_at: data.reminder_at !== undefined ? data.reminder_at : selectedEvent.reminder_at || null
       };

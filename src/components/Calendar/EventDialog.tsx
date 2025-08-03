@@ -58,8 +58,6 @@ export const EventDialog = ({
   const [repeatUntil, setRepeatUntil] = useState("");
   const [showRecurringDeleteDialog, setShowRecurringDeleteDialog] = useState(false);
   const [additionalPersons, setAdditionalPersons] = useState<any[]>([]);
-  
-  // Add email reminder state
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
   const [reminderAt, setReminderAt] = useState("");
 
