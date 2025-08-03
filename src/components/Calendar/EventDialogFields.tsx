@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -15,8 +16,10 @@ interface EventDialogFieldsProps {
   onFileChange: (file: File | null) => void;
 }
 
-export const EventDialogFields = ({ event, onEventChange, onFileChange }: EventDialogFieldsProps) => {
+export const EventDialogFields = ({ event = {}, onEventChange, onFileChange }: EventDialogFieldsProps) => {
   const { t } = useLanguage();
+  
+  console.log('EventDialogFields received props:', { event, onEventChange, onFileChange });
   
   const [startDateTime, setStartDateTime] = useState("");
   const [endDateTime, setEndDateTime] = useState("");
@@ -185,8 +188,6 @@ export const EventDialogFields = ({ event, onEventChange, onFileChange }: EventD
         <div className="col-span-3">
           <FileUploadField
             onFileChange={onFileChange}
-            accept="image/*,.pdf,.doc,.docx"
-            maxSize={10 * 1024 * 1024}
           />
         </div>
       </div>
