@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -249,7 +248,7 @@ export const EventDialog = ({
       };
 
       let result;
-      if (initialData) {
+      if (initialData?.id) {
         // For updates, we need to update the database directly to include email reminder fields
         console.log("Updating event with email reminder data:", { 
           emailReminderEnabled, 
