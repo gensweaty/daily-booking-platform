@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { associateBookingFilesWithEvent } from '@/integrations/supabase/client';
+import { FileRecord } from '@/types/files';
 
 interface PersonData {
   id: string;
