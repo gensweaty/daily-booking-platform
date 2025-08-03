@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar as CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
@@ -306,4 +305,6 @@ export function CalendarPage() {
   );
 }
 
+// Export both named and default exports for compatibility
+export { CalendarPage as Calendar };
 export default CalendarPage;
