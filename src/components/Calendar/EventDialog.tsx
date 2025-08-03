@@ -95,7 +95,7 @@ export const EventDialog = ({
       setSocialNetworkLink(initialData.social_network_link || "");
       setEventNotes(initialData.event_notes || "");
       
-      // ✅ FIX: Use simple slice to avoid timezone double conversion
+      // ✅ FIX: Use simple slice to avoid timezone double conversion - no manual offset calculation
       if (initialData.start_date) {
         const formattedStart = initialData.start_date.slice(0, 16);
         setStartDate(formattedStart);
@@ -116,7 +116,7 @@ export const EventDialog = ({
       setAdditionalPersons(initialData.additional_persons || []);
       setEventName(initialData.title || "");
       
-      // ✅ FIX: Proper reminder data loading with slice method
+      // ✅ FIX: Set reminder data using slice method to avoid timezone issues
       console.log('[EventDialog] 🔍 Loading reminder data from initialData:', {
         reminder_at: initialData.reminder_at,
         email_reminder_enabled: initialData.email_reminder_enabled,
@@ -266,7 +266,7 @@ export const EventDialog = ({
         paymentAmount: person.paymentAmount
       }));
 
-      // ✅ FIX: Convert local datetime-local values to UTC ISO strings properly
+      // ✅ FIX: Convert datetime-local values to UTC ISO strings properly without double conversion
       const startDateUTC = new Date(startDate).toISOString();
       const endDateUTC = new Date(endDate).toISOString();
       const reminderAtUTC = emailReminderEnabled && reminderAt ? new Date(reminderAt).toISOString() : null;
