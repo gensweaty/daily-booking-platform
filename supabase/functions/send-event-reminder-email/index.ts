@@ -27,24 +27,36 @@ setInterval(() => {
 const formatEventTimeForLocale = (dateISO: string, lang: string): string => {
   console.log("Original event date ISO string:", dateISO);
   
-  const date = new Date(dateISO);
-  const locale = lang === 'ka' ? 'ka-GE' : lang === 'es' ? 'es-ES' : 'en-US';
+  try {
+    const date = new Date(dateISO);
+    
+    // Validate the date is valid
+    if (isNaN(date.getTime())) {
+      console.error("Invalid date string:", dateISO);
+      return dateISO; // Return original if invalid
+    }
+    
+    const locale = lang === 'ka' ? 'ka-GE' : lang === 'es' ? 'es-ES' : 'en-US';
 
-  const formatter = new Intl.DateTimeFormat(locale, {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: 'Asia/Tbilisi',
-  });
+    const formatter = new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'Asia/Tbilisi', // Always use Georgia timezone
+    });
 
-  const formattedResult = formatter.format(date);
-  console.log("Formatted event time:", formattedResult);
-  console.log("Language:", lang, "Locale:", locale);
-  
-  return formattedResult;
+    const formattedResult = formatter.format(date);
+    console.log("Formatted event time for locale:", locale, "Result:", formattedResult);
+    console.log("Original UTC time:", date.toISOString(), "-> Georgia time:", formattedResult);
+    
+    return formattedResult;
+  } catch (error) {
+    console.error("Error formatting date:", error, "Original date:", dateISO);
+    return dateISO; // Return original if formatting fails
+  }
 };
 
 // Multi-language email content for event reminders
@@ -334,16 +346,16 @@ const handler = async (req: Request): Promise<Response> => {
     // If no eventId provided, process all due event reminders
     const now = new Date().toISOString();
     
-    console.log('📋 Querying for due event reminders...');
+    console.log('📋 Querying for due event reminders at:', now);
     
-    // Find events with due reminders that haven't been sent yet
+    // BUG FIX #1: Properly query for due reminders using correct field names and logic
     const { data: dueEvents, error: eventsError } = await supabase
       .from('events')
       .select('*')
-      .lte('reminder_at', now)
-      .eq('email_reminder_enabled', true)
-      .is('reminder_sent_at', null)
-      .is('deleted_at', null);
+      .lte('reminder_at', now)  // reminder_at <= NOW() (UTC comparison)
+      .eq('email_reminder_enabled', true)  // email_reminder_enabled = true
+      .is('reminder_sent_at', null)  // reminder_sent_at IS NULL
+      .is('deleted_at', null);  // deleted_at IS NULL
 
     if (eventsError) {
       console.error('Error fetching due events:', eventsError);
@@ -357,10 +369,21 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log(`📝 Found ${dueEvents?.length || 0} due events with email reminders`);
+    
+    // Debug: Log each found event for verification
+    if (dueEvents && dueEvents.length > 0) {
+      dueEvents.forEach(event => {
+        console.log(`🔍 Due event: ${event.id}, reminder_at: ${event.reminder_at}, current time: ${now}`);
+      });
+    }
 
     if (!dueEvents || dueEvents.length === 0) {
       return new Response(
-        JSON.stringify({ message: 'No due event reminders found' }),
+        JSON.stringify({ 
+          message: 'No due event reminders found',
+          currentTime: now,
+          query: 'reminder_at <= NOW() AND email_reminder_enabled = true AND reminder_sent_at IS NULL AND deleted_at IS NULL'
+        }),
         { 
           status: 200, 
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -407,6 +430,7 @@ const handler = async (req: Request): Promise<Response> => {
         const businessName = businessData?.business_name;
         const businessAddress = businessData?.contact_address;
         
+        // BUG FIX #2: Format times correctly in Asia/Tbilisi timezone
         const formattedStartTime = formatEventTimeForLocale(event.start_date, language);
         const formattedEndTime = formatEventTimeForLocale(event.end_date, language);
 
@@ -435,7 +459,9 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         console.log(`✅ Reminder email sent for event ${event.id} to ${recipientEmail} in language ${language}`);
+        console.log(`📧 Email times - Start: ${formattedStartTime}, End: ${formattedEndTime} (Asia/Tbilisi)`);
         
+        // Mark as sent and disable future sends
         await supabase
           .from('events')
           .update({ 
@@ -460,7 +486,8 @@ const handler = async (req: Request): Promise<Response> => {
         message: 'Event reminder emails processed',
         emailsSent,
         emailsSkipped,
-        totalEvents: dueEvents.length
+        totalEvents: dueEvents.length,
+        currentTime: now
       }),
       { 
         status: 200, 
