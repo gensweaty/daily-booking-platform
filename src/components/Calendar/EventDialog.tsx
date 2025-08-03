@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -181,58 +180,90 @@ export const EventDialog = ({
     setLoading(true);
     
     try {
-      const eventData: Partial<CalendarEventType> = {
-        title: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
-        user_surname: userSurname.trim(),
-        user_number: userNumber.trim(),
-        social_network_link: socialNetworkLink.trim(),
-        event_notes: eventNotes.trim(),
-        start_date: startDate,
-        end_date: endDate,
-        payment_status: paymentStatus,
-        payment_amount: showPaymentAmount ? parseFloat(paymentAmount) || 0 : null,
-        additional_persons: additionalPersons,
-        // Add reminder fields
-        reminder_at: emailReminderEnabled ? reminderAt : null,
-        email_reminder_enabled: emailReminderEnabled,
-      };
-
-      if (isRecurring && repeatPattern && repeatPattern !== 'none') {
-        eventData.recurring_pattern = repeatPattern;
-        eventData.recurring_until = repeatUntil;
-        eventData.is_recurring = true;
-        eventData.repeat_pattern = repeatPattern;
-        eventData.repeat_until = repeatUntil;
-      } else {
-        eventData.recurring_pattern = null;
-        eventData.recurring_until = null;
-        eventData.is_recurring = false;
-        eventData.repeat_pattern = null;
-        eventData.repeat_until = null;
+      const currentUser = await supabase.auth.getUser();
+      if (!currentUser.data.user) {
+        throw new Error("User not authenticated");
       }
 
-      // Handle file uploads and event saving logic here
+      console.log("[EventDialog] Saving event with reminder data:", {
+        reminderAt,
+        emailReminderEnabled,
+        startDate,
+        endDate
+      });
+
+      // Use the save_event_with_persons RPC function
+      const { data: savedEventId, error: saveError } = await supabase.rpc('save_event_with_persons', {
+        p_event_id: initialData?.id || null,
+        p_user_id: currentUser.data.user.id,
+        p_title: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
+        p_user_surname: userSurname.trim(),
+        p_user_number: userNumber.trim(),
+        p_social_network_link: socialNetworkLink.trim(),
+        p_event_notes: eventNotes.trim(),
+        p_start_date: startDate,
+        p_end_date: endDate,
+        p_payment_status: paymentStatus,
+        p_payment_amount: showPaymentAmount ? parseFloat(paymentAmount) || null : null,
+        p_language: language,
+        p_additional_persons: additionalPersons,
+        p_recurring_pattern: isRecurring && repeatPattern && repeatPattern !== 'none' ? repeatPattern : null,
+        p_recurring_until: isRecurring && repeatUntil ? repeatUntil : null,
+        p_reminder_at: emailReminderEnabled ? reminderAt : null,
+        p_email_reminder_enabled: emailReminderEnabled
+      });
+
+      if (saveError) {
+        console.error("[EventDialog] Error saving event:", saveError);
+        throw saveError;
+      }
+
+      console.log("[EventDialog] Event saved successfully with ID:", savedEventId);
+
+      // Handle file uploads if needed
       if (files.length > 0) {
-        // File upload logic would go here
+        console.log("[EventDialog] Uploading files...");
+        // File upload logic would go here if needed
       }
-      
-      // Handle event creation/update
-      if (initialData) {
-        // Update existing event
-        if (onEventUpdated) {
-          await onEventUpdated();
-        }
-      } else {
-        // Create new event
-        if (onEventCreated) {
-          await onEventCreated();
+
+      // If this is a new event and we have a valid email, potentially send booking approval email
+      if (!initialData && socialNetworkLink.trim() && socialNetworkLink.includes('@')) {
+        console.log("[EventDialog] Triggering booking approval email...");
+        
+        try {
+          const { error: emailError } = await supabase.functions.invoke('send-booking-approval-email', {
+            body: { 
+              eventId: savedEventId,
+              recipientEmail: socialNetworkLink.trim(),
+              language: language 
+            }
+          });
+
+          if (emailError) {
+            console.error("[EventDialog] Error sending booking approval email:", emailError);
+          } else {
+            console.log("[EventDialog] Booking approval email sent successfully");
+          }
+        } catch (emailError) {
+          console.error("[EventDialog] Error invoking email function:", emailError);
         }
       }
-      
+
       onOpenChange(false);
+      
+      // Call the appropriate callback
+      if (initialData) {
+        console.log("[EventDialog] Calling onEventUpdated");
+        if (onEventUpdated) await onEventUpdated();
+      } else {
+        console.log("[EventDialog] Calling onEventCreated");
+        if (onEventCreated) await onEventCreated();
+      }
+
       toast.success(initialData ? t("events.eventUpdated") : t("events.eventCreated"));
+
     } catch (error) {
-      console.error('Error saving event:', error);
+      console.error('[EventDialog] Error saving event:', error);
       toast.error(t("events.saveError"));
     } finally {
       setLoading(false);
