@@ -138,6 +138,7 @@ serve(async (req) => {
           for (const person of persons) {
             // Only add if there's a valid email
             if (person.social_network_link && person.social_network_link.includes('@')) {
+              console.log(`📧 Adding customer email to recipients: ${person.social_network_link} (${person.user_surname})`);
               recipients.push({ 
                 email: person.social_network_link, 
                 name: person.user_surname || 'Guest' 
