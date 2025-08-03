@@ -1,8 +1,9 @@
+
 import { useState } from "react";
-import { TaskList } from "@/components/tasks/TaskList";
+import { TaskList } from "@/components/TaskList";
 import { TaskCreate } from "@/components/tasks/TaskCreate";
 import { Calendar } from "@/components/Calendar/Calendar";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { DashboardHeader } from "@/components/DashboardHeader";
 import { TaskReminderNotifications } from "@/components/tasks/TaskReminderNotifications";
 import { EventReminderNotifications } from "@/components/Calendar/EventReminderNotifications";
 
@@ -12,7 +13,6 @@ export const DashboardContent = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Add EventReminderNotifications component */}
       <TaskReminderNotifications />
       <EventReminderNotifications />
       
