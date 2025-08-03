@@ -84,17 +84,35 @@ export const EventDialog = ({
 
   // Helper function to convert UTC to local datetime-local format
   const convertUTCToLocal = (utcString: string): string => {
+    if (!utcString) return '';
     console.log("[EventDialog] Converting UTC to local:", utcString);
-    const date = new Date(utcString);
-    // Create local date without timezone offset adjustment to fix the 9-10 AM bug
-    const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
-    const result = localDate.toISOString().slice(0, 16);
-    console.log("[EventDialog] Converted result:", result);
-    return result;
+    
+    try {
+      const date = new Date(utcString);
+      if (isNaN(date.getTime())) {
+        console.error("[EventDialog] Invalid date:", utcString);
+        return '';
+      }
+      
+      // Convert to local datetime-local format
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      
+      const result = `${year}-${month}-${day}T${hours}:${minutes}`;
+      console.log("[EventDialog] Converted result:", result);
+      return result;
+    } catch (error) {
+      console.error("[EventDialog] Error converting time:", error);
+      return '';
+    }
   };
 
   // Helper function to convert local datetime-local to UTC
   const convertLocalToUTC = (localString: string): string => {
+    if (!localString) return '';
     console.log("[EventDialog] Converting local to UTC:", localString);
     const date = new Date(localString);
     const result = date.toISOString();
@@ -135,11 +153,10 @@ export const EventDialog = ({
       setAdditionalPersons(initialData.additional_persons || []);
       setEventName(initialData.title || "");
       
-      // ✅ FIX: Debug logging and consistent field usage for reminders
-      console.log('[EventDialog] Loading reminder data from initialData:', {
+      // ✅ FIX: Proper reminder data loading with debugging
+      console.log('[EventDialog] 🔍 Loading reminder data from initialData:', {
         reminder_at: initialData.reminder_at,
         email_reminder_enabled: initialData.email_reminder_enabled,
-        reminder_enabled: initialData.reminder_enabled // This should not exist but check anyway
       });
       
       // Set reminder time - convert UTC to local for display
@@ -157,18 +174,10 @@ export const EventDialog = ({
         console.log('[EventDialog] No reminder time found, clearing field');
       }
       
-      // ✅ FIX: Only use email_reminder_enabled field consistently
+      // Set email reminder enabled flag
       const isEmailReminderEnabled = !!initialData.email_reminder_enabled;
       setEmailReminderEnabled(isEmailReminderEnabled);
       console.log('[EventDialog] ✅ Setting email reminder enabled to:', isEmailReminderEnabled);
-      
-      // ✅ Additional debug: Check if we have data but it's not showing
-      if (initialData.reminder_at || initialData.email_reminder_enabled) {
-        console.log('[EventDialog] 🔍 REMINDER DATA FOUND - Should be visible in UI:', {
-          reminderAt: initialData.reminder_at,
-          emailReminderEnabled: initialData.email_reminder_enabled
-        });
-      }
       
       // Fetch existing files
       const fetchExistingFiles = async () => {

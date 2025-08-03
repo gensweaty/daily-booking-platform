@@ -138,17 +138,18 @@ serve(async (req) => {
     const now = new Date().toISOString();
     console.log('⏰ Current UTC time:', now);
 
-    // ✅ FIX: Query for due reminder events with precise filtering
+    // ✅ FIXED QUERY: Find events that are due for reminder AND haven't been sent yet
     console.log('🔍 Querying for due reminder events...');
     const { data: dueEvents, error: queryError } = await supabase
       .from('events')
       .select('*')
-      .lte('reminder_at', now) // ✅ Events where reminder time has passed
-      .eq('email_reminder_enabled', true) // ✅ Only events with email reminders enabled
-      .is('reminder_sent_at', null) // ✅ Only events where reminder hasn't been sent
-      .is('deleted_at', null) // ✅ Only non-deleted events
-      .not('social_network_link', 'is', null) // ✅ Only events with email addresses
-      .ilike('social_network_link', '%@%'); // ✅ Only valid email addresses
+      .not('reminder_at', 'is', null) // Must have a reminder time set
+      .eq('email_reminder_enabled', true) // Only events with email reminders enabled
+      .is('reminder_sent_at', null) // Only events where reminder hasn't been sent
+      .is('deleted_at', null) // Only non-deleted events
+      .not('social_network_link', 'is', null) // Only events with email addresses
+      .ilike('social_network_link', '%@%') // Only valid email addresses
+      .lte('reminder_at', now); // Events where reminder time has passed
 
     if (queryError) {
       console.error('❌ Error querying due events:', queryError);
@@ -156,6 +157,16 @@ serve(async (req) => {
     }
 
     console.log(`📧 Found ${dueEvents?.length || 0} events due for reminder emails`);
+    
+    if (dueEvents && dueEvents.length > 0) {
+      console.log('🔍 Events found:', dueEvents.map(e => ({
+        id: e.id,
+        title: e.title,
+        reminder_at: e.reminder_at,
+        email: e.social_network_link,
+        email_reminder_enabled: e.email_reminder_enabled
+      })));
+    }
 
     if (!dueEvents || dueEvents.length === 0) {
       console.log('✅ No reminder emails to send at this time');
@@ -180,40 +191,9 @@ serve(async (req) => {
       try {
         console.log(`📮 Processing reminder for event: ${event.id} - ${event.title}`);
         console.log(`⏰ Event reminder was due at: ${event.reminder_at}`);
+        console.log(`📧 Sending to email: ${event.social_network_link}`);
         
-        const t = getTranslations(event.language || 'en');
-        
-        // Format event times for Georgia timezone
-        const startTimeFormatted = formatEventTimeForLocale(event.start_date, event.language || 'en');
-        const endTimeFormatted = formatEventTimeForLocale(event.end_date, event.language || 'en');
-
-        // Create email content
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2563eb;">${t.subject}</h2>
-            <p>${t.greeting} ${event.user_surname},</p>
-            <p>${t.reminderText}</p>
-            
-            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="margin-top: 0; color: #374151;">${t.eventDetails}</h3>
-              <p><strong>${event.title}</strong></p>
-              <p><strong>${t.eventTime}:</strong> ${startTimeFormatted} - ${endTimeFormatted}</p>
-              ${event.event_notes ? `<p><strong>${t.notes}:</strong> ${event.event_notes}</p>` : ''}
-            </div>
-
-            ${event.user_number || event.social_network_link ? `
-              <div style="background-color: #e5f3ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <h4 style="margin-top: 0; color: #1e40af;">${t.contactInfo}</h4>
-                ${event.user_number ? `<p><strong>${t.phone}:</strong> ${event.user_number}</p>` : ''}
-                ${event.social_network_link ? `<p><strong>${t.email}:</strong> ${event.social_network_link}</p>` : ''}
-              </div>
-            ` : ''}
-
-            <p style="color: #6b7280; font-size: 14px;">${t.footer}</p>
-          </div>
-        `;
-
-        // Send email via Resend
+        // ✅ FIXED: Call the send-booking-approval-email function with reminder flag
         const { error: emailError } = await supabase.functions.invoke('send-booking-approval-email', {
           body: {
             recipientEmail: event.social_network_link,
@@ -224,7 +204,7 @@ serve(async (req) => {
             eventNotes: event.event_notes,
             paymentStatus: event.payment_status,
             paymentAmount: event.payment_amount,
-            language: event.language,
+            language: event.language || 'en',
             source: 'event-reminder' // Special flag to indicate this is a reminder email
           }
         });
@@ -265,7 +245,13 @@ serve(async (req) => {
         emailsSent,
         errors,
         totalProcessed: dueEvents.length,
-        timestamp: now
+        timestamp: now,
+        processedEvents: dueEvents.map(e => ({
+          id: e.id,
+          title: e.title,
+          reminder_at: e.reminder_at,
+          email: e.social_network_link
+        }))
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
