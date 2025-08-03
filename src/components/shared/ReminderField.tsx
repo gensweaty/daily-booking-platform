@@ -26,7 +26,6 @@ export const ReminderField = ({
   className
 }: ReminderFieldProps) => {
   const { t, language } = useLanguage();
-  const [isReminderPickerOpen, setIsReminderPickerOpen] = useState(false);
   const isGeorgian = language === 'ka';
 
   const georgianStyle = isGeorgian ? {
@@ -38,42 +37,43 @@ export const ReminderField = ({
 
   const handleReminderToggle = (checked: boolean) => {
     setEmailReminderEnabled(checked);
-    if (checked && !reminderAt) {
-      setIsReminderPickerOpen(true);
-    }
     if (!checked) {
       setReminderAt('');
     }
   };
 
   return (
-    <div className={cn("flex items-center space-x-2", className)}>
-      <Checkbox
-        id="emailReminder"
-        checked={emailReminderEnabled}
-        onCheckedChange={handleReminderToggle}
-      />
-      <Label 
-        htmlFor="emailReminder" 
-        className={cn("flex items-center gap-2 cursor-pointer", isGeorgian ? "font-georgian" : "")}
-        style={georgianStyle}
-      >
-        <Bell className="h-4 w-4" />
-        {isGeorgian ? (
-          <GeorgianAuthText letterSpacing="-0.05px">შეხსენების ელფოსტა</GeorgianAuthText>
-        ) : (
-          t("tasks.emailReminder") || "Email Reminder"
-        )}
-      </Label>
+    <div className={cn("space-y-2", className)}>
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="emailReminder"
+          checked={emailReminderEnabled}
+          onCheckedChange={handleReminderToggle}
+        />
+        <Label 
+          htmlFor="emailReminder" 
+          className={cn("flex items-center gap-2 cursor-pointer", isGeorgian ? "font-georgian" : "")}
+          style={georgianStyle}
+        >
+          <Bell className="h-4 w-4" />
+          {isGeorgian ? (
+            <GeorgianAuthText letterSpacing="-0.05px">შეხსენების ელფოსტა</GeorgianAuthText>
+          ) : (
+            t("tasks.emailReminder") || "Email Reminder"
+          )}
+        </Label>
+      </div>
       
       {emailReminderEnabled && (
         <TaskDateTimePicker
-          date={reminderAt ? new Date(reminderAt) : undefined}
-          onDateChange={(date) => setReminderAt(date ? date.toISOString() : '')}
-          isOpen={isReminderPickerOpen}
-          onOpenChange={setIsReminderPickerOpen}
+          label="Reminder"
+          value={reminderAt || undefined}
+          onChange={(value) => setReminderAt(value || '')}
           placeholder={isGeorgian ? "შეხსენების დრო" : "Reminder time"}
-          className="ml-2"
+          type="reminder"
+          deadlineValue={startDate}
+          emailReminder={emailReminderEnabled}
+          onEmailReminderChange={setEmailReminderEnabled}
         />
       )}
     </div>
