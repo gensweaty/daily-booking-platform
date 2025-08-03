@@ -1,17 +1,13 @@
 
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import React from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Statistics } from '@/components/Statistics';
 import { NoteList } from '@/components/NoteList';
 import { TaskList } from '@/components/TaskList';
-import { Calendar } from '@/components/Calendar/Calendar';
+import { CalendarComponent } from '@/components/Calendar/Calendar';
 import { CustomerList } from '@/components/crm/CustomerList';
-import { BookingRequestsList } from '@/components/business/BookingRequestsList';
 import { BusinessPage } from '@/components/business/BusinessPage';
 import { ArchivedTasksPage } from '@/components/tasks/ArchivedTasksPage';
-import { TaskReminderNotifications } from '@/components/tasks/TaskReminderNotifications';
-import { EventReminderNotifications } from '@/components/Calendar/EventReminderNotifications';
 import { LanguageText } from '@/components/shared/LanguageText';
 import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
 
@@ -36,11 +32,21 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
       case 'tasks':
         return <TaskList />;
       case 'calendar':
-        return <Calendar />;
+        return <CalendarComponent />;
       case 'crm':
         return <CustomerList />;
       case 'booking-requests':
-        return <BookingRequestsList />;
+        return (
+          <div className="flex items-center justify-center h-64">
+            <p className="text-lg text-gray-500">
+              {isGeorgian ? (
+                <GeorgianAuthText>ბრონირების მოთხოვნები</GeorgianAuthText>
+              ) : (
+                <LanguageText>Booking Requests</LanguageText>
+              )}
+            </p>
+          </div>
+        );
       case 'business':
         return <BusinessPage />;
       case 'archived-tasks':
@@ -62,10 +68,6 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({
 
   return (
     <div className="flex-1 p-6">
-      {/* Background notification components */}
-      <TaskReminderNotifications />
-      <EventReminderNotifications />
-      
       {renderContent()}
     </div>
   );

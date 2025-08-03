@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { CalendarIcon } from 'lucide-react';
 import { format, addMonths, subMonths } from 'date-fns';
@@ -61,8 +62,26 @@ export const CalendarComponent: React.FC<Props> = () => {
     setEventDialogOpen(true);
   };
 
-  const handleEventClick = (event: CalendarEventType) => {
-    setSelectedEvent(event);
+  const handleEventClick = (event: any) => {
+    // Convert optimized event to CalendarEventType
+    const calendarEvent: CalendarEventType = {
+      id: event.id,
+      title: event.title,
+      start_date: event.start_date,
+      end_date: event.end_date,
+      type: event.type || 'event',
+      created_at: event.created_at,
+      updated_at: event.updated_at || event.created_at, // Provide fallback for updated_at
+      user_id: event.user_id || event.business_id,
+      user_surname: event.user_surname,
+      user_number: event.user_number,
+      social_network_link: event.social_network_link,
+      event_notes: event.event_notes,
+      payment_status: event.payment_status,
+      payment_amount: event.payment_amount
+    };
+    
+    setSelectedEvent(calendarEvent);
     setSelectedDate(new Date(event.start_date));
   };
 
@@ -198,3 +217,8 @@ export const CalendarComponent: React.FC<Props> = () => {
     </div>
   );
 };
+
+// Export as Calendar for backward compatibility
+export const Calendar = CalendarComponent;
+// Also export as default
+export default CalendarComponent;
