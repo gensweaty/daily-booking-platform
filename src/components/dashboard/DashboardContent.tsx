@@ -1,9 +1,9 @@
 
 import { useState } from "react";
-import { DashboardHeader } from "./DashboardHeader";
+import { DashboardHeader } from "../DashboardHeader";
 import { TaskList } from "../TaskList";
 import { Calendar } from "../Calendar/Calendar";
-import { AddTaskForm } from "../AddTaskForm";
+import AddTaskForm from "../AddTaskForm";
 import { Statistics } from "../Statistics";
 import { NoteList } from "../NoteList";
 import { ReminderList } from "../ReminderList";
