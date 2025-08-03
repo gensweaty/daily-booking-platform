@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar as CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
@@ -16,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
 
 interface Filter {
   label: string;
@@ -28,7 +30,29 @@ const defaultFilters: Filter[] = [
   { label: 'Show Events', value: 'event', checked: true },
 ];
 
-export function CalendarPage() {
+interface CalendarPageProps {
+  defaultView?: CalendarViewType;
+  currentView?: CalendarViewType;
+  onViewChange?: (view: CalendarViewType) => void;
+  isExternalCalendar?: boolean;
+  businessId?: string;
+  businessUserId?: string;
+  showAllEvents?: boolean;
+  allowBookingRequests?: boolean;
+  directEvents?: CalendarEventType[];
+}
+
+export function CalendarPage({
+  defaultView = "month",
+  currentView,
+  onViewChange,
+  isExternalCalendar = false,
+  businessId,
+  businessUserId,
+  showAllEvents = false,
+  allowBookingRequests = false,
+  directEvents
+}: CalendarPageProps) {
   const [date, setDate] = useState<Date>(new Date());
   const [isCreateEventDialogOpen, setIsCreateEventDialogOpen] = useState(false);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -39,6 +63,13 @@ export function CalendarPage() {
   const { toast } = useToast();
   const [filters, setFilters] = useState(defaultFilters);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Use directEvents if provided (for external calendar)
+  useEffect(() => {
+    if (directEvents) {
+      setEvents(directEvents as CalendarEvent[]);
+    }
+  }, [directEvents]);
 
   // Function to toggle filter
   const toggleFilter = (value: string) => {
@@ -55,6 +86,9 @@ export function CalendarPage() {
   };
 
   const fetchData = useCallback(async () => {
+    // Skip fetching if using direct events (external calendar)
+    if (directEvents) return;
+    
     setLoading(true);
     setError(null);
     try {
@@ -93,7 +127,7 @@ export function CalendarPage() {
     } finally {
       setLoading(false);
     }
-  }, [date, t]);
+  }, [date, t, directEvents]);
 
   useEffect(() => {
     fetchData();
@@ -208,9 +242,11 @@ export function CalendarPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-md md:mr-4"
           />
-          <Button onClick={() => setIsCreateEventDialogOpen(true)}>
-            {t("calendar.addEvent")}
-          </Button>
+          {!isExternalCalendar && (
+            <Button onClick={() => setIsCreateEventDialogOpen(true)}>
+              {t("calendar.addEvent")}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -277,8 +313,8 @@ export function CalendarPage() {
         </ScrollArea>
       )}
 
-      {/* Create Event Dialog */}
-      {isCreateEventDialogOpen && (
+      {/* Create Event Dialog - only show for non-external calendars */}
+      {!isExternalCalendar && isCreateEventDialogOpen && (
         <EventDialog
           key={date?.getTime() || 0}
           open={isCreateEventDialogOpen}
