@@ -250,11 +250,9 @@ export const Calendar = ({
     toast.event.bookingSubmitted();
   };
 
-  // Functions to handle event operations and refresh calendar
   const refreshCalendar = async () => {
     const queryKey = businessId ? ['business-events', businessId] : ['events', user?.id];
     
-    // Wait a bit for database operations to complete
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     queryClient.invalidateQueries({ queryKey });
