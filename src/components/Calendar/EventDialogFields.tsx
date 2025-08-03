@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,13 +14,12 @@ import { getCurrencySymbol } from "@/lib/currency";
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Repeat, Calendar as CalendarIcon, Clock } from "lucide-react";
+import { Plus, Trash2, Repeat, Calendar as CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getRepeatOptions } from "@/lib/recurringEvents";
-import { TaskDateTimePicker } from "@/components/tasks/TaskDateTimePicker";
 
 // Define interface for person data
 interface PersonData {
@@ -50,7 +50,7 @@ interface EventDialogFieldsProps {
   endDate: string;
   setEndDate: (value: string) => void;
   paymentStatus: string;
-  setPaymentStatus: (value: "not_paid" | "partly_paid" | "fully_paid") => void;
+  setPaymentStatus: (value: string) => void;
   paymentAmount: string;
   setPaymentAmount: (value: string) => void;
   files: File[];
@@ -82,17 +82,8 @@ interface EventDialogFieldsProps {
   // New props for additional persons management
   additionalPersons: PersonData[];
   setAdditionalPersons: (persons: PersonData[]) => void;
-  // Reminder props
-  reminderAt: string;
-  setReminderAt: (value: string) => void;
-  emailReminder: boolean;
-  setEmailReminder: (value: boolean) => void;
   // Add missing prop
   isVirtualEvent?: boolean;
-  selectedDate?: Date;
-  initialData?: any;
-  description?: string;
-  setDescription?: (value: string) => void;
 }
 
 export const EventDialogFields = ({
@@ -131,13 +122,7 @@ export const EventDialogFields = ({
   isNewEvent = false,
   additionalPersons,
   setAdditionalPersons,
-  reminderAt,
-  setReminderAt,
-  emailReminder,
-  setEmailReminder,
-  isVirtualEvent = false,
-  description = "",
-  setDescription = () => {}
+  isVirtualEvent = false
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -196,15 +181,6 @@ export const EventDialogFields = ({
       // Clear repeat settings when unchecked
       setRepeatPattern('');
       setRepeatUntil('');
-    }
-  };
-
-  // Handle reminder checkbox change
-  const handleReminderToggle = (checked: boolean) => {
-    console.log('Reminder toggle clicked:', checked);
-    if (!checked) {
-      setReminderAt('');
-      setEmailReminder(false);
     }
   };
 
@@ -286,7 +262,7 @@ export const EventDialogFields = ({
             setEventNotes(value);
             break;
           case 'paymentStatus':
-            setPaymentStatus(value as "not_paid" | "partly_paid" | "fully_paid");
+            setPaymentStatus(value);
             break;
           case 'paymentAmount':
             setPaymentAmount(value);
@@ -516,47 +492,25 @@ export const EventDialogFields = ({
         </div>
       </div>
 
-      {/* Recurring and Reminder Options - Only show for new events */}
+      {/* Repeat Options - Only show for new events */}
       {isNewEvent && (
         <div className="space-y-4">
-          {/* Recurring and Reminder checkboxes on the same line */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Recurring checkbox */}
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="isRecurring"
-                checked={isRecurring}
-                onCheckedChange={handleRecurringToggle}
-              />
-              <Label 
-                htmlFor="isRecurring" 
-                className={cn("flex items-center gap-2", isGeorgian ? "font-georgian" : "")}
-                style={georgianStyle}
-              >
-                <Repeat className="h-4 w-4" />
-                {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორება</GeorgianAuthText> : <LanguageText>Make this event recurring</LanguageText>}
-              </Label>
-            </div>
-
-            {/* Reminder checkbox */}
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="reminderEnabled"
-                checked={!!reminderAt}
-                onCheckedChange={handleReminderToggle}
-              />
-              <Label 
-                htmlFor="reminderEnabled" 
-                className={cn("flex items-center gap-2", isGeorgian ? "font-georgian" : "")}
-                style={georgianStyle}
-              >
-                <Clock className="h-4 w-4" />
-                {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">შეხსენება</GeorgianAuthText> : <LanguageText>Set reminder</LanguageText>}
-              </Label>
-            </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="isRecurring"
+              checked={isRecurring}
+              onCheckedChange={handleRecurringToggle}
+            />
+            <Label 
+              htmlFor="isRecurring" 
+              className={cn("flex items-center gap-2", isGeorgian ? "font-georgian" : "")}
+              style={georgianStyle}
+            >
+              <Repeat className="h-4 w-4" />
+              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორება</GeorgianAuthText> : <LanguageText>Make this event recurring</LanguageText>}
+            </Label>
           </div>
           
-          {/* Recurring options */}
           {isRecurring && (
             <div className="grid grid-cols-2 gap-2">
               <div>
@@ -627,22 +581,6 @@ export const EventDialogFields = ({
                   </Popover>
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Reminder time picker */}
-          {!!reminderAt && (
-            <div>
-              <TaskDateTimePicker
-                label={isGeorgian ? "შეხსენების დრო" : "Reminder time"}
-                value={reminderAt}
-                onChange={(value) => setReminderAt(value || "")}
-                placeholder={isGeorgian ? "აირჩიეთ შეხსენების დრო" : "Choose reminder time"}
-                type="reminder"
-                deadlineValue={startDate}
-                emailReminder={emailReminder}
-                onEmailReminderChange={setEmailReminder}
-              />
             </div>
           )}
         </div>

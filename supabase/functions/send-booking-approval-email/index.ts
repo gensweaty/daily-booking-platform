@@ -1,485 +1,558 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
-// Memory-based deduplication to prevent spam (with auto-cleanup)
-const recentlySentEmails = new Map<string, number>();
-
-// Clean up old entries every 10 minutes
-setInterval(() => {
-  const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
-  for (const [key, timestamp] of recentlySentEmails.entries()) {
-    if (timestamp < tenMinutesAgo) {
-      recentlySentEmails.delete(key);
-    }
-  }
-}, 10 * 60 * 1000);
-
-interface BookingApprovalRequest {
+interface BookingApprovalEmailRequest {
   recipientEmail: string;
   fullName: string;
   businessName: string;
   startDate: string;
   endDate: string;
-  paymentStatus?: string;
+  paymentStatus?: string; 
   paymentAmount?: number;
   businessAddress?: string;
-  eventId?: string;
-  language?: string;
-  eventNotes?: string;
-  source?: 'booking-approval' | 'event-creation' | 'event-reminder'; // Added event-reminder
+  eventId?: string; // Used for deduplication
+  source?: string; // Used to track source of request
+  language?: string; // Used to determine email language
+  eventNotes?: string; // Added event notes field
 }
 
-const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+// For deduplication: Store a map of recently sent emails with expiring entries
+// The key format is eventId_recipientEmail
+const recentlySentEmails = new Map<string, number>();
+
+// Clean up old entries from the deduplication map every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamp] of recentlySentEmails.entries()) {
+    // Remove entries older than 10 minutes to be extra safe
+    if (now - timestamp > 600000) {
+      recentlySentEmails.delete(key);
+    }
   }
-
-  try {
-    const {
-      recipientEmail,
-      fullName,
-      businessName,
-      startDate,
-      endDate,
-      paymentStatus,
-      paymentAmount,
-      businessAddress,
-      eventId,
-      language = 'en',
-      eventNotes,
-      source = 'booking-approval'
-    }: BookingApprovalRequest = await req.json();
-
-    console.log(`📧 Processing ${source} email for:`, recipientEmail);
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(recipientEmail)) {
-      throw new Error("Invalid email format");
-    }
-
-    // Enhanced deduplication logic
-    let dedupeKey: string;
-    if (eventId) {
-      dedupeKey = `${eventId}_${recipientEmail}`;
-      
-      const now = Date.now();
-      const lastSent = recentlySentEmails.get(dedupeKey);
-      const timeAgo = now - (lastSent || 0);
-      
-      // Only block if sent within last 2 minutes (anti-spam for regular emails)
-      // For reminders, allow them to pass through as they are scheduled
-      if (timeAgo < 120000 && source !== 'event-reminder') {
-        console.log("⏭️ Skipping duplicate email (sent recently)");
-        return new Response(JSON.stringify({ 
-          message: "Duplicate email blocked", 
-          isDuplicate: true 
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-    } else {
-      dedupeKey = `${recipientEmail}_${startDate}_${endDate}`;
-    }
-
-    // Format dates with proper localization
-    const formattedStartDate = formatDateTime(startDate, language);
-    const formattedEndDate = formatDateTime(endDate, language);
-    
-    console.log("📅 Formatted dates:", { formattedStartDate, formattedEndDate });
-
-    // Build payment information section with currency
-    const currencySymbol = getCurrencySymbolByLanguage(language);
-    const paymentInfo = buildPaymentInfoHTML(paymentStatus, paymentAmount, currencySymbol, language);
-
-    // Build address information with fallback
-    const addressInfo = businessAddress?.trim() || getAddressFallback(language);
-
-    // Build event notes section 
-    const eventNotesInfo = eventNotes ? buildNotesHTML(eventNotes, language) : "";
-
-    const displayBusinessName = businessName || 'SmartBookly';
-
-    // Generate email content based on source and language
-    const { subject, content } = getEmailContent(
-      source, 
-      language, 
-      fullName, 
-      displayBusinessName,
-      formattedStartDate,
-      formattedEndDate,
-      paymentInfo,
-      addressInfo,
-      eventNotesInfo
-    );
-
-    // Send email via Resend
-    const result = await resend.emails.send({
-      from: `${displayBusinessName} <onboarding@resend.dev>`,
-      to: [recipientEmail],
-      subject,
-      html: content,
-    });
-
-    if (result.error) {
-      console.error("❌ Resend API error:", result.error);
-      throw new Error(`Failed to send email: ${result.error.message}`);
-    }
-
-    // Track successful send in deduplication map (including reminders)
-    recentlySentEmails.set(dedupeKey, Date.now());
-    
-    console.log("✅ Email sent successfully:", result.data?.id);
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      id: result.data?.id,
-      source: source 
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
-  } catch (error: any) {
-    console.error("❌ Error in send-booking-approval-email function:", error);
-    return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Failed to send email',
-        source: 'error'
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  }
-};
-
-// Helper function to format date/time based on language
-function formatDateTime(dateTimeStr: string, language: string): string {
-  const date = new Date(dateTimeStr);
-  const locale = language === 'ka' ? 'ka-GE' : language === 'es' ? 'es-ES' : 'en-US';
-
-  return new Intl.DateTimeFormat(locale, {
-    year: 'numeric',
-    month: 'short', 
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: 'Asia/Tbilisi'
-  }).format(date);
-}
+}, 300000); // Run every 5 minutes
 
 // Helper function to get currency symbol based on language
-function getCurrencySymbolByLanguage(language: string): string {
-  switch (language?.toLowerCase()) {
+function getCurrencySymbolByLanguage(language?: string): string {
+  console.log(`Getting currency symbol for language: ${language}`);
+  
+  if (!language) {
+    console.log("No language provided, defaulting to $ (en)");
+    return '$';
+  }
+  
+  const normalizedLang = language.toLowerCase();
+  console.log(`Normalized language: ${normalizedLang}`);
+  
+  switch (normalizedLang) {
     case 'es':
+      console.log("Spanish language detected, using € symbol");
       return '€';
-    case 'ka': 
+    case 'ka':
+      console.log("Georgian language detected, using ₾ symbol");
       return '₾';
     case 'en':
     default:
+      console.log(`Using $ symbol for language: ${language}`);
       return '$';
   }
 }
 
-// Helper function to format payment status based on language
-function formatPaymentStatus(status: string, language: string): string {
-  const normalizedLang = (language || 'en').toLowerCase();
-  
-  switch (status) {
-    case "not_paid":
-      return normalizedLang === 'ka' ? "გადაუხდელი" :
-             normalizedLang === 'es' ? "No Pagado" : "Not Paid";
-    case "partly_paid":
-      return normalizedLang === 'ka' ? "ნაწილობრივ გადახდილი" :
-             normalizedLang === 'es' ? "Pagado Parcialmente" : "Partly Paid";
-    case "fully_paid":
-      return normalizedLang === 'ka' ? "სრულად გადახდილი" :
-             normalizedLang === 'es' ? "Pagado Totalmente" : "Fully Paid";
-    default:
-      return status;
-  }
-}
-
-// Helper function to build payment info HTML
-function buildPaymentInfoHTML(paymentStatus: string | undefined, paymentAmount: number | undefined, currencySymbol: string, language: string): string {
-  if (!paymentStatus) return "";
-  
-  const formattedStatus = formatPaymentStatus(paymentStatus, language);
-  let paymentInfo = `<p><strong>${getPaymentLabel(language)}:</strong> ${formattedStatus}`;
-  
-  if (paymentAmount && paymentAmount > 0 && (paymentStatus === "partly_paid" || paymentStatus === "fully_paid")) {
-    paymentInfo += ` (${currencySymbol}${paymentAmount})`;
-  }
-  
-  paymentInfo += "</p>";
-  return paymentInfo;
-}
-
-// Helper function to build notes HTML
-function buildNotesHTML(eventNotes: string, language: string): string {
-  const notesLabel = language === 'ka' ? "შენიშვნები" :
-                    language === 'es' ? "Notas" : "Notes";
-  return `<div style="margin: 20px 0; padding: 15px; background-color: #f8f9fa; border-left: 4px solid #007bff; border-radius: 4px;">
-    <h4 style="margin: 0 0 10px 0; color: #333; font-size: 16px;">${notesLabel}:</h4>
-    <p style="margin: 0; color: #555; line-height: 1.5;">${eventNotes.replace(/\n/g, '<br>')}</p>
-  </div>`;
-}
-
-// Helper function to get address fallback
-function getAddressFallback(language: string): string {
-  return language === 'ka' ? "მისამართი დაზუსტდება" : 
-         language === 'es' ? "Dirección por confirmar" : "Address to be confirmed";
-}
-
-// Helper function to get payment label
-function getPaymentLabel(language: string): string {
-  return language === 'ka' ? "გადახდის სტატუსი" :
-         language === 'es' ? "Estado del Pago" : "Payment Status";
-}
-
-// Main function to get email content based on source and language
+// Function to get proper email content based on source and language
 function getEmailContent(
   source: string,
-  language: string,
-  fullName: string,
-  businessName: string,
+  language: string, 
+  fullName: string, 
+  businessName: string, 
   formattedStartDate: string,
   formattedEndDate: string,
   paymentInfo: string,
   addressInfo: string,
   eventNotesInfo: string
 ): { subject: string; content: string } {
-
+  // Normalize language to lowercase and handle undefined
   const normalizedLang = (language || 'en').toLowerCase();
   const normalizedSource = (source || 'booking-approval').toLowerCase();
+  
+  console.log(`Creating email content - Source: ${normalizedSource}, Language: ${normalizedLang}`);
+  
+  // Normalize business name
+  const displayBusinessName = businessName && businessName !== "null" && businessName !== "undefined" 
+    ? businessName 
+    : 'SmartBookly';
 
-  console.log(`📧 Generating email content for source: ${normalizedSource}, language: ${normalizedLang}`);
+  // Get subject and content based on source and language
+  let subject = '';
+  let content = '';
 
-  // Event reminder emails - NEW
-  if (normalizedSource === 'event-reminder') {
-    let subject: string;
-    switch (normalizedLang) {
-      case 'ka':
-        subject = `🔔 შეხსენება: ${businessName}-ის ღონისძიება`;
-        break;
-      case 'es': 
-        subject = `🔔 Recordatorio: Tu Evento en ${businessName}`;
-        break;
-      default:
-        subject = `🔔 Reminder: Your Event at ${businessName}`;
-    }
-
-    // Use the same content structure as event creation but with reminder styling
-    const content = generateEventContent(normalizedLang, fullName, businessName, formattedStartDate, formattedEndDate, paymentInfo, addressInfo, eventNotesInfo, true); // isReminder = true
-    
-    return { subject, content };
-  }
-
-  // Event creation emails  
   if (normalizedSource === 'event-creation') {
+    // Event creation emails
     switch (normalizedLang) {
-      case 'ka':
-        return {
-          subject: `ღონისძიება შეიქმნა ${businessName}-ში`,
-          content: generateEventContent(normalizedLang, fullName, businessName, formattedStartDate, formattedEndDate, paymentInfo, addressInfo, eventNotesInfo, false)
-        };
-      case 'es':
-        return {
-          subject: `Evento Creado en ${businessName}`,
-          content: generateEventContent(normalizedLang, fullName, businessName, formattedStartDate, formattedEndDate, paymentInfo, addressInfo, eventNotesInfo, false)
-        };
-      default:
-        return {
-          subject: `Event Created at ${businessName}`,
-          content: generateEventContent(normalizedLang, fullName, businessName, formattedStartDate, formattedEndDate, paymentInfo, addressInfo, eventNotesInfo, false)
-        };
+      case 'ka': // Georgian
+        subject = `ღონისძიება შეიქმნა ${displayBusinessName}-ში`;
+        content = `
+          <!DOCTYPE html>
+          <html lang="ka">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>ღონისძიება შეიქმნა</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+            <h2 style="color: #333;">გამარჯობა ${fullName},</h2>
+            <p>თქვენი ღონისძიება <b style="color: #4CAF50;">შეიქმნა</b> <b>${displayBusinessName}</b>-ში.</p>
+            <p style="margin: 8px 0;"><strong>ღონისძიების თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+            ${addressInfo}
+            ${paymentInfo}
+            ${eventNotesInfo}
+            <p>ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
+            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+            <p style="color: #777; font-size: 14px;"><i>ეს არის ავტომატური შეტყობინება.</i></p>
+          </body>
+          </html>
+        `;
+        break;
+        
+      case 'es': // Spanish
+        subject = `Evento Creado en ${displayBusinessName}`;
+        content = `
+          <!DOCTYPE html>
+          <html lang="es">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Evento Creado</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+            <h2 style="color: #333;">Hola ${fullName},</h2>
+            <p>Su evento ha sido <b style="color: #4CAF50;">creado</b> en <b>${displayBusinessName}</b>.</p>
+            <p style="margin: 8px 0;"><strong>Fecha y hora del evento:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+            ${addressInfo}
+            ${paymentInfo}
+            ${eventNotesInfo}
+            <p>¡Esperamos verle pronto!</p>
+            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+            <p style="color: #777; font-size: 14px;"><i>Este es un mensaje automático.</i></p>
+          </body>
+          </html>
+        `;
+        break;
+        
+      default: // English (default)
+        subject = `Event Created at ${displayBusinessName}`;
+        content = `
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Event Created</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+            <h2 style="color: #333;">Hello ${fullName},</h2>
+            <p>Your event has been <b style="color: #4CAF50;">created</b> at <b>${displayBusinessName}</b>.</p>
+            <p style="margin: 8px 0;"><strong>Event date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+            ${addressInfo}
+            ${paymentInfo}
+            ${eventNotesInfo}
+            <p>We look forward to seeing you!</p>
+            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+            <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
+          </body>
+          </html>
+        `;
+        break;
+    }
+  } else {
+    // Booking approval emails (default)
+    switch (normalizedLang) {
+      case 'ka': // Georgian
+        subject = `ჯავშანი დადასტურებულია ${displayBusinessName}-ში`;
+        content = `
+          <!DOCTYPE html>
+          <html lang="ka">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>ჯავშანი დადასტურებულია</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+            <h2 style="color: #333;">გამარჯობა ${fullName},</h2>
+            <p>თქვენი ჯავშანი <b style="color: #4CAF50;">დადასტურდა</b> <b>${displayBusinessName}</b>-ში.</p>
+            <p style="margin: 8px 0;"><strong>დაჯავშნის თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+            ${addressInfo}
+            ${paymentInfo}
+            ${eventNotesInfo}
+            <p>ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
+            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+            <p style="color: #777; font-size: 14px;"><i>ეს არის ავტომატური შეტყობინება.</i></p>
+          </body>
+          </html>
+        `;
+        break;
+        
+      case 'es': // Spanish
+        subject = `Reserva Aprobada en ${displayBusinessName}`;
+        content = `
+          <!DOCTYPE html>
+          <html lang="es">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Reserva Aprobada</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+            <h2 style="color: #333;">Hola ${fullName},</h2>
+            <p>Su reserva ha sido <b style="color: #4CAF50;">aprobada</b> en <b>${displayBusinessName}</b>.</p>
+            <p style="margin: 8px 0;"><strong>Fecha y hora de la reserva:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+            ${addressInfo}
+            ${paymentInfo}
+            ${eventNotesInfo}
+            <p>¡Esperamos verle pronto!</p>
+            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+            <p style="color: #777; font-size: 14px;"><i>Este es un mensaje automático.</i></p>
+          </body>
+          </html>
+        `;
+        break;
+        
+      default: // English (default)
+        subject = `Booking Approved at ${displayBusinessName}`;
+        content = `
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Booking Approved</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+            <h2 style="color: #333;">Hello ${fullName},</h2>
+            <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${displayBusinessName}</b>.</p>
+            <p style="margin: 8px 0;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+            ${addressInfo}
+            ${paymentInfo}
+            ${eventNotesInfo}
+            <p>We look forward to seeing you!</p>
+            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+            <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
+          </body>
+          </html>
+        `;
+        break;
     }
   }
 
-  // Booking approval emails (default)
-  switch (normalizedLang) {
-    case 'ka':
-      return {
-        subject: `ჯავშანი დადასტურებულია ${businessName}-ში`,
-        content: generateBookingContent(normalizedLang, fullName, businessName, formattedStartDate, formattedEndDate, paymentInfo, addressInfo, eventNotesInfo)
-      };
-    case 'es':
-      return {
-        subject: `Reserva Aprobada en ${businessName}`,
-        content: generateBookingContent(normalizedLang, fullName, businessName, formattedStartDate, formattedEndDate, paymentInfo, addressInfo, eventNotesInfo)
-      };
+  return { subject, content };
+}
+
+// Format payment status for different languages
+function formatPaymentStatus(status: string, language?: string): string {
+  // Normalize language to lowercase and handle undefined
+  const normalizedLang = (language || 'en').toLowerCase();
+  
+  switch (status) {
+    case "not_paid":
+      // Return translated payment status based on language
+      if (normalizedLang === 'ka') return "გადაუხდელი";
+      if (normalizedLang === 'es') return "No Pagado";
+      return "Not Paid";
+      
+    case "partly_paid":
+    case "partly":
+      // Return translated payment status based on language
+      if (normalizedLang === 'ka') return "ნაწილობრივ გადახდილი";
+      if (normalizedLang === 'es') return "Pagado Parcialmente";
+      return "Partly Paid";
+      
+    case "fully_paid":
+    case "fully":
+      // Return translated payment status based on language
+      if (normalizedLang === 'ka') return "სრულად გადახდილი";
+      if (normalizedLang === 'es') return "Pagado Totalmente";
+      return "Fully Paid";
+      
     default:
-      return {
-        subject: `Booking Approved at ${businessName}`,
-        content: generateBookingContent(normalizedLang, fullName, businessName, formattedStartDate, formattedEndDate, paymentInfo, addressInfo, eventNotesInfo)
-      };
+      // For any other status, just capitalize and format
+      const formatted = status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+      return formatted;
   }
 }
 
-// Helper function to generate event content (used for both creation and reminders)
-function generateEventContent(
-  language: string, 
-  fullName: string, 
-  businessName: string, 
-  startDate: string, 
-  endDate: string, 
-  paymentInfo: string, 
-  addressInfo: string, 
-  eventNotesInfo: string,
-  isReminder: boolean = false
-): string {
-  // Define content based on language and whether it's a reminder
-  let greeting: string, mainText: string, dateLabel: string, locationLabel: string, footerText: string;
-  
-  if (language === 'ka') {
-    greeting = `გამარჯობა ${fullName}!`;
-    mainText = isReminder 
-      ? `ეს არის შეხსენება თქვენი უახლოესი ღონისძიების შესახებ ${businessName}-ში.`
-      : `ღონისძიება წარმატებით შეიქმნა ${businessName}-ში.`;
-    dateLabel = "📅 თარიღი:";
-    locationLabel = "📍 მდებარეობა:";
-    footerText = "მადლობა, რომ ამურჩევთ ჩვენს სერვისს!";
-  } else if (language === 'es') {
-    greeting = `¡Hola ${fullName}!`;
-    mainText = isReminder
-      ? `Este es un recordatorio de tu próximo evento en ${businessName}.`
-      : `Tu evento ha sido creado exitosamente en ${businessName}.`;
-    dateLabel = "📅 Fecha:";
-    locationLabel = "📍 Ubicación:";
-    footerText = "¡Gracias por elegir nuestros servicios!";
-  } else {
-    greeting = `Hello ${fullName}!`;
-    mainText = isReminder
-      ? `This is a reminder about your upcoming event at ${businessName}.`
-      : `Your event has been successfully created at ${businessName}.`;
-    dateLabel = "📅 Date:";
-    locationLabel = "📍 Location:";
-    footerText = "Thank you for choosing our services!";
+const handler = async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
   }
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>${isReminder ? 'Event Reminder' : 'Event Created'}</title>
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: ${isReminder ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-    <h1 style="color: white; margin: 0; font-size: 28px;">
-      ${isReminder ? '🔔' : '🎉'} ${businessName}
-    </h1>
-  </div>
+  console.log("Received request to send booking approval email via Resend API");
 
-  <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-    <h2 style="color: #333; margin-bottom: 20px;">${greeting}</h2>
+  try {
+    const requestBody = await req.text();
     
-    <p style="font-size: 16px; margin-bottom: 25px;">${mainText}</p>
+    let parsedBody: BookingApprovalEmailRequest;
+    try {
+      parsedBody = JSON.parse(requestBody);
+    } catch (parseError) {
+      console.error("Failed to parse JSON request:", parseError);
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+      );
+    }
+    
+    const { 
+      recipientEmail, 
+      fullName, 
+      businessName, 
+      startDate, 
+      endDate, 
+      paymentStatus, 
+      paymentAmount,
+      businessAddress,
+      eventId,
+      source,
+      language,
+      eventNotes
+    } = parsedBody;
 
-    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 25px 0;">
-      <h3 style="color: #495057; margin-top: 0;">📋 ${isReminder ? 'Event Details' : 'Event Details'}</h3>
+    console.log("Request body:", {
+      recipientEmail,
+      fullName,
+      businessName,
+      paymentStatus,
+      paymentAmount,
+      language,
+      eventNotes,
+      source,
+      hasBusinessAddress: !!businessAddress
+    });
+
+    // Build a standardized deduplication key that ignores the source
+    // This ensures we don't send duplicate emails just because they come from different sources
+    let dedupeKey: string;
+    
+    if (eventId) {
+      dedupeKey = `${eventId}_${recipientEmail}`;
       
-      <p><strong>${dateLabel}</strong><br>
-      <span style="color: #28a745;">⏰ ${startDate} - ${endDate}</span></p>
+      // Check if we already sent an email for this event/recipient (only block if very recent)
+      const now = Date.now();
+      if (recentlySentEmails.has(dedupeKey)) {
+        const lastSent = recentlySentEmails.get(dedupeKey);
+        const timeAgo = now - (lastSent || 0);
+        
+        // Only block if sent within last 2 minutes to prevent spam
+        if (timeAgo < 120000) {
+          console.log(`Recent duplicate email detected for key ${dedupeKey}. Last sent ${timeAgo}ms ago. Skipping.`);
+          
+          return new Response(
+            JSON.stringify({ 
+              message: "Email request was identified as a recent duplicate and skipped",
+              to: recipientEmail,
+              id: null,
+              isDuplicate: true,
+              dedupeKey: dedupeKey,
+              timeAgo: timeAgo
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+          );
+        }
+      }
+    } else {
+      // If no eventId, use a combination of email and timestamps as a fallback
+      dedupeKey = `${recipientEmail}_${startDate}_${endDate}`;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(recipientEmail)) {
+      console.error("Invalid email format:", recipientEmail);
+      return new Response(
+        JSON.stringify({ error: "Invalid email format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+      );
+    }
+    
+    // Format dates
+    const formattedStartDate = formatDateTime(startDate, language);
+    const formattedEndDate = formatDateTime(endDate, language);
+    
+    try {
+      // Get the currency symbol based on language
+      const currencySymbol = getCurrencySymbolByLanguage(language);
+      console.log(`Using currency symbol: ${currencySymbol} for language: ${language}`);
       
-      <p><strong>${locationLabel}</strong><br>
-      ${addressInfo}</p>
+      // Format payment information if available based on language
+      let paymentInfo = "";
+      if (paymentStatus) {
+        const formattedStatus = formatPaymentStatus(paymentStatus, language);
+        
+        // Payment information label translations
+        const paymentStatusLabel = language === 'ka' 
+          ? "გადახდის სტატუსი" 
+          : (language === 'es' ? "Estado del pago" : "Payment status");
+        
+        if ((paymentStatus === 'partly_paid' || paymentStatus === 'partly') && paymentAmount !== undefined && paymentAmount !== null) {
+          const amountDisplay = `${currencySymbol}${paymentAmount}`;
+          paymentInfo = `<p><strong>${paymentStatusLabel}:</strong> ${formattedStatus} (${amountDisplay})</p>`;
+        } else if (paymentStatus === 'fully_paid' || paymentStatus === 'fully') {
+          const amountDisplay = paymentAmount !== undefined && paymentAmount !== null ? ` (${currencySymbol}${paymentAmount})` : "";
+          paymentInfo = `<p><strong>${paymentStatusLabel}:</strong> ${formattedStatus}${amountDisplay}</p>`;
+        } else {
+          paymentInfo = `<p><strong>${paymentStatusLabel}:</strong> ${formattedStatus}</p>`;
+        }
+      }
       
-      ${paymentInfo}
-    </div>
+      // Prepare address section with fallback - NEVER block email sending
+      let addressInfo = "";
+      let addressDisplay = businessAddress?.trim() || "";
+      
+      // Address label translations
+      const addressLabel = language === 'ka' 
+        ? "მისამართი" 
+        : (language === 'es' ? "Dirección" : "Address");
+      
+      if (addressDisplay) {
+        addressInfo = `<p style="margin: 8px 0;"><strong>${addressLabel}:</strong> ${addressDisplay}</p>`;
+      } else {
+        // Provide fallback for missing address - but still send email
+        const defaultAddress = language === 'ka' 
+          ? "მისამართი დაზუსტდება"
+          : (language === 'es' ? "Dirección por confirmar" : "Address to be confirmed");
+        addressInfo = `<p style="margin: 8px 0;"><strong>${addressLabel}:</strong> ${defaultAddress}</p>`;
+        console.log("Using fallback address as business address is missing - but continuing with email");
+      }
+      
+      // Prepare event notes section
+      let eventNotesInfo = "";
+      if (eventNotes && typeof eventNotes === 'string' && eventNotes.trim() !== "") {
+        // Event notes label translations
+        const notesLabel = language === 'ka'
+          ? "შენიშვნა ღონისძიებაზე"
+          : (language === 'es' ? "Notas del evento" : "Event notes");
+        
+        eventNotesInfo = `<p style="margin: 8px 0;"><strong>${notesLabel}:</strong> ${eventNotes.trim()}</p>`;
+      }
+      
+      // Create HTML email content based on source and language
+      const emailData = getEmailContent(
+        source || 'booking-approval',
+        language || 'en', 
+        fullName, 
+        businessName || 'SmartBookly', 
+        formattedStartDate,
+        formattedEndDate,
+        paymentInfo,
+        addressInfo,
+        eventNotesInfo
+      );
+      
+      // Use Resend API to send the email
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      if (!resendApiKey) {
+        throw new Error("Missing RESEND_API_KEY");
+      }
+      
+      const resend = new Resend(resendApiKey);
+      
+      console.log("Sending email with subject:", emailData.subject);
+      
+      const emailResult = await resend.emails.send({
+        from: `${businessName || 'SmartBookly'} <info@smartbookly.com>`,
+        to: [recipientEmail],
+        subject: emailData.subject,
+        html: emailData.content,
+      });
 
-    ${eventNotesInfo}
+      if (emailResult.error) {
+        console.error("Error from Resend API:", emailResult.error);
+        throw new Error(emailResult.error.message || "Unknown Resend API error");
+      }
 
-    <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e9ecef; text-align: center;">
-      <p style="font-style: italic; color: #6c757d;">${footerText}</p>
-    </div>
-  </div>
-</body>
-</html>`;
-}
-
-// Helper function to generate booking content (existing functionality)
-function generateBookingContent(
-  language: string, 
-  fullName: string, 
-  businessName: string, 
-  startDate: string, 
-  endDate: string, 
-  paymentInfo: string, 
-  addressInfo: string, 
-  eventNotesInfo: string
-): string {
-  let greeting: string, mainText: string, dateLabel: string, locationLabel: string, footerText: string;
-  
-  if (language === 'ka') {
-    greeting = `გამარჯობა ${fullName}!`;
-    mainText = `თქვენი ჯავშანი დადასტურდა ${businessName}-ში.`;
-    dateLabel = "📅 თარიღი:";
-    locationLabel = "📍 მდებარეობა:";
-    footerText = "მადლობა, რომ ამურჩევთ ჩვენს სერვისს!";
-  } else if (language === 'es') {
-    greeting = `¡Hola ${fullName}!`;
-    mainText = `Tu reserva ha sido aprobada en ${businessName}.`;
-    dateLabel = "📅 Fecha:";
-    locationLabel = "📍 Ubicación:";
-    footerText = "¡Gracias por elegir nuestros servicios!";
-  } else {
-    greeting = `Hello ${fullName}!`;
-    mainText = `Your booking has been approved at ${businessName}.`;
-    dateLabel = "📅 Date:";
-    locationLabel = "📍 Location:";
-    footerText = "Thank you for choosing our services!";
+      console.log(`Email successfully sent via Resend API to ${recipientEmail}, ID: ${emailResult.data?.id}`);
+      
+      // Mark as recently sent ONLY if the email was successfully sent
+      // This prevents failed attempts from blocking future retries
+      recentlySentEmails.set(dedupeKey, Date.now());
+      console.log(`Setting deduplication key: ${dedupeKey} (tracking ${recentlySentEmails.size} emails)`);
+      
+      return new Response(
+        JSON.stringify({ 
+          message: "Email sent successfully",
+          to: recipientEmail,
+          id: emailResult.data?.id,
+          included_address: addressDisplay || "fallback address used",
+          business_name_used: businessName || 'SmartBookly',
+          source: source || 'unknown',
+          dedupeKey: dedupeKey,
+          language: language, // Log the language used for verification
+          currencySymbol: currencySymbol, // Log the currency symbol used
+          hasEventNotes: !!eventNotesInfo, // Log whether event notes were included
+          emailSubject: emailData.subject // Log the actual subject used
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+      );
+      
+    } catch (emailError: any) {
+      // Catch errors specifically from resend.emails.send
+      console.error("Error sending email via Resend API:", emailError);
+      return new Response(
+        JSON.stringify({
+          error: "Failed to send email via Resend API",
+          details: emailError.message || "Unknown error",
+          trace: emailError.stack
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+      );
+    }
+  } catch (error: any) {
+    console.error("Unhandled error in send-booking-approval-email:", error);
+    return new Response(
+      JSON.stringify({ 
+        error: error?.message || "Unknown error", 
+        stack: error?.stack,
+        message: "Failed to send email. Please try again later."
+      }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+    );
   }
+};
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Booking Approved</title>
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-    <h1 style="color: white; margin: 0; font-size: 28px;">🎉 ${businessName}</h1>
-  </div>
-
-  <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-    <h2 style="color: #333; margin-bottom: 20px;">${greeting}</h2>
+// Format dates with timezone awareness using Intl.DateTimeFormat
+function formatDateTime(isoString: string, language?: string): string {
+  try {
+    // Determine locale based on language
+    let locale = 'en-US';
+    if (language === 'ka') {
+      locale = 'ka-GE';
+    } else if (language === 'es') {
+      locale = 'es-ES';
+    }
     
-    <p style="font-size: 16px; margin-bottom: 25px;">${mainText}</p>
-
-    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 25px 0;">
-      <h3 style="color: #495057; margin-top: 0;">📋 Booking Details</h3>
-      
-      <p><strong>${dateLabel}</strong><br>
-      <span style="color: #28a745;">⏰ ${startDate} - ${endDate}</span></p>
-      
-      <p><strong>${locationLabel}</strong><br>
-      ${addressInfo}</p>
-      
-      ${paymentInfo}
-    </div>
-
-    ${eventNotesInfo}
-
-    <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e9ecef; text-align: center;">
-      <p style="font-style: italic; color: #6c757d;">${footerText}</p>
-    </div>
-  </div>
-</body>
-</html>`;
+    // Use Intl.DateTimeFormat with explicit timezone to ensure correct time display
+    const formatter = new Intl.DateTimeFormat(locale, {
+      timeZone: 'Asia/Tbilisi', // Set this to your local business timezone
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: language !== 'ka', // Georgian typically uses 24-hour format
+    });
+    
+    const date = new Date(isoString);
+    const formatted = formatter.format(date);
+    
+    return formatted;
+  } catch (error) {
+    console.error(`Error formatting date with timezone: ${error}`);
+    return isoString; // Return original string if any error occurs
+  }
 }
 
 serve(handler);
