@@ -1,3 +1,4 @@
+
 export type CalendarViewType = "day" | "week" | "month";
 
 export interface TaskType {
@@ -70,6 +71,7 @@ export interface CalendarEventType {
   updated_at?: string;
   deleted_at?: string;
   additionalPersons?: any[];
+  requester_name?: string; // Added for booking requests
 }
 
 export interface OptimizedEvent {

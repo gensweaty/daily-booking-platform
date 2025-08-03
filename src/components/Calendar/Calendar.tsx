@@ -328,21 +328,23 @@ export const Calendar = ({
         <>
           <EventDialog
             key={dialogSelectedDate?.getTime()}
-            open={isNewEventDialogOpen}
-            onOpenChange={setIsNewEventDialogOpen}
-            selectedDate={dialogSelectedDate}
-            onEventCreated={handleEventCreated}
+            isOpen={isNewEventDialogOpen}
+            onClose={() => setIsNewEventDialogOpen(false)}
+            selectedEvent={null}
+            onCreate={handleCreateEvent}
+            onUpdate={handleUpdateEvent}
+            onDelete={handleDeleteEvent}
           />
 
           {selectedEvent && (
             <EventDialog
               key={selectedEvent.id}
-              open={!!selectedEvent}
-              onOpenChange={() => setSelectedEvent(null)}
-              selectedDate={new Date(selectedEvent.start_date)}
-              initialData={selectedEvent}
-              onEventUpdated={handleEventUpdated}
-              onEventDeleted={handleEventDeleted}
+              isOpen={!!selectedEvent}
+              onClose={() => setSelectedEvent(null)}
+              selectedEvent={selectedEvent}
+              onCreate={handleCreateEvent}
+              onUpdate={handleUpdateEvent}
+              onDelete={handleDeleteEvent}
             />
           )}
         </>
