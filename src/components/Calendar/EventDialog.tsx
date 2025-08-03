@@ -79,11 +79,9 @@ export const EventDialog = ({
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (eventData) => {
-      // This will maintain the existing email notification flow
       return eventData as CalendarEventType;
     },
     updateEvent: async (eventData) => {
-      // This will maintain the existing email notification flow  
       return eventData as CalendarEventType;
     },
     deleteEvent: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
@@ -123,7 +121,6 @@ export const EventDialog = ({
 
   useEffect(() => {
     if (initialData) {
-      // Editing existing event
       setTitle(initialData.title || "");
       setUserSurname(initialData.user_surname || "");
       setUserNumber(initialData.user_number || "");
@@ -136,23 +133,19 @@ export const EventDialog = ({
       setRepeatPattern(initialData.repeat_pattern || "");
       setRepeatUntil(initialData.repeat_until || "");
       
-      // Set email reminder data
       setEmailReminderEnabled(initialData.email_reminder_enabled || false);
       setReminderAt(initialData.reminder_at ? format(new Date(initialData.reminder_at), "yyyy-MM-dd'T'HH:mm") : "");
 
-      // Format dates for datetime-local input
       const startDateTime = new Date(initialData.start_date);
       const endDateTime = new Date(initialData.end_date);
       
       setStartDate(format(startDateTime, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(endDateTime, "yyyy-MM-dd'T'HH:mm"));
 
-      // Load existing files - FIXED: pass the string ID correctly
       if (initialData.id) {
         loadExistingFiles(initialData.id);
       }
     } else if (selectedDate) {
-      // Creating new event with selected date
       const defaultStart = new Date(selectedDate);
       const defaultEnd = new Date(selectedDate);
       defaultEnd.setHours(defaultStart.getHours() + 1);
@@ -160,7 +153,6 @@ export const EventDialog = ({
       setStartDate(format(defaultStart, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(defaultEnd, "yyyy-MM-dd'T'HH:mm"));
       
-      // Reset form for new event
       setTitle("");
       setUserSurname("");
       setUserNumber("");
@@ -176,7 +168,6 @@ export const EventDialog = ({
       setRepeatUntil("");
       setAdditionalPersons([]);
       
-      // Reset email reminder
       setEmailReminderEnabled(false);
       setReminderAt("");
     }
@@ -241,14 +232,12 @@ export const EventDialog = ({
         repeat_pattern: isRecurring ? repeatPattern : null,
         repeat_until: (isRecurring && repeatUntil) ? repeatUntil : null,
         language: language,
-        // Add email reminder data to the event payload
         email_reminder_enabled: emailReminderEnabled,
         reminder_at: reminderAt || null
       };
 
       let result;
       if (initialData?.id) {
-        // For updates, we need to update the database directly to include email reminder fields
         console.log("Updating event with email reminder data:", { 
           emailReminderEnabled, 
           reminderAt,
@@ -283,7 +272,6 @@ export const EventDialog = ({
         }
         onEventUpdated?.();
       } else {
-        // For creation, we need to create the event directly to include email reminder fields
         console.log("Creating event with email reminder data:", { 
           emailReminderEnabled, 
           reminderAt,
@@ -321,7 +309,6 @@ export const EventDialog = ({
 
       onOpenChange(false);
       
-      // Reset form
       setTitle("");
       setUserSurname("");
       setUserNumber("");
