@@ -84,20 +84,31 @@ export const EventDialog = ({
 
   useEffect(() => {
     if (initialData) {
+      console.log('[EventDialog] Loading initial data:', initialData);
+      
       setTitle(initialData.title || "");
       setUserSurname(initialData.user_surname || "");
       setUserNumber(initialData.user_number || "");
       setSocialNetworkLink(initialData.social_network_link || "");
       setEventNotes(initialData.event_notes || "");
       
+      // Fix timezone issue - just use the ISO string directly without timezone offset adjustments
       if (initialData.start_date) {
-        const formattedStart = new Date(initialData.start_date).toISOString().slice(0, 16);
+        const startDateObj = new Date(initialData.start_date);
+        const formattedStart = new Date(startDateObj.getTime() - startDateObj.getTimezoneOffset() * 60000)
+          .toISOString()
+          .slice(0, 16);
         setStartDate(formattedStart);
+        console.log('[EventDialog] Setting start date:', formattedStart, 'from:', initialData.start_date);
       }
       
       if (initialData.end_date) {
-        const formattedEnd = new Date(initialData.end_date).toISOString().slice(0, 16);
+        const endDateObj = new Date(initialData.end_date);
+        const formattedEnd = new Date(endDateObj.getTime() - endDateObj.getTimezoneOffset() * 60000)
+          .toISOString()
+          .slice(0, 16);
         setEndDate(formattedEnd);
+        console.log('[EventDialog] Setting end date:', formattedEnd, 'from:', initialData.end_date);
       }
       
       setPaymentStatus(initialData.payment_status || "not_paid");
@@ -107,6 +118,13 @@ export const EventDialog = ({
       setRepeatUntil(initialData.recurring_until || initialData.repeat_until || "");
       setAdditionalPersons(initialData.additional_persons || []);
       setEventName(initialData.title || "");
+      
+      // Fix reminder loading - properly map the database fields
+      console.log('[EventDialog] Loading reminder data:', {
+        reminder_at: initialData.reminder_at,
+        reminder_enabled: initialData.reminder_enabled,
+        email_reminder_enabled: initialData.email_reminder_enabled
+      });
       
       setReminderAt(initialData.reminder_at || '');
       setReminderEnabled(!!(initialData.reminder_enabled || initialData.email_reminder_enabled));
@@ -127,7 +145,7 @@ export const EventDialog = ({
               file_path: file.file_path,
               content_type: file.content_type || null,
               size: file.size || null,
-              created_at: file.created_at,
+              created_at: file.created_at || new Date().toISOString(),
               user_id: file.user_id || null
             }));
             setExistingFiles(fileRecords);
@@ -227,6 +245,7 @@ export const EventDialog = ({
         paymentAmount: person.paymentAmount
       }));
 
+      // Fix: Properly include reminder fields in eventData
       const eventData = {
         title: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
         user_surname: userSurname.trim(),
@@ -241,10 +260,13 @@ export const EventDialog = ({
         is_recurring: isRecurring && repeatPattern && repeatPattern !== 'none',
         repeat_pattern: isRecurring && repeatPattern && repeatPattern !== 'none' ? repeatPattern : null,
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
-        reminder_at: reminderEnabled ? reminderAt : null,
+        // Ensure reminder fields are properly saved
+        reminder_at: reminderEnabled && reminderAt ? reminderAt : null,
         reminder_enabled: reminderEnabled,
         email_reminder_enabled: reminderEnabled
       };
+
+      console.log("[EventDialog] Event data being saved:", eventData);
 
       const { data: savedEventId, error: saveError } = await supabase.rpc('save_event_with_persons', {
         p_event_data: eventData,
