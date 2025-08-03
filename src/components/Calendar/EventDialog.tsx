@@ -10,6 +10,7 @@ import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
 import { cn } from "@/lib/utils";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { LanguageText } from "@/components/shared/LanguageText";
+import { FileRecord } from "@/types/files";
 
 interface PersonData {
   id: string;
@@ -58,13 +59,7 @@ export const EventDialog = ({
   const [paymentStatus, setPaymentStatus] = useState("not_paid");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const [existingFiles, setExistingFiles] = useState<Array<{
-    id: string;
-    filename: string;
-    file_path: string;
-    content_type?: string;
-    size?: number;
-  }>>([]);
+  const [existingFiles, setExistingFiles] = useState<FileRecord[]>([]);
   const [isRecurring, setIsRecurring] = useState(false);
   const [repeatPattern, setRepeatPattern] = useState("");
   const [repeatUntil, setRepeatUntil] = useState("");
@@ -96,18 +91,12 @@ export const EventDialog = ({
       setEventNotes(initialData.event_notes || "");
       
       if (initialData.start_date) {
-        const startDate = new Date(initialData.start_date);
-        const formattedStart = new Date(startDate.getTime() - startDate.getTimezoneOffset() * 60000)
-          .toISOString()
-          .slice(0, 16);
+        const formattedStart = new Date(initialData.start_date).toISOString().slice(0, 16);
         setStartDate(formattedStart);
       }
       
       if (initialData.end_date) {
-        const endDate = new Date(initialData.end_date);
-        const formattedEnd = new Date(endDate.getTime() - endDate.getTimezoneOffset() * 60000)
-          .toISOString()
-          .slice(0, 16);
+        const formattedEnd = new Date(initialData.end_date).toISOString().slice(0, 16);
         setEndDate(formattedEnd);
       }
       
@@ -120,19 +109,28 @@ export const EventDialog = ({
       setEventName(initialData.title || "");
       
       setReminderAt(initialData.reminder_at || '');
-      setReminderEnabled(initialData.reminder_enabled || initialData.email_reminder_enabled || false);
+      setReminderEnabled(!!(initialData.reminder_enabled || initialData.email_reminder_enabled));
       
       const fetchExistingFiles = async () => {
         try {
           const { data, error } = await supabase
             .from('event_files')
-            .select('*')
+            .select('id, filename, file_path, content_type, size, created_at, user_id')
             .eq('event_id', initialData.id);
 
           if (error) {
             console.error('Error fetching existing files:', error);
           } else {
-            setExistingFiles(data || []);
+            const fileRecords: FileRecord[] = (data || []).map(file => ({
+              id: file.id,
+              filename: file.filename,
+              file_path: file.file_path,
+              content_type: file.content_type || undefined,
+              size: file.size || undefined,
+              created_at: file.created_at,
+              user_id: file.user_id
+            }));
+            setExistingFiles(fileRecords);
           }
         } catch (error) {
           console.error('Error fetching existing files:', error);
