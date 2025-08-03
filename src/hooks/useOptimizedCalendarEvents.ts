@@ -42,7 +42,7 @@ export const useOptimizedCalendarEvents = (userId: string | undefined, currentDa
     queryFn: async () => {
       if (!userId) return { events: [], bookingRequests: [] };
 
-      // Fetch only essential fields for events - STRICT deleted_at filtering
+      // Fetch only essential fields for events - STRICT deleted_at filtering - include reminder fields
       const { data: events, error: eventsError } = await supabase
         .from('events')
         .select(`
@@ -55,7 +55,9 @@ export const useOptimizedCalendarEvents = (userId: string | undefined, currentDa
           payment_amount,
           type,
           created_at,
-          deleted_at
+          deleted_at,
+          reminder_at,
+          email_reminder_enabled
         `)
         .eq('user_id', userId)
         .gte('start_date', monthStart.toISOString())

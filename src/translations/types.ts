@@ -337,6 +337,7 @@ export interface TranslationType {
     deleteEventConfirmTitle: string;
     deleteEventConfirmMessage: string;
     timeConflictError: string;
+    setReminder: string;
   };
   contact: {
     email: string;

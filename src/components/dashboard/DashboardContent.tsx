@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -12,6 +11,7 @@ import { CustomerList } from "@/components/crm/CustomerList"
 import { BusinessPage } from "@/components/business/BusinessPage"
 import { TaskReminderNotifications } from "@/components/tasks/TaskReminderNotifications"
 import { ArchivedTasksPage } from "@/components/tasks/ArchivedTasksPage"
+import { EventReminderNotifications } from "@/components/Calendar/EventReminderNotifications"
 import { motion, AnimatePresence } from "framer-motion"
 import { useLanguage } from "@/contexts/LanguageContext"
 import { useBusinessProfile } from "@/hooks/useBusinessProfile"
@@ -127,6 +127,9 @@ export const DashboardContent = ({
     <>
       {/* Add TaskReminderNotifications component */}
       <TaskReminderNotifications />
+      
+      {/* Add EventReminderNotifications component */}
+      <EventReminderNotifications />
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
         <div className="bg-muted/50 border border-border/60 rounded-lg p-1 mb-2">

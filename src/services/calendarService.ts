@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from '@/lib/types/calendar';
 
@@ -60,10 +59,14 @@ export const getUnifiedCalendarEvents = async (
       return { events: [], bookings: [] };
     }
 
-    // Fetch events from the events table - STRICT deleted_at filtering
+    // Fetch events from the events table - STRICT deleted_at filtering - include reminder fields
     const { data: events, error: eventsError } = await supabase
       .from('events')
-      .select('*')
+      .select(`
+        *,
+        reminder_at,
+        email_reminder_enabled
+      `)
       .eq('user_id', targetUserId)
       .is('deleted_at', null)
       .order('start_date', { ascending: true });
@@ -136,6 +139,8 @@ export const getUnifiedCalendarEvents = async (
       repeat_until: event.repeat_until,
       parent_event_id: event.parent_event_id,
       language: event.language,
+      reminder_at: event.reminder_at,
+      email_reminder_enabled: event.email_reminder_enabled || false,
       created_at: event.created_at || new Date().toISOString(),
       updated_at: event.updated_at || event.created_at || new Date().toISOString(),
       deleted_at: event.deleted_at
