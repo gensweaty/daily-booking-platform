@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -34,6 +33,21 @@ interface EventDialogProps {
   isBookingRequest?: boolean;
   businessId?: string;
 }
+
+// Helper function to convert UTC to local datetime-local format
+const formatToLocalDateTime = (utcDateString: string): string => {
+  const utcDate = new Date(utcDateString);
+  // Create a new date that represents the local time but in UTC timezone
+  const localOffset = utcDate.getTimezoneOffset() * 60000;
+  const localDate = new Date(utcDate.getTime() - localOffset);
+  return localDate.toISOString().slice(0, 16);
+};
+
+// Helper function to convert local datetime-local to UTC
+const convertLocalToUTC = (localDateString: string): string => {
+  const localDate = new Date(localDateString);
+  return localDate.toISOString();
+};
 
 export const EventDialog = ({ 
   isOpen, 
@@ -95,15 +109,15 @@ export const EventDialog = ({
       setSocialNetworkLink(initialData.social_network_link || "");
       setEventNotes(initialData.event_notes || "");
       
-      // ✅ FIX: Use simple slice to avoid timezone double conversion - no manual offset calculation
+      // ✅ FIX: Use proper timezone conversion
       if (initialData.start_date) {
-        const formattedStart = initialData.start_date.slice(0, 16);
+        const formattedStart = formatToLocalDateTime(initialData.start_date);
         setStartDate(formattedStart);
         console.log('[EventDialog] Setting start date:', formattedStart, 'from DB:', initialData.start_date);
       }
       
       if (initialData.end_date) {
-        const formattedEnd = initialData.end_date.slice(0, 16);
+        const formattedEnd = formatToLocalDateTime(initialData.end_date);
         setEndDate(formattedEnd);
         console.log('[EventDialog] Setting end date:', formattedEnd, 'from DB:', initialData.end_date);
       }
@@ -116,15 +130,14 @@ export const EventDialog = ({
       setAdditionalPersons(initialData.additional_persons || []);
       setEventName(initialData.title || "");
       
-      // ✅ FIX: Set reminder data using slice method to avoid timezone issues
+      // ✅ FIX: Set reminder data using proper timezone conversion
       console.log('[EventDialog] 🔍 Loading reminder data from initialData:', {
         reminder_at: initialData.reminder_at,
         email_reminder_enabled: initialData.email_reminder_enabled,
       });
       
-      // Set reminder time using slice to avoid timezone issues
       if (initialData.reminder_at) {
-        const formattedReminder = initialData.reminder_at.slice(0, 16);
+        const formattedReminder = formatToLocalDateTime(initialData.reminder_at);
         setReminderAt(formattedReminder);
         console.log('[EventDialog] ✅ Setting reminder at:', formattedReminder, 'from DB:', initialData.reminder_at);
       } else {
@@ -132,7 +145,6 @@ export const EventDialog = ({
         console.log('[EventDialog] No reminder time found, clearing field');
       }
       
-      // Set email reminder enabled flag
       const isEmailReminderEnabled = !!(initialData.email_reminder_enabled || initialData.reminder_enabled);
       setEmailReminderEnabled(isEmailReminderEnabled);
       console.log('[EventDialog] ✅ Setting email reminder enabled to:', isEmailReminderEnabled);
@@ -166,13 +178,16 @@ export const EventDialog = ({
       fetchExistingFiles();
     } else if (selectedDate) {
       console.log('[EventDialog] Setting up for new event with selected date:', selectedDate);
-      const dateStr = selectedDate.toISOString().split('T')[0];
+      // ✅ FIX: Use local timezone for new events
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
       const defaultStartTime = `${dateStr}T09:00`;
       const defaultEndTime = `${dateStr}T10:00`;
       setStartDate(defaultStartTime);
       setEndDate(defaultEndTime);
       
-      // Clear reminder fields for new events
       setReminderAt('');
       setEmailReminderEnabled(false);
     } else {
@@ -266,10 +281,10 @@ export const EventDialog = ({
         paymentAmount: person.paymentAmount
       }));
 
-      // ✅ FIX: Convert datetime-local values to UTC ISO strings properly without double conversion
-      const startDateUTC = new Date(startDate).toISOString();
-      const endDateUTC = new Date(endDate).toISOString();
-      const reminderAtUTC = emailReminderEnabled && reminderAt ? new Date(reminderAt).toISOString() : null;
+      // ✅ FIX: Convert datetime-local values to UTC properly
+      const startDateUTC = convertLocalToUTC(startDate);
+      const endDateUTC = convertLocalToUTC(endDate);
+      const reminderAtUTC = emailReminderEnabled && reminderAt ? convertLocalToUTC(reminderAt) : null;
 
       console.log("[EventDialog] Converting to UTC:", {
         local_start: startDate,
@@ -278,7 +293,6 @@ export const EventDialog = ({
         utc_reminder: reminderAtUTC
       });
 
-      // Properly include reminder fields in eventData
       const eventData = {
         title: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
         user_surname: userSurname.trim(),
@@ -293,7 +307,6 @@ export const EventDialog = ({
         is_recurring: isRecurring && repeatPattern && repeatPattern !== 'none',
         repeat_pattern: isRecurring && repeatPattern && repeatPattern !== 'none' ? repeatPattern : null,
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
-        // ✅ FIX: Properly save reminder fields with UTC conversion
         reminder_at: reminderAtUTC,
         email_reminder_enabled: emailReminderEnabled
       };
@@ -318,7 +331,6 @@ export const EventDialog = ({
         console.log("[EventDialog] Uploading files...");
       }
 
-      // Send booking approval email if needed
       if (!initialData && socialNetworkLink.trim() && socialNetworkLink.includes('@')) {
         console.log("[EventDialog] Triggering booking approval email with business address...");
         
