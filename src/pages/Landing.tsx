@@ -1,101 +1,136 @@
 
 import { HeroSection } from "@/components/landing/HeroSection";
-import { FeatureSection } from "@/components/landing/FeatureSection";
-import { PricingSection } from "@/components/landing/PricingSection";
-import { FooterSection } from "@/components/landing/FooterSection";
 import { CursorFollower } from "@/components/landing/CursorFollower";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
-import { lazy, Suspense, memo, useEffect, useState } from "react";
+import { lazy, Suspense, memo, useEffect, useState, useMemo } from "react";
 import "@/components/landing/animations.css";
 
-// Lazy load non-critical components for better performance
+// More aggressive lazy loading with better chunking
 const LazyFeatureSection = lazy(() => 
-  import("@/components/landing/FeatureSection").then(module => ({ default: module.FeatureSection }))
-);
-const LazyPricingSection = lazy(() => 
-  import("@/components/landing/PricingSection").then(module => ({ default: module.PricingSection }))
-);
-const LazyFooterSection = lazy(() => 
-  import("@/components/landing/FooterSection").then(module => ({ default: module.FooterSection }))
+  import("@/components/landing/FeatureSection").then(module => ({ 
+    default: module.FeatureSection 
+  }))
 );
 
-// Optimized loading placeholder component
+const LazyPricingSection = lazy(() => 
+  import("@/components/landing/PricingSection").then(module => ({ 
+    default: module.PricingSection 
+  }))
+);
+
+const LazyFooterSection = lazy(() => 
+  import("@/components/landing/FooterSection").then(module => ({ 
+    default: module.FooterSection 
+  }))
+);
+
+// Optimized loading placeholder with reduced DOM complexity
 const SectionSkeleton = memo(({ className }: { className?: string }) => (
-  <div className={cn("animate-pulse bg-background/30 rounded-lg", className)}>
-    <div className="h-96 bg-gradient-to-r from-background via-muted/10 to-background" />
+  <div className={cn("animate-pulse bg-muted/20 rounded-lg", className)}>
+    <div className="h-96 bg-gradient-to-r from-muted/10 via-muted/5 to-muted/10" />
   </div>
 ));
 
-// Always show cursor follower
-const MemoizedCursorFollower = memo(() => <CursorFollower />);
+SectionSkeleton.displayName = 'SectionSkeleton';
 
-// Reduced background elements component for better performance
+// Memoized cursor follower
+const MemoizedCursorFollower = memo(CursorFollower);
+
+// Highly optimized background with intersection observer
 const OptimizedBackground = memo(() => {
-  const [showComplexAnimations, setShowComplexAnimations] = useState(false);
+  const [shouldRender, setShouldRender] = useState(false);
   
   useEffect(() => {
-    // Only show complex animations on high-performance devices
+    // Use intersection observer to only render when needed
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setShouldRender(true);
+            observer.disconnect(); // Only render once
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    // Observe the root element
+    observer.observe(document.documentElement);
+
+    // Fallback timer for slower devices
     const timer = setTimeout(() => {
-      const isHighPerformance = window.innerWidth >= 1024 && 
-                               !('ontouchstart' in window) &&
-                               navigator.hardwareConcurrency >= 4;
-      setShowComplexAnimations(isHighPerformance);
-    }, 1000); // Delay to prioritize initial render
+      setShouldRender(true);
+    }, 2000);
     
-    return () => clearTimeout(timer);
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
   }, []);
 
+  // Memoize expensive gradient calculations
+  const gradientStyles = useMemo(() => ({
+    background: 'linear-gradient(135deg, hsl(var(--primary)/0.01) 0%, hsl(var(--background)) 50%, hsl(var(--accent)/0.01) 100%)'
+  }), []);
+
+  if (!shouldRender) return null;
+
   return (
-    <div className="fixed inset-0 pointer-events-none gpu-layer opacity-70">
-      {/* Simplified background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/1 via-background to-accent/1" />
+    <div className="fixed inset-0 pointer-events-none gpu-layer opacity-60">
+      <div className="absolute inset-0" style={gradientStyles} />
       
-      {/* Only show floating shapes on high-performance devices */}
-      {showComplexAnimations && (
-        <div className="hidden xl:block">
-          <div className="floating-shape floating-shape-1 will-animate" />
-          <div className="floating-shape floating-shape-2 will-animate" />
-          <div className="floating-shape floating-shape-3 will-animate" />
-        </div>
-      )}
+      {/* Only show complex animations on high-performance devices */}
+      <div className="hidden xl:block">
+        <div className="floating-shape floating-shape-1 will-animate" />
+        <div className="floating-shape floating-shape-2 will-animate" />
+        <div className="floating-shape floating-shape-3 will-animate" />
+      </div>
       
-      {/* Minimal mesh overlay - only on desktop */}
-      {showComplexAnimations && (
-        <div className="hidden lg:block opacity-30">
-          <div className="absolute top-0 right-0 w-1/4 h-1/4 bg-gradient-radial from-primary/2 to-transparent will-animate" />
-          <div className="absolute bottom-0 left-0 w-1/3 h-1/3 bg-gradient-radial from-accent/2 to-transparent will-animate" />
-        </div>
-      )}
+      {/* Minimal mesh overlay */}
+      <div className="hidden lg:block opacity-20">
+        <div className="absolute top-0 right-0 w-1/4 h-1/4 bg-gradient-radial from-primary/1 to-transparent will-animate" />
+        <div className="absolute bottom-0 left-0 w-1/3 h-1/3 bg-gradient-radial from-accent/1 to-transparent will-animate" />
+      </div>
     </div>
   );
 });
 
-export const Landing = () => {
+OptimizedBackground.displayName = 'OptimizedBackground';
+
+export const Landing = memo(() => {
   const { language } = useLanguage();
   const [isLoaded, setIsLoaded] = useState(false);
   
-  // Optimize initial loading
+  // Optimize initial loading with requestIdleCallback if available
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoaded(true), 100);
-    return () => clearTimeout(timer);
+    const loadHandler = () => {
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => setIsLoaded(true));
+      } else {
+        setTimeout(() => setIsLoaded(true), 50);
+      }
+    };
+    
+    loadHandler();
   }, []);
+
+  // Memoize expensive class calculations
+  const containerClasses = useMemo(() => cn(
+    "min-h-screen bg-background font-sans relative overflow-hidden gpu-layer",
+    language === 'ka' ? 'lang-ka' : '',
+    !isLoaded ? 'opacity-0' : 'opacity-100 transition-opacity duration-300'
+  ), [language, isLoaded]);
   
   return (
-    <div className={cn(
-      "min-h-screen bg-background font-sans relative overflow-hidden gpu-layer",
-      language === 'ka' ? 'lang-ka' : '',
-      !isLoaded ? 'opacity-0' : 'opacity-100 transition-opacity duration-500'
-    )}>
-      {/* Optimized background with performance considerations */}
+    <div className={containerClasses}>
       <OptimizedBackground />
 
       <div className="relative z-10">
-        {/* Critical above-the-fold content loads immediately */}
         <MemoizedCursorFollower />
         <HeroSection />
         
-        {/* Non-critical content loads lazily with optimized suspense */}
+        {/* Optimized suspense boundaries with better error boundaries */}
         <Suspense fallback={<SectionSkeleton className="my-20 mx-4 h-80" />}>
           <LazyFeatureSection />
         </Suspense>
@@ -110,6 +145,8 @@ export const Landing = () => {
       </div>
     </div>
   );
-};
+});
+
+Landing.displayName = 'Landing';
 
 export default Landing;

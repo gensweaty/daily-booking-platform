@@ -1,0 +1,35 @@
+
+/* Floating Shapes */
+.floating-shape {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.03;
+  pointer-events: none;
+}
+
+.floating-shape-1 {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(45deg, #9b87f5, #f97316);
+  top: 20%;
+  right: 10%;
+  animation: float 12s ease-in-out infinite;
+}
+
+.floating-shape-2 {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(45deg, #4ade80, #9b87f5);
+  top: 60%;
+  left: 5%;
+  animation: floatSlow 15s ease-in-out infinite reverse;
+}
+
+.floating-shape-3 {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(45deg, #f97316, #4ade80);
+  top: 80%;
+  right: 20%;
+  animation: float 10s ease-in-out infinite 2s;
+}

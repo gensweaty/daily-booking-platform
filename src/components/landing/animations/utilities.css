@@ -1,0 +1,48 @@
+
+/* Animation Utility Classes */
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-float-slow { animation: floatSlow 8s ease-in-out infinite; }
+.animate-shimmer { animation: shimmer 2s linear infinite; }
+.animate-subtle-shimmer { animation: subtleShimmer 4s linear infinite; }
+.animate-ultra-subtle-shimmer { animation: ultraSubtleShimmer 12s linear infinite; }
+.animate-ultra-gentle-float { animation: ultraGentleFloat 18s ease-in-out infinite; }
+.animate-gradient-shift { animation: subtleShift 8s ease infinite; }
+.animate-pulse-glow { animation: ultraGentlePulseGlow 12s ease-in-out infinite; }
+.animate-gentle-signup-glow { animation: verySlowGentleSignUpGlow 9s ease-in-out infinite; }
+.animate-ultra-slow-gentle-signup-glow { animation: ultraSlowGentleSignUpGlow 27s ease-in-out infinite; }
+.animate-mesh-move { animation: meshMove 20s ease-in-out infinite; }
+
+/* Glass Morphism */
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass-morphism {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 3D Transform Effects */
+.transform-3d {
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.hover-tilt:hover {
+  transform: rotateX(5deg) rotateY(5deg) scale(1.02);
+}
+
+.hover-scale-102:hover {
+  transform: scale(1.02);
+}
+
+/* Carousel hover effect */
+.carousel-image-hover {
+  transition: transform 0.4s ease;
+}
+
+.carousel-image-hover:hover {
+  transform: scale(1.05);
+}
