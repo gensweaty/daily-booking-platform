@@ -1,6 +1,5 @@
 
 import { useState } from "react";
-import { DashboardHeader } from "../DashboardHeader";
 import { TaskList } from "../TaskList";
 import { Calendar } from "../Calendar/Calendar";
 import AddTaskForm from "../AddTaskForm";
@@ -18,7 +17,6 @@ interface DashboardContentProps {
 }
 
 export const DashboardContent = ({ activeSection, setActiveSection }: DashboardContentProps) => {
-  const [showNav, setShowNav] = useState(false);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
 
   const renderContent = () => {
@@ -27,7 +25,7 @@ export const DashboardContent = ({ activeSection, setActiveSection }: DashboardC
         return (
           <>
             <TaskList />
-            <AddTaskForm isOpen={isTaskDialogOpen} setIsOpen={setIsTaskDialogOpen} />
+            <AddTaskForm open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen} />
           </>
         );
       case "calendar":
@@ -51,11 +49,6 @@ export const DashboardContent = ({ activeSection, setActiveSection }: DashboardC
     <div className="min-h-screen bg-background">
       <TaskReminderNotifications />
       <EventReminderNotifications />
-      
-      <DashboardHeader 
-        showNav={showNav}
-        setShowNav={setShowNav}
-      />
       
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         {renderContent()}

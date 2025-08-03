@@ -3,38 +3,82 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
+import { DashboardHeader } from "@/components/DashboardHeader";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { SEOManager } from "@/components/SEOManager";
+import { TrialExpiredDialog } from "@/components/TrialExpiredDialog";
+import { ManageSubscriptionDialog } from "@/components/subscription/ManageSubscriptionDialog";
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect";
 
-const Index = () => {
-  const { user, loading } = useAuth();
+export default function Index() {
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [activeSection, setActiveSection] = useState<"tasks" | "calendar">("tasks");
-  
-  // Handle subscription redirect
+  const [showNav, setShowNav] = useState(false);
+  const [isTrialExpiredDialogOpen, setIsTrialExpiredDialogOpen] = useState(false);
+  const [isManageSubscriptionOpen, setIsManageSubscriptionOpen] = useState(false);
+
+  // Handle subscription redirects
   useSubscriptionRedirect();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!user) {
       navigate("/signin");
+      return;
     }
-  }, [user, loading, navigate]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  }, [user, navigate]);
 
   if (!user) {
     return null;
   }
 
-  return <DashboardContent activeSection={activeSection} setActiveSection={setActiveSection} />;
-};
+  const handleSectionChange = (section: string) => {
+    setActiveSection(section as "tasks" | "calendar");
+  };
 
-export default Index;
+  const seoTitle = activeSection === "calendar" 
+    ? t("dashboard.bookingCalendar")
+    : t("dashboard.tasks");
+  const seoDescription = activeSection === "calendar"
+    ? "Manage your bookings and calendar events efficiently"
+    : "Organize and track your tasks with our intuitive dashboard";
+
+  return (
+    <>
+      <SEOManager 
+        title={seoTitle}
+        description={seoDescription}
+        keywords="dashboard, tasks, calendar, bookings, productivity"
+      />
+      
+      <div className="min-h-screen bg-background">
+        <DashboardHeader 
+          showNav={showNav}
+          setShowNav={setShowNav}
+          activeSection={activeSection}
+          setActiveSection={handleSectionChange}
+        />
+        
+        <DashboardContent 
+          activeSection={activeSection}
+          setActiveSection={handleSectionChange}
+        />
+
+        <TrialExpiredDialog 
+          isOpen={isTrialExpiredDialogOpen}
+          onClose={() => setIsTrialExpiredDialogOpen(false)}
+          onManageSubscription={() => {
+            setIsTrialExpiredDialogOpen(false);
+            setIsManageSubscriptionOpen(true);
+          }}
+        />
+
+        <ManageSubscriptionDialog 
+          isOpen={isManageSubscriptionOpen}
+          onClose={() => setIsManageSubscriptionOpen(false)}
+        />
+      </div>
+    </>
+  );
+}

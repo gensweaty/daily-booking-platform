@@ -433,7 +433,7 @@ export const EventDialogFields = ({
             {existingFiles.map((file) => (
               <SimpleFileDisplay
                 key={file.id}
-                fileName={file.filename}
+                filename={file.filename}
                 onDelete={() => handleDeleteExistingFile(file.id, file.file_path)}
               />
             ))}
@@ -448,7 +448,7 @@ export const EventDialogFields = ({
             {files.map((file, index) => (
               <SimpleFileDisplay
                 key={index}
-                fileName={file.name}
+                filename={file.name}
                 onDelete={() => handleRemoveFile(index)}
               />
             ))}
@@ -458,7 +458,7 @@ export const EventDialogFields = ({
         <div className="mt-2">
           <FileUploadField
             onFileSelect={handleFileSelect}
-            acceptedFileTypes={['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.gif']}
+            acceptedFileTypes=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
             maxSizeMB={10}
           />
         </div>
@@ -582,8 +582,8 @@ export const EventDialogFields = ({
       )}
 
       <TaskDateTimePicker
-        open={isReminderDialogOpen}
-        onOpenChange={setIsReminderDialogOpen}
+        isOpen={isReminderDialogOpen}
+        onClose={handleReminderCancel}
         onConfirm={handleReminderConfirm}
         initialDate={reminderTime || new Date()}
         title={t("events.setReminder")}
