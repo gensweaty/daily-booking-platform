@@ -51,7 +51,11 @@ export const useEventDialog = ({
         reminder_at: eventData.reminder_at
       });
       
-      if (!createEvent) throw new Error("Create event function not provided");
+      if (!createEvent) {
+        // If no createEvent function provided, just return the data as is
+        // This allows the EventDialog to handle the creation directly
+        return eventData as CalendarEventType;
+      }
       
       console.log("Creating event with data:", eventData);
       const createdEvent = await createEvent(eventData);
@@ -76,8 +80,10 @@ export const useEventDialog = ({
     reminder_at?: string | null;
   }) => {
     try {
-      if (!updateEvent || !selectedEvent) {
-        throw new Error("Update event function not provided or no event selected");
+      if (!selectedEvent) {
+        // If no selectedEvent, just return the data as is
+        // This allows the EventDialog to handle the update directly
+        return data as CalendarEventType;
       }
       
       const eventData = {
@@ -97,6 +103,12 @@ export const useEventDialog = ({
         reminder_at: eventData.reminder_at
       });
       console.log("Updating event with data:", eventData);
+      
+      if (!updateEvent) {
+        // If no updateEvent function provided, just return the data as is
+        // This allows the EventDialog to handle the update directly
+        return eventData as CalendarEventType;
+      }
       
       const updatedEvent = await updateEvent({
         ...eventData,

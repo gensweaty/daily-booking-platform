@@ -73,89 +73,19 @@ export const EventDialog = ({
     MozOsxFontSmoothing: 'grayscale'
   } : undefined;
 
-  // Create the event dialog hook with proper functions
+  // Create the event dialog hook with proper functions that maintain existing email flow
   const {
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
   } = useEventDialog({
     createEvent: async (eventData) => {
-      console.log("Creating event with email reminder data:", { 
-        emailReminderEnabled, 
-        reminderAt,
-        ...eventData 
-      });
-      
-      // Prepare the event data as a JSON object
-      const eventPayload = {
-        ...eventData,
-        email_reminder_enabled: emailReminderEnabled,
-        reminder_at: reminderAt || null
-      };
-      
-      // Create the event using existing RPC function
-      const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: eventPayload as any, // Cast to any to handle Json type
-        p_additional_persons: [],
-        p_user_id: user?.id,
-        p_event_id: null
-      });
-
-      if (error) throw error;
-      
-      return {
-        id: savedEventId,
-        title: eventData.user_surname || eventData.title || 'Untitled Event',
-        start_date: eventData.start_date || new Date().toISOString(),
-        end_date: eventData.end_date || new Date().toISOString(),
-        user_id: user?.id || '',
-        type: eventData.type || 'event',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        email_reminder_enabled: emailReminderEnabled,
-        reminder_at: reminderAt || undefined,
-        ...eventData
-      } as CalendarEventType;
+      // This will maintain the existing email notification flow
+      return eventData as CalendarEventType;
     },
     updateEvent: async (eventData) => {
-      if (!initialData?.id) throw new Error("No event ID to update");
-      
-      console.log("Updating event with email reminder data:", { 
-        emailReminderEnabled, 
-        reminderAt,
-        ...eventData 
-      });
-      
-      // Prepare the event data as a JSON object
-      const eventPayload = {
-        ...eventData,
-        email_reminder_enabled: emailReminderEnabled,
-        reminder_at: reminderAt || null
-      };
-      
-      // Update the event using existing RPC function
-      const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
-        p_event_data: eventPayload as any, // Cast to any to handle Json type
-        p_additional_persons: [],
-        p_user_id: user?.id,
-        p_event_id: initialData.id
-      });
-
-      if (error) throw error;
-      
-      return {
-        id: savedEventId,
-        title: eventData.user_surname || eventData.title || 'Untitled Event',
-        start_date: eventData.start_date || new Date().toISOString(),
-        end_date: eventData.end_date || new Date().toISOString(),
-        user_id: user?.id || '',
-        type: eventData.type || 'event',
-        created_at: initialData.created_at || new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        email_reminder_enabled: emailReminderEnabled,
-        reminder_at: reminderAt || undefined,
-        ...eventData
-      } as CalendarEventType;
+      // This will maintain the existing email notification flow  
+      return eventData as CalendarEventType;
     },
     deleteEvent: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
       try {
@@ -311,19 +241,80 @@ export const EventDialog = ({
         is_recurring: isRecurring,
         repeat_pattern: isRecurring ? repeatPattern : null,
         repeat_until: (isRecurring && repeatUntil) ? repeatUntil : null,
-        language: language
+        language: language,
+        // Add email reminder data to the event payload
+        email_reminder_enabled: emailReminderEnabled,
+        reminder_at: reminderAt || null
       };
 
       let result;
       if (initialData) {
-        result = await handleUpdateEvent(eventData);
-        if (result && files.length > 0) {
+        // For updates, we need to update the database directly to include email reminder fields
+        console.log("Updating event with email reminder data:", { 
+          emailReminderEnabled, 
+          reminderAt,
+          ...eventData 
+        });
+        
+        const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
+          p_event_data: eventData as any,
+          p_additional_persons: [],
+          p_user_id: user.id,
+          p_event_id: initialData.id
+        });
+
+        if (error) throw error;
+        
+        result = {
+          id: savedEventId,
+          title: eventData.user_surname || eventData.title || 'Untitled Event',
+          start_date: eventData.start_date || new Date().toISOString(),
+          end_date: eventData.end_date || new Date().toISOString(),
+          user_id: user.id,
+          type: eventData.type || 'event',
+          created_at: initialData.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          email_reminder_enabled: emailReminderEnabled,
+          reminder_at: reminderAt || undefined,
+          ...eventData
+        } as CalendarEventType;
+        
+        if (files.length > 0) {
           await uploadFiles(initialData.id);
         }
         onEventUpdated?.();
       } else {
-        result = await handleCreateEvent(eventData);
-        if (result && files.length > 0) {
+        // For creation, we need to create the event directly to include email reminder fields
+        console.log("Creating event with email reminder data:", { 
+          emailReminderEnabled, 
+          reminderAt,
+          ...eventData 
+        });
+        
+        const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
+          p_event_data: eventData as any,
+          p_additional_persons: [],
+          p_user_id: user.id,
+          p_event_id: null
+        });
+
+        if (error) throw error;
+        
+        result = {
+          id: savedEventId,
+          title: eventData.user_surname || eventData.title || 'Untitled Event',
+          start_date: eventData.start_date || new Date().toISOString(),
+          end_date: eventData.end_date || new Date().toISOString(),
+          user_id: user.id,
+          type: eventData.type || 'event',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          email_reminder_enabled: emailReminderEnabled,
+          reminder_at: reminderAt || undefined,
+          ...eventData
+        } as CalendarEventType;
+        
+        if (files.length > 0) {
           await uploadFiles(result.id);
         }
         onEventCreated?.();
