@@ -1,19 +1,13 @@
 
 import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { isVirtualInstance } from "@/lib/recurringEvents";
 
 interface UseEventDialogProps {
-  createEvent?: (data: Partial<CalendarEventType> & {
-    email_reminder_enabled?: boolean;
-    reminder_at?: string | null;
-  }) => Promise<CalendarEventType>;
-  updateEvent?: (data: Partial<CalendarEventType> & {
-    email_reminder_enabled?: boolean;
-    reminder_at?: string | null;
-  }) => Promise<CalendarEventType>;
+  createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
+  updateEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
   deleteEvent?: ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => Promise<{ success: boolean; }>;
 }
 
@@ -28,10 +22,7 @@ export const useEventDialog = ({
   const { toast } = useToast();
   const { language } = useLanguage();
 
-  const handleCreateEvent = async (data: Partial<CalendarEventType> & {
-    email_reminder_enabled?: boolean;
-    reminder_at?: string | null;
-  }) => {
+  const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
       const eventData = {
         ...data,
@@ -40,22 +31,12 @@ export const useEventDialog = ({
         user_surname: data.user_surname || data.title,
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
         checkAvailability: false,
-        language: data.language || language || 'en',
-        email_reminder_enabled: data.email_reminder_enabled || false,
-        reminder_at: data.reminder_at || null
+        language: data.language || language || 'en'
       };
       
-      console.log("Creating event with language and reminder data:", {
-        language: eventData.language,
-        email_reminder_enabled: eventData.email_reminder_enabled,
-        reminder_at: eventData.reminder_at
-      });
+      console.log("Creating event with language:", eventData.language);
       
-      if (!createEvent) {
-        // If no createEvent function provided, just return the data as is
-        // This allows the EventDialog to handle the creation directly
-        return eventData as CalendarEventType;
-      }
+      if (!createEvent) throw new Error("Create event function not provided");
       
       console.log("Creating event with data:", eventData);
       const createdEvent = await createEvent(eventData);
@@ -75,15 +56,10 @@ export const useEventDialog = ({
     }
   };
 
-  const handleUpdateEvent = async (data: Partial<CalendarEventType> & {
-    email_reminder_enabled?: boolean;
-    reminder_at?: string | null;
-  }) => {
+  const handleUpdateEvent = async (data: Partial<CalendarEventType>) => {
     try {
-      if (!selectedEvent) {
-        // If no selectedEvent, just return the data as is
-        // This allows the EventDialog to handle the update directly
-        return data as CalendarEventType;
+      if (!updateEvent || !selectedEvent) {
+        throw new Error("Update event function not provided or no event selected");
       }
       
       const eventData = {
@@ -92,23 +68,11 @@ export const useEventDialog = ({
         title: data.user_surname || data.title || selectedEvent.title,
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
-        language: data.language || selectedEvent.language || language || 'en',
-        email_reminder_enabled: data.email_reminder_enabled !== undefined ? data.email_reminder_enabled : selectedEvent.email_reminder_enabled || false,
-        reminder_at: data.reminder_at !== undefined ? data.reminder_at : selectedEvent.reminder_at || null
+        language: data.language || selectedEvent.language || language || 'en'
       };
       
-      console.log("Updating event with language and reminder data:", {
-        language: eventData.language,
-        email_reminder_enabled: eventData.email_reminder_enabled,
-        reminder_at: eventData.reminder_at
-      });
+      console.log("Updating event with language:", eventData.language);
       console.log("Updating event with data:", eventData);
-      
-      if (!updateEvent) {
-        // If no updateEvent function provided, just return the data as is
-        // This allows the EventDialog to handle the update directly
-        return eventData as CalendarEventType;
-      }
       
       const updatedEvent = await updateEvent({
         ...eventData,
@@ -130,14 +94,14 @@ export const useEventDialog = ({
     }
   };
 
-  const handleDeleteEvent = async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
+  const handleDeleteEvent = async (deleteChoice?: "this" | "series") => {
     try {
-      if (!deleteEvent) throw new Error("Delete event function not provided");
+      if (!deleteEvent || !selectedEvent) throw new Error("Delete event function not provided or no event selected");
       
-      const result = await deleteEvent({ id, deleteChoice });
+      const result = await deleteEvent({ id: selectedEvent.id, deleteChoice });
       
       setSelectedEvent(null);
-      console.log("Event deleted successfully:", id);
+      console.log("Event deleted successfully:", selectedEvent.id);
       
       return result;
     } catch (error: any) {
