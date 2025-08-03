@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Briefcase, Bell, Archive } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TaskList } from "@/components/TaskList"
-import { CalendarPage as Calendar } from "@/components/Calendar/Calendar"
+import { Calendar } from "@/components/Calendar/Calendar"
 import AddTaskForm from "@/components/AddTaskForm"
 import { Statistics } from "@/components/Statistics"
 import { CustomerList } from "@/components/crm/CustomerList"
@@ -252,7 +252,7 @@ export const DashboardContent = ({
                       initial="hidden"
                       animate="visible"
                     >
-                      <Calendar />
+                      <Calendar defaultView="month" />
                     </motion.div>
                   </div>
                 </CardContent>
