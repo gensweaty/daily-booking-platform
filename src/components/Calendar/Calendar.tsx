@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar as CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
@@ -11,15 +12,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { EventDialog } from "@/components/Calendar/EventDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarEventType } from "@/lib/types";
-import { Main } from "@/components/ui/main";
-import { useUser } from "@clerk/clerk-react";
+import { CalendarEvent } from "@/lib/types";
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ReloadIcon } from "@radix-ui/react-icons";
 
 interface Filter {
   label: string;
@@ -35,16 +32,14 @@ const defaultFilters: Filter[] = [
 export function CalendarPage() {
   const [date, setDate] = useState<Date>(new Date());
   const [isCreateEventDialogOpen, setIsCreateEventDialogOpen] = useState(false);
-  const [events, setEvents] = useState<CalendarEventType[]>([]);
-  const [selectedEventForEdit, setSelectedEventForEdit] = useState<CalendarEventType | null>(null);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [selectedEventForEdit, setSelectedEventForEdit] = useState<CalendarEvent | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { t } = useLanguage();
   const { toast } = useToast();
-  const { user } = useUser();
   const [filters, setFilters] = useState(defaultFilters);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isAllDay, setIsAllDay] = useState(false);
 
   // Function to toggle filter
   const toggleFilter = (value: string) => {
@@ -64,6 +59,9 @@ export function CalendarPage() {
     setLoading(true);
     setError(null);
     try {
+      // Get current user from auth context instead of Clerk
+      const { data: { user } } = await supabase.auth.getUser();
+      
       if (!user) {
         console.warn('User not available, skipping fetch.');
         return;
@@ -87,7 +85,7 @@ export function CalendarPage() {
         console.error("Error fetching events:", error);
         setError(t("calendar.fetchEventsError"));
       } else {
-        const typedData = data as CalendarEventType[];
+        const typedData = data as CalendarEvent[];
         setEvents(typedData || []);
       }
     } catch (err) {
@@ -96,7 +94,7 @@ export function CalendarPage() {
     } finally {
       setLoading(false);
     }
-  }, [date, user, t]);
+  }, [date, t]);
 
   useEffect(() => {
     fetchData();
@@ -173,140 +171,138 @@ export function CalendarPage() {
   });
 
   return (
-    <Main>
-      <div className="md:px-10 px-4 py-6 w-full">
-        <div className="md:flex flex-row justify-between items-center mb-4">
-          <div className="flex-1 flex items-center space-x-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "w-[300px] justify-start text-left font-normal",
-                    !date && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, "PPP") : <span>{t("common.pickDate")}</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={setDate}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-            <Button onClick={fetchData} disabled={loading}>
-              {loading && <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />}
-              {t("common.refresh")}
-            </Button>
-          </div>
-          <div className="md:flex-none flex flex-row items-center justify-end w-full md:w-auto">
-            <Input
-              type="search"
-              placeholder={t("calendar.searchEvents")}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-md md:mr-4"
-            />
-            <Button onClick={() => setIsCreateEventDialogOpen(true)}>
-              {t("calendar.addEvent")}
-            </Button>
+    <div className="container mx-auto px-4 py-6">
+      <div className="md:flex flex-row justify-between items-center mb-4">
+        <div className="flex-1 flex items-center space-x-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant={"outline"}
+                className={cn(
+                  "w-[300px] justify-start text-left font-normal",
+                  !date && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {date ? format(date, "PPP") : <span>{t("common.pickDate")}</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={setDate}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          <Button onClick={fetchData} disabled={loading}>
+            {loading && <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />}
+            {t("common.refresh")}
+          </Button>
+        </div>
+        <div className="md:flex-none flex flex-row items-center justify-end w-full md:w-auto">
+          <Input
+            type="search"
+            placeholder={t("calendar.searchEvents")}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-md md:mr-4"
+          />
+          <Button onClick={() => setIsCreateEventDialogOpen(true)}>
+            {t("calendar.addEvent")}
+          </Button>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <Label className="block text-sm font-medium text-gray-700">{t("common.filters")}</Label>
+        <div className="flex flex-wrap gap-2 mt-2">
+          {filters.map((filter) => (
+            <div key={filter.value} className="flex items-center space-x-2">
+              <Checkbox
+                id={filter.value}
+                checked={filter.checked}
+                onCheckedChange={() => toggleFilter(filter.value)}
+              />
+              <Label htmlFor={filter.value} className="text-gray-900">
+                {filter.label}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {error && (
+        <div className="rounded-md bg-red-50 p-4">
+          <div className="flex">
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">{t("error.title")}</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{error}</p>
+              </div>
+            </div>
           </div>
         </div>
+      )}
 
-        <div className="mb-4">
-          <Label className="block text-sm font-medium text-gray-700">{t("common.filters")}</Label>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {filters.map((filter) => (
-              <div key={filter.value} className="flex items-center space-x-2">
-                <Checkbox
-                  id={filter.value}
-                  checked={filter.checked}
-                  onCheckedChange={() => toggleFilter(filter.value)}
-                />
-                <Label htmlFor={filter.value} className="text-gray-900">
-                  {filter.label}
-                </Label>
-              </div>
+      {loading ? (
+        <div className="flex items-center justify-center h-48">
+          <div className="mr-2 h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <span>{t("common.loading")}</span>
+        </div>
+      ) : filteredEvents.length === 0 ? (
+        <div className="flex items-center justify-center h-48">
+          <span>{t("calendar.noEvents")}</span>
+        </div>
+      ) : (
+        <ScrollArea className="h-[400px] w-full rounded-md border">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 p-4">
+            {filteredEvents.map((event) => (
+              <Card key={event.id} onClick={() => setSelectedEventForEdit(event)} className="cursor-pointer">
+                <CardHeader>
+                  <CardTitle>{event.title}</CardTitle>
+                  <CardDescription>
+                    {format(new Date(event.start_date), "Pp")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p>{event.user_surname}</p>
+                  {event.type === 'booking' && (
+                    <Badge variant="secondary">{t("common.booking")}</Badge>
+                  )}
+                </CardContent>
+              </Card>
             ))}
           </div>
-        </div>
+        </ScrollArea>
+      )}
 
-        {error && (
-          <div className="rounded-md bg-red-50 p-4">
-            <div className="flex">
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">{t("error.title")}</h3>
-                <div className="mt-2 text-sm text-red-700">
-                  <p>{error}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      {/* Create Event Dialog */}
+      {isCreateEventDialogOpen && (
+        <EventDialog
+          key={date?.getTime() || 0}
+          open={isCreateEventDialogOpen}
+          onClose={() => setIsCreateEventDialogOpen(false)}
+          selectedDate={date}
+          onSave={handleEventCreated}
+        />
+      )}
 
-        {loading ? (
-          <div className="flex items-center justify-center h-48">
-            <ReloadIcon className="mr-2 h-6 w-6 animate-spin" />
-            <span>{t("common.loading")}</span>
-          </div>
-        ) : filteredEvents.length === 0 ? (
-          <div className="flex items-center justify-center h-48">
-            <span>{t("calendar.noEvents")}</span>
-          </div>
-        ) : (
-          <ScrollArea className="h-[400px] w-full rounded-md border">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 p-4">
-              {filteredEvents.map((event) => (
-                <Card key={event.id} onClick={() => setSelectedEventForEdit(event)} className="cursor-pointer">
-                  <CardHeader>
-                    <CardTitle>{event.title}</CardTitle>
-                    <CardDescription>
-                      {format(new Date(event.start_date), "Pp")}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p>{event.user_surname}</p>
-                    {event.type === 'booking' && (
-                      <Badge variant="secondary">{t("common.booking")}</Badge>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </ScrollArea>
-        )}
-
-        {/* Create Event Dialog */}
-        {isCreateEventDialogOpen && (
-          <EventDialog
-            key={selectedDate?.getTime() || 0}
-            open={isCreateEventDialogOpen}
-            onClose={() => setIsCreateEventDialogOpen(false)}
-            selectedDate={selectedDate}
-            onSave={handleEventCreated}
-          />
-        )}
-
-        {/* Edit Event Dialog */}
-        {selectedEventForEdit && (
-          <EventDialog
-            key={selectedEventForEdit.id}
-            open={!!selectedEventForEdit}
-            onClose={() => setSelectedEventForEdit(null)}
-            selectedDate={date}
-            initialData={selectedEventForEdit}
-            onSave={handleEventUpdated}
-            onDelete={handleEventDeleted}
-            mode="edit"
-          />
-        )}
-      </div>
-    </Main>
+      {/* Edit Event Dialog */}
+      {selectedEventForEdit && (
+        <EventDialog
+          key={selectedEventForEdit.id}
+          open={!!selectedEventForEdit}
+          onClose={() => setSelectedEventForEdit(null)}
+          selectedDate={date}
+          initialData={selectedEventForEdit}
+          onSave={handleEventUpdated}
+          onDelete={handleEventDeleted}
+          mode="edit"
+        />
+      )}
+    </div>
   );
 }
 

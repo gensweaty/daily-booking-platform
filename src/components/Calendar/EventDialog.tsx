@@ -10,14 +10,15 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { EventDialogFields } from "./EventDialogFields";
 import { ReminderField } from "@/components/shared/ReminderField";
 import { useToast } from "@/hooks/use-toast";
-import type { CalendarEventType } from "@/lib/types";
+import type { CalendarEvent } from "@/lib/types";
+import { supabase } from '@/integrations/supabase/client';
 
 interface EventDialogProps {
   open: boolean;
   onClose: () => void;
   onSave: (eventData: any) => void;
   onDelete?: (eventId: string, deleteAll?: boolean) => void;
-  initialData?: CalendarEventType;
+  initialData?: CalendarEvent;
   selectedDate?: Date;
   mode?: 'create' | 'edit';
 }
@@ -175,6 +176,17 @@ export const EventDialog: React.FC<EventDialogProps> = ({
         }
       }
 
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: t("error.title"),
+          description: "User not authenticated",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const eventData = {
         id: initialData?.id,
         title: title.trim(),
@@ -193,6 +205,7 @@ export const EventDialog: React.FC<EventDialogProps> = ({
         reminder_at: reminderISO,
         email_reminder_enabled: emailReminderEnabled,
         type: 'event',
+        user_id: user.id,
         additional_persons: additionalPersons,
         files: files
       };
@@ -205,6 +218,22 @@ export const EventDialog: React.FC<EventDialogProps> = ({
           emailReminderEnabled
         }
       });
+
+      // Save to database
+      if (mode === 'edit' && initialData?.id) {
+        const { error } = await supabase
+          .from('events')
+          .update(eventData)
+          .eq('id', initialData.id);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('events')
+          .insert([eventData]);
+        
+        if (error) throw error;
+      }
 
       await onSave(eventData);
       onClose();
@@ -268,46 +297,77 @@ export const EventDialog: React.FC<EventDialogProps> = ({
           </DialogHeader>
 
           <div className="space-y-4">
-            <EventDialogFields
-              title={title}
-              setTitle={setTitle}
-              userSurname={userSurname}
-              setUserSurname={setUserSurname}
-              userNumber={userNumber}
-              setUserNumber={setUserNumber}
-              socialNetworkLink={socialNetworkLink}
-              setSocialNetworkLink={setSocialNetworkLink}
-              eventNotes={eventNotes}
-              setEventNotes={setEventNotes}
-              eventName={eventName}
-              setEventName={setEventName}
-              startDate={startDate}
-              setStartDate={setStartDate}
-              endDate={endDate}
-              setEndDate={setEndDate}
-              paymentStatus={paymentStatus}
-              setPaymentStatus={setPaymentStatus}
-              paymentAmount={paymentAmount}
-              setPaymentAmount={setPaymentAmount}
-              isRecurring={isRecurring}
-              setIsRecurring={setIsRecurring}
-              repeatPattern={repeatPattern}
-              setRepeatPattern={setRepeatPattern}
-              repeatUntil={repeatUntil}
-              setRepeatUntil={setRepeatUntil}
-              files={files}
-              setFiles={setFiles}
-              existingFiles={existingFiles}
-              setExistingFiles={setExistingFiles}
-              eventId={initialData?.id}
-              isNewEvent={mode === 'create'}
-              additionalPersons={additionalPersons}
-              setAdditionalPersons={setAdditionalPersons}
-              reminderAt={reminderAt}
-              setReminderAt={setReminderAt}
-              emailReminderEnabled={emailReminderEnabled}
-              setEmailReminderEnabled={setEmailReminderEnabled}
-            />
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="title">{t("common.title")}</Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder={t("calendar.eventTitle")}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="userSurname">{t("common.surname")}</Label>
+                <Input
+                  id="userSurname"
+                  value={userSurname}
+                  onChange={(e) => setUserSurname(e.target.value)}
+                  placeholder={t("calendar.userSurname")}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="startDate">{t("calendar.startDate")}</Label>
+                <Input
+                  id="startDate"
+                  type="datetime-local"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="endDate">{t("calendar.endDate")}</Label>
+                <Input
+                  id="endDate"
+                  type="datetime-local"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="reminderAt">{t("calendar.reminderTime")}</Label>
+                <Input
+                  id="reminderAt"
+                  type="datetime-local"
+                  value={reminderAt}
+                  onChange={(e) => setReminderAt(e.target.value)}
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  id="emailReminder"
+                  type="checkbox"
+                  checked={emailReminderEnabled}
+                  onChange={(e) => setEmailReminderEnabled(e.target.checked)}
+                />
+                <Label htmlFor="emailReminder">{t("calendar.enableEmailReminder")}</Label>
+              </div>
+
+              <div>
+                <Label htmlFor="eventNotes">{t("calendar.notes")}</Label>
+                <Textarea
+                  id="eventNotes"
+                  value={eventNotes}
+                  onChange={(e) => setEventNotes(e.target.value)}
+                  placeholder={t("calendar.eventNotes")}
+                />
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
