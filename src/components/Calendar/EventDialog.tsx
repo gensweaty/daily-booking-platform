@@ -92,21 +92,19 @@ export const EventDialog = ({
       setSocialNetworkLink(initialData.social_network_link || "");
       setEventNotes(initialData.event_notes || "");
       
-      // Fix timezone issue - just use the ISO string directly without timezone offset adjustments
+      // Fix timezone issue - use the date directly without double offset adjustment
       if (initialData.start_date) {
         const startDateObj = new Date(initialData.start_date);
-        const formattedStart = new Date(startDateObj.getTime() - startDateObj.getTimezoneOffset() * 60000)
-          .toISOString()
-          .slice(0, 16);
+        // Just convert to local input format without timezone manipulation
+        const formattedStart = startDateObj.toISOString().slice(0, 16);
         setStartDate(formattedStart);
         console.log('[EventDialog] Setting start date:', formattedStart, 'from:', initialData.start_date);
       }
       
       if (initialData.end_date) {
         const endDateObj = new Date(initialData.end_date);
-        const formattedEnd = new Date(endDateObj.getTime() - endDateObj.getTimezoneOffset() * 60000)
-          .toISOString()
-          .slice(0, 16);
+        // Just convert to local input format without timezone manipulation
+        const formattedEnd = endDateObj.toISOString().slice(0, 16);
         setEndDate(formattedEnd);
         console.log('[EventDialog] Setting end date:', formattedEnd, 'from:', initialData.end_date);
       }
@@ -245,7 +243,7 @@ export const EventDialog = ({
         paymentAmount: person.paymentAmount
       }));
 
-      // Fix: Properly include reminder fields in eventData
+      // Ensure reminder fields are properly included in eventData
       const eventData = {
         title: shouldShowEventNameField ? eventName.trim() || userSurname.trim() : userSurname.trim(),
         user_surname: userSurname.trim(),
@@ -260,7 +258,7 @@ export const EventDialog = ({
         is_recurring: isRecurring && repeatPattern && repeatPattern !== 'none',
         repeat_pattern: isRecurring && repeatPattern && repeatPattern !== 'none' ? repeatPattern : null,
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
-        // Ensure reminder fields are properly saved
+        // Properly save reminder fields
         reminder_at: reminderEnabled && reminderAt ? reminderAt : null,
         reminder_enabled: reminderEnabled,
         email_reminder_enabled: reminderEnabled
@@ -286,6 +284,7 @@ export const EventDialog = ({
         console.log("[EventDialog] Uploading files...");
       }
 
+      // Send booking approval email if needed
       if (!initialData && socialNetworkLink.trim() && socialNetworkLink.includes('@')) {
         console.log("[EventDialog] Triggering booking approval email with business address...");
         
@@ -373,8 +372,8 @@ export const EventDialog = ({
       file_path: file.file_path,
       content_type: file.content_type || null,
       size: file.size || null,
-      created_at: new Date().toISOString(), // Provide default value
-      user_id: null // Provide default value
+      created_at: new Date().toISOString(),
+      user_id: null
     }));
     setExistingFiles(fileRecords);
   };

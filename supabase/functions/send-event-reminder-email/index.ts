@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
 import { Resend } from "npm:resend@2.0.0";
@@ -210,7 +209,7 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      // Check if email reminder is enabled
+      // Check if email reminder is enabled and email exists
       if (!event.email_reminder_enabled && !event.reminder_enabled) {
         console.log('📧 Email reminder not enabled for event:', eventId);
         return new Response(
@@ -392,7 +391,6 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
-        // Get user's language and business info
         const { data: profileData } = await supabase
           .from('profiles')
           .select('language')
@@ -409,11 +407,9 @@ const handler = async (req: Request): Promise<Response> => {
         const businessName = businessData?.business_name;
         const businessAddress = businessData?.contact_address;
         
-        // Format event times using the new function with proper locale and timezone
         const formattedStartTime = formatEventTimeForLocale(event.start_date, language);
         const formattedEndTime = formatEventTimeForLocale(event.end_date, language);
 
-        // Get localized email content with business info
         const { subject, body: emailBody } = getEventReminderEmailContent(
           language, 
           event.title || event.user_surname, 
@@ -426,7 +422,6 @@ const handler = async (req: Request): Promise<Response> => {
           event.payment_amount
         );
 
-        // Send email
         const emailResult = await resend.emails.send({
           from: 'SmartBookly <noreply@smartbookly.com>',
           to: [recipientEmail],
@@ -441,7 +436,6 @@ const handler = async (req: Request): Promise<Response> => {
 
         console.log(`✅ Reminder email sent for event ${event.id} to ${recipientEmail} in language ${language}`);
         
-        // Mark the event as email sent
         await supabase
           .from('events')
           .update({ 
@@ -451,9 +445,7 @@ const handler = async (req: Request): Promise<Response> => {
           })
           .eq('id', event.id);
 
-        // Track in deduplication map
         recentlySentEmails.set(deduplicationKey, Date.now());
-        
         emailsSent++;
 
       } catch (error) {
