@@ -154,6 +154,11 @@ export const EventDialogFields = ({
     }
   };
 
+  // Handle file deletion from existing files
+  const handleExistingFileDeleted = (fileId: string) => {
+    setExistingFiles(existingFiles.filter(file => file.id !== fileId));
+  };
+
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
   const shouldShowEventNameField = additionalPersons.length > 0;
 
@@ -435,7 +440,7 @@ export const EventDialogFields = ({
             parentType="event"
             allowDelete
             parentId={eventId}
-            setExistingFiles={setExistingFiles}
+            onFileDeleted={handleExistingFileDeleted}
           />
         </div>
       )}

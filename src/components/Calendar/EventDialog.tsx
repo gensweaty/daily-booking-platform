@@ -59,13 +59,7 @@ export const EventDialog = ({
   const [paymentStatus, setPaymentStatus] = useState("not_paid");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const [existingFiles, setExistingFiles] = useState<Array<{
-    id: string;
-    filename: string;
-    file_path: string;
-    content_type?: string;
-    size?: number;
-  }>>([]);
+  const [existingFiles, setExistingFiles] = useState<FileRecord[]>([]);
   const [isRecurring, setIsRecurring] = useState(false);
   const [repeatPattern, setRepeatPattern] = useState("");
   const [repeatUntil, setRepeatUntil] = useState("");
@@ -137,7 +131,18 @@ export const EventDialog = ({
           if (error) {
             console.error('Error fetching existing files:', error);
           } else {
-            setExistingFiles(data || []);
+            // Map the database response to FileRecord format
+            const mappedFiles: FileRecord[] = (data || []).map(file => ({
+              id: file.id,
+              filename: file.filename,
+              file_path: file.file_path,
+              content_type: file.content_type || null,
+              size: file.size || null,
+              created_at: file.created_at || new Date().toISOString(),
+              user_id: file.user_id || null,
+              event_id: file.event_id
+            }));
+            setExistingFiles(mappedFiles);
           }
         } catch (error) {
           console.error('Error fetching existing files:', error);
