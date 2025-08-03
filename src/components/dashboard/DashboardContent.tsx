@@ -16,12 +16,7 @@ export const DashboardContent = () => {
       <TaskReminderNotifications />
       <EventReminderNotifications />
       
-      <DashboardHeader 
-        activeSection={activeSection} 
-        setActiveSection={setActiveSection}
-        showNav={showNav}
-        setShowNav={setShowNav}
-      />
+      <DashboardHeader />
 
       <div className="p-4 sm:ml-64">
         {activeSection === 'tasks' && (

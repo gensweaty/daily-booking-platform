@@ -25,18 +25,14 @@ export const EventDialogFields: React.FC<EventDialogFieldsProps> = ({
 }) => {
   const { t } = useLanguage();
 
-  const handleReminderTimeConfirm = (date: Date) => {
-    onDataChange('reminder_at', date.toISOString());
-  };
-
   return (
     <div className="space-y-4">
       <div>
-        <Label htmlFor="event_name">{t("events.eventName")}</Label>
+        <Label htmlFor="title">{t("events.title")}</Label>
         <Input
-          id="event_name"
-          value={eventData.event_name || ""}
-          onChange={(e) => onDataChange('event_name', e.target.value)}
+          id="title"
+          value={eventData.title || ""}
+          onChange={(e) => onDataChange('title', e.target.value)}
           placeholder={t("events.eventNamePlaceholder")}
         />
       </div>
@@ -150,8 +146,8 @@ export const EventDialogFields: React.FC<EventDialogFieldsProps> = ({
         ) : (
           <FileUploadField
             onFileSelect={onFileSelect}
-            acceptedTypes={["image/*", ".pdf", ".doc", ".docx"]}
-            maxSizeMB={5}
+            acceptedFileTypes={["image/*", ".pdf", ".doc", ".docx"]}
+            maxSizeInMB={5}
           />
         )}
       </div>
