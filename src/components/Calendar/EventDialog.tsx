@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -104,6 +105,24 @@ export const EventDialog = ({
     }
   });
 
+  const loadExistingFiles = async (eventId: string) => {
+    try {
+      const { data: files, error } = await supabase
+        .from('event_files')
+        .select('id, filename, file_path, content_type, size')
+        .eq('event_id', eventId);
+
+      if (error) {
+        console.error('Error loading existing files:', error);
+        return;
+      }
+
+      setExistingFiles(files || []);
+    } catch (error) {
+      console.error('Error loading existing files:', error);
+    }
+  };
+
   useEffect(() => {
     if (initialData) {
       // Editing existing event
@@ -130,7 +149,7 @@ export const EventDialog = ({
       setStartDate(format(startDateTime, "yyyy-MM-dd'T'HH:mm"));
       setEndDate(format(endDateTime, "yyyy-MM-dd'T'HH:mm"));
 
-      // Load existing files - FIX: pass the id string, not the entire object
+      // Load existing files - FIXED: pass the string ID, not the entire object
       if (initialData.id) {
         loadExistingFiles(initialData.id);
       }
@@ -164,24 +183,6 @@ export const EventDialog = ({
       setReminderAt("");
     }
   }, [initialData, selectedDate]);
-
-  const loadExistingFiles = async (eventId: string) => {
-    try {
-      const { data: files, error } = await supabase
-        .from('event_files')
-        .select('id, filename, file_path, content_type, size')
-        .eq('event_id', eventId);
-
-      if (error) {
-        console.error('Error loading existing files:', error);
-        return;
-      }
-
-      setExistingFiles(files || []);
-    } catch (error) {
-      console.error('Error loading existing files:', error);
-    }
-  };
 
   const uploadFiles = async (eventId: string) => {
     if (files.length === 0) return;
