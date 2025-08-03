@@ -1,4 +1,3 @@
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,7 +44,7 @@ export const EventDialog = ({
   onEventCreated,
   onEventUpdated,
   onEventDeleted
-}) => {
+}: EventDialogProps) => {
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
   const [userNumber, setUserNumber] = useState("");
