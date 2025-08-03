@@ -28,6 +28,9 @@ interface EventDialogProps {
   onDelete?: ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => Promise<{ success: boolean; }>;
   isNewEvent?: boolean;
   selectedDate?: Date;
+  onEventCreated?: () => Promise<void>;
+  onEventUpdated?: () => Promise<void>;
+  onEventDeleted?: () => Promise<void>;
 }
 
 export const EventDialog = ({
@@ -38,7 +41,10 @@ export const EventDialog = ({
   onUpdate,
   onDelete,
   isNewEvent = false,
-  selectedDate
+  selectedDate,
+  onEventCreated,
+  onEventUpdated,
+  onEventDeleted
 }) => {
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
@@ -125,6 +131,9 @@ export const EventDialog = ({
           description: "Event created successfully",
         });
         onOpenChange(false);
+        if (onEventCreated) {
+          await onEventCreated();
+        }
       } catch (error: any) {
         console.error("Error creating event:", error);
         toast({
@@ -145,6 +154,9 @@ export const EventDialog = ({
           description: "Event updated successfully",
         });
         onOpenChange(false);
+        if (onEventUpdated) {
+          await onEventUpdated();
+        }
       } catch (error: any) {
         console.error("Error updating event:", error);
         toast({
@@ -165,6 +177,9 @@ export const EventDialog = ({
           description: "Event deleted successfully",
         });
         onOpenChange(false);
+        if (onEventDeleted) {
+          await onEventDeleted();
+        }
       } catch (error: any) {
         console.error("Error deleting event:", error);
         toast({
@@ -195,7 +210,7 @@ export const EventDialog = ({
         is_recurring: isRecurring,
         repeat_pattern: repeatPattern,
         repeat_until: repeatUntil,
-        files: files,
+        files: files as any, // Type assertion to handle the File[] vs expected type mismatch
         additionalPersons,
         reminder_time: reminderEnabled && reminderTime ? reminderTime.toISOString() : null,
       };

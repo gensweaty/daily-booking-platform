@@ -1,4 +1,16 @@
 
+export type Language = 'en' | 'es' | 'ka';
+
+export type TranslationType = {
+  [key: string]: string | TranslationType;
+};
+
+export interface LanguageContextType {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
+}
+
 export interface TranslationStrings {
   hero: {
     title: string;
