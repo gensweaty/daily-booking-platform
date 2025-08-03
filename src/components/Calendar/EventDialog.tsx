@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { EventDialogFields } from "./EventDialogFields";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { CalendarEvent } from "@/lib/types/calendar";
+import { CalendarEventType } from "@/lib/types/calendar";
 
 // Helper function to convert UTC to local datetime-local format
 const utcToLocal = (utcString: string | null): string => {
@@ -33,7 +33,7 @@ interface EventDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: () => void;
-  initialData?: CalendarEvent | null;
+  initialData?: CalendarEventType | null;
 }
 
 export const EventDialog = ({ isOpen, onClose, onSave, initialData }: EventDialogProps) => {
@@ -53,13 +53,23 @@ export const EventDialog = ({ isOpen, onClose, onSave, initialData }: EventDialo
   const [paymentStatus, setPaymentStatus] = useState("not_paid");
   const [paymentAmount, setPaymentAmount] = useState("");
   
+  // File handling
+  const [files, setFiles] = useState<File[]>([]);
+  const [existingFiles, setExistingFiles] = useState<Array<{
+    id: string;
+    filename: string;
+    file_path: string;
+    content_type?: string;
+    size?: number;
+  }>>([]);
+  
   // Recurring state
   const [isRecurring, setIsRecurring] = useState(false);
   const [repeatPattern, setRepeatPattern] = useState("weekly");
   const [repeatUntil, setRepeatUntil] = useState("");
   
-  // Reminder state
-  const [reminderEnabled, setReminderEnabled] = useState(false);
+  // Reminder state - using emailReminderEnabled to match interface
+  const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
   const [reminderAt, setReminderAt] = useState("");
   
   // Additional persons
@@ -88,11 +98,14 @@ export const EventDialog = ({ isOpen, onClose, onSave, initialData }: EventDialo
         setRepeatPattern(initialData.repeat_pattern || "weekly");
         setRepeatUntil(initialData.repeat_until || "");
         
-        // Reminder fields - convert UTC to local
-        setReminderEnabled(initialData.reminder_enabled || initialData.email_reminder_enabled || false);
+        // Reminder fields - convert UTC to local and use emailReminderEnabled
+        setEmailReminderEnabled(initialData.reminder_enabled || initialData.email_reminder_enabled || false);
         setReminderAt(utcToLocal(initialData.reminder_at));
         
-        setAdditionalPersons([]);
+        // Load existing files
+        setExistingFiles(initialData.files || []);
+        setFiles([]);
+        setAdditionalPersons(initialData.additional_persons || []);
       } else {
         // Creating new event - use current time in local format
         const now = new Date();
@@ -113,9 +126,11 @@ export const EventDialog = ({ isOpen, onClose, onSave, initialData }: EventDialo
         setRepeatPattern("weekly");
         setRepeatUntil("");
         
-        setReminderEnabled(false);
+        setEmailReminderEnabled(false);
         setReminderAt("");
         
+        setFiles([]);
+        setExistingFiles([]);
         setAdditionalPersons([]);
       }
     }
@@ -144,7 +159,7 @@ export const EventDialog = ({ isOpen, onClose, onSave, initialData }: EventDialo
     }
 
     // Reminder validation
-    if (reminderEnabled && reminderAt) {
+    if (emailReminderEnabled && reminderAt) {
       const reminderTime = new Date(reminderAt);
       const eventStartTime = new Date(startDate);
       
@@ -176,9 +191,9 @@ export const EventDialog = ({ isOpen, onClose, onSave, initialData }: EventDialo
         is_recurring: isRecurring,
         repeat_pattern: isRecurring ? repeatPattern : null,
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
-        reminder_enabled: reminderEnabled,
-        email_reminder_enabled: reminderEnabled, // For backward compatibility
-        reminder_at: reminderEnabled && reminderAt ? localToUtc(reminderAt) : null,
+        reminder_enabled: emailReminderEnabled,
+        email_reminder_enabled: emailReminderEnabled, // For backward compatibility
+        reminder_at: emailReminderEnabled && reminderAt ? localToUtc(reminderAt) : null,
       };
 
       console.log("🔍 Saving event data:", {
@@ -251,18 +266,24 @@ export const EventDialog = ({ isOpen, onClose, onSave, initialData }: EventDialo
           setPaymentStatus={setPaymentStatus}
           paymentAmount={paymentAmount}
           setPaymentAmount={setPaymentAmount}
+          files={files}
+          setFiles={setFiles}
+          existingFiles={existingFiles}
+          setExistingFiles={setExistingFiles}
+          eventId={initialData?.id}
           isRecurring={isRecurring}
           setIsRecurring={setIsRecurring}
           repeatPattern={repeatPattern}
           setRepeatPattern={setRepeatPattern}
           repeatUntil={repeatUntil}
           setRepeatUntil={setRepeatUntil}
-          reminderEnabled={reminderEnabled}
-          setReminderEnabled={setReminderEnabled}
-          reminderAt={reminderAt}
-          setReminderAt={setReminderAt}
+          isNewEvent={!initialData}
           additionalPersons={additionalPersons}
           setAdditionalPersons={setAdditionalPersons}
+          reminderAt={reminderAt}
+          setReminderAt={setReminderAt}
+          emailReminderEnabled={emailReminderEnabled}
+          setEmailReminderEnabled={setEmailReminderEnabled}
         />
 
         <div className="flex justify-end gap-2 pt-4">
