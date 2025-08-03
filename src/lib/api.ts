@@ -270,7 +270,7 @@ export const sendEventCreationEmail = async (
         endDate,
         paymentStatus,
         paymentAmount,
-        contactAddress,
+        businessAddress: contactAddress, // Changed from contactAddress to businessAddress
         eventId,
         language,
         eventNotes
@@ -308,7 +308,7 @@ export const sendBookingConfirmationEmail = async (
         endDate,
         paymentStatus,
         paymentAmount,
-        contactAddress,
+        businessAddress: contactAddress, // Changed from contactAddress to businessAddress
         eventId,
         language,
         eventNotes
