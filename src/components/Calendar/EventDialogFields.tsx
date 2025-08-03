@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { ReminderField } from "@/components/shared/ReminderField";
+import { FileRecord } from "@/types/files";
 
 interface PersonData {
   id: string;
@@ -47,24 +47,8 @@ interface EventDialogFieldsProps {
   setPaymentAmount: (value: string) => void;
   files: File[];
   setFiles: (files: File[]) => void;
-  existingFiles: Array<{
-    id: string;
-    filename: string;
-    file_path: string;
-    content_type?: string;
-    size?: number;
-    created_at?: string;
-    user_id?: string;
-  }>;
-  setExistingFiles: (files: Array<{
-    id: string;
-    filename: string;
-    file_path: string;
-    content_type?: string;
-    size?: number;
-    created_at?: string;
-    user_id?: string;
-  }>) => void;
+  existingFiles: FileRecord[];
+  setExistingFiles: (files: FileRecord[]) => void;
   eventId?: string;
   isBookingRequest?: boolean;
   isRecurring: boolean;
