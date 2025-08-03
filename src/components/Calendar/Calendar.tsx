@@ -250,9 +250,11 @@ export const Calendar = ({
     toast.event.bookingSubmitted();
   };
 
+  // Functions to handle event operations and refresh calendar
   const refreshCalendar = async () => {
     const queryKey = businessId ? ['business-events', businessId] : ['events', user?.id];
     
+    // Wait a bit for database operations to complete
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     queryClient.invalidateQueries({ queryKey });
@@ -329,7 +331,6 @@ export const Calendar = ({
             open={isNewEventDialogOpen}
             onOpenChange={setIsNewEventDialogOpen}
             selectedDate={dialogSelectedDate}
-            onCreate={handleCreateEvent}
             onEventCreated={handleEventCreated}
           />
 
@@ -340,8 +341,6 @@ export const Calendar = ({
               onOpenChange={() => setSelectedEvent(null)}
               selectedDate={new Date(selectedEvent.start_date)}
               initialData={selectedEvent}
-              onUpdate={handleUpdateEvent}
-              onDelete={({ id, deleteChoice }) => handleDeleteEvent(deleteChoice)}
               onEventUpdated={handleEventUpdated}
               onEventDeleted={handleEventDeleted}
             />

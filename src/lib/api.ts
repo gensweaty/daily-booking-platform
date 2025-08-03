@@ -247,46 +247,6 @@ export const deleteReminder = async (id: string) => {
 };
 
 // Email operations
-export const sendBookingConfirmationEmail = async (
-  recipientEmail: string,
-  recipientName: string,
-  businessName: string,
-  startDate: string,
-  endDate: string,
-  paymentStatus: string,
-  paymentAmount: number | null,
-  contactAddress: string,
-  eventId: string,
-  language: string = 'en',
-  eventNotes: string = '',
-  isReminder: boolean = false
-) => {
-  try {
-    const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
-      body: {
-        recipientEmail,
-        fullName: recipientName,
-        businessName,
-        startDate,
-        endDate,
-        paymentStatus,
-        paymentAmount,
-        contactAddress,
-        eventId,
-        language,
-        eventNotes,
-        isReminder
-      }
-    });
-
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error('Error sending booking confirmation email:', error);
-    throw error;
-  }
-};
-
 export const sendEventCreationEmail = async (
   recipientEmail: string,
   recipientName: string,
@@ -298,8 +258,7 @@ export const sendEventCreationEmail = async (
   contactAddress: string,
   eventId: string,
   language: string = 'en',
-  eventNotes: string = '',
-  isReminder: boolean = false
+  eventNotes: string = ''
 ) => {
   try {
     const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
@@ -314,8 +273,7 @@ export const sendEventCreationEmail = async (
         contactAddress,
         eventId,
         language,
-        eventNotes,
-        isReminder
+        eventNotes
       }
     });
 
@@ -323,6 +281,44 @@ export const sendEventCreationEmail = async (
     return data;
   } catch (error) {
     console.error('Error sending event creation email:', error);
+    throw error;
+  }
+};
+
+export const sendBookingConfirmationEmail = async (
+  recipientEmail: string,
+  recipientName: string,
+  businessName: string,
+  startDate: string,
+  endDate: string,
+  paymentStatus: string,
+  paymentAmount: number | null,
+  contactAddress: string,
+  eventId: string,
+  language: string = 'en',
+  eventNotes: string = ''
+) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
+      body: {
+        recipientEmail,
+        fullName: recipientName,
+        businessName,
+        startDate,
+        endDate,
+        paymentStatus,
+        paymentAmount,
+        contactAddress,
+        eventId,
+        language,
+        eventNotes
+      }
+    });
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error sending booking confirmation email:', error);
     throw error;
   }
 };

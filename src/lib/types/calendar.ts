@@ -1,3 +1,4 @@
+
 export type CalendarViewType = 'month' | 'week' | 'day';
 
 export interface CalendarEventType {
@@ -43,5 +44,4 @@ export interface CalendarEventType {
     content_type?: string;
     size?: number;
   }>;
-  reminder_time?: string;
 }
