@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { isVirtualInstance } from "@/lib/recurringEvents";
 
@@ -31,10 +31,17 @@ export const useEventDialog = ({
         user_surname: data.user_surname || data.title,
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
         checkAvailability: false,
-        language: data.language || language || 'en'
+        language: data.language || language || 'en',
+        // Include email reminder fields
+        email_reminder_enabled: data.email_reminder_enabled || false,
+        reminder_at: data.reminder_at || null
       };
       
-      console.log("Creating event with language:", eventData.language);
+      console.log("Creating event with language and reminder data:", {
+        language: eventData.language,
+        email_reminder_enabled: eventData.email_reminder_enabled,
+        reminder_at: eventData.reminder_at
+      });
       
       if (!createEvent) throw new Error("Create event function not provided");
       
@@ -68,10 +75,17 @@ export const useEventDialog = ({
         title: data.user_surname || data.title || selectedEvent.title,
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
-        language: data.language || selectedEvent.language || language || 'en'
+        language: data.language || selectedEvent.language || language || 'en',
+        // Include email reminder fields
+        email_reminder_enabled: data.email_reminder_enabled !== undefined ? data.email_reminder_enabled : selectedEvent.email_reminder_enabled || false,
+        reminder_at: data.reminder_at !== undefined ? data.reminder_at : selectedEvent.reminder_at || null
       };
       
-      console.log("Updating event with language:", eventData.language);
+      console.log("Updating event with language and reminder data:", {
+        language: eventData.language,
+        email_reminder_enabled: eventData.email_reminder_enabled,
+        reminder_at: eventData.reminder_at
+      });
       console.log("Updating event with data:", eventData);
       
       const updatedEvent = await updateEvent({

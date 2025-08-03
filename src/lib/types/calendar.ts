@@ -44,4 +44,8 @@ export interface CalendarEventType {
     content_type?: string;
     size?: number;
   }>;
+  // Email reminder properties
+  email_reminder_enabled?: boolean;
+  reminder_at?: string;
+  reminder_sent_at?: string;
 }

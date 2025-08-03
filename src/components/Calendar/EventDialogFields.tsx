@@ -84,6 +84,11 @@ interface EventDialogFieldsProps {
   setAdditionalPersons: (persons: PersonData[]) => void;
   // Add missing prop
   isVirtualEvent?: boolean;
+  // Add email reminder props
+  emailReminderEnabled: boolean;
+  setEmailReminderEnabled: (value: boolean) => void;
+  reminderAt: string;
+  setReminderAt: (value: string) => void;
 }
 
 export const EventDialogFields = ({
@@ -122,7 +127,11 @@ export const EventDialogFields = ({
   isNewEvent = false,
   additionalPersons,
   setAdditionalPersons,
-  isVirtualEvent = false
+  isVirtualEvent = false,
+  emailReminderEnabled,
+  setEmailReminderEnabled,
+  reminderAt,
+  setReminderAt
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -181,6 +190,17 @@ export const EventDialogFields = ({
       // Clear repeat settings when unchecked
       setRepeatPattern('');
       setRepeatUntil('');
+    }
+  };
+
+  // Helper function to get email reminder label text
+  const getEmailReminderLabel = () => {
+    if (language === 'ka') {
+      return "ემაილით შეხსენება";
+    } else if (language === 'es') {
+      return "recordatorio por correo electrónico";
+    } else {
+      return "Email Reminder";
     }
   };
 
@@ -490,6 +510,53 @@ export const EventDialogFields = ({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Email Reminder Section */}
+      <div className="space-y-4">
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="emailReminder"
+            checked={emailReminderEnabled}
+            onCheckedChange={(checked) => {
+              setEmailReminderEnabled(!!checked);
+              if (!checked) {
+                setReminderAt('');
+              }
+            }}
+          />
+          <Label 
+            htmlFor="emailReminder" 
+            className={cn("flex items-center gap-2", isGeorgian ? "font-georgian" : "")}
+            style={georgianStyle}
+          >
+            {getEmailReminderLabel()}
+          </Label>
+        </div>
+        
+        {emailReminderEnabled && (
+          <div>
+            <Label 
+              htmlFor="reminderAt" 
+              className={cn(isGeorgian ? "font-georgian" : "")}
+              style={georgianStyle}
+            >
+              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">შეხსენების დრო</GeorgianAuthText> : 
+               language === 'es' ? "Tiempo de recordatorio" : "Reminder Time"}
+            </Label>
+            <div className="relative">
+              <Input 
+                id="reminderAt" 
+                type="datetime-local" 
+                value={reminderAt} 
+                onChange={e => setReminderAt(e.target.value)} 
+                className="w-full dark:text-white dark:[color-scheme:dark]" 
+                style={{ colorScheme: 'auto' }} 
+                max={startDate ? startDate.slice(0, 16) : undefined}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Repeat Options - Only show for new events */}
