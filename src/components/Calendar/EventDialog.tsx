@@ -1,35 +1,99 @@
 
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Trash2 } from 'lucide-react';
-import { EventDialogFields } from './EventDialogFields';
-import { RecurringDeleteDialog } from './RecurringDeleteDialog';
-import { CalendarEventType } from '@/lib/types/calendar';
-import { isVirtualInstance } from '@/lib/recurringEvents';
-import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { EventDialogFields } from "./EventDialogFields";
+import { useState, useEffect } from "react";
+import { CalendarEventType } from "@/lib/types/calendar";
+import { useEventDialog } from "./hooks/useEventDialog";
+import { LanguageText } from "@/components/shared/LanguageText";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { cn } from "@/lib/utils";
+import { Trash2, X } from "lucide-react";
+import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
+import { isVirtualInstance } from "@/lib/recurringEvents";
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
+import { useToast } from "@/components/ui/use-toast";
 
 interface EventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  eventData?: CalendarEventType;
-  selectedDate?: Date;
-  onSave: (eventData: Partial<CalendarEventType>) => Promise<void>;
-  onDelete?: (id: string, deleteChoice?: "this" | "series") => Promise<void>;
+  selectedEvent?: CalendarEventType | null;
+  selectedDate?: Date | undefined;
+  initialData?: CalendarEventType;
+  createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
+  updateEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
+  deleteEvent?: ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => Promise<{ success: boolean; }>;
+  onEventCreated?: () => Promise<void>;
+  onEventUpdated?: () => Promise<void>;
+  onEventDeleted?: () => Promise<void>;
 }
 
-export const EventDialog: React.FC<EventDialogProps> = ({
+interface PersonData {
+  id: string;
+  userSurname: string;
+  userNumber: string;
+  socialNetworkLink: string;
+  eventNotes: string;
+  paymentStatus: string;
+  paymentAmount: string;
+}
+
+export const EventDialog = ({
   open,
   onOpenChange,
-  eventData,
+  selectedEvent,
   selectedDate,
-  onSave,
-  onDelete,
-}) => {
+  initialData,
+  createEvent,
+  updateEvent,
+  deleteEvent,
+  onEventCreated,
+  onEventUpdated,
+  onEventDeleted,
+}: EventDialogProps) => {
+  const { t, language } = useLanguage();
   const { toast } = useToast();
-  const [formData, setFormData] = useState<Partial<CalendarEventType>>({});
-  const [isLoading, setIsLoading] = useState(false);
+  const { validateDateTime } = useTimezoneValidation();
+  const isGeorgian = language === 'ka';
+  
+  // Use initialData or selectedEvent
+  const eventData = initialData || selectedEvent;
+  
+  const [title, setTitle] = useState("");
+  const [userSurname, setUserSurname] = useState("");
+  const [userNumber, setUserNumber] = useState("");
+  const [socialNetworkLink, setSocialNetworkLink] = useState("");
+  const [eventNotes, setEventNotes] = useState("");
+  const [eventName, setEventName] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("not_paid");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [existingFiles, setExistingFiles] = useState<Array<{
+    id: string;
+    filename: string;
+    file_path: string;
+    content_type?: string;
+    size?: number;
+  }>>([]);
+  
+  // Recurring event state
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [repeatPattern, setRepeatPattern] = useState('');
+  const [repeatUntil, setRepeatUntil] = useState('');
+  
+  // Email reminder state
+  const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
+  const [reminderAt, setReminderAt] = useState<string | undefined>(undefined);
+  
+  // Additional persons state
+  const [additionalPersons, setAdditionalPersons] = useState<PersonData[]>([]);
+  
+  // Dialog state
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecurringDeleteOpen, setIsRecurringDeleteOpen] = useState(false);
 
   const isBookingRequest = eventData?.type === 'booking_request';
@@ -38,177 +102,157 @@ export const EventDialog: React.FC<EventDialogProps> = ({
 
   const handleClose = () => {
     onOpenChange(false);
-    // Reset form data when closing
-    setFormData({});
   };
 
-  // Initialize form data when dialog opens or eventData changes
   useEffect(() => {
-    if (open) {
-      if (eventData) {
-        // Editing existing event - populate with all existing data
-        const reminderEnabled = eventData.email_reminder_enabled || false;
-        const reminderAt = eventData.reminder_at || null;
-        
-        setFormData({
-          ...eventData,
-          email_reminder_enabled: reminderEnabled,
-          reminder_at: reminderAt,
-        });
-      } else if (selectedDate) {
-        // Creating new event - set proper default times (9:00-10:00)
-        const defaultStart = new Date(selectedDate);
-        defaultStart.setHours(9, 0, 0, 0); // Set to 9:00 AM
-        
-        const defaultEnd = new Date(selectedDate);
-        defaultEnd.setHours(10, 0, 0, 0); // Set to 10:00 AM
-        
-        // Default reminder time: 30 minutes before event
-        const defaultReminderTime = new Date(defaultStart);
-        defaultReminderTime.setMinutes(defaultReminderTime.getMinutes() - 30);
-        
-        setFormData({
-          title: '',
-          user_surname: '',
-          user_number: '',
-          social_network_link: '',
-          event_notes: '',
-          start_date: defaultStart.toISOString(),
-          end_date: defaultEnd.toISOString(),
-          type: 'event',
-          payment_status: 'not_paid',
-          payment_amount: 0,
-          email_reminder_enabled: false, // Default to false for new events
-          reminder_at: defaultReminderTime.toISOString(),
-        });
-      }
+    if (eventData) {
+      setTitle(eventData.title || "");
+      setUserSurname(eventData.user_surname || "");
+      setUserNumber(eventData.user_number || "");
+      setSocialNetworkLink(eventData.social_network_link || "");
+      setEventNotes(eventData.event_notes || "");
+      setEventName(eventData.event_name || "");
+      setStartDate(eventData.start_date ? new Date(eventData.start_date).toISOString().slice(0, 16) : "");
+      setEndDate(eventData.end_date ? new Date(eventData.end_date).toISOString().slice(0, 16) : "");
+      setPaymentStatus(eventData.payment_status || "not_paid");
+      setPaymentAmount(eventData.payment_amount?.toString() || "");
+      setExistingFiles(eventData.files || []);
+      
+      // Initialize recurring fields
+      setIsRecurring(eventData.is_recurring || false);
+      setRepeatPattern(eventData.repeat_pattern || '');
+      setRepeatUntil(eventData.repeat_until || '');
+      
+      // Initialize email reminder fields
+      setEmailReminderEnabled(eventData.email_reminder_enabled || false);
+      setReminderAt(eventData.reminder_at ? new Date(eventData.reminder_at).toISOString().slice(0, 16) : undefined);
+    } else if (selectedDate) {
+      const defaultStart = new Date(selectedDate);
+      defaultStart.setHours(9, 0, 0, 0);
+      const defaultEnd = new Date(defaultStart);
+      defaultEnd.setHours(10, 0, 0, 0);
+      
+      setStartDate(defaultStart.toISOString().slice(0, 16));
+      setEndDate(defaultEnd.toISOString().slice(0, 16));
+      
+      // Reset all other fields for new events
+      setTitle("");
+      setUserSurname("");
+      setUserNumber("");
+      setSocialNetworkLink("");
+      setEventNotes("");
+      setEventName("");
+      setPaymentStatus("not_paid");
+      setPaymentAmount("");
+      setFiles([]);
+      setExistingFiles([]);
+      setIsRecurring(false);
+      setRepeatPattern('');
+      setRepeatUntil('');
+      setEmailReminderEnabled(false);
+      setReminderAt(undefined);
+      setAdditionalPersons([]);
     }
-  }, [open, eventData, selectedDate]);
+  }, [eventData, selectedDate]);
 
-  const handleSave = async () => {
+  const georgianStyle = isGeorgian ? {
+    fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
+    letterSpacing: '-0.2px',
+    WebkitFontSmoothing: 'antialiased',
+    MozOsxFontSmoothing: 'grayscale'
+  } : undefined;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (isSubmitting) return;
+    
     try {
-      setIsLoading(true);
+      setIsSubmitting(true);
 
-      // Validation
-      if (!formData.title?.trim() && !formData.user_surname?.trim()) {
-        toast({
-          title: "Error",
-          description: "Please provide either a title or customer name",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!formData.start_date || !formData.end_date) {
-        toast({
-          title: "Error",
-          description: "Please select both start and end times",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Validate reminder time if enabled
-      if (formData.email_reminder_enabled) {
-        if (!formData.reminder_at) {
+      // Validate reminder time if email reminder is enabled
+      if (emailReminderEnabled && reminderAt && startDate) {
+        const validationResult = await validateDateTime(
+          new Date(reminderAt).toISOString(),
+          'reminder',
+          new Date(startDate).toISOString()
+        );
+        
+        if (!validationResult.valid) {
           toast({
-            title: "Error",
-            description: "Please set a reminder time when email reminder is enabled",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        const reminderTime = new Date(formData.reminder_at);
-        const eventTime = new Date(formData.start_date);
-        const now = new Date();
-
-        if (reminderTime >= eventTime) {
-          toast({
-            title: "Error",
-            description: "Reminder time must be before the event start time",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (reminderTime <= now) {
-          toast({
-            title: "Warning",
-            description: "Reminder time is in the past. The reminder will not be sent.",
+            title: t("common.error"),
+            description: validationResult.message || "Reminder must be before event start time",
             variant: "destructive",
           });
           return;
         }
       }
 
-      // Prepare the data for saving
-      const dataToSave = {
-        ...formData,
-        title: formData.user_surname || formData.title || 'Untitled Event',
-        // Only include reminder fields if reminder is enabled
-        email_reminder_enabled: formData.email_reminder_enabled || false,
-        reminder_at: formData.email_reminder_enabled ? formData.reminder_at : null,
+      const eventSubmitData: Partial<CalendarEventType> = {
+        title: userSurname || title,
+        user_surname: userSurname,
+        user_number: userNumber,
+        social_network_link: socialNetworkLink,
+        event_notes: eventNotes,
+        event_name: eventName,
+        start_date: startDate,
+        end_date: endDate,
+        payment_status: paymentStatus,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : undefined,
+        is_recurring: isRecurring,
+        repeat_pattern: isRecurring ? repeatPattern : '',
+        repeat_until: isRecurring ? repeatUntil : '',
+        // Add email reminder fields
+        email_reminder_enabled: emailReminderEnabled,
+        reminder_at: emailReminderEnabled && reminderAt ? new Date(reminderAt).toISOString() : undefined,
+        reminder_sent_at: null // Reset when updating reminder
       };
 
-      console.log('Saving event data:', dataToSave);
+      if (eventData) {
+        if (!updateEvent) throw new Error("Update function not available");
+        await updateEvent(eventSubmitData);
+        if (onEventUpdated) await onEventUpdated();
+      } else {
+        if (!createEvent) throw new Error("Create function not available");
+        await createEvent(eventSubmitData);
+        if (onEventCreated) await onEventCreated();
+      }
 
-      await onSave(dataToSave);
       handleClose();
-
-      toast({
-        title: "Success",
-        description: `Event ${eventData ? 'updated' : 'created'} successfully${formData.email_reminder_enabled ? ' with email reminder' : ''}`,
-      });
-
     } catch (error: any) {
-      console.error('Error saving event:', error);
+      console.error("Error saving event:", error);
       toast({
-        title: "Error",
+        title: t("common.error"),
         description: error.message || "Failed to save event",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   const handleDelete = async (deleteChoice?: "this" | "series") => {
-    if (!eventData || !onDelete) return;
-
+    if (!deleteEvent || !eventData) return;
+    
     try {
-      setIsLoading(true);
-      await onDelete(eventData.id, deleteChoice);
-      handleClose();
+      await deleteEvent({ id: eventData.id, deleteChoice });
       setIsRecurringDeleteOpen(false);
-      
-      toast({
-        title: "Success",
-        description: "Event deleted successfully",
-      });
+      if (onEventDeleted) await onEventDeleted();
+      handleClose();
     } catch (error: any) {
-      console.error('Error deleting event:', error);
+      console.error("Error deleting event:", error);
       toast({
-        title: "Error",
+        title: t("common.error"),
         description: error.message || "Failed to delete event",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleDeleteClick = () => {
-    if (!eventData) return;
-
-    // Check if this is a recurring event
-    const isRecurring = eventData.is_recurring || eventData.parent_event_id;
-    
-    if (isRecurring) {
-      // Show recurring delete dialog
+    if (eventData?.is_recurring || eventData?.parent_event_id) {
       setIsRecurringDeleteOpen(true);
     } else {
-      // For non-recurring events, delete immediately
       handleDelete();
     }
   };
@@ -224,71 +268,103 @@ export const EventDialog: React.FC<EventDialogProps> = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {isNewEvent ? 'Add Event' : 'Edit Event'}
-              {isBookingRequest && ' (Booking Request)'}
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <DialogTitle className={cn("text-xl font-semibold", isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+              {eventData 
+                ? (isGeorgian ? <GeorgianAuthText>მოვლენის რედაქტირება</GeorgianAuthText> : <LanguageText>{t("events.editEvent")}</LanguageText>)
+                : (isGeorgian ? <GeorgianAuthText>ახალი მოვლენა</GeorgianAuthText> : <LanguageText>{t("events.addEvent")}</LanguageText>)
+              }
             </DialogTitle>
+            <div className="flex items-center gap-2">
+              {eventData && deleteEvent && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={handleDeleteClick}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                </AlertDialog>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClose}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <EventDialogFields
-              formData={formData}
-              setFormData={setFormData}
+              title={title}
+              setTitle={setTitle}
+              userSurname={userSurname}
+              setUserSurname={setUserSurname}
+              userNumber={userNumber}
+              setUserNumber={setUserNumber}
+              socialNetworkLink={socialNetworkLink}
+              setSocialNetworkLink={setSocialNetworkLink}
+              eventNotes={eventNotes}
+              setEventNotes={setEventNotes}
+              eventName={eventName}
+              setEventName={setEventName}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              paymentStatus={paymentStatus}
+              setPaymentStatus={setPaymentStatus}
+              paymentAmount={paymentAmount}
+              setPaymentAmount={setPaymentAmount}
+              files={files}
+              setFiles={setFiles}
+              existingFiles={existingFiles}
+              setExistingFiles={setExistingFiles}
+              eventId={eventData?.id}
               isBookingRequest={isBookingRequest}
+              isRecurring={isRecurring}
+              setIsRecurring={setIsRecurring}
+              repeatPattern={repeatPattern}
+              setRepeatPattern={setRepeatPattern}
+              repeatUntil={repeatUntil}
+              setRepeatUntil={setRepeatUntil}
+              isNewEvent={isNewEvent}
+              additionalPersons={additionalPersons}
+              setAdditionalPersons={setAdditionalPersons}
               isVirtualEvent={isVirtualEvent}
+              // Pass email reminder props
+              emailReminderEnabled={emailReminderEnabled}
+              setEmailReminderEnabled={setEmailReminderEnabled}
+              reminderAt={reminderAt}
+              setReminderAt={setReminderAt}
             />
 
-            <div className="flex justify-between pt-4">
-              <div className="flex gap-2">
-                {eventData && onDelete && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button 
-                        variant="destructive" 
-                        size="sm"
-                        disabled={isLoading}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Event
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone. This will permanently delete the event.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteClick}>
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={handleClose}
-                  disabled={isLoading}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleSave}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Saving...' : (isNewEvent ? 'Create Event' : 'Update Event')}
-                </Button>
-              </div>
+            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+              <Button
+                type="submit"
+                disabled={isSubmitting || !userSurname.trim() || !startDate || !endDate}
+                className="flex-1"
+              >
+                {isSubmitting 
+                  ? (isGeorgian ? "მიმდინარეობს შენახვა..." : t("common.saving"))
+                  : eventData
+                    ? (isGeorgian ? <GeorgianAuthText>შენახვა</GeorgianAuthText> : <LanguageText>{t("common.save")}</LanguageText>)
+                    : (isGeorgian ? <GeorgianAuthText>შექმნა</GeorgianAuthText> : <LanguageText>{t("common.create")}</LanguageText>)
+                }
+              </Button>
+              <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
+                {isGeorgian ? <GeorgianAuthText>გაუქმება</GeorgianAuthText> : <LanguageText>{t("common.cancel")}</LanguageText>}
+              </Button>
             </div>
-          </div>
+          </form>
         </DialogContent>
       </Dialog>
 
