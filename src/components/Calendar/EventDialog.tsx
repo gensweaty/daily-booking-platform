@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { EventDialogFields } from "./EventDialogFields";
@@ -16,13 +17,17 @@ import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
 import { useToast } from "@/components/ui/use-toast";
 
 interface EventDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  selectedEvent: CalendarEventType | null;
-  selectedDate: Date | undefined;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedEvent?: CalendarEventType | null;
+  selectedDate?: Date | undefined;
+  initialData?: CalendarEventType;
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
   updateEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
   deleteEvent?: ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => Promise<{ success: boolean; }>;
+  onEventCreated?: () => Promise<void>;
+  onEventUpdated?: () => Promise<void>;
+  onEventDeleted?: () => Promise<void>;
 }
 
 interface PersonData {
@@ -36,18 +41,25 @@ interface PersonData {
 }
 
 export const EventDialog = ({
-  isOpen,
-  onClose,
+  open,
+  onOpenChange,
   selectedEvent,
   selectedDate,
+  initialData,
   createEvent,
   updateEvent,
   deleteEvent,
+  onEventCreated,
+  onEventUpdated,
+  onEventDeleted,
 }: EventDialogProps) => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const { validateDateTime } = useTimezoneValidation();
   const isGeorgian = language === 'ka';
+  
+  // Use initialData or selectedEvent
+  const eventData = initialData || selectedEvent;
   
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
@@ -73,7 +85,7 @@ export const EventDialog = ({
   const [repeatPattern, setRepeatPattern] = useState('');
   const [repeatUntil, setRepeatUntil] = useState('');
   
-  // Email reminder state - NEW
+  // Email reminder state
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
   const [reminderAt, setReminderAt] = useState<string | undefined>(undefined);
   
@@ -84,32 +96,36 @@ export const EventDialog = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecurringDeleteOpen, setIsRecurringDeleteOpen] = useState(false);
 
-  const isBookingRequest = selectedEvent?.type === 'booking_request';
-  const isVirtualEvent = selectedEvent && isVirtualInstance(selectedEvent);
-  const isNewEvent = !selectedEvent;
+  const isBookingRequest = eventData?.type === 'booking_request';
+  const isVirtualEvent = eventData && isVirtualInstance(eventData);
+  const isNewEvent = !eventData;
+
+  const handleClose = () => {
+    onOpenChange(false);
+  };
 
   useEffect(() => {
-    if (selectedEvent) {
-      setTitle(selectedEvent.title || "");
-      setUserSurname(selectedEvent.user_surname || "");
-      setUserNumber(selectedEvent.user_number || "");
-      setSocialNetworkLink(selectedEvent.social_network_link || "");
-      setEventNotes(selectedEvent.event_notes || "");
-      setEventName(selectedEvent.event_name || "");
-      setStartDate(selectedEvent.start_date ? new Date(selectedEvent.start_date).toISOString().slice(0, 16) : "");
-      setEndDate(selectedEvent.end_date ? new Date(selectedEvent.end_date).toISOString().slice(0, 16) : "");
-      setPaymentStatus(selectedEvent.payment_status || "not_paid");
-      setPaymentAmount(selectedEvent.payment_amount?.toString() || "");
-      setExistingFiles(selectedEvent.files || []);
+    if (eventData) {
+      setTitle(eventData.title || "");
+      setUserSurname(eventData.user_surname || "");
+      setUserNumber(eventData.user_number || "");
+      setSocialNetworkLink(eventData.social_network_link || "");
+      setEventNotes(eventData.event_notes || "");
+      setEventName(eventData.event_name || "");
+      setStartDate(eventData.start_date ? new Date(eventData.start_date).toISOString().slice(0, 16) : "");
+      setEndDate(eventData.end_date ? new Date(eventData.end_date).toISOString().slice(0, 16) : "");
+      setPaymentStatus(eventData.payment_status || "not_paid");
+      setPaymentAmount(eventData.payment_amount?.toString() || "");
+      setExistingFiles(eventData.files || []);
       
       // Initialize recurring fields
-      setIsRecurring(selectedEvent.is_recurring || false);
-      setRepeatPattern(selectedEvent.repeat_pattern || '');
-      setRepeatUntil(selectedEvent.repeat_until || '');
+      setIsRecurring(eventData.is_recurring || false);
+      setRepeatPattern(eventData.repeat_pattern || '');
+      setRepeatUntil(eventData.repeat_until || '');
       
-      // Initialize email reminder fields - NEW
-      setEmailReminderEnabled(selectedEvent.email_reminder_enabled || false);
-      setReminderAt(selectedEvent.reminder_at ? new Date(selectedEvent.reminder_at).toISOString().slice(0, 16) : undefined);
+      // Initialize email reminder fields
+      setEmailReminderEnabled(eventData.email_reminder_enabled || false);
+      setReminderAt(eventData.reminder_at ? new Date(eventData.reminder_at).toISOString().slice(0, 16) : undefined);
     } else if (selectedDate) {
       const defaultStart = new Date(selectedDate);
       defaultStart.setHours(9, 0, 0, 0);
@@ -137,7 +153,7 @@ export const EventDialog = ({
       setReminderAt(undefined);
       setAdditionalPersons([]);
     }
-  }, [selectedEvent, selectedDate]);
+  }, [eventData, selectedDate]);
 
   const georgianStyle = isGeorgian ? {
     fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif",
@@ -172,7 +188,7 @@ export const EventDialog = ({
         }
       }
 
-      const eventData: Partial<CalendarEventType> = {
+      const eventSubmitData: Partial<CalendarEventType> = {
         title: userSurname || title,
         user_surname: userSurname,
         user_number: userNumber,
@@ -192,15 +208,17 @@ export const EventDialog = ({
         reminder_sent_at: null // Reset when updating reminder
       };
 
-      if (selectedEvent) {
+      if (eventData) {
         if (!updateEvent) throw new Error("Update function not available");
-        await updateEvent(eventData);
+        await updateEvent(eventSubmitData);
+        if (onEventUpdated) await onEventUpdated();
       } else {
         if (!createEvent) throw new Error("Create function not available");
-        await createEvent(eventData);
+        await createEvent(eventSubmitData);
+        if (onEventCreated) await onEventCreated();
       }
 
-      onClose();
+      handleClose();
     } catch (error: any) {
       console.error("Error saving event:", error);
       toast({
@@ -214,12 +232,13 @@ export const EventDialog = ({
   };
 
   const handleDelete = async (deleteChoice?: "this" | "series") => {
-    if (!deleteEvent || !selectedEvent) return;
+    if (!deleteEvent || !eventData) return;
     
     try {
-      await deleteEvent({ id: selectedEvent.id, deleteChoice });
+      await deleteEvent({ id: eventData.id, deleteChoice });
       setIsRecurringDeleteOpen(false);
-      onClose();
+      if (onEventDeleted) await onEventDeleted();
+      handleClose();
     } catch (error: any) {
       console.error("Error deleting event:", error);
       toast({
@@ -231,7 +250,7 @@ export const EventDialog = ({
   };
 
   const handleDeleteClick = () => {
-    if (selectedEvent?.is_recurring || selectedEvent?.parent_event_id) {
+    if (eventData?.is_recurring || eventData?.parent_event_id) {
       setIsRecurringDeleteOpen(true);
     } else {
       handleDelete();
@@ -240,17 +259,17 @@ export const EventDialog = ({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <DialogTitle className={cn("text-xl font-semibold", isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-              {selectedEvent 
+              {eventData 
                 ? (isGeorgian ? <GeorgianAuthText>მოვლენის რედაქტირება</GeorgianAuthText> : <LanguageText>{t("events.editEvent")}</LanguageText>)
                 : (isGeorgian ? <GeorgianAuthText>ახალი მოვლენა</GeorgianAuthText> : <LanguageText>{t("events.addEvent")}</LanguageText>)
               }
             </DialogTitle>
             <div className="flex items-center gap-2">
-              {selectedEvent && deleteEvent && (
+              {eventData && deleteEvent && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
@@ -267,7 +286,7 @@ export const EventDialog = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={onClose}
+                onClick={handleClose}
                 className="text-muted-foreground hover:text-foreground"
               >
                 <X className="h-4 w-4" />
@@ -301,7 +320,7 @@ export const EventDialog = ({
               setFiles={setFiles}
               existingFiles={existingFiles}
               setExistingFiles={setExistingFiles}
-              eventId={selectedEvent?.id}
+              eventId={eventData?.id}
               isBookingRequest={isBookingRequest}
               isRecurring={isRecurring}
               setIsRecurring={setIsRecurring}
@@ -328,12 +347,12 @@ export const EventDialog = ({
               >
                 {isSubmitting 
                   ? (isGeorgian ? "მიმდინარეობს შენახვა..." : t("common.saving"))
-                  : selectedEvent
+                  : eventData
                     ? (isGeorgian ? <GeorgianAuthText>შენახვა</GeorgianAuthText> : <LanguageText>{t("common.save")}</LanguageText>)
                     : (isGeorgian ? <GeorgianAuthText>შექმნა</GeorgianAuthText> : <LanguageText>{t("common.create")}</LanguageText>)
                 }
               </Button>
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+              <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
                 {isGeorgian ? <GeorgianAuthText>გაუქმება</GeorgianAuthText> : <LanguageText>{t("common.cancel")}</LanguageText>}
               </Button>
             </div>
@@ -343,7 +362,7 @@ export const EventDialog = ({
 
       {/* Recurring Delete Dialog */}
       <RecurringDeleteDialog
-        isOpen={isRecurringDeleteOpen}
+        open={isRecurringDeleteOpen}
         onClose={() => setIsRecurringDeleteOpen(false)}
         onDelete={handleDelete}
       />

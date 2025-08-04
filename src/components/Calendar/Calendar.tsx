@@ -94,7 +94,7 @@ export const Calendar = ({
     
     if (events?.length > 0) {
       console.log("[Calendar] First event:", events[0]);
-      console.log("[Calendar] All events:", events); // Log all events to debug
+      console.log("[Calendar] All events:", events);
     }
   }, [isExternalCalendar, businessId, businessUserId, allowBookingRequests, events, view, directEvents, fetchedEvents]);
 
@@ -120,7 +120,7 @@ export const Calendar = ({
       const result = await updateEvent?.({
         ...data,
         id: selectedEvent.id,
-        type: selectedEvent.type  // Make sure to pass the type from the selected event
+        type: selectedEvent.type
       });
       return result;
     },
@@ -314,7 +314,7 @@ export const Calendar = ({
         <div className={`flex-1 ${gridBgClass} ${textClass}`}>
           <CalendarView
             days={getDaysForView()}
-            events={events || []} // Pass all events (including recurring instances)
+            events={events || []}
             selectedDate={selectedDate}
             view={view}
             onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}
@@ -331,6 +331,7 @@ export const Calendar = ({
             open={isNewEventDialogOpen}
             onOpenChange={setIsNewEventDialogOpen}
             selectedDate={dialogSelectedDate}
+            createEvent={createEvent}
             onEventCreated={handleEventCreated}
           />
 
@@ -341,6 +342,8 @@ export const Calendar = ({
               onOpenChange={() => setSelectedEvent(null)}
               selectedDate={new Date(selectedEvent.start_date)}
               initialData={selectedEvent}
+              updateEvent={updateEvent}
+              deleteEvent={deleteEvent}
               onEventUpdated={handleEventUpdated}
               onEventDeleted={handleEventDeleted}
             />

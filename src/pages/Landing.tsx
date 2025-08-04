@@ -3,27 +3,13 @@ import { HeroSection } from "@/components/landing/HeroSection";
 import { CursorFollower } from "@/components/landing/CursorFollower";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
-import { lazy, Suspense, memo, useEffect, useState, useMemo } from "react";
+import { memo, useEffect, useState, useMemo } from "react";
 import "@/components/landing/animations.css";
+import { FooterSection } from "@/components/landing/FooterSection";
 
-// More aggressive lazy loading with better chunking
-const LazyFeatureSection = lazy(() => 
-  import("@/components/landing/FeatureSection").then(module => ({ 
-    default: module.FeatureSection 
-  }))
-);
-
-const LazyPricingSection = lazy(() => 
-  import("@/components/landing/PricingSection").then(module => ({ 
-    default: module.PricingSection 
-  }))
-);
-
-const LazyFooterSection = lazy(() => 
-  import("@/components/landing/FooterSection").then(module => ({ 
-    default: module.FooterSection 
-  }))
-);
+// Direct imports instead of lazy loading to fix the dynamic import issue
+import { FeatureSection } from "@/components/landing/FeatureSection";
+import { PricingSection } from "@/components/landing/PricingSection";
 
 // Optimized loading placeholder with reduced DOM complexity
 const SectionSkeleton = memo(({ className }: { className?: string }) => (
@@ -130,18 +116,10 @@ export const Landing = memo(() => {
         <MemoizedCursorFollower />
         <HeroSection />
         
-        {/* Optimized suspense boundaries with better error boundaries */}
-        <Suspense fallback={<SectionSkeleton className="my-20 mx-4 h-80" />}>
-          <LazyFeatureSection />
-        </Suspense>
-        
-        <Suspense fallback={<SectionSkeleton className="my-20 mx-4 h-96" />}>
-          <LazyPricingSection />
-        </Suspense>
-        
-        <Suspense fallback={<SectionSkeleton className="my-10 mx-4 h-32" />}>
-          <LazyFooterSection />
-        </Suspense>
+        {/* Direct imports instead of Suspense to fix dynamic import issues */}
+        <FeatureSection />
+        <PricingSection />
+        <FooterSection />
       </div>
     </div>
   );
