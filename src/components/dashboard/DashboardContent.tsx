@@ -64,7 +64,7 @@ export const DashboardContent = ({ currentView, onViewChange }: DashboardContent
       case "bookings":
         return <BookingRequestsList requests={[]} onDelete={() => {}} />;
       case "archived-tasks":
-        return <ArchivedTasksPage />;
+        return <ArchivedTasksPage onBackClick={() => onViewChange("tasks")} />;
       default:
         return (
           <Calendar 
@@ -78,14 +78,18 @@ export const DashboardContent = ({ currentView, onViewChange }: DashboardContent
 
   return (
     <div className="min-h-screen bg-background">
-      <DashboardHeader />
+      <DashboardHeader 
+        currentView={currentView} 
+        onViewChange={onViewChange}
+        username={user?.email || "User"}
+      />
       
       <main className="container mx-auto px-4 py-6">
         {renderContent()}
       </main>
 
       {/* Notification managers */}
-      <ReminderNotificationManager />
+      <ReminderNotificationManager reminders={[]} />
       <TaskReminderNotifications />
       <EventReminderNotifications />
       <BookingNotificationManager businessProfileId={user?.id || ""} />

@@ -67,17 +67,18 @@ export const EventDialog = ({
       setReminderAt(event.reminder_at ? new Date(event.reminder_at) : null);
       setEmailReminderEnabled(event.email_reminder_enabled || false);
 
-      // Load existing files
+      // Load existing files with correct property mapping
       if (event.files) {
         const fileRecords: FileRecord[] = event.files.map(file => ({
           id: file.id,
           parentId: file.event_id,
           parentType: 'event',
           filename: file.filename,
-          filePath: file.file_path,
-          contentType: file.content_type,
+          file_path: file.file_path, // Correct property name
+          content_type: file.content_type, // Correct property name
           size: file.size,
-          createdAt: new Date().toISOString(),
+          created_at: new Date().toISOString(), // Correct property name
+          user_id: null, // Add required field
           bucketName: 'event_attachments'
         }));
         setDisplayedFiles(fileRecords);
@@ -244,8 +245,10 @@ export const EventDialog = ({
         <RecurringDeleteDialog
           open={showDeleteDialog}
           onOpenChange={setShowDeleteDialog}
-          onConfirm={handleDelete}
-          isRecurring={event.is_recurring || false}
+          onDeleteThis={handleDelete}
+          onDeleteSeries={() => handleDelete("series")}
+          isRecurringEvent={event.is_recurring || false}
+          isLoading={isLoading}
         />
       )}
     </>
