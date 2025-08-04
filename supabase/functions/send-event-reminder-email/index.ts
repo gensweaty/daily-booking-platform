@@ -198,6 +198,8 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     console.log('📅 Event reminder email function called at', new Date().toISOString());
+    console.log('📧 Request method:', req.method);
+    console.log('📧 Request headers:', Object.fromEntries(req.headers.entries()));
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -218,59 +220,37 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = new Resend(resendApiKey);
 
-    // CRITICAL FIX: Enhanced request body parsing with better validation
+    // CRITICAL FIX: Enhanced request body parsing and validation
     let requestBody;
-    let bodyText;
     
     try {
-      bodyText = await req.text();
-      console.log('📧 Raw request body text:', bodyText);
-      console.log('📧 Request body length:', bodyText?.length || 0);
-      console.log('📧 Request content-type:', req.headers.get('content-type'));
-    } catch (textError) {
-      console.error('❌ Failed to read request text:', textError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to read request body' }),
-        { 
-          status: 400, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        }
-      );
-    }
-    
-    // CRITICAL FIX: Better empty body detection
-    if (!bodyText || 
-        bodyText.trim() === '' || 
-        bodyText.trim() === '{}' ||
-        bodyText.trim() === 'null' ||
-        bodyText.trim() === 'undefined') {
-      console.error('❌ Empty or invalid request body received:', bodyText);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Empty request body', 
-          received: bodyText,
-          length: bodyText?.length || 0
-        }),
-        { 
-          status: 400, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        }
-      );
-    }
+      const bodyText = await req.text();
+      console.log('📧 Raw request body:', bodyText);
+      console.log('📧 Request body length:', bodyText.length);
+      
+      if (!bodyText || bodyText.trim() === '' || bodyText === '{}') {
+        console.error('❌ Empty request body received');
+        return new Response(
+          JSON.stringify({ 
+            error: 'Empty request body - eventId is required',
+            received: bodyText 
+          }),
+          { 
+            status: 400, 
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          }
+        );
+      }
 
-    // CRITICAL FIX: Enhanced JSON parsing with better error handling
-    try {
       requestBody = JSON.parse(bodyText);
-      console.log('📧 Parsed request body:', JSON.stringify(requestBody, null, 2));
-      console.log('📧 Request body keys:', Object.keys(requestBody || {}));
+      console.log('📧 Parsed request body:', requestBody);
+      
     } catch (parseError) {
-      console.error('❌ Failed to parse request body as JSON:', parseError);
-      console.error('❌ Raw body was:', bodyText);
+      console.error('❌ Failed to parse request body:', parseError);
       return new Response(
         JSON.stringify({ 
-          error: 'Invalid JSON in request body', 
-          rawBody: bodyText,
-          parseError: parseError.message 
+          error: 'Invalid JSON in request body',
+          details: parseError.message 
         }),
         { 
           status: 400, 
@@ -279,38 +259,21 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // CRITICAL FIX: Enhanced eventId validation
+    // CRITICAL: Extract and validate eventId
     const { eventId } = requestBody;
     
-    console.log('📧 EventId validation details:', {
-      eventId,
-      type: typeof eventId,
-      isNull: eventId === null,
-      isUndefined: eventId === undefined,
-      isEmpty: eventId === '',
-      isStringNull: eventId === 'null',
-      isStringUndefined: eventId === 'undefined',
-      length: eventId?.length || 0
-    });
+    console.log('📧 EventId from request:', eventId, typeof eventId);
 
-    if (!eventId || 
-        typeof eventId !== 'string' || 
-        eventId.trim() === '' ||
-        eventId === 'null' ||
-        eventId === 'undefined') {
-      console.error('❌ Missing or invalid eventId in request body:', {
-        eventId,
-        body: requestBody,
-        bodyKeys: Object.keys(requestBody || {})
+    if (!eventId || typeof eventId !== 'string' || eventId.trim() === '') {
+      console.error('❌ Missing or invalid eventId:', { 
+        eventId, 
+        type: typeof eventId, 
+        body: requestBody 
       });
       return new Response(
         JSON.stringify({ 
-          error: 'Event ID is required and must be a valid string',
-          received: {
-            eventId,
-            type: typeof eventId,
-            body: requestBody
-          }
+          error: 'Valid eventId is required',
+          received: { eventId, type: typeof eventId, body: requestBody }
         }),
         { 
           status: 400, 
@@ -477,11 +440,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     return new Response(
       JSON.stringify({
-        message: 'Event reminder emails processed',
-        emailsSent,
-        emailsFailed,
-        eventId: event.id,
-        language: language
+        message: 'Event reminder emails processed successfully',
+        eventId: cleanEventId
       }),
       { 
         status: 200, 
