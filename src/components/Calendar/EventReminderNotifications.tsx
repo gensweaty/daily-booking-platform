@@ -84,7 +84,7 @@ export const EventReminderNotifications = () => {
     });
   };
 
-  // CRITICAL FIX: Proper request body construction with validation
+  // Send email reminder - FIXED: Proper request structure
   const sendEmailReminder = async (event: any) => {
     try {
       console.log("📧 Starting email reminder process for event:", {
@@ -93,23 +93,30 @@ export const EventReminderNotifications = () => {
         userSurname: event.user_surname
       });
       
-      // CRITICAL: Validate eventId before sending
-      if (!event.id) {
-        console.error("❌ No event ID found:", event);
+      // CRITICAL FIX: Validate eventId before sending
+      if (!event.id || typeof event.id !== 'string') {
+        console.error("❌ Invalid event.id:", event.id, "Type:", typeof event.id);
         toast({
           title: "Email Error",
-          description: "Invalid event - cannot send reminder",
+          description: "Invalid event ID - cannot send reminder",
           variant: "destructive",
         });
         return false;
       }
 
-      const eventId = String(event.id);
-      console.log("📤 Sending email with eventId:", eventId);
+      // CRITICAL FIX: Create proper request payload
+      const requestPayload = {
+        eventId: String(event.id).trim()
+      };
       
-      // CRITICAL FIX: Use invoke with properly structured body
+      console.log("📤 Sending request payload:", JSON.stringify(requestPayload, null, 2));
+      
+      // CRITICAL FIX: Use proper function invocation with explicit body structure
       const { data, error } = await supabase.functions.invoke('send-event-reminder-email', {
-        body: { eventId: eventId }
+        body: JSON.stringify(requestPayload),
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       console.log("📧 Edge function response:", { data, error });
