@@ -380,6 +380,8 @@ export const EventDialogFields = ({
                 </Label>
                 <SimpleFileDisplay
                   files={convertToFileRecords(existingFiles)}
+                  parentType="event"
+                  allowDelete={true}
                   onFileDeleted={(fileId) => {
                     setExistingFiles(existingFiles.filter(f => f.id !== fileId));
                   }}
