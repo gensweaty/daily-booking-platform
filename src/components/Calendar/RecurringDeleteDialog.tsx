@@ -6,27 +6,60 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 interface RecurringDeleteDialogProps {
   open: boolean;
+  isOpen?: boolean;
   onOpenChange: (open: boolean) => void;
+  onClose?: () => void;
   onDeleteThis: () => void;
   onDeleteSeries: () => void;
+  onConfirm?: (deleteChoice: "this" | "series") => Promise<void>;
   isRecurringEvent: boolean;
   isLoading?: boolean;
 }
 
 export const RecurringDeleteDialog = ({
   open,
+  isOpen,
   onOpenChange,
+  onClose,
   onDeleteThis,
   onDeleteSeries,
+  onConfirm,
   isRecurringEvent,
   isLoading = false
 }: RecurringDeleteDialogProps) => {
   const { t } = useLanguage();
 
+  // Determine if dialog should be open
+  const dialogOpen = open !== undefined ? open : (isOpen !== undefined ? isOpen : false);
+
+  const handleClose = () => {
+    if (onOpenChange) {
+      onOpenChange(false);
+    } else if (onClose) {
+      onClose();
+    }
+  };
+
+  const handleDeleteThis = () => {
+    if (onConfirm) {
+      onConfirm("this");
+    } else {
+      onDeleteThis();
+    }
+  };
+
+  const handleDeleteSeries = () => {
+    if (onConfirm) {
+      onConfirm("series");
+    } else {
+      onDeleteSeries();
+    }
+  };
+
   if (!isRecurringEvent) {
     // For single events, show simple confirmation
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={dialogOpen} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t("events.deleteEventConfirmTitle")}</DialogTitle>
@@ -38,14 +71,14 @@ export const RecurringDeleteDialog = ({
             <div className="flex gap-2 justify-end">
               <Button
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={handleClose}
                 disabled={isLoading}
               >
                 {t("common.cancel")}
               </Button>
               <Button
                 variant="destructive"
-                onClick={onDeleteThis}
+                onClick={handleDeleteThis}
                 disabled={isLoading}
               >
                 {isLoading ? t("common.loading") : t("events.deleteEvent")}
@@ -59,7 +92,7 @@ export const RecurringDeleteDialog = ({
 
   // For recurring events, show series/single choice
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={dialogOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t("recurring.deleteEventTitle")}</DialogTitle>
@@ -71,7 +104,7 @@ export const RecurringDeleteDialog = ({
           <div className="flex flex-col gap-2">
             <Button
               variant="outline"
-              onClick={onDeleteThis}
+              onClick={handleDeleteThis}
               className="w-full"
               disabled={isLoading}
             >
@@ -79,7 +112,7 @@ export const RecurringDeleteDialog = ({
             </Button>
             <Button
               variant="destructive"
-              onClick={onDeleteSeries}
+              onClick={handleDeleteSeries}
               className="w-full"
               disabled={isLoading}
             >
@@ -87,7 +120,7 @@ export const RecurringDeleteDialog = ({
             </Button>
             <Button
               variant="ghost"
-              onClick={() => onOpenChange(false)}
+              onClick={handleClose}
               className="w-full"
               disabled={isLoading}
             >
