@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CalendarEventType } from "@/lib/types/calendar";
+import { CalendarEvent } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { EventDialogFields } from "./EventDialogFields";
@@ -19,10 +19,14 @@ interface EventDialogProps {
   onOpenChange: (open: boolean) => void;
   selectedDate?: Date;
   eventId?: string;
-  initialData?: CalendarEventType;
+  initialData?: CalendarEvent;
   onEventCreated?: () => void;
   onEventUpdated?: () => void;
   onEventDeleted?: () => void;
+  // Legacy props for backward compatibility
+  isOpen?: boolean;
+  onClose?: () => void;
+  onSave?: (data: any) => void;
 }
 
 // Helper function to check if two time ranges overlap
@@ -99,7 +103,11 @@ export const EventDialog = ({
   initialData,
   onEventCreated,
   onEventUpdated,
-  onEventDeleted
+  onEventDeleted,
+  // Legacy props with defaults
+  isOpen = false,
+  onClose = () => {},
+  onSave = () => {}
 }: EventDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -138,7 +146,7 @@ export const EventDialog = ({
     paymentStatus: string;
     paymentAmount: string;
   }>>([]);
-  const [currentEventData, setCurrentEventData] = useState<CalendarEventType | null>(null);
+  const [currentEventData, setCurrentEventData] = useState<CalendarEvent | null>(null);
   const [reminderAt, setReminderAt] = useState("");
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
 
@@ -264,6 +272,7 @@ export const EventDialog = ({
     }
   };
 
+  // CRITICAL FIX: Proper form initialization with reminder data
   useEffect(() => {
     if (open) {
       if (initialData || eventId) {
@@ -281,6 +290,8 @@ export const EventDialog = ({
 
         const eventData = initialData;
         if (eventData) {
+          console.log('🔧 Loading event data for editing:', eventData);
+          
           setTitle(eventData.title || "");
           setUserSurname(eventData.user_surname || "");
           setUserNumber(eventData.user_number || "");
@@ -315,8 +326,18 @@ export const EventDialog = ({
           setIsRecurring(eventData.is_recurring || false);
           setRepeatPattern(eventData.repeat_pattern || "");
           setRepeatUntil(eventData.repeat_until || "");
-          setReminderAt(eventData.reminder_at ? isoToLocalDateTimeInput(eventData.reminder_at) : "");
+          
+          // CRITICAL FIX: Properly load reminder fields
+          if (eventData.reminder_at) {
+            setReminderAt(isoToLocalDateTimeInput(eventData.reminder_at));
+            console.log('📅 Loaded reminder_at:', eventData.reminder_at, 'converted to input format:', isoToLocalDateTimeInput(eventData.reminder_at));
+          } else {
+            setReminderAt("");
+            console.log('📅 No reminder_at found in event data');
+          }
+          
           setEmailReminderEnabled(eventData.email_reminder_enabled || false);
+          console.log('📧 Loaded email_reminder_enabled:', eventData.email_reminder_enabled);
         }
       } else if (selectedDate) {
         const startDateTime = isoToLocalDateTimeInput(selectedDate.toISOString());
@@ -324,6 +345,7 @@ export const EventDialog = ({
         setStartDate(startDateTime);
         setEndDate(isoToLocalDateTimeInput(endDateTime.toISOString()));
 
+        // Reset all fields for new event
         setAdditionalPersons([]);
         setTitle("");
         setUserSurname("");
@@ -571,7 +593,7 @@ export const EventDialog = ({
     const newEndTime = new Date(localDateTimeToISOString(endDate));
 
     // Get existing events from React Query cache
-    const existingEvents = queryClient.getQueryData<CalendarEventType[]>(['events', user.id]) || [];
+    const existingEvents = queryClient.getQueryData<CalendarEvent[]>(['events', user.id]) || [];
     
     // **CRITICAL FIX: Determine all event IDs to exclude from conflict checking**
     let eventIdsToExclude: string[] = [];
@@ -947,7 +969,7 @@ export const EventDialog = ({
               eventName={eventName}
               setEventName={setEventName}
               paymentStatus={paymentStatus}
-              setPaymentStatus={setPaymentStatus}
+              setPaymentStatus={(value: string) => setPaymentStatus(value as any)}
               paymentAmount={paymentAmount}
               setPaymentAmount={setPaymentAmount}
               startDate={startDate}

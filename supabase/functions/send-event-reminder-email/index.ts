@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
 import { Resend } from "npm:resend@2.0.0";
@@ -218,168 +219,66 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = new Resend(resendApiKey);
 
-    const body = await req.json();
+    // CRITICAL FIX: Improved request body parsing
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      console.error('❌ Failed to parse request body:', parseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { 
+          status: 400, 
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        }
+      );
+    }
+
     const { eventId } = body;
 
-    console.log('Received request body:', body);
-    console.log('Processing event reminder for eventId:', eventId || 'undefined');
+    console.log('📧 Received request body:', JSON.stringify(body));
+    console.log('📧 Processing event reminder for eventId:', eventId);
+
+    // CRITICAL FIX: Validate eventId exists
+    if (!eventId) {
+      console.error('❌ Missing eventId in request body');
+      return new Response(
+        JSON.stringify({ error: 'Event ID is required' }),
+        { 
+          status: 400, 
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        }
+      );
+    }
 
     // If eventId is provided, send email for specific event
-    if (eventId) {
-      console.log('📧 Sending email for specific event:', eventId);
-      
-      const { data: event, error: eventError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', eventId)
-        .is('deleted_at', null)
-        .single();
+    console.log('📧 Sending email for specific event:', eventId);
+    
+    const { data: event, error: eventError } = await supabase
+      .from('events')
+      .select('*')
+      .eq('id', eventId)
+      .is('deleted_at', null)
+      .single();
 
-      if (eventError || !event) {
-        console.error('Error fetching event:', eventError);
-        return new Response(
-          JSON.stringify({ error: 'Event not found' }),
-          { 
-            status: 404, 
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          }
-        );
-      }
-
-      // Check if email reminder is enabled
-      if (!event.email_reminder_enabled) {
-        console.log('📧 Email reminder not enabled for event:', eventId);
-        return new Response(
-          JSON.stringify({ message: 'Email reminder not enabled for this event' }),
-          { 
-            status: 200, 
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          }
-        );
-      }
-
-      // Get user email and language preference
-      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(event.user_id);
-      
-      if (userError || !userData.user?.email) {
-        console.error(`Failed to get user email for event ${event.id}:`, userError);
-        return new Response(
-          JSON.stringify({ error: 'User not found' }),
-          { 
-            status: 404, 
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          }
-        );
-      }
-
-      // Get user's language preference from profiles table
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('language')
-        .eq('id', event.user_id)
-        .single();
-
-      const language = profileData?.language || 'en';
-
-      // Collect all email addresses from the event
-      const emailAddresses = new Set<string>();
-      
-      // Add main person's email if available
-      if (event.social_network_link && event.social_network_link.includes('@')) {
-        emailAddresses.add(event.social_network_link);
-      }
-
-      // Get additional persons from customers table
-      const { data: customers, error: customersError } = await supabase
-        .from('customers')
-        .select('social_network_link')
-        .eq('event_id', eventId)
-        .eq('user_id', event.user_id);
-
-      if (customers && !customersError) {
-        customers.forEach(customer => {
-          if (customer.social_network_link && customer.social_network_link.includes('@')) {
-            emailAddresses.add(customer.social_network_link);
-          }
-        });
-      }
-
-      if (emailAddresses.size === 0) {
-        console.log('📧 No email addresses found for event:', eventId);
-        return new Response(
-          JSON.stringify({ message: 'No email addresses found for this event' }),
-          { 
-            status: 200, 
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          }
-        );
-      }
-
-      // Get localized email content
-      const { subject, body: emailBody } = getEmailContent(
-        language, 
-        event.title || event.user_surname || 'Event', 
-        event.start_date, 
-        event.end_date, 
-        event.payment_status
-      );
-
-      let emailsSent = 0;
-      let emailsFailed = 0;
-
-      // Send emails to all addresses
-      for (const emailAddress of emailAddresses) {
-        const deduplicationKey = `${event.id}_${emailAddress}`;
-
-        // Check if we've recently sent this email (prevent duplicates)
-        const recentSendTime = recentlySentEmails.get(deduplicationKey);
-        if (recentSendTime && Date.now() - recentSendTime < 10 * 60 * 1000) {
-          console.log(`⏭️ Skipping duplicate email for event ${event.id} to ${emailAddress}`);
-          continue;
-        }
-
-        try {
-          // Send email
-          const emailResult = await resend.emails.send({
-            from: 'SmartBookly <noreply@smartbookly.com>',
-            to: [emailAddress],
-            subject: subject,
-            html: emailBody
-          });
-
-          if (emailResult.error) {
-            console.error(`Failed to send email for event ${event.id} to ${emailAddress}:`, emailResult.error);
-            emailsFailed++;
-          } else {
-            console.log(`✅ Reminder email sent for event ${event.id} to ${emailAddress} in language ${language}`);
-            recentlySentEmails.set(deduplicationKey, Date.now());
-            emailsSent++;
-          }
-        } catch (error) {
-          console.error(`Error sending email to ${emailAddress}:`, error);
-          emailsFailed++;
-        }
-      }
-
-      // Mark the event as email sent and disable future sends if any emails were sent
-      if (emailsSent > 0) {
-        await supabase
-          .from('events')
-          .update({ 
-            reminder_sent_at: new Date().toISOString(),
-            email_reminder_enabled: false
-          })
-          .eq('id', event.id);
-      }
-
+    if (eventError || !event) {
+      console.error('❌ Error fetching event:', eventError);
       return new Response(
-        JSON.stringify({
-          message: 'Event reminder emails processed',
-          emailsSent,
-          emailsFailed,
-          eventId: event.id,
-          language: language
-        }),
+        JSON.stringify({ error: 'Event not found', eventId: eventId }),
+        { 
+          status: 404, 
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        }
+      );
+    }
+
+    console.log('✅ Found event:', event.title || event.user_surname, 'with ID:', event.id);
+
+    // Check if email reminder is enabled
+    if (!event.email_reminder_enabled) {
+      console.log('📧 Email reminder not enabled for event:', eventId);
+      return new Response(
+        JSON.stringify({ message: 'Email reminder not enabled for this event' }),
         { 
           status: 200, 
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -387,16 +286,142 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Get user email and language preference
+    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(event.user_id);
+    
+    if (userError || !userData.user?.email) {
+      console.error(`❌ Failed to get user email for event ${event.id}:`, userError);
+      return new Response(
+        JSON.stringify({ error: 'User not found' }),
+        { 
+          status: 404, 
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        }
+      );
+    }
+
+    // Get user's language preference from profiles table
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('language')
+      .eq('id', event.user_id)
+      .single();
+
+    const language = profileData?.language || 'en';
+
+    // IMPROVED: Better email collection logic for event participants
+    const emailAddresses = new Set<string>();
+    
+    // Add main person's email if available and is valid email
+    if (event.social_network_link && event.social_network_link.includes('@') && isValidEmail(event.social_network_link)) {
+      emailAddresses.add(event.social_network_link);
+      console.log('📧 Added main event email:', event.social_network_link);
+    }
+
+    // Get additional persons from customers table
+    const { data: customers, error: customersError } = await supabase
+      .from('customers')
+      .select('social_network_link')
+      .eq('event_id', eventId)
+      .eq('user_id', event.user_id);
+
+    if (customers && !customersError) {
+      customers.forEach(customer => {
+        if (customer.social_network_link && customer.social_network_link.includes('@') && isValidEmail(customer.social_network_link)) {
+          emailAddresses.add(customer.social_network_link);
+          console.log('📧 Added customer email:', customer.social_network_link);
+        }
+      });
+    }
+
+    console.log('📧 Total valid email addresses found:', emailAddresses.size);
+
+    if (emailAddresses.size === 0) {
+      console.log('📧 No valid email addresses found for event:', eventId);
+      return new Response(
+        JSON.stringify({ message: 'No valid email addresses found for this event' }),
+        { 
+          status: 200, 
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        }
+      );
+    }
+
+    // Get localized email content
+    const { subject, body: emailBody } = getEmailContent(
+      language, 
+      event.title || event.user_surname || 'Event', 
+      event.start_date, 
+      event.end_date, 
+      event.payment_status
+    );
+
+    let emailsSent = 0;
+    let emailsFailed = 0;
+
+    // Send emails to all addresses
+    for (const emailAddress of emailAddresses) {
+      const deduplicationKey = `${event.id}_${emailAddress}`;
+
+      // Check if we've recently sent this email (prevent duplicates)
+      const recentSendTime = recentlySentEmails.get(deduplicationKey);
+      if (recentSendTime && Date.now() - recentSendTime < 10 * 60 * 1000) {
+        console.log(`⏭️ Skipping duplicate email for event ${event.id} to ${emailAddress}`);
+        continue;
+      }
+
+      try {
+        // Send email
+        const emailResult = await resend.emails.send({
+          from: 'SmartBookly <noreply@smartbookly.com>',
+          to: [emailAddress],
+          subject: subject,
+          html: emailBody
+        });
+
+        if (emailResult.error) {
+          console.error(`❌ Failed to send email for event ${event.id} to ${emailAddress}:`, emailResult.error);
+          emailsFailed++;
+        } else {
+          console.log(`✅ Reminder email sent for event ${event.id} to ${emailAddress} in language ${language}`);
+          recentlySentEmails.set(deduplicationKey, Date.now());
+          emailsSent++;
+        }
+      } catch (error) {
+        console.error(`❌ Error sending email to ${emailAddress}:`, error);
+        emailsFailed++;
+      }
+    }
+
+    // Mark the event as email sent and disable future sends if any emails were sent
+    if (emailsSent > 0) {
+      await supabase
+        .from('events')
+        .update({ 
+          reminder_sent_at: new Date().toISOString(),
+          email_reminder_enabled: false
+        })
+        .eq('id', event.id);
+      
+      console.log(`✅ Updated event ${event.id} - marked reminder as sent and disabled future emails`);
+    }
+
     return new Response(
-      JSON.stringify({ error: 'Event ID is required' }),
+      JSON.stringify({
+        message: 'Event reminder emails processed',
+        emailsSent,
+        emailsFailed,
+        eventId: event.id,
+        language: language
+      }),
       { 
-        status: 400, 
+        status: 200, 
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       }
     );
 
   } catch (error) {
-    console.error('Error in event reminder email function:', error);
+    console.error('❌ Error in event reminder email function:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { 
@@ -405,6 +430,12 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
   }
+};
+
+// Helper function to validate email format
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
 };
 
 serve(handler);

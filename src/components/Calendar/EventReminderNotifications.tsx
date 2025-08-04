@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -86,13 +87,17 @@ export const EventReminderNotifications = () => {
     });
   };
 
-  // Send email reminder
+  // Send email reminder - FIXED: Proper request body structure
   const sendEmailReminder = async (event: any) => {
     try {
-      console.log("📧 Sending email reminder for event:", event.title);
+      console.log("📧 Sending email reminder for event:", event.title, "with ID:", event.id);
+      
+      // CRITICAL FIX: Send proper request body with eventId
+      const requestBody = { eventId: event.id };
+      console.log("📤 Sending request body:", JSON.stringify(requestBody));
       
       const { data, error } = await supabase.functions.invoke('send-event-reminder-email', {
-        body: { eventId: event.id }
+        body: requestBody
       });
 
       if (error) {
@@ -148,6 +153,7 @@ export const EventReminderNotifications = () => {
           console.log('⏰ Reminder time:', reminderTime.toLocaleString());
           console.log('🕐 Current time:', now.toLocaleString());
           console.log('⏱️ Time difference:', timeDiff, 'ms');
+          console.log('📧 Event ID being processed:', event.id);
           
           // Mark as processed FIRST to prevent duplicate processing
           setProcessedReminders(prev => {
@@ -176,7 +182,8 @@ export const EventReminderNotifications = () => {
           
           // Send email reminder if enabled
           if (event.email_reminder_enabled) {
-            await sendEmailReminder(event);
+            const emailSuccess = await sendEmailReminder(event);
+            console.log('📧 Email reminder result:', emailSuccess ? 'SUCCESS' : 'FAILED');
           }
           
           console.log('📊 Dashboard notification: ✅ Sent');
