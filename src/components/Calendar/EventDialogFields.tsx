@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,23 +13,13 @@ import { getCurrencySymbol } from "@/lib/currency";
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Repeat, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, Trash2, Repeat, Calendar as CalendarIcon, Bell } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getRepeatOptions } from "@/lib/recurringEvents";
-
-// Define interface for person data
-interface PersonData {
-  id: string;
-  userSurname: string;
-  userNumber: string;
-  socialNetworkLink: string;
-  eventNotes: string;
-  paymentStatus: string;
-  paymentAmount: string;
-}
+import { PersonData } from "@/lib/types";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -84,6 +73,11 @@ interface EventDialogFieldsProps {
   setAdditionalPersons: (persons: PersonData[]) => void;
   // Add missing prop
   isVirtualEvent?: boolean;
+  // Email reminder props
+  emailReminderEnabled: boolean;
+  setEmailReminderEnabled: (value: boolean) => void;
+  reminderAt: string;
+  setReminderAt: (value: string) => void;
 }
 
 export const EventDialogFields = ({
@@ -122,7 +116,11 @@ export const EventDialogFields = ({
   isNewEvent = false,
   additionalPersons,
   setAdditionalPersons,
-  isVirtualEvent = false
+  isVirtualEvent = false,
+  emailReminderEnabled,
+  setEmailReminderEnabled,
+  reminderAt,
+  setReminderAt
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -181,6 +179,19 @@ export const EventDialogFields = ({
       // Clear repeat settings when unchecked
       setRepeatPattern('');
       setRepeatUntil('');
+    }
+  };
+
+  // Handle email reminder checkbox change
+  const handleEmailReminderToggle = (checked: boolean) => {
+    setEmailReminderEnabled(checked);
+    if (checked && startDate) {
+      // Set default reminder time to 1 hour before event start
+      const eventStart = new Date(startDate);
+      eventStart.setHours(eventStart.getHours() - 1);
+      setReminderAt(eventStart.toISOString().slice(0, 16)); // Format for datetime-local
+    } else {
+      setReminderAt('');
     }
   };
 
@@ -583,6 +594,53 @@ export const EventDialogFields = ({
               )}
             </div>
           )}
+
+          {/* Email Reminder Section */}
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="emailReminder"
+                checked={emailReminderEnabled}
+                onCheckedChange={handleEmailReminderToggle}
+              />
+              <Label 
+                htmlFor="emailReminder" 
+                className={cn("flex items-center gap-2 text-sm font-medium", isGeorgian ? "font-georgian" : "")}
+                style={georgianStyle}
+              >
+                <Bell className="h-4 w-4" />
+                {isGeorgian ? (
+                  <GeorgianAuthText letterSpacing="-0.05px">ელფოსტით შეხსენება</GeorgianAuthText>
+                ) : (
+                  <LanguageText>Email Reminder</LanguageText>
+                )}
+              </Label>
+            </div>
+            
+            {emailReminderEnabled && (
+              <div className="ml-6">
+                <Label 
+                  htmlFor="reminderTime" 
+                  className={cn("text-xs text-muted-foreground", isGeorgian ? "font-georgian" : "")}
+                  style={georgianStyle}
+                >
+                  {isGeorgian ? (
+                    <GeorgianAuthText letterSpacing="-0.05px">შეხსენების დრო</GeorgianAuthText>
+                  ) : (
+                    <LanguageText>Reminder Time</LanguageText>
+                  )}
+                </Label>
+                <Input
+                  id="reminderTime"
+                  type="datetime-local"
+                  value={reminderAt}
+                  onChange={e => setReminderAt(e.target.value)}
+                  className="w-full dark:text-white dark:[color-scheme:dark]"
+                  style={{ colorScheme: 'auto' }}
+                />
+              </div>
+            )}
+          </div>
         </div>
       )}
 
