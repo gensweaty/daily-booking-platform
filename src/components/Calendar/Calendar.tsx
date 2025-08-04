@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Calendar as ShadcnCalendar } from "@/components/ui/calendar";
 import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
@@ -145,10 +146,6 @@ export const Calendar = ({
             selected={date}
             onSelect={handleDateSelect}
             className="rounded-md border"
-            events={calendarEvents?.events}
-            bookings={calendarEvents?.bookings}
-            onEventSelect={handleEventSelect}
-            view={view}
           />
         )}
       </div>
