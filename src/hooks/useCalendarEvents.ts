@@ -197,9 +197,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           type: eventData.type || 'event',
           is_recurring: eventData.is_recurring || false,
           repeat_pattern: eventData.repeat_pattern,
-          repeat_until: eventData.repeat_until,
-          email_reminder_enabled: eventData.email_reminder_enabled || false,
-          reminder_at: eventData.reminder_at
+          repeat_until: eventData.repeat_until
         },
         p_additional_persons: [],
         p_user_id: user.id,
@@ -291,9 +289,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             type: eventData.type || 'event',
             is_recurring: eventData.is_recurring || false,
             repeat_pattern: eventData.repeat_pattern,
-            repeat_until: eventData.repeat_until,
-            email_reminder_enabled: eventData.email_reminder_enabled || false,
-            reminder_at: eventData.reminder_at
+            repeat_until: eventData.repeat_until
           },
           p_additional_persons: [],
           p_user_id: user.id,

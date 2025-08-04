@@ -275,19 +275,6 @@ export const Calendar = ({
     await refreshCalendar();
   };
 
-  // Create wrapper functions that match the EventDialog interface
-  const handleEventDialogSave = async (event: Partial<CalendarEventType>) => {
-    await handleCreateEvent(event);
-  };
-
-  const handleEventDialogUpdate = async (event: Partial<CalendarEventType>) => {
-    await handleUpdateEvent(event);
-  };
-
-  const handleEventDialogDelete = async (id: string, deleteChoice?: "this" | "series") => {
-    await handleDeleteEvent(deleteChoice);
-  };
-
   if (error && !directEvents) {
     console.error("Calendar error:", error);
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
@@ -341,24 +328,21 @@ export const Calendar = ({
         <>
           <EventDialog
             key={dialogSelectedDate?.getTime()}
-            isOpen={isNewEventDialogOpen}
-            onClose={() => setIsNewEventDialogOpen(false)}
-            onSave={handleEventDialogSave}
-            onDelete={undefined}
-            businessId={businessId}
-            isNewEvent={true}
+            open={isNewEventDialogOpen}
+            onOpenChange={setIsNewEventDialogOpen}
+            selectedDate={dialogSelectedDate}
+            onEventCreated={handleEventCreated}
           />
 
           {selectedEvent && (
             <EventDialog
               key={selectedEvent.id}
-              isOpen={!!selectedEvent}
-              onClose={() => setSelectedEvent(null)}
-              event={selectedEvent}
-              onSave={handleEventDialogUpdate}
-              onDelete={handleEventDialogDelete}
-              businessId={businessId}
-              isNewEvent={false}
+              open={!!selectedEvent}
+              onOpenChange={() => setSelectedEvent(null)}
+              selectedDate={new Date(selectedEvent.start_date)}
+              initialData={selectedEvent}
+              onEventUpdated={handleEventUpdated}
+              onEventDeleted={handleEventDeleted}
             />
           )}
         </>

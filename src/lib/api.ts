@@ -247,20 +247,6 @@ export const deleteReminder = async (id: string) => {
 };
 
 // Email operations
-export const sendEventReminderEmail = async (eventId: string) => {
-  try {
-    const { data, error } = await supabase.functions.invoke('send-event-reminder-email', {
-      body: { eventId }
-    });
-
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error('Error sending event reminder email:', error);
-    throw error;
-  }
-};
-
 export const sendEventCreationEmail = async (
   recipientEmail: string,
   recipientName: string,

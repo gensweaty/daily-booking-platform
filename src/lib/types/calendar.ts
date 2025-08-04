@@ -14,7 +14,7 @@ export interface CalendarEventType {
   payment_status?: string;
   payment_amount?: number;
   created_at: string;
-  updated_at: string;
+  updated_at: string; // Now properly typed as required field
   user_id: string;
   requester_name?: string;
   requester_email?: string;
@@ -36,10 +36,6 @@ export interface CalendarEventType {
   repeat_pattern?: string;
   repeat_until?: string;
   parent_event_id?: string;
-  // Email reminder properties
-  email_reminder_enabled?: boolean;
-  reminder_at?: string;
-  reminder_sent_at?: string;
   files?: Array<{
     id: string;
     event_id: string;
