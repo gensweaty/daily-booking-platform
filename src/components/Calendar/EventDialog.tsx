@@ -1,4 +1,3 @@
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,9 +29,9 @@ import { PaymentStatus } from "@/lib/types";
 
 interface EventDialogProps {
   event?: CalendarEvent;
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (event: CalendarEvent) => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+  onSave?: (event: CalendarEvent) => void;
   onDelete?: (id: string) => void;
   isNewEvent?: boolean;
   // New props to match Calendar.tsx usage
@@ -47,9 +46,9 @@ interface EventDialogProps {
 
 export const EventDialog = ({ 
   event, 
-  isOpen, 
-  onClose, 
-  onSave, 
+  isOpen = false, 
+  onClose = () => {}, 
+  onSave = () => {}, 
   onDelete, 
   isNewEvent = false,
   // Handle new props
@@ -93,7 +92,7 @@ export const EventDialog = ({
         ? formatDateTimeForInput(new Date(currentSelectedDate.getTime() + 60*60*1000).toISOString())
         : ""
   );
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(currentEvent?.payment_status || "not_paid");
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(currentEvent?.payment_status as PaymentStatus || "not_paid");
   const [paymentAmount, setPaymentAmount] = useState<string>(currentEvent?.payment_amount?.toString() || "");
   const [files, setFiles] = useState<File[]>([]);
   const [existingFiles, setExistingFiles] = useState<Array<{
@@ -120,7 +119,6 @@ export const EventDialog = ({
     MozOsxFontSmoothing: 'grayscale'
   } : undefined;
 
-  // Function to load additional persons
   const loadAdditionalPersons = async (eventId: string) => {
     try {
       const { data, error } = await supabase
@@ -161,7 +159,6 @@ export const EventDialog = ({
     }
   };
 
-  // Function to load existing files
   const loadExistingFiles = async (eventId: string) => {
     try {
       const { data, error } = await supabase
@@ -191,7 +188,6 @@ export const EventDialog = ({
     }
   };
 
-  // Reset form when event changes
   useEffect(() => {
     const eventToUse = currentEvent;
     if (eventToUse) {
@@ -203,7 +199,7 @@ export const EventDialog = ({
       setEventName(eventToUse.event_name || "");
       setStartDate(eventToUse.start_date ? formatDateTimeForInput(eventToUse.start_date) : "");
       setEndDate(eventToUse.end_date ? formatDateTimeForInput(eventToUse.end_date) : "");
-      setPaymentStatus(eventToUse.payment_status || "not_paid");
+      setPaymentStatus(eventToUse.payment_status as PaymentStatus || "not_paid");
       setPaymentAmount(eventToUse.payment_amount?.toString() || "");
       setIsRecurring(eventToUse.is_recurring || false);
       setRepeatPattern(eventToUse.repeat_pattern || "");
@@ -211,21 +207,18 @@ export const EventDialog = ({
       setReminderAt(eventToUse.reminder_at || "");
       setEmailReminderEnabled(eventToUse.email_reminder_enabled || false);
       
-      // Load additional persons
       if (eventToUse.id && !isNewEvent) {
         loadAdditionalPersons(eventToUse.id);
       } else {
         setAdditionalPersons([]);
       }
       
-      // Load existing files
       if (eventToUse.id && !isNewEvent) {
         loadExistingFiles(eventToUse.id);
       } else {
         setExistingFiles([]);
       }
     } else if (currentSelectedDate) {
-      // Reset all fields for new event with selected date
       setTitle("");
       setUserSurname("");
       setUserNumber("");
@@ -284,7 +277,6 @@ export const EventDialog = ({
           return;
         }
 
-        // Save file metadata to the database
         const { error: dbError } = await supabase
           .from('event_files')
           .insert({
@@ -320,7 +312,7 @@ export const EventDialog = ({
       });
     } finally {
       setLoading(false);
-      setFiles([]); // Clear selected files after upload
+      setFiles([]);
       queryClient.invalidateQueries({ queryKey: ['eventReminders', user?.id] });
     }
   };
@@ -355,15 +347,13 @@ export const EventDialog = ({
         repeat_until: (isRecurring && repeatUntil) ? repeatUntil : null,
         reminder_at: reminderAt || null,
         email_reminder_enabled: emailReminderEnabled,
-        reminder_sent_at: null // Reset when reminder is updated
+        reminder_sent_at: null
       };
 
-      // If it's a new event, include the user ID
       if (isNewEvent && user?.id) {
         eventData.user_id = user.id;
       }
 
-      // Update or create event
       let upsertedEvent;
       if (currentEvent?.id) {
         const { data, error } = await supabase
@@ -412,7 +402,6 @@ export const EventDialog = ({
         return;
       }
 
-      // Save additional persons to the customers table
       for (const person of additionalPersons) {
         const customerData = {
           user_id: user?.id,
@@ -425,7 +414,6 @@ export const EventDialog = ({
           payment_amount: person.paymentAmount ? parseFloat(person.paymentAmount) : undefined
         };
 
-        // Check if the person already exists
         const { data: existingCustomer, error: selectError } = await supabase
           .from('customers')
           .select('*')
@@ -444,7 +432,6 @@ export const EventDialog = ({
         }
 
         if (existingCustomer) {
-          // Update existing customer
           const { error: updateError } = await supabase
             .from('customers')
             .update(customerData)
@@ -460,7 +447,6 @@ export const EventDialog = ({
             return;
           }
         } else {
-          // Insert new customer
           const { error: insertError } = await supabase
             .from('customers')
             .insert([customerData]);
@@ -477,7 +463,6 @@ export const EventDialog = ({
         }
       }
 
-      // Upload files after event is created/updated
       await uploadFiles(upsertedEvent.id);
 
       toast({
@@ -485,11 +470,9 @@ export const EventDialog = ({
         description: t("events.eventSaved"),
       });
 
-      // Optimistically update cache
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['eventReminders', user?.id] });
 
-      // Call appropriate callback
       if (onEventCreated && isNewEvent) {
         await onEventCreated();
       } else if (onEventUpdated && !isNewEvent) {
@@ -522,7 +505,6 @@ export const EventDialog = ({
       if (onDelete) {
         await onDelete(currentEvent.id);
       } else if (onEventDeleted) {
-        // Delete from database directly
         const { error } = await supabase
           .from('events')
           .delete()
@@ -583,7 +565,7 @@ export const EventDialog = ({
             endDate={endDate}
             setEndDate={setEndDate}
             paymentStatus={paymentStatus}
-            setPaymentStatus={(value) => setPaymentStatus(value as PaymentStatus)}
+            setPaymentStatus={(value: string) => setPaymentStatus(value as PaymentStatus)}
             paymentAmount={paymentAmount}
             setPaymentAmount={setPaymentAmount}
             files={files}
