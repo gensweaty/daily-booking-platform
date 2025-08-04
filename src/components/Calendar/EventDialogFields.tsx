@@ -10,6 +10,7 @@ import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { getCurrencySymbol } from "@/lib/currency";
+import { PersonData } from "@/lib/types";
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,6 @@ import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getRepeatOptions } from "@/lib/recurringEvents";
 
-// Define interface for person data
 interface PersonData {
   id: string;
   userSurname: string;

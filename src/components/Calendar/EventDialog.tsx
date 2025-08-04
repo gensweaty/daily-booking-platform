@@ -1,3 +1,4 @@
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarEventType } from "@/lib/types/calendar";
+import { PersonData } from "@/lib/types";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { EventDialogFields } from "@/components/Calendar/EventDialogFields";
 import { useState, useEffect } from 'react';
@@ -20,7 +22,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from 'date-fns';
 import { DateRange } from "react-day-picker";
-import { PersonData } from "@/lib/types";
 import { clearCalendarCache } from "@/services/calendarService";
 
 interface EventDialogProps {

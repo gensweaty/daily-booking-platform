@@ -36,6 +36,19 @@ export interface CalendarEventType {
   repeat_pattern?: string;
   repeat_until?: string;
   parent_event_id?: string;
+  // Additional persons management
+  additional_persons?: Array<{
+    id: string;
+    userSurname: string;
+    userNumber: string;
+    socialNetworkLink: string;
+    eventNotes: string;
+    paymentStatus: string;
+    paymentAmount: string;
+  }>;
+  // Email reminder properties
+  send_email_reminder?: boolean;
+  email_reminder_time?: string;
   files?: Array<{
     id: string;
     event_id: string;
