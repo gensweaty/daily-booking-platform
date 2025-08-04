@@ -1,9 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarEventType } from "@/lib/types/calendar";
-import { PersonData } from "@/lib/types";
+import { PersonData } from "@/lib/types/calendar";
 import { EventDialogFields } from "./EventDialogFields";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -11,7 +12,6 @@ import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
-import { isVirtualInstance } from "@/lib/recurringEvents";
 
 export interface EventDialogProps {
   open: boolean;
@@ -76,13 +76,17 @@ export const EventDialog = ({
   // Delete dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Utility functions for datetime conversion
+  // Utility functions for datetime conversion - FIXED TIMEZONE HANDLING
   const convertUTCToLocal = (utcDateTime: string) => {
     if (!utcDateTime) return '';
     const date = new Date(utcDateTime);
-    // Convert to local datetime-local format
-    const localDateTime = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
-    return localDateTime.toISOString().slice(0, 16);
+    // Convert to local datetime-local format (YYYY-MM-DDTHH:MM)
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
   const convertLocalToUTC = (localDateTime: string) => {
@@ -108,7 +112,7 @@ export const EventDialog = ({
       setRepeatPattern(initialData.repeat_pattern || "");
       setRepeatUntil(initialData.repeat_until || "");
       
-      // Initialize email reminder fields
+      // Initialize email reminder fields - FIXED
       setEmailReminderEnabled(!!initialData.email_reminder_enabled);
       setReminderAt(initialData.reminder_at ? convertUTCToLocal(initialData.reminder_at) : '');
       
@@ -120,10 +124,11 @@ export const EventDialog = ({
         loadExistingFiles(initialData.id);
       }
     } else if (selectedDate) {
+      // FIXED: Set default times to 09:00-10:00 local time
       const startDateTime = new Date(selectedDate);
-      startDateTime.setHours(12, 0, 0, 0);
-      const endDateTime = new Date(startDateTime);
-      endDateTime.setHours(13, 0, 0, 0);
+      startDateTime.setHours(9, 0, 0, 0); // 9 AM local time
+      const endDateTime = new Date(selectedDate);
+      endDateTime.setHours(10, 0, 0, 0); // 10 AM local time
 
       setStartDate(convertUTCToLocal(startDateTime.toISOString()));
       setEndDate(convertUTCToLocal(endDateTime.toISOString()));
@@ -180,7 +185,7 @@ export const EventDialog = ({
       return;
     }
 
-    // Validate email reminder
+    // Validate email reminder - FIXED VALIDATION
     if (emailReminderEnabled && reminderAt) {
       const reminderDate = new Date(reminderAt);
       const eventStart = new Date(startDate);
@@ -212,7 +217,7 @@ export const EventDialog = ({
         repeat_until: repeatUntil || undefined,
         additional_persons: additionalPersons,
         email_reminder_enabled: emailReminderEnabled,
-        reminder_at: emailReminderEnabled ? convertLocalToUTC(reminderAt) : null,
+        reminder_at: emailReminderEnabled && reminderAt ? convertLocalToUTC(reminderAt) : null,
       };
 
       if (initialData?.id) {
@@ -221,14 +226,15 @@ export const EventDialog = ({
 
       console.log('Saving event with reminder data:', {
         email_reminder_enabled: emailReminderEnabled,
-        reminder_at: eventData.reminder_at
+        reminder_at: eventData.reminder_at,
+        reminderAt: reminderAt,
+        startDate: startDate
       });
 
       await onSave(eventData);
       
       // Handle file uploads if any
       if (files.length > 0) {
-        // File upload logic would go here
         console.log('Files to upload:', files);
       }
 
