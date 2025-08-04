@@ -25,17 +25,6 @@ export interface Note {
   user_id?: string;
 }
 
-// Define PersonData interface for calendar events
-export interface PersonData {
-  id: string;
-  userSurname: string;
-  userNumber: string;
-  socialNetworkLink: string;
-  eventNotes: string;
-  paymentStatus: string;
-  paymentAmount: string;
-}
-
 export type { CalendarEventType as CalendarEvent } from './types/calendar';
 
 export interface Reminder {

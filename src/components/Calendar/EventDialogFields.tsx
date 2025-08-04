@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,16 +11,26 @@ import { FileRecord } from "@/types/files";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { getCurrencySymbol } from "@/lib/currency";
-import { PersonData } from "@/lib/types";
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Repeat, Calendar as CalendarIcon, Mail } from "lucide-react";
+import { Plus, Trash2, Repeat, Calendar as CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getRepeatOptions } from "@/lib/recurringEvents";
+
+// Define interface for person data
+interface PersonData {
+  id: string;
+  userSurname: string;
+  userNumber: string;
+  socialNetworkLink: string;
+  eventNotes: string;
+  paymentStatus: string;
+  paymentAmount: string;
+}
 
 interface EventDialogFieldsProps {
   title: string;
@@ -73,11 +84,6 @@ interface EventDialogFieldsProps {
   setAdditionalPersons: (persons: PersonData[]) => void;
   // Add missing prop
   isVirtualEvent?: boolean;
-  // Email reminder props - made required
-  sendEmailReminder: boolean;
-  setSendEmailReminder: (value: boolean) => void;
-  emailReminderTime: string;
-  setEmailReminderTime: (value: string) => void;
 }
 
 export const EventDialogFields = ({
@@ -116,11 +122,7 @@ export const EventDialogFields = ({
   isNewEvent = false,
   additionalPersons,
   setAdditionalPersons,
-  isVirtualEvent = false,
-  sendEmailReminder,
-  setSendEmailReminder,
-  emailReminderTime,
-  setEmailReminderTime
+  isVirtualEvent = false
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -488,68 +490,6 @@ export const EventDialogFields = ({
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Email Reminder Section */}
-      <div className="space-y-4">
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="sendEmailReminder"
-            checked={sendEmailReminder}
-            onCheckedChange={(checked) => {
-              console.log('Email reminder checkbox clicked:', checked, 'Current state:', sendEmailReminder);
-              setSendEmailReminder(!!checked);
-            }}
-          />
-          <Label 
-            htmlFor="sendEmailReminder" 
-            className={cn("flex items-center gap-2 cursor-pointer", isGeorgian ? "font-georgian" : "")}
-            style={georgianStyle}
-          >
-            <Mail className="h-4 w-4" />
-            {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">ელფოსტის შეხსენება</GeorgianAuthText> : <LanguageText>Send email reminder</LanguageText>}
-          </Label>
-        </div>
-        
-        {sendEmailReminder && (
-          <div>
-            <Label 
-              htmlFor="emailReminderTime" 
-              className={cn(isGeorgian ? "font-georgian" : "")}
-              style={georgianStyle}
-            >
-              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">შეხსენების დრო</GeorgianAuthText> : <LanguageText>Reminder time</LanguageText>}
-            </Label>
-            <Select value={emailReminderTime} onValueChange={(value) => {
-              console.log('Email reminder time selected:', value);
-              setEmailReminderTime(value);
-            }}>
-              <SelectTrigger id="emailReminderTime" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                <SelectValue placeholder={isGeorgian ? "აირჩიეთ შეხსენების დრო" : "Select reminder time"} />
-              </SelectTrigger>
-              <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
-                <SelectItem value="15m" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">15 წუთით ადრე</GeorgianAuthText> : <LanguageText>15 minutes before</LanguageText>}
-                </SelectItem>
-                <SelectItem value="30m" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">30 წუთით ადრე</GeorgianAuthText> : <LanguageText>30 minutes before</LanguageText>}
-                </SelectItem>
-                <SelectItem value="1h" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">1 საათით ადრე</GeorgianAuthText> : <LanguageText>1 hour before</LanguageText>}
-                </SelectItem>
-                <SelectItem value="2h" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">2 საათით ადრე</GeorgianAuthText> : <LanguageText>2 hours before</LanguageText>}
-                </SelectItem>
-                <SelectItem value="1d" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">1 დღით ადრე</GeorgianAuthText> : <LanguageText>1 day before</LanguageText>}
-                </SelectItem>
-                <SelectItem value="1w" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
-                  {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">1 კვირით ადრე</GeorgianAuthText> : <LanguageText>1 week before</LanguageText>}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
       </div>
 
       {/* Repeat Options - Only show for new events */}
