@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -287,7 +286,7 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <FileUploadField onFilesChange={setFiles} />
+        <FileUploadField onFileChange={setFiles} />
       </div>
 
       {existingFiles.length > 0 && (
@@ -342,7 +341,6 @@ export const EventDialogFields = ({
                 placeholder={t("events.selectReminderDate")}
                 type="reminder"
                 deadlineValue={startDate}
-                className="w-full"
               />
             </div>
           )}
