@@ -87,18 +87,23 @@ export const EventReminderNotifications = () => {
     });
   };
 
-  // Send email reminder - FIXED: Proper request body structure
+  // Send email reminder - FIXED: Proper request body structure with detailed logging
   const sendEmailReminder = async (event: any) => {
     try {
       console.log("📧 Sending email reminder for event:", event.title, "with ID:", event.id);
       
-      // CRITICAL FIX: Send proper request body with eventId
+      // CRITICAL FIX: Ensure proper request body structure with explicit headers
       const requestBody = { eventId: event.id };
-      console.log("📤 Sending request body:", JSON.stringify(requestBody));
+      console.log("📤 Preparing request body:", JSON.stringify(requestBody));
       
       const { data, error } = await supabase.functions.invoke('send-event-reminder-email', {
-        body: requestBody
+        body: requestBody,
+        headers: {
+          'Content-Type': 'application/json',
+        }
       });
+
+      console.log("📧 Edge function response:", { data, error });
 
       if (error) {
         console.error("❌ Error sending event email reminder:", error);

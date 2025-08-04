@@ -87,12 +87,28 @@ const localDateTimeToISOString = (dtStr: string): string => {
   return localDate.toISOString();
 };
 
-// Helper function to convert ISO string from DB to datetime-local input format
+// CRITICAL FIX: Enhanced helper function to convert ISO string to datetime-local input format
 const isoToLocalDateTimeInput = (isoString: string): string => {
-  if (!isoString) return '';
-  const date = new Date(isoString);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  if (!isoString || isoString === 'null' || isoString === '') return '';
+  
+  try {
+    const date = new Date(isoString);
+    
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date provided to isoToLocalDateTimeInput:', isoString);
+      return '';
+    }
+    
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const result = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    
+    console.log('📅 Date conversion:', { isoString, result });
+    return result;
+  } catch (error) {
+    console.error('Error converting ISO date to input format:', error, 'Input:', isoString);
+    return '';
+  }
 };
 
 export const EventDialog = ({
@@ -272,7 +288,7 @@ export const EventDialog = ({
     }
   };
 
-  // CRITICAL FIX: Proper form initialization with reminder data
+  // CRITICAL FIX: Enhanced form initialization with proper reminder data loading
   useEffect(() => {
     if (open) {
       if (initialData || eventId) {
@@ -291,6 +307,8 @@ export const EventDialog = ({
         const eventData = initialData;
         if (eventData) {
           console.log('🔧 Loading event data for editing:', eventData);
+          console.log('🔧 Raw reminder_at from DB:', eventData.reminder_at);
+          console.log('🔧 Raw email_reminder_enabled from DB:', eventData.email_reminder_enabled);
           
           setTitle(eventData.title || "");
           setUserSurname(eventData.user_surname || "");
@@ -327,17 +345,22 @@ export const EventDialog = ({
           setRepeatPattern(eventData.repeat_pattern || "");
           setRepeatUntil(eventData.repeat_until || "");
           
-          // CRITICAL FIX: Properly load reminder fields
-          if (eventData.reminder_at) {
-            setReminderAt(isoToLocalDateTimeInput(eventData.reminder_at));
-            console.log('📅 Loaded reminder_at:', eventData.reminder_at, 'converted to input format:', isoToLocalDateTimeInput(eventData.reminder_at));
+          // CRITICAL FIX: Properly load and set reminder fields with enhanced logging
+          const reminderValue = eventData.reminder_at;
+          console.log('📅 Processing reminder_at value:', reminderValue, 'Type:', typeof reminderValue);
+          
+          if (reminderValue && reminderValue !== null && reminderValue !== 'null') {
+            const convertedReminder = isoToLocalDateTimeInput(reminderValue);
+            setReminderAt(convertedReminder);
+            console.log('📅 Set reminderAt to:', convertedReminder);
           } else {
             setReminderAt("");
-            console.log('📅 No reminder_at found in event data');
+            console.log('📅 No valid reminder_at found, set to empty');
           }
           
-          setEmailReminderEnabled(eventData.email_reminder_enabled || false);
-          console.log('📧 Loaded email_reminder_enabled:', eventData.email_reminder_enabled);
+          const emailReminderValue = eventData.email_reminder_enabled;
+          setEmailReminderEnabled(Boolean(emailReminderValue));
+          console.log('📧 Set emailReminderEnabled to:', Boolean(emailReminderValue));
         }
       } else if (selectedDate) {
         const startDateTime = isoToLocalDateTimeInput(selectedDate.toISOString());
@@ -346,26 +369,32 @@ export const EventDialog = ({
         setEndDate(isoToLocalDateTimeInput(endDateTime.toISOString()));
 
         // Reset all fields for new event
-        setAdditionalPersons([]);
-        setTitle("");
-        setUserSurname("");
-        setUserNumber("");
-        setSocialNetworkLink("");
-        setEventNotes("");
-        setEventName("");
-        setPaymentStatus("");
-        setPaymentAmount("");
-        setIsRecurring(false);
-        setRepeatPattern("");
-        setRepeatUntil("");
-        setFiles([]);
-        setExistingFiles([]);
-        setCurrentEventData(null);
-        setReminderAt("");
-        setEmailReminderEnabled(false);
+        resetFormFields();
       }
     }
   }, [open, selectedDate, initialData, eventId, isVirtualEvent]);
+
+  // CRITICAL FIX: Separate function to reset form fields
+  const resetFormFields = () => {
+    setAdditionalPersons([]);
+    setTitle("");
+    setUserSurname("");
+    setUserNumber("");
+    setSocialNetworkLink("");
+    setEventNotes("");
+    setEventName("");
+    setPaymentStatus("");
+    setPaymentAmount("");
+    setIsRecurring(false);
+    setRepeatPattern("");
+    setRepeatUntil("");
+    setFiles([]);
+    setExistingFiles([]);
+    setCurrentEventData(null);
+    setReminderAt("");
+    setEmailReminderEnabled(false);
+    console.log('🔄 Form fields reset');
+  };
 
   const loadParentEventData = async (parentId: string) => {
     try {
@@ -388,25 +417,9 @@ export const EventDialog = ({
   };
 
   const resetForm = () => {
-    setTitle("");
-    setUserSurname("");
-    setUserNumber("");
-    setSocialNetworkLink("");
-    setEventNotes("");
-    setEventName("");
-    setPaymentStatus("");
-    setPaymentAmount("");
+    resetFormFields();
     setStartDate("");
     setEndDate("");
-    setIsRecurring(false);
-    setRepeatPattern("");
-    setRepeatUntil("");
-    setAdditionalPersons([]);
-    setFiles([]);
-    setExistingFiles([]);
-    setCurrentEventData(null);
-    setReminderAt("");
-    setEmailReminderEnabled(false);
   };
 
   const uploadFiles = async (eventId: string) => {
@@ -726,7 +739,9 @@ export const EventDialog = ({
         endDate,
         isNewEvent,
         startDateConverted: localDateTimeToISOString(startDate),
-        endDateConverted: localDateTimeToISOString(endDate)
+        endDateConverted: localDateTimeToISOString(endDate),
+        reminderAt,
+        emailReminderEnabled
       });
 
       const eventData = {
@@ -747,7 +762,10 @@ export const EventDialog = ({
         email_reminder_enabled: emailReminderEnabled
       };
 
-      console.log("📤 Sending event data to backend:", eventData);
+      console.log("📤 Sending event data to backend with reminder fields:", {
+        reminder_at: eventData.reminder_at,
+        email_reminder_enabled: eventData.email_reminder_enabled
+      });
 
       let result;
       if (eventId || initialData) {
