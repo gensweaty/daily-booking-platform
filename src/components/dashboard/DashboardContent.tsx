@@ -12,7 +12,7 @@ import { BusinessProfileForm } from "@/components/business/BusinessProfileForm";
 import { BookingRequestsList } from "@/components/business/BookingRequestsList";
 import { CalendarViewType } from "@/lib/types/calendar";
 import { ArchivedTasksPage } from "@/components/tasks/ArchivedTasksPage";
-import { ReminderNotifications } from "@/components/reminder/ReminderNotifications";
+import { ReminderNotificationManager } from "@/components/reminder/ReminderNotificationManager";
 import { TaskReminderNotifications } from "@/components/tasks/TaskReminderNotifications";
 import { EventReminderNotifications } from "@/components/Calendar/EventReminderNotifications";
 import { BookingNotificationManager } from "@/components/business/BookingNotificationManager";
@@ -62,9 +62,9 @@ export const DashboardContent = ({ currentView, onViewChange }: DashboardContent
       case "business":
         return <BusinessProfileForm />;
       case "bookings":
-        return <BookingRequestsList />;
+        return <BookingRequestsList requests={[]} onDelete={() => {}} />;
       case "archived-tasks":
-        return <ArchivedTasksPage onBackClick={() => onViewChange("tasks")} />;
+        return <ArchivedTasksPage />;
       default:
         return (
           <Calendar 
@@ -78,17 +78,17 @@ export const DashboardContent = ({ currentView, onViewChange }: DashboardContent
 
   return (
     <div className="min-h-screen bg-background">
-      <DashboardHeader currentView={currentView} onViewChange={onViewChange} />
+      <DashboardHeader />
       
       <main className="container mx-auto px-4 py-6">
         {renderContent()}
       </main>
 
       {/* Notification managers */}
-      <ReminderNotifications />
+      <ReminderNotificationManager />
       <TaskReminderNotifications />
       <EventReminderNotifications />
-      <BookingNotificationManager />
+      <BookingNotificationManager businessProfileId={user?.id || ""} />
     </div>
   );
 };

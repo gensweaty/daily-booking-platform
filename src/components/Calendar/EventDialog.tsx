@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,6 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { EventDialogFields } from "./EventDialogFields";
 import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
-import { useLazyFileLoader } from "@/hooks/useLazyFileLoader";
 import { FileRecord } from "@/types/files";
 
 interface EventDialogProps {
@@ -46,20 +46,11 @@ export const EventDialog = ({
   const [fileError, setFileError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [displayedFiles, setDisplayedFiles] = useState<FileRecord[]>([]);
 
   // Add email reminder state variables
   const [reminderAt, setReminderAt] = useState<Date | null>(null);
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
-
-  const { 
-    displayedFiles, 
-    loadFiles,
-    handleFileDeleted
-  } = useLazyFileLoader({
-    parentType: 'event',
-    bucketName: 'event_attachments',
-    fallbackBuckets: ['booking_attachments']
-  });
 
   // Load event data when editing
   useEffect(() => {
@@ -76,8 +67,20 @@ export const EventDialog = ({
       setReminderAt(event.reminder_at ? new Date(event.reminder_at) : null);
       setEmailReminderEnabled(event.email_reminder_enabled || false);
 
-      if (event.id) {
-        loadFiles(event.id, event.title);
+      // Load existing files
+      if (event.files) {
+        const fileRecords: FileRecord[] = event.files.map(file => ({
+          id: file.id,
+          parentId: file.event_id,
+          parentType: 'event',
+          filename: file.filename,
+          filePath: file.file_path,
+          contentType: file.content_type,
+          size: file.size,
+          createdAt: new Date().toISOString(),
+          bucketName: 'event_attachments'
+        }));
+        setDisplayedFiles(fileRecords);
       }
     } else {
       // Reset form for new events
@@ -92,8 +95,13 @@ export const EventDialog = ({
       setEmailReminderEnabled(false);
       setSelectedFile(null);
       setFileError("");
+      setDisplayedFiles([]);
     }
-  }, [event, loadFiles]);
+  }, [event]);
+
+  const handleFileDeleted = (fileId: string) => {
+    setDisplayedFiles(prev => prev.filter(file => file.id !== fileId));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -236,7 +244,7 @@ export const EventDialog = ({
         <RecurringDeleteDialog
           open={showDeleteDialog}
           onOpenChange={setShowDeleteDialog}
-          onDelete={handleDelete}
+          onConfirm={handleDelete}
           isRecurring={event.is_recurring || false}
         />
       )}
