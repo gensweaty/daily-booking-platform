@@ -380,7 +380,7 @@ export const EventDialog = ({
       <RecurringDeleteDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
-        onConfirm={handleDelete}
+        onDelete={handleDelete}
         isVirtualInstance={isVirtualInstance(initialData?.id || '')}
       />
     </>

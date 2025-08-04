@@ -13,7 +13,7 @@ interface OptimizedEvent {
   user_id: string;
   payment_status?: string;
   payment_amount?: number;
-  type?: string;
+  type: string; // Made required to match CalendarEventType
   created_at: string;
   updated_at: string;
   deleted_at?: string;
