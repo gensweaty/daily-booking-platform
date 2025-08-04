@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -507,7 +506,10 @@ export const EventDialogFields = ({
           <Checkbox
             id="sendEmailReminder"
             checked={sendEmailReminder}
-            onCheckedChange={(checked) => setSendEmailReminder(checked as boolean)}
+            onCheckedChange={(checked) => {
+              console.log('Email reminder checkbox clicked:', checked);
+              setSendEmailReminder(checked as boolean);
+            }}
           />
           <Label 
             htmlFor="sendEmailReminder" 
@@ -528,7 +530,10 @@ export const EventDialogFields = ({
             >
               {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">შეხსენების დრო</GeorgianAuthText> : <LanguageText>Reminder time</LanguageText>}
             </Label>
-            <Select value={emailReminderTime} onValueChange={(value) => setEmailReminderTime(value)}>
+            <Select value={emailReminderTime} onValueChange={(value) => {
+              console.log('Email reminder time selected:', value);
+              setEmailReminderTime(value);
+            }}>
               <SelectTrigger id="emailReminderTime" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                 <SelectValue placeholder={isGeorgian ? "აირჩიეთ შეხსენების დრო" : "Select reminder time"} />
               </SelectTrigger>
