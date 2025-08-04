@@ -125,7 +125,7 @@ export const EventDialogFields = ({
 
       if (error) throw error;
 
-      setExistingFiles(prev => prev.filter(f => f.id !== fileId));
+      setExistingFiles(existingFiles.filter(f => f.id !== fileId));
       
       toast({
         title: "Success",
@@ -467,9 +467,10 @@ export const EventDialogFields = ({
 
       {/* File Upload Section */}
       <FileUploadField
-        files={files}
-        setFiles={setFiles}
-        eventId={eventId}
+        onChange={(file) => setFiles([...files, file])}
+        fileError=""
+        setFileError={() => {}}
+        acceptedFileTypes=".jpg,.jpeg,.png,.pdf,.doc,.docx"
       />
 
       {/* Existing Files Display */}
@@ -483,7 +484,13 @@ export const EventDialogFields = ({
             )}
           </Label>
           <FileDisplay
-            files={existingFiles}
+            files={existingFiles.map(file => ({
+              ...file,
+              created_at: new Date().toISOString(),
+              user_id: null,
+              content_type: file.content_type || null,
+              size: file.size || null,
+            }))}
             onDelete={handleDeleteFile}
           />
         </div>
