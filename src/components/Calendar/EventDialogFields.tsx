@@ -21,16 +21,6 @@ import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getRepeatOptions } from "@/lib/recurringEvents";
 
-interface PersonData {
-  id: string;
-  userSurname: string;
-  userNumber: string;
-  socialNetworkLink: string;
-  eventNotes: string;
-  paymentStatus: string;
-  paymentAmount: string;
-}
-
 interface EventDialogFieldsProps {
   title: string;
   setTitle: (value: string) => void;

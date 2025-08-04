@@ -1,4 +1,5 @@
 
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,12 +31,30 @@ interface EventDialogProps {
   onSave: (event: CalendarEventType) => void;
   selectedEvent?: CalendarEventType | null;
   selectedDate?: Date | null;
+  // Add missing props from Calendar.tsx
+  onEventCreated?: () => Promise<void>;
+  initialData?: CalendarEventType;
+  onEventUpdated?: () => Promise<void>;
+  onEventDeleted?: () => Promise<void>;
 }
 
-export const EventDialog = ({ open, onOpenChange, onSave, selectedEvent, selectedDate }: EventDialogProps) => {
+export const EventDialog = ({ 
+  open, 
+  onOpenChange, 
+  onSave, 
+  selectedEvent, 
+  selectedDate,
+  onEventCreated,
+  initialData,
+  onEventUpdated,
+  onEventDeleted
+}: EventDialogProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Use initialData if provided, otherwise use selectedEvent
+  const eventToEdit = initialData || selectedEvent;
 
   // Initialize state variables
   const [title, setTitle] = useState('');
@@ -65,25 +84,25 @@ export const EventDialog = ({ open, onOpenChange, onSave, selectedEvent, selecte
   const [sendEmailReminder, setSendEmailReminder] = useState(false);
   const [emailReminderTime, setEmailReminderTime] = useState("");
 
-  // Load event data when selectedEvent changes
+  // Load event data when eventToEdit changes
   useEffect(() => {
-    if (selectedEvent) {
-      setTitle(selectedEvent.title || '');
-      setUserSurname(selectedEvent.user_surname || '');
-      setUserNumber(selectedEvent.user_number || '');
-      setSocialNetworkLink(selectedEvent.social_network_link || '');
-      setEventNotes(selectedEvent.event_notes || '');
-      setEventName(selectedEvent.event_name || '');
-      setStartDate(selectedEvent.start_date ? format(new Date(selectedEvent.start_date), "yyyy-MM-dd'T'HH:mm") : '');
-      setEndDate(selectedEvent.end_date ? format(new Date(selectedEvent.end_date), "yyyy-MM-dd'T'HH:mm") : '');
-      setPaymentStatus(selectedEvent.payment_status || 'not_paid');
-      setPaymentAmount(selectedEvent.payment_amount?.toString() || '');
-      setIsRecurring(selectedEvent.is_recurring || false);
-      setRepeatPattern(selectedEvent.repeat_pattern || '');
-      setRepeatUntil(selectedEvent.repeat_until || '');
-      setAdditionalPersons(selectedEvent.additional_persons || []);
-      setSendEmailReminder(selectedEvent.send_email_reminder || false);
-      setEmailReminderTime(selectedEvent.email_reminder_time || '');
+    if (eventToEdit) {
+      setTitle(eventToEdit.title || '');
+      setUserSurname(eventToEdit.user_surname || '');
+      setUserNumber(eventToEdit.user_number || '');
+      setSocialNetworkLink(eventToEdit.social_network_link || '');
+      setEventNotes(eventToEdit.event_notes || '');
+      setEventName(eventToEdit.event_name || '');
+      setStartDate(eventToEdit.start_date ? format(new Date(eventToEdit.start_date), "yyyy-MM-dd'T'HH:mm") : '');
+      setEndDate(eventToEdit.end_date ? format(new Date(eventToEdit.end_date), "yyyy-MM-dd'T'HH:mm") : '');
+      setPaymentStatus(eventToEdit.payment_status || 'not_paid');
+      setPaymentAmount(eventToEdit.payment_amount?.toString() || '');
+      setIsRecurring(eventToEdit.is_recurring || false);
+      setRepeatPattern(eventToEdit.repeat_pattern || '');
+      setRepeatUntil(eventToEdit.repeat_until || '');
+      setAdditionalPersons(eventToEdit.additional_persons || []);
+      setSendEmailReminder(eventToEdit.send_email_reminder || false);
+      setEmailReminderTime(eventToEdit.email_reminder_time || '');
 
       // Fetch existing files
       const fetchExistingFiles = async () => {
@@ -91,7 +110,7 @@ export const EventDialog = ({ open, onOpenChange, onSave, selectedEvent, selecte
           const { data, error } = await supabase
             .from('event_files')
             .select('*')
-            .eq('event_id', selectedEvent.id);
+            .eq('event_id', eventToEdit.id);
 
           if (error) {
             console.error('Error fetching existing files:', error);
@@ -126,7 +145,7 @@ export const EventDialog = ({ open, onOpenChange, onSave, selectedEvent, selecte
       setSendEmailReminder(false);
       setEmailReminderTime('');
     }
-  }, [selectedEvent, selectedDate]);
+  }, [eventToEdit, selectedDate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,12 +191,19 @@ export const EventDialog = ({ open, onOpenChange, onSave, selectedEvent, selecte
     };
 
     // If editing an existing event, include the ID
-    if (selectedEvent) {
-      eventData.id = selectedEvent.id;
+    if (eventToEdit) {
+      eventData.id = eventToEdit.id;
     }
 
     // Call the onSave function to handle the actual save operation
     onSave(eventData as CalendarEventType);
+
+    // Call appropriate callback if provided
+    if (eventToEdit && onEventUpdated) {
+      await onEventUpdated();
+    } else if (!eventToEdit && onEventCreated) {
+      await onEventCreated();
+    }
 
     // Close the dialog
     onOpenChange(false);
@@ -188,7 +214,7 @@ export const EventDialog = ({ open, onOpenChange, onSave, selectedEvent, selecte
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {selectedEvent ? t("events.editEvent") : t("events.newEvent")}
+            {eventToEdit ? t("events.editEvent") : t("events.newEvent")}
           </DialogTitle>
         </DialogHeader>
         
@@ -218,14 +244,14 @@ export const EventDialog = ({ open, onOpenChange, onSave, selectedEvent, selecte
             setFiles={setFiles}
             existingFiles={existingFiles}
             setExistingFiles={setExistingFiles}
-            eventId={selectedEvent?.id}
+            eventId={eventToEdit?.id}
             isRecurring={isRecurring}
             setIsRecurring={setIsRecurring}
             repeatPattern={repeatPattern}
             setRepeatPattern={setRepeatPattern}
             repeatUntil={repeatUntil}
             setRepeatUntil={setRepeatUntil}
-            isNewEvent={!selectedEvent}
+            isNewEvent={!eventToEdit}
             additionalPersons={additionalPersons}
             setAdditionalPersons={setAdditionalPersons}
             sendEmailReminder={sendEmailReminder}
