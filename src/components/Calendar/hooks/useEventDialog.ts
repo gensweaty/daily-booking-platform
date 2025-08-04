@@ -22,35 +22,8 @@ export const useEventDialog = ({
   const { toast } = useToast();
   const { language } = useLanguage();
 
-  // Helper function to convert UTC to local datetime-local format
-  const convertUTCToLocal = (utc: string | undefined) => {
-    if (!utc) return '';
-    const date = new Date(utc);
-    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-  };
-
-  // Helper function to convert local datetime-local format to UTC
-  const convertLocalToUTC = (local: string) => {
-    if (!local) return null;
-    return new Date(local).toISOString();
-  };
-
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
-      // Validate reminder time if email reminder is enabled
-      if (data.email_reminder_enabled && data.reminder_at && data.start_date) {
-        const reminderDate = new Date(data.reminder_at);
-        const startDate = new Date(data.start_date);
-        if (reminderDate >= startDate) {
-          toast({
-            title: "Invalid Reminder Time",
-            description: "Reminder must be set before event start time",
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-
       const eventData = {
         ...data,
         type: 'event',
@@ -58,19 +31,14 @@ export const useEventDialog = ({
         user_surname: data.user_surname || data.title,
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
         checkAvailability: false,
-        language: data.language || language || 'en',
-        // Convert reminder time to UTC if provided
-        reminder_at: data.email_reminder_enabled && data.reminder_at ? convertLocalToUTC(data.reminder_at) : null,
+        language: data.language || language || 'en'
       };
       
       console.log("Creating event with language:", eventData.language);
-      console.log("Creating event with reminder data:", {
-        email_reminder_enabled: eventData.email_reminder_enabled,
-        reminder_at: eventData.reminder_at
-      });
       
       if (!createEvent) throw new Error("Create event function not provided");
       
+      console.log("Creating event with data:", eventData);
       const createdEvent = await createEvent(eventData);
       
       setIsNewEventDialogOpen(false);
@@ -94,36 +62,17 @@ export const useEventDialog = ({
         throw new Error("Update event function not provided or no event selected");
       }
       
-      // Validate reminder time if email reminder is enabled
-      if (data.email_reminder_enabled && data.reminder_at && data.start_date) {
-        const reminderDate = new Date(data.reminder_at);
-        const startDate = new Date(data.start_date);
-        if (reminderDate >= startDate) {
-          toast({
-            title: "Invalid Reminder Time",
-            description: "Reminder must be set before event start time",
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-      
       const eventData = {
         ...data,
         type: selectedEvent.type || 'event',
         title: data.user_surname || data.title || selectedEvent.title,
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
-        language: data.language || selectedEvent.language || language || 'en',
-        // Convert reminder time to UTC if provided
-        reminder_at: data.email_reminder_enabled && data.reminder_at ? convertLocalToUTC(data.reminder_at) : null,
+        language: data.language || selectedEvent.language || language || 'en'
       };
       
       console.log("Updating event with language:", eventData.language);
-      console.log("Updating event with reminder data:", {
-        email_reminder_enabled: eventData.email_reminder_enabled,
-        reminder_at: eventData.reminder_at
-      });
+      console.log("Updating event with data:", eventData);
       
       const updatedEvent = await updateEvent({
         ...eventData,
@@ -189,7 +138,5 @@ export const useEventDialog = ({
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
-    convertUTCToLocal,
-    convertLocalToUTC,
   };
 };
