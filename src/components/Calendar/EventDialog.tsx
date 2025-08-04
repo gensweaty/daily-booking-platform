@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarEventType, PersonData } from "@/lib/types/calendar";
+import { CalendarEventType } from "@/lib/types/calendar";
+import { PersonData } from "@/lib/types";
 import { EventDialogFields } from "./EventDialogFields";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -381,7 +381,7 @@ export const EventDialog = ({
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
         onDelete={handleDelete}
-        isVirtualInstance={isVirtualInstance(initialData?.id || '')}
+        isVirtualInstance={isVirtualInstance(initialData)}
       />
     </>
   );

@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getRepeatOptions } from "@/lib/recurringEvents";
-import { PersonData } from "@/lib/types/calendar";
+import { PersonData } from "@/lib/types";
 
 interface EventDialogFieldsProps {
   title: string;
