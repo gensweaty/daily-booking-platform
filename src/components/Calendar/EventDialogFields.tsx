@@ -491,7 +491,11 @@ export const EventDialogFields = ({
               content_type: file.content_type || null,
               size: file.size || null,
             }))}
-            onDelete={handleDeleteFile}
+            bucketName="event_attachments"
+            allowDelete={true}
+            onFileDeleted={handleDeleteFile}
+            parentId={eventId}
+            parentType="event"
           />
         </div>
       )}
