@@ -1,619 +1,80 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-interface LanguageContextProps {
-  language: string;
-  setLanguage: (language: string) => void;
-  t: (key: string, args?: any) => string;
-}
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { translations } from '@/translations';
+import { Language, LanguageContextType } from '@/translations/types';
+import { getCurrencySymbol } from '@/lib/currency'; // Import the centralized currency function
 
-const LanguageContext = createContext<LanguageContextProps>({
-  language: 'en',
-  setLanguage: () => {},
-  t: (key: string) => key,
-});
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-interface LanguageProviderProps {
-  children: React.ReactNode;
-}
-
-const translations = {
-  en: {
-    common: {
-      loading: 'Loading...',
-      error: 'Error',
-      success: 'Success',
-      warning: 'Warning',
-      authRequired: 'Authentication required',
-      update: 'Update',
-      add: 'Add',
-      delete: 'Delete',
-      created: 'Created',
-      lastUpdated: 'Last Updated',
-      cancel: 'Cancel',
-      save: 'Save',
-      edit: 'Edit',
-      name: 'Name',
-      description: 'Description',
-      attachments: 'Attachments',
-    },
-    crm: {
-      notPaid: 'Not Paid',
-      paidPartly: 'Paid Partly',
-      paidFully: 'Paid Fully',
-    },
-    auth: {
-      login: 'Login',
-      register: 'Register',
-      logout: 'Logout',
-      email: 'Email',
-      password: 'Password',
-      rememberMe: 'Remember me',
-      forgotPassword: 'Forgot password?',
-      resetPassword: 'Reset password',
-      newPassword: 'New password',
-      confirmPassword: 'Confirm password',
-      firstName: 'First name',
-      lastName: 'Last name',
-      phoneNumber: 'Phone number',
-      address: 'Address',
-      city: 'City',
-      country: 'Country',
-      postalCode: 'Postal code',
-      termsAndConditions: 'I agree to the terms and conditions',
-      alreadyHaveAccount: 'Already have an account?',
-      dontHaveAccount: "Don't have an account?",
-      invalidEmail: 'Invalid email address',
-      passwordTooShort: 'Password must be at least 8 characters',
-      passwordsDoNotMatch: 'Passwords do not match',
-      firstNameRequired: 'First name is required',
-      lastNameRequired: 'Last name is required',
-      emailRequired: 'Email is required',
-      passwordRequired: 'Password is required',
-      confirmPasswordRequired: 'Confirm password is required',
-      termsAndConditionsRequired: 'You must agree to the terms and conditions',
-      loginSuccess: 'Login successful',
-      logoutSuccess: 'Logout successful',
-      registerSuccess: 'Registration successful',
-      resetPasswordSuccess: 'Password reset successful',
-      resetPasswordEmailSent: 'Password reset email sent',
-      profileUpdated: 'Profile updated successfully',
-      profileUpdateFailed: 'Profile update failed',
-      invalidCredentials: 'Invalid credentials',
-      accountNotVerified: 'Account not verified',
-      accountBanned: 'Account banned',
-      accountDeleted: 'Account deleted',
-      accountLocked: 'Account locked',
-      unknownError: 'Unknown error',
-      verifyEmail: 'Verify email',
-      verifyEmailSent: 'Verification email sent',
-      verifyEmailSuccess: 'Email verified successfully',
-      verifyEmailFailed: 'Email verification failed',
-      verifyEmailExpired: 'Email verification expired',
-      verifyEmailInvalid: 'Invalid verification link',
-      verifyEmailResend: 'Resend verification email',
-      verifyEmailResendSuccess: 'Verification email resent',
-      verifyEmailResendFailed: 'Failed to resend verification email',
-      verifyEmailTitle: 'Verify your email',
-      verifyEmailDescription: 'Please verify your email address to activate your account.',
-      verifyEmailButton: 'Verify email',
-      verifyEmailResendButton: 'Resend email',
-      verifyEmailResendDescription: 'Did not receive the email?',
-      verifyEmailResendTitle: 'Resend verification email',
-      verifyEmailResendDescriptionSuccess: 'Verification email resent successfully.',
-      verifyEmailResendDescriptionFailed: 'Failed to resend verification email.',
-      verifyEmailResendDescriptionExpired: 'Verification link expired.',
-      verifyEmailResendDescriptionInvalid: 'Invalid verification link.',
-      verifyEmailResendDescriptionAccountVerified: 'Account already verified.',
-      verifyEmailResendDescriptionAccountNotVerified: 'Account not verified.',
-      verifyEmailResendDescriptionAccountBanned: 'Account banned.',
-      verifyEmailResendDescriptionAccountDeleted: 'Account deleted.',
-      verifyEmailResendDescriptionAccountLocked: 'Account locked.',
-      verifyEmailResendDescriptionUnknownError: 'Unknown error.',
-      verifyEmailResendDescriptionVerifyEmailSent: 'Verification email sent.',
-      verifyEmailResendDescriptionVerifyEmailSuccess: 'Email verified successfully.',
-      verifyEmailResendDescriptionVerifyEmailFailed: 'Email verification failed.',
-      verifyEmailResendDescriptionVerifyEmailExpired: 'Email verification expired.',
-      verifyEmailResendDescriptionVerifyEmailInvalid: 'Invalid verification link.',
-      verifyEmailResendDescriptionVerifyEmailResend: 'Resend verification email.',
-      verifyEmailResendDescriptionVerifyEmailResendSuccess: 'Verification email resent.',
-      verifyEmailResendDescriptionVerifyEmailResendFailed: 'Failed to resend verification email.',
-      verifyEmailResendDescriptionVerifyEmailResendExpired: 'Verification link expired.',
-      verifyEmailResendDescriptionVerifyEmailResendInvalid: 'Invalid verification link.',
-      verifyEmailResendDescriptionVerifyEmailResendAccountVerified: 'Account already verified.',
-      verifyEmailResendDescriptionVerifyEmailResendAccountNotVerified: 'Account not verified.',
-      verifyEmailResendDescriptionVerifyEmailResendAccountBanned: 'Account banned.',
-      verifyEmailResendDescriptionVerifyEmailResendAccountDeleted: 'Account deleted.',
-      verifyEmailResendDescriptionVerifyEmailResendAccountLocked: 'Account locked.',
-      verifyEmailResendDescriptionVerifyEmailResendUnknownError: 'Unknown error.',
-      verifyEmailResendDescriptionVerifyEmailResendVerifyEmailSent: 'Verification email sent.',
-    },
-    tasks: {
-      title: 'Tasks',
-      addTask: 'Add task',
-      editTask: 'Edit task',
-      deleteTask: 'Delete task',
-      taskTitle: 'Task title',
-      taskDescription: 'Task description',
-      taskStatus: 'Task status',
-      taskDueDate: 'Task due date',
-      taskReminder: 'Task Reminder',
-      reminderEmailSent: 'Reminder email sent successfully',
-    },
-    notes: {
-      title: 'Notes',
-      addNote: 'Add note',
-      editNote: 'Edit note',
-      deleteNote: 'Delete note',
-      noteTitle: 'Note title',
-      noteContent: 'Note content',
-      noteColor: 'Note color',
-      noteCategory: 'Note category',
-    },
-    reminders: {
-      title: 'Reminders',
-      addReminder: 'Add reminder',
-      editReminder: 'Edit reminder',
-      deleteReminder: 'Delete reminder',
-      reminderTitle: 'Reminder title',
-      reminderDescription: 'Reminder description',
-      reminderDueDate: 'Reminder due date',
-    },
-    calendar: {
-      title: 'Calendar',
-      addEvent: 'Add event',
-      editEvent: 'Edit event',
-      deleteEvent: 'Delete event',
-      eventTitle: 'Event title',
-      eventDescription: 'Event description',
-      eventDueDate: 'Event due date',
-    },
-    settings: {
-      title: 'Settings',
-      language: 'Language',
-      theme: 'Theme',
-      profile: 'Profile',
-      account: 'Account',
-      security: 'Security',
-      notifications: 'Notifications',
-      preferences: 'Preferences',
-    },
-    dashboard: {
-      title: 'Dashboard',
-      welcome: 'Welcome',
-      tasks: 'Tasks',
-      notes: 'Notes',
-      reminders: 'Reminders',
-      calendar: 'Calendar',
-      settings: 'Settings',
-    },
-    files: {
-      title: 'Files',
-      addFile: 'Add file',
-      editFile: 'Edit file',
-      deleteFile: 'Delete file',
-      fileTitle: 'File title',
-      fileDescription: 'File description',
-      fileCategory: 'File category',
-    },
-    bookingRequests: {
-      title: 'Booking Requests',
-      addBookingRequest: 'Add Booking Request',
-      editBookingRequest: 'Edit Booking Request',
-      deleteBookingRequest: 'Delete Booking Request',
-      bookingRequestTitle: 'Booking Request Title',
-      bookingRequestDescription: 'Booking Request Description',
-      bookingRequestDueDate: 'Booking Request Due Date',
-      bookingRequestStatus: 'Booking Request Status',
-      bookingRequestRequesterName: 'Requester Name',
-      bookingRequestRequesterEmail: 'Requester Email',
-      bookingRequestRequesterPhone: 'Requester Phone',
-      bookingRequestStartDate: 'Start Date',
-      bookingRequestEndDate: 'End Date',
-      bookingRequestEventNotes: 'Event Notes',
-      bookingRequestPaymentStatus: 'Payment Status',
-      bookingRequestPaymentAmount: 'Payment Amount',
-      bookingRequestLanguage: 'Language',
-      bookingRequestFiles: 'Files',
-      bookingRequestFilename: 'Filename',
-      bookingRequestFilePath: 'File Path',
-      bookingRequestContentType: 'Content Type',
-      bookingRequestSize: 'Size',
-      bookingRequestCreatedAt: 'Created At',
-      bookingRequestUpdatedAt: 'Updated At',
-      bookingRequestDeletedAt: 'Deleted At',
-      bookingRequestUserSurname: 'User Surname',
-      bookingRequestUserNumber: 'User Number',
-      bookingRequestSocialNetworkLink: 'Social Network Link',
-      bookingRequestEventName: 'Event Name',
-      bookingRequestIsRecurring: 'Is Recurring',
-      bookingRequestRepeatPattern: 'Repeat Pattern',
-      bookingRequestRepeatUntil: 'Repeat Until',
-      bookingRequestParentEventId: 'Parent Event Id',
-      bookingRequestFilesId: 'Files Id',
-      bookingRequestFilesEventId: 'Files Event Id',
-      bookingRequestFilesFilename: 'Files Filename',
-      bookingRequestFilesFilePath: 'Files File Path',
-      bookingRequestFilesContentType: 'Files Content Type',
-      bookingRequestFilesSize: 'Files Size',
-    },
-    events: {
-      title: 'Events',
-      addEvent: 'Add event',
-      editEvent: 'Edit event',
-      deleteEvent: 'Delete event',
-      eventTitle: 'Event title',
-      eventDescription: 'Event description',
-      eventDueDate: 'Event due date',
-      eventStartDate: 'Start Date',
-      eventEndDate: 'End Date',
-      eventNotes: 'Event Notes',
-      eventPaymentStatus: 'Payment Status',
-      eventPaymentAmount: 'Payment Amount',
-      eventLanguage: 'Language',
-      eventFiles: 'Files',
-      eventFilename: 'Filename',
-      eventFilePath: 'File Path',
-      eventContentType: 'Content Type',
-      eventSize: 'Size',
-      eventCreatedAt: 'Created At',
-      eventUpdatedAt: 'Updated At',
-      eventDeletedAt: 'Deleted At',
-      eventUserSurname: 'User Surname',
-      eventUserNumber: 'User Number',
-      eventSocialNetworkLink: 'Social Network Link',
-      eventName: 'Event Name',
-      eventIsRecurring: 'Is Recurring',
-      eventRepeatPattern: 'Repeat Pattern',
-      eventRepeatUntil: 'Repeat Until',
-      eventParentEventId: 'Parent Event Id',
-      eventFilesId: 'Files Id',
-      eventFilesEventId: 'Files Event Id',
-      eventFilesFilename: 'Files Filename',
-      eventFilesFilePath: 'Files File Path',
-      eventFilesContentType: 'Files Content Type',
-      eventFilesSize: 'Files Size',
-      fullName: 'Full Name',
-      phoneNumber: 'Phone Number',
-      socialLinkEmail: 'Social Link/Email',
-      addEventNotes: 'Add notes about your booking',
-      selectPaymentStatus: 'Select payment status',
-      paymentStatus: 'Payment Status',
-      paymentAmount: 'Payment Amount',
-      dateAndTime: 'Date and Time',
-      start: 'Start',
-      end: 'End',
-      timeConflictError: 'This time conflicts with another event. Please choose a different time.',
-      seriesDeleted: 'Event series deleted successfully',
-      eventDeleted: 'Event deleted successfully',
-      eventUpdated: 'Event updated successfully',
-      eventCreated: 'Event created successfully',
-      recurringEventCreated: 'Recurring event created successfully',
-      eventReminder: "Event Reminder",
-      reminderEmailSent: "Reminder email sent successfully",
-    },
-  },
-  ka: {
-    common: {
-      loading: 'იტვირთება...',
-      error: 'შეცდომა',
-      success: 'წარმატება',
-      warning: 'გაფრთხილება',
-      authRequired: 'ავტორიზაცია საჭიროა',
-      update: 'განახლება',
-      add: 'დამატება',
-      delete: 'წაშლა',
-      created: 'Შექმნილია',
-      lastUpdated: 'ბოლო განახლება',
-      cancel: 'გაუქმება',
-      save: 'შენახვა',
-      edit: 'რედაქტირება',
-      name: 'სახელი',
-      description: 'აღწერა',
-      attachments: 'დანართები',
-    },
-    crm: {
-      notPaid: 'გადახდილი არ არის',
-      paidPartly: 'ნაწილობრივ გადახდილია',
-      paidFully: 'სრულად გადახდილია',
-    },
-    auth: {
-      login: 'შესვლა',
-      register: 'რეგისტრაცია',
-      logout: 'გამოსვლა',
-      email: 'ელ. ფოსტა',
-      password: 'პაროლი',
-      rememberMe: 'დამიმახსოვრე',
-      forgotPassword: 'დაგავიწყდათ პაროლი?',
-      resetPassword: 'პაროლის აღდგენა',
-      newPassword: 'ახალი პაროლი',
-      confirmPassword: 'პაროლის დადასტურება',
-      firstName: 'სახელი',
-      lastName: 'გვარი',
-      phoneNumber: 'ტელეფონის ნომერი',
-      address: 'მისამართი',
-      city: 'ქალაქი',
-      country: 'ქვეყანა',
-      postalCode: 'საფოსტო კოდი',
-      termsAndConditions: 'ვეთანხმები წესებსა და პირობებს',
-      alreadyHaveAccount: 'უკვე გაქვთ ანგარიში?',
-      dontHaveAccount: 'ჯერ არ გაქვთ ანგარიში?',
-      invalidEmail: 'ელ.ფოსტის მისამართი არასწორია',
-      passwordTooShort: 'პაროლი უნდა შედგებოდეს მინიმუმ 8 სიმბოლოსგან',
-      passwordsDoNotMatch: 'პაროლები არ ემთხვევა',
-      firstNameRequired: 'სახელის შეყვანა სავალდებულოა',
-      lastNameRequired: 'გვარის შეყვანა სავალდებულოა',
-      emailRequired: 'ელ.ფოსტის შეყვანა სავალდებულოა',
-      passwordRequired: 'პაროლის შეყვანა სავალდებულოა',
-      confirmPasswordRequired: 'პაროლის დადასტურება სავალდებულოა',
-      termsAndConditionsRequired: 'წესებსა და პირობებზე დათანხმება სავალდებულოა',
-      loginSuccess: 'ავტორიზაცია წარმატებით დასრულდა',
-      logoutSuccess: 'გამოსვლა წარმატებით დასრულდა',
-      registerSuccess: 'რეგისტრაცია წარმატებით დასრულდა',
-      resetPasswordSuccess: 'პაროლის აღდგენა წარმატებით დასრულდა',
-      resetPasswordEmailSent: 'პაროლის აღდგენის ელ.წერილი გაგზავნილია',
-      profileUpdated: 'პროფილი წარმატებით განახლდა',
-      profileUpdateFailed: 'პროფილის განახლება ვერ მოხერხდა',
-      invalidCredentials: 'არასწორი მონაცემები',
-      accountNotVerified: 'ანგარიში არ არის დადასტურებული',
-      accountBanned: 'ანგარიში დაბლოკილია',
-      accountDeleted: 'ანგარიში წაშლილია',
-      accountLocked: 'ანგარიში შეზღუდულია',
-      unknownError: 'უცნობი შეცდომა',
-      verifyEmail: 'ელფოსტის დადასტურება',
-      verifyEmailSent: 'გააქტიურების ბმული გამოგზავნილია',
-      verifyEmailSuccess: 'თქვენი ელფოსტა დადასტურებულია',
-      verifyEmailFailed: 'ელფოსტის დადასტურება ვერ მოხერხდა',
-      verifyEmailExpired: 'გააქტიურების ვადა ამოიწურა',
-      verifyEmailInvalid: 'არასწორი ბმული',
-      verifyEmailResend: 'ხელახლა გაგზავნა',
-      verifyEmailResendSuccess: 'გააქტიურების ბმული ხელახლა გამოგზავნილია',
-      verifyEmailResendFailed: 'ელფოსტის ხელახლა გაგზავნა ვერ მოხერხდა',
-      verifyEmailTitle: 'გთხოვთ, დაადასტუროთ ელფოსტა',
-      verifyEmailDescription: 'გთხოვთ, დაადასტუროთ ელფოსტის მისამართი ანგარიშის გასააქტიურებლად.',
-      verifyEmailButton: 'ელფოსტის დადასტურება',
-      verifyEmailResendButton: 'ხელახლა გაგზავნა',
-      verifyEmailResendDescription: 'წერილი ვერ მიიღეთ?',
-      verifyEmailResendTitle: 'გააქტიურების ბმულის ხელახლა გაგზავნა',
-      verifyEmailResendDescriptionSuccess: 'გააქტიურების ბმული წარმატებით გამოგზავნილია.',
-      verifyEmailResendDescriptionFailed: 'ელფოსტის ხელახლა გაგზავნა ვერ მოხერხდა.',
-      verifyEmailResendDescriptionExpired: 'გააქტიურების ვადა ამოიწურა.',
-      verifyEmailResendDescriptionInvalid: 'არასწორი ბმული.',
-      verifyEmailResendDescriptionAccountVerified: 'ანგარიში უკვე დადასტურებულია.',
-      verifyEmailResendDescriptionAccountNotVerified: 'ანგარიში არ არის დადასტურებული.',
-      verifyEmailResendDescriptionAccountBanned: 'ანგარიში დაბლოკილია.',
-      verifyEmailResendDescriptionAccountDeleted: 'ანგარიში წაშლილია.',
-      verifyEmailResendDescriptionAccountLocked: 'ანგარიში შეზღუდულია.',
-      verifyEmailResendDescriptionUnknownError: 'უცნობი შეცდომა.',
-      verifyEmailResendDescriptionVerifyEmailSent: 'გააქტიურების ბმული გამოგზავნილია.',
-      verifyEmailResendDescriptionVerifyEmailSuccess: 'თქვენი ელფოსტა დადასტურებულია.',
-      verifyEmailResendDescriptionVerifyEmailFailed: 'ელფოსტის დადასტურება ვერ მოხერხდა.',
-      verifyEmailResendDescriptionVerifyEmailExpired: 'გააქტიურების ვადა ამოიწურა.',
-      verifyEmailResendDescriptionVerifyEmailInvalid: 'არასწორი ბმული.',
-      verifyEmailResendDescriptionVerifyEmailResend: 'ხელახლა გაგზავნა',
-      verifyEmailResendDescriptionVerifyEmailResendSuccess: 'გააქტიურების ბმული ხელახლა გამოგზავნილია.',
-      verifyEmailResendDescriptionVerifyEmailResendFailed: 'ელფოსტის ხელახლა გაგზავნა ვერ მოხერხდა.',
-      verifyEmailResendDescriptionVerifyEmailResendExpired: 'გააქტიურების ვადა ამოიწურა.',
-      verifyEmailResendDescriptionVerifyEmailResendInvalid: 'არასწორი ბმული.',
-      verifyEmailResendDescriptionVerifyEmailResendAccountVerified: 'ანგარიში უკვე დადასტურებულია.',
-      verifyEmailResendDescriptionVerifyEmailResendAccountNotVerified: 'ანგარიში არ არის დადასტურებული.',
-      verifyEmailResendDescriptionVerifyEmailResendAccountBanned: 'ანგარიში დაბლოკილია.',
-      verifyEmailResendDescriptionVerifyEmailResendAccountDeleted: 'ანგარიში წაშლილია.',
-      verifyEmailResendDescriptionVerifyEmailResendAccountLocked: 'ანგარიში შეზღუდულია.',
-      verifyEmailResendDescriptionVerifyEmailResendUnknownError: 'უცნობი შეცდომა.',
-      verifyEmailResendDescriptionVerifyEmailResendVerifyEmailSent: 'გააქტიურების ბმული გამოგზავნილია.',
-    },
-    tasks: {
-      title: 'დავალებები',
-      addTask: 'დავალების დამატება',
-      editTask: 'დავალების რედაქტირება',
-      deleteTask: 'დავალების წაშლა',
-      taskTitle: 'დავალების სათაური',
-      taskDescription: 'დავალების აღწერა',
-      taskStatus: 'დავალების სტატუსი',
-      taskDueDate: 'დავალების ვადა',
-      taskReminder: 'შეხსენება',
-      reminderEmailSent: 'შეხსენების ელფოსტა წარმატებით გაიგზავნა',
-    },
-    notes: {
-      title: 'შენიშვნები',
-      addNote: 'შენიშვნის დამატება',
-      editNote: 'შენიშვნის რედაქტირება',
-      deleteNote: 'შენიშვნის წაშლა',
-      noteTitle: 'შენიშვნის სათაური',
-      noteContent: 'შენიშვნის შინაარსი',
-      noteColor: 'შენიშვნის ფერი',
-      noteCategory: 'შენიშვნის კატეგორია',
-    },
-    reminders: {
-      title: 'შეხსენებები',
-      addReminder: 'შეხსენების დამატება',
-      editReminder: 'შეხსენების რედაქტირება',
-      deleteReminder: 'შეხსენების წაშლა',
-      reminderTitle: 'შეხსენების სათაური',
-      reminderDescription: 'შეხსენების აღწერა',
-      reminderDueDate: 'შეხსენების ვადა',
-    },
-    calendar: {
-      title: 'კალენდარი',
-      addEvent: 'მოვლენის დამატება',
-      editEvent: 'მოვლენის რედაქტირება',
-      deleteEvent: 'მოვლენის წაშლა',
-      eventTitle: 'მოვლენის სათაური',
-      eventDescription: 'მოვლენის აღწერა',
-      eventDueDate: 'მოვლენის ვადა',
-    },
-    settings: {
-      title: 'პარამეტრები',
-      language: 'ენა',
-      theme: 'თემა',
-      profile: 'პროფილი',
-      account: 'ანგარიში',
-      security: 'უსაფრთხოება',
-      notifications: 'შეტყობინებები',
-      preferences: 'პარამეტრები',
-    },
-    dashboard: {
-      title: 'მთავარი',
-      welcome: 'კეთილი იყოს თქვენი მობრძანება',
-      tasks: 'დავალებები',
-      notes: 'შენიშვნები',
-      reminders: 'შეხსენებები',
-      calendar: 'კალენდარი',
-      settings: 'პარამეტრები',
-    },
-    files: {
-      title: 'ფაილები',
-      addFile: 'ფაილის დამატება',
-      editFile: 'ფაილის რედაქტირება',
-      deleteFile: 'ფაილის წაშლა',
-      fileTitle: 'ფაილის სათაური',
-      fileDescription: 'ფაილის აღწერა',
-      fileCategory: 'ფაილის კატეგორია',
-    },
-    bookingRequests: {
-      title: 'ჯავშნის მოთხოვნები',
-      addBookingRequest: 'ჯავშნის მოთხოვნის დამატება',
-      editBookingRequest: 'ჯავშნის მოთხოვნის რედაქტირება',
-      deleteBookingRequest: 'ჯავშნის მოთხოვნის წაშლა',
-      bookingRequestTitle: 'ჯავშნის მოთხოვნის სათაური',
-      bookingRequestDescription: 'ჯავშნის მოთხოვნის აღწერა',
-      bookingRequestDueDate: 'ჯავშნის მოთხოვნის ვადა',
-      bookingRequestStatus: 'ჯავშნის მოთხოვნის სტატუსი',
-      bookingRequestRequesterName: 'მომთხოვნის სახელი',
-      bookingRequestRequesterEmail: 'მომთხოვნის ელ. ფოსტა',
-      bookingRequestRequesterPhone: 'მომთხოვნის ტელეფონი',
-      bookingRequestStartDate: 'Დაწყების თარიღი',
-      bookingRequestEndDate: 'Დასრულების თარიღი',
-      bookingRequestEventNotes: 'მოვლენის შენიშვნები',
-      bookingRequestPaymentStatus: 'Გადახდის სტატუსი',
-      bookingRequestPaymentAmount: 'Გადახდის ოდენობა',
-      bookingRequestLanguage: 'Ენა',
-      bookingRequestFiles: 'Ფაილები',
-      bookingRequestFilename: 'Ფაილის სახელი',
-      bookingRequestFilePath: 'Ფაილის გზა',
-      bookingRequestContentType: 'Კონტენტის ტიპი',
-      bookingRequestSize: 'Ზომა',
-      bookingRequestCreatedAt: 'Შექმნილია',
-      bookingRequestUpdatedAt: 'განახლებულია',
-      bookingRequestDeletedAt: 'წაიშალა',
-      bookingRequestUserSurname: 'მომხმარებლის გვარი',
-      bookingRequestUserNumber: 'მომხმარებლის ნომერი',
-      bookingRequestSocialNetworkLink: 'Სოციალური ქსელის ბმული',
-      bookingRequestEventName: 'მოვლენის სახელი',
-      bookingRequestIsRecurring: 'Გამეორებადია',
-      bookingRequestRepeatPattern: 'Გამეორების შაბლონი',
-      bookingRequestRepeatUntil: 'Გაიმეორეთ სანამ',
-      bookingRequestParentEventId: 'მშობელი მოვლენის Id',
-      bookingRequestFilesId: 'Ფაილების Id',
-      bookingRequestFilesEventId: 'Ფაილების მოვლენის Id',
-      bookingRequestFilesFilename: 'Ფაილების სახელი',
-      bookingRequestFilesFilePath: 'Ფაილების ფაილის გზა',
-      bookingRequestFilesContentType: 'Ფაილების კონტენტის ტიპი',
-      bookingRequestFilesSize: 'Ფაილების ზომა',
-    },
-    events: {
-      title: 'მოვლენები',
-      addEvent: 'მოვლენის დამატება',
-      editEvent: 'მოვლენის რედაქტირება',
-      deleteEvent: 'მოვლენის წაშლა',
-      eventTitle: 'მოვლენის სათაური',
-      eventDescription: 'მოვლენის აღწერა',
-      eventDueDate: 'მოვლენის ვადა',
-      eventStartDate: 'Დაწყების თარიღი',
-      eventEndDate: 'Დასრულების თარიღი',
-      eventNotes: 'მოვლენის შენიშვნები',
-      eventPaymentStatus: 'Გადახდის სტატუსი',
-      eventPaymentAmount: 'Გადახდის ოდენობა',
-      eventLanguage: 'Ენა',
-      eventFiles: 'Ფაილები',
-      eventFilename: 'Ფაილის სახელი',
-      eventFilePath: 'Ფაილის გზა',
-      eventContentType: 'Კონტენტის ტიპი',
-      eventSize: 'Ზომა',
-      eventCreatedAt: 'Შექმნილია',
-      eventUpdatedAt: 'განახლებულია',
-      eventDeletedAt: 'წაიშალა',
-      eventUserSurname: 'მომხმარებლის გვარი',
-      eventUserNumber: 'მომხმარებლის ნომერი',
-      eventSocialNetworkLink: 'Სოციალური ქსელის ბმული',
-      eventName: 'მოვლენის სახელი',
-      eventIsRecurring: 'Გამეორებადია',
-      eventRepeatPattern: 'Გამეორების შაბლონი',
-      eventRepeatUntil: 'Გაიმეორეთ სანამ',
-      eventParentEventId: 'მშობელი მოვლენის Id',
-      eventFilesId: 'Ფაილების Id',
-      eventFilesEventId: 'Ფაილების მოვლენის Id',
-      eventFilesFilename: 'Ფაილების სახელი',
-      eventFilesFilePath: 'Ფაილების ფაილის გზა',
-      eventFilesContentType: 'Ფაილების კონტენტის ტიპი',
-      eventFilesSize: 'Ფაილების ზომა',
-      fullName: 'სრული სახელი',
-      phoneNumber: 'ტელეფონის ნომერი',
-      socialLinkEmail: 'ელფოსტა',
-      addEventNotes: 'დაამატეთ შენიშვნები თქვენი ჯავშნის შესახებ',
-      selectPaymentStatus: 'აირჩიეთ გადახდის სტატუსი',
-      paymentStatus: 'გადახდის სტატუსი',
-      paymentAmount: 'გადახდის თანხა',
-      dateAndTime: 'თარიღი და დრო',
-      start: 'Დაწყება',
-      end: 'Დასრულება',
-      timeConflictError: 'ეს დრო ეწინააღმდეგება სხვა მოვლენას. გთხოვთ, აირჩიოთ სხვა დრო.',
-      seriesDeleted: 'მოვლენების სერია წარმატებით წაიშალა',
-      eventDeleted: 'მოვლენა წარმატებით წაიშალა',
-      eventUpdated: 'მოვლენა წარმატებით განახლდა',
-      eventCreated: 'მოვლენა წარმატებით შეიქმნა',
-      recurringEventCreated: 'განმეორებადი მოვლენა წარმატებით შეიქმნა',
-      eventReminder: "მოვლენის შეხსენება",
-      reminderEmailSent: "შეხსენების ელფოსტა წარმატებით გაიგზავნა",
-    },
-  },
-};
-
-const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) => {
-  const [language, setLanguage] = useState(localStorage.getItem('language') || 'en');
+export const LanguageProvider = ({ children }: { children: React.ReactNode }) => {
+  const [language, setLanguage] = useState<Language>(() => {
+    // Try to get language from URL first
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlLang = urlParams.get('lang');
+    if (urlLang && ['en', 'es', 'ka'].includes(urlLang)) {
+      localStorage.setItem('language', urlLang as Language);
+      return urlLang as Language;
+    }
+    
+    // Then try localStorage
+    const saved = localStorage.getItem('language');
+    if (saved && ['en', 'es', 'ka'].includes(saved)) {
+      return saved as Language;
+    }
+    
+    // Default to 'en'
+    return 'en';
+  });
 
   useEffect(() => {
     localStorage.setItem('language', language);
+    
+    // Update URL without reloading the page
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', language);
+    window.history.replaceState({}, '', url);
+    
+    // Update the lang attribute on the HTML element
+    document.documentElement.setAttribute('lang', language);
+    
+    // Add logging for debugging purposes
+    console.log(`Language context updated to: ${language}`);
   }, [language]);
 
-  const t = useCallback((key: string, args?: any) => {
-    const keys = key.split('.');
-    let value: any = translations[language as keyof typeof translations];
-  
-    for (const k of keys) {
-      if (value && typeof value === 'object' && k in value) {
-        value = value[k as keyof typeof value];
-      } else {
-        return key;
-      }
-    }
-  
-    if (typeof value === 'string') {
-      if (args) {
-        try {
-          const template = value.replace(/{{(.*?)}}/g, (_match, expr) => {
-            const keys = expr.split('.').filter(Boolean);
-            let argValue: any = args;
-            for (const k of keys) {
-              if (argValue && typeof argValue === 'object' && k in argValue) {
-                argValue = argValue[k];
-              } else {
-                return '';
-              }
-            }
-            return argValue !== undefined && argValue !== null ? argValue : '';
-          });
-          return template;
-        } catch (e) {
-          console.error(`Error while replacing template keys for ${key}:`, e);
-          return value;
+  const t = (key: string, params?: Record<string, string | number>): string => {
+    if (!key) return '';
+    
+    try {
+      const keys = key.split('.');
+      let result: any = translations[language];
+      
+      // Navigate through the translation object using the keys
+      for (const k of keys) {
+        if (!result || typeof result !== 'object') {
+          console.warn(`Translation key not found: ${key} (at ${k})`);
+          return key.split('.').pop() || key; // Return last part of key as fallback
         }
+        result = result[k];
       }
-      return value;
+      
+      // Return the translated string or fallback to the key
+      if (typeof result === 'string') {
+        // Handle parameter replacement with double curly braces
+        if (params) {
+          return Object.entries(params).reduce((str, [param, value]) => {
+            return str.replace(new RegExp(`{{${param}}}`, 'g'), String(value));
+          }, result);
+        }
+        return result;
+      } else {
+        console.warn(`Translation missing for key: ${key}`);
+        return key.split('.').pop() || key; // Return last part of key as fallback
+      }
+    } catch (error) {
+      console.error(`Error getting translation for key: ${key}`, error);
+      return key.split('.').pop() || key; // Return last part of key as fallback
     }
-  
-    return key;
-  }, [language]);
+  };
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t }}>
@@ -622,8 +83,13 @@ const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) => {
   );
 };
 
-const useLanguage = () => {
-  return useContext(LanguageContext);
+export const useLanguage = () => {
+  const context = useContext(LanguageContext);
+  if (context === undefined) {
+    throw new Error('useLanguage must be used within a LanguageProvider');
+  }
+  return context;
 };
 
-export { LanguageProvider, useLanguage };
+// Export getCurrencySymbol directly for convenience
+export { getCurrencySymbol };
