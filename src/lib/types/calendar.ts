@@ -1,16 +1,5 @@
 
-
 export type CalendarViewType = 'month' | 'week' | 'day';
-
-export interface PersonData {
-  id: string;
-  userSurname: string;
-  userNumber: string;
-  socialNetworkLink: string;
-  eventNotes: string;
-  paymentStatus: string;
-  paymentAmount: string;
-}
 
 export interface CalendarEventType {
   id: string;
@@ -47,11 +36,6 @@ export interface CalendarEventType {
   repeat_pattern?: string;
   repeat_until?: string;
   parent_event_id?: string;
-  // Email reminder properties
-  email_reminder_enabled?: boolean;
-  reminder_at?: string;
-  // Additional persons
-  additional_persons?: PersonData[];
   files?: Array<{
     id: string;
     event_id: string;
@@ -61,4 +45,3 @@ export interface CalendarEventType {
     size?: number;
   }>;
 }
-
