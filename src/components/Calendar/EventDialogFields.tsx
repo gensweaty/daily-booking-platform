@@ -1,4 +1,5 @@
 
+
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -142,6 +143,8 @@ export const EventDialogFields = ({
   }>): FileRecord[] => {
     return files.map(file => ({
       ...file,
+      content_type: file.content_type || 'application/octet-stream', // Provide default if null
+      size: file.size || 0, // Provide default if null
       created_at: new Date().toISOString(), // Default value for display
       user_id: null, // Default value for display
       event_id: eventId || null,
@@ -377,7 +380,7 @@ export const EventDialogFields = ({
                 </Label>
                 <SimpleFileDisplay
                   files={convertToFileRecords(existingFiles)}
-                  onFileDelete={(fileId) => {
+                  onFileDeleted={(fileId) => {
                     setExistingFiles(existingFiles.filter(f => f.id !== fileId));
                   }}
                 />
