@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -150,6 +151,27 @@ export const EventDialogFields = ({
     { value: 'yearly', label: 'Yearly' },
   ];
 
+  // Handler to convert single file to array for FileUploadField compatibility
+  const handleFileChange = (file: File | null) => {
+    if (file) {
+      setFiles([file]);
+    } else {
+      setFiles([]);
+    }
+  };
+
+  // Convert existing files to FileRecord format for FileDisplay
+  const fileRecords: FileRecord[] = existingFiles.map(file => ({
+    id: file.id,
+    filename: file.filename,
+    file_path: file.file_path,
+    content_type: file.content_type || null,
+    size: file.size || null,
+    created_at: new Date().toISOString(),
+    user_id: null,
+    event_id: eventId || null,
+  }));
+
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -286,24 +308,22 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <FileUploadField onFileChange={setFiles} />
+        <FileUploadField onFileChange={handleFileChange} />
       </div>
 
       {existingFiles.length > 0 && (
         <div className="space-y-2">
           <Label>{isGeorgian ? <GeorgianAuthText>არსებული ფაილები</GeorgianAuthText> : <LanguageText>Existing Files</LanguageText>}</Label>
-          <div className="flex flex-wrap gap-2">
-            {existingFiles.map((file) => (
-              <FileDisplay
-                key={file.id}
-                fileName={file.filename}
-                filePath={file.file_path}
-                onDelete={async () => {
-                  setExistingFiles(existingFiles.filter((f) => f.id !== file.id));
-                }}
-              />
-            ))}
-          </div>
+          <FileDisplay
+            files={fileRecords}
+            bucketName="event_attachments"
+            allowDelete={true}
+            onFileDeleted={(fileId) => {
+              setExistingFiles(existingFiles.filter((f) => f.id !== fileId));
+            }}
+            parentId={eventId}
+            parentType="event"
+          />
         </div>
       )}
 
