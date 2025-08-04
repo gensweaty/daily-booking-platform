@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +13,7 @@ import { getCurrencySymbol } from "@/lib/currency";
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Repeat, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, Trash2, Repeat, Calendar as CalendarIcon, Bell } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -84,6 +83,10 @@ interface EventDialogFieldsProps {
   setAdditionalPersons: (persons: PersonData[]) => void;
   // Add missing prop
   isVirtualEvent?: boolean;
+  reminderAt: string;
+  setReminderAt: (value: string) => void;
+  emailReminderEnabled: boolean;
+  setEmailReminderEnabled: (value: boolean) => void;
 }
 
 export const EventDialogFields = ({
@@ -122,7 +125,11 @@ export const EventDialogFields = ({
   isNewEvent = false,
   additionalPersons,
   setAdditionalPersons,
-  isVirtualEvent = false
+  isVirtualEvent = false,
+  reminderAt,
+  setReminderAt,
+  emailReminderEnabled,
+  setEmailReminderEnabled
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -643,7 +650,53 @@ export const EventDialogFields = ({
           />
         </div>
       )}
-      
+
+      {/* Reminder Settings */}
+      <div className="space-y-4">
+        <Label 
+          className={cn("text-base font-medium", isGeorgian ? "font-georgian" : "")}
+          style={georgianStyle}
+        >
+          {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">შეხსენების პარამეტრები</GeorgianAuthText> : <LanguageText>Reminder Settings</LanguageText>}
+        </Label>
+        
+        <div>
+          <Label 
+            htmlFor="reminderAt"
+            className={cn(isGeorgian ? "font-georgian" : "")}
+            style={georgianStyle}
+          >
+            {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">შეხსენების თარიღი და დრო</GeorgianAuthText> : <LanguageText>Reminder Date & Time</LanguageText>}
+          </Label>
+          <Input 
+            id="reminderAt"
+            type="datetime-local" 
+            value={reminderAt} 
+            onChange={e => setReminderAt(e.target.value)} 
+            className="w-full dark:text-white dark:[color-scheme:dark]" 
+            style={{ colorScheme: 'auto' }} 
+          />
+        </div>
+
+        {reminderAt && (
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="emailReminderEnabled"
+              checked={emailReminderEnabled}
+              onCheckedChange={(checked) => setEmailReminderEnabled(checked as boolean)}
+            />
+            <Label 
+              htmlFor="emailReminderEnabled" 
+              className={cn("flex items-center gap-2", isGeorgian ? "font-georgian" : "")}
+              style={georgianStyle}
+            >
+              <Bell className="h-4 w-4" />
+              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">ელფოსტის შეხსენება ღონისძიების მონაწილეებისთვის</GeorgianAuthText> : <LanguageText>Send email reminder to event participants</LanguageText>}
+            </Label>
+          </div>
+        )}
+      </div>
+
       <div>
         <Label 
           htmlFor="file" 
