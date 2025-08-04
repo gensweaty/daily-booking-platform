@@ -5,9 +5,9 @@ import { ka } from './ka';
 import { Language, TranslationType } from './types';
 
 export const translations: Record<Language, TranslationType> = {
-  en,
-  es,
-  ka,
+  en: en as TranslationType,
+  es: es as TranslationType,
+  ka: ka as TranslationType,
 };
 
 export * from './types';

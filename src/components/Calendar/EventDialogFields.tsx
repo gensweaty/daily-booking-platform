@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -33,8 +34,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { DatePicker } from "@/components/ui/date-picker";
-import { TaskDateTimePicker } from "@/components/shared/TaskDateTimePicker";
+import { TaskDateTimePicker } from "@/components/tasks/TaskDateTimePicker";
 
 interface EventDialogFieldsProps {
   title: string;
@@ -287,7 +287,7 @@ export const EventDialogFields = ({
       </div>
 
       <div className="space-y-2">
-        <FileUploadField files={files} setFiles={setFiles} />
+        <FileUploadField onFilesChange={setFiles} />
       </div>
 
       {existingFiles.length > 0 && (
@@ -297,8 +297,8 @@ export const EventDialogFields = ({
             {existingFiles.map((file) => (
               <FileDisplay
                 key={file.id}
-                filename={file.filename}
-                file_path={file.file_path}
+                fileName={file.filename}
+                filePath={file.file_path}
                 onDelete={async () => {
                   setExistingFiles(existingFiles.filter((f) => f.id !== file.id));
                 }}
@@ -326,19 +326,22 @@ export const EventDialogFields = ({
             />
             <Label htmlFor="email-reminder" className="text-sm cursor-pointer flex items-center gap-2">
               <Mail className="h-3 w-3" />
-              {isGeorgian ? <GeorgianAuthText>{t("tasks.emailReminder")}</GeorgianAuthText> : <LanguageText>{t("tasks.emailReminder")}</LanguageText>}
+              {isGeorgian ? <GeorgianAuthText>{t("events.emailReminder")}</GeorgianAuthText> : <LanguageText>{t("events.emailReminder")}</LanguageText>}
             </Label>
           </div>
           
           {emailReminderEnabled && (
             <div className="space-y-2">
               <Label className="text-xs text-gray-600">
-                {isGeorgian ? <GeorgianAuthText>{t("tasks.selectTime")}</GeorgianAuthText> : <LanguageText>{t("tasks.selectTime")}</LanguageText>}
+                {isGeorgian ? <GeorgianAuthText>{t("events.selectReminderTime")}</GeorgianAuthText> : <LanguageText>{t("events.selectReminderTime")}</LanguageText>}
               </Label>
               <TaskDateTimePicker
+                label={t("events.reminder")}
                 value={reminderAt}
                 onChange={setReminderAt}
-                placeholder={t("tasks.selectDate")}
+                placeholder={t("events.selectReminderDate")}
+                type="reminder"
+                deadlineValue={startDate}
                 className="w-full"
               />
             </div>
