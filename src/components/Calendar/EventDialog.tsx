@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { EventDialogFields } from "./EventDialogFields";
@@ -106,6 +105,8 @@ export const EventDialog = ({
 
   useEffect(() => {
     if (eventData) {
+      console.log("EventDialog: Loading event data:", eventData);
+      
       setTitle(eventData.title || "");
       setUserSurname(eventData.user_surname || "");
       setUserNumber(eventData.user_number || "");
@@ -123,10 +124,17 @@ export const EventDialog = ({
       setRepeatPattern(eventData.repeat_pattern || '');
       setRepeatUntil(eventData.repeat_until || '');
       
-      // Initialize email reminder fields
-      setEmailReminderEnabled(eventData.email_reminder_enabled || false);
-      setReminderAt(eventData.reminder_at ? new Date(eventData.reminder_at).toISOString().slice(0, 16) : undefined);
+      // Initialize email reminder fields - FIX: Properly set the checkbox and time
+      const hasEmailReminder = eventData.email_reminder_enabled || false;
+      const reminderTime = eventData.reminder_at ? new Date(eventData.reminder_at).toISOString().slice(0, 16) : undefined;
+      
+      console.log("EventDialog: Setting reminder fields - enabled:", hasEmailReminder, "time:", reminderTime);
+      setEmailReminderEnabled(hasEmailReminder);
+      setReminderAt(reminderTime);
     } else if (selectedDate) {
+      console.log("EventDialog: Creating new event for date:", selectedDate);
+      
+      // FIX: Set default times to 9:00-10:00 AM
       const defaultStart = new Date(selectedDate);
       defaultStart.setHours(9, 0, 0, 0);
       const defaultEnd = new Date(defaultStart);
@@ -208,6 +216,11 @@ export const EventDialog = ({
         reminder_sent_at: null // Reset when updating reminder
       };
 
+      console.log("EventDialog: Submitting with reminder data:", {
+        email_reminder_enabled: emailReminderEnabled,
+        reminder_at: eventSubmitData.reminder_at
+      });
+
       if (eventData) {
         if (!updateEvent) throw new Error("Update function not available");
         await updateEvent(eventSubmitData);
@@ -268,7 +281,7 @@ export const EventDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" hideCloseButton={true}>
           <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <DialogTitle className={cn("text-xl font-semibold", isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
               {eventData 

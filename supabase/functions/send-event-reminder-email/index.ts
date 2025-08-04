@@ -307,9 +307,9 @@ const handler = async (req: Request): Promise<Response> => {
     // If no eventId provided, process all due event reminders
     const now = new Date().toISOString();
     
-    console.log('📋 Querying for due event reminders...');
+    console.log('📋 Querying for due event reminders at:', now);
     
-    // Find events with due reminders that haven't been sent yet
+    // ENHANCED: Find events with due reminders that haven't been sent yet
     const { data: dueEvents, error: eventsError } = await supabase
       .from('events')
       .select(`
@@ -353,6 +353,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const event of dueEvents) {
       try {
+        console.log(`📧 Processing reminder for event: ${event.id} - ${event.title}`);
+
         // Get user's language preference
         const { data: profileData } = await supabase
           .from('profiles')
@@ -376,6 +378,8 @@ const handler = async (req: Request): Promise<Response> => {
           console.log('📧 No valid recipients for event:', event.id);
           continue;
         }
+
+        console.log(`📧 Found ${recipients.length} recipients for event ${event.id}`);
 
         // Get localized email content
         const { subject, body: emailBody } = getEventEmailContent(
@@ -427,6 +431,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         // Mark event as processed if at least one email was sent
         if (eventEmailsSent > 0) {
+          console.log(`📧 Marking event ${event.id} as processed, ${eventEmailsSent} emails sent`);
           await supabase
             .from('events')
             .update({ 
