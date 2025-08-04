@@ -1,42 +1,132 @@
 
-# A string used to distinguish different Supabase projects on the same host. Defaults to the project ID.
 project_id = "mrueqpffzauvdxmuwhfa"
 
-# The port to expose the Supabase services on. Defaults to 54321.
-# port = 54321
-
 [api]
-# Port to use for the API URL.
-# port = 54321
-# Extra schemas to expose in your API. Defaults to ["public", "storage", "graphql_public"].
-# exposed_schemas = ["public", "storage", "graphql_public"]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
 
 [db]
-# Port to use for the local database URL.
-# port = 54322
+port = 54322
 
-# The database major version to use. This has to be the same as your remote database's.
-# major_version = 15
+[db.pooler]
+enabled = false
+port = 54329
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
 
-[functions]
+[realtime]
+enabled = true
+ip_version = "ipv4"
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+[storage]
+enabled = true
+port = 54325
+file_size_limit = "50MiB"
+buckets = [
+  { name = "avatars", public = true },
+  { name = "event_attachments", public = true },
+  { name = "task_attachments", public = true },
+  { name = "customer_attachments", public = true },
+  { name = "note_attachments", public = true },
+  { name = "business_photos", public = true },
+  { name = "booking_attachments", public = true },
+  { name = "business_covers", public = true }
+]
+
+[auth]
+enabled = true
+port = 54321
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+refresh_token_rotation_enabled = true
+refresh_token_reuse_interval = 10
+enable_manual_linking = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[functions.send-task-reminder-email]
+verify_jwt = false
+
+[functions.send-event-reminder-email]
+verify_jwt = false
+
+[functions.send-booking-request-notification]
+verify_jwt = false
+
+[functions.send-booking-approval-email]
+verify_jwt = false
+
+[functions.send-contact-email]
+verify_jwt = false
+
+[functions.test-resend-email]
+verify_jwt = false
+
+[functions.confirm-signup]
+verify_jwt = false
+
+[functions.password-reset]
+verify_jwt = false
+
+[functions.create-stripe-checkout]
+verify_jwt = false
+
 [functions.stripe-webhook]
 verify_jwt = false
 
 [functions.stripe-checkout-webhook]
 verify_jwt = false
 
-[functions.create-stripe-checkout]
-verify_jwt = true
+[functions.create-customer-portal-session]
+verify_jwt = false
+
+[functions.handle-subscription-redirect]
+verify_jwt = false
 
 [functions.verify-stripe-subscription]
 verify_jwt = false
 
 [functions.sync-stripe-subscription]
-verify_jwt = true
-
-[functions.send-booking-approval-email]
 verify_jwt = false
 
-[storage]
-# The maximum file size allowed (e.g. "5MB", "500KB").
-# file_size_limit = "50MiB"
+[functions.process-renewals]
+verify_jwt = false
+
+[functions.create-user-admin]
+verify_jwt = false
+
+[functions.admin-panel-data]
+verify_jwt = false
+
+[functions.handle-paypal-webhook]
+verify_jwt = false
+
+[functions.verify-paypal-payment]
+verify_jwt = false
+
+[functions.validate-datetime]
+verify_jwt = false
+
+[functions.test-debug]
+verify_jwt = false
+
+[edge-runtime]
+policy = "per_worker"

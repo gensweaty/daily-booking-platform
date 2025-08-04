@@ -31,10 +31,15 @@ export const useEventDialog = ({
         user_surname: data.user_surname || data.title,
         payment_status: normalizePaymentStatus(data.payment_status) || 'not_paid',
         checkAvailability: false,
-        language: data.language || language || 'en'
+        language: data.language || language || 'en',
+        // Handle email reminder fields
+        email_reminder_enabled: data.email_reminder_enabled || false,
+        reminder_at: data.reminder_at || undefined,
+        reminder_sent_at: null // Always null for new events
       };
       
       console.log("Creating event with language:", eventData.language);
+      console.log("Creating event with email reminder:", eventData.email_reminder_enabled, eventData.reminder_at);
       
       if (!createEvent) throw new Error("Create event function not provided");
       
@@ -68,10 +73,15 @@ export const useEventDialog = ({
         title: data.user_surname || data.title || selectedEvent.title,
         user_surname: data.user_surname || data.title || selectedEvent.user_surname,
         payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
-        language: data.language || selectedEvent.language || language || 'en'
+        language: data.language || selectedEvent.language || language || 'en',
+        // Handle email reminder fields
+        email_reminder_enabled: data.email_reminder_enabled !== undefined ? data.email_reminder_enabled : selectedEvent.email_reminder_enabled,
+        reminder_at: data.reminder_at !== undefined ? data.reminder_at : selectedEvent.reminder_at,
+        reminder_sent_at: data.reminder_at !== selectedEvent.reminder_at ? null : selectedEvent.reminder_sent_at // Reset if reminder time changed
       };
       
       console.log("Updating event with language:", eventData.language);
+      console.log("Updating event with email reminder:", eventData.email_reminder_enabled, eventData.reminder_at);
       console.log("Updating event with data:", eventData);
       
       const updatedEvent = await updateEvent({
