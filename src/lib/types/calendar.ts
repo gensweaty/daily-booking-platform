@@ -36,7 +36,7 @@ export interface CalendarEventType {
   repeat_pattern?: string;
   repeat_until?: string;
   parent_event_id?: string;
-  // Email reminder properties
+  // Email reminder properties - PROPERLY ADDED
   reminder_at?: string;
   email_reminder_enabled?: boolean;
   reminder_sent_at?: string;

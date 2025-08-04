@@ -23,10 +23,25 @@ interface EventDialogProps {
   onEventCreated?: () => void;
   onEventUpdated?: () => void;
   onEventDeleted?: () => void;
-  isOpen?: boolean;
-  onClose?: () => void;
-  onSave?: (data: any) => void;
 }
+
+// Helper functions for timezone conversion
+const localToUTC = (localStr: string): string => {
+  if (!localStr) return '';
+  return new Date(localStr).toISOString();
+};
+
+const utcToLocal = (isoStr: string): string => {
+  if (!isoStr || isoStr === 'null' || isoStr === '') return '';
+  try {
+    const date = new Date(isoStr);
+    if (isNaN(date.getTime())) return '';
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+    return date.toISOString().slice(0, 16);
+  } catch {
+    return '';
+  }
+};
 
 // Helper function to check if two time ranges overlap
 const timeRangesOverlap = (start1: Date, end1: Date, start2: Date, end2: Date): boolean => {
@@ -75,51 +90,6 @@ const generateRecurringOccurrences = (startDate: Date, endDate: Date, repeatPatt
   return occurrences;
 };
 
-// Helper function to convert datetime-local input values to ISO string in local timezone
-const localDateTimeToISOString = (dtStr: string): string => {
-  if (!dtStr) return new Date().toISOString();
-  const [datePart, timePart] = dtStr.split('T');
-  const [year, month, day] = datePart.split('-').map(Number);
-  const [hour, minute] = timePart.split(':').map(Number);
-  // Create date in local timezone
-  const localDate = new Date(year, month - 1, day, hour, minute);
-  return localDate.toISOString();
-};
-
-// CRITICAL FIX: Enhanced helper function to convert ISO string to datetime-local input format
-const isoToLocalDateTimeInput = (isoString: string): string => {
-  console.log('🔍 Converting ISO string to datetime-local input:', isoString);
-  
-  if (!isoString || 
-      isoString === 'null' || 
-      isoString === '' || 
-      isoString === 'undefined' ||
-      isoString === null ||
-      isoString === undefined) {
-    console.log('❌ Invalid ISO string provided:', isoString);
-    return '';
-  }
-  
-  try {
-    const date = new Date(isoString);
-    
-    // Check if the date is valid
-    if (isNaN(date.getTime())) {
-      console.warn('⚠️ Invalid date created from ISO string:', isoString);
-      return '';
-    }
-    
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const result = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-    
-    console.log('✅ Successfully converted ISO to datetime-local:', { input: isoString, output: result });
-    return result;
-  } catch (error) {
-    console.error('❌ Error converting ISO date to input format:', error, 'Input:', isoString);
-    return '';
-  }
-};
-
 export const EventDialog = ({
   open,
   onOpenChange,
@@ -129,9 +99,6 @@ export const EventDialog = ({
   onEventCreated,
   onEventUpdated,
   onEventDeleted,
-  isOpen = false,
-  onClose = () => {},
-  onSave = () => {}
 }: EventDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -296,7 +263,7 @@ export const EventDialog = ({
     }
   };
 
-  // CRITICAL FIX: Enhanced form initialization with proper reminder data loading
+  // Form initialization with proper reminder data loading
   useEffect(() => {
     console.log('🔧 EventDialog useEffect triggered:', { 
       open, 
@@ -327,8 +294,6 @@ export const EventDialog = ({
             title: eventData.title,
             reminderAt: eventData.reminder_at,
             emailReminderEnabled: eventData.email_reminder_enabled,
-            reminderAtType: typeof eventData.reminder_at,
-            emailReminderType: typeof eventData.email_reminder_enabled
           });
           
           setTitle(eventData.title || "");
@@ -351,31 +316,26 @@ export const EventDialog = ({
               const newEnd = new Date(baseEnd);
               newEnd.setFullYear(+year, +month - 1, +day);
 
-              setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
-              setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
+              setStartDate(utcToLocal(newStart.toISOString()));
+              setEndDate(utcToLocal(newEnd.toISOString()));
             } else {
-              setStartDate(isoToLocalDateTimeInput(eventData.start_date));
-              setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+              setStartDate(utcToLocal(eventData.start_date));
+              setEndDate(utcToLocal(eventData.end_date));
             }
           } else {
-            setStartDate(isoToLocalDateTimeInput(eventData.start_date));
-            setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+            setStartDate(utcToLocal(eventData.start_date));
+            setEndDate(utcToLocal(eventData.end_date));
           }
 
           setIsRecurring(eventData.is_recurring || false);
           setRepeatPattern(eventData.repeat_pattern || "");
           setRepeatUntil(eventData.repeat_until || "");
           
-          // CRITICAL FIX: Properly load and set reminder fields with comprehensive validation
+          // Load reminder fields properly
           const reminderValue = eventData.reminder_at;
           console.log('📅 Processing reminder_at value:', {
             rawValue: reminderValue,
             type: typeof reminderValue,
-            isNull: reminderValue === null,
-            isUndefined: reminderValue === undefined,
-            isEmpty: reminderValue === '',
-            isStringNull: reminderValue === 'null',
-            isStringUndefined: reminderValue === 'undefined'
           });
           
           if (reminderValue && 
@@ -385,7 +345,7 @@ export const EventDialog = ({
               reminderValue !== 'undefined' &&
               String(reminderValue).trim() !== '') {
             
-            const convertedReminder = isoToLocalDateTimeInput(String(reminderValue));
+            const convertedReminder = utcToLocal(String(reminderValue));
             console.log('📅 Setting reminderAt:', { original: reminderValue, converted: convertedReminder });
             setReminderAt(convertedReminder);
           } else {
@@ -393,21 +353,20 @@ export const EventDialog = ({
             setReminderAt("");
           }
           
-          // CRITICAL FIX: Properly handle boolean email reminder field
+          // Handle boolean email reminder field
           const emailReminderValue = eventData.email_reminder_enabled;
           const emailReminderBoolean = Boolean(emailReminderValue);
           console.log('📧 Setting email reminder:', {
             rawValue: emailReminderValue,
             convertedValue: emailReminderBoolean,
-            type: typeof emailReminderValue
           });
           setEmailReminderEnabled(emailReminderBoolean);
         }
       } else if (selectedDate) {
-        const startDateTime = isoToLocalDateTimeInput(selectedDate.toISOString());
+        const startDateTime = utcToLocal(selectedDate.toISOString());
         const endDateTime = new Date(selectedDate.getTime() + 60 * 60 * 1000);
         setStartDate(startDateTime);
-        setEndDate(isoToLocalDateTimeInput(endDateTime.toISOString()));
+        setEndDate(utcToLocal(endDateTime.toISOString()));
 
         // Reset reminder fields for new event
         setReminderAt("");
@@ -417,7 +376,6 @@ export const EventDialog = ({
     }
   }, [open, selectedDate, initialData, eventId, isVirtualEvent]);
 
-  // CRITICAL FIX: Separate function to reset form fields
   const resetFormFields = () => {
     setAdditionalPersons([]);
     setTitle("");
@@ -632,7 +590,7 @@ export const EventDialog = ({
         });
         return;
       }
-      const startDateObj = new Date(localDateTimeToISOString(startDate));
+      const startDateObj = new Date(localToUTC(startDate));
       const repeatUntilObj = new Date(repeatUntil);
       if (repeatUntilObj <= startDateObj) {
         toast({
@@ -644,9 +602,30 @@ export const EventDialog = ({
       }
     }
 
+    // Validate reminder time if email reminder is enabled
+    if (emailReminderEnabled) {
+      if (!reminderAt) {
+        toast({
+          title: t("common.error"),
+          description: "Please set a reminder time when email reminder is enabled",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (startDate && new Date(reminderAt) >= new Date(startDate)) {
+        toast({
+          title: t("common.error"),
+          description: "Reminder time must be before the event start time",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     // **ENHANCED: More comprehensive conflict checking for recurring events**
-    const newStartTime = new Date(localDateTimeToISOString(startDate));
-    const newEndTime = new Date(localDateTimeToISOString(endDate));
+    const newStartTime = new Date(localToUTC(startDate));
+    const newEndTime = new Date(localToUTC(endDate));
 
     // Get existing events from React Query cache
     const existingEvents = queryClient.getQueryData<CalendarEvent[]>(['events', user.id]) || [];
@@ -777,7 +756,7 @@ export const EventDialog = ({
       console.log("🔄 Event creation/update with reminder data:", {
         reminderAt,
         emailReminderEnabled,
-        reminderAtConverted: reminderAt ? localDateTimeToISOString(reminderAt) : null
+        reminderAtConverted: reminderAt ? localToUTC(reminderAt) : null
       });
 
       const eventData = {
@@ -787,14 +766,14 @@ export const EventDialog = ({
         social_network_link: socialNetworkLink,
         event_notes: eventNotes,
         event_name: eventName,
-        start_date: localDateTimeToISOString(startDate),
-        end_date: localDateTimeToISOString(endDate),
+        start_date: localToUTC(startDate),
+        end_date: localToUTC(endDate),
         payment_status: paymentStatus,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         is_recurring: isRecurring,
         repeat_pattern: isRecurring && repeatPattern ? repeatPattern : null,
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
-        reminder_at: reminderAt ? localDateTimeToISOString(reminderAt) : null,
+        reminder_at: emailReminderEnabled && reminderAt ? localToUTC(reminderAt) : null,
         email_reminder_enabled: emailReminderEnabled
       };
 

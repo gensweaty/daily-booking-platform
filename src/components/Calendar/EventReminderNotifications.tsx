@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -84,13 +85,15 @@ export const EventReminderNotifications = () => {
     });
   };
 
-  // Send email reminder - FIXED: Proper request structure
+  // Send email reminder - FIXED: Proper request structure with correct eventId
   const sendEmailReminder = async (event: any) => {
     try {
       console.log("📧 Starting email reminder process for event:", {
         eventId: event.id,
         title: event.title,
-        userSurname: event.user_surname
+        userSurname: event.user_surname,
+        eventIdType: typeof event.id,
+        eventIdValid: !!event.id
       });
       
       // CRITICAL FIX: Validate eventId before sending
@@ -104,14 +107,18 @@ export const EventReminderNotifications = () => {
         return false;
       }
 
-      // CRITICAL FIX: Create proper request payload
+      // CRITICAL FIX: Create proper request payload with stringified JSON body
       const requestPayload = {
         eventId: String(event.id).trim()
       };
       
-      console.log("📤 Sending request payload:", JSON.stringify(requestPayload, null, 2));
+      console.log("📤 Sending properly formatted request:", {
+        payload: requestPayload,
+        payloadString: JSON.stringify(requestPayload),
+        headers: { 'Content-Type': 'application/json' }
+      });
       
-      // CRITICAL FIX: Use proper function invocation with explicit body structure
+      // CRITICAL FIX: Use proper function invocation with explicit JSON body and headers
       const { data, error } = await supabase.functions.invoke('send-event-reminder-email', {
         body: JSON.stringify(requestPayload),
         headers: {
