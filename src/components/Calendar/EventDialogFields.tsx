@@ -1,3 +1,4 @@
+
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +12,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { Plus, Trash2 } from "lucide-react";
+import { FileRecord } from "@/types/files";
 
 interface PersonData {
   id: string;
@@ -123,7 +125,29 @@ export const EventDialogFields = ({
   const { language } = useLanguage();
   const isGeorgian = language === 'ka';
 
-  // All helper functions and handlers
+  // Handle file selection for new files
+  const handleFileSelect = (file: File | null) => {
+    if (file) {
+      setFiles([...files, file]);
+    }
+  };
+
+  // Convert existing files to proper FileRecord format for SimpleFileDisplay
+  const convertToFileRecords = (files: Array<{
+    id: string;
+    filename: string;
+    file_path: string;
+    content_type?: string;
+    size?: number;
+  }>): FileRecord[] => {
+    return files.map(file => ({
+      ...file,
+      created_at: new Date().toISOString(), // Default value for display
+      user_id: null, // Default value for display
+      event_id: eventId || null,
+      customer_id: null
+    }));
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -341,10 +365,9 @@ export const EventDialogFields = ({
             </Label>
             
             <FileUploadField
-              files={files}
-              onFilesChange={setFiles}
-              bucketName="event_attachments"
-              multiple={true}
+              onChange={handleFileSelect}
+              acceptedFileTypes="image/*,.pdf,.docx,.xlsx,.pptx"
+              hideLabel={true}
             />
 
             {existingFiles.length > 0 && (
@@ -353,11 +376,34 @@ export const EventDialogFields = ({
                   {isGeorgian ? <GeorgianAuthText>არსებული ფაილები</GeorgianAuthText> : <LanguageText>Existing Files</LanguageText>}
                 </Label>
                 <SimpleFileDisplay
-                  files={existingFiles}
+                  files={convertToFileRecords(existingFiles)}
                   onFileDelete={(fileId) => {
                     setExistingFiles(existingFiles.filter(f => f.id !== fileId));
                   }}
                 />
+              </div>
+            )}
+
+            {files.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-muted-foreground">
+                  {isGeorgian ? <GeorgianAuthText>ახალი ფაილები</GeorgianAuthText> : <LanguageText>New Files</LanguageText>}
+                </Label>
+                <div className="space-y-1">
+                  {files.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
+                      <span className="text-sm">{file.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setFiles(files.filter((_, i) => i !== index))}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
