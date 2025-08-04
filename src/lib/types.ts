@@ -25,7 +25,7 @@ export interface Note {
   user_id?: string;
 }
 
-export type { CalendarEventType as CalendarEvent } from './types/calendar';
+export type { CalendarEventType as CalendarEvent, PersonData } from './types/calendar';
 
 export interface Reminder {
   id: string;
@@ -42,5 +42,4 @@ export { type BookingRequest } from '../types/database';
 // Payment status type for consistency across components 
 // Includes both database and display formats
 export type PaymentStatus = 
-  'not_paid' | 'partly' | 'fully' | 
-  'partly_paid' | 'fully_paid';
+  'not_paid' | 'partly' | 'partly_paid' | 'fully_paid';
