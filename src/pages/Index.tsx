@@ -63,15 +63,19 @@ const Index = () => {
     return <Navigate to="/signin" replace />;
   }
 
+  // Cast status to the correct union type
+  const statusValue = subscriptionData?.status as 'active' | 'trial' | 'trial_expired' | 'expired' | 'canceled' || 'expired';
+
   if (showTrialExpired) {
     return (
       <>
-        <TrialExpiredDialog
-          open={showTrialExpired}
-          onOpenChange={setShowTrialExpired}
-          onRedeemCode={() => {
-            setShowTrialExpired(false);
-            setShowRedeemDialog(true);
+        <TrialExpiredDialog />
+        <RedeemCodeDialog
+          open={showRedeemDialog}
+          onOpenChange={setShowRedeemDialog}
+          onSuccess={() => {
+            setShowRedeemDialog(false);
+            // Refetch subscription data or trigger a refresh
           }}
         />
       </>
@@ -85,7 +89,7 @@ const Index = () => {
       {isSubscriptionActive && (
         <SubscriptionCountdown 
           subscription_end_date={subscriptionData?.subscription_end || null}
-          status={subscriptionData?.status || 'expired'}
+          status={statusValue}
         />
       )}
 
@@ -94,18 +98,13 @@ const Index = () => {
         onViewChange={setCurrentView}
       />
 
-      <TrialExpiredDialog
-        open={showTrialExpired}
-        onOpenChange={setShowTrialExpired}
-        onRedeemCode={() => {
-          setShowTrialExpired(false);
-          setShowRedeemDialog(true);
-        }}
-      />
-
       <RedeemCodeDialog
         open={showRedeemDialog}
         onOpenChange={setShowRedeemDialog}
+        onSuccess={() => {
+          setShowRedeemDialog(false);
+          // Refetch subscription data or trigger a refresh
+        }}
       />
     </>
   );

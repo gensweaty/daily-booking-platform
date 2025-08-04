@@ -17,6 +17,8 @@ import { TaskReminderNotifications } from "@/components/tasks/TaskReminderNotifi
 import { EventReminderNotifications } from "@/components/Calendar/EventReminderNotifications";
 import { BookingNotificationManager } from "@/components/business/BookingNotificationManager";
 import { useBookingRequests } from "@/hooks/useBookingRequests";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 
 export type DashboardView = 
   | "calendar"
@@ -39,6 +41,28 @@ export const DashboardContent = ({ currentView, onViewChange }: DashboardContent
   const [calendarView, setCalendarView] = useState<CalendarViewType>("week");
   
   const { bookingRequests, deleteBookingRequest } = useBookingRequests(user?.id);
+
+  // Fetch reminders for ReminderNotificationManager
+  const { data: reminders = [] } = useQuery({
+    queryKey: ['reminders', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('reminders')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('remind_at', { ascending: true });
+      
+      if (error) {
+        console.error('Error fetching reminders:', error);
+        return [];
+      }
+      
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
 
   if (!user) return null;
 
@@ -92,7 +116,7 @@ export const DashboardContent = ({ currentView, onViewChange }: DashboardContent
       </main>
 
       {/* Notification managers */}
-      <ReminderNotificationManager />
+      <ReminderNotificationManager reminders={reminders} />
       <TaskReminderNotifications />
       <EventReminderNotifications />
       <BookingNotificationManager businessProfileId={user?.id || ""} />
