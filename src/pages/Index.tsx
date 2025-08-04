@@ -67,8 +67,8 @@ const Index = () => {
     return (
       <>
         <TrialExpiredDialog
-          isOpen={showTrialExpired}
-          onClose={() => setShowTrialExpired(false)}
+          open={showTrialExpired}
+          onOpenChange={setShowTrialExpired}
           onRedeemCode={() => {
             setShowTrialExpired(false);
             setShowRedeemDialog(true);
@@ -80,14 +80,12 @@ const Index = () => {
 
   return (
     <>
-      <SEOManager 
-        title="Dashboard - SmartBookly" 
-        description="Manage your calendar, tasks, and bookings in one place"
-      />
+      <SEOManager />
       
       {isSubscriptionActive && (
         <SubscriptionCountdown 
           subscription_end_date={subscriptionData?.subscription_end || null}
+          status={subscriptionData?.status || 'expired'}
         />
       )}
 
@@ -97,8 +95,8 @@ const Index = () => {
       />
 
       <TrialExpiredDialog
-        isOpen={showTrialExpired}
-        onClose={() => setShowTrialExpired(false)}
+        open={showTrialExpired}
+        onOpenChange={setShowTrialExpired}
         onRedeemCode={() => {
           setShowTrialExpired(false);
           setShowRedeemDialog(true);
@@ -107,7 +105,7 @@ const Index = () => {
 
       <RedeemCodeDialog
         open={showRedeemDialog}
-        onClose={() => setShowRedeemDialog(false)}
+        onOpenChange={setShowRedeemDialog}
       />
     </>
   );

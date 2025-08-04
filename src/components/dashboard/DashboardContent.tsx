@@ -16,6 +16,7 @@ import { ReminderNotificationManager } from "@/components/reminder/ReminderNotif
 import { TaskReminderNotifications } from "@/components/tasks/TaskReminderNotifications";
 import { EventReminderNotifications } from "@/components/Calendar/EventReminderNotifications";
 import { BookingNotificationManager } from "@/components/business/BookingNotificationManager";
+import { useBookingRequests } from "@/hooks/useBookingRequests";
 
 export type DashboardView = 
   | "calendar"
@@ -36,6 +37,8 @@ interface DashboardContentProps {
 export const DashboardContent = ({ currentView, onViewChange }: DashboardContentProps) => {
   const { user } = useAuth();
   const [calendarView, setCalendarView] = useState<CalendarViewType>("week");
+  
+  const { bookingRequests, deleteBookingRequest } = useBookingRequests(user?.id);
 
   if (!user) return null;
 
@@ -62,7 +65,7 @@ export const DashboardContent = ({ currentView, onViewChange }: DashboardContent
       case "business":
         return <BusinessProfileForm />;
       case "bookings":
-        return <BookingRequestsList />;
+        return <BookingRequestsList requests={bookingRequests || []} onDelete={deleteBookingRequest} />;
       case "archived-tasks":
         return <ArchivedTasksPage />;
       default:
@@ -79,7 +82,7 @@ export const DashboardContent = ({ currentView, onViewChange }: DashboardContent
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader 
-        currentView={currentView} 
+        view={currentView} 
         onViewChange={onViewChange}
         username={user?.email || "User"}
       />
