@@ -128,9 +128,9 @@ export const EventDialogFields = ({
   setAdditionalPersons,
   isVirtualEvent = false,
   sendEmailReminder = false,
-  setSendEmailReminder = () => {},
+  setSendEmailReminder,
   emailReminderTime = "",
-  setEmailReminderTime = () => {}
+  setEmailReminderTime
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -508,12 +508,14 @@ export const EventDialogFields = ({
             checked={sendEmailReminder}
             onCheckedChange={(checked) => {
               console.log('Email reminder checkbox clicked:', checked);
-              setSendEmailReminder(checked as boolean);
+              if (setSendEmailReminder) {
+                setSendEmailReminder(!!checked);
+              }
             }}
           />
           <Label 
             htmlFor="sendEmailReminder" 
-            className={cn("flex items-center gap-2", isGeorgian ? "font-georgian" : "")}
+            className={cn("flex items-center gap-2 cursor-pointer", isGeorgian ? "font-georgian" : "")}
             style={georgianStyle}
           >
             <Mail className="h-4 w-4" />
@@ -532,7 +534,9 @@ export const EventDialogFields = ({
             </Label>
             <Select value={emailReminderTime} onValueChange={(value) => {
               console.log('Email reminder time selected:', value);
-              setEmailReminderTime(value);
+              if (setEmailReminderTime) {
+                setEmailReminderTime(value);
+              }
             }}>
               <SelectTrigger id="emailReminderTime" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                 <SelectValue placeholder={isGeorgian ? "აირჩიეთ შეხსენების დრო" : "Select reminder time"} />
