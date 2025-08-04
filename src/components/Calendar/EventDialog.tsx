@@ -89,7 +89,9 @@ const localDateTimeToISOString = (dtStr: string): string => {
 
 // CRITICAL FIX: Enhanced helper function to convert ISO string to datetime-local input format
 const isoToLocalDateTimeInput = (isoString: string): string => {
-  if (!isoString || isoString === 'null' || isoString === '') return '';
+  if (!isoString || isoString === 'null' || isoString === '' || isoString === 'undefined') {
+    return '';
+  }
   
   try {
     const date = new Date(isoString);
@@ -306,9 +308,12 @@ export const EventDialog = ({
 
         const eventData = initialData;
         if (eventData) {
-          console.log('🔧 Loading event data for editing:', eventData);
-          console.log('🔧 Raw reminder_at from DB:', eventData.reminder_at);
-          console.log('🔧 Raw email_reminder_enabled from DB:', eventData.email_reminder_enabled);
+          console.log('🔧 Loading event data for editing:', {
+            id: eventData.id,
+            title: eventData.title,
+            reminderAt: eventData.reminder_at,
+            emailReminderEnabled: eventData.email_reminder_enabled
+          });
           
           setTitle(eventData.title || "");
           setUserSurname(eventData.user_surname || "");
@@ -345,22 +350,40 @@ export const EventDialog = ({
           setRepeatPattern(eventData.repeat_pattern || "");
           setRepeatUntil(eventData.repeat_until || "");
           
-          // CRITICAL FIX: Properly load and set reminder fields with enhanced logging
+          // CRITICAL FIX: Properly load and set reminder fields with enhanced validation
           const reminderValue = eventData.reminder_at;
-          console.log('📅 Processing reminder_at value:', reminderValue, 'Type:', typeof reminderValue);
+          console.log('📅 Processing reminder_at value:', {
+            reminderValue,
+            type: typeof reminderValue,
+            isNull: reminderValue === null,
+            isUndefined: reminderValue === undefined,
+            isEmpty: reminderValue === '',
+            isStringNull: reminderValue === 'null'
+          });
           
-          if (reminderValue && reminderValue !== null && reminderValue !== 'null') {
+          if (reminderValue && 
+              reminderValue !== null && 
+              reminderValue !== 'null' && 
+              reminderValue !== undefined && 
+              reminderValue !== 'undefined' &&
+              reminderValue.toString().trim() !== '') {
             const convertedReminder = isoToLocalDateTimeInput(reminderValue);
             setReminderAt(convertedReminder);
-            console.log('📅 Set reminderAt to:', convertedReminder);
+            console.log('📅 Successfully set reminderAt to:', convertedReminder);
           } else {
             setReminderAt("");
-            console.log('📅 No valid reminder_at found, set to empty');
+            console.log('📅 No valid reminder_at found, set to empty string');
           }
           
+          // CRITICAL FIX: Properly handle boolean email reminder field
           const emailReminderValue = eventData.email_reminder_enabled;
-          setEmailReminderEnabled(Boolean(emailReminderValue));
-          console.log('📧 Set emailReminderEnabled to:', Boolean(emailReminderValue));
+          const emailReminderBoolean = Boolean(emailReminderValue);
+          setEmailReminderEnabled(emailReminderBoolean);
+          console.log('📧 Email reminder settings:', {
+            rawValue: emailReminderValue,
+            convertedValue: emailReminderBoolean,
+            type: typeof emailReminderValue
+          });
         }
       } else if (selectedDate) {
         const startDateTime = isoToLocalDateTimeInput(selectedDate.toISOString());

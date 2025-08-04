@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -87,17 +86,37 @@ export const EventReminderNotifications = () => {
     });
   };
 
-  // Send email reminder - FIXED: Proper request body structure with detailed logging
+  // Send email reminder - CRITICAL FIX: Properly structure the request body
   const sendEmailReminder = async (event: any) => {
     try {
-      console.log("📧 Sending email reminder for event:", event.title, "with ID:", event.id);
+      console.log("📧 Starting email reminder process for event:", {
+        eventId: event.id,
+        title: event.title,
+        userSurname: event.user_surname
+      });
       
-      // CRITICAL FIX: Ensure proper request body structure with explicit headers
-      const requestBody = { eventId: event.id };
-      console.log("📤 Preparing request body:", JSON.stringify(requestBody));
+      // CRITICAL FIX: Validate eventId before sending
+      if (!event.id || typeof event.id !== 'string') {
+        console.error("❌ Invalid event.id:", event.id, "Type:", typeof event.id);
+        toast({
+          title: "Email Error",
+          description: "Invalid event ID - cannot send reminder",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // CRITICAL FIX: Ensure clean string eventId and proper request structure
+      const cleanEventId = String(event.id).trim();
+      const requestPayload = {
+        eventId: cleanEventId
+      };
+      
+      console.log("📤 Sending request with payload:", JSON.stringify(requestPayload));
+      console.log("📧 Event ID type check:", typeof cleanEventId, "Length:", cleanEventId.length);
       
       const { data, error } = await supabase.functions.invoke('send-event-reminder-email', {
-        body: requestBody,
+        body: requestPayload,
         headers: {
           'Content-Type': 'application/json',
         }
@@ -109,7 +128,7 @@ export const EventReminderNotifications = () => {
         console.error("❌ Error sending event email reminder:", error);
         toast({
           title: "Email Error",
-          description: "Failed to send event email reminder",
+          description: `Failed to send event email reminder: ${error.message}`,
           variant: "destructive",
         });
         return false;
@@ -154,11 +173,14 @@ export const EventReminderNotifications = () => {
         const isDue = timeDiff >= 0 && timeDiff <= 60000; // 0 to 60 seconds past due time
         
         if (isDue && !processedReminders.has(reminderKey)) {
-          console.log('🔔 PROCESSING EVENT REMINDER for event:', event.title);
-          console.log('⏰ Reminder time:', reminderTime.toLocaleString());
-          console.log('🕐 Current time:', now.toLocaleString());
-          console.log('⏱️ Time difference:', timeDiff, 'ms');
-          console.log('📧 Event ID being processed:', event.id);
+          console.log('🔔 PROCESSING EVENT REMINDER for event:', {
+            id: event.id,
+            title: event.title,
+            reminderTime: reminderTime.toLocaleString(),
+            currentTime: now.toLocaleString(),
+            timeDiff: timeDiff,
+            emailEnabled: event.email_reminder_enabled
+          });
           
           // Mark as processed FIRST to prevent duplicate processing
           setProcessedReminders(prev => {
@@ -189,11 +211,15 @@ export const EventReminderNotifications = () => {
           if (event.email_reminder_enabled) {
             const emailSuccess = await sendEmailReminder(event);
             console.log('📧 Email reminder result:', emailSuccess ? 'SUCCESS' : 'FAILED');
+          } else {
+            console.log('📧 Email reminder disabled for this event');
           }
           
-          console.log('📊 Dashboard notification: ✅ Sent');
-          console.log('🔔 System notification:', result.success ? '✅ Sent' : '❌ Failed');
-          console.log('📧 Email reminder:', event.email_reminder_enabled ? '✅ Enabled' : '❌ Disabled');
+          console.log('📊 Notification summary:', {
+            dashboardNotification: '✅ Sent',
+            systemNotification: result.success ? '✅ Sent' : '❌ Failed',
+            emailReminder: event.email_reminder_enabled ? '✅ Processed' : '❌ Disabled'
+          });
           
           notificationsTriggered++;
         }
