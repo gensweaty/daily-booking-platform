@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarEventType, PersonData } from "@/lib/types/calendar";
+import { CalendarEvent, PersonData } from "@/lib/types/calendar";
 import { EventDialogFields } from "./EventDialogFields";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -16,8 +16,8 @@ export interface EventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate?: Date;
-  initialData?: CalendarEventType;
-  onSave: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
+  initialData?: CalendarEvent;
+  onSave: (data: Partial<CalendarEvent>) => Promise<CalendarEvent>;
   onEventCreated?: () => Promise<void>;
   onEventUpdated?: () => Promise<void>;
   onEventDeleted?: () => Promise<void>;
@@ -195,7 +195,7 @@ export const EventDialog = ({
 
     setLoading(true);
     try {
-      const eventData: Partial<CalendarEventType> = {
+      const eventData: Partial<CalendarEvent> = {
         title: userSurname,
         user_surname: userSurname,
         user_number: userNumber,

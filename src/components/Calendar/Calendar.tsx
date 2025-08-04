@@ -7,7 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { EventDialog } from "./EventDialog";
-import { CalendarEventType } from '@/lib/types';
+import { CalendarEvent } from '@/lib/types';
 import { useOptimizedCalendarEvents } from '@/hooks/useOptimizedCalendarEvents';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -34,7 +34,7 @@ export const CalendarComponent = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -64,7 +64,7 @@ export const CalendarComponent = () => {
     setIsCreateDialogOpen(true);
   };
 
-  const handleEventClick = (event: CalendarEventType) => {
+  const handleEventClick = (event: CalendarEvent) => {
     setSelectedEvent(event);
     setIsEditDialogOpen(true);
   };
@@ -95,7 +95,7 @@ export const CalendarComponent = () => {
     setSelectedDate(addMonths(selectedDate, 1));
   };
 
-  const handleCreateEvent = async (eventData: Partial<CalendarEventType>) => {
+  const handleCreateEvent = async (eventData: Partial<CalendarEvent>) => {
     const response = await fetch('/api/events', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -109,7 +109,7 @@ export const CalendarComponent = () => {
     return response.json();
   };
 
-  const handleUpdateEvent = async (eventData: Partial<CalendarEventType>) => {
+  const handleUpdateEvent = async (eventData: Partial<CalendarEvent>) => {
     const response = await fetch(`/api/events/${eventData.id}`, {
       method: 'PUT', 
       headers: { 'Content-Type': 'application/json' },
@@ -248,3 +248,6 @@ export const CalendarComponent = () => {
     </div>
   );
 };
+
+// Export as Calendar for compatibility with existing imports
+export { CalendarComponent as Calendar };
