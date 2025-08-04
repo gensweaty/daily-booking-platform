@@ -218,15 +218,15 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = new Resend(resendApiKey);
 
-    // CRITICAL FIX: Enhanced request body parsing with comprehensive validation
+    // CRITICAL FIX: Enhanced request body parsing with better validation
     let requestBody;
     let bodyText;
     
     try {
       bodyText = await req.text();
       console.log('📧 Raw request body text:', bodyText);
-      console.log('📧 Request body length:', bodyText.length);
-      console.log('📧 Request body type:', typeof bodyText);
+      console.log('📧 Request body length:', bodyText?.length || 0);
+      console.log('📧 Request content-type:', req.headers.get('content-type'));
     } catch (textError) {
       console.error('❌ Failed to read request text:', textError);
       return new Response(
@@ -238,7 +238,12 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    if (!bodyText || bodyText.trim() === '' || bodyText.trim() === '{}') {
+    // CRITICAL FIX: Better empty body detection
+    if (!bodyText || 
+        bodyText.trim() === '' || 
+        bodyText.trim() === '{}' ||
+        bodyText.trim() === 'null' ||
+        bodyText.trim() === 'undefined') {
       console.error('❌ Empty or invalid request body received:', bodyText);
       return new Response(
         JSON.stringify({ 
@@ -253,10 +258,11 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // CRITICAL FIX: Enhanced JSON parsing with better error handling
     try {
       requestBody = JSON.parse(bodyText);
-      console.log('📧 Parsed request body:', JSON.stringify(requestBody));
-      console.log('📧 Request body keys:', Object.keys(requestBody));
+      console.log('📧 Parsed request body:', JSON.stringify(requestBody, null, 2));
+      console.log('📧 Request body keys:', Object.keys(requestBody || {}));
     } catch (parseError) {
       console.error('❌ Failed to parse request body as JSON:', parseError);
       console.error('❌ Raw body was:', bodyText);
@@ -273,17 +279,18 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // CRITICAL FIX: Enhanced eventId validation with comprehensive checks
+    // CRITICAL FIX: Enhanced eventId validation
     const { eventId } = requestBody;
     
-    console.log('📧 EventId validation:', {
+    console.log('📧 EventId validation details:', {
       eventId,
       type: typeof eventId,
       isNull: eventId === null,
       isUndefined: eventId === undefined,
       isEmpty: eventId === '',
       isStringNull: eventId === 'null',
-      isStringUndefined: eventId === 'undefined'
+      isStringUndefined: eventId === 'undefined',
+      length: eventId?.length || 0
     });
 
     if (!eventId || 
@@ -294,7 +301,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.error('❌ Missing or invalid eventId in request body:', {
         eventId,
         body: requestBody,
-        bodyKeys: Object.keys(requestBody)
+        bodyKeys: Object.keys(requestBody || {})
       });
       return new Response(
         JSON.stringify({ 

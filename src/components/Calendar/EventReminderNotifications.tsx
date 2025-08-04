@@ -54,9 +54,7 @@ export const EventReminderNotifications = () => {
         .select('*')
         .eq('user_id', user.id)
         .not('reminder_at', 'is', null)
-        .eq('email_reminder_enabled', true)
         .lte('reminder_at', futureWindow.toISOString())
-        .is('deleted_at', null)
         .order('reminder_at', { ascending: true });
       
       if (error) {
@@ -64,18 +62,18 @@ export const EventReminderNotifications = () => {
         throw error;
       }
       
-      console.log('📅 Event reminders fetched:', data?.length || 0);
+      console.log('📋 Event reminders fetched:', data?.length || 0);
       return data || [];
     },
     enabled: !!user?.id,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 30000,
   });
 
   // Show dashboard notification
   const showDashboardNotification = (eventTitle: string) => {
-    console.log("📊 Showing dashboard notification for event:", eventTitle);
+    console.log("📊 Showing dashboard notification for:", eventTitle);
     toast({
-      title: "📅 Event Reminder",
+      title: "📋 Event Reminder",
       description: `${t('events.eventReminder')}: ${eventTitle}`,
       duration: 8000,
       action: (
@@ -86,7 +84,7 @@ export const EventReminderNotifications = () => {
     });
   };
 
-  // Send email reminder - CRITICAL FIX: Properly structure the request body
+  // Send email reminder - FIXED: Proper request structure
   const sendEmailReminder = async (event: any) => {
     try {
       console.log("📧 Starting email reminder process for event:", {
@@ -106,19 +104,18 @@ export const EventReminderNotifications = () => {
         return false;
       }
 
-      // CRITICAL FIX: Ensure clean string eventId and proper request structure
-      const cleanEventId = String(event.id).trim();
+      // CRITICAL FIX: Create proper request payload
       const requestPayload = {
-        eventId: cleanEventId
+        eventId: String(event.id).trim()
       };
       
-      console.log("📤 Sending request with payload:", JSON.stringify(requestPayload));
-      console.log("📧 Event ID type check:", typeof cleanEventId, "Length:", cleanEventId.length);
+      console.log("📤 Sending request payload:", JSON.stringify(requestPayload, null, 2));
       
+      // CRITICAL FIX: Use proper function invocation with explicit body structure
       const { data, error } = await supabase.functions.invoke('send-event-reminder-email', {
-        body: requestPayload,
+        body: JSON.stringify(requestPayload),
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         }
       });
 
