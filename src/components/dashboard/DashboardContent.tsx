@@ -62,6 +62,7 @@ export const DashboardContent = ({
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState("calendar")
   const [showArchive, setShowArchive] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
 
@@ -252,7 +253,12 @@ export const DashboardContent = ({
                       initial="hidden"
                       animate="visible"
                     >
-                      <Calendar defaultView="month" />
+                      <Calendar 
+                        view="month"
+                        selectedDate={selectedDate}
+                        onDateSelect={setSelectedDate}
+                        onViewChange={() => {}}
+                      />
                     </motion.div>
                   </div>
                 </CardContent>

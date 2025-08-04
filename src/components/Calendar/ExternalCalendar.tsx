@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Calendar } from "./Calendar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const [view, setView] = useState<CalendarViewType>("month");
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [events, setEvents] = useState<CalendarEventType[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const { toast } = useToast();
@@ -315,15 +315,11 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           )}
           
           <Calendar 
-            defaultView={view}
-            currentView={view}
+            view={view}
+            selectedDate={selectedDate}
+            onDateSelect={setSelectedDate}
             onViewChange={setView}
-            isExternalCalendar={true}
             businessId={businessId}
-            businessUserId={businessUserId}
-            showAllEvents={true}
-            allowBookingRequests={true}
-            directEvents={events}
           />
         </div>
       </CardContent>
