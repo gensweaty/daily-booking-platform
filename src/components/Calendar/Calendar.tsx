@@ -331,7 +331,10 @@ export const Calendar = ({
             isOpen={isNewEventDialogOpen}
             onClose={() => setIsNewEventDialogOpen(false)}
             selectedDate={dialogSelectedDate}
-            onSave={handleCreateEvent}
+            onSave={async (data) => {
+              await handleCreateEvent(data);
+              await handleEventCreated();
+            }}
             isNewEvent={true}
           />
 
@@ -341,8 +344,14 @@ export const Calendar = ({
               isOpen={!!selectedEvent}
               onClose={() => setSelectedEvent(null)}
               selectedDate={new Date(selectedEvent.start_date)}
-              onSave={handleUpdateEvent}
-              onDelete={handleDeleteEvent}
+              onSave={async (data) => {
+                await handleUpdateEvent(data);
+                await handleEventUpdated();
+              }}
+              onDelete={async (id, deleteChoice) => {
+                await handleDeleteEvent(deleteChoice);
+                await handleEventDeleted();
+              }}
               event={selectedEvent}
               isNewEvent={false}
             />

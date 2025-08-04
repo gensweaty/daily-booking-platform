@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -9,15 +10,21 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { SEOManager } from "@/components/SEOManager";
 
+interface SubscriptionData {
+  status: string;
+  trial_ends_at: string;
+  subscription_end: string;
+}
+
 const Index = () => {
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();
   const [currentView, setCurrentView] = useState<DashboardView>("calendar");
   const [showTrialExpired, setShowTrialExpired] = useState(false);
   const [showRedeemDialog, setShowRedeemDialog] = useState(false);
 
-  const { data: subscriptionData, isLoading: isLoadingSubscription } = useQuery(
-    ['subscription'],
-    async () => {
+  const { data: subscriptionData, isLoading: isLoadingSubscription } = useQuery({
+    queryKey: ['subscription'],
+    queryFn: async () => {
       if (!user?.id) return null;
 
       const { data, error } = await supabase
@@ -31,15 +38,13 @@ const Index = () => {
         return null;
       }
 
-      return data;
+      return data as SubscriptionData;
     },
-    {
-      enabled: !!user?.id,
-      refetchOnMount: true,
-      refetchOnReconnect: true,
-      refetchOnWindowFocus: true,
-    }
-  );
+    enabled: !!user?.id,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+  });
 
   useEffect(() => {
     if (user && subscriptionData?.trial_ends_at) {
@@ -53,14 +58,6 @@ const Index = () => {
   }, [user, subscriptionData]);
 
   const isSubscriptionActive = subscriptionData?.status === 'active' || subscriptionData?.status === 'trialing';
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
   if (!user) {
     return <Navigate to="/signin" replace />;
@@ -90,8 +87,7 @@ const Index = () => {
       
       {isSubscriptionActive && (
         <SubscriptionCountdown 
-          subscriptionEndDate={subscriptionData?.subscription_end || null}
-          isLoading={isLoadingSubscription}
+          subscription_end_date={subscriptionData?.subscription_end || null}
         />
       )}
 
@@ -110,7 +106,7 @@ const Index = () => {
       />
 
       <RedeemCodeDialog
-        isOpen={showRedeemDialog}
+        open={showRedeemDialog}
         onClose={() => setShowRedeemDialog(false)}
       />
     </>

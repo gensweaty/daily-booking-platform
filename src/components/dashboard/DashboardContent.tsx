@@ -62,9 +62,9 @@ export const DashboardContent = ({ currentView, onViewChange }: DashboardContent
       case "business":
         return <BusinessProfileForm />;
       case "bookings":
-        return <BookingRequestsList requests={[]} onDelete={() => {}} />;
+        return <BookingRequestsList />;
       case "archived-tasks":
-        return <ArchivedTasksPage onBackClick={() => onViewChange("tasks")} />;
+        return <ArchivedTasksPage />;
       default:
         return (
           <Calendar 
@@ -89,7 +89,7 @@ export const DashboardContent = ({ currentView, onViewChange }: DashboardContent
       </main>
 
       {/* Notification managers */}
-      <ReminderNotificationManager reminders={[]} />
+      <ReminderNotificationManager />
       <TaskReminderNotifications />
       <EventReminderNotifications />
       <BookingNotificationManager businessProfileId={user?.id || ""} />
