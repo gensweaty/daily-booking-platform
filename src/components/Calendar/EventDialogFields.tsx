@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,12 +13,13 @@ import { getCurrencySymbol } from "@/lib/currency";
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Repeat, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, Trash2, Repeat, Calendar as CalendarIcon, Bell, Mail } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getRepeatOptions } from "@/lib/recurringEvents";
+import { TaskDateTimePicker } from "@/components/tasks/TaskDateTimePicker";
 
 // Define interface for person data
 interface PersonData {
@@ -84,6 +84,11 @@ interface EventDialogFieldsProps {
   setAdditionalPersons: (persons: PersonData[]) => void;
   // Add missing prop
   isVirtualEvent?: boolean;
+  // Add reminder props
+  reminderAt?: string;
+  setReminderAt?: (value: string) => void;
+  emailReminderEnabled?: boolean;
+  setEmailReminderEnabled?: (value: boolean) => void;
 }
 
 export const EventDialogFields = ({
@@ -122,7 +127,12 @@ export const EventDialogFields = ({
   isNewEvent = false,
   additionalPersons,
   setAdditionalPersons,
-  isVirtualEvent = false
+  isVirtualEvent = false,
+  // Add reminder props
+  reminderAt,
+  setReminderAt,
+  emailReminderEnabled,
+  setEmailReminderEnabled
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -491,6 +501,43 @@ export const EventDialogFields = ({
           </div>
         </div>
       </div>
+
+      {/* Reminder Section */}
+      {setReminderAt && setEmailReminderEnabled && (
+        <div className="space-y-4 border-t pt-4">
+          <div>
+            <Label className={cn("flex items-center gap-2", isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+              <Bell className="h-4 w-4" />
+              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">შეხსენება</GeorgianAuthText> : <LanguageText>Reminder</LanguageText>}
+            </Label>
+            <TaskDateTimePicker
+              value={reminderAt || ''}
+              onChange={setReminderAt}
+              placeholder={isGeorgian ? "აირჩიეთ შეხსენების დრო" : "Select reminder time"}
+              maxDate={startDate ? new Date(startDate) : undefined}
+              className="w-full"
+            />
+          </div>
+          
+          {reminderAt && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="emailReminder"
+                checked={emailReminderEnabled || false}
+                onCheckedChange={(checked) => setEmailReminderEnabled?.(checked as boolean)}
+              />
+              <Label 
+                htmlFor="emailReminder"
+                className={cn("flex items-center gap-2 text-sm", isGeorgian ? "font-georgian" : "")}
+                style={georgianStyle}
+              >
+                <Mail className="h-4 w-4" />
+                {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">ელფოსტის შეხსენება</GeorgianAuthText> : <LanguageText>Send email reminder</LanguageText>}
+              </Label>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Repeat Options - Only show for new events */}
       {isNewEvent && (

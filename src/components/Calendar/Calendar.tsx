@@ -28,6 +28,7 @@ import { BookingRequestForm } from "../business/BookingRequestForm";
 import { useToast } from "@/hooks/use-toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
+import { EventReminderNotifications } from "./EventReminderNotifications";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -299,6 +300,8 @@ export const Calendar = ({
 
   return (
     <div className={`h-full flex flex-col ${isMobile ? 'gap-2 -mx-4' : 'gap-4'}`}>
+      {!isExternalCalendar && <EventReminderNotifications />}
+      
       <CalendarHeader
         selectedDate={selectedDate}
         view={view}
