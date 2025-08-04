@@ -1,3 +1,4 @@
+
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfDay, endOfDay } from 'date-fns';
@@ -14,6 +15,7 @@ interface OptimizedEvent {
   payment_amount?: number;
   type?: string;
   created_at: string;
+  updated_at: string;
   deleted_at?: string;
 }
 
@@ -25,6 +27,7 @@ interface OptimizedBookingRequest {
   status: string;
   business_id: string;
   created_at: string;
+  updated_at: string;
   deleted_at?: string;
 }
 
@@ -55,6 +58,7 @@ export const useOptimizedCalendarEvents = (userId: string | undefined, currentDa
           payment_amount,
           type,
           created_at,
+          updated_at,
           deleted_at
         `)
         .eq('user_id', userId)
@@ -80,6 +84,7 @@ export const useOptimizedCalendarEvents = (userId: string | undefined, currentDa
           status,
           business_id,
           created_at,
+          updated_at,
           deleted_at
         `)
         .eq('user_id', userId)
