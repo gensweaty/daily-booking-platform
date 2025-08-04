@@ -139,6 +139,8 @@ export const EventDialog = ({
     paymentAmount: string;
   }>>([]);
   const [currentEventData, setCurrentEventData] = useState<CalendarEventType | null>(null);
+  const [reminderAt, setReminderAt] = useState("");
+  const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
 
   const isNewEvent = !initialData && !eventId;
   const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
@@ -313,6 +315,8 @@ export const EventDialog = ({
           setIsRecurring(eventData.is_recurring || false);
           setRepeatPattern(eventData.repeat_pattern || "");
           setRepeatUntil(eventData.repeat_until || "");
+          setReminderAt(eventData.reminder_at ? isoToLocalDateTimeInput(eventData.reminder_at) : "");
+          setEmailReminderEnabled(eventData.email_reminder_enabled || false);
         }
       } else if (selectedDate) {
         const startDateTime = isoToLocalDateTimeInput(selectedDate.toISOString());
@@ -335,6 +339,8 @@ export const EventDialog = ({
         setFiles([]);
         setExistingFiles([]);
         setCurrentEventData(null);
+        setReminderAt("");
+        setEmailReminderEnabled(false);
       }
     }
   }, [open, selectedDate, initialData, eventId, isVirtualEvent]);
@@ -377,6 +383,8 @@ export const EventDialog = ({
     setFiles([]);
     setExistingFiles([]);
     setCurrentEventData(null);
+    setReminderAt("");
+    setEmailReminderEnabled(false);
   };
 
   const uploadFiles = async (eventId: string) => {
@@ -712,7 +720,9 @@ export const EventDialog = ({
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         is_recurring: isRecurring,
         repeat_pattern: isRecurring && repeatPattern ? repeatPattern : null,
-        repeat_until: isRecurring && repeatUntil ? repeatUntil : null
+        repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
+        reminder_at: reminderAt ? localDateTimeToISOString(reminderAt) : null,
+        email_reminder_enabled: emailReminderEnabled
       };
 
       console.log("📤 Sending event data to backend:", eventData);
@@ -958,6 +968,10 @@ export const EventDialog = ({
               setAdditionalPersons={setAdditionalPersons}
               isVirtualEvent={isVirtualEvent}
               isNewEvent={isNewEvent}
+              reminderAt={reminderAt}
+              setReminderAt={setReminderAt}
+              emailReminderEnabled={emailReminderEnabled}
+              setEmailReminderEnabled={setEmailReminderEnabled}
             />
             
             {(initialData || currentEventData) && (

@@ -14,7 +14,8 @@ import { getCurrencySymbol } from "@/lib/currency";
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Repeat, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, Trash2, Repeat, Calendar as CalendarIcon, Bell } from "lucide-react";
+import { TaskDateTimePicker } from "@/components/tasks/TaskDateTimePicker";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -84,6 +85,11 @@ interface EventDialogFieldsProps {
   setAdditionalPersons: (persons: PersonData[]) => void;
   // Add missing prop
   isVirtualEvent?: boolean;
+  // Email reminder props
+  reminderAt: string;
+  setReminderAt: (value: string) => void;
+  emailReminderEnabled: boolean;
+  setEmailReminderEnabled: (value: boolean) => void;
 }
 
 export const EventDialogFields = ({
@@ -122,7 +128,11 @@ export const EventDialogFields = ({
   isNewEvent = false,
   additionalPersons,
   setAdditionalPersons,
-  isVirtualEvent = false
+  isVirtualEvent = false,
+  reminderAt,
+  setReminderAt,
+  emailReminderEnabled,
+  setEmailReminderEnabled
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -643,6 +653,26 @@ export const EventDialogFields = ({
           />
         </div>
       )}
+      
+      {/* Email Reminder Section */}
+      <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
+        <div className="flex items-center gap-2 mb-4">
+          <Bell className="h-4 w-4" />
+          <Label className={cn("font-medium", isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
+            {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">ელფოსტის შეხსენება</GeorgianAuthText> : <LanguageText>Email Reminder</LanguageText>}
+          </Label>
+        </div>
+        <TaskDateTimePicker
+          label={isGeorgian ? "შეხსენების დრო" : "Reminder Time"}
+          value={reminderAt}
+          onChange={setReminderAt}
+          placeholder={isGeorgian ? "აირჩიეთ შეხსენების დრო" : "Set reminder time (optional)"}
+          type="reminder"
+          deadlineValue={endDate}
+          emailReminder={emailReminderEnabled}
+          onEmailReminderChange={setEmailReminderEnabled}
+        />
+      </div>
       
       <div>
         <Label 
