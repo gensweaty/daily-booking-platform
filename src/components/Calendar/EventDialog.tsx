@@ -1,3 +1,4 @@
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarEventType } from "@/lib/types";
+import { CalendarEvent } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatDateTimeForInput } from "@/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -28,31 +29,72 @@ import { LanguageText } from "@/components/shared/LanguageText";
 import { PaymentStatus } from "@/lib/types";
 
 interface EventDialogProps {
-  event?: CalendarEventType;
+  event?: CalendarEvent;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (event: CalendarEventType) => void;
+  onSave: (event: CalendarEvent) => void;
   onDelete?: (id: string) => void;
   isNewEvent?: boolean;
+  // New props to match Calendar.tsx usage
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  selectedDate?: Date;
+  initialData?: CalendarEvent;
+  onEventCreated?: () => Promise<void>;
+  onEventUpdated?: () => Promise<void>;
+  onEventDeleted?: () => Promise<void>;
 }
 
-export const EventDialog = ({ event, isOpen, onClose, onSave, onDelete, isNewEvent = false }: EventDialogProps) => {
+export const EventDialog = ({ 
+  event, 
+  isOpen, 
+  onClose, 
+  onSave, 
+  onDelete, 
+  isNewEvent = false,
+  // Handle new props
+  open,
+  onOpenChange,
+  selectedDate,
+  initialData,
+  onEventCreated,
+  onEventUpdated,
+  onEventDeleted
+}: EventDialogProps) => {
   const { toast } = useToast();
   const { t, language } = useLanguage();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const isGeorgian = language === 'ka';
 
-  const [title, setTitle] = useState<string>(event?.title || event?.user_surname || "");
-  const [userSurname, setUserSurname] = useState<string>(event?.user_surname || "");
-  const [userNumber, setUserNumber] = useState<string>(event?.user_number || "");
-  const [socialNetworkLink, setSocialNetworkLink] = useState<string>(event?.social_network_link || "");
-  const [eventNotes, setEventNotes] = useState<string>(event?.event_notes || "");
-  const [eventName, setEventName] = useState<string>(event?.event_name || "");
-  const [startDate, setStartDate] = useState<string>(event?.start_date ? formatDateTimeForInput(event.start_date) : "");
-  const [endDate, setEndDate] = useState<string>(event?.end_date ? formatDateTimeForInput(event.end_date) : "");
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(event?.payment_status || "not_paid");
-  const [paymentAmount, setPaymentAmount] = useState<string>(event?.payment_amount?.toString() || "");
+  // Use the new props if provided, otherwise fall back to old ones
+  const dialogOpen = open !== undefined ? open : isOpen;
+  const handleClose = onOpenChange || onClose;
+  const currentEvent = initialData || event;
+  const currentSelectedDate = selectedDate;
+
+  const [title, setTitle] = useState<string>(currentEvent?.title || currentEvent?.user_surname || "");
+  const [userSurname, setUserSurname] = useState<string>(currentEvent?.user_surname || "");
+  const [userNumber, setUserNumber] = useState<string>(currentEvent?.user_number || "");
+  const [socialNetworkLink, setSocialNetworkLink] = useState<string>(currentEvent?.social_network_link || "");
+  const [eventNotes, setEventNotes] = useState<string>(currentEvent?.event_notes || "");
+  const [eventName, setEventName] = useState<string>(currentEvent?.event_name || "");
+  const [startDate, setStartDate] = useState<string>(
+    currentEvent?.start_date 
+      ? formatDateTimeForInput(currentEvent.start_date) 
+      : currentSelectedDate 
+        ? formatDateTimeForInput(currentSelectedDate.toISOString())
+        : ""
+  );
+  const [endDate, setEndDate] = useState<string>(
+    currentEvent?.end_date 
+      ? formatDateTimeForInput(currentEvent.end_date) 
+      : currentSelectedDate 
+        ? formatDateTimeForInput(new Date(currentSelectedDate.getTime() + 60*60*1000).toISOString())
+        : ""
+  );
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(currentEvent?.payment_status || "not_paid");
+  const [paymentAmount, setPaymentAmount] = useState<string>(currentEvent?.payment_amount?.toString() || "");
   const [files, setFiles] = useState<File[]>([]);
   const [existingFiles, setExistingFiles] = useState<Array<{
     id: string;
@@ -61,13 +103,13 @@ export const EventDialog = ({ event, isOpen, onClose, onSave, onDelete, isNewEve
     content_type?: string;
     size?: number;
   }>>([]);
-  const [isBookingRequest, setIsBookingRequest] = useState<boolean>(event?.type === "booking_request" || false);
-  const [isRecurring, setIsRecurring] = useState<boolean>(event?.is_recurring || false);
-  const [repeatPattern, setRepeatPattern] = useState<string>(event?.repeat_pattern || "");
-  const [repeatUntil, setRepeatUntil] = useState<string>(event?.repeat_until || "");
+  const [isBookingRequest, setIsBookingRequest] = useState<boolean>(currentEvent?.type === "booking_request" || false);
+  const [isRecurring, setIsRecurring] = useState<boolean>(currentEvent?.is_recurring || false);
+  const [repeatPattern, setRepeatPattern] = useState<string>(currentEvent?.repeat_pattern || "");
+  const [repeatUntil, setRepeatUntil] = useState<string>(currentEvent?.repeat_until || "");
   const [additionalPersons, setAdditionalPersons] = useState<any[]>([]);
-  const [reminderAt, setReminderAt] = useState<string>(event?.reminder_at || "");
-  const [emailReminderEnabled, setEmailReminderEnabled] = useState<boolean>(event?.email_reminder_enabled || false);
+  const [reminderAt, setReminderAt] = useState<string>(currentEvent?.reminder_at || "");
+  const [emailReminderEnabled, setEmailReminderEnabled] = useState<boolean>(currentEvent?.email_reminder_enabled || false);
 
   const [loading, setLoading] = useState(false);
 
@@ -97,7 +139,6 @@ export const EventDialog = ({ event, isOpen, onClose, onSave, onDelete, isNewEve
         return;
       }
 
-      // Map the data to the format expected by the additionalPersons state
       const formattedPersons = data.map(person => ({
         id: person.id,
         userSurname: person.user_surname || '',
@@ -152,46 +193,47 @@ export const EventDialog = ({ event, isOpen, onClose, onSave, onDelete, isNewEve
 
   // Reset form when event changes
   useEffect(() => {
-    if (event) {
-      setTitle(event.title || event.user_surname || "");
-      setUserSurname(event.user_surname || "");
-      setUserNumber(event.user_number || "");
-      setSocialNetworkLink(event.social_network_link || "");
-      setEventNotes(event.event_notes || "");
-      setEventName(event.event_name || "");
-      setStartDate(event.start_date ? formatDateTimeForInput(event.start_date) : "");
-      setEndDate(event.end_date ? formatDateTimeForInput(event.end_date) : "");
-      setPaymentStatus(event.payment_status || "not_paid");
-      setPaymentAmount(event.payment_amount?.toString() || "");
-      setIsRecurring(event.is_recurring || false);
-      setRepeatPattern(event.repeat_pattern || "");
-      setRepeatUntil(event.repeat_until || "");
-      setReminderAt(event.reminder_at || "");
-      setEmailReminderEnabled(event.email_reminder_enabled || false);
+    const eventToUse = currentEvent;
+    if (eventToUse) {
+      setTitle(eventToUse.title || eventToUse.user_surname || "");
+      setUserSurname(eventToUse.user_surname || "");
+      setUserNumber(eventToUse.user_number || "");
+      setSocialNetworkLink(eventToUse.social_network_link || "");
+      setEventNotes(eventToUse.event_notes || "");
+      setEventName(eventToUse.event_name || "");
+      setStartDate(eventToUse.start_date ? formatDateTimeForInput(eventToUse.start_date) : "");
+      setEndDate(eventToUse.end_date ? formatDateTimeForInput(eventToUse.end_date) : "");
+      setPaymentStatus(eventToUse.payment_status || "not_paid");
+      setPaymentAmount(eventToUse.payment_amount?.toString() || "");
+      setIsRecurring(eventToUse.is_recurring || false);
+      setRepeatPattern(eventToUse.repeat_pattern || "");
+      setRepeatUntil(eventToUse.repeat_until || "");
+      setReminderAt(eventToUse.reminder_at || "");
+      setEmailReminderEnabled(eventToUse.email_reminder_enabled || false);
       
       // Load additional persons
-      if (event.id && !isNewEvent) {
-        loadAdditionalPersons(event.id);
+      if (eventToUse.id && !isNewEvent) {
+        loadAdditionalPersons(eventToUse.id);
       } else {
         setAdditionalPersons([]);
       }
       
       // Load existing files
-      if (event.id && !isNewEvent) {
-        loadExistingFiles(event.id);
+      if (eventToUse.id && !isNewEvent) {
+        loadExistingFiles(eventToUse.id);
       } else {
         setExistingFiles([]);
       }
-    } else {
-      // Reset all fields for new event
+    } else if (currentSelectedDate) {
+      // Reset all fields for new event with selected date
       setTitle("");
       setUserSurname("");
       setUserNumber("");
       setSocialNetworkLink("");
       setEventNotes("");
       setEventName("");
-      setStartDate("");
-      setEndDate("");
+      setStartDate(formatDateTimeForInput(currentSelectedDate.toISOString()));
+      setEndDate(formatDateTimeForInput(new Date(currentSelectedDate.getTime() + 60*60*1000).toISOString()));
       setPaymentStatus("not_paid");
       setPaymentAmount("");
       setFiles([]);
@@ -203,7 +245,7 @@ export const EventDialog = ({ event, isOpen, onClose, onSave, onDelete, isNewEve
       setEmailReminderEnabled(false);
       setAdditionalPersons([]);
     }
-  }, [event, isNewEvent]);
+  }, [currentEvent, isNewEvent, currentSelectedDate]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -279,7 +321,7 @@ export const EventDialog = ({ event, isOpen, onClose, onSave, onDelete, isNewEve
     } finally {
       setLoading(false);
       setFiles([]); // Clear selected files after upload
-      queryClient.invalidateQueries(['eventReminders', user?.id]);
+      queryClient.invalidateQueries({ queryKey: ['eventReminders', user?.id] });
     }
   };
 
@@ -296,7 +338,7 @@ export const EventDialog = ({ event, isOpen, onClose, onSave, onDelete, isNewEve
     try {
       setLoading(true);
       
-      const eventData: Partial<CalendarEventType> = {
+      const eventData: Partial<CalendarEvent> = {
         title: title || userSurname,
         user_surname: userSurname,
         user_number: userNumber,
@@ -323,11 +365,11 @@ export const EventDialog = ({ event, isOpen, onClose, onSave, onDelete, isNewEve
 
       // Update or create event
       let upsertedEvent;
-      if (event?.id) {
+      if (currentEvent?.id) {
         const { data, error } = await supabase
           .from('events')
           .update(eventData)
-          .eq('id', event.id)
+          .eq('id', currentEvent.id)
           .select()
           .single();
 
@@ -383,7 +425,7 @@ export const EventDialog = ({ event, isOpen, onClose, onSave, onDelete, isNewEve
           payment_amount: person.paymentAmount ? parseFloat(person.paymentAmount) : undefined
         };
 
-        // Check if the person already exists (based on a unique identifier, e.g., socialNetworkLink)
+        // Check if the person already exists
         const { data: existingCustomer, error: selectError } = await supabase
           .from('customers')
           .select('*')
@@ -444,11 +486,21 @@ export const EventDialog = ({ event, isOpen, onClose, onSave, onDelete, isNewEve
       });
 
       // Optimistically update cache
-      queryClient.invalidateQueries(['events', user?.id]);
-      queryClient.invalidateQueries(['eventReminders', user?.id]);
+      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['eventReminders', user?.id] });
 
-      onSave(upsertedEvent);
-      onClose();
+      // Call appropriate callback
+      if (onEventCreated && isNewEvent) {
+        await onEventCreated();
+      } else if (onEventUpdated && !isNewEvent) {
+        await onEventUpdated();
+      }
+
+      if (onSave) {
+        onSave(upsertedEvent);
+      }
+      
+      handleClose(false);
     } catch (error) {
       console.error("Event save error:", error);
       toast({
@@ -462,17 +514,31 @@ export const EventDialog = ({ event, isOpen, onClose, onSave, onDelete, isNewEve
   };
 
   const handleDelete = async () => {
-    if (!event?.id || !onDelete) return;
+    if (!currentEvent?.id || (!onDelete && !onEventDeleted)) return;
 
     try {
       setLoading(true);
-      await onDelete(event.id);
+      
+      if (onDelete) {
+        await onDelete(currentEvent.id);
+      } else if (onEventDeleted) {
+        // Delete from database directly
+        const { error } = await supabase
+          .from('events')
+          .delete()
+          .eq('id', currentEvent.id);
+        
+        if (error) throw error;
+        
+        await onEventDeleted();
+      }
+      
       toast({
         title: t("common.success"),
         description: t("events.eventDeleted"),
       });
-      queryClient.invalidateQueries(['events', user?.id]);
-      onClose();
+      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      handleClose(false);
     } catch (error) {
       console.error("Event delete error:", error);
       toast({
@@ -486,7 +552,7 @@ export const EventDialog = ({ event, isOpen, onClose, onSave, onDelete, isNewEve
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={dialogOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className={cn("text-xl font-semibold", isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
@@ -517,14 +583,14 @@ export const EventDialog = ({ event, isOpen, onClose, onSave, onDelete, isNewEve
             endDate={endDate}
             setEndDate={setEndDate}
             paymentStatus={paymentStatus}
-            setPaymentStatus={setPaymentStatus}
+            setPaymentStatus={(value) => setPaymentStatus(value as PaymentStatus)}
             paymentAmount={paymentAmount}
             setPaymentAmount={setPaymentAmount}
             files={files}
             setFiles={setFiles}
             existingFiles={existingFiles}
             setExistingFiles={setExistingFiles}
-            eventId={event?.id}
+            eventId={currentEvent?.id}
             isBookingRequest={isBookingRequest}
             isRecurring={isRecurring}
             setIsRecurring={setIsRecurring}
@@ -543,7 +609,7 @@ export const EventDialog = ({ event, isOpen, onClose, onSave, onDelete, isNewEve
           />
 
           <div className="flex justify-end space-x-2">
-            {!isNewEvent && onDelete ? (
+            {!isNewEvent && (onDelete || onEventDeleted) ? (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive" disabled={loading}>
