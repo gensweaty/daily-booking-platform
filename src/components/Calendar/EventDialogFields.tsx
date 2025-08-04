@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +13,7 @@ import { getCurrencySymbol } from "@/lib/currency";
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Repeat, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, Trash2, Repeat, Calendar as CalendarIcon, Bell } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -84,6 +83,11 @@ interface EventDialogFieldsProps {
   setAdditionalPersons: (persons: PersonData[]) => void;
   // Add missing prop
   isVirtualEvent?: boolean;
+  // Add email reminder props
+  emailReminderEnabled: boolean;
+  setEmailReminderEnabled: (value: boolean) => void;
+  reminderAt: string;
+  setReminderAt: (value: string) => void;
 }
 
 export const EventDialogFields = ({
@@ -122,7 +126,11 @@ export const EventDialogFields = ({
   isNewEvent = false,
   additionalPersons,
   setAdditionalPersons,
-  isVirtualEvent = false
+  isVirtualEvent = false,
+  emailReminderEnabled,
+  setEmailReminderEnabled,
+  reminderAt,
+  setReminderAt
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -181,6 +189,20 @@ export const EventDialogFields = ({
       // Clear repeat settings when unchecked
       setRepeatPattern('');
       setRepeatUntil('');
+    }
+  };
+
+  // Handle email reminder checkbox change
+  const handleEmailReminderToggle = (checked: boolean) => {
+    console.log('Email reminder toggle clicked:', checked);
+    setEmailReminderEnabled(checked);
+    if (checked && startDate) {
+      // Set default reminder to 1 hour before event start
+      const reminderDate = new Date(startDate);
+      reminderDate.setHours(reminderDate.getHours() - 1);
+      setReminderAt(reminderDate.toISOString().slice(0, 16));
+    } else {
+      setReminderAt('');
     }
   };
 
@@ -509,6 +531,33 @@ export const EventDialogFields = ({
               <Repeat className="h-4 w-4" />
               {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">განმეორება</GeorgianAuthText> : <LanguageText>Make this event recurring</LanguageText>}
             </Label>
+          </div>
+          
+          {/* Email Reminder checkbox - Added right after recurring checkbox */}
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="emailReminder"
+              checked={emailReminderEnabled}
+              onCheckedChange={handleEmailReminderToggle}
+            />
+            <Label 
+              htmlFor="emailReminder" 
+              className={cn("flex items-center gap-2", isGeorgian ? "font-georgian" : "")}
+              style={georgianStyle}
+            >
+              <Bell className="h-4 w-4" />
+              {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">ელ-ფოსტის შეხსენება</GeorgianAuthText> : <LanguageText>Email Reminder</LanguageText>}
+            </Label>
+            {emailReminderEnabled && (
+              <Input
+                type="datetime-local"
+                value={reminderAt}
+                onChange={e => setReminderAt(e.target.value)}
+                max={startDate}
+                className="ml-2 w-48"
+                style={{ colorScheme: 'auto' }}
+              />
+            )}
           </div>
           
           {isRecurring && (
