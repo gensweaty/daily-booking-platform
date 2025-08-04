@@ -106,8 +106,6 @@ export const DashboardContent = ({ currentView, onViewChange }: DashboardContent
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader 
-        view={currentView} 
-        onViewChange={onViewChange}
         username={user?.email || "User"}
       />
       
