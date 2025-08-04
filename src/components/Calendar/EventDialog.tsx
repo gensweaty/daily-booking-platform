@@ -192,7 +192,7 @@ export const EventDialog = ({ open, onOpenChange, selectedDate, initialData, onE
       if (new Date(startDate) >= new Date(endDate)) {
         toast({
           title: t("common.error"),
-          description: t("events.endDateMustBeAfterStartDate"),
+          description: "End date must be after start date",
           variant: "destructive",
         });
         setLoading(false);
@@ -213,7 +213,7 @@ export const EventDialog = ({ open, onOpenChange, selectedDate, initialData, onE
 
           if (uploadError) {
             console.error("File upload error:", uploadError);
-            throw new Error(t("events.fileUploadFailed"));
+            throw new Error("File upload failed");
           }
 
           uploadedFilePaths.push(filePath);
@@ -250,12 +250,15 @@ export const EventDialog = ({ open, onOpenChange, selectedDate, initialData, onE
       }
 
       onOpenChange(false);
-      toast.event.saved();
+      toast({
+        title: t("common.success"),
+        description: t("events.eventSaved"),
+      });
     } catch (error: any) {
       console.error("Event save error:", error);
       toast({
         title: t("common.error"),
-        description: error.message || t("events.eventSaveFailed"),
+        description: error.message || "Failed to save event",
         variant: "destructive",
       });
     } finally {
@@ -267,14 +270,17 @@ export const EventDialog = ({ open, onOpenChange, selectedDate, initialData, onE
     setLoading(true);
     try {
       if (!initialData) throw new Error("No event to delete");
-      await onEventDeleted?.(deleteChoice);
+      await onEventDeleted?.();
       onOpenChange(false);
-      toast.event.deleted();
+      toast({
+        title: t("common.success"),
+        description: t("events.eventDeleted"),
+      });
     } catch (error: any) {
       console.error("Event delete error:", error);
       toast({
         title: t("common.error"),
-        description: error.message || t("events.eventDeleteFailed"),
+        description: error.message || "Failed to delete event",
         variant: "destructive",
       });
     } finally {
