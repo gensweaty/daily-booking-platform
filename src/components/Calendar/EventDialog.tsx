@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -25,28 +26,39 @@ interface PersonData {
 
 interface EventDialogProps {
   open: boolean;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
   event?: CalendarEventType | null;
-  onSave: (data: Partial<CalendarEventType>) => void;
+  onSave?: (data: Partial<CalendarEventType>) => void;
   onDelete?: (event: CalendarEventType, deleteChoice?: "this" | "series") => void;
   isNewEvent?: boolean;
   selectedDate?: Date;
+  initialData?: CalendarEventType;
+  onEventCreated?: () => Promise<void>;
+  onEventUpdated?: () => Promise<void>;
+  onEventDeleted?: () => Promise<void>;
 }
 
 export const EventDialog = ({
   open,
-  onClose,
+  onOpenChange,
   event,
   onSave,
   onDelete,
   isNewEvent = false,
   selectedDate,
+  initialData,
+  onEventCreated,
+  onEventUpdated,
+  onEventDeleted,
 }: EventDialogProps) => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [showRecurringDeleteDialog, setShowRecurringDeleteDialog] = useState(false);
   const isGeorgian = language === 'ka';
+
+  // Use initialData or event for the actual event data
+  const currentEvent = initialData || event;
 
   // Form state
   const [title, setTitle] = useState("");
@@ -96,12 +108,12 @@ export const EventDialog = ({
   // Load existing files when event changes
   useEffect(() => {
     const loadExistingFiles = async () => {
-      if (event?.id) {
+      if (currentEvent?.id) {
         try {
           const { data, error } = await supabase
             .from('event_files')
             .select('id, filename, file_path, content_type, size')
-            .eq('event_id', event.id);
+            .eq('event_id', currentEvent.id);
 
           if (error) {
             console.error('Error loading existing files:', error);
@@ -118,28 +130,28 @@ export const EventDialog = ({
     };
 
     loadExistingFiles();
-  }, [event?.id]);
+  }, [currentEvent?.id]);
 
   // Initialize form with event data or defaults
   useEffect(() => {
-    if (event) {
+    if (currentEvent) {
       // Edit existing event
-      setTitle(event.title || "");
-      setUserSurname(event.user_surname || "");
-      setUserNumber(event.user_number || "");
-      setSocialNetworkLink(event.social_network_link || "");
-      setEventNotes(event.event_notes || "");
-      setEventName(event.event_name || "");
-      setStartDate(convertUTCToLocal(event.start_date));
-      setEndDate(convertUTCToLocal(event.end_date));
-      setPaymentStatus(event.payment_status || "not_paid");
-      setPaymentAmount(event.payment_amount?.toString() || "");
-      setIsRecurring(event.is_recurring || false);
-      setRepeatPattern(event.repeat_pattern || "");
-      setRepeatUntil(event.repeat_until || "");
+      setTitle(currentEvent.title || "");
+      setUserSurname(currentEvent.user_surname || "");
+      setUserNumber(currentEvent.user_number || "");
+      setSocialNetworkLink(currentEvent.social_network_link || "");
+      setEventNotes(currentEvent.event_notes || "");
+      setEventName(currentEvent.event_name || "");
+      setStartDate(convertUTCToLocal(currentEvent.start_date));
+      setEndDate(convertUTCToLocal(currentEvent.end_date));
+      setPaymentStatus(currentEvent.payment_status || "not_paid");
+      setPaymentAmount(currentEvent.payment_amount?.toString() || "");
+      setIsRecurring(currentEvent.is_recurring || false);
+      setRepeatPattern(currentEvent.repeat_pattern || "");
+      setRepeatUntil(currentEvent.repeat_until || "");
       // Set email reminder fields
-      setEmailReminderEnabled(event.email_reminder_enabled || false);
-      setReminderAt(convertUTCToLocal(event.reminder_at));
+      setEmailReminderEnabled(currentEvent.email_reminder_enabled || false);
+      setReminderAt(convertUTCToLocal(currentEvent.reminder_at));
       setAdditionalPersons([]);
     } else if (isNewEvent && selectedDate) {
       // New event with selected date
@@ -194,7 +206,7 @@ export const EventDialog = ({
       setFiles([]);
       setExistingFiles([]);
     }
-  }, [event, isNewEvent, selectedDate]);
+  }, [currentEvent, isNewEvent, selectedDate]);
 
   const handleSave = async () => {
     if (!userSurname.trim()) {
@@ -243,14 +255,23 @@ export const EventDialog = ({
         reminder_at: eventData.reminder_at
       });
       
-      await onSave(eventData);
+      if (onSave) {
+        await onSave(eventData);
+      }
+      
+      // Call the appropriate callback
+      if (isNewEvent && onEventCreated) {
+        await onEventCreated();
+      } else if (!isNewEvent && onEventUpdated) {
+        await onEventUpdated();
+      }
       
       // Upload files if any
-      if (files.length > 0 && event?.id) {
+      if (files.length > 0 && currentEvent?.id) {
         // Handle file uploads here if needed
       }
       
-      onClose();
+      onOpenChange(false);
     } catch (error) {
       console.error("Error saving event:", error);
     } finally {
@@ -259,27 +280,31 @@ export const EventDialog = ({
   };
 
   const handleDelete = () => {
-    if (!event || !onDelete) return;
+    if (!currentEvent || !onDelete) return;
     
-    if (event.is_recurring && !isVirtualInstance(event)) {
+    if (currentEvent.is_recurring && !isVirtualInstance(currentEvent)) {
       setShowRecurringDeleteDialog(true);
     } else {
-      onDelete(event);
-      onClose();
+      onDelete(currentEvent);
+      onOpenChange(false);
     }
   };
 
   const handleRecurringDelete = (deleteChoice: "this" | "series") => {
-    if (!event || !onDelete) return;
+    if (!currentEvent || !onDelete) return;
     
-    onDelete(event, deleteChoice);
+    onDelete(currentEvent, deleteChoice);
     setShowRecurringDeleteDialog(false);
-    onClose();
+    onOpenChange(false);
+  };
+
+  const handleClose = () => {
+    onOpenChange(false);
   };
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className={cn(isGeorgian ? "font-georgian" : "")}>
@@ -320,7 +345,7 @@ export const EventDialog = ({
             setFiles={setFiles}
             existingFiles={existingFiles}
             setExistingFiles={setExistingFiles}
-            eventId={event?.id}
+            eventId={currentEvent?.id}
             isRecurring={isRecurring}
             setIsRecurring={setIsRecurring}
             repeatPattern={repeatPattern}
@@ -337,7 +362,7 @@ export const EventDialog = ({
           />
 
           <div className="flex justify-between gap-4 pt-4 border-t">
-            {!isNewEvent && event && onDelete && (
+            {!isNewEvent && currentEvent && onDelete && (
               <Button
                 variant="destructive"
                 onClick={handleDelete}
@@ -355,7 +380,7 @@ export const EventDialog = ({
             <div className="flex gap-2 ml-auto">
               <Button
                 variant="outline"
-                onClick={onClose}
+                onClick={handleClose}
                 disabled={loading}
                 className={cn(isGeorgian ? "font-georgian" : "")}
               >
@@ -384,8 +409,11 @@ export const EventDialog = ({
 
       <RecurringDeleteDialog
         open={showRecurringDeleteDialog}
-        onClose={() => setShowRecurringDeleteDialog(false)}
-        onConfirm={handleRecurringDelete}
+        onOpenChange={(open) => setShowRecurringDeleteDialog(open)}
+        onDeleteThis={() => handleRecurringDelete("this")}
+        onDeleteSeries={() => handleRecurringDelete("series")}
+        isRecurringEvent={currentEvent?.is_recurring || false}
+        isLoading={loading}
       />
     </>
   );
