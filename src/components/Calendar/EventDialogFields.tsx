@@ -83,11 +83,11 @@ interface EventDialogFieldsProps {
   setAdditionalPersons: (persons: PersonData[]) => void;
   // Add missing prop
   isVirtualEvent?: boolean;
-  // New props for email reminder
-  sendEmailReminder?: boolean;
-  setSendEmailReminder?: (value: boolean) => void;
-  emailReminderTime?: string;
-  setEmailReminderTime?: (value: string) => void;
+  // Email reminder props - made required
+  sendEmailReminder: boolean;
+  setSendEmailReminder: (value: boolean) => void;
+  emailReminderTime: string;
+  setEmailReminderTime: (value: string) => void;
 }
 
 export const EventDialogFields = ({
@@ -127,9 +127,9 @@ export const EventDialogFields = ({
   additionalPersons,
   setAdditionalPersons,
   isVirtualEvent = false,
-  sendEmailReminder = false,
+  sendEmailReminder,
   setSendEmailReminder,
-  emailReminderTime = "",
+  emailReminderTime,
   setEmailReminderTime
 }: EventDialogFieldsProps) => {
   const {
@@ -507,10 +507,8 @@ export const EventDialogFields = ({
             id="sendEmailReminder"
             checked={sendEmailReminder}
             onCheckedChange={(checked) => {
-              console.log('Email reminder checkbox clicked:', checked);
-              if (setSendEmailReminder) {
-                setSendEmailReminder(!!checked);
-              }
+              console.log('Email reminder checkbox clicked:', checked, 'Current state:', sendEmailReminder);
+              setSendEmailReminder(!!checked);
             }}
           />
           <Label 
@@ -534,9 +532,7 @@ export const EventDialogFields = ({
             </Label>
             <Select value={emailReminderTime} onValueChange={(value) => {
               console.log('Email reminder time selected:', value);
-              if (setEmailReminderTime) {
-                setEmailReminderTime(value);
-              }
+              setEmailReminderTime(value);
             }}>
               <SelectTrigger id="emailReminderTime" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                 <SelectValue placeholder={isGeorgian ? "აირჩიეთ შეხსენების დრო" : "Select reminder time"} />
