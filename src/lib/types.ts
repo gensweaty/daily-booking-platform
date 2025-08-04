@@ -1,4 +1,5 @@
 
+
 export interface Task {
   id: string;
   title: string;
@@ -36,6 +37,9 @@ export interface Reminder {
   user_id?: string;
 }
 
+// Export PersonData from calendar types
+export type { PersonData } from './types/calendar';
+
 // Export BookingRequest from database.ts
 export { type BookingRequest } from '../types/database';
 
@@ -44,3 +48,4 @@ export { type BookingRequest } from '../types/database';
 export type PaymentStatus = 
   'not_paid' | 'partly' | 'fully' | 
   'partly_paid' | 'fully_paid';
+

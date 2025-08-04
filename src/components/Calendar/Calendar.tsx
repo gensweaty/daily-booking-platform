@@ -331,6 +331,7 @@ export const Calendar = ({
             open={isNewEventDialogOpen}
             onOpenChange={setIsNewEventDialogOpen}
             selectedDate={dialogSelectedDate}
+            onSave={handleCreateEvent}
             onEventCreated={handleEventCreated}
           />
 
@@ -341,6 +342,7 @@ export const Calendar = ({
               onOpenChange={() => setSelectedEvent(null)}
               selectedDate={new Date(selectedEvent.start_date)}
               initialData={selectedEvent}
+              onSave={handleUpdateEvent}
               onEventUpdated={handleEventUpdated}
               onEventDeleted={handleEventDeleted}
             />
