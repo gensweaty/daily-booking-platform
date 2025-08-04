@@ -97,7 +97,7 @@ export const EventDialog = ({
   const [isRecurringDeleteOpen, setIsRecurringDeleteOpen] = useState(false);
 
   const isBookingRequest = eventData?.type === 'booking_request';
-  const isVirtualEvent = eventData && isVirtualInstance(eventData);
+  const isVirtualEvent = eventData && isVirtualInstance(eventData.id || '');
   const isNewEvent = !eventData;
 
   const handleClose = () => {
@@ -257,6 +257,14 @@ export const EventDialog = ({
     }
   };
 
+  const handleDeleteThis = () => {
+    handleDelete("this");
+  };
+
+  const handleDeleteSeries = () => {
+    handleDelete("series");
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -363,8 +371,10 @@ export const EventDialog = ({
       {/* Recurring Delete Dialog */}
       <RecurringDeleteDialog
         open={isRecurringDeleteOpen}
-        onClose={() => setIsRecurringDeleteOpen(false)}
-        onDelete={handleDelete}
+        onOpenChange={setIsRecurringDeleteOpen}
+        onDeleteThis={handleDeleteThis}
+        onDeleteSeries={handleDeleteSeries}
+        isRecurringEvent={!!(eventData?.is_recurring || eventData?.parent_event_id)}
       />
     </>
   );
