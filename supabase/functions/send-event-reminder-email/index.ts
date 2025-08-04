@@ -221,6 +221,7 @@ const handler = async (req: Request): Promise<Response> => {
     const body = await req.json();
     const { eventId } = body;
 
+    console.log('Received request body:', body);
     console.log('Processing event reminder for eventId:', eventId || 'undefined');
 
     // If eventId is provided, send email for specific event

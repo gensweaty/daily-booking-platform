@@ -14,7 +14,7 @@ import { getCurrencySymbol } from "@/lib/currency";
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Repeat, Calendar as CalendarIcon, Bell } from "lucide-react";
+import { Plus, Trash2, Repeat, Calendar as CalendarIcon, Bell, Clock } from "lucide-react";
 import { TaskDateTimePicker } from "@/components/tasks/TaskDateTimePicker";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -748,5 +748,6 @@ export const EventDialogFields = ({
           />
         </div>
       )}
+
     </>;
 };
