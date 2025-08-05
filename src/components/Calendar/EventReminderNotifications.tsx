@@ -103,10 +103,7 @@ export const EventReminderNotifications = () => {
       });
       
       const { data, error } = await supabase.functions.invoke('send-event-reminder-email', {
-        body: requestBody,
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        body: requestBody
       });
 
       console.log("📧 Edge function response:", { data, error });

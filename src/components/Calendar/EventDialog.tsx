@@ -290,88 +290,97 @@ export const EventDialog = ({
 
   // CRITICAL FIX: Enhanced form initialization with proper reminder data loading
   useEffect(() => {
-    if (open) {
-      if (initialData || eventId) {
-        const targetEventId = eventId || initialData?.id;
-        if (targetEventId) {
-          loadEventData(targetEventId);
-          loadExistingFiles(targetEventId);
-          loadAdditionalPersons(targetEventId);
-        }
-
-        if (isVirtualEvent && eventId) {
-          const parentId = getParentEventId(eventId);
-          loadParentEventData(parentId);
-        }
-
-        const eventData = initialData;
-        if (eventData) {
-          console.log('🔧 Loading event data for editing:', eventData);
-          console.log('🔧 Raw reminder_at from DB:', eventData.reminder_at);
-          console.log('🔧 Raw email_reminder_enabled from DB:', eventData.email_reminder_enabled);
+    const loadAndSetEventData = async () => {
+      if (open) {
+        if (initialData || eventId) {
+          const targetEventId = eventId || initialData?.id;
+          let eventData = initialData;
           
-          setTitle(eventData.title || "");
-          setUserSurname(eventData.user_surname || "");
-          setUserNumber(eventData.user_number || "");
-          setSocialNetworkLink(eventData.social_network_link || "");
-          setEventNotes(eventData.event_notes || "");
-          setEventName(eventData.event_name || "");
-          setPaymentStatus(eventData.payment_status || "");
-          setPaymentAmount(eventData.payment_amount?.toString() || "");
+          // CRITICAL: Load fresh data for edit mode to get latest reminder info
+          if (targetEventId) {
+            const freshData = await loadEventData(targetEventId);
+            if (freshData) {
+              eventData = freshData;
+            }
+            loadExistingFiles(targetEventId);
+            loadAdditionalPersons(targetEventId);
+          }
 
           if (isVirtualEvent && eventId) {
-            const instanceDate = getInstanceDate(eventId);
-            if (instanceDate && eventData) {
-              const baseStart = new Date(eventData.start_date);
-              const baseEnd = new Date(eventData.end_date);
-              const [year, month, day] = instanceDate.split('-');
-              const newStart = new Date(baseStart);
-              newStart.setFullYear(+year, +month - 1, +day);
-              const newEnd = new Date(baseEnd);
-              newEnd.setFullYear(+year, +month - 1, +day);
+            const parentId = getParentEventId(eventId);
+            loadParentEventData(parentId);
+          }
 
-              setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
-              setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
+          if (eventData) {
+            console.log('🔧 Loading event data for editing:', eventData);
+            console.log('🔧 Raw reminder_at from DB:', eventData.reminder_at);
+            console.log('🔧 Raw email_reminder_enabled from DB:', eventData.email_reminder_enabled);
+            
+            setTitle(eventData.title || "");
+            setUserSurname(eventData.user_surname || "");
+            setUserNumber(eventData.user_number || "");
+            setSocialNetworkLink(eventData.social_network_link || "");
+            setEventNotes(eventData.event_notes || "");
+            setEventName(eventData.event_name || "");
+            setPaymentStatus(eventData.payment_status || "");
+            setPaymentAmount(eventData.payment_amount?.toString() || "");
+
+            if (isVirtualEvent && eventId) {
+              const instanceDate = getInstanceDate(eventId);
+              if (instanceDate && eventData) {
+                const baseStart = new Date(eventData.start_date);
+                const baseEnd = new Date(eventData.end_date);
+                const [year, month, day] = instanceDate.split('-');
+                const newStart = new Date(baseStart);
+                newStart.setFullYear(+year, +month - 1, +day);
+                const newEnd = new Date(baseEnd);
+                newEnd.setFullYear(+year, +month - 1, +day);
+
+                setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
+                setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
+              } else {
+                setStartDate(isoToLocalDateTimeInput(eventData.start_date));
+                setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+              }
             } else {
               setStartDate(isoToLocalDateTimeInput(eventData.start_date));
               setEndDate(isoToLocalDateTimeInput(eventData.end_date));
             }
-          } else {
-            setStartDate(isoToLocalDateTimeInput(eventData.start_date));
-            setEndDate(isoToLocalDateTimeInput(eventData.end_date));
-          }
 
-          setIsRecurring(eventData.is_recurring || false);
-          setRepeatPattern(eventData.repeat_pattern || "");
-          setRepeatUntil(eventData.repeat_until || "");
-          
-          // CRITICAL FIX: Properly load and set reminder fields with enhanced logging
-          const reminderValue = eventData.reminder_at;
-          console.log('📅 Processing reminder_at value:', reminderValue, 'Type:', typeof reminderValue);
-          
-          if (reminderValue && reminderValue !== null && reminderValue !== 'null') {
-            const convertedReminder = isoToLocalDateTimeInput(reminderValue);
-            setReminderAt(convertedReminder);
-            console.log('📅 Set reminderAt to:', convertedReminder);
-          } else {
-            setReminderAt("");
-            console.log('📅 No valid reminder_at found, set to empty');
+            setIsRecurring(eventData.is_recurring || false);
+            setRepeatPattern(eventData.repeat_pattern || "");
+            setRepeatUntil(eventData.repeat_until || "");
+            
+            // CRITICAL FIX: Properly load and set reminder fields with enhanced logging
+            const reminderValue = eventData.reminder_at;
+            console.log('📅 Processing reminder_at value:', reminderValue, 'Type:', typeof reminderValue);
+            
+            if (reminderValue && reminderValue !== null && reminderValue !== 'null') {
+              const convertedReminder = isoToLocalDateTimeInput(reminderValue);
+              setReminderAt(convertedReminder);
+              console.log('📅 Set reminderAt to:', convertedReminder);
+            } else {
+              setReminderAt("");
+              console.log('📅 No valid reminder_at found, set to empty');
+            }
+            
+            const emailReminderValue = eventData.email_reminder_enabled;
+            setEmailReminderEnabled(Boolean(emailReminderValue));
+            console.log('📧 Set emailReminderEnabled to:', Boolean(emailReminderValue));
           }
-          
-          const emailReminderValue = eventData.email_reminder_enabled;
-          setEmailReminderEnabled(Boolean(emailReminderValue));
-          console.log('📧 Set emailReminderEnabled to:', Boolean(emailReminderValue));
+        } else if (selectedDate) {
+          const startDateTime = isoToLocalDateTimeInput(selectedDate.toISOString());
+          const endDateTime = new Date(selectedDate.getTime() + 60 * 60 * 1000);
+          setStartDate(startDateTime);
+          setEndDate(isoToLocalDateTimeInput(endDateTime.toISOString()));
+
+          // Reset all fields for new event
+          resetFormFields();
         }
-      } else if (selectedDate) {
-        const startDateTime = isoToLocalDateTimeInput(selectedDate.toISOString());
-        const endDateTime = new Date(selectedDate.getTime() + 60 * 60 * 1000);
-        setStartDate(startDateTime);
-        setEndDate(isoToLocalDateTimeInput(endDateTime.toISOString()));
-
-        // Reset all fields for new event
-        resetFormFields();
       }
-    }
+    };
+
+    loadAndSetEventData();
   }, [open, selectedDate, initialData, eventId, isVirtualEvent]);
 
   // CRITICAL FIX: Separate function to reset form fields
