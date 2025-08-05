@@ -1,4 +1,5 @@
 
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -40,7 +41,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('⏰ Processing reminders at:', now.toISOString());
 
-    // Process Task Reminders
+    // Process Task Reminders - FIXED: Remove status filter to send reminders for tasks in any status
     try {
       const { data: dueTasks, error: taskError } = await supabase
         .from('tasks')
@@ -48,7 +49,7 @@ const handler = async (req: Request): Promise<Response> => {
         .not('reminder_at', 'is', null)
         .lte('reminder_at', now.toISOString())
         .is('reminder_sent_at', null) // Only unsent reminders
-        .eq('archived', false);
+        .eq('archived', false); // Only non-archived tasks
 
       if (taskError) {
         console.error('❌ Error fetching due tasks:', taskError);
@@ -183,3 +184,4 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 serve(handler);
+
