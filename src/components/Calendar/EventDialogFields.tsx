@@ -654,13 +654,20 @@ export const EventDialogFields = ({
         </div>
       )}
       
-      {/* Email Reminder Section */}
+      {/* Email Reminder Section - ENHANCED for better debugging */}
       <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
         <div className="flex items-center gap-2 mb-4">
           <Bell className="h-4 w-4" />
           <Label className={cn("font-medium", isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
             {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">ელფოსტის შეხსენება</GeorgianAuthText> : <LanguageText>Email Reminder</LanguageText>}
           </Label>
+          {/* Debug info - show current reminder state */}
+          {(reminderAt || emailReminderEnabled) && (
+            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-md ml-auto">
+              {emailReminderEnabled ? "Enabled" : "Disabled"}
+              {reminderAt && ` • ${new Date(reminderAt).toLocaleString()}`}
+            </span>
+          )}
         </div>
         <TaskDateTimePicker
           label={isGeorgian ? "შეხსენების დრო" : "Reminder Time"}

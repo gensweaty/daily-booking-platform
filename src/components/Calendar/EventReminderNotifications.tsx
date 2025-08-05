@@ -92,14 +92,20 @@ export const EventReminderNotifications = () => {
     try {
       console.log("📧 Sending email reminder for event:", event.title, "with ID:", event.id);
       
-      // CRITICAL FIX: Ensure proper request body structure with explicit headers and JSON.stringify
+      // CRITICAL FIX: Ensure proper request body structure - match task reminders exactly
       const requestBody = { eventId: event.id };
       console.log("📤 Preparing request body:", JSON.stringify(requestBody));
+      console.log("📤 Event object for debugging:", { 
+        id: event.id, 
+        title: event.title, 
+        email_reminder_enabled: event.email_reminder_enabled,
+        reminder_at: event.reminder_at 
+      });
       
       const { data, error } = await supabase.functions.invoke('send-event-reminder-email', {
-        body: JSON.stringify(requestBody),
+        body: requestBody,
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         }
       });
 
