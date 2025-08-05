@@ -661,11 +661,11 @@ export const EventDialogFields = ({
           <Label className={cn("font-medium", isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
             {isGeorgian ? <GeorgianAuthText letterSpacing="-0.05px">ელფოსტის შეხსენება</GeorgianAuthText> : <LanguageText>Email Reminder</LanguageText>}
           </Label>
-          {/* Debug info - show current reminder state */}
+          {/* Debug info - show current reminder state with proper timezone */}
           {(reminderAt || emailReminderEnabled) && (
             <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-md ml-auto">
               {emailReminderEnabled ? "Enabled" : "Disabled"}
-              {reminderAt && ` • ${new Date(reminderAt).toLocaleString()}`}
+              {reminderAt && ` • ${new Date(reminderAt).toLocaleString()} (Local)`}
             </span>
           )}
         </div>
