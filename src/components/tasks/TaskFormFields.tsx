@@ -107,8 +107,11 @@ export const TaskFormFields = ({
 
     setReminderAt(newReminder);
     
-    // Reset email reminder if reminder is removed
-    if (!newReminder) {
+    // Enable email reminder when setting a reminder (this ensures email_reminder_enabled is always set)
+    if (newReminder) {
+      setEmailReminder(true);
+    } else {
+      // Reset email reminder if reminder is removed
       setEmailReminder(false);
     }
   };

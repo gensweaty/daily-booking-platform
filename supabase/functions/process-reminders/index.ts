@@ -44,7 +44,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('⏰ Processing reminders at:', now.toISOString());
     console.log('📅 Checking reminders up to:', reminderCheckTime.toISOString());
 
-    // Process Task Reminders - Check for tasks with due reminders
+    // Process Task Reminders - Check for tasks with due reminders regardless of status
     try {
       const { data: dueTasks, error: taskError } = await supabase
         .from('tasks')
