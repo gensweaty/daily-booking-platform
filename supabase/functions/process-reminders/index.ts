@@ -32,8 +32,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('📨 Request body:', body);
 
     const now = new Date();
-    // Increased buffer to 2 minutes to handle cron job timing delays
-    const reminderCheckTime = new Date(now.getTime() + 2 * 60 * 1000);
+    // Use exact time for reminder checking - no buffer to prevent early delivery
+    const reminderCheckTime = new Date(now.getTime());
     
     const result: ReminderProcessingResult = {
       taskReminders: 0,
@@ -44,7 +44,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('⏰ Processing reminders at:', now.toISOString());
     console.log('📅 Checking reminders up to:', reminderCheckTime.toISOString());
 
-    // Process Task Reminders - COMPLETELY REMOVED status filtering
+    // Process Task Reminders - Check for tasks with due reminders
     try {
       const { data: dueTasks, error: taskError } = await supabase
         .from('tasks')
@@ -95,8 +95,8 @@ const handler = async (req: Request): Promise<Response> => {
         .select('*')
         .not('reminder_at', 'is', null)
         .eq('email_reminder_enabled', true)
-        .lte('reminder_at', reminderCheckTime.toISOString()) // Use buffer time
-        .is('reminder_sent_at', null) // Only unsent reminders
+        .lte('reminder_at', reminderCheckTime.toISOString())
+        .is('reminder_sent_at', null)
         .is('deleted_at', null);
 
       if (eventError) {
