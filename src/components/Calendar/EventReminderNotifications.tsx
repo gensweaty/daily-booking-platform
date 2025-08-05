@@ -89,12 +89,24 @@ export const EventReminderNotifications = () => {
     });
   };
 
-  // Send email reminder - FIXED: Properly pass eventId with JSON.stringify
+  // Send email reminder with comprehensive validation and logging
   const sendEmailReminder = async (event: any) => {
     try {
+      // CRITICAL: Log the raw event object first
+      console.log("📧 sendEmailReminder called with event:", JSON.stringify(event, null, 2));
+      console.log("📧 Event.id specifically:", event?.id, "type:", typeof event?.id);
+      
       // Validate event object and ID
-      if (!event || typeof event !== "object" || !event.id || typeof event.id !== "string") {
-        console.error('❌ sendEmailReminder called with invalid event:', event);
+      if (!event || typeof event !== "object" || !event.id || typeof event.id !== "string" || event.id.trim() === "") {
+        console.error('❌ sendEmailReminder VALIDATION FAILED - Invalid event:', {
+          event: event,
+          hasEvent: !!event,
+          eventType: typeof event,
+          hasId: !!event?.id,
+          idType: typeof event?.id,
+          idValue: event?.id,
+          idTrimmed: event?.id?.trim?.()
+        });
         toast({
           title: "Email Error",
           description: "Event ID is missing or invalid.",
@@ -103,20 +115,18 @@ export const EventReminderNotifications = () => {
         return false;
       }
 
+      console.log("✅ Event validation passed - proceeding with email");
       console.log("📧 Sending email reminder for event:", event.title, "with ID:", event.id);
-      console.log("📧 Event ID type and value:", typeof event.id, event.id);
-      console.log("📧 Event object details:", { 
-        id: event.id, 
-        title: event.title, 
-        reminder_at: event.reminder_at,
-        email_reminder_enabled: event.email_reminder_enabled 
-      });
       
       const requestBody = { eventId: event.id };
       const jsonBody = JSON.stringify(requestBody);
-      console.log("📧 Request body being sent:", requestBody);
-      console.log("📧 JSON stringified body:", jsonBody);
-      console.log("📧 JSON body length:", jsonBody.length);
+      
+      console.log("📧 FINAL REQUEST PREPARATION:");
+      console.log("📧 - Event ID:", event.id);
+      console.log("📧 - Request body object:", requestBody);
+      console.log("📧 - JSON stringified body:", jsonBody);
+      console.log("📧 - JSON body length:", jsonBody.length);
+      console.log("📧 - About to send to edge function...");
       
       const functionUrl = 'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-event-reminder-email';
 
