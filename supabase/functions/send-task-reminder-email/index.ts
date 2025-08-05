@@ -46,134 +46,158 @@ const formatReminderTimeForLocale = (reminderAtISO: string, lang: string): strin
   return formattedResult;
 };
 
-// Multi-language email content
+// Multi-language email content with dashboard-style design
 const getEmailContent = (language: string, taskTitle: string, reminderTime: string, taskDescription?: string) => {
   let subject, body;
   
   if (language === 'ka') {
-    subject = "📋 დაგეგმილი დავალების შეხსენება!";
+    subject = "📋 დავალების შეხსენება";
     body = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
-          <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
-          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">დავალების შეხსენება</h1>
+      <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #9b87f5 0%, #7e69ab 100%); padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
+          <div style="font-size: 32px; margin-bottom: 8px;">📋</div>
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">დავალების შეხსენება</h1>
         </div>
         
-        <div style="padding: 30px; background: #ffffff; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 12px; margin-bottom: 25px; text-align: center;">
-            <h2 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: bold;">✅ ${taskTitle}</h2>
+        <!-- Main Content -->
+        <div style="padding: 32px;">
+          
+          <!-- Task Card -->
+          <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; align-items: center; margin-bottom: 16px;">
+              <div style="width: 8px; height: 8px; background: #9b87f5; border-radius: 50%; margin-right: 12px;"></div>
+              <h2 style="color: #111827; margin: 0; font-size: 18px; font-weight: 600;">${taskTitle}</h2>
+            </div>
+            
+            ${taskDescription ? `
+            <div style="color: #6b7280; font-size: 14px; line-height: 1.5; margin-bottom: 16px; padding-left: 20px;">
+              ${taskDescription}
+            </div>
+            ` : ''}
+            
+            <div style="background: #f9fafb; padding: 16px; border-radius: 6px; border-left: 3px solid #9b87f5;">
+              <div style="display: flex; align-items: center;">
+                <span style="color: #9b87f5; margin-right: 8px;">🕐</span>
+                <span style="color: #374151; font-size: 14px; font-weight: 500;">შესრულების დრო: ${reminderTime}</span>
+              </div>
+            </div>
           </div>
           
-          <div style="background: #f8f9ff; padding: 20px; border-radius: 12px; margin-bottom: 25px; border-left: 4px solid #667eea;">
-            <p style="margin: 0; font-size: 16px; color: #333;">
-              <strong style="color: #667eea;">📅 შესრულების დრო:</strong><br>
-              <span style="font-size: 18px; color: #2d3748;">${reminderTime}</span>
+          <!-- Action Message -->
+          <div style="text-align: center; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <p style="margin: 0; color: #64748b; font-size: 14px;">
+              🎯 <strong style="color: #334155;">არ დაგავიწყდეს!</strong> თქვენი დავალება მზად არის შესასრულებლად.
             </p>
-          </div>
-          
-          ${taskDescription ? `
-          <div style="background: #f7fafc; padding: 20px; border-radius: 12px; margin-bottom: 25px; border-left: 4px solid #4299e1;">
-            <p style="margin: 0; font-size: 16px; color: #333;">
-              <strong style="color: #4299e1;">📝 აღწერა:</strong><br>
-              <span style="color: #2d3748; line-height: 1.6;">${taskDescription}</span>
-            </p>
-          </div>
-          ` : ''}
-          
-          <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 25px; border-radius: 12px; text-align: center; margin: 25px 0;">
-            <p style="margin: 0; font-size: 18px; color: #ffffff; font-weight: bold;">🎯 არ დაგავიწყდეს!</p>
-            <p style="margin: 8px 0 0; font-size: 14px; color: #ffffff; opacity: 0.9;">თქვენი დავალება გელოდებათ</p>
           </div>
         </div>
         
-        <div style="padding: 20px; text-align: center; background: #f7fafc; border-radius: 0 0 12px 12px;">
-          <p style="margin: 0; font-size: 12px; color: #718096;">
+        <!-- Footer -->
+        <div style="padding: 16px 32px; text-align: center; background: #f8fafc; border-top: 1px solid #e5e7eb; border-radius: 0 0 12px 12px;">
+          <p style="margin: 0; font-size: 12px; color: #9ca3af;">
             📱 SmartBookly-დან მიღებული შეხსენება
           </p>
         </div>
       </div>
     `;
   } else if (language === 'es') {
-    subject = "📋 ¡Tienes un recordatorio de tarea!";
+    subject = "📋 Recordatorio de Tarea";
     body = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
-          <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
-          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">Recordatorio de Tarea</h1>
+      <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #9b87f5 0%, #7e69ab 100%); padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
+          <div style="font-size: 32px; margin-bottom: 8px;">📋</div>
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">Recordatorio de Tarea</h1>
         </div>
         
-        <div style="padding: 30px; background: #ffffff; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 12px; margin-bottom: 25px; text-align: center;">
-            <h2 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: bold;">✅ ${taskTitle}</h2>
+        <!-- Main Content -->
+        <div style="padding: 32px;">
+          
+          <!-- Task Card -->
+          <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; align-items: center; margin-bottom: 16px;">
+              <div style="width: 8px; height: 8px; background: #9b87f5; border-radius: 50%; margin-right: 12px;"></div>
+              <h2 style="color: #111827; margin: 0; font-size: 18px; font-weight: 600;">${taskTitle}</h2>
+            </div>
+            
+            ${taskDescription ? `
+            <div style="color: #6b7280; font-size: 14px; line-height: 1.5; margin-bottom: 16px; padding-left: 20px;">
+              ${taskDescription}
+            </div>
+            ` : ''}
+            
+            <div style="background: #f9fafb; padding: 16px; border-radius: 6px; border-left: 3px solid #9b87f5;">
+              <div style="display: flex; align-items: center;">
+                <span style="color: #9b87f5; margin-right: 8px;">🕐</span>
+                <span style="color: #374151; font-size: 14px; font-weight: 500;">Programada para: ${reminderTime}</span>
+              </div>
+            </div>
           </div>
           
-          <div style="background: #f8f9ff; padding: 20px; border-radius: 12px; margin-bottom: 25px; border-left: 4px solid #667eea;">
-            <p style="margin: 0; font-size: 16px; color: #333;">
-              <strong style="color: #667eea;">📅 Programada para:</strong><br>
-              <span style="font-size: 18px; color: #2d3748;">${reminderTime}</span>
+          <!-- Action Message -->
+          <div style="text-align: center; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <p style="margin: 0; color: #64748b; font-size: 14px;">
+              🎯 <strong style="color: #334155;">¡No lo olvides!</strong> Tu tarea está lista para ser completada.
             </p>
-          </div>
-          
-          ${taskDescription ? `
-          <div style="background: #f7fafc; padding: 20px; border-radius: 12px; margin-bottom: 25px; border-left: 4px solid #4299e1;">
-            <p style="margin: 0; font-size: 16px; color: #333;">
-              <strong style="color: #4299e1;">📝 Descripción:</strong><br>
-              <span style="color: #2d3748; line-height: 1.6;">${taskDescription}</span>
-            </p>
-          </div>
-          ` : ''}
-          
-          <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 25px; border-radius: 12px; text-align: center; margin: 25px 0;">
-            <p style="margin: 0; font-size: 18px; color: #ffffff; font-weight: bold;">🎯 ¡No lo olvides!</p>
-            <p style="margin: 8px 0 0; font-size: 14px; color: #ffffff; opacity: 0.9;">Tu tarea te está esperando</p>
           </div>
         </div>
         
-        <div style="padding: 20px; text-align: center; background: #f7fafc; border-radius: 0 0 12px 12px;">
-          <p style="margin: 0; font-size: 12px; color: #718096;">
+        <!-- Footer -->
+        <div style="padding: 16px 32px; text-align: center; background: #f8fafc; border-top: 1px solid #e5e7eb; border-radius: 0 0 12px 12px;">
+          <p style="margin: 0; font-size: 12px; color: #9ca3af;">
             📱 Recordatorio de SmartBookly
           </p>
         </div>
       </div>
     `;
   } else {
-    subject = "📋 You have a task reminder!";
+    subject = "📋 Task Reminder";
     body = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
-          <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
-          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">Task Reminder</h1>
+      <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #9b87f5 0%, #7e69ab 100%); padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
+          <div style="font-size: 32px; margin-bottom: 8px;">📋</div>
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">Task Reminder</h1>
         </div>
         
-        <div style="padding: 30px; background: #ffffff; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 12px; margin-bottom: 25px; text-align: center;">
-            <h2 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: bold;">✅ ${taskTitle}</h2>
+        <!-- Main Content -->
+        <div style="padding: 32px;">
+          
+          <!-- Task Card -->
+          <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; align-items: center; margin-bottom: 16px;">
+              <div style="width: 8px; height: 8px; background: #9b87f5; border-radius: 50%; margin-right: 12px;"></div>
+              <h2 style="color: #111827; margin: 0; font-size: 18px; font-weight: 600;">${taskTitle}</h2>
+            </div>
+            
+            ${taskDescription ? `
+            <div style="color: #6b7280; font-size: 14px; line-height: 1.5; margin-bottom: 16px; padding-left: 20px;">
+              ${taskDescription}
+            </div>
+            ` : ''}
+            
+            <div style="background: #f9fafb; padding: 16px; border-radius: 6px; border-left: 3px solid #9b87f5;">
+              <div style="display: flex; align-items: center;">
+                <span style="color: #9b87f5; margin-right: 8px;">🕐</span>
+                <span style="color: #374151; font-size: 14px; font-weight: 500;">Scheduled for: ${reminderTime}</span>
+              </div>
+            </div>
           </div>
           
-          <div style="background: #f8f9ff; padding: 20px; border-radius: 12px; margin-bottom: 25px; border-left: 4px solid #667eea;">
-            <p style="margin: 0; font-size: 16px; color: #333;">
-              <strong style="color: #667eea;">📅 Scheduled for:</strong><br>
-              <span style="font-size: 18px; color: #2d3748;">${reminderTime}</span>
+          <!-- Action Message -->
+          <div style="text-align: center; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <p style="margin: 0; color: #64748b; font-size: 14px;">
+              🎯 <strong style="color: #334155;">Don't forget!</strong> Your task is ready to be completed.
             </p>
-          </div>
-          
-          ${taskDescription ? `
-          <div style="background: #f7fafc; padding: 20px; border-radius: 12px; margin-bottom: 25px; border-left: 4px solid #4299e1;">
-            <p style="margin: 0; font-size: 16px; color: #333;">
-              <strong style="color: #4299e1;">📝 Description:</strong><br>
-              <span style="color: #2d3748; line-height: 1.6;">${taskDescription}</span>
-            </p>
-          </div>
-          ` : ''}
-          
-          <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 25px; border-radius: 12px; text-align: center; margin: 25px 0;">
-            <p style="margin: 0; font-size: 18px; color: #ffffff; font-weight: bold;">🎯 Don't forget!</p>
-            <p style="margin: 8px 0 0; font-size: 14px; color: #ffffff; opacity: 0.9;">Your task is waiting for you</p>
           </div>
         </div>
         
-        <div style="padding: 20px; text-align: center; background: #f7fafc; border-radius: 0 0 12px 12px;">
-          <p style="margin: 0; font-size: 12px; color: #718096;">
+        <!-- Footer -->
+        <div style="padding: 16px 32px; text-align: center; background: #f8fafc; border-top: 1px solid #e5e7eb; border-radius: 0 0 12px 12px;">
+          <p style="margin: 0; font-size: 12px; color: #9ca3af;">
             📱 Reminder from SmartBookly
           </p>
         </div>
