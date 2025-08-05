@@ -76,18 +76,30 @@ const generateRecurringOccurrences = (startDate: Date, endDate: Date, repeatPatt
   return occurrences;
 };
 
-// Helper function to convert datetime-local input values to ISO string in local timezone
-const localDateTimeToISOString = (dtStr: string): string => {
-  if (!dtStr) return new Date().toISOString();
-  const [datePart, timePart] = dtStr.split('T');
-  const [year, month, day] = datePart.split('-').map(Number);
-  const [hour, minute] = timePart.split(':').map(Number);
-  // Create date in local timezone
-  const localDate = new Date(year, month - 1, day, hour, minute);
-  return localDate.toISOString();
+// CRITICAL FIX: Convert datetime-local input to UTC ISO string
+const localDateTimeInputToISOString = (localDateTime: string): string => {
+  if (!localDateTime) return new Date().toISOString();
+  
+  try {
+    // Create date from local datetime-local input value
+    const localDate = new Date(localDateTime);
+    const isoString = localDate.toISOString();
+    
+    console.log('📅 Local to ISO conversion:', { 
+      localDateTime, 
+      localDate: localDate.toString(),
+      isoString,
+      timezoneOffset: localDate.getTimezoneOffset()
+    });
+    
+    return isoString;
+  } catch (error) {
+    console.error('Error converting local datetime to ISO:', error, 'Input:', localDateTime);
+    return new Date().toISOString();
+  }
 };
 
-// CRITICAL FIX: Enhanced helper function to convert ISO string to datetime-local input format
+// CRITICAL FIX: Convert UTC ISO string to local datetime-local format
 const isoToLocalDateTimeInput = (isoString: string): string => {
   if (!isoString || isoString === 'null' || isoString === '') return '';
   
@@ -100,11 +112,17 @@ const isoToLocalDateTimeInput = (isoString: string): string => {
       return '';
     }
     
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const result = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    // Convert UTC to local time for datetime-local input
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    const localISO = new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
     
-    console.log('📅 Date conversion:', { isoString, result });
-    return result;
+    console.log('📅 Date conversion:', { 
+      isoString, 
+      utcDate: date.toISOString(), 
+      localISO,
+      timezoneOffset: date.getTimezoneOffset() 
+    });
+    return localISO;
   } catch (error) {
     console.error('Error converting ISO date to input format:', error, 'Input:', isoString);
     return '';
@@ -591,8 +609,8 @@ export const EventDialog = ({
 
     // Validate reminder is before event start time
     if (emailReminderEnabled && reminderAt) {
-      const reminderTime = new Date(localDateTimeToISOString(reminderAt));
-      const eventStartTime = new Date(localDateTimeToISOString(startDate));
+      const reminderTime = new Date(localDateTimeInputToISOString(reminderAt));
+      const eventStartTime = new Date(localDateTimeInputToISOString(startDate));
       
       if (reminderTime >= eventStartTime) {
         toast({
@@ -613,7 +631,7 @@ export const EventDialog = ({
         });
         return;
       }
-      const startDateObj = new Date(localDateTimeToISOString(startDate));
+      const startDateObj = new Date(localDateTimeInputToISOString(startDate));
       const repeatUntilObj = new Date(repeatUntil);
       if (repeatUntilObj <= startDateObj) {
         toast({
@@ -626,8 +644,8 @@ export const EventDialog = ({
     }
 
     // **ENHANCED: More comprehensive conflict checking for recurring events**
-    const newStartTime = new Date(localDateTimeToISOString(startDate));
-    const newEndTime = new Date(localDateTimeToISOString(endDate));
+    const newStartTime = new Date(localDateTimeInputToISOString(startDate));
+    const newEndTime = new Date(localDateTimeInputToISOString(endDate));
 
     // Get existing events from React Query cache
     const existingEvents = queryClient.getQueryData<CalendarEvent[]>(['events', user.id]) || [];
@@ -762,8 +780,8 @@ export const EventDialog = ({
         startDate,
         endDate,
         isNewEvent,
-        startDateConverted: localDateTimeToISOString(startDate),
-        endDateConverted: localDateTimeToISOString(endDate),
+        startDateConverted: localDateTimeInputToISOString(startDate),
+        endDateConverted: localDateTimeInputToISOString(endDate),
         reminderAt,
         emailReminderEnabled
       });
@@ -775,14 +793,14 @@ export const EventDialog = ({
         social_network_link: socialNetworkLink,
         event_notes: eventNotes,
         event_name: eventName,
-        start_date: localDateTimeToISOString(startDate),
-        end_date: localDateTimeToISOString(endDate),
+        start_date: localDateTimeInputToISOString(startDate),
+        end_date: localDateTimeInputToISOString(endDate),
         payment_status: paymentStatus,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         is_recurring: isRecurring,
         repeat_pattern: isRecurring && repeatPattern ? repeatPattern : null,
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
-        reminder_at: reminderAt ? localDateTimeToISOString(reminderAt) : null,
+        reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
         email_reminder_enabled: emailReminderEnabled
       };
 
