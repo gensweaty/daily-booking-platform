@@ -90,7 +90,19 @@ export const EventReminderNotifications = () => {
   // Send email reminder - FIXED: Properly pass eventId with JSON.stringify
   const sendEmailReminder = async (event: any) => {
     try {
+      // Validate event.id exists
+      if (!event.id) {
+        console.error('❌ Event missing id:', event);
+        toast({
+          title: "Email Error",
+          description: "Event ID is missing",
+          variant: "destructive",
+        });
+        return false;
+      }
+
       console.log("📧 Sending email reminder for event:", event.title, "with ID:", event.id);
+      console.log("📧 Event ID type and value:", typeof event.id, event.id);
       console.log("📧 Event object details:", { 
         id: event.id, 
         title: event.title, 
@@ -99,10 +111,13 @@ export const EventReminderNotifications = () => {
       });
       
       const requestBody = { eventId: event.id };
+      const jsonBody = JSON.stringify(requestBody);
       console.log("📧 Request body being sent:", requestBody);
+      console.log("📧 JSON stringified body:", jsonBody);
+      console.log("📧 JSON body length:", jsonBody.length);
       
       const { data, error } = await supabase.functions.invoke('send-event-reminder-email', {
-        body: JSON.stringify(requestBody),
+        body: jsonBody,
         headers: {
           'Content-Type': 'application/json'
         }
