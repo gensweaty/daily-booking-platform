@@ -65,12 +65,21 @@ const formatEventTimeForLocale = (dateISO: string, lang: string): string => {
   return formatter.format(date);
 };
 
-// Multi-language email content
-const getEmailContent = (language: string, eventTitle: string, startDate: string, endDate: string, paymentStatus?: string, reminderTime?: string) => {
+// Multi-language email content with business address
+const getEmailContent = (language: string, eventTitle: string, startDate: string, endDate: string, paymentStatus?: string, reminderTime?: string, businessAddress?: string) => {
   let subject, body;
   
   const formattedStartDate = formatEventTimeForLocale(startDate, language);
   const formattedEndDate = formatEventTimeForLocale(endDate, language);
+  
+  // Create address section if business address is available
+  const addressSection = businessAddress ? 
+    (language === 'ka' ? 
+      `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>მისამართი:</strong> ${businessAddress}</p>` :
+      language === 'es' ?
+      `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Dirección:</strong> ${businessAddress}</p>` :
+      `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Address:</strong> ${businessAddress}</p>`
+    ) : '';
   
   if (language === 'ka') {
     subject = "📅 მოვლენის შეხსენება - " + eventTitle;
@@ -96,6 +105,7 @@ const getEmailContent = (language: string, eventTitle: string, startDate: string
             <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>მოვლენა:</strong> ${eventTitle}</p>
             <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>დაწყების თარიღი:</strong> ${formattedStartDate}</p>
             <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>დასრულების თარიღი:</strong> ${formattedEndDate}</p>
+            ${addressSection}
             ${paymentStatus ? `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>გადახდის სტატუსი:</strong> <span style="background: ${paymentStatus === 'fully_paid' ? '#d4edda' : paymentStatus === 'partly_paid' ? '#fff3cd' : '#f8d7da'}; color: ${paymentStatus === 'fully_paid' ? '#155724' : paymentStatus === 'partly_paid' ? '#856404' : '#721c24'}; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${paymentStatus === 'fully_paid' ? 'სრულად გადახდილი' : paymentStatus === 'partly_paid' ? 'ნაწილობრივ გადახდილი' : 'არ არის გადახდილი'}</span></p>` : ''}
           </div>
           
@@ -134,6 +144,7 @@ const getEmailContent = (language: string, eventTitle: string, startDate: string
             <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Evento:</strong> ${eventTitle}</p>
             <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Fecha de Inicio:</strong> ${formattedStartDate}</p>
             <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Fecha de Fin:</strong> ${formattedEndDate}</p>
+            ${addressSection}
             ${paymentStatus ? `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Estado de Pago:</strong> <span style="background: ${paymentStatus === 'fully_paid' ? '#d4edda' : paymentStatus === 'partly_paid' ? '#fff3cd' : '#f8d7da'}; color: ${paymentStatus === 'fully_paid' ? '#155724' : paymentStatus === 'partly_paid' ? '#856404' : '#721c24'}; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${paymentStatus === 'fully_paid' ? 'PAGADO' : paymentStatus === 'partly_paid' ? 'PARCIALMENTE PAGADO' : 'NO PAGADO'}</span></p>` : ''}
           </div>
           
@@ -172,6 +183,7 @@ const getEmailContent = (language: string, eventTitle: string, startDate: string
             <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Event:</strong> ${eventTitle}</p>
             <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Start Date:</strong> ${formattedStartDate}</p>
             <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>End Date:</strong> ${formattedEndDate}</p>
+            ${addressSection}
             ${paymentStatus ? `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Payment Status:</strong> <span style="background: ${paymentStatus === 'fully_paid' ? '#d4edda' : paymentStatus === 'partly_paid' ? '#fff3cd' : '#f8d7da'}; color: ${paymentStatus === 'fully_paid' ? '#155724' : paymentStatus === 'partly_paid' ? '#856404' : '#721c24'}; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${paymentStatus === 'fully_paid' ? 'PAID' : paymentStatus === 'partly_paid' ? 'PARTLY PAID' : 'NOT PAID'}</span></p>` : ''}
           </div>
           
@@ -330,7 +342,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get user's language preference from profiles table
+    // Get user's language preference and business profile from profiles table
     const { data: profileData } = await supabase
       .from('profiles')
       .select('language')
@@ -338,6 +350,16 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     const language = profileData?.language || 'en';
+
+    // Get business profile for address information
+    const { data: businessProfile } = await supabase
+      .from('business_profiles')
+      .select('contact_address')
+      .eq('user_id', event.user_id)
+      .single();
+
+    const businessAddress = businessProfile?.contact_address || null;
+    console.log('🏢 Business address found:', businessAddress);
 
     // IMPROVED: Better email collection logic for event participants
     const emailAddresses = new Set<string>();
@@ -377,13 +399,15 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get localized email content
+    // Get localized email content with business address
     const { subject, body: emailBody } = getEmailContent(
       language, 
       event.title || event.user_surname || 'Event', 
       event.start_date, 
       event.end_date, 
-      event.payment_status
+      event.payment_status,
+      undefined, // reminderTime not used in this context
+      businessAddress
     );
 
     let emailsSent = 0;
@@ -413,7 +437,7 @@ const handler = async (req: Request): Promise<Response> => {
           console.error(`❌ Failed to send email for event ${event.id} to ${emailAddress}:`, emailResult.error);
           emailsFailed++;
         } else {
-          console.log(`✅ Reminder email sent for event ${event.id} to ${emailAddress} in language ${language}`);
+          console.log(`✅ Reminder email sent for event ${event.id} to ${emailAddress} in language ${language} with business address`);
           recentlySentEmails.set(deduplicationKey, Date.now());
           emailsSent++;
         }
@@ -442,7 +466,8 @@ const handler = async (req: Request): Promise<Response> => {
         emailsSent,
         emailsFailed,
         eventId: event.id,
-        language: language
+        language: language,
+        businessAddress: businessAddress
       }),
       { 
         status: 200, 
