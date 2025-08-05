@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
 import { Resend } from "npm:resend@2.0.0";
@@ -218,39 +219,16 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = new Resend(resendApiKey);
 
-    // CRITICAL FIX: Enhanced request body parsing with better validation
-    let requestBody;
-    let bodyText;
+    // CRITICAL FIX: Enhanced request body parsing with better error handling
+    let body;
+    const bodyText = await req.text();
+    console.log('📧 Raw request body text:', bodyText);
+    console.log('📧 Request body length:', bodyText.length);
     
-    try {
-      bodyText = await req.text();
-      console.log('📧 Raw request body text:', bodyText);
-      console.log('📧 Request body length:', bodyText?.length || 0);
-      console.log('📧 Request content-type:', req.headers.get('content-type'));
-    } catch (textError) {
-      console.error('❌ Failed to read request text:', textError);
+    if (!bodyText || bodyText.trim() === '') {
+      console.error('❌ Empty request body received');
       return new Response(
-        JSON.stringify({ error: 'Failed to read request body' }),
-        { 
-          status: 400, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        }
-      );
-    }
-    
-    // CRITICAL FIX: Better empty body detection
-    if (!bodyText || 
-        bodyText.trim() === '' || 
-        bodyText.trim() === '{}' ||
-        bodyText.trim() === 'null' ||
-        bodyText.trim() === 'undefined') {
-      console.error('❌ Empty or invalid request body received:', bodyText);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Empty request body', 
-          received: bodyText,
-          length: bodyText?.length || 0
-        }),
+        JSON.stringify({ error: 'Empty request body' }),
         { 
           status: 400, 
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -258,60 +236,28 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // CRITICAL FIX: Enhanced JSON parsing with better error handling
     try {
-      requestBody = JSON.parse(bodyText);
-      console.log('📧 Parsed request body:', JSON.stringify(requestBody, null, 2));
-      console.log('📧 Request body keys:', Object.keys(requestBody || {}));
+      body = JSON.parse(bodyText);
+      console.log('📧 Parsed request body:', JSON.stringify(body));
     } catch (parseError) {
       console.error('❌ Failed to parse request body as JSON:', parseError);
       console.error('❌ Raw body was:', bodyText);
       return new Response(
-        JSON.stringify({ 
-          error: 'Invalid JSON in request body', 
-          rawBody: bodyText,
-          parseError: parseError.message 
-        }),
+        JSON.stringify({ error: 'Invalid JSON in request body', rawBody: bodyText }),
         { 
           status: 400, 
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         }
       );
     }
+
+    const { eventId } = body;
 
     // CRITICAL FIX: Enhanced eventId validation
-    const { eventId } = requestBody;
-    
-    console.log('📧 EventId validation details:', {
-      eventId,
-      type: typeof eventId,
-      isNull: eventId === null,
-      isUndefined: eventId === undefined,
-      isEmpty: eventId === '',
-      isStringNull: eventId === 'null',
-      isStringUndefined: eventId === 'undefined',
-      length: eventId?.length || 0
-    });
-
-    if (!eventId || 
-        typeof eventId !== 'string' || 
-        eventId.trim() === '' ||
-        eventId === 'null' ||
-        eventId === 'undefined') {
-      console.error('❌ Missing or invalid eventId in request body:', {
-        eventId,
-        body: requestBody,
-        bodyKeys: Object.keys(requestBody || {})
-      });
+    if (!eventId || typeof eventId !== 'string' || eventId.trim() === '') {
+      console.error('❌ Missing or invalid eventId in request body:', { eventId, body });
       return new Response(
-        JSON.stringify({ 
-          error: 'Event ID is required and must be a valid string',
-          received: {
-            eventId,
-            type: typeof eventId,
-            body: requestBody
-          }
-        }),
+        JSON.stringify({ error: 'Event ID is required and must be a valid string', receivedBody: body }),
         { 
           status: 400, 
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -319,21 +265,20 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const cleanEventId = eventId.trim();
-    console.log('📧 Processing event reminder for eventId:', cleanEventId);
+    console.log('📧 Processing event reminder for eventId:', eventId);
 
     // Fetch event data
     const { data: event, error: eventError } = await supabase
       .from('events')
       .select('*')
-      .eq('id', cleanEventId)
+      .eq('id', eventId)
       .is('deleted_at', null)
       .single();
 
     if (eventError || !event) {
       console.error('❌ Error fetching event:', eventError);
       return new Response(
-        JSON.stringify({ error: 'Event not found', eventId: cleanEventId, dbError: eventError }),
+        JSON.stringify({ error: 'Event not found', eventId: eventId, dbError: eventError }),
         { 
           status: 404, 
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -345,7 +290,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Check if email reminder is enabled
     if (!event.email_reminder_enabled) {
-      console.log('📧 Email reminder not enabled for event:', cleanEventId);
+      console.log('📧 Email reminder not enabled for event:', eventId);
       return new Response(
         JSON.stringify({ message: 'Email reminder not enabled for this event' }),
         { 
@@ -391,7 +336,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: customers, error: customersError } = await supabase
       .from('customers')
       .select('social_network_link')
-      .eq('event_id', cleanEventId)
+      .eq('event_id', eventId)
       .eq('user_id', event.user_id);
 
     if (customers && !customersError) {
@@ -406,7 +351,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('📧 Total valid email addresses found:', emailAddresses.size);
 
     if (emailAddresses.size === 0) {
-      console.log('📧 No valid email addresses found for event:', cleanEventId);
+      console.log('📧 No valid email addresses found for event:', eventId);
       return new Response(
         JSON.stringify({ message: 'No valid email addresses found for this event' }),
         { 
