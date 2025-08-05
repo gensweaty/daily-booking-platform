@@ -97,75 +97,120 @@ function getEmailContent(
       case 'ka': // Georgian
         subject = `ღონისძიება შეიქმნა ${displayBusinessName}-ში`;
         content = `
-          <!DOCTYPE html>
-          <html lang="ka">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>ღონისძიება შეიქმნა</title>
-          </head>
-          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-            <h2 style="color: #333;">გამარჯობა ${fullName},</h2>
-            <p>თქვენი ღონისძიება <b style="color: #4CAF50;">შეიქმნა</b> <b>${displayBusinessName}</b>-ში.</p>
-            <p style="margin: 8px 0;"><strong>ღონისძიების თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-            ${addressInfo}
-            ${paymentInfo}
-            ${eventNotesInfo}
-            <p>ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
-            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-            <p style="color: #777; font-size: 14px;"><i>ეს არის ავტომატური შეტყობინება.</i></p>
-          </body>
-          </html>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
+            <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
+              <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+              <h1 style="margin: 0; font-size: 28px; font-weight: bold;">ღონისძიება შეიქმნა -</h1>
+              <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${displayBusinessName}</h2>
+            </div>
+            
+            <div style="background: white; color: #333; padding: 30px; margin: 0;">
+              <p style="font-size: 18px; line-height: 1.6; margin-bottom: 20px;">
+                გამარჯობა ${fullName}!
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                თქვენი ღონისძიება <b style="color: #4CAF50;">შეიქმნა</b> <b>${displayBusinessName}</b>-ში.
+              </p>
+              
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 ღონისძიების დეტალები</h3>
+                
+                <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>ღონისძიების თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+                ${addressInfo}
+                ${paymentInfo}
+                ${eventNotesInfo}
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="margin: 0; font-size: 18px; color: #333;">🎉 ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
+              </div>
+              
+              <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+              <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+                SmartBookly - თქვენი ჭკვიანი დაჯავშნის სისტემა
+              </p>
+            </div>
+          </div>
         `;
         break;
         
       case 'es': // Spanish
         subject = `Evento Creado en ${displayBusinessName}`;
         content = `
-          <!DOCTYPE html>
-          <html lang="es">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Evento Creado</title>
-          </head>
-          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-            <h2 style="color: #333;">Hola ${fullName},</h2>
-            <p>Su evento ha sido <b style="color: #4CAF50;">creado</b> en <b>${displayBusinessName}</b>.</p>
-            <p style="margin: 8px 0;"><strong>Fecha y hora del evento:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-            ${addressInfo}
-            ${paymentInfo}
-            ${eventNotesInfo}
-            <p>¡Esperamos verle pronto!</p>
-            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-            <p style="color: #777; font-size: 14px;"><i>Este es un mensaje automático.</i></p>
-          </body>
-          </html>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
+            <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
+              <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+              <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Evento Creado -</h1>
+              <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${displayBusinessName}</h2>
+            </div>
+            
+            <div style="background: white; color: #333; padding: 30px; margin: 0;">
+              <p style="font-size: 18px; line-height: 1.6; margin-bottom: 20px;">
+                Hola ${fullName}!
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                Su evento ha sido <b style="color: #4CAF50;">creado</b> en <b>${displayBusinessName}</b>.
+              </p>
+              
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 Detalles del Evento</h3>
+                
+                <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Fecha y hora del evento:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+                ${addressInfo}
+                ${paymentInfo}
+                ${eventNotesInfo}
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="margin: 0; font-size: 18px; color: #333;">🎉 ¡Esperamos verle pronto!</p>
+              </div>
+              
+              <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+              <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+                SmartBookly - Sistema de Gestión de Reservas Inteligente
+              </p>
+            </div>
+          </div>
         `;
         break;
         
       default: // English (default)
         subject = `Event Created at ${displayBusinessName}`;
         content = `
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Event Created</title>
-          </head>
-          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-            <h2 style="color: #333;">Hello ${fullName},</h2>
-            <p>Your event has been <b style="color: #4CAF50;">created</b> at <b>${displayBusinessName}</b>.</p>
-            <p style="margin: 8px 0;"><strong>Event date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-            ${addressInfo}
-            ${paymentInfo}
-            ${eventNotesInfo}
-            <p>We look forward to seeing you!</p>
-            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-            <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
-          </body>
-          </html>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
+            <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
+              <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+              <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Event Created -</h1>
+              <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${displayBusinessName}</h2>
+            </div>
+            
+            <div style="background: white; color: #333; padding: 30px; margin: 0;">
+              <p style="font-size: 18px; line-height: 1.6; margin-bottom: 20px;">
+                Hello ${fullName}!
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                Your event has been <b style="color: #4CAF50;">created</b> at <b>${displayBusinessName}</b>.
+              </p>
+              
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 Event Details</h3>
+                
+                <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Event date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+                ${addressInfo}
+                ${paymentInfo}
+                ${eventNotesInfo}
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="margin: 0; font-size: 18px; color: #333;">🎉 We look forward to seeing you!</p>
+              </div>
+              
+              <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+              <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+                SmartBookly - Smart Booking Management System
+              </p>
+            </div>
+          </div>
         `;
         break;
     }
@@ -175,75 +220,120 @@ function getEmailContent(
       case 'ka': // Georgian
         subject = `ჯავშანი დადასტურებულია ${displayBusinessName}-ში`;
         content = `
-          <!DOCTYPE html>
-          <html lang="ka">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>ჯავშანი დადასტურებულია</title>
-          </head>
-          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-            <h2 style="color: #333;">გამარჯობა ${fullName},</h2>
-            <p>თქვენი ჯავშანი <b style="color: #4CAF50;">დადასტურდა</b> <b>${displayBusinessName}</b>-ში.</p>
-            <p style="margin: 8px 0;"><strong>დაჯავშნის თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-            ${addressInfo}
-            ${paymentInfo}
-            ${eventNotesInfo}
-            <p>ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
-            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-            <p style="color: #777; font-size: 14px;"><i>ეს არის ავტომატური შეტყობინება.</i></p>
-          </body>
-          </html>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
+            <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
+              <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+              <h1 style="margin: 0; font-size: 28px; font-weight: bold;">ჯავშანი დადასტურებულია -</h1>
+              <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${displayBusinessName}</h2>
+            </div>
+            
+            <div style="background: white; color: #333; padding: 30px; margin: 0;">
+              <p style="font-size: 18px; line-height: 1.6; margin-bottom: 20px;">
+                გამარჯობა ${fullName}!
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                თქვენი ჯავშანი <b style="color: #4CAF50;">დადასტურდა</b> <b>${displayBusinessName}</b>-ში.
+              </p>
+              
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 დაჯავშნის დეტალები</h3>
+                
+                <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>დაჯავშნის თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+                ${addressInfo}
+                ${paymentInfo}
+                ${eventNotesInfo}
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="margin: 0; font-size: 18px; color: #333;">🎉 ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
+              </div>
+              
+              <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+              <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+                SmartBookly - თქვენი ჭკვიანი დაჯავშნის სისტემა
+              </p>
+            </div>
+          </div>
         `;
         break;
         
       case 'es': // Spanish
         subject = `Reserva Aprobada en ${displayBusinessName}`;
         content = `
-          <!DOCTYPE html>
-          <html lang="es">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Reserva Aprobada</title>
-          </head>
-          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-            <h2 style="color: #333;">Hola ${fullName},</h2>
-            <p>Su reserva ha sido <b style="color: #4CAF50;">aprobada</b> en <b>${displayBusinessName}</b>.</p>
-            <p style="margin: 8px 0;"><strong>Fecha y hora de la reserva:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-            ${addressInfo}
-            ${paymentInfo}
-            ${eventNotesInfo}
-            <p>¡Esperamos verle pronto!</p>
-            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-            <p style="color: #777; font-size: 14px;"><i>Este es un mensaje automático.</i></p>
-          </body>
-          </html>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
+            <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
+              <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+              <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Reserva Aprobada -</h1>
+              <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${displayBusinessName}</h2>
+            </div>
+            
+            <div style="background: white; color: #333; padding: 30px; margin: 0;">
+              <p style="font-size: 18px; line-height: 1.6; margin-bottom: 20px;">
+                Hola ${fullName}!
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                Su reserva ha sido <b style="color: #4CAF50;">aprobada</b> en <b>${displayBusinessName}</b>.
+              </p>
+              
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 Detalles de la Reserva</h3>
+                
+                <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Fecha y hora de la reserva:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+                ${addressInfo}
+                ${paymentInfo}
+                ${eventNotesInfo}
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="margin: 0; font-size: 18px; color: #333;">🎉 ¡Esperamos verle pronto!</p>
+              </div>
+              
+              <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+              <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+                SmartBookly - Sistema de Gestión de Reservas Inteligente
+              </p>
+            </div>
+          </div>
         `;
         break;
         
       default: // English (default)
         subject = `Booking Approved at ${displayBusinessName}`;
         content = `
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Booking Approved</title>
-          </head>
-          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-            <h2 style="color: #333;">Hello ${fullName},</h2>
-            <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${displayBusinessName}</b>.</p>
-            <p style="margin: 8px 0;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-            ${addressInfo}
-            ${paymentInfo}
-            ${eventNotesInfo}
-            <p>We look forward to seeing you!</p>
-            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-            <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
-          </body>
-          </html>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
+            <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
+              <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+              <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Booking Approved -</h1>
+              <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${displayBusinessName}</h2>
+            </div>
+            
+            <div style="background: white; color: #333; padding: 30px; margin: 0;">
+              <p style="font-size: 18px; line-height: 1.6; margin-bottom: 20px;">
+                Hello ${fullName}!
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${displayBusinessName}</b>.
+              </p>
+              
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 Booking Details</h3>
+                
+                <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+                ${addressInfo}
+                ${paymentInfo}
+                ${eventNotesInfo}
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="margin: 0; font-size: 18px; color: #333;">🎉 We look forward to seeing you!</p>
+              </div>
+              
+              <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+              <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+                SmartBookly - Smart Booking Management System
+              </p>
+            </div>
+          </div>
         `;
         break;
     }
