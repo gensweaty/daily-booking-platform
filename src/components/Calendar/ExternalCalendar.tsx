@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Calendar } from "./Calendar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -314,17 +313,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             </div>
           )}
           
-          <Calendar 
-            defaultView={view}
-            currentView={view}
-            onViewChange={setView}
-            isExternalCalendar={true}
-            businessId={businessId}
-            businessUserId={businessUserId}
-            showAllEvents={true}
-            allowBookingRequests={true}
-            directEvents={events}
-          />
+          <Calendar />
         </div>
       </CardContent>
     </Card>

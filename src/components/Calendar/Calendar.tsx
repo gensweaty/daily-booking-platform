@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from '@/lib/supabase';
 import { EventForm } from '../events/EventForm';
-import { Event } from '@/types/database';
+import { CalendarEventType } from '@/lib/types/calendar';
 import { EventList } from '../events/EventList';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { BookingRequestList } from '../booking-requests/BookingRequestList';
@@ -28,10 +28,10 @@ export const Calendar = () => {
     to: addDays(startOfWeek(new Date()), 6),
   });
   const [isEventFormOpen, setIsEventFormOpen] = useState(false);
-  const [events, setEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<CalendarEventType[]>([]);
   const { user } = useAuth();
   const { t } = useLanguage();
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [filters, setFilters] = useState<Filter[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -79,7 +79,7 @@ export const Calendar = () => {
     setIsEditMode(false);
   };
 
-  const handleEventEdit = (event: Event) => {
+  const handleEventEdit = (event: CalendarEventType) => {
     setSelectedEvent(event);
     setIsEventFormOpen(true);
     setIsEditMode(true);
@@ -163,21 +163,21 @@ export const Calendar = () => {
                   mode="range"
                   defaultMonth={date?.from}
                   selected={date}
-                  onSelect={handleDateSelect}
+                  onSelect={setDate}
                   numberOfMonths={1}
                   pagedNavigation
                   className="border-0 rounded-md"
                 />
               </PopoverContent>
             </Popover>
-            <Button className="w-full mt-4" onClick={handleEventCreate}>{t('events.createEvent')}</Button>
+            <Button className="w-full mt-4" onClick={() => setIsEventFormOpen(true)}>{t('events.createEvent')}</Button>
 
             <div className="mt-4">
               <Input
                 type="text"
                 placeholder={t('common.search')}
                 value={searchTerm}
-                onChange={handleSearchChange}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
 
@@ -189,7 +189,16 @@ export const Calendar = () => {
                     type="checkbox"
                     value="meeting"
                     checked={filters.some(filter => filter.value === 'meeting')}
-                    onChange={handleFilterChange}
+                    onChange={(e) => {
+                      const { value, checked } = e.target;
+                      setFilters(prevFilters => {
+                        if (checked) {
+                          return [...prevFilters, { label: value, value }];
+                        } else {
+                          return prevFilters.filter(filter => filter.value !== value);
+                        }
+                      });
+                    }}
                   />
                   {t('events.meeting')}
                 </label>
@@ -198,7 +207,16 @@ export const Calendar = () => {
                     type="checkbox"
                     value="task"
                     checked={filters.some(filter => filter.value === 'task')}
-                    onChange={handleFilterChange}
+                    onChange={(e) => {
+                      const { value, checked } = e.target;
+                      setFilters(prevFilters => {
+                        if (checked) {
+                          return [...prevFilters, { label: value, value }];
+                        } else {
+                          return prevFilters.filter(filter => filter.value !== value);
+                        }
+                      });
+                    }}
                   />
                   {t('tasks.task')}
                 </label>
@@ -207,7 +225,16 @@ export const Calendar = () => {
                     type="checkbox"
                     value="event"
                     checked={filters.some(filter => filter.value === 'event')}
-                    onChange={handleFilterChange}
+                    onChange={(e) => {
+                      const { value, checked } = e.target;
+                      setFilters(prevFilters => {
+                        if (checked) {
+                          return [...prevFilters, { label: value, value }];
+                        } else {
+                          return prevFilters.filter(filter => filter.value !== value);
+                        }
+                      });
+                    }}
                   />
                   {t('events.event')}
                 </label>
@@ -221,8 +248,23 @@ export const Calendar = () => {
         <div className="w-full md:w-2/3">
           <EventList
             events={filteredEvents}
-            onEdit={handleEventEdit}
-            onDelete={handleEventDelete}
+            onEdit={setSelectedEvent}
+            onDelete={async (eventId: string) => {
+              try {
+                const { error } = await supabase
+                  .from('events')
+                  .update({ deleted_at: new Date().toISOString() })
+                  .eq('id', eventId);
+
+                if (error) {
+                  console.error("Error deleting event:", error);
+                } else {
+                  setEvents(events.filter(event => event.id !== eventId));
+                }
+              } catch (error) {
+                console.error("Failed to delete event:", error);
+              }
+            }}
           />
         </div>
       </div>
@@ -230,7 +272,11 @@ export const Calendar = () => {
       {isEventFormOpen && (
         <EventForm
           isOpen={isEventFormOpen}
-          onClose={handleFormClose}
+          onClose={() => {
+            setIsEventFormOpen(false);
+            setSelectedEvent(null);
+            setIsEditMode(false);
+          }}
           onEventCreated={() => setIsEventFormOpen(false)}
           event={selectedEvent}
           isEditMode={isEditMode}
