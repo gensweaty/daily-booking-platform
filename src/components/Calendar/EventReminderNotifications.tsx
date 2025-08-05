@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -7,7 +6,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Bell } from "lucide-react";
 import { platformNotificationManager } from "@/utils/platformNotificationManager";
-import { createEventReminder } from "@/lib/reminderScheduler";
 
 export const EventReminderNotifications = () => {
   const { user } = useAuth();
@@ -42,7 +40,7 @@ export const EventReminderNotifications = () => {
     }
   }, [processedReminders]);
 
-  // Fetch events with reminders - now also creates reminder entries for backend
+  // Fetch events with reminders
   const { data: events } = useQuery({
     queryKey: ['eventReminders', user?.id],
     queryFn: async () => {
@@ -56,8 +54,8 @@ export const EventReminderNotifications = () => {
         .select('*')
         .eq('user_id', user.id)
         .not('reminder_at', 'is', null)
-        .lte('reminder_at', futureWindow.toISOString())
         .eq('email_reminder_enabled', true)
+        .lte('reminder_at', futureWindow.toISOString())
         .is('deleted_at', null)
         .order('reminder_at', { ascending: true });
       
@@ -66,31 +64,10 @@ export const EventReminderNotifications = () => {
         throw error;
       }
       
-      // Create reminder entries for backend processing for events that don't have them
-      if (data) {
-        for (const event of data) {
-          // Check if reminder entry already exists
-          const { data: existing } = await supabase
-            .from('reminder_entries')
-            .select('id')
-            .eq('event_id', event.id)
-            .eq('type', 'event')
-            .single();
-
-          if (!existing && event.reminder_at && event.email_reminder_enabled) {
-            console.log('📅 Creating reminder entry for event:', event.title || event.user_surname);
-            await createEventReminder(
-              event.id,
-              user.id,
-              event.title || event.user_surname || 'Event',
-              event.reminder_at
-            );
-          }
-        }
-      }
-      
-      console.log('📅 Event reminders fetched:', data?.length || 0);
-      return data || [];
+      // Filter out events with invalid or missing IDs
+      const filtered = (data || []).filter(ev => !!ev.id && typeof ev.id === 'string');
+      console.log('📅 Event reminders fetched:', data?.length || 0, 'filtered:', filtered.length);
+      return filtered;
     },
     enabled: !!user?.id,
     refetchInterval: 30000, // Refetch every 30 seconds
@@ -101,7 +78,7 @@ export const EventReminderNotifications = () => {
     console.log("📊 Showing dashboard notification for event:", eventTitle);
     toast({
       title: "📅 Event Reminder",
-      description: `${t('common.reminder')}: ${eventTitle}`,
+      description: `${t('events.eventReminder')}: ${eventTitle}`,
       duration: 8000,
       action: (
         <div className="flex items-center">
@@ -111,30 +88,115 @@ export const EventReminderNotifications = () => {
     });
   };
 
+  // Send email reminder - FIXED: Use same pattern as task reminders
+  const sendEmailReminder = async (event: any) => {
+    try {
+      console.log("📧 Sending email reminder for event:", event.title, "with ID:", event.id);
+      
+      // CRITICAL FIX: Use supabase.functions.invoke like task reminders, not raw fetch
+      const { data, error } = await supabase.functions.invoke('send-event-reminder-email', {
+        body: { eventId: event.id } // Same pattern as task reminders: no JSON.stringify needed
+      });
+
+      if (error) {
+        console.error("❌ Error sending event email reminder:", error);
+        toast({
+          title: "Email Error",
+          description: "Failed to send event email reminder",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      console.log("✅ Event email reminder sent successfully:", data);
+      
+      toast({
+        title: t("common.success"),
+        description: t("events.reminderEmailSent"),
+        duration: 3000,
+      });
+      
+      return true;
+    } catch (error) {
+      console.error("❌ Failed to send event email reminder:", error);
+      toast({
+        title: "Email Error",
+        description: "Failed to send event email reminder",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   // Process due reminders - with execution lock to prevent duplicates
   const processDueReminders = async (eventsToCheck: any[]) => {
-    if (!eventsToCheck || eventsToCheck.length === 0 || isProcessing) return;
+    console.log('🔍 processDueReminders called with events:', eventsToCheck?.length || 0);
+    console.log('🔍 isProcessing:', isProcessing);
+    
+    if (!eventsToCheck || eventsToCheck.length === 0) {
+      console.log('❌ No events to check or empty array');
+      return;
+    }
+    
+    if (isProcessing) {
+      console.log('⏸️ Already processing, skipping this run');
+      return;
+    }
 
     setIsProcessing(true);
+    console.log('🚀 Starting to process event reminders...');
     
     try {
       const now = new Date();
+      console.log('🕐 Current time:', now.toISOString());
       let notificationsTriggered = 0;
       
       for (const event of eventsToCheck) {
+        console.log('🔍 Checking event:', {
+          id: event?.id,
+          title: event?.title,
+          reminder_at: event?.reminder_at,
+          email_reminder_enabled: event?.email_reminder_enabled
+        });
+        
+        // ADD THIS GUARD: Validate event object before processing
+        if (!event || typeof event !== "object" || !event.id || typeof event.id !== "string") {
+          console.error('❌ Skipping invalid event object, missing or invalid "id":', event);
+          continue;
+        }
+        
+        if (!event.reminder_at) {
+          console.log('⏭️ Skipping event without reminder_at:', event.id);
+          continue;
+        }
+        
         const reminderTime = new Date(event.reminder_at);
         const reminderKey = `${event.id}-${event.reminder_at}`;
+        
+        console.log('⏰ Event reminder check:', {
+          eventId: event.id,
+          reminderTime: reminderTime.toISOString(),
+          currentTime: now.toISOString(),
+          alreadyProcessed: processedReminders.has(reminderKey)
+        });
         
         // Check if reminder is due (within 1 minute window)
         const timeDiff = now.getTime() - reminderTime.getTime();
         const isDue = timeDiff >= 0 && timeDiff <= 60000; // 0 to 60 seconds past due time
         
+        console.log('📊 Time analysis:', {
+          timeDiff,
+          isDue,
+          reminderKey,
+          processed: processedReminders.has(reminderKey)
+        });
+        
         if (isDue && !processedReminders.has(reminderKey)) {
-          const eventTitle = event.title || event.user_surname || 'Event';
-          console.log('🔔 PROCESSING REMINDER for event:', eventTitle);
+          console.log('🔔 PROCESSING EVENT REMINDER for event:', event.title);
           console.log('⏰ Reminder time:', reminderTime.toLocaleString());
           console.log('🕐 Current time:', now.toLocaleString());
           console.log('⏱️ Time difference:', timeDiff, 'ms');
+          console.log('📧 Event ID being processed:', event.id);
           
           // Mark as processed FIRST to prevent duplicate processing
           setProcessedReminders(prev => {
@@ -144,12 +206,12 @@ export const EventReminderNotifications = () => {
           });
           
           // Show dashboard notification
-          showDashboardNotification(eventTitle);
+          showDashboardNotification(event.title || event.user_surname || 'Event');
           
           // Show system notification
           const result = await platformNotificationManager.createNotification({
             title: "📅 Event Reminder",
-            body: `${t('common.reminder')}: ${eventTitle}`,
+            body: `${t('events.eventReminder')}: ${event.title || event.user_surname || 'Event'}`,
             icon: "/favicon.ico",
             tag: `event-reminder-${event.id}`,
             requireInteraction: true,
@@ -161,20 +223,35 @@ export const EventReminderNotifications = () => {
             console.error('❌ System notification failed:', result.error);
           }
           
-          // Note: Email sending is now handled by the backend cron job via reminder_entries table
+          // Send email reminder if enabled
+          if (event.email_reminder_enabled) {
+            console.log('📧 About to call sendEmailReminder for event:', event.id);
+            const emailSuccess = await sendEmailReminder(event);
+            console.log('📧 Email reminder result:', emailSuccess ? 'SUCCESS' : 'FAILED');
+          } else {
+            console.log('📧 Email reminder disabled for event:', event.id);
+          }
+          
           console.log('📊 Dashboard notification: ✅ Sent');
           console.log('🔔 System notification:', result.success ? '✅ Sent' : '❌ Failed');
-          console.log('📧 Email reminder: ✅ Backend will handle');
+          console.log('📧 Email reminder:', event.email_reminder_enabled ? '✅ Enabled' : '❌ Disabled');
           
           notificationsTriggered++;
+        } else if (isDue) {
+          console.log('⏭️ Reminder due but already processed:', reminderKey);
+        } else {
+          console.log('⏭️ Reminder not due yet. Time diff:', timeDiff, 'ms');
         }
       }
 
       if (notificationsTriggered > 0) {
         console.log(`🎯 Total event notifications triggered: ${notificationsTriggered}`);
+      } else {
+        console.log('📋 No event notifications triggered this run');
       }
     } finally {
       setIsProcessing(false);
+      console.log('✅ Finished processing event reminders');
     }
   };
 
@@ -215,7 +292,7 @@ export const EventReminderNotifications = () => {
   useEffect(() => {
     if (!events || events.length === 0) return;
 
-    console.log("⏰ Starting event reminder checker");
+    console.log("⏰ Starting single event reminder checker");
 
     intervalRef.current = setInterval(() => {
       processDueReminders(events);
@@ -247,7 +324,7 @@ export const EventReminderNotifications = () => {
             }
           }
         });
-        console.log('🧹 Event cleanup complete. Before:', prev.size, 'After:', newSet.size);
+        console.log('🧹 Event reminder cleanup complete. Before:', prev.size, 'After:', newSet.size);
         return newSet;
       });
     }, 60 * 60 * 1000);

@@ -807,60 +807,6 @@ export type Database = {
         }
         Relationships: []
       }
-      reminder_entries: {
-        Row: {
-          created_at: string
-          delivered: boolean
-          delivered_at: string | null
-          event_id: string | null
-          id: string
-          remind_at: string
-          task_id: string | null
-          title: string
-          type: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          delivered?: boolean
-          delivered_at?: string | null
-          event_id?: string | null
-          id?: string
-          remind_at: string
-          task_id?: string | null
-          title: string
-          type: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          delivered?: boolean
-          delivered_at?: string | null
-          event_id?: string | null
-          id?: string
-          remind_at?: string
-          task_id?: string | null
-          title?: string
-          type?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "reminder_entries_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reminder_entries_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       reminders: {
         Row: {
           created_at: string

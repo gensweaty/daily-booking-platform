@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getTasks, updateTask, deleteTask, archiveTask } from "@/lib/api";
 import { Task } from "@/lib/types";
@@ -15,9 +16,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { TaskReminderNotifications } from "./tasks/TaskReminderNotifications";
 
-export function TaskList() {
+export const TaskList = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -187,7 +187,6 @@ export function TaskList() {
 
   return (
     <>
-      <TaskReminderNotifications />
       <DragDropContext onDragEnd={handleDragEnd}>
         <motion.div 
           className="grid grid-cols-1 md:grid-cols-3 gap-6"
@@ -279,4 +278,4 @@ export function TaskList() {
       </AlertDialog>
     </>
   );
-}
+};
