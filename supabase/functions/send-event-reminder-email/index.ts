@@ -200,6 +200,22 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     console.log('📅 Event reminder email function called at', new Date().toISOString());
     
+    // ADD DEBUGGING: Log the user agent to identify source of calls
+    const userAgent = req.headers.get('user-agent') || 'unknown';
+    console.log('🔍 Request source - User-Agent:', userAgent);
+    
+    // Block calls from pg_net (database triggers) since frontend handles this
+    if (userAgent.includes('pg_net')) {
+      console.log('🚫 Blocking pg_net call - frontend handles event reminders');
+      return new Response(
+        JSON.stringify({ message: 'Event reminders are handled by frontend, not database triggers' }),
+        { 
+          status: 200, 
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        }
+      );
+    }
+    
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
@@ -219,7 +235,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = new Resend(resendApiKey);
 
-    // CRITICAL FIX: Enhanced request body parsing with better error handling
+    // ENHANCED: Better request body parsing with detailed logging
     let body;
     const bodyText = await req.text();
     console.log('📧 Raw request body text:', bodyText);
@@ -253,9 +269,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { eventId } = body;
 
-    // CRITICAL FIX: Enhanced eventId validation
+    // ENHANCED: Better eventId validation with detailed logging
     if (!eventId || typeof eventId !== 'string' || eventId.trim() === '') {
-      console.error('❌ Missing or invalid eventId in request body:', { eventId, body });
+      console.error('❌ Missing or invalid eventId in request body:', { eventId, body, userAgent });
       return new Response(
         JSON.stringify({ error: 'Event ID is required and must be a valid string', receivedBody: body }),
         { 

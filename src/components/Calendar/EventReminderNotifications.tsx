@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -89,60 +88,18 @@ export const EventReminderNotifications = () => {
     });
   };
 
-  // Send email reminder with comprehensive validation and logging
+  // Send email reminder - FIXED: Use same pattern as task reminders
   const sendEmailReminder = async (event: any) => {
     try {
-      // CRITICAL: Log the raw event object first
-      console.log("📧 sendEmailReminder called with event:", JSON.stringify(event, null, 2));
-      console.log("📧 Event.id specifically:", event?.id, "type:", typeof event?.id);
-      
-      // Validate event object and ID
-      if (!event || typeof event !== "object" || !event.id || typeof event.id !== "string" || event.id.trim() === "") {
-        console.error('❌ sendEmailReminder VALIDATION FAILED - Invalid event:', {
-          event: event,
-          hasEvent: !!event,
-          eventType: typeof event,
-          hasId: !!event?.id,
-          idType: typeof event?.id,
-          idValue: event?.id,
-          idTrimmed: event?.id?.trim?.()
-        });
-        toast({
-          title: "Email Error",
-          description: "Event ID is missing or invalid.",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      console.log("✅ Event validation passed - proceeding with email");
       console.log("📧 Sending email reminder for event:", event.title, "with ID:", event.id);
       
-      const requestBody = { eventId: event.id };
-      const jsonBody = JSON.stringify(requestBody);
-      
-      console.log("📧 FINAL REQUEST PREPARATION:");
-      console.log("📧 - Event ID:", event.id);
-      console.log("📧 - Request body object:", requestBody);
-      console.log("📧 - JSON stringified body:", jsonBody);
-      console.log("📧 - JSON body length:", jsonBody.length);
-      console.log("📧 - About to send to edge function...");
-      
-      const functionUrl = 'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-event-reminder-email';
-
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: jsonBody,
+      // CRITICAL FIX: Use supabase.functions.invoke like task reminders, not raw fetch
+      const { data, error } = await supabase.functions.invoke('send-event-reminder-email', {
+        body: { eventId: event.id } // Same pattern as task reminders: no JSON.stringify needed
       });
 
-      const data = await response.json();
-      console.log("📧 Edge function response:", { data, status: response.status });
-
-      if (!response.ok) {
-        console.error("❌ Error sending event email reminder:", data);
+      if (error) {
+        console.error("❌ Error sending event email reminder:", error);
         toast({
           title: "Email Error",
           description: "Failed to send event email reminder",
