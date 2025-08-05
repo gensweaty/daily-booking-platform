@@ -107,11 +107,14 @@ export const TaskFormFields = ({
 
     setReminderAt(newReminder);
     
-    // Enable email reminder when setting a reminder (this ensures email_reminder_enabled is always set)
+    // CRITICAL: Always enable email reminder when setting a reminder
+    // This ensures reminders work regardless of task status changes
     if (newReminder) {
+      console.log('🔔 Enabling email reminder for task with reminder set at:', newReminder);
       setEmailReminder(true);
     } else {
-      // Reset email reminder if reminder is removed
+      // Only reset email reminder if reminder is completely removed
+      console.log('🔕 Disabling email reminder as reminder was removed');
       setEmailReminder(false);
     }
   };

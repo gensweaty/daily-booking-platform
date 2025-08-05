@@ -147,6 +147,8 @@ export const TaskReminderNotifications = () => {
           console.log('⏰ Reminder time:', reminderTime.toLocaleString());
           console.log('🕐 Current time:', now.toLocaleString());
           console.log('⏱️ Time difference:', timeDiff, 'ms');
+          console.log('📧 Email reminder enabled:', task.email_reminder_enabled);
+          console.log('📋 Task status:', task.status);
           
           // Mark as processed FIRST to prevent duplicate processing
           setProcessedReminders(prev => {
@@ -173,9 +175,12 @@ export const TaskReminderNotifications = () => {
             console.error('❌ System notification failed:', result.error);
           }
           
-          // Send email reminder if enabled
+          // Send email reminder if enabled - CRITICAL: This should work regardless of status
           if (task.email_reminder_enabled) {
+            console.log('📧 Attempting to send email reminder for task:', task.title, 'Status:', task.status);
             await sendEmailReminder(task);
+          } else {
+            console.log('📧 Email reminder disabled for task:', task.title);
           }
           
           console.log('📊 Dashboard notification: ✅ Sent');

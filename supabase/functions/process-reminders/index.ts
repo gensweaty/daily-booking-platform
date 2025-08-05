@@ -32,8 +32,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('📨 Request body:', body);
 
     const now = new Date();
-    // Use exact time for reminder checking - no buffer to prevent early delivery
-    const reminderCheckTime = new Date(now.getTime());
+    // Use 30-second buffer BEFORE scheduled time for earlier delivery
+    const reminderCheckTime = new Date(now.getTime() + 30 * 1000); // 30 seconds ahead
     
     const result: ReminderProcessingResult = {
       taskReminders: 0,

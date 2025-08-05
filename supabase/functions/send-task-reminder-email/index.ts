@@ -58,8 +58,8 @@ const getEmailContent = (language: string, taskTitle: string, reminderTime: stri
         
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #374151 0%, #4b5563 100%); padding: 24px; border-radius: 8px 8px 0 0; text-align: center;">
-          <div style="width: 48px; height: 48px; background: rgba(255, 255, 255, 0.1); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
-            <span style="font-size: 20px; color: #ffffff; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; line-height: 1;">📋</span>
+          <div style="margin: 0 auto 12px auto; display: flex; justify-content: center;">
+            <span style="font-size: 24px; color: #ffffff;">📋</span>
           </div>
           <h1 style="color: #ffffff; margin: 0; font-size: 18px; font-weight: 600;">დავალების შეხსენება</h1>
           <p style="color: #d1d5db; margin: 6px 0 0 0; font-size: 13px;">თქვენი დავალება მზად არის შესასრულებლად</p>
@@ -114,8 +114,8 @@ const getEmailContent = (language: string, taskTitle: string, reminderTime: stri
         
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #374151 0%, #4b5563 100%); padding: 24px; border-radius: 8px 8px 0 0; text-align: center;">
-          <div style="width: 48px; height: 48px; background: rgba(255, 255, 255, 0.1); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
-            <span style="font-size: 20px; color: #ffffff; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; line-height: 1;">📋</span>
+          <div style="margin: 0 auto 12px auto; display: flex; justify-content: center;">
+            <span style="font-size: 24px; color: #ffffff;">📋</span>
           </div>
           <h1 style="color: #ffffff; margin: 0; font-size: 18px; font-weight: 600;">Recordatorio de Tarea</h1>
           <p style="color: #d1d5db; margin: 6px 0 0 0; font-size: 13px;">Tu tarea está lista para ser completada</p>
@@ -170,8 +170,8 @@ const getEmailContent = (language: string, taskTitle: string, reminderTime: stri
         
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #374151 0%, #4b5563 100%); padding: 24px; border-radius: 8px 8px 0 0; text-align: center;">
-          <div style="width: 48px; height: 48px; background: rgba(255, 255, 255, 0.1); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
-            <span style="font-size: 20px; color: #ffffff; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; line-height: 1;">📋</span>
+          <div style="margin: 0 auto 12px auto; display: flex; justify-content: center;">
+            <span style="font-size: 24px; color: #ffffff;">📋</span>
           </div>
           <h1 style="color: #ffffff; margin: 0; font-size: 18px; font-weight: 600;">Task Reminder</h1>
           <p style="color: #d1d5db; margin: 6px 0 0 0; font-size: 13px;">Your task is ready to be completed</p>
