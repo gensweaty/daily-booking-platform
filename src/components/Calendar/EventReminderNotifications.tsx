@@ -173,27 +173,66 @@ export const EventReminderNotifications = () => {
 
   // Process due reminders - with execution lock to prevent duplicates
   const processDueReminders = async (eventsToCheck: any[]) => {
-    if (!eventsToCheck || eventsToCheck.length === 0 || isProcessing) return;
+    console.log('🔍 processDueReminders called with events:', eventsToCheck?.length || 0);
+    console.log('🔍 isProcessing:', isProcessing);
+    
+    if (!eventsToCheck || eventsToCheck.length === 0) {
+      console.log('❌ No events to check or empty array');
+      return;
+    }
+    
+    if (isProcessing) {
+      console.log('⏸️ Already processing, skipping this run');
+      return;
+    }
 
     setIsProcessing(true);
+    console.log('🚀 Starting to process event reminders...');
     
     try {
       const now = new Date();
+      console.log('🕐 Current time:', now.toISOString());
       let notificationsTriggered = 0;
       
       for (const event of eventsToCheck) {
+        console.log('🔍 Checking event:', {
+          id: event?.id,
+          title: event?.title,
+          reminder_at: event?.reminder_at,
+          email_reminder_enabled: event?.email_reminder_enabled
+        });
+        
         // ADD THIS GUARD: Validate event object before processing
         if (!event || typeof event !== "object" || !event.id || typeof event.id !== "string") {
           console.error('❌ Skipping invalid event object, missing or invalid "id":', event);
           continue;
         }
         
+        if (!event.reminder_at) {
+          console.log('⏭️ Skipping event without reminder_at:', event.id);
+          continue;
+        }
+        
         const reminderTime = new Date(event.reminder_at);
         const reminderKey = `${event.id}-${event.reminder_at}`;
+        
+        console.log('⏰ Event reminder check:', {
+          eventId: event.id,
+          reminderTime: reminderTime.toISOString(),
+          currentTime: now.toISOString(),
+          alreadyProcessed: processedReminders.has(reminderKey)
+        });
         
         // Check if reminder is due (within 1 minute window)
         const timeDiff = now.getTime() - reminderTime.getTime();
         const isDue = timeDiff >= 0 && timeDiff <= 60000; // 0 to 60 seconds past due time
+        
+        console.log('📊 Time analysis:', {
+          timeDiff,
+          isDue,
+          reminderKey,
+          processed: processedReminders.has(reminderKey)
+        });
         
         if (isDue && !processedReminders.has(reminderKey)) {
           console.log('🔔 PROCESSING EVENT REMINDER for event:', event.title);
@@ -229,8 +268,11 @@ export const EventReminderNotifications = () => {
           
           // Send email reminder if enabled
           if (event.email_reminder_enabled) {
+            console.log('📧 About to call sendEmailReminder for event:', event.id);
             const emailSuccess = await sendEmailReminder(event);
             console.log('📧 Email reminder result:', emailSuccess ? 'SUCCESS' : 'FAILED');
+          } else {
+            console.log('📧 Email reminder disabled for event:', event.id);
           }
           
           console.log('📊 Dashboard notification: ✅ Sent');
@@ -238,14 +280,21 @@ export const EventReminderNotifications = () => {
           console.log('📧 Email reminder:', event.email_reminder_enabled ? '✅ Enabled' : '❌ Disabled');
           
           notificationsTriggered++;
+        } else if (isDue) {
+          console.log('⏭️ Reminder due but already processed:', reminderKey);
+        } else {
+          console.log('⏭️ Reminder not due yet. Time diff:', timeDiff, 'ms');
         }
       }
 
       if (notificationsTriggered > 0) {
         console.log(`🎯 Total event notifications triggered: ${notificationsTriggered}`);
+      } else {
+        console.log('📋 No event notifications triggered this run');
       }
     } finally {
       setIsProcessing(false);
+      console.log('✅ Finished processing event reminders');
     }
   };
 
