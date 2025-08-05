@@ -32,8 +32,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('📨 Request body:', body);
 
     const now = new Date();
-    // Add a small buffer (30 seconds) to catch reminders that might be slightly past due
-    const reminderCheckTime = new Date(now.getTime() + 30 * 1000);
+    // Increased buffer to 2 minutes to handle cron job timing delays
+    const reminderCheckTime = new Date(now.getTime() + 2 * 60 * 1000);
     
     const result: ReminderProcessingResult = {
       taskReminders: 0,
@@ -44,16 +44,16 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('⏰ Processing reminders at:', now.toISOString());
     console.log('📅 Checking reminders up to:', reminderCheckTime.toISOString());
 
-    // Process Task Reminders - FIXED: No status filtering, improved timing check
+    // Process Task Reminders - COMPLETELY REMOVED status filtering
     try {
       const { data: dueTasks, error: taskError } = await supabase
         .from('tasks')
         .select('*')
         .not('reminder_at', 'is', null)
-        .lte('reminder_at', reminderCheckTime.toISOString()) // Use buffer time
-        .is('reminder_sent_at', null) // Only unsent reminders
-        .eq('archived', false) // Only non-archived tasks
-        .eq('email_reminder_enabled', true); // Only tasks with email reminder enabled
+        .lte('reminder_at', reminderCheckTime.toISOString())
+        .is('reminder_sent_at', null)
+        .eq('archived', false)
+        .eq('email_reminder_enabled', true);
 
       if (taskError) {
         console.error('❌ Error fetching due tasks:', taskError);
@@ -63,7 +63,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         for (const task of dueTasks || []) {
           try {
-            console.log(`🔍 Processing task: ${task.title} (status: ${task.status}, reminder_at: ${task.reminder_at})`);
+            console.log(`🔍 Processing task: ${task.title} (ID: ${task.id}, status: ${task.status}, reminder_at: ${task.reminder_at}, email_reminder_enabled: ${task.email_reminder_enabled})`);
             
             // Send email reminder using existing function
             const { error: emailError } = await supabase.functions.invoke('send-task-reminder-email', {
