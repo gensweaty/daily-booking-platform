@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
 import { Resend } from "npm:resend@2.0.0";
@@ -54,64 +53,130 @@ const getEmailContent = (language: string, taskTitle: string, reminderTime: stri
   if (language === 'ka') {
     subject = "📋 დაგეგმილი დავალების შეხსენება!";
     body = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333; text-align: center;">დავალების შეხსენება</h2>
-        <p style="font-size: 16px; line-height: 1.6;">
-          შეგახსენებთ დავალებაზე: <strong>${taskTitle}</strong>
-        </p>
-        <p style="font-size: 14px; color: #666;">
-          <strong>დრო:</strong> ${reminderTime}
-        </p>
-        ${taskDescription ? `<p style="font-size: 14px; color: #666;"><strong>აღწერა:</strong> ${taskDescription}</p>` : ''}
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0; font-size: 16px; color: #333;">📝 არ დაგავიწყდეს!</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
+          <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">დავალების შეხსენება</h1>
         </div>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="font-size: 12px; color: #999; text-align: center;">
-          SmartBookly-დან მიღებული შეხსენება
-        </p>
+        
+        <div style="padding: 30px; background: #ffffff; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 12px; margin-bottom: 25px; text-align: center;">
+            <h2 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: bold;">✅ ${taskTitle}</h2>
+          </div>
+          
+          <div style="background: #f8f9ff; padding: 20px; border-radius: 12px; margin-bottom: 25px; border-left: 4px solid #667eea;">
+            <p style="margin: 0; font-size: 16px; color: #333;">
+              <strong style="color: #667eea;">📅 შესრულების დრო:</strong><br>
+              <span style="font-size: 18px; color: #2d3748;">${reminderTime}</span>
+            </p>
+          </div>
+          
+          ${taskDescription ? `
+          <div style="background: #f7fafc; padding: 20px; border-radius: 12px; margin-bottom: 25px; border-left: 4px solid #4299e1;">
+            <p style="margin: 0; font-size: 16px; color: #333;">
+              <strong style="color: #4299e1;">📝 აღწერა:</strong><br>
+              <span style="color: #2d3748; line-height: 1.6;">${taskDescription}</span>
+            </p>
+          </div>
+          ` : ''}
+          
+          <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 25px; border-radius: 12px; text-align: center; margin: 25px 0;">
+            <p style="margin: 0; font-size: 18px; color: #ffffff; font-weight: bold;">🎯 არ დაგავიწყდეს!</p>
+            <p style="margin: 8px 0 0; font-size: 14px; color: #ffffff; opacity: 0.9;">თქვენი დავალება გელოდებათ</p>
+          </div>
+        </div>
+        
+        <div style="padding: 20px; text-align: center; background: #f7fafc; border-radius: 0 0 12px 12px;">
+          <p style="margin: 0; font-size: 12px; color: #718096;">
+            📱 SmartBookly-დან მიღებული შეხსენება
+          </p>
+        </div>
       </div>
     `;
   } else if (language === 'es') {
     subject = "📋 ¡Tienes un recordatorio de tarea!";
     body = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333; text-align: center;">Recordatorio de Tarea</h2>
-        <p style="font-size: 16px; line-height: 1.6;">
-          Este es un recordatorio de tu tarea: <strong>${taskTitle}</strong>
-        </p>
-        <p style="font-size: 14px; color: #666;">
-          <strong>Programada para:</strong> ${reminderTime}
-        </p>
-        ${taskDescription ? `<p style="font-size: 14px; color: #666;"><strong>Descripción:</strong> ${taskDescription}</p>` : ''}
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0; font-size: 16px; color: #333;">📝 ¡No lo olvides!</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
+          <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">Recordatorio de Tarea</h1>
         </div>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="font-size: 12px; color: #999; text-align: center;">
-          Recordatorio de SmartBookly
-        </p>
+        
+        <div style="padding: 30px; background: #ffffff; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 12px; margin-bottom: 25px; text-align: center;">
+            <h2 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: bold;">✅ ${taskTitle}</h2>
+          </div>
+          
+          <div style="background: #f8f9ff; padding: 20px; border-radius: 12px; margin-bottom: 25px; border-left: 4px solid #667eea;">
+            <p style="margin: 0; font-size: 16px; color: #333;">
+              <strong style="color: #667eea;">📅 Programada para:</strong><br>
+              <span style="font-size: 18px; color: #2d3748;">${reminderTime}</span>
+            </p>
+          </div>
+          
+          ${taskDescription ? `
+          <div style="background: #f7fafc; padding: 20px; border-radius: 12px; margin-bottom: 25px; border-left: 4px solid #4299e1;">
+            <p style="margin: 0; font-size: 16px; color: #333;">
+              <strong style="color: #4299e1;">📝 Descripción:</strong><br>
+              <span style="color: #2d3748; line-height: 1.6;">${taskDescription}</span>
+            </p>
+          </div>
+          ` : ''}
+          
+          <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 25px; border-radius: 12px; text-align: center; margin: 25px 0;">
+            <p style="margin: 0; font-size: 18px; color: #ffffff; font-weight: bold;">🎯 ¡No lo olvides!</p>
+            <p style="margin: 8px 0 0; font-size: 14px; color: #ffffff; opacity: 0.9;">Tu tarea te está esperando</p>
+          </div>
+        </div>
+        
+        <div style="padding: 20px; text-align: center; background: #f7fafc; border-radius: 0 0 12px 12px;">
+          <p style="margin: 0; font-size: 12px; color: #718096;">
+            📱 Recordatorio de SmartBookly
+          </p>
+        </div>
       </div>
     `;
   } else {
     subject = "📋 You have a task reminder!";
     body = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333; text-align: center;">Task Reminder</h2>
-        <p style="font-size: 16px; line-height: 1.6;">
-          This is a reminder for your task: <strong>${taskTitle}</strong>
-        </p>
-        <p style="font-size: 14px; color: #666;">
-          <strong>Scheduled for:</strong> ${reminderTime}
-        </p>
-        ${taskDescription ? `<p style="font-size: 14px; color: #666;"><strong>Description:</strong> ${taskDescription}</p>` : ''}
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0; font-size: 16px; color: #333;">📝 Don't forget!</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
+          <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">Task Reminder</h1>
         </div>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="font-size: 12px; color: #999; text-align: center;">
-          Reminder from SmartBookly
-        </p>
+        
+        <div style="padding: 30px; background: #ffffff; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 12px; margin-bottom: 25px; text-align: center;">
+            <h2 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: bold;">✅ ${taskTitle}</h2>
+          </div>
+          
+          <div style="background: #f8f9ff; padding: 20px; border-radius: 12px; margin-bottom: 25px; border-left: 4px solid #667eea;">
+            <p style="margin: 0; font-size: 16px; color: #333;">
+              <strong style="color: #667eea;">📅 Scheduled for:</strong><br>
+              <span style="font-size: 18px; color: #2d3748;">${reminderTime}</span>
+            </p>
+          </div>
+          
+          ${taskDescription ? `
+          <div style="background: #f7fafc; padding: 20px; border-radius: 12px; margin-bottom: 25px; border-left: 4px solid #4299e1;">
+            <p style="margin: 0; font-size: 16px; color: #333;">
+              <strong style="color: #4299e1;">📝 Description:</strong><br>
+              <span style="color: #2d3748; line-height: 1.6;">${taskDescription}</span>
+            </p>
+          </div>
+          ` : ''}
+          
+          <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 25px; border-radius: 12px; text-align: center; margin: 25px 0;">
+            <p style="margin: 0; font-size: 18px; color: #ffffff; font-weight: bold;">🎯 Don't forget!</p>
+            <p style="margin: 8px 0 0; font-size: 14px; color: #ffffff; opacity: 0.9;">Your task is waiting for you</p>
+          </div>
+        </div>
+        
+        <div style="padding: 20px; text-align: center; background: #f7fafc; border-radius: 0 0 12px 12px;">
+          <p style="margin: 0; font-size: 12px; color: #718096;">
+            📱 Reminder from SmartBookly
+          </p>
+        </div>
       </div>
     `;
   }
