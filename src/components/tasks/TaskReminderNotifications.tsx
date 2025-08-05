@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Bell } from "lucide-react";
 import { platformNotificationManager } from "@/utils/platformNotificationManager";
+import { createTaskReminder } from "@/lib/reminderScheduler";
 
 export const TaskReminderNotifications = () => {
   const { user } = useAuth();
@@ -41,7 +42,7 @@ export const TaskReminderNotifications = () => {
     }
   }, [processedReminders]);
 
-  // Fetch tasks with reminders
+  // Fetch tasks with reminders - now also creates reminder entries for backend
   const { data: tasks } = useQuery({
     queryKey: ['taskReminders', user?.id],
     queryFn: async () => {
@@ -56,11 +57,35 @@ export const TaskReminderNotifications = () => {
         .eq('user_id', user.id)
         .not('reminder_at', 'is', null)
         .lte('reminder_at', futureWindow.toISOString())
+        .eq('email_reminder_enabled', true)
         .order('reminder_at', { ascending: true });
       
       if (error) {
         console.error('❌ Error fetching task reminders:', error);
         throw error;
+      }
+      
+      // Create reminder entries for backend processing for tasks that don't have them
+      if (data) {
+        for (const task of data) {
+          // Check if reminder entry already exists
+          const { data: existing } = await supabase
+            .from('reminder_entries')
+            .select('id')
+            .eq('task_id', task.id)
+            .eq('type', 'task')
+            .single();
+
+          if (!existing && task.reminder_at && task.email_reminder_enabled) {
+            console.log('📋 Creating reminder entry for task:', task.title);
+            await createTaskReminder(
+              task.id,
+              user.id,
+              task.title,
+              task.reminder_at
+            );
+          }
+        }
       }
       
       console.log('📋 Task reminders fetched:', data?.length || 0);
@@ -83,45 +108,6 @@ export const TaskReminderNotifications = () => {
         </div>
       ),
     });
-  };
-
-  // Send email reminder
-  const sendEmailReminder = async (task: any) => {
-    try {
-      console.log("📧 Sending email reminder for task:", task.title);
-      
-      const { data, error } = await supabase.functions.invoke('send-task-reminder-email', {
-        body: { taskId: task.id }
-      });
-
-      if (error) {
-        console.error("❌ Error sending email reminder:", error);
-        toast({
-          title: "Email Error",
-          description: "Failed to send email reminder",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      console.log("✅ Email reminder sent successfully:", data);
-      
-      toast({
-        title: t("common.success"),
-        description: t("tasks.reminderEmailSent"),
-        duration: 3000,
-      });
-      
-      return true;
-    } catch (error) {
-      console.error("❌ Failed to send email reminder:", error);
-      toast({
-        title: "Email Error",
-        description: "Failed to send email reminder",
-        variant: "destructive",
-      });
-      return false;
-    }
   };
 
   // Process due reminders - with execution lock to prevent duplicates
@@ -173,14 +159,10 @@ export const TaskReminderNotifications = () => {
             console.error('❌ System notification failed:', result.error);
           }
           
-          // Send email reminder if enabled
-          if (task.email_reminder_enabled) {
-            await sendEmailReminder(task);
-          }
-          
+          // Note: Email sending is now handled by the backend cron job via reminder_entries table
           console.log('📊 Dashboard notification: ✅ Sent');
           console.log('🔔 System notification:', result.success ? '✅ Sent' : '❌ Failed');
-          console.log('📧 Email reminder:', task.email_reminder_enabled ? '✅ Enabled' : '❌ Disabled');
+          console.log('📧 Email reminder: ✅ Backend will handle');
           
           notificationsTriggered++;
         }
