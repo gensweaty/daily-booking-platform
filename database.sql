@@ -1,4 +1,5 @@
 
+
 -- Update the get_public_events_by_user_id function to handle deleted events properly
 CREATE OR REPLACE FUNCTION public.get_public_events_by_user_id(user_id_param uuid)
  RETURNS SETOF events
@@ -98,3 +99,18 @@ BEGIN
   ORDER BY event_start_date ASC;
 END;
 $function$;
+
+-- Add reminder_sent_at columns to track sent reminders (if they don't already exist)
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='events' AND column_name='reminder_sent_at') THEN
+        ALTER TABLE events ADD COLUMN reminder_sent_at TIMESTAMP WITH TIME ZONE;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='tasks' AND column_name='reminder_sent_at') THEN
+        ALTER TABLE tasks ADD COLUMN reminder_sent_at TIMESTAMP WITH TIME ZONE;
+    END IF;
+END $$;
+
