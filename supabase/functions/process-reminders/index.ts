@@ -1,5 +1,4 @@
 
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -33,6 +32,9 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('📨 Request body:', body);
 
     const now = new Date();
+    // Add a small buffer (30 seconds) to catch reminders that might be slightly past due
+    const reminderCheckTime = new Date(now.getTime() + 30 * 1000);
+    
     const result: ReminderProcessingResult = {
       taskReminders: 0,
       eventReminders: 0,
@@ -40,16 +42,18 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     console.log('⏰ Processing reminders at:', now.toISOString());
+    console.log('📅 Checking reminders up to:', reminderCheckTime.toISOString());
 
-    // Process Task Reminders - FIXED: Remove status filter to send reminders for tasks in any status
+    // Process Task Reminders - FIXED: No status filtering, improved timing check
     try {
       const { data: dueTasks, error: taskError } = await supabase
         .from('tasks')
         .select('*')
         .not('reminder_at', 'is', null)
-        .lte('reminder_at', now.toISOString())
+        .lte('reminder_at', reminderCheckTime.toISOString()) // Use buffer time
         .is('reminder_sent_at', null) // Only unsent reminders
-        .eq('archived', false); // Only non-archived tasks
+        .eq('archived', false) // Only non-archived tasks
+        .eq('email_reminder_enabled', true); // Only tasks with email reminder enabled
 
       if (taskError) {
         console.error('❌ Error fetching due tasks:', taskError);
@@ -59,6 +63,8 @@ const handler = async (req: Request): Promise<Response> => {
         
         for (const task of dueTasks || []) {
           try {
+            console.log(`🔍 Processing task: ${task.title} (status: ${task.status}, reminder_at: ${task.reminder_at})`);
+            
             // Send email reminder using existing function
             const { error: emailError } = await supabase.functions.invoke('send-task-reminder-email', {
               body: { taskId: task.id }
@@ -68,19 +74,8 @@ const handler = async (req: Request): Promise<Response> => {
               console.error(`❌ Error sending task email for ${task.id}:`, emailError);
               result.errors.push(`Task ${task.id}: ${emailError.message}`);
             } else {
-              // Mark reminder as sent
-              const { error: updateError } = await supabase
-                .from('tasks')
-                .update({ reminder_sent_at: now.toISOString() })
-                .eq('id', task.id);
-
-              if (updateError) {
-                console.error(`❌ Error updating task ${task.id}:`, updateError);
-                result.errors.push(`Task update ${task.id}: ${updateError.message}`);
-              } else {
-                console.log(`✅ Task reminder sent successfully for: ${task.title}`);
-                result.taskReminders++;
-              }
+              console.log(`✅ Task reminder sent successfully for: ${task.title}`);
+              result.taskReminders++;
             }
           } catch (error) {
             console.error(`❌ Exception processing task ${task.id}:`, error);
@@ -100,7 +95,7 @@ const handler = async (req: Request): Promise<Response> => {
         .select('*')
         .not('reminder_at', 'is', null)
         .eq('email_reminder_enabled', true)
-        .lte('reminder_at', now.toISOString())
+        .lte('reminder_at', reminderCheckTime.toISOString()) // Use buffer time
         .is('reminder_sent_at', null) // Only unsent reminders
         .is('deleted_at', null);
 
@@ -112,6 +107,8 @@ const handler = async (req: Request): Promise<Response> => {
         
         for (const event of dueEvents || []) {
           try {
+            console.log(`🔍 Processing event: ${event.title} (reminder_at: ${event.reminder_at})`);
+            
             // Send email reminder using existing function
             const { error: emailError } = await supabase.functions.invoke('send-event-reminder-email', {
               body: { eventId: event.id }
@@ -121,19 +118,8 @@ const handler = async (req: Request): Promise<Response> => {
               console.error(`❌ Error sending event email for ${event.id}:`, emailError);
               result.errors.push(`Event ${event.id}: ${emailError.message}`);
             } else {
-              // Mark reminder as sent
-              const { error: updateError } = await supabase
-                .from('events')
-                .update({ reminder_sent_at: now.toISOString() })
-                .eq('id', event.id);
-
-              if (updateError) {
-                console.error(`❌ Error updating event ${event.id}:`, updateError);
-                result.errors.push(`Event update ${event.id}: ${updateError.message}`);
-              } else {
-                console.log(`✅ Event reminder sent successfully for: ${event.title}`);
-                result.eventReminders++;
-              }
+              console.log(`✅ Event reminder sent successfully for: ${event.title}`);
+              result.eventReminders++;
             }
           } catch (error) {
             console.error(`❌ Exception processing event ${event.id}:`, error);
@@ -184,4 +170,3 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 serve(handler);
-
