@@ -116,17 +116,21 @@ export const EventReminderNotifications = () => {
       console.log("📧 JSON stringified body:", jsonBody);
       console.log("📧 JSON body length:", jsonBody.length);
       
-      const { data, error } = await supabase.functions.invoke('send-event-reminder-email', {
-        body: jsonBody,
+      const functionUrl = 'https://mrueqpffzauvdxmuwhfa.supabase.co/functions/v1/send-event-reminder-email';
+
+      const response = await fetch(functionUrl, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: jsonBody,
       });
 
-      console.log("📧 Edge function response:", { data, error });
+      const data = await response.json();
+      console.log("📧 Edge function response:", { data, status: response.status });
 
-      if (error) {
-        console.error("❌ Error sending event email reminder:", error);
+      if (!response.ok) {
+        console.error("❌ Error sending event email reminder:", data);
         toast({
           title: "Email Error",
           description: "Failed to send event email reminder",
