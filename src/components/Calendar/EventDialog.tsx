@@ -580,6 +580,21 @@ export const EventDialog = ({
       return;
     }
 
+    // Validate reminder is before event start time
+    if (emailReminderEnabled && reminderAt) {
+      const reminderTime = new Date(localDateTimeToISOString(reminderAt));
+      const eventStartTime = new Date(localDateTimeToISOString(startDate));
+      
+      if (reminderTime >= eventStartTime) {
+        toast({
+          title: t("common.error"),
+          description: "Reminder time must be before the event start time",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     if (isRecurring) {
       if (!repeatPattern || !repeatUntil) {
         toast({
