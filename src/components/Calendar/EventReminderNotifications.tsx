@@ -65,8 +65,10 @@ export const EventReminderNotifications = () => {
         throw error;
       }
       
-      console.log('📅 Event reminders fetched:', data?.length || 0);
-      return data || [];
+      // Filter out events with invalid or missing IDs
+      const filtered = (data || []).filter(ev => !!ev.id && typeof ev.id === 'string');
+      console.log('📅 Event reminders fetched:', data?.length || 0, 'filtered:', filtered.length);
+      return filtered;
     },
     enabled: !!user?.id,
     refetchInterval: 30000, // Refetch every 30 seconds
@@ -90,12 +92,12 @@ export const EventReminderNotifications = () => {
   // Send email reminder - FIXED: Properly pass eventId with JSON.stringify
   const sendEmailReminder = async (event: any) => {
     try {
-      // Validate event.id exists
-      if (!event.id) {
-        console.error('❌ Event missing id:', event);
+      // Validate event object and ID
+      if (!event || typeof event !== "object" || !event.id || typeof event.id !== "string") {
+        console.error('❌ sendEmailReminder called with invalid event:', event);
         toast({
           title: "Email Error",
-          description: "Event ID is missing",
+          description: "Event ID is missing or invalid.",
           variant: "destructive",
         });
         return false;
@@ -170,6 +172,12 @@ export const EventReminderNotifications = () => {
       let notificationsTriggered = 0;
       
       for (const event of eventsToCheck) {
+        // ADD THIS GUARD: Validate event object before processing
+        if (!event || typeof event !== "object" || !event.id || typeof event.id !== "string") {
+          console.error('❌ Skipping invalid event object, missing or invalid "id":', event);
+          continue;
+        }
+        
         const reminderTime = new Date(event.reminder_at);
         const reminderKey = `${event.id}-${event.reminder_at}`;
         
