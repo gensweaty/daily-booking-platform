@@ -1,4 +1,3 @@
-
 import { SimpleFileDisplay } from "../shared/SimpleFileDisplay";
 import { FileUploadField } from "../shared/FileUploadField";
 import { useQuery } from "@tanstack/react-query";
@@ -107,13 +106,33 @@ export const TaskFormFields = ({
 
     setReminderAt(newReminder);
     
-    // CRITICAL: Always enable email reminder when setting a reminder
-    // This ensures reminders work regardless of task status changes
+    // CRITICAL: Force enable email reminder when reminder is set and keep it enabled
     if (newReminder) {
-      console.log('🔔 Enabling email reminder for task with reminder set at:', newReminder);
+      console.log('🔔 CRITICAL: Enabling email reminder for task with reminder set at:', newReminder);
       setEmailReminder(true);
+      
+      // If editing existing task, immediately update the database to persist the setting
+      if (editingTask?.id) {
+        console.log('🔄 Updating existing task to preserve email reminder setting');
+        try {
+          const { error } = await supabase
+            .from('tasks')
+            .update({ 
+              reminder_at: newReminder,
+              email_reminder_enabled: true // Force enable regardless of current status
+            })
+            .eq('id', editingTask.id);
+            
+          if (error) {
+            console.error('❌ Failed to update task reminder settings:', error);
+          } else {
+            console.log('✅ Successfully updated task reminder settings in database');
+          }
+        } catch (error) {
+          console.error('❌ Exception updating task reminder:', error);
+        }
+      }
     } else {
-      // Only reset email reminder if reminder is completely removed
       console.log('🔕 Disabling email reminder as reminder was removed');
       setEmailReminder(false);
     }

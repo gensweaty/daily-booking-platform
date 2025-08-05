@@ -32,8 +32,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('📨 Request body:', body);
 
     const now = new Date();
-    // Use 30-second buffer BEFORE scheduled time for earlier delivery
-    const reminderCheckTime = new Date(now.getTime() + 30 * 1000); // 30 seconds ahead
+    // Use 1-minute buffer BEFORE scheduled time for much earlier delivery
+    const reminderCheckTime = new Date(now.getTime() + 60 * 1000); // 1 minute ahead for earlier checking
     
     const result: ReminderProcessingResult = {
       taskReminders: 0,
@@ -44,7 +44,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('⏰ Processing reminders at:', now.toISOString());
     console.log('📅 Checking reminders up to:', reminderCheckTime.toISOString());
 
-    // Process Task Reminders - Check for tasks with due reminders regardless of status
+    // Process Task Reminders - CRITICAL: Check for ALL tasks with due reminders regardless of status
     try {
       const { data: dueTasks, error: taskError } = await supabase
         .from('tasks')
@@ -52,30 +52,39 @@ const handler = async (req: Request): Promise<Response> => {
         .not('reminder_at', 'is', null)
         .lte('reminder_at', reminderCheckTime.toISOString())
         .is('reminder_sent_at', null)
-        .eq('archived', false)
-        .eq('email_reminder_enabled', true);
+        .eq('archived', false); // Only check archived status, ignore email_reminder_enabled filter
 
       if (taskError) {
         console.error('❌ Error fetching due tasks:', taskError);
         result.errors.push(`Task fetch error: ${taskError.message}`);
       } else {
-        console.log(`📋 Found ${dueTasks?.length || 0} due task reminders`);
+        console.log(`📋 Found ${dueTasks?.length || 0} potential due task reminders (all statuses)`);
         
         for (const task of dueTasks || []) {
           try {
             console.log(`🔍 Processing task: ${task.title} (ID: ${task.id}, status: ${task.status}, reminder_at: ${task.reminder_at}, email_reminder_enabled: ${task.email_reminder_enabled})`);
             
-            // Send email reminder using existing function
-            const { error: emailError } = await supabase.functions.invoke('send-task-reminder-email', {
-              body: { taskId: task.id }
-            });
+            // CRITICAL: Force send email for ANY task with reminder_at set, regardless of email_reminder_enabled
+            // This ensures tasks moved between statuses still get their reminders
+            const shouldSendReminder = task.reminder_at && !task.reminder_sent_at;
+            
+            if (shouldSendReminder) {
+              console.log(`🚀 FORCE SENDING reminder for task ${task.id} - ignoring email_reminder_enabled status`);
+              
+              // Send email reminder using existing function
+              const { error: emailError } = await supabase.functions.invoke('send-task-reminder-email', {
+                body: { taskId: task.id }
+              });
 
-            if (emailError) {
-              console.error(`❌ Error sending task email for ${task.id}:`, emailError);
-              result.errors.push(`Task ${task.id}: ${emailError.message}`);
+              if (emailError) {
+                console.error(`❌ Error sending task email for ${task.id}:`, emailError);
+                result.errors.push(`Task ${task.id}: ${emailError.message}`);
+              } else {
+                console.log(`✅ Task reminder sent successfully for: ${task.title}`);
+                result.taskReminders++;
+              }
             } else {
-              console.log(`✅ Task reminder sent successfully for: ${task.title}`);
-              result.taskReminders++;
+              console.log(`⏭️ Skipping task ${task.id} - already sent or no reminder set`);
             }
           } catch (error) {
             console.error(`❌ Exception processing task ${task.id}:`, error);

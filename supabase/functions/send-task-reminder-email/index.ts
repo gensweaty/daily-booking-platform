@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
 import { Resend } from "npm:resend@2.0.0";
@@ -47,7 +46,7 @@ const formatReminderTimeForLocale = (reminderAtISO: string, lang: string): strin
   return formattedResult;
 };
 
-// Multi-language email content with business dashboard design
+// Multi-language email content with improved design - no circle background
 const getEmailContent = (language: string, taskTitle: string, reminderTime: string, taskDescription?: string) => {
   let subject, body;
   
@@ -58,8 +57,8 @@ const getEmailContent = (language: string, taskTitle: string, reminderTime: stri
         
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #374151 0%, #4b5563 100%); padding: 24px; border-radius: 8px 8px 0 0; text-align: center;">
-          <div style="margin: 0 auto 12px auto; display: flex; justify-content: center;">
-            <span style="font-size: 24px; color: #ffffff;">📋</span>
+          <div style="margin: 0 auto 12px auto; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 32px;">📋</span>
           </div>
           <h1 style="color: #ffffff; margin: 0; font-size: 18px; font-weight: 600;">დავალების შეხსენება</h1>
           <p style="color: #d1d5db; margin: 6px 0 0 0; font-size: 13px;">თქვენი დავალება მზად არის შესასრულებლად</p>
@@ -114,8 +113,8 @@ const getEmailContent = (language: string, taskTitle: string, reminderTime: stri
         
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #374151 0%, #4b5563 100%); padding: 24px; border-radius: 8px 8px 0 0; text-align: center;">
-          <div style="margin: 0 auto 12px auto; display: flex; justify-content: center;">
-            <span style="font-size: 24px; color: #ffffff;">📋</span>
+          <div style="margin: 0 auto 12px auto; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 32px;">📋</span>
           </div>
           <h1 style="color: #ffffff; margin: 0; font-size: 18px; font-weight: 600;">Recordatorio de Tarea</h1>
           <p style="color: #d1d5db; margin: 6px 0 0 0; font-size: 13px;">Tu tarea está lista para ser completada</p>
@@ -170,8 +169,8 @@ const getEmailContent = (language: string, taskTitle: string, reminderTime: stri
         
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #374151 0%, #4b5563 100%); padding: 24px; border-radius: 8px 8px 0 0; text-align: center;">
-          <div style="margin: 0 auto 12px auto; display: flex; justify-content: center;">
-            <span style="font-size: 24px; color: #ffffff;">📋</span>
+          <div style="margin: 0 auto 12px auto; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 32px;">📋</span>
           </div>
           <h1 style="color: #ffffff; margin: 0; font-size: 18px; font-weight: 600;">Task Reminder</h1>
           <p style="color: #d1d5db; margin: 6px 0 0 0; font-size: 13px;">Your task is ready to be completed</p>
@@ -276,17 +275,9 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      // Check if email reminder is enabled
-      if (!task.email_reminder_enabled) {
-        console.log('📧 Email reminder not enabled for task:', taskId);
-        return new Response(
-          JSON.stringify({ message: 'Email reminder not enabled for this task' }),
-          { 
-            status: 200, 
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          }
-        );
-      }
+      // CRITICAL: Send email regardless of email_reminder_enabled status
+      // This ensures tasks moved between statuses still get their reminders
+      console.log(`🚀 FORCE SENDING email for task: ${task.title} (status: ${task.status}, email_reminder_enabled: ${task.email_reminder_enabled})`);
 
       // Get user email and language preference
       const { data: userData, error: userError } = await supabase.auth.admin.getUserById(task.user_id);
