@@ -85,6 +85,25 @@ export const PublicBoardSettings = () => {
       return;
     }
 
+    // Check for slug uniqueness if it's a new board or slug has changed
+    if (isPublic && slug.trim() && (!publicBoard || publicBoard.slug !== slug.trim())) {
+      const { data: existingBoard } = await supabase
+        .from('public_boards')
+        .select('id')
+        .eq('slug', slug.trim())
+        .neq('user_id', user.id)
+        .single();
+
+      if (existingBoard) {
+        toast({
+          title: t("common.error"),
+          description: "This URL is already taken. Please choose another one.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       if (publicBoard) {
@@ -214,7 +233,7 @@ export const PublicBoardSettings = () => {
                       id="slug"
                       type="text"
                       value={slug}
-                      onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                      onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/--+/g, '-'))}
                       placeholder={t("publicBoard.enterSlug")}
                       className="flex-1"
                     />
@@ -236,9 +255,20 @@ export const PublicBoardSettings = () => {
                     placeholder={t("publicBoard.enterMagicWord")}
                     className="w-full"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {t("publicBoard.magicWordDescription")}
-                  </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(magicWord)}
+                      disabled={!magicWord.trim()}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <p className="text-xs text-muted-foreground flex-1">
+                      {t("publicBoard.magicWordDescription")}
+                    </p>
+                  </div>
                 </div>
               </motion.div>
             )}
