@@ -446,7 +446,8 @@ export const translations: TranslationType = {
     daysAgo: "days ago",
     schedule: "Schedule",
     created: "Created:",
-    lastUpdated: "Last updated:"
+    lastUpdated: "Last updated:",
+    by: "by"
   },
   auth: {
     welcome: "Welcome to SmartBookly",

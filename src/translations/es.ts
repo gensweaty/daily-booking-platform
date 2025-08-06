@@ -433,7 +433,8 @@ export const translations: TranslationType = {
     daysAgo: "hace días",
     schedule: "Cronograma",
     created: "Creado:",
-    lastUpdated: "Última actualización:"
+    lastUpdated: "Última actualización:",
+    by: "por"
   },
   auth: {
     welcome: "Bienvenido a SmartBookly",

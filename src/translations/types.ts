@@ -440,6 +440,7 @@ export interface TranslationType {
     schedule: string;
     created: string;
     lastUpdated: string;
+    by: string;
   };
   auth: {
     welcome: string;

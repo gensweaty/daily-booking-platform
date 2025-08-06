@@ -212,10 +212,11 @@ export const PublicBoard = () => {
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/70 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">S</span>
-                </div>
-                <span className="font-bold text-xl text-foreground">SmartBookly</span>
+                <img 
+                  src="/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                  alt="SmartBookly Logo" 
+                  className="h-8 w-auto"
+                />
               </div>
               <div className="flex items-center gap-2">
                 <LanguageSwitcher />
@@ -304,11 +305,11 @@ export const PublicBoard = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/70 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">S</span>
-              </div>
-              <span className="font-bold text-xl text-foreground">SmartBookly</span>
-              <span className="text-sm text-muted-foreground ml-2">- {t("publicBoard.public")}</span>
+              <img 
+                src="/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                alt="SmartBookly Logo" 
+                className="h-8 w-auto"
+              />
             </div>
             <div className="flex items-center gap-2">
               <LanguageSwitcher />

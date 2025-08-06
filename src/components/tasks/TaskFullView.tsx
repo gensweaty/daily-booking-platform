@@ -201,11 +201,25 @@ export const TaskFullView = ({
             <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-muted-foreground">
               <div className="flex items-center">
                 <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                <span className="truncate">{t("common.created")} {format(parseISO(task.created_at), 'MM/dd/yy HH:mm')}</span>
+                <span className="truncate">
+                  {t("common.created")} {format(parseISO(task.created_at), 'MM/dd/yy HH:mm')}
+                  {task.created_by_name && (
+                    <span className="ml-1">
+                      {t("common.by")} {task.created_by_type === 'admin' ? task.created_by_name : task.created_by_name}
+                    </span>
+                  )}
+                </span>
               </div>
               <div className="flex items-center">
                 <History className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                <span className="truncate">{t("common.lastUpdated")} {format(parseISO(task.updated_at || task.created_at), 'MM/dd/yy HH:mm')}</span>
+                <span className="truncate">
+                  {t("common.lastUpdated")} {format(parseISO(task.updated_at || task.created_at), 'MM/dd/yy HH:mm')}
+                  {task.last_edited_by_name && task.last_edited_at && (
+                    <span className="ml-1">
+                      {t("common.by")} {task.last_edited_by_type === 'admin' ? task.last_edited_by_name : task.last_edited_by_name}
+                    </span>
+                  )}
+                </span>
               </div>
             </div>
           </div>

@@ -14,6 +14,11 @@ export interface Task {
   archived_at?: string;
   email_reminder_enabled?: boolean;
   reminder_sent_at?: string;
+  created_by_name?: string;
+  created_by_type?: string;
+  last_edited_by_name?: string;
+  last_edited_by_type?: string;
+  last_edited_at?: string;
 }
 
 export interface Note {
