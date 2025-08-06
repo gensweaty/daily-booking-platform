@@ -13,7 +13,12 @@ export const createTask = async (task: Omit<Task, 'id' | 'created_at'>) => {
       position: task.position,
       deadline_at: task.deadline_at,
       reminder_at: task.reminder_at,
-      email_reminder_enabled: task.email_reminder_enabled || false
+      email_reminder_enabled: task.email_reminder_enabled || false,
+      created_by_name: task.created_by_name,
+      created_by_type: task.created_by_type,
+      last_edited_by_name: task.last_edited_by_name,
+      last_edited_by_type: task.last_edited_by_type,
+      last_edited_at: task.last_edited_at
     }])
     .select()
     .single();
@@ -36,7 +41,10 @@ export const updateTask = async (id: string, updates: Partial<Task>) => {
       position: updates.position,
       deadline_at: updates.deadline_at,
       reminder_at: updates.reminder_at,
-      email_reminder_enabled: updates.email_reminder_enabled || false
+      email_reminder_enabled: updates.email_reminder_enabled || false,
+      last_edited_by_name: updates.last_edited_by_name,
+      last_edited_by_type: updates.last_edited_by_type,
+      last_edited_at: updates.last_edited_at
     })
     .eq('id', id)
     .select()

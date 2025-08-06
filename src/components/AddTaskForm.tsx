@@ -114,12 +114,28 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName }: Ad
         deadline_at: deadline && deadline.trim() !== '' ? deadline : null,
         reminder_at: reminderAt && reminderAt.trim() !== '' ? reminderAt : null,
         email_reminder_enabled: emailReminder && reminderAt ? emailReminder : false,
-        ...(externalUserName && {
+        ...(externalUserName ? {
+          // External user creating/editing
           created_by_type: 'external_user',
           created_by_name: externalUserName,
           last_edited_by_type: 'external_user',
           last_edited_by_name: externalUserName,
           last_edited_at: new Date().toISOString()
+        } : {
+          // Admin user creating/editing
+          ...(editingTask ? {
+            // Editing existing task
+            last_edited_by_type: 'admin',
+            last_edited_by_name: user.email?.split('@')[0] || 'Admin',
+            last_edited_at: new Date().toISOString()
+          } : {
+            // Creating new task
+            created_by_type: 'admin',
+            created_by_name: user.email?.split('@')[0] || 'Admin',
+            last_edited_by_type: 'admin',
+            last_edited_by_name: user.email?.split('@')[0] || 'Admin',
+            last_edited_at: new Date().toISOString()
+          })
         })
       };
 

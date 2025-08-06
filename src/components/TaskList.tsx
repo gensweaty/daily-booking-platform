@@ -97,7 +97,12 @@ export const TaskList = () => {
     
     updateTaskMutation.mutate({
       id: taskId,
-      updates: { status: dbStatus },
+      updates: { 
+        status: dbStatus,
+        last_edited_by_type: 'admin',
+        last_edited_by_name: user?.email?.split('@')[0] || 'Admin',
+        last_edited_at: new Date().toISOString()
+      },
     });
   };
 
