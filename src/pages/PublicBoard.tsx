@@ -61,22 +61,39 @@ export const PublicBoard = () => {
         .select('*')
         .eq('slug', slug)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
-      if (error || !data) {
-        console.error('Board not found or not active:', error);
+      if (error) {
+        console.error('Database error checking board access:', error);
         toast({
           title: t("common.error"),
-          description: t("publicBoard.invalidAccess"),
+          description: "Error accessing board. Please try again.",
           variant: "destructive",
         });
         navigate("/");
         return;
       }
 
+      if (!data) {
+        console.error('Board not found or not active for slug:', slug);
+        toast({
+          title: t("common.error"),
+          description: "Board not found or not accessible",
+          variant: "destructive",
+        });
+        navigate("/");
+        return;
+      }
+
+      console.log('Board found:', data);
       setBoardData(data);
     } catch (error) {
       console.error('Error checking board access:', error);
+      toast({
+        title: t("common.error"), 
+        description: "Error accessing board. Please try again.",
+        variant: "destructive",
+      });
       navigate("/");
     } finally {
       setIsLoading(false);
