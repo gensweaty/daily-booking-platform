@@ -1037,6 +1037,36 @@ export type Database = {
         }
         Relationships: []
       }
+      sub_users: {
+        Row: {
+          board_owner_id: string
+          created_at: string
+          email: string
+          fullname: string
+          id: string
+          last_login_at: string
+          updated_at: string
+        }
+        Insert: {
+          board_owner_id: string
+          created_at?: string
+          email: string
+          fullname: string
+          id?: string
+          last_login_at?: string
+          updated_at?: string
+        }
+        Update: {
+          board_owner_id?: string
+          created_at?: string
+          email?: string
+          fullname?: string
+          id?: string
+          last_login_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       subscription_plans: {
         Row: {
           created_at: string | null

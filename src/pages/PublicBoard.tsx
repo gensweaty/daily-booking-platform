@@ -35,6 +35,7 @@ export const PublicBoard = () => {
   const [boardData, setBoardData] = useState<PublicBoardData | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
 
   useEffect(() => {
     if (slug) {
@@ -180,7 +181,7 @@ export const PublicBoard = () => {
     }
   };
 
-  const handleAuthentication = async () => {
+  const handleLogin = async () => {
     if (!fullName.trim() || !email.trim() || !magicWord.trim() || !boardData) {
       let description = "";
       if (!fullName.trim()) description = t("publicBoard.enterFullName");
@@ -206,30 +207,8 @@ export const PublicBoard = () => {
       return;
     }
 
-    // Check rate limiting (5 attempts per 15 minutes)
-    const rateLimitKey = `public-board-attempts-${slug}`;
-    const attempts = JSON.parse(localStorage.getItem(rateLimitKey) || '[]');
-    const now = Date.now();
-    const fifteenMinutesAgo = now - (15 * 60 * 1000);
-    
-    // Filter out attempts older than 15 minutes
-    const recentAttempts = attempts.filter((attempt: number) => attempt > fifteenMinutesAgo);
-    
-    if (recentAttempts.length >= 5) {
-      toast({
-        title: t("common.error"),
-        description: "Too many attempts. Please try again in 15 minutes.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     // Validate magic word (case-sensitive exact match)
     if (magicWord.trim() !== boardData.magic_word) {
-      // Record failed attempt
-      recentAttempts.push(now);
-      localStorage.setItem(rateLimitKey, JSON.stringify(recentAttempts));
-      
       toast({
         title: t("common.error"),
         description: t("publicBoard.invalidAccess"),
@@ -238,11 +217,19 @@ export const PublicBoard = () => {
       return;
     }
 
-    // Clear rate limiting on successful auth
-    localStorage.removeItem(rateLimitKey);
-
     setIsSubmitting(true);
     try {
+      // Update last login for existing sub user
+      const { error: updateError } = await supabase
+        .from('sub_users')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('board_owner_id', boardData.user_id)
+        .eq('email', email.trim());
+
+      if (updateError && updateError.code !== 'PGRST116') {
+        console.error('Error updating last login:', updateError);
+      }
+
       // Generate access token
       const token = `${boardData.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
@@ -271,10 +258,139 @@ export const PublicBoard = () => {
         description: t("publicBoard.welcomeToBoard"),
       });
     } catch (error) {
-      console.error('Error creating access:', error);
+      console.error('Error logging in:', error);
       toast({
         title: t("common.error"),
         description: t("publicBoard.invalidAccess"),
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRegister = async () => {
+    if (!fullName.trim() || !email.trim() || !magicWord.trim() || !boardData) {
+      let description = "";
+      if (!fullName.trim()) description = t("publicBoard.enterFullName");
+      else if (!email.trim()) description = "Please enter your email address";
+      else description = t("publicBoard.enterMagicWordForAccess");
+      
+      toast({
+        title: t("common.error"),
+        description,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      toast({
+        title: t("common.error"),
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate magic word (case-sensitive exact match)
+    if (magicWord.trim() !== boardData.magic_word) {
+      toast({
+        title: t("common.error"),
+        description: t("publicBoard.invalidAccess"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Check if max sub users limit is reached
+      const { data: existingSubUsers, error: countError } = await supabase
+        .from('sub_users')
+        .select('id')
+        .eq('board_owner_id', boardData.user_id);
+
+      if (countError) throw countError;
+
+      if (existingSubUsers && existingSubUsers.length >= 10) {
+        toast({
+          title: t("common.error"),
+          description: "Maximum number of sub users (10) reached for this board",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Try to create new sub user
+      const { error: subUserError } = await supabase
+        .from('sub_users')
+        .insert({
+          board_owner_id: boardData.user_id,
+          fullname: fullName.trim(),
+          email: email.trim(),
+        });
+
+      if (subUserError) {
+        if (subUserError.code === '23505') { // Unique constraint violation
+          if (subUserError.message.includes('unique_email_per_owner')) {
+            toast({
+              title: t("common.error"),
+              description: "A user with this email is already registered for this board",
+              variant: "destructive",
+            });
+          } else if (subUserError.message.includes('unique_fullname_per_owner')) {
+            toast({
+              title: t("common.error"),
+              description: "A user with this name is already registered for this board",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: t("common.error"),
+              description: "User already exists",
+              variant: "destructive",
+            });
+          }
+          return;
+        }
+        throw subUserError;
+      }
+
+      // Generate access token
+      const token = `${boardData.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Create access record
+      const { error } = await supabase
+        .from('public_board_access')
+        .insert({
+          board_id: boardData.id,
+          access_token: token,
+          external_user_name: fullName.trim(),
+          external_user_email: email.trim(),
+        });
+
+      if (error) throw error;
+
+      // Store token with timestamp and authenticate
+      localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
+        token,
+        timestamp: Date.now()
+      }));
+      setAccessToken(token);
+      setIsAuthenticated(true);
+
+      toast({
+        title: t("common.success"),
+        description: "Successfully registered and logged in to the board!",
+      });
+    } catch (error) {
+      console.error('Error registering:', error);
+      toast({
+        title: t("common.error"),
+        description: "Failed to register. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -329,10 +445,13 @@ export const PublicBoard = () => {
                   <Globe className="h-8 w-8 text-primary" />
                 </div>
                 <CardTitle className="text-2xl font-bold">
-                  {t("publicBoard.accessBoard")}
+                  {isRegisterMode ? "Register for Board" : t("publicBoard.accessBoard")}
                 </CardTitle>
                 <p className="text-muted-foreground">
-                  {t("publicBoard.enterMagicWordForAccess")}
+                  {isRegisterMode 
+                    ? "Create a new account to access this board"
+                    : t("publicBoard.enterMagicWordForAccess")
+                  }
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -375,24 +494,39 @@ export const PublicBoard = () => {
                     onChange={(e) => setMagicWord(e.target.value)}
                     placeholder={t("publicBoard.enterMagicWord")}
                     className="w-full"
-                    onKeyPress={(e) => e.key === 'Enter' && handleAuthentication()}
+                    onKeyPress={(e) => e.key === 'Enter' && (isRegisterMode ? handleRegister() : handleLogin())}
                   />
                 </div>
 
-                <Button
-                  onClick={handleAuthentication}
-                  disabled={isSubmitting || !fullName.trim() || !email.trim() || !magicWord.trim()}
-                  className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-                >
-                  {isSubmitting ? (
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      {t("common.loading")}
-                    </div>
-                  ) : (
-                    t("publicBoard.accessBoard")
-                  )}
-                </Button>
+                <div className="space-y-3">
+                  <Button
+                    onClick={isRegisterMode ? handleRegister : handleLogin}
+                    disabled={isSubmitting || !fullName.trim() || !email.trim() || !magicWord.trim()}
+                    className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                  >
+                    {isSubmitting ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {t("common.loading")}
+                      </div>
+                    ) : (
+                      isRegisterMode ? "Register" : "Login"
+                    )}
+                  </Button>
+
+                  <div className="text-center">
+                    <Button
+                      variant="ghost"
+                      onClick={() => setIsRegisterMode(!isRegisterMode)}
+                      className="text-sm text-muted-foreground hover:text-foreground"
+                    >
+                      {isRegisterMode 
+                        ? "Already have access? Login instead"
+                        : "Need to register? Create account"
+                      }
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </motion.div>

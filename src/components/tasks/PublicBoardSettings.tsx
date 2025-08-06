@@ -16,6 +16,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
 import { motion } from "framer-motion";
+import { SubUsersSection } from "./SubUsersSection";
 
 interface PublicBoard {
   id: string;
@@ -318,6 +319,11 @@ export const PublicBoardSettings = () => {
                   </Button>
                 </div>
               </motion.div>
+            )}
+
+            {/* Sub Users Section */}
+            {isPublic && publicBoard && publicBoard.is_active && (
+              <SubUsersSection boardOwnerId={user?.id} />
             )}
 
             {/* Save Button */}
