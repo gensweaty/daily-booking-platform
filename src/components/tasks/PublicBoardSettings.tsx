@@ -227,17 +227,14 @@ export const PublicBoardSettings = () => {
                   <Label htmlFor="slug" className="text-sm font-medium">
                     {t("publicBoard.boardSlug")} *
                   </Label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">{window.location.origin}/board/</span>
-                    <Input
-                      id="slug"
-                      type="text"
-                      value={slug}
-                      onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/--+/g, '-'))}
-                      placeholder={t("publicBoard.enterSlug")}
-                      className="flex-1"
-                    />
-                  </div>
+                  <Input
+                    id="slug"
+                    type="text"
+                    value={slug}
+                    onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/--+/g, '-'))}
+                    placeholder={t("publicBoard.enterSlug")}
+                    className="w-full"
+                  />
                   <p className="text-xs text-muted-foreground">
                     {t("publicBoard.slugDescription")}
                   </p>

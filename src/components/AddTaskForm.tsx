@@ -21,9 +21,11 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 interface AddTaskFormProps {
   onClose: () => void;
   editingTask?: Task | null;
+  boardUserId?: string;
+  externalUserName?: string;
 }
 
-const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
+const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName }: AddTaskFormProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [fileError, setFileError] = useState("");
@@ -107,11 +109,18 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         title,
         description,
         status: status,
-        user_id: user.id,
+        user_id: boardUserId || user.id,
         position: editingTask?.position || 0,
         deadline_at: deadline && deadline.trim() !== '' ? deadline : null,
         reminder_at: reminderAt && reminderAt.trim() !== '' ? reminderAt : null,
-        email_reminder_enabled: emailReminder && reminderAt ? emailReminder : false
+        email_reminder_enabled: emailReminder && reminderAt ? emailReminder : false,
+        ...(externalUserName && {
+          created_by_type: 'external_user',
+          created_by_name: externalUserName,
+          last_edited_by_type: 'external_user',
+          last_edited_by_name: externalUserName,
+          last_edited_at: new Date().toISOString()
+        })
       };
 
       let taskResponse;
@@ -148,7 +157,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
             file_path: filePath,
             content_type: selectedFile.type,
             size: selectedFile.size,
-            user_id: user.id,
+            user_id: boardUserId || user.id,
             source: 'task',
             parent_type: 'task'
           });
@@ -161,7 +170,11 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
         console.log('File record created successfully');
       }
 
-      await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      if (boardUserId) {
+        await queryClient.invalidateQueries({ queryKey: ['publicTasks', boardUserId] });
+      } else {
+        await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      }
       await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
       
       toast({
@@ -191,7 +204,11 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
 
     try {
       await archiveTask(editingTask.id);
-      await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      if (boardUserId) {
+        await queryClient.invalidateQueries({ queryKey: ['publicTasks', boardUserId] });
+      } else {
+        await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      }
       
       toast({
         title: t("common.success"),
@@ -231,7 +248,11 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
 
       if (error) throw error;
 
-      await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      if (boardUserId) {
+        await queryClient.invalidateQueries({ queryKey: ['publicTasks', boardUserId] });
+      } else {
+        await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      }
       
       toast({
         title: t("common.success"),
