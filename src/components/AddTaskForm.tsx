@@ -379,7 +379,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       <Sheet open={true} onOpenChange={onClose}>
         <SheetContent 
           side="bottom" 
-          className="h-[95vh] w-full p-0 overflow-y-auto"
+          className="h-[85vh] w-full p-0 overflow-y-auto"
         >
           {formContent}
         </SheetContent>
