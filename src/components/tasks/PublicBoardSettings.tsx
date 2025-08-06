@@ -39,12 +39,12 @@ export const PublicBoardSettings = () => {
   const publicUrl = publicBoard && publicBoard.slug ? 
     `${window.location.origin}/board/${publicBoard.slug}` : "";
 
-  // Fetch existing public board settings
+  // Fetch existing public board settings when component mounts or user changes
   useEffect(() => {
-    if (user && isOpen) {
+    if (user) {
       fetchPublicBoard();
     }
-  }, [user, isOpen]);
+  }, [user]);
 
   const fetchPublicBoard = async () => {
     if (!user) return;
