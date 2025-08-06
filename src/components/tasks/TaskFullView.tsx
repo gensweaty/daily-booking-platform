@@ -27,6 +27,9 @@ interface TaskFullViewProps {
   onArchive?: (id: string) => void;
   onRestore?: (id: string) => void;
   isArchived?: boolean;
+  // External user props for public boards
+  externalUserName?: string;
+  externalUserEmail?: string;
 }
 
 export const TaskFullView = ({ 
@@ -37,7 +40,9 @@ export const TaskFullView = ({
   onEdit, 
   onArchive, 
   onRestore, 
-  isArchived = false 
+  isArchived = false,
+  externalUserName,
+  externalUserEmail
 }: TaskFullViewProps) => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
@@ -236,7 +241,8 @@ export const TaskFullView = ({
                 taskId={task.id} 
                 isEditing={!isArchived}
                 username={user?.user_metadata?.full_name || user?.email || 'Admin'}
-                isExternal={false}
+                externalUserName={externalUserName}
+                isExternal={!!externalUserName}
                 userId={user?.id}
                 taskCreatorName={task.created_by_name}
               />

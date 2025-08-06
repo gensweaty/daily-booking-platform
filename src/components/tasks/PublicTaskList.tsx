@@ -298,6 +298,8 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
           isOpen={!!viewingTask}
           onClose={() => setViewingTask(null)}
           onEdit={handleEditFromView}
+          externalUserName={externalUserName}
+          externalUserEmail={externalUserEmail}
         />
       )}
     </>
