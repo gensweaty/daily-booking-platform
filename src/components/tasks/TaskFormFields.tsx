@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
 import { ensureNotificationPermission } from "@/utils/notificationUtils";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface TaskFormFieldsProps {
   title: string;
@@ -54,6 +55,7 @@ export const TaskFormFields = ({
   const { toast } = useToast();
   const { t } = useLanguage();
   const { validateDateTime } = useTimezoneValidation();
+  const isMobile = useMediaQuery("(max-width: 640px)");
   
   // Fixed query to properly fetch task files
   const { data: existingFiles = [], refetch } = useQuery({
@@ -145,21 +147,27 @@ export const TaskFormFields = ({
 
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
 
+  const sectionClassName = isMobile 
+    ? "bg-muted/30 rounded-lg p-2 border border-muted/40"
+    : "bg-muted/30 rounded-lg p-4 border border-muted/40";
+  
+  const containerClassName = isMobile ? "space-y-3" : "space-y-6";
+
   return (
-    <div className="space-y-6">
-      <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
+    <div className={containerClassName}>
+      <div className={sectionClassName}>
         <TaskFormTitle title={title} setTitle={setTitle} />
       </div>
       
-      <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
+      <div className={sectionClassName}>
         <TaskFormDescription description={description} setDescription={setDescription} />
       </div>
 
-      <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
+      <div className={sectionClassName}>
         <TaskStatusSelect status={status} setStatus={setStatus} />
       </div>
       
-      <div className="bg-muted/30 rounded-lg p-4 border border-muted/40 space-y-4">
+      <div className={`${sectionClassName} ${isMobile ? 'space-y-2' : 'space-y-4'}`}>
         <TaskDateTimePicker
           label="Deadline"
           value={deadline}
@@ -181,7 +189,7 @@ export const TaskFormFields = ({
       </div>
       
       {editingTask?.id && existingFiles && existingFiles.length > 0 && (
-        <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
+        <div className={sectionClassName}>
           <SimpleFileDisplay 
             files={existingFiles} 
             parentType="task"
@@ -192,7 +200,7 @@ export const TaskFormFields = ({
         </div>
       )}
       
-      <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
+      <div className={sectionClassName}>
         <FileUploadField 
           onChange={setSelectedFile}
           fileError={fileError}
