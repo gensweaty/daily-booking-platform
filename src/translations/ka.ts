@@ -1,5 +1,3 @@
-
-
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
@@ -135,7 +133,7 @@ export const translations: TranslationType = {
     removeDeadline: "ვადის წაშლა",
     removeReminder: "შეხსენების წაშლა",
     taskReminder: "დავალების შეხსენება",
-    archive: "არქივირება",
+    archive: "არქივი",
     archived: "არქივირებულია",
     archivedTasks: "არქივირებული დავალებები",
     backToTasks: "დავალებებზე დაბრუნება",
