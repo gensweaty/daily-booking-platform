@@ -255,7 +255,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   };
 
   const formContent = (
-    <div className={`w-full ${isMobile ? 'space-y-1 px-1 pb-0' : 'space-y-3 sm:space-y-6 p-2 sm:p-4'}`}>
+    <div className={`w-full ${isMobile ? 'space-y-1 px-1 pb-1' : 'space-y-3 sm:space-y-6 p-2 sm:p-4'}`}>
       <TaskFormHeader editingTask={editingTask} />
       <form onSubmit={handleSubmit} className={isMobile ? 'space-y-1' : 'space-y-3 sm:space-y-6'}>
         <TaskFormFields
@@ -379,7 +379,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       <Sheet open={true} onOpenChange={onClose}>
         <SheetContent 
           side="bottom" 
-          className="h-[85vh] w-full p-0 overflow-y-auto"
+          className="h-[90vh] w-full p-0 overflow-y-auto"
         >
           {formContent}
         </SheetContent>
