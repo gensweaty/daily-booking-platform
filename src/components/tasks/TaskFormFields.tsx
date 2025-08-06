@@ -6,6 +6,7 @@ import { Task } from "@/lib/types";
 import { TaskFormTitle } from "./TaskFormTitle";
 import { TaskFormDescription } from "./TaskFormDescription";
 import { TaskDateTimePicker } from "./TaskDateTimePicker";
+import { TaskStatusSelect } from "./TaskStatusSelect";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
@@ -27,6 +28,8 @@ interface TaskFormFieldsProps {
   setReminderAt: (reminder: string | undefined) => void;
   emailReminder: boolean;
   setEmailReminder: (enabled: boolean) => void;
+  status: Task['status'];
+  setStatus: (status: Task['status']) => void;
 }
 
 export const TaskFormFields = ({
@@ -45,6 +48,8 @@ export const TaskFormFields = ({
   setReminderAt,
   emailReminder,
   setEmailReminder,
+  status,
+  setStatus,
 }: TaskFormFieldsProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -148,6 +153,10 @@ export const TaskFormFields = ({
       
       <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
         <TaskFormDescription description={description} setDescription={setDescription} />
+      </div>
+
+      <div className="bg-muted/30 rounded-lg p-4 border border-muted/40">
+        <TaskStatusSelect status={status} setStatus={setStatus} />
       </div>
       
       <div className="bg-muted/30 rounded-lg p-4 border border-muted/40 space-y-4">

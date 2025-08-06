@@ -31,6 +31,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   const [deadline, setDeadline] = useState<string | undefined>();
   const [reminderAt, setReminderAt] = useState<string | undefined>();
   const [emailReminder, setEmailReminder] = useState(false);
+  const [status, setStatus] = useState<Task['status']>('todo');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -50,6 +51,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       setDeadline(editingTask.deadline_at);
       setReminderAt(editingTask.reminder_at);
       setEmailReminder(editingTask.email_reminder_enabled || false);
+      setStatus(editingTask.status);
     }
   }, [editingTask]);
 
@@ -104,7 +106,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       const taskData = {
         title,
         description,
-        status: editingTask ? editingTask.status : ('todo' as const),
+        status: status,
         user_id: user.id,
         position: editingTask?.position || 0,
         deadline_at: deadline && deadline.trim() !== '' ? deadline : null,
@@ -272,6 +274,8 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           setReminderAt={setReminderAt}
           emailReminder={emailReminder}
           setEmailReminder={setEmailReminder}
+          status={status}
+          setStatus={setStatus}
         />
         <div className="flex justify-end gap-1 sm:gap-2 pt-2 sm:pt-4 border-t border-muted/20">
           {editingTask && (
