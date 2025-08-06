@@ -55,7 +55,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
       const updatesWithMetadata = {
         ...updates,
         last_edited_by_type: 'external_user',
-        last_edited_by_name: externalUserName,
+        last_edited_by_name: `${externalUserName} (Sub User)`,
         last_edited_at: new Date().toISOString(),
       };
 

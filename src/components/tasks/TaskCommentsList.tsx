@@ -85,7 +85,7 @@ export const TaskCommentsList = ({
   const handleAddComment = () => {
     if (!newComment.trim()) return;
     
-    const creatorName = isExternal ? externalUserName || 'External User' : username || 'Admin';
+    const creatorName = isExternal ? `${externalUserName || 'External User'} (Sub User)` : username || 'Admin';
     const creatorType = isExternal ? 'external' : 'admin';
     
     createMutation.mutate({

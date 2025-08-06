@@ -150,10 +150,19 @@ export const PublicBoard = () => {
         .single();
 
       if (!error && data) {
-        setAccessToken(token);
-        setIsAuthenticated(true);
-        setFullName(data.external_user_name);
-        setEmail(data.external_user_email || "");
+      setAccessToken(token);
+      setIsAuthenticated(true);
+      setFullName(data.external_user_name);
+      setEmail(data.external_user_email || "");
+      
+      // Also update last login time for this sub user session
+      if (data.external_user_email) {
+        await supabase
+          .from('sub_users')
+          .update({ last_login_at: new Date().toISOString() })
+          .eq('board_owner_id', boardData.user_id)
+          .eq('email', data.external_user_email);
+      }
         
         // Update last accessed time
         await supabase
@@ -218,6 +227,25 @@ export const PublicBoard = () => {
 
     setIsSubmitting(true);
     try {
+      // Find the sub user to get their fullname and update last login
+      const { data: subUser, error: findError } = await supabase
+        .from('sub_users')
+        .select('fullname')
+        .eq('board_owner_id', boardData.user_id)
+        .eq('email', email.trim())
+        .single();
+
+      if (findError && findError.code !== 'PGRST116') {
+        console.error('Error finding sub user:', findError);
+        toast({
+          title: t("common.error"),
+          description: t("publicBoard.userNotFound"),
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       // Update last login for existing sub user
       const { error: updateError } = await supabase
         .from('sub_users')
@@ -229,6 +257,9 @@ export const PublicBoard = () => {
         console.error('Error updating last login:', updateError);
       }
 
+      // Use the fullname from sub_users table
+      const actualFullName = subUser?.fullname || email.trim();
+
       // Generate access token
       const token = `${boardData.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
@@ -238,7 +269,7 @@ export const PublicBoard = () => {
         .insert({
           board_id: boardData.id,
           access_token: token,
-          external_user_name: fullName.trim(),
+          external_user_name: actualFullName,
           external_user_email: email.trim(),
         });
 
@@ -251,6 +282,8 @@ export const PublicBoard = () => {
       }));
       setAccessToken(token);
       setIsAuthenticated(true);
+      setFullName(actualFullName);
+      setEmail(email.trim());
 
       toast({
         title: t("common.success"),
@@ -430,11 +463,11 @@ export const PublicBoard = () => {
                   <Globe className="h-8 w-8 text-primary" />
                 </div>
                 <CardTitle className="text-2xl font-bold">
-                  {isRegisterMode ? "Register for Board" : t("publicBoard.accessBoard")}
+                  {isRegisterMode ? t("publicBoard.registerForBoard") : t("publicBoard.accessBoard")}
                 </CardTitle>
                 <p className="text-muted-foreground">
                   {isRegisterMode 
-                    ? "Create a new account to access this board"
+                    ? t("publicBoard.createAccountToAccess")
                     : t("publicBoard.enterMagicWordForAccess")
                   }
                 </p>
@@ -498,9 +531,9 @@ export const PublicBoard = () => {
                         <Loader2 className="h-4 w-4 animate-spin" />
                         {t("common.loading")}
                       </div>
-                    ) : (
-                      isRegisterMode ? "Register" : "Login"
-                    )}
+                     ) : (
+                       isRegisterMode ? t("publicBoard.register") : t("publicBoard.login")
+                     )}
                   </Button>
 
                   <div className="text-center">
@@ -510,8 +543,8 @@ export const PublicBoard = () => {
                       className="text-sm text-muted-foreground hover:text-foreground"
                     >
                       {isRegisterMode 
-                        ? "Already have access? Login instead"
-                        : "Need to register? Create account"
+                        ? t("publicBoard.alreadyHaveAccess")
+                        : t("publicBoard.needToRegister")
                       }
                     </Button>
                   </div>

@@ -312,6 +312,14 @@ export interface TranslationType {
     subUsers: string;
     lastLogin: string;
     userAlreadyExists: string;
+    subUserAlreadyExists: string;
+    needToRegister: string;
+    alreadyHaveAccess: string;
+    registerForBoard: string;
+    createAccountToAccess: string;
+    userNotFound: string;
+    register: string;
+    login: string;
     magicWord: string;
     enterMagicWord: string;
     magicWordDescription: string;
