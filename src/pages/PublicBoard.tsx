@@ -41,7 +41,7 @@ export const PublicBoard = () => {
     } else {
       navigate("/");
     }
-  }, [slug, navigate]);
+  }, [slug]);
 
   useEffect(() => {
     // Check for existing access token
@@ -64,6 +64,7 @@ export const PublicBoard = () => {
         .single();
 
       if (error || !data) {
+        console.error('Board not found or not active:', error);
         toast({
           title: t("common.error"),
           description: t("publicBoard.invalidAccess"),

@@ -193,7 +193,7 @@ export const PublicBoardSettings = () => {
           </span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5" />
@@ -230,53 +230,57 @@ export const PublicBoardSettings = () => {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className="space-y-4"
+                className="space-y-6"
               >
-                <div className="space-y-2">
-                  <Label htmlFor="slug" className="text-sm font-medium">
-                    {t("publicBoard.boardSlug")} *
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">{window.location.origin}/board/</span>
-                    <Input
-                      id="slug"
-                      type="text"
-                      value={slug}
-                      onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/--+/g, '-'))}
-                      placeholder={t("publicBoard.enterSlug")}
-                      className="flex-1 min-w-0 text-base px-3 py-2"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {t("publicBoard.slugDescription")}
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="magic-word" className="text-sm font-medium">
-                    {t("publicBoard.magicWord")} *
-                  </Label>
-                  <Input
-                    id="magic-word"
-                    type="text"
-                    value={magicWord}
-                    onChange={(e) => setMagicWord(e.target.value)}
-                    placeholder={t("publicBoard.enterMagicWord")}
-                    className="w-full text-base px-3 py-2"
-                  />
-                  <div className="flex items-center gap-2 mt-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => copyToClipboard(magicWord)}
-                      disabled={!magicWord.trim()}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <p className="text-xs text-muted-foreground flex-1">
-                      {t("publicBoard.magicWordDescription")}
+                <div className="grid gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="slug" className="text-sm font-medium">
+                      {t("publicBoard.boardSlug")} *
+                    </Label>
+                    <div className="space-y-2">
+                      <div className="text-sm text-muted-foreground">
+                        {window.location.origin}/board/
+                      </div>
+                      <Input
+                        id="slug"
+                        type="text"
+                        value={slug}
+                        onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/--+/g, '-'))}
+                        placeholder={t("publicBoard.enterSlug")}
+                        className="w-full text-base px-3 py-2"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t("publicBoard.slugDescription")}
                     </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="magic-word" className="text-sm font-medium">
+                      {t("publicBoard.magicWord")} *
+                    </Label>
+                    <Input
+                      id="magic-word"
+                      type="text"
+                      value={magicWord}
+                      onChange={(e) => setMagicWord(e.target.value)}
+                      placeholder={t("publicBoard.enterMagicWord")}
+                      className="w-full text-base px-3 py-2"
+                    />
+                    <div className="flex items-center gap-2 mt-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => copyToClipboard(magicWord)}
+                        disabled={!magicWord.trim()}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <p className="text-xs text-muted-foreground flex-1">
+                        {t("publicBoard.magicWordDescription")}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </motion.div>
