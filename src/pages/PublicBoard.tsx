@@ -103,11 +103,21 @@ export const PublicBoard = () => {
           .update({ last_accessed_at: new Date().toISOString() })
           .eq('id', data.id);
       } else {
+        // Invalid or expired token - clear storage and show auth form
         localStorage.removeItem(`public-board-access-${slug}`);
+        setIsAuthenticated(false);
+        setAccessToken(null);
+        setFullName("");
+        setMagicWord("");
       }
     } catch (error) {
       console.error('Error verifying access:', error);
+      // Clear storage and show auth form on any error
       localStorage.removeItem(`public-board-access-${slug}`);
+      setIsAuthenticated(false);
+      setAccessToken(null);
+      setFullName("");
+      setMagicWord("");
     }
   };
 
