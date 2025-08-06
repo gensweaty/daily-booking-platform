@@ -242,6 +242,7 @@ export const TaskFullView = ({
                 isEditing={!isArchived}
                 username={user?.user_metadata?.full_name || user?.email || 'Admin'}
                 externalUserName={externalUserName}
+                externalUserEmail={externalUserEmail}
                 isExternal={!!externalUserName}
                 userId={user?.id}
                 taskCreatorName={task.created_by_name}

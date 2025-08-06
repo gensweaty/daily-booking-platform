@@ -18,6 +18,7 @@ interface TaskCommentsListProps {
   isEditing?: boolean;
   username?: string;
   externalUserName?: string;
+  externalUserEmail?: string;
   isExternal?: boolean;
   userId?: string;
   taskCreatorName?: string;
@@ -28,6 +29,7 @@ export const TaskCommentsList = ({
   isEditing = false, 
   username, 
   externalUserName, 
+  externalUserEmail,
   isExternal = false,
   userId,
   taskCreatorName
@@ -86,7 +88,7 @@ export const TaskCommentsList = ({
     if (!newComment.trim()) return;
     
     const creatorName = isExternal ? `${externalUserName || 'External User'} (Sub User)` : username || 'Admin';
-    const creatorType = isExternal ? 'external' : 'admin';
+    const creatorType = isExternal ? 'external_user' : 'admin';
     
     createMutation.mutate({
       task_id: taskId,

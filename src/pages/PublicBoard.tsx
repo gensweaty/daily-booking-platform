@@ -160,12 +160,17 @@ export const PublicBoard = () => {
         console.log('Updating last login during token validation for:', data.external_user_email);
         const { error: updateLoginError } = await supabase
           .from('sub_users')
-          .update({ last_login_at: new Date().toISOString() })
+          .update({ 
+            last_login_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
           .eq('board_owner_id', boardData.user_id)
           .eq('email', data.external_user_email);
           
         if (updateLoginError) {
           console.error('Error updating login time during token validation:', updateLoginError);
+        } else {
+          console.log('Successfully updated last login during token validation');
         }
       }
         
@@ -256,13 +261,18 @@ export const PublicBoard = () => {
         console.log('Updating last login for sub user:', subUser.id, subUser.email);
         const { error: updateError } = await supabase
           .from('sub_users')
-          .update({ last_login_at: new Date().toISOString() })
+          .update({ 
+            last_login_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
           .eq('id', subUser.id);
 
         if (updateError) {
           console.error('Error updating last login:', updateError);
         } else {
           console.log('Successfully updated last login for sub user');
+          // Force a small delay to ensure the update is committed
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
 

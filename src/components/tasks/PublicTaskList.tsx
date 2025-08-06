@@ -300,8 +300,8 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
           onEdit={handleEditFromView}
           onDelete={(id: string) => {
             // Sub-users can only delete tasks they created
-            const canDelete = viewingTask.created_by_type === 'external_user' && 
-                            viewingTask.created_by_name === `${externalUserName} (Sub User)`;
+            const canDelete = viewingTask?.created_by_type === 'external_user' && 
+                            viewingTask?.created_by_name === `${externalUserName} (Sub User)`;
             if (canDelete) {
               updateTaskMutation.mutate({
                 id,
