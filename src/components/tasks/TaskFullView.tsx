@@ -227,9 +227,15 @@ export const TaskFullView = ({
           </div>
 
           {/* Comments Section */}
-          <div className="mt-4">
-            <Separator className="mb-4" />
-            <TaskCommentsList taskId={task.id} />
+          <div className="mt-3">
+            <Separator className="mb-3" />
+            <TaskCommentsList 
+              taskId={task.id} 
+              isEditing={!isArchived}
+              username={task.created_by_name}
+              isExternal={false}
+              userId={task.user_id}
+            />
           </div>
 
           {/* Action Buttons - mobile optimized */}

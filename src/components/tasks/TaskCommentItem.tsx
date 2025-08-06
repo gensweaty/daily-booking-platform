@@ -134,8 +134,8 @@ export const TaskCommentItem = ({
   };
 
   return (
-    <Card className="mb-4">
-      <CardContent className="p-4">
+    <Card className="mb-3">
+      <CardContent className="p-3">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-muted-foreground" />

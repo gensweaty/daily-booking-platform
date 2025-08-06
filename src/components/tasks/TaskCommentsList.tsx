@@ -188,14 +188,9 @@ export const TaskCommentsList = ({
 
         {/* Comments list */}
         {comments.length === 0 ? (
-          <div className="text-center text-muted-foreground py-8">
-            <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>{t?.('taskComments.noComments') || 'No comments yet'}</p>
-            {isEditing && (
-              <p className="text-sm mt-1">
-                {t?.('taskComments.addFirstComment') || 'Add the first comment to start the conversation'}
-              </p>
-            )}
+          <div className="text-center text-muted-foreground py-4">
+            <MessageSquare className="h-5 w-5 mx-auto mb-1 opacity-50" />
+            <p className="text-sm">{t?.('taskComments.noComments') || 'No comments yet'}</p>
           </div>
         ) : (
           <ScrollArea className="max-h-[400px]">

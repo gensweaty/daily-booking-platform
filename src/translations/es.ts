@@ -1,6 +1,17 @@
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
+  taskComments: {
+    title: 'Comentarios',
+    addComment: 'Agregar Comentario',
+    noComments: 'Sin comentarios aún',
+    contentPlaceholder: 'Ingresa tu comentario...',
+    addAttachment: 'Agregar Adjunto',
+    attachments: 'Adjuntos',
+    createSuccess: 'Comentario agregado exitosamente',
+    updateSuccess: 'Comentario actualizado exitosamente',
+    deleteSuccess: 'Comentario eliminado exitosamente'
+  },
   nav: {
     signin: "Iniciar Sesión",
     startJourney: "Comenzar el Viaje", 

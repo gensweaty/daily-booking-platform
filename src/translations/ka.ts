@@ -1,6 +1,17 @@
 import { TranslationType } from './types';
 
 export const translations: TranslationType = {
+  taskComments: {
+    title: 'კომენტარები',
+    addComment: 'კომენტარის დამატება',
+    noComments: 'კომენტარები ჯერ არ არის',
+    contentPlaceholder: 'შეიყვანეთ თქვენი კომენტარი...',
+    addAttachment: 'ფაილის დამატება',
+    attachments: 'დანართები',
+    createSuccess: 'კომენტარი წარმატებით დაემატა',
+    updateSuccess: 'კომენტარი წარმატებით განახლდა',
+    deleteSuccess: 'კომენტარი წარმატებით წაიშალა'
+  },
   nav: {
     signin: "შესვლა",
     startJourney: "დაწყება",
