@@ -126,6 +126,8 @@ export const PublicTaskList = ({ boardUserId, externalUserName }: PublicTaskList
   useEffect(() => {
     if (!boardUserId) return;
 
+    console.log('Setting up real-time subscription for user:', boardUserId);
+    
     const channel = supabase
       .channel('public_tasks_changes')
       .on(
@@ -136,14 +138,18 @@ export const PublicTaskList = ({ boardUserId, externalUserName }: PublicTaskList
           table: 'tasks',
           filter: `user_id=eq.${boardUserId}`,
         },
-        () => {
+        (payload) => {
+          console.log('Real-time task change detected:', payload);
           // Invalidate and refetch tasks when changes occur
           queryClient.invalidateQueries({ queryKey: ['publicTasks', boardUserId] });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Real-time subscription status:', status);
+      });
 
     return () => {
+      console.log('Cleaning up real-time subscription');
       supabase.removeChannel(channel);
     };
   }, [boardUserId, queryClient]);
