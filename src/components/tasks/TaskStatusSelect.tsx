@@ -39,6 +39,18 @@ export const TaskStatusSelect = ({ status, setStatus }: TaskStatusSelectProps) =
 
   const currentOption = statusOptions.find(option => option.value === status);
 
+  // Get the proper status label based on language
+  const getStatusLabel = () => {
+    switch (language) {
+      case 'ka':
+        return 'სტატუსი';
+      case 'es':
+        return 'Estado';
+      default:
+        return 'Status';
+    }
+  };
+
   return (
     <div className="space-y-2">
       <Label 
@@ -46,7 +58,7 @@ export const TaskStatusSelect = ({ status, setStatus }: TaskStatusSelectProps) =
         className={cn(isGeorgian ? "font-georgian" : "")}
         style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
       >
-        <LanguageText>{t("tasks.status")}</LanguageText>
+        <LanguageText>{getStatusLabel()}</LanguageText>
       </Label>
       <Select value={status} onValueChange={setStatus}>
         <SelectTrigger 
