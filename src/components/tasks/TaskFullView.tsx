@@ -129,7 +129,7 @@ export const TaskFullView = ({
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6 bg-background border-border text-foreground">
+        <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto p-2 sm:p-6 bg-background border-border text-foreground">
           <DialogHeader className="pb-0 mt-1 sm:mt-3">
             {/* Highlighted Task Title */}
             <div className="p-2 sm:p-4 rounded-lg border border-input bg-muted/50">
@@ -229,15 +229,17 @@ export const TaskFullView = ({
           </div>
 
           {/* Comments Section */}
-          <div className="mt-3">
-            <Separator className="mb-3" />
-            <TaskCommentsList 
-              taskId={task.id} 
-              isEditing={!isArchived}
-              username={user?.user_metadata?.full_name || user?.email || 'Admin'}
-              isExternal={false}
-              userId={user?.id}
-            />
+          <div className="mt-2">
+            <Separator className="mb-2" />
+            <div className="px-1">
+              <TaskCommentsList 
+                taskId={task.id} 
+                isEditing={!isArchived}
+                username={user?.user_metadata?.full_name || user?.email || 'Admin'}
+                isExternal={false}
+                userId={user?.id}
+              />
+            </div>
           </div>
 
           {/* Action Buttons - mobile optimized */}

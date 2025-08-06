@@ -120,11 +120,11 @@ export const TaskCommentsList = ({
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-0 shadow-none">
+      <CardHeader className="p-3 pb-2">
         <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-lg">
-            <MessageSquare className="h-5 w-5" />
+          <div className="flex items-center gap-2 text-base">
+            <MessageSquare className="h-4 w-4" />
             {t?.('taskComments.title') || 'Comments'} ({comments.length})
           </div>
           {isEditing && !showAddComment && (
@@ -132,14 +132,15 @@ export const TaskCommentsList = ({
               variant="outline"
               size="sm"
               onClick={() => setShowAddComment(true)}
+              className="h-7 px-2 text-xs"
             >
-              <Plus className="h-4 w-4 mr-1" />
+              <Plus className="h-3 w-3 mr-1" />
               {t?.('taskComments.addComment') || 'Add Comment'}
             </Button>
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-3 pt-1">
         {/* Add new comment form (only in edit mode) */}
         {isEditing && showAddComment && (
           <Card className="mb-4 border-dashed">
@@ -188,9 +189,9 @@ export const TaskCommentsList = ({
 
         {/* Comments list */}
         {comments.length === 0 ? (
-          <div className="text-center text-muted-foreground py-4">
-            <MessageSquare className="h-5 w-5 mx-auto mb-1 opacity-50" />
-            <p className="text-sm">{t?.('taskComments.noComments') || 'No comments yet'}</p>
+          <div className="text-center text-muted-foreground py-2">
+            <MessageSquare className="h-4 w-4 mx-auto mb-1 opacity-50" />
+            <p className="text-xs">{t?.('taskComments.noComments') || 'No comments yet'}</p>
           </div>
         ) : (
           <ScrollArea className="max-h-[400px]">
