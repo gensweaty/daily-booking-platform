@@ -780,6 +780,68 @@ export type Database = {
         }
         Relationships: []
       }
+      public_board_access: {
+        Row: {
+          access_token: string
+          board_id: string
+          created_at: string
+          external_user_name: string
+          id: string
+          last_accessed_at: string
+        }
+        Insert: {
+          access_token: string
+          board_id: string
+          created_at?: string
+          external_user_name: string
+          id?: string
+          last_accessed_at?: string
+        }
+        Update: {
+          access_token?: string
+          board_id?: string
+          created_at?: string
+          external_user_name?: string
+          id?: string
+          last_accessed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_board_access_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "public_boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      public_boards: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          magic_word: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          magic_word: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          magic_word?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       redeem_codes: {
         Row: {
           code: string
@@ -1031,11 +1093,16 @@ export type Database = {
           archived: boolean | null
           archived_at: string | null
           created_at: string | null
+          created_by_name: string | null
+          created_by_type: string | null
           deadline_at: string | null
           description: string | null
           email_reminder: boolean | null
           email_reminder_enabled: boolean | null
           id: string
+          last_edited_at: string | null
+          last_edited_by_name: string | null
+          last_edited_by_type: string | null
           position: number | null
           reminder_at: string | null
           reminder_sent: boolean | null
@@ -1050,11 +1117,16 @@ export type Database = {
           archived?: boolean | null
           archived_at?: string | null
           created_at?: string | null
+          created_by_name?: string | null
+          created_by_type?: string | null
           deadline_at?: string | null
           description?: string | null
           email_reminder?: boolean | null
           email_reminder_enabled?: boolean | null
           id?: string
+          last_edited_at?: string | null
+          last_edited_by_name?: string | null
+          last_edited_by_type?: string | null
           position?: number | null
           reminder_at?: string | null
           reminder_sent?: boolean | null
@@ -1069,11 +1141,16 @@ export type Database = {
           archived?: boolean | null
           archived_at?: string | null
           created_at?: string | null
+          created_by_name?: string | null
+          created_by_type?: string | null
           deadline_at?: string | null
           description?: string | null
           email_reminder?: boolean | null
           email_reminder_enabled?: boolean | null
           id?: string
+          last_edited_at?: string | null
+          last_edited_by_name?: string | null
+          last_edited_by_type?: string | null
           position?: number | null
           reminder_at?: string | null
           reminder_sent?: boolean | null
@@ -1193,6 +1270,43 @@ export type Database = {
         Args: { business_id_param: string }
         Returns: {
           email: string
+        }[]
+      }
+      get_public_board_by_token: {
+        Args: { access_token_param: string }
+        Returns: {
+          board_id: string
+          user_id: string
+          magic_word: string
+          is_active: boolean
+          external_user_name: string
+        }[]
+      }
+      get_public_board_tasks: {
+        Args: { board_user_id: string }
+        Returns: {
+          archived: boolean | null
+          archived_at: string | null
+          created_at: string | null
+          created_by_name: string | null
+          created_by_type: string | null
+          deadline_at: string | null
+          description: string | null
+          email_reminder: boolean | null
+          email_reminder_enabled: boolean | null
+          id: string
+          last_edited_at: string | null
+          last_edited_by_name: string | null
+          last_edited_by_type: string | null
+          position: number | null
+          reminder_at: string | null
+          reminder_sent: boolean | null
+          reminder_sent_at: string | null
+          status: string
+          timezone: string | null
+          title: string
+          updated_at: string | null
+          user_id: string | null
         }[]
       }
       get_public_events_by_user_id: {
