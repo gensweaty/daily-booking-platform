@@ -434,7 +434,7 @@ export const translations: TranslationType = {
     schedule: "გრაფიკი",
     created: "შექმნილია:",
     lastUpdated: "ბოლო განახლება:",
-    by: "მიერ"
+    by: "-ს მიერ"
   },
   auth: {
     welcome: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში",

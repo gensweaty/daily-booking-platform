@@ -29,6 +29,7 @@ import { useQueryClient } from "@tanstack/react-query"
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
   setIsTaskDialogOpen: (open: boolean) => void
+  username: string
 }
 
 const tabVariants = {
@@ -56,7 +57,8 @@ const cardVariants = {
 
 export const DashboardContent = ({ 
   isTaskDialogOpen, 
-  setIsTaskDialogOpen 
+  setIsTaskDialogOpen,
+  username 
 }: DashboardContentProps) => {
   const { t, language } = useLanguage()
   const { pendingRequests } = useBookingRequests()
@@ -361,7 +363,7 @@ export const DashboardContent = ({
                               exit={{ opacity: 0, scale: 0.95 }}
                               transition={{ duration: 0.2 }}
                             >
-                              <AddTaskForm onClose={() => setIsTaskDialogOpen(false)} />
+                              <AddTaskForm onClose={() => setIsTaskDialogOpen(false)} username={username} />
                             </motion.div>
                           </DialogContent>
                         </Dialog>
@@ -389,7 +391,7 @@ export const DashboardContent = ({
                     initial="hidden"
                     animate="visible"
                   >
-                    {showArchive ? <ArchivedTasksPage /> : <TaskList />}
+                    {showArchive ? <ArchivedTasksPage /> : <TaskList username={username} />}
                   </motion.div>
                 </CardContent>
               </Card>

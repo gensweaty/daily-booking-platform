@@ -36,7 +36,7 @@ export const TaskFullView = ({
   onRestore, 
   isArchived = false 
 }: TaskFullViewProps) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { toast } = useToast();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
@@ -204,10 +204,10 @@ export const TaskFullView = ({
                 <span className="truncate">
                   {t("common.created")} {format(parseISO(task.created_at), 'MM/dd/yy HH:mm')}
                    {task.created_by_name && (
-                     <span className="ml-1">
-                       {t("common.by")} {task.created_by_name}
-                     </span>
-                   )}
+                      <span className="ml-1">
+                        {language === 'ka' ? `${task.created_by_name} ${t("task.by")}` : `${t("task.by")} ${task.created_by_name}`}
+                      </span>
+                    )}
                 </span>
               </div>
               <div className="flex items-center">
@@ -215,10 +215,10 @@ export const TaskFullView = ({
                 <span className="truncate">
                   {t("common.lastUpdated")} {format(parseISO(task.updated_at || task.created_at), 'MM/dd/yy HH:mm')}
                    {task.last_edited_by_name && task.last_edited_at && (
-                     <span className="ml-1">
-                       {t("common.by")} {task.last_edited_by_name}
-                     </span>
-                   )}
+                      <span className="ml-1">
+                        {language === 'ka' ? `${task.last_edited_by_name} ${t("task.by")}` : `${t("task.by")} ${task.last_edited_by_name}`}
+                      </span>
+                    )}
                 </span>
               </div>
             </div>

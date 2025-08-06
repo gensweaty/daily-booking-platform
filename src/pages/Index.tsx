@@ -181,6 +181,7 @@ const Index = () => {
             <DashboardContent 
               isTaskDialogOpen={isTaskDialogOpen}
               setIsTaskDialogOpen={setIsTaskDialogOpen}
+              username={username}
             />
           </motion.div>
         </motion.div>

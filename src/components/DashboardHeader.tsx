@@ -51,6 +51,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [userProfileName, setUserProfileName] = useState<string | null>(null);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   const fetchUserProfile = async () => {
@@ -59,7 +60,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('avatar_url')
+        .select('avatar_url, username')
         .eq('id', user.id)
         .single();
 
@@ -70,6 +71,9 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
 
       if (data?.avatar_url) {
         setAvatarUrl(data.avatar_url);
+      }
+      if (data?.username) {
+        setUserProfileName(data.username);
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);

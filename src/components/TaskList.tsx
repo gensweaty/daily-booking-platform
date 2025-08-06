@@ -17,7 +17,11 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 
-export const TaskList = () => {
+interface TaskListProps {
+  username?: string;
+}
+
+export const TaskList = ({ username }: TaskListProps = {}) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -100,7 +104,7 @@ export const TaskList = () => {
       updates: { 
         status: dbStatus,
         last_edited_by_type: 'admin',
-        last_edited_by_name: user?.email?.split('@')[0] || 'Admin',
+        last_edited_by_name: username || user?.email?.split('@')[0] || 'Admin',
         last_edited_at: new Date().toISOString()
       },
     });

@@ -23,9 +23,10 @@ interface AddTaskFormProps {
   editingTask?: Task | null;
   boardUserId?: string;
   externalUserName?: string;
+  username?: string;
 }
 
-const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName }: AddTaskFormProps) => {
+const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, username }: AddTaskFormProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [fileError, setFileError] = useState("");
@@ -126,14 +127,14 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName }: Ad
           ...(editingTask ? {
             // Editing existing task
             last_edited_by_type: 'admin',
-            last_edited_by_name: user.email?.split('@')[0] || 'Admin',
+            last_edited_by_name: username || user.email?.split('@')[0] || 'Admin',
             last_edited_at: new Date().toISOString()
           } : {
             // Creating new task
             created_by_type: 'admin',
-            created_by_name: user.email?.split('@')[0] || 'Admin',
+            created_by_name: username || user.email?.split('@')[0] || 'Admin',
             last_edited_by_type: 'admin',
-            last_edited_by_name: user.email?.split('@')[0] || 'Admin',
+            last_edited_by_name: username || user.email?.split('@')[0] || 'Admin',
             last_edited_at: new Date().toISOString()
           })
         })
