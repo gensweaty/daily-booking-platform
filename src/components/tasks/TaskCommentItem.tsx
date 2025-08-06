@@ -23,11 +23,19 @@ interface TaskCommentItemProps {
 }
 
 const getDisplayName = (comment: TaskComment, fallbackName?: string) => {
-  // For external users, prioritize the fallback name (from task metadata) if available
-  if (comment.created_by_type === 'external' && fallbackName && fallbackName !== 'Unknown User') {
-    return fallbackName;
+  // For external users, use their stored name directly from the comment
+  if (comment.created_by_type === 'external') {
+    if (comment.created_by_name && comment.created_by_name !== 'Unknown User' && comment.created_by_name !== 'External User') {
+      return comment.created_by_name;
+    }
+    // Fallback to the task creator name for external users
+    if (fallbackName && fallbackName !== 'Unknown User') {
+      return fallbackName;
+    }
+    return 'External User';
   }
   
+  // For admin users, use their stored name
   if (comment.created_by_name && comment.created_by_name !== 'Unknown User') {
     // If it's an email, try to extract a meaningful display name
     if (comment.created_by_name.includes('@')) {
