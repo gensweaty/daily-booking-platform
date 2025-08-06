@@ -342,10 +342,10 @@ export const DashboardContent = ({
                             <LanguageText>{t("tasks.archive")}</LanguageText>
                           )}
                         </Button>
-                        <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+                         <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
                           <DialogTrigger asChild>
                             <Button 
-                              className="flex items-center gap-2 w-full sm:w-auto bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95"
+                              className="flex items-center gap-2 w-20 sm:w-auto bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95"
                             >
                               <motion.div
                                 whileHover={{ rotate: 180 }}
@@ -353,7 +353,12 @@ export const DashboardContent = ({
                               >
                                 <PlusCircle className="w-4 h-4" />
                               </motion.div>
-                              <LanguageText>{t("tasks.addTask")}</LanguageText>
+                              <span className="hidden sm:inline">
+                                <LanguageText>{t("tasks.addTask")}</LanguageText>
+                              </span>
+                              <span className="sm:hidden text-xs">
+                                <LanguageText>{t("common.add")}</LanguageText>
+                              </span>
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">

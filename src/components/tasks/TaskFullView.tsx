@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "../ui/button";
 import { AlertCircle, Trash2, Pen, FileText, Calendar, Paperclip, Archive, RefreshCw, History } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
@@ -40,6 +41,7 @@ export const TaskFullView = ({
 }: TaskFullViewProps) => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
   
@@ -232,9 +234,9 @@ export const TaskFullView = ({
             <TaskCommentsList 
               taskId={task.id} 
               isEditing={!isArchived}
-              username={task.created_by_name}
+              username={user?.user_metadata?.full_name || user?.email || 'Admin'}
               isExternal={false}
-              userId={task.user_id}
+              userId={user?.id}
             />
           </div>
 
