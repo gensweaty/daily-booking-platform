@@ -156,7 +156,7 @@ export const PublicBoard = () => {
       setEmail(data.external_user_email || "");
       
       // Also update last login time for this sub user session
-      if (data.external_user_email) {
+      if (data.external_user_email && boardData) {
         await supabase
           .from('sub_users')
           .update({ last_login_at: new Date().toISOString() })
@@ -247,14 +247,16 @@ export const PublicBoard = () => {
       }
 
       // Update last login for existing sub user
-      const { error: updateError } = await supabase
-        .from('sub_users')
-        .update({ last_login_at: new Date().toISOString() })
-        .eq('board_owner_id', boardData.user_id)
-        .eq('email', email.trim());
+      if (subUser) {
+        const { error: updateError } = await supabase
+          .from('sub_users')
+          .update({ last_login_at: new Date().toISOString() })
+          .eq('board_owner_id', boardData.user_id)
+          .eq('email', email.trim());
 
-      if (updateError && updateError.code !== 'PGRST116') {
-        console.error('Error updating last login:', updateError);
+        if (updateError) {
+          console.error('Error updating last login:', updateError);
+        }
       }
 
       // Use the fullname from sub_users table

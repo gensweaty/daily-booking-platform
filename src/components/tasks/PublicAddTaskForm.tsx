@@ -112,14 +112,14 @@ export const PublicAddTaskForm = ({
         ...(editingTask ? {
           // External user editing
           last_edited_by_type: 'external_user',
-          last_edited_by_name: externalUserName,
+          last_edited_by_name: `${externalUserName} (Sub User)`,
           last_edited_at: new Date().toISOString()
         } : {
           // External user creating
           created_by_type: 'external_user',
-          created_by_name: externalUserName,
+          created_by_name: `${externalUserName} (Sub User)`,
           last_edited_by_type: 'external_user',
-          last_edited_by_name: externalUserName,
+          last_edited_by_name: `${externalUserName} (Sub User)`,
           last_edited_at: new Date().toISOString()
         })
       };
