@@ -1,20 +1,14 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { Task } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { TaskFormHeader } from "./TaskFormHeader";
-import { TaskFormTitle } from "./TaskFormTitle";
-import { TaskFormDescription } from "./TaskFormDescription";
-import { TaskDateTimePicker } from "./TaskDateTimePicker";
-import { TaskStatusSelect } from "./TaskStatusSelect";
-import { FileUploadField } from "@/components/shared/FileUploadField";
-import { X } from "lucide-react";
+import { TaskFormFields } from "./TaskFormFields";
+import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface PublicAddTaskFormProps {
   onClose: () => void;
@@ -31,33 +25,28 @@ export const PublicAddTaskForm = ({
 }: PublicAddTaskFormProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<'todo' | 'inprogress' | 'done'>('todo');
-  const [deadline, setDeadline] = useState<Date | undefined>(undefined);
-  const [reminder, setReminder] = useState<Date | undefined>(undefined);
+  const [fileError, setFileError] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [deadline, setDeadline] = useState<string | undefined>();
+  const [reminderAt, setReminderAt] = useState<string | undefined>();
   const [emailReminder, setEmailReminder] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<Task['status']>('todo');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const { t } = useLanguage();
-  const queryClient = useQueryClient();
+  const { validateDateTime } = useTimezoneValidation();
+  const isMobile = useMediaQuery("(max-width: 640px)");
 
-  // Initialize form when editing
   useEffect(() => {
     if (editingTask) {
       setTitle(editingTask.title);
       setDescription(editingTask.description || "");
-      setStatus(editingTask.status);
-      
-      if (editingTask.deadline_at) {
-        setDeadline(new Date(editingTask.deadline_at));
-      }
-      
-      if (editingTask.reminder_at) {
-        setReminder(new Date(editingTask.reminder_at));
-      }
-      
+      setDeadline(editingTask.deadline_at);
+      setReminderAt(editingTask.reminder_at);
       setEmailReminder(editingTask.email_reminder_enabled || false);
+      setStatus(editingTask.status);
     }
   }, [editingTask]);
 
@@ -76,115 +65,140 @@ export const PublicAddTaskForm = ({
     setIsSubmitting(true);
 
     try {
-      let fileUrl = null;
-      
-      // Handle file upload if present
-      if (file) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `public/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('task_attachments')
-          .upload(filePath, file);
-
-        if (uploadError) {
-          throw uploadError;
+      // Validate deadline if provided
+      if (deadline) {
+        const deadlineValidation = await validateDateTime(deadline, 'deadline');
+        if (!deadlineValidation.valid) {
+          toast({
+            title: "Invalid Deadline",
+            description: deadlineValidation.message,
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
         }
+      }
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('task_attachments')
-          .getPublicUrl(filePath);
-
-        fileUrl = publicUrl;
+      // Validate reminder if provided
+      if (reminderAt) {
+        const reminderValidation = await validateDateTime(
+          reminderAt, 
+          'reminder', 
+          deadline
+        );
+        if (!reminderValidation.valid) {
+          toast({
+            title: "Invalid Reminder",
+            description: reminderValidation.message,
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
+        }
       }
 
       const taskData = {
-        title: title.trim(),
-        description: description.trim() || null,
-        status,
-        deadline_at: deadline?.toISOString() || null,
-        reminder_at: reminder?.toISOString() || null,
-        email_reminder_enabled: emailReminder,
+        title,
+        description,
+        status: status,
         user_id: boardUserId,
+        position: editingTask?.position || 0,
+        deadline_at: deadline && deadline.trim() !== '' ? deadline : null,
+        reminder_at: reminderAt && reminderAt.trim() !== '' ? reminderAt : null,
+        email_reminder_enabled: emailReminder && reminderAt ? emailReminder : false,
         ...(editingTask ? {
+          // External user editing
           last_edited_by_type: 'external_user',
           last_edited_by_name: externalUserName,
-          last_edited_at: new Date().toISOString(),
+          last_edited_at: new Date().toISOString()
         } : {
+          // External user creating
           created_by_type: 'external_user',
           created_by_name: externalUserName,
-        }),
+          last_edited_by_type: 'external_user',
+          last_edited_by_name: externalUserName,
+          last_edited_at: new Date().toISOString()
+        })
       };
 
+      let taskResponse;
       if (editingTask) {
-        // Update existing task
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('tasks')
           .update(taskData)
           .eq('id', editingTask.id)
-          .eq('user_id', boardUserId);
+          .eq('user_id', boardUserId)
+          .select()
+          .single();
 
         if (error) throw error;
-
-        // Handle file upload for existing task
-        if (file && fileUrl) {
-          await supabase
-            .from('files')
-            .insert({
-              task_id: editingTask.id,
-              filename: file.name,
-              file_path: fileUrl,
-              content_type: file.type,
-              size: file.size,
-              user_id: boardUserId,
-            });
-        }
-
-        toast({
-          title: t("common.success"),
-          description: t("tasks.taskUpdated"),
-        });
+        taskResponse = data;
       } else {
-        // Create new task
-        const { data: newTask, error } = await supabase
+        const { data, error } = await supabase
           .from('tasks')
           .insert(taskData)
           .select()
           .single();
 
         if (error) throw error;
-
-        // Handle file upload for new task
-        if (file && fileUrl && newTask) {
-          await supabase
-            .from('files')
-            .insert({
-              task_id: newTask.id,
-              filename: file.name,
-              file_path: fileUrl,
-              content_type: file.type,
-              size: file.size,
-              user_id: boardUserId,
-            });
-        }
-
-        toast({
-          title: t("common.success"),
-          description: t("tasks.taskCreated"),
-        });
+        taskResponse = data;
       }
 
-      // Invalidate queries to refresh the task list
-      queryClient.invalidateQueries({ queryKey: ['publicTasks', boardUserId] });
-      onClose();
+      // Handle file upload with proper bucket assignment
+      if (selectedFile && taskResponse) {
+        console.log('Uploading file for task:', taskResponse.id);
+        const fileExt = selectedFile.name.split('.').pop();
+        const filePath = `${crypto.randomUUID()}.${fileExt}`;
+        
+        // Upload to task_attachments bucket
+        const { error: uploadError } = await supabase.storage
+          .from('task_attachments')
+          .upload(filePath, selectedFile);
 
-    } catch (error: any) {
-      console.error('Error saving task:', error);
+        if (uploadError) {
+          console.error('File upload error:', uploadError);
+          throw uploadError;
+        }
+
+        console.log('File uploaded successfully, creating database record');
+        
+        // Create file record in files table
+        const { error: fileRecordError } = await supabase
+          .from('files')
+          .insert({
+            task_id: taskResponse.id,
+            filename: selectedFile.name,
+            file_path: filePath,
+            content_type: selectedFile.type,
+            size: selectedFile.size,
+            user_id: boardUserId,
+            source: 'task',
+            parent_type: 'task'
+          });
+
+        if (fileRecordError) {
+          console.error('File record creation error:', fileRecordError);
+          throw fileRecordError;
+        }
+
+        console.log('File record created successfully');
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['publicTasks', boardUserId] });
+      await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
+      
       toast({
-        title: t("common.error"),
-        description: error.message || t("tasks.errorSaving"),
-        variant: "destructive",
+        title: t("common.success"),
+        description: editingTask ? t("tasks.taskUpdated") : t("tasks.taskAdded"),
+      });
+      
+      onClose();
+    } catch (error: any) {
+      console.error('Task operation error:', error);
+      toast({
+        title: "Error",
+        description: error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Please try again.`,
+        variant: "destructive"
       });
     } finally {
       setIsSubmitting(false);
@@ -192,91 +206,34 @@ export const PublicAddTaskForm = ({
   };
 
   return (
-    <div className="space-y-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold">
-            {editingTask ? t("tasks.editTask") : t("tasks.addTask")}
-          </h2>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="h-8 w-8 p-0"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <TaskFormTitle
+    <div className={`w-full ${isMobile ? 'space-y-1 px-1 pb-1' : 'space-y-3 sm:space-y-6 p-2 sm:p-4'}`}>
+      <TaskFormHeader editingTask={editingTask} />
+      <form onSubmit={handleSubmit} className={isMobile ? 'space-y-1' : 'space-y-3 sm:space-y-6'}>
+        <TaskFormFields
           title={title}
           setTitle={setTitle}
-        />
-
-        <TaskFormDescription
           description={description}
           setDescription={setDescription}
-        />
-
-        <TaskStatusSelect
+          selectedFile={selectedFile}
+          setSelectedFile={setSelectedFile}
+          fileError={fileError}
+          setFileError={setFileError}
+          editingTask={editingTask}
+          deadline={deadline}
+          setDeadline={setDeadline}
+          reminderAt={reminderAt}
+          setReminderAt={setReminderAt}
+          emailReminder={emailReminder}
+          setEmailReminder={setEmailReminder}
           status={status}
           setStatus={setStatus}
         />
-
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="deadline">{t("tasks.deadline")}</Label>
-              <Input
-                type="datetime-local"
-                value={deadline ? deadline.toISOString().slice(0, 16) : ""}
-                onChange={(e) => setDeadline(e.target.value ? new Date(e.target.value) : undefined)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="reminder">{t("tasks.reminder")}</Label>
-              <Input
-                type="datetime-local"
-                value={reminder ? reminder.toISOString().slice(0, 16) : ""}
-                onChange={(e) => setReminder(e.target.value ? new Date(e.target.value) : undefined)}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="file">{t("common.attachments")}</Label>
-          <Input
-            type="file"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif"
-          />
-        </div>
-
-        <div className="flex gap-2 pt-4">
-          <Button
-            type="submit"
-            disabled={isSubmitting || !title.trim()}
-            className="flex-1"
-          >
-            {isSubmitting ? (
-              <div className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
-                {editingTask ? t("common.updating") : t("common.creating")}
-              </div>
-            ) : (
-              editingTask ? t("common.update") : t("common.create")
-            )}
-          </Button>
-          
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
-            {t("common.cancel")}
+        <div className={`flex justify-end gap-1 sm:gap-2 ${isMobile ? 'pt-1 border-t border-muted/20 mt-0' : 'pt-2 sm:pt-4 border-t border-muted/20'}`}>
+          <Button type="submit" className="text-xs px-2 py-1 sm:px-3 sm:py-2" disabled={isSubmitting}>
+            {isSubmitting 
+              ? t("common.saving")
+              : (editingTask ? t("tasks.editTask") : t("tasks.addTask"))
+            }
           </Button>
         </div>
       </form>
