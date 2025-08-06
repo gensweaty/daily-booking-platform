@@ -1105,6 +1105,7 @@ export type Database = {
           description: string | null
           email_reminder: boolean | null
           email_reminder_enabled: boolean | null
+          external_user_email: string | null
           id: string
           last_edited_at: string | null
           last_edited_by_name: string | null
@@ -1129,6 +1130,7 @@ export type Database = {
           description?: string | null
           email_reminder?: boolean | null
           email_reminder_enabled?: boolean | null
+          external_user_email?: string | null
           id?: string
           last_edited_at?: string | null
           last_edited_by_name?: string | null
@@ -1153,6 +1155,7 @@ export type Database = {
           description?: string | null
           email_reminder?: boolean | null
           email_reminder_enabled?: boolean | null
+          external_user_email?: string | null
           id?: string
           last_edited_at?: string | null
           last_edited_by_name?: string | null
@@ -1300,6 +1303,7 @@ export type Database = {
           description: string | null
           email_reminder: boolean | null
           email_reminder_enabled: boolean | null
+          external_user_email: string | null
           id: string
           last_edited_at: string | null
           last_edited_by_name: string | null
