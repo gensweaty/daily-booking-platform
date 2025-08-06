@@ -99,7 +99,7 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
       <div className="flex items-center justify-between">
         <Label className="text-sm font-medium flex items-center gap-2">
           <Users className="h-4 w-4" />
-          Sub Users ({subUsers.length}/10)
+          {t("publicBoard.subUsers")} ({subUsers.length}/10)
         </Label>
         {subUsers.length >= 10 && (
           <span className="text-xs text-amber-600 font-medium">
@@ -139,9 +139,9 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
                         
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">
-                            Last login: {formatLastLogin(subUser.last_login_at)}
-                          </span>
+                           <span className="text-xs text-muted-foreground">
+                             {t("publicBoard.lastLogin")}: {formatLastLogin(subUser.last_login_at)}
+                           </span>
                         </div>
                       </div>
                       

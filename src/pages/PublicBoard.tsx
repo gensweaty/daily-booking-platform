@@ -182,10 +182,9 @@ export const PublicBoard = () => {
   };
 
   const handleLogin = async () => {
-    if (!fullName.trim() || !email.trim() || !magicWord.trim() || !boardData) {
+    if (!email.trim() || !magicWord.trim() || !boardData) {
       let description = "";
-      if (!fullName.trim()) description = t("publicBoard.enterFullName");
-      else if (!email.trim()) description = "Please enter your email address";
+      if (!email.trim()) description = t("publicBoard.emailAddress");
       else description = t("publicBoard.enterMagicWordForAccess");
       
       toast({
@@ -201,7 +200,7 @@ export const PublicBoard = () => {
     if (!emailRegex.test(email.trim())) {
       toast({
         title: t("common.error"),
-        description: "Please enter a valid email address",
+        description: t("publicBoard.emailAddress"),
         variant: "destructive",
       });
       return;
@@ -335,25 +334,11 @@ export const PublicBoard = () => {
 
       if (subUserError) {
         if (subUserError.code === '23505') { // Unique constraint violation
-          if (subUserError.message.includes('unique_email_per_owner')) {
-            toast({
-              title: t("common.error"),
-              description: "A user with this email is already registered for this board",
-              variant: "destructive",
-            });
-          } else if (subUserError.message.includes('unique_fullname_per_owner')) {
-            toast({
-              title: t("common.error"),
-              description: "A user with this name is already registered for this board",
-              variant: "destructive",
-            });
-          } else {
-            toast({
-              title: t("common.error"),
-              description: "User already exists",
-              variant: "destructive",
-            });
-          }
+          toast({
+            title: t("common.error"),
+            description: t("publicBoard.userAlreadyExists"),
+            variant: "destructive",
+          });
           return;
         }
         throw subUserError;
@@ -455,30 +440,32 @@ export const PublicBoard = () => {
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName" className="text-sm font-medium">
-                    {t("publicBoard.enterFullName")} *
-                  </Label>
-                  <Input
-                    id="fullName"
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder={t("publicBoard.enterFullName")}
-                    className="w-full"
-                  />
-                </div>
+{isRegisterMode && (
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName" className="text-sm font-medium">
+                      {t("publicBoard.enterFullName")} *
+                    </Label>
+                    <Input
+                      id="fullName"
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder={t("publicBoard.enterFullName")}
+                      className="w-full"
+                    />
+                  </div>
+                )}
                 
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-sm font-medium">
-                    Email Address *
+                    {t("publicBoard.emailAddress")} *
                   </Label>
                   <Input
                     id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email address"
+                    placeholder={t("publicBoard.emailAddress")}
                     className="w-full"
                   />
                 </div>
@@ -501,7 +488,9 @@ export const PublicBoard = () => {
                 <div className="space-y-3">
                   <Button
                     onClick={isRegisterMode ? handleRegister : handleLogin}
-                    disabled={isSubmitting || !fullName.trim() || !email.trim() || !magicWord.trim()}
+                    disabled={isSubmitting || 
+                      (isRegisterMode && (!fullName.trim() || !email.trim() || !magicWord.trim())) ||
+                      (!isRegisterMode && (!email.trim() || !magicWord.trim()))}
                     className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                   >
                     {isSubmitting ? (

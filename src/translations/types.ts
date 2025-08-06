@@ -308,6 +308,10 @@ export interface TranslationType {
     enterSlug: string;
     slugDescription: string;
     slugRequired: string;
+    emailAddress: string;
+    subUsers: string;
+    lastLogin: string;
+    userAlreadyExists: string;
     magicWord: string;
     enterMagicWord: string;
     magicWordDescription: string;
