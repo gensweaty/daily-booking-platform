@@ -127,14 +127,14 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
           ...(editingTask ? {
             // Editing existing task
             last_edited_by_type: 'admin',
-            last_edited_by_name: username || user.email?.split('@')[0] || 'Admin',
+            last_edited_by_name: username || 'Admin',
             last_edited_at: new Date().toISOString()
           } : {
             // Creating new task
             created_by_type: 'admin',
-            created_by_name: username || user.email?.split('@')[0] || 'Admin',
+            created_by_name: username || 'Admin',
             last_edited_by_type: 'admin',
-            last_edited_by_name: username || user.email?.split('@')[0] || 'Admin',
+            last_edited_by_name: username || 'Admin',
             last_edited_at: new Date().toISOString()
           })
         })
