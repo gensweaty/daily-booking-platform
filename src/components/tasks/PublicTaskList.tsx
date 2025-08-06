@@ -31,17 +31,21 @@ export const PublicTaskList = ({ boardUserId, externalUserName }: PublicTaskList
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['publicTasks', boardUserId],
     queryFn: async () => {
+      console.log('Fetching public board tasks for user:', boardUserId);
       const { data, error } = await supabase
         .rpc('get_public_board_tasks', { board_user_id: boardUserId });
       
       if (error) {
+        console.error('Error fetching public board tasks:', error);
         throw error;
       }
       
+      console.log('Fetched tasks:', data);
       return data || [];
     },
     enabled: !!boardUserId,
-    refetchInterval: 5000, // Auto-refresh every 5 seconds for real-time sync
+    // Remove frontend auto-refresh to avoid constant reloads
+    refetchInterval: false,
   });
 
   const updateTaskMutation = useMutation({

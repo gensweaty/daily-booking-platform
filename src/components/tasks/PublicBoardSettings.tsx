@@ -75,6 +75,15 @@ export const PublicBoardSettings = () => {
     }
   };
 
+  // Auto-generate slug from user name or email if not set
+  useEffect(() => {
+    if (user && !slug && !publicBoard && isPublic) {
+      const userEmail = user.email?.split('@')[0] || 'user';
+      const autoSlug = userEmail.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/--+/g, '-');
+      setSlug(autoSlug);
+    }
+  }, [user, slug, publicBoard, isPublic]);
+
   const handleSaveSettings = async () => {
     if (!user || !magicWord.trim() || (isPublic && !slug.trim())) {
       toast({
@@ -227,14 +236,17 @@ export const PublicBoardSettings = () => {
                   <Label htmlFor="slug" className="text-sm font-medium">
                     {t("publicBoard.boardSlug")} *
                   </Label>
-                  <Input
-                    id="slug"
-                    type="text"
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/--+/g, '-'))}
-                    placeholder={t("publicBoard.enterSlug")}
-                    className="w-full"
-                  />
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">{window.location.origin}/board/</span>
+                    <Input
+                      id="slug"
+                      type="text"
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/--+/g, '-'))}
+                      placeholder={t("publicBoard.enterSlug")}
+                      className="flex-1 min-w-0 text-base px-3 py-2"
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     {t("publicBoard.slugDescription")}
                   </p>
@@ -250,7 +262,7 @@ export const PublicBoardSettings = () => {
                     value={magicWord}
                     onChange={(e) => setMagicWord(e.target.value)}
                     placeholder={t("publicBoard.enterMagicWord")}
-                    className="w-full"
+                    className="w-full text-base px-3 py-2"
                   />
                   <div className="flex items-center gap-2 mt-2">
                     <Button
