@@ -44,6 +44,9 @@ export interface Reminder {
 // Export BookingRequest from database.ts
 export { type BookingRequest } from '../types/database';
 
+// Export comment types
+export { type TaskComment, type CommentFile } from './types/comments';
+
 // Payment status type for consistency across components 
 // Includes both database and display formats
 export type PaymentStatus = 

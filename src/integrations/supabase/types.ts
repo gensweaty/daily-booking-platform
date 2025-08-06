@@ -255,6 +255,39 @@ export type Database = {
         }
         Relationships: []
       }
+      comment_files: {
+        Row: {
+          comment_id: string
+          content_type: string | null
+          created_at: string | null
+          file_path: string
+          filename: string
+          id: string
+          size: number | null
+          user_id: string | null
+        }
+        Insert: {
+          comment_id: string
+          content_type?: string | null
+          created_at?: string | null
+          file_path: string
+          filename: string
+          id?: string
+          size?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          comment_id?: string
+          content_type?: string | null
+          created_at?: string | null
+          file_path?: string
+          filename?: string
+          id?: string
+          size?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       customer_files: {
         Row: {
           content_type: string | null
@@ -1091,6 +1124,51 @@ export type Database = {
           trial_end_date?: string | null
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      task_comments: {
+        Row: {
+          content: string
+          created_at: string
+          created_by_name: string | null
+          created_by_type: string | null
+          deleted_at: string | null
+          id: string
+          last_edited_at: string | null
+          last_edited_by_name: string | null
+          last_edited_by_type: string | null
+          task_id: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by_name?: string | null
+          created_by_type?: string | null
+          deleted_at?: string | null
+          id?: string
+          last_edited_at?: string | null
+          last_edited_by_name?: string | null
+          last_edited_by_type?: string | null
+          task_id: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by_name?: string | null
+          created_by_type?: string | null
+          deleted_at?: string | null
+          id?: string
+          last_edited_at?: string | null
+          last_edited_by_name?: string | null
+          last_edited_by_type?: string | null
+          task_id?: string
+          updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }

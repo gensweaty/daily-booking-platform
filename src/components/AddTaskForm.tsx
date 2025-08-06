@@ -8,6 +8,7 @@ import { Task } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { TaskFormHeader } from "./tasks/TaskFormHeader";
 import { TaskFormFields } from "./tasks/TaskFormFields";
+import { TaskCommentsList } from "./tasks/TaskCommentsList";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "./shared/LanguageText";
 import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
@@ -17,6 +18,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 
 interface AddTaskFormProps {
   onClose: () => void;
@@ -315,6 +317,22 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
           status={status}
           setStatus={setStatus}
         />
+        
+        {/* Comments Section - only shown when editing */}
+        {editingTask && (
+          <div className="mt-4">
+            <Separator className="mb-4" />
+            <TaskCommentsList 
+              taskId={editingTask.id}
+              isEditing={true}
+              username={username}
+              externalUserName={externalUserName}
+              isExternal={!!externalUserName}
+              userId={boardUserId || user?.id}
+            />
+          </div>
+        )}
+        
         <div className={`flex justify-end gap-1 sm:gap-2 ${isMobile ? 'pt-1 border-t border-muted/20 mt-0' : 'pt-2 sm:pt-4 border-t border-muted/20'}`}>
           {editingTask && (
             <>

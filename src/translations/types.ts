@@ -684,4 +684,15 @@ export interface TranslationType {
     november: string;
     december: string;
   };
+  taskComments: {
+    title: string;
+    addComment: string;
+    noComments: string;
+    contentPlaceholder: string;
+    createSuccess: string;
+    updateSuccess: string;
+    deleteSuccess: string;
+    attachments: string;
+    addAttachment: string;
+  };
 }

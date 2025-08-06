@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Task } from "@/lib/types";
 import { SimpleFileDisplay } from "../shared/SimpleFileDisplay";
 import { TaskDateInfo } from "./TaskDateInfo";
+import { TaskCommentsList } from "./TaskCommentsList";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
@@ -13,6 +14,7 @@ import { AlertCircle, Trash2, Pen, FileText, Calendar, Paperclip, Archive, Refre
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { Card, CardContent } from "../ui/card";
+import { Separator } from "../ui/separator";
 import { format, parseISO } from "date-fns";
 
 interface TaskFullViewProps {
@@ -222,6 +224,12 @@ export const TaskFullView = ({
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* Comments Section */}
+          <div className="mt-4">
+            <Separator className="mb-4" />
+            <TaskCommentsList taskId={task.id} />
           </div>
 
           {/* Action Buttons - mobile optimized */}

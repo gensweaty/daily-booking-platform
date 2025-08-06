@@ -681,5 +681,16 @@ export const translations: TranslationType = {
     october: "October",
     november: "November",
     december: "December"
+  },
+  taskComments: {
+    title: "Comments",
+    addComment: "Add Comment",
+    noComments: "No comments yet",
+    contentPlaceholder: "Enter your comment...",
+    createSuccess: "Comment added successfully",
+    updateSuccess: "Comment updated successfully",
+    deleteSuccess: "Comment deleted successfully",
+    attachments: "Attachments",
+    addAttachment: "Add Attachment"
   }
 };
