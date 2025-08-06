@@ -13,6 +13,7 @@ import { BusinessPage } from "@/components/business/BusinessPage"
 import { TaskReminderNotifications } from "@/components/tasks/TaskReminderNotifications"
 import { EventReminderNotifications } from "@/components/Calendar/EventReminderNotifications"
 import { ArchivedTasksPage } from "@/components/tasks/ArchivedTasksPage"
+import { PublicBoardSettings } from "@/components/tasks/PublicBoardSettings"
 import { motion, AnimatePresence } from "framer-motion"
 import { useLanguage } from "@/contexts/LanguageContext"
 import { useBusinessProfile } from "@/hooks/useBusinessProfile"
@@ -321,6 +322,7 @@ export const DashboardContent = ({
                   <div className="flex items-center gap-2">
                     {!showArchive && (
                       <>
+                        <PublicBoardSettings />
                         <Button
                           onClick={handleArchiveClick}
                           variant="outline"
