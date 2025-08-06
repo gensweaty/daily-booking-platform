@@ -10,6 +10,7 @@ import Contact from "@/pages/Contact";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ResetPassword } from "@/components/ResetPassword";
 import { PublicBusinessPage } from "@/components/business/PublicBusinessPage";
+import { PublicBoard } from "@/pages/PublicBoard";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ForgotPassword } from "@/components/ForgotPassword";
 import { useEffect } from "react";
@@ -264,7 +265,7 @@ const AppContent = () => {
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/business/:slug" element={<PublicBusinessPage />} />
-              <Route path="/business" element={<PublicBusinessPage />} />
+              <Route path="/board/:slug" element={<PublicBoard />} />
               <Route path="/login" element={<Index />} />
               <Route path="/signup" element={<Index />} />
               {/* Admin Panel Routes */}
