@@ -1,3 +1,4 @@
+
 import { SimpleFileDisplay } from "../shared/SimpleFileDisplay";
 import { FileUploadField } from "../shared/FileUploadField";
 import { useQuery } from "@tanstack/react-query";
@@ -151,7 +152,7 @@ export const TaskFormFields = ({
     ? "bg-muted/30 rounded-lg p-2 border border-muted/40"
     : "bg-muted/30 rounded-lg p-4 border border-muted/40";
   
-  const containerClassName = isMobile ? "space-y-3" : "space-y-6";
+  const containerClassName = isMobile ? "space-y-1" : "space-y-6";
 
   return (
     <div className={containerClassName}>
@@ -167,7 +168,7 @@ export const TaskFormFields = ({
         <TaskStatusSelect status={status} setStatus={setStatus} />
       </div>
       
-      <div className={`${sectionClassName} ${isMobile ? 'space-y-2' : 'space-y-4'}`}>
+      <div className={`${sectionClassName} ${isMobile ? 'space-y-1' : 'space-y-4'}`}>
         <TaskDateTimePicker
           label="Deadline"
           value={deadline}

@@ -255,9 +255,9 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
   };
 
   const formContent = (
-    <div className={`w-full ${isMobile ? 'space-y-2 p-1' : 'space-y-3 sm:space-y-6 p-2 sm:p-4'}`}>
+    <div className={`w-full ${isMobile ? 'space-y-1 px-1 pb-1' : 'space-y-3 sm:space-y-6 p-2 sm:p-4'}`}>
       <TaskFormHeader editingTask={editingTask} />
-      <form onSubmit={handleSubmit} className={isMobile ? 'space-y-2' : 'space-y-3 sm:space-y-6'}>
+      <form onSubmit={handleSubmit} className={isMobile ? 'space-y-1' : 'space-y-3 sm:space-y-6'}>
         <TaskFormFields
           title={title}
           setTitle={setTitle}
@@ -277,7 +277,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
           status={status}
           setStatus={setStatus}
         />
-        <div className={`flex justify-end gap-1 sm:gap-2 ${isMobile ? 'pt-1 border-t border-muted/20' : 'pt-2 sm:pt-4 border-t border-muted/20'}`}>
+        <div className={`flex justify-end gap-1 sm:gap-2 ${isMobile ? 'pt-1 border-t border-muted/20 mt-1' : 'pt-2 sm:pt-4 border-t border-muted/20'}`}>
           {editingTask && (
             <>
               <Button 
@@ -379,7 +379,7 @@ const AddTaskForm = ({ onClose, editingTask }: AddTaskFormProps) => {
       <Sheet open={true} onOpenChange={onClose}>
         <SheetContent 
           side="bottom" 
-          className="h-[85vh] w-full p-0 overflow-y-auto"
+          className="h-[90vh] w-full p-0 overflow-y-auto"
         >
           {formContent}
         </SheetContent>
