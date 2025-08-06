@@ -279,21 +279,42 @@ const handler = async (req: Request): Promise<Response> => {
       // This ensures tasks moved between statuses still get their reminders
       console.log(`🚀 FORCE SENDING email for task: ${task.title} (status: ${task.status}, email_reminder_enabled: ${task.email_reminder_enabled})`);
 
-      // Get user email and language preference
-      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(task.user_id);
-      
-      if (userError || !userData.user?.email) {
-        console.error(`Failed to get user email for task ${task.id}:`, userError);
-        return new Response(
-          JSON.stringify({ error: 'User not found' }),
-          { 
-            status: 404, 
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          }
-        );
+      let userEmail = '';
+      let language = 'en';
+
+      // Check if task has external_user_email (created by external user on public board)
+      if (task.external_user_email) {
+        console.log('📧 External user task detected, sending email to:', task.external_user_email);
+        userEmail = task.external_user_email;
+        // For external users, use English as default language (could be enhanced later)
+        language = 'en';
+      } else {
+        // Task created by admin - get admin's email and language preference
+        const { data: userData, error: userError } = await supabase.auth.admin.getUserById(task.user_id);
+        
+        if (userError || !userData.user?.email) {
+          console.error(`Failed to get user email for task ${task.id}:`, userError);
+          return new Response(
+            JSON.stringify({ error: 'User not found' }),
+            { 
+              status: 404, 
+              headers: { 'Content-Type': 'application/json', ...corsHeaders }
+            }
+          );
+        }
+
+        userEmail = userData.user.email;
+
+        // Get user's language preference from profiles table
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('language')
+          .eq('id', task.user_id)
+          .single();
+
+        language = profileData?.language || 'en';
       }
 
-      const userEmail = userData.user.email;
       const deduplicationKey = `${task.id}_${userEmail}`;
 
       // Check if we've recently sent this email (prevent duplicates)
@@ -308,15 +329,6 @@ const handler = async (req: Request): Promise<Response> => {
           }
         );
       }
-
-      // Get user's language preference from profiles table
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('language')
-        .eq('id', task.user_id)
-        .single();
-
-      const language = profileData?.language || 'en';
       
       // Format reminder time using the original scheduled time, not current time
       const formattedTime = formatReminderTimeForLocale(task.reminder_at, language);
@@ -362,7 +374,8 @@ const handler = async (req: Request): Promise<Response> => {
           message: 'Task reminder email sent successfully',
           emailsSent: 1,
           taskId: task.id,
-          language: language
+          language: language,
+          sentToExternalUser: !!task.external_user_email
         }),
         { 
           status: 200, 
@@ -388,7 +401,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (tasksError) {
       console.error('Error fetching due tasks:', tasksError);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch due tasks' }),
+        JSON.stringify({ error: 'Database error' }),
         { 
           status: 500, 
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -396,11 +409,13 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`📝 Found ${dueTasks?.length || 0} due tasks with email reminders`);
-
     if (!dueTasks || dueTasks.length === 0) {
+      console.log('📭 No due task reminders found');
       return new Response(
-        JSON.stringify({ message: 'No due task reminders found' }),
+        JSON.stringify({ 
+          message: 'No due task reminders found',
+          emailsSent: 0
+        }),
         { 
           status: 200, 
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -408,88 +423,108 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    console.log(`📮 Found ${dueTasks.length} due task reminders`);
+
     let emailsSent = 0;
-    let emailsSkipped = 0;
+    const emailPromises = [];
 
     for (const task of dueTasks) {
+      console.log(`Processing task: ${task.id} (${task.title})`);
+      
+      // Check if we've recently sent this email (prevent duplicates)
+      let userEmail = '';
+      let language = 'en';
+
       try {
-        // Get user email
-        const { data: userData, error: userError } = await supabase.auth.admin.getUserById(task.user_id);
-        
-        if (userError || !userData.user?.email) {
-          console.error(`Failed to get user email for task ${task.id}:`, userError);
-          continue;
+        // Check if task has external_user_email (created by external user on public board)
+        if (task.external_user_email) {
+          console.log('📧 External user task detected, sending email to:', task.external_user_email);
+          userEmail = task.external_user_email;
+          language = 'en'; // Default for external users
+        } else {
+          // Task created by admin - get admin's email and language preference
+          const { data: userData, error: userError } = await supabase.auth.admin.getUserById(task.user_id);
+          
+          if (userError || !userData.user?.email) {
+            console.error(`Failed to get user email for task ${task.id}:`, userError);
+            continue;
+          }
+
+          userEmail = userData.user.email;
+
+          // Get user's language preference from profiles table
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('language')
+            .eq('id', task.user_id)
+            .single();
+
+          language = profileData?.language || 'en';
         }
 
-        const userEmail = userData.user.email;
         const deduplicationKey = `${task.id}_${userEmail}`;
-
-        // Check if we've recently sent this email
         const recentSendTime = recentlySentEmails.get(deduplicationKey);
+        
         if (recentSendTime && Date.now() - recentSendTime < 10 * 60 * 1000) {
           console.log(`⏭️ Skipping duplicate email for task ${task.id}`);
-          emailsSkipped++;
           continue;
         }
 
-        // Get user's language preference
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('language')
-          .eq('id', task.user_id)
-          .single();
-
-        const language = profileData?.language || 'en';
-        
-        // Format reminder time using the new function with proper locale and timezone
+        // Format reminder time using the original scheduled time, not current time
         const formattedTime = formatReminderTimeForLocale(task.reminder_at, language);
 
         // Get localized email content
         const { subject, body: emailBody } = getEmailContent(language, task.title, formattedTime, task.description);
 
-        // Send email
-        const emailResult = await resend.emails.send({
+        // Create email sending promise
+        const emailPromise = resend.emails.send({
           from: 'SmartBookly <noreply@smartbookly.com>',
           to: [userEmail],
           subject: subject,
           html: emailBody
+        }).then(async (emailResult) => {
+          if (emailResult.error) {
+            console.error(`Failed to send email for task ${task.id}:`, emailResult.error);
+          } else {
+            console.log(`✅ Reminder email sent for task ${task.id} to ${userEmail} in language ${language}`);
+            
+            // Mark the task as email sent and disable future sends
+            await supabase
+              .from('tasks')
+              .update({ 
+                reminder_sent_at: new Date().toISOString(),
+                email_reminder_enabled: false
+              })
+              .eq('id', task.id);
+
+            // Track in deduplication map
+            recentlySentEmails.set(deduplicationKey, Date.now());
+            
+            return true;
+          }
+          return false;
+        }).catch((error) => {
+          console.error(`Error sending email for task ${task.id}:`, error);
+          return false;
         });
 
-        if (emailResult.error) {
-          console.error(`Failed to send email for task ${task.id}:`, emailResult.error);
-          continue;
-        }
-
-        console.log(`✅ Reminder email sent for task ${task.id} to ${userEmail} in language ${language}`);
-        
-        // Mark the task as email sent
-        await supabase
-          .from('tasks')
-          .update({ 
-            reminder_sent_at: new Date().toISOString(),
-            email_reminder_enabled: false
-          })
-          .eq('id', task.id);
-
-        // Track in deduplication map
-        recentlySentEmails.set(deduplicationKey, Date.now());
-        
-        emailsSent++;
-
+        emailPromises.push(emailPromise);
       } catch (error) {
         console.error(`Error processing task ${task.id}:`, error);
-        continue;
       }
     }
 
-    console.log(`📊 Task reminder email summary: ${emailsSent} sent, ${emailsSkipped} skipped`);
+    // Wait for all emails to be sent
+    const results = await Promise.all(emailPromises);
+    emailsSent = results.filter(Boolean).length;
+
+    console.log(`📊 Email sending complete. ${emailsSent} emails sent successfully`);
 
     return new Response(
       JSON.stringify({
-        message: 'Task reminder emails processed',
-        emailsSent,
-        emailsSkipped,
-        totalTasks: dueTasks.length
+        message: `Task reminder emails processed successfully`,
+        emailsSent: emailsSent,
+        totalTasksProcessed: dueTasks.length
       }),
       { 
         status: 200, 
@@ -497,10 +532,13 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
-  } catch (error) {
-    console.error('Error in task reminder email function:', error);
+  } catch (error: any) {
+    console.error('Error in send-task-reminder-email function:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        error: 'Internal server error',
+        message: error.message 
+      }),
       { 
         status: 500, 
         headers: { 'Content-Type': 'application/json', ...corsHeaders }

@@ -785,6 +785,7 @@ export type Database = {
           access_token: string
           board_id: string
           created_at: string
+          external_user_email: string | null
           external_user_name: string
           id: string
           last_accessed_at: string
@@ -793,6 +794,7 @@ export type Database = {
           access_token: string
           board_id: string
           created_at?: string
+          external_user_email?: string | null
           external_user_name: string
           id?: string
           last_accessed_at?: string
@@ -801,6 +803,7 @@ export type Database = {
           access_token?: string
           board_id?: string
           created_at?: string
+          external_user_email?: string | null
           external_user_name?: string
           id?: string
           last_accessed_at?: string

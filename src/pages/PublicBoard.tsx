@@ -30,6 +30,7 @@ export const PublicBoard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [magicWord, setMagicWord] = useState("");
   const [boardData, setBoardData] = useState<PublicBoardData | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -113,6 +114,7 @@ export const PublicBoard = () => {
         setAccessToken(token);
         setIsAuthenticated(true);
         setFullName(data.external_user_name);
+        setEmail(data.external_user_email || "");
         
         // Update last accessed time
         await supabase
@@ -125,6 +127,7 @@ export const PublicBoard = () => {
         setIsAuthenticated(false);
         setAccessToken(null);
         setFullName("");
+        setEmail("");
         setMagicWord("");
       }
     } catch (error) {
@@ -134,15 +137,32 @@ export const PublicBoard = () => {
       setIsAuthenticated(false);
       setAccessToken(null);
       setFullName("");
+      setEmail("");
       setMagicWord("");
     }
   };
 
   const handleAuthentication = async () => {
-    if (!fullName.trim() || !magicWord.trim() || !boardData) {
+    if (!fullName.trim() || !email.trim() || !magicWord.trim() || !boardData) {
+      let description = "";
+      if (!fullName.trim()) description = t("publicBoard.enterFullName");
+      else if (!email.trim()) description = "Please enter your email address";
+      else description = t("publicBoard.enterMagicWordForAccess");
+      
       toast({
         title: t("common.error"),
-        description: !fullName.trim() ? t("publicBoard.enterFullName") : t("publicBoard.enterMagicWordForAccess"),
+        description,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      toast({
+        title: t("common.error"),
+        description: "Please enter a valid email address",
         variant: "destructive",
       });
       return;
@@ -195,6 +215,7 @@ export const PublicBoard = () => {
           board_id: boardData.id,
           access_token: token,
           external_user_name: fullName.trim(),
+          external_user_email: email.trim(),
         });
 
       if (error) throw error;
@@ -289,6 +310,20 @@ export const PublicBoard = () => {
                 </div>
                 
                 <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium">
+                    Email Address *
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email address"
+                    className="w-full"
+                  />
+                </div>
+                
+                <div className="space-y-2">
                   <Label htmlFor="magicWord" className="text-sm font-medium">
                     {t("publicBoard.magicWord")} *
                   </Label>
@@ -305,7 +340,7 @@ export const PublicBoard = () => {
 
                 <Button
                   onClick={handleAuthentication}
-                  disabled={isSubmitting || !fullName.trim() || !magicWord.trim()}
+                  disabled={isSubmitting || !fullName.trim() || !email.trim() || !magicWord.trim()}
                   className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                 >
                   {isSubmitting ? (
@@ -352,6 +387,7 @@ export const PublicBoard = () => {
           <PublicTaskList 
             boardUserId={boardData.user_id} 
             externalUserName={fullName}
+            externalUserEmail={email}
           />
         )}
       </div>

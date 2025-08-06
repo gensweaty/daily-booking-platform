@@ -15,13 +15,15 @@ interface PublicAddTaskFormProps {
   editingTask?: Task | null;
   boardUserId: string;
   externalUserName: string;
+  externalUserEmail: string;
 }
 
 export const PublicAddTaskForm = ({ 
   onClose, 
   editingTask, 
   boardUserId,
-  externalUserName 
+  externalUserName,
+  externalUserEmail 
 }: PublicAddTaskFormProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -106,6 +108,7 @@ export const PublicAddTaskForm = ({
         deadline_at: deadline && deadline.trim() !== '' ? deadline : null,
         reminder_at: reminderAt && reminderAt.trim() !== '' ? reminderAt : null,
         email_reminder_enabled: emailReminder && reminderAt ? emailReminder : false,
+        external_user_email: externalUserEmail, // Store external user email for reminders
         ...(editingTask ? {
           // External user editing
           last_edited_by_type: 'external_user',

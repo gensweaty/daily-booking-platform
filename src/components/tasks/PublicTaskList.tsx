@@ -17,9 +17,10 @@ import { supabase } from "@/lib/supabase";
 interface PublicTaskListProps {
   boardUserId: string;
   externalUserName: string;
+  externalUserEmail: string;
 }
 
-export const PublicTaskList = ({ boardUserId, externalUserName }: PublicTaskListProps) => {
+export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmail }: PublicTaskListProps) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -256,10 +257,11 @@ export const PublicTaskList = ({ boardUserId, externalUserName }: PublicTaskList
                 exit={{ opacity: 0, y: 20, scale: 0.95 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
-                <PublicAddTaskForm 
-                  onClose={() => setIsAddingTask(false)} 
+                <PublicAddTaskForm
+                  onClose={() => setIsAddingTask(false)}
                   boardUserId={boardUserId}
                   externalUserName={externalUserName}
+                  externalUserEmail={externalUserEmail}
                 />
               </motion.div>
             </DialogContent>
@@ -277,11 +279,12 @@ export const PublicTaskList = ({ boardUserId, externalUserName }: PublicTaskList
                 exit={{ opacity: 0, y: 20, scale: 0.95 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
-                <PublicAddTaskForm 
-                  onClose={() => setEditingTask(null)} 
+                <PublicAddTaskForm
+                  onClose={() => setEditingTask(null)}
                   editingTask={editingTask}
                   boardUserId={boardUserId}
                   externalUserName={externalUserName}
+                  externalUserEmail={externalUserEmail}
                 />
               </motion.div>
             </DialogContent>
