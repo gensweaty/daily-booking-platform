@@ -248,6 +248,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
                 <AddTaskForm 
                   onClose={() => setEditingTask(null)} 
                   editingTask={editingTask}
+                  username={username}
                 />
               </motion.div>
             </DialogContent>
