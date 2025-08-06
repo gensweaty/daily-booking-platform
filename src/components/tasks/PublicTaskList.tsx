@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
-import AddTaskForm from "../AddTaskForm";
+import { PublicAddTaskForm } from "./PublicAddTaskForm";
 import { TaskFullView } from "./TaskFullView";
 import { TaskColumn } from "./TaskColumn";
 import { TaskCardSkeleton } from "./TaskCardSkeleton";
@@ -275,7 +275,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName }: PublicTaskList
                 exit={{ opacity: 0, y: 20, scale: 0.95 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
-                <AddTaskForm 
+                <PublicAddTaskForm 
                   onClose={() => setIsAddingTask(false)} 
                   boardUserId={boardUserId}
                   externalUserName={externalUserName}
@@ -315,7 +315,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName }: PublicTaskList
                 exit={{ opacity: 0, y: 20, scale: 0.95 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
-                <AddTaskForm 
+                <PublicAddTaskForm 
                   onClose={() => setEditingTask(null)} 
                   editingTask={editingTask}
                   boardUserId={boardUserId}
