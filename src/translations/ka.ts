@@ -655,5 +655,27 @@ export const translations: TranslationType = {
     october: "ოქტომბერი",
     november: "ნოემბერი",
     december: "დეკემბერი"
+  },
+  publicBoard: {
+    title: "ამოცანების დაფის პარამეტრები",
+    subtitle: "დაფის ხილვადობის მართვა",
+    private: "პრივატული",
+    public: "საჯარო",
+    makePublic: "საჯაროს გახდნა",
+    publicLink: "საჯარო ბმული",
+    magicWord: "მაგიური სიტყვა",
+    magicWordPlaceholder: "შეიყვანეთ მაგიური სიტყვა...",
+    copyLink: "ბმულის კოპირება",
+    openInNewTab: "ახალ ფანჯარაში გახსნა",
+    accessRequired: "წვდომა საჭიროა",
+    enterMagicWord: "შეიყვანეთ მაგიური სიტყვა",
+    enterFullName: "შეიყვანეთ სრული სახელი",
+    fullNamePlaceholder: "თქვენი სრული სახელი...",
+    enterBoard: "დაფაში შესვლა",
+    incorrectMagicWord: "არასწორი მაგიური სიტყვა",
+    nameRequired: "სახელი აუცილებელია",
+    linkCopied: "ბმული კოპირებულია",
+    boardPrivate: "დაფა ახლა პრივატულია",
+    boardPublic: "დაფა ახლა საჯაროა"
   }
 };

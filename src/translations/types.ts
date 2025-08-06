@@ -298,6 +298,28 @@ export interface TranslationType {
     withBooking: string;
     withoutBooking: string;
   };
+  publicBoard: {
+    title: string;
+    subtitle: string;
+    private: string;
+    public: string;
+    makePublic: string;
+    publicLink: string;
+    magicWord: string;
+    magicWordPlaceholder: string;
+    copyLink: string;
+    openInNewTab: string;
+    accessRequired: string;
+    enterMagicWord: string;
+    enterFullName: string;
+    fullNamePlaceholder: string;
+    enterBoard: string;
+    incorrectMagicWord: string;
+    nameRequired: string;
+    linkCopied: string;
+    boardPrivate: string;
+    boardPublic: string;
+  };
   events: {
     addEvent: string;
     submitBookingRequest: string;

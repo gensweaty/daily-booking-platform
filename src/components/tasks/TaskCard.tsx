@@ -17,9 +17,10 @@ interface TaskCardProps {
   onEdit: (task: Task) => void;
   onView: (task: Task) => void;
   onDelete: (id: string) => void;
+  isPublicBoard?: boolean;
 }
 
-export const TaskCard = ({ task, index, onEdit, onView, onDelete }: TaskCardProps) => {
+export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard = false }: TaskCardProps) => {
   const { language } = useLanguage();
   const isGeorgian = language === 'ka';
   const [isHovered, setIsHovered] = useState(false);

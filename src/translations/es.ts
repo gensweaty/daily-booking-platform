@@ -655,5 +655,27 @@ export const translations: TranslationType = {
     october: "Octubre",
     november: "Noviembre",
     december: "Diciembre"
+  },
+  publicBoard: {
+    title: "Configuración del Tablero de Tareas",
+    subtitle: "Gestionar visibilidad del tablero",
+    private: "Privado",
+    public: "Público",
+    makePublic: "Hacer Público",
+    publicLink: "Enlace Público",
+    magicWord: "Palabra Mágica",
+    magicWordPlaceholder: "Ingresa palabra mágica...",
+    copyLink: "Copiar Enlace",
+    openInNewTab: "Abrir en Nueva Pestaña",
+    accessRequired: "Acceso Requerido",
+    enterMagicWord: "Ingresa Palabra Mágica",
+    enterFullName: "Ingresa Nombre Completo",
+    fullNamePlaceholder: "Tu nombre completo...",
+    enterBoard: "Entrar al Tablero",
+    incorrectMagicWord: "Palabra mágica incorrecta",
+    nameRequired: "El nombre es requerido",
+    linkCopied: "Enlace copiado al portapapeles",
+    boardPrivate: "El tablero ahora es privado",
+    boardPublic: "El tablero ahora es público"
   }
 };

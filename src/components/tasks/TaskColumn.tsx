@@ -15,9 +15,10 @@ interface TaskColumnProps {
   onEdit: (task: Task) => void;
   onView: (task: Task) => void;
   onDelete: (id: string) => void;
+  isPublicBoard?: boolean;
 }
 
-export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColumnProps) => {
+export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBoard = false }: TaskColumnProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
   const [isDragOver, setIsDragOver] = useState(false);
@@ -239,6 +240,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete }: TaskColu
                       onEdit={onEdit}
                       onView={onView}
                       onDelete={onDelete}
+                      isPublicBoard={isPublicBoard}
                     />
                   </motion.div>
                 ))
