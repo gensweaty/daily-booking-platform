@@ -21,6 +21,20 @@ interface TaskCommentItemProps {
   isExternal?: boolean;
 }
 
+const getDisplayName = (comment: TaskComment) => {
+  if (comment.created_by_name && comment.created_by_name !== 'Unknown User') {
+    // For external users showing email, extract the username part
+    if (comment.created_by_type === 'external' && comment.created_by_name.includes('@')) {
+      const emailMatch = comment.created_by_name.match(/^([^@]+)@/);
+      if (emailMatch) {
+        return emailMatch[1];
+      }
+    }
+    return comment.created_by_name;
+  }
+  return 'Unknown User';
+};
+
 export const TaskCommentItem = ({ 
   comment, 
   canDelete, 
@@ -140,10 +154,10 @@ export const TaskCommentItem = ({
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">
-              {comment.created_by_name || 'Unknown User'}
+              {getDisplayName(comment)}
             </span>
             <span className="text-xs text-muted-foreground">
-              {comment.created_by_type === 'external' ? '(External)' : '(Admin)'}
+              {comment.created_by_type === 'external' ? '(External)' : '(User)'}
             </span>
           </div>
           <div className="flex items-center gap-2">

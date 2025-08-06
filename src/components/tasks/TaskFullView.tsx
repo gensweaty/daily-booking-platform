@@ -134,8 +134,8 @@ export const TaskFullView = ({
             {/* Highlighted Task Title */}
             <div className="p-2 sm:p-4 rounded-lg border border-input bg-muted/50">
               <DialogTitle className="flex items-start gap-2 sm:gap-3 text-left">
-                <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary mt-0.5 flex-shrink-0" />
-                <span className="text-sm sm:text-lg font-bold leading-tight break-words">{task.title}</span>
+                <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-primary mt-0.5 flex-shrink-0" />
+                <span className="text-base sm:text-xl font-bold leading-tight break-words">{task.title}</span>
               </DialogTitle>
             </div>
           </DialogHeader>
@@ -145,16 +145,16 @@ export const TaskFullView = ({
             <Card className="border-muted/40 bg-muted/20">
               <CardContent className="p-2 sm:p-4">
                 <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                  <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-                  <h3 className="text-xs sm:text-sm font-medium text-muted-foreground">{t("tasks.descriptionLabel")}</h3>
+                  <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                  <h3 className="text-sm sm:text-base font-medium text-muted-foreground">{t("tasks.descriptionLabel")}</h3>
                 </div>
                 {task.description ? (
                   <div 
-                    className="text-xs sm:text-sm text-foreground leading-relaxed prose-sm max-w-none bg-muted/30 rounded-md p-2 sm:p-3 border border-muted/40 overflow-hidden"
+                    className="text-sm sm:text-base text-foreground leading-relaxed prose-sm max-w-none bg-muted/30 rounded-md p-2 sm:p-3 border border-muted/40 overflow-hidden"
                     dangerouslySetInnerHTML={{ __html: task.description }}
                   />
                 ) : (
-                  <p className="text-xs sm:text-sm text-muted-foreground italic bg-muted/30 rounded-md p-2 sm:p-3 border border-muted/40">
+                  <p className="text-sm sm:text-base text-muted-foreground italic bg-muted/30 rounded-md p-2 sm:p-3 border border-muted/40">
                     {t("common.noDescription")}
                   </p>
                 )}
