@@ -21,6 +21,7 @@ interface PublicBoard {
   id: string;
   magic_word: string;
   is_active: boolean;
+  slug: string;
 }
 
 export const PublicBoardSettings = () => {
@@ -30,12 +31,13 @@ export const PublicBoardSettings = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
   const [magicWord, setMagicWord] = useState("");
+  const [slug, setSlug] = useState("");
   const [publicBoard, setPublicBoard] = useState<PublicBoard | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const publicUrl = publicBoard ? 
-    `${window.location.origin}/public-board/${publicBoard.id}` : "";
+  const publicUrl = publicBoard && publicBoard.slug ? 
+    `${window.location.origin}/board/${publicBoard.slug}` : "";
 
   // Fetch existing public board settings
   useEffect(() => {
@@ -64,6 +66,7 @@ export const PublicBoardSettings = () => {
         setPublicBoard(data);
         setIsPublic(data.is_active);
         setMagicWord(data.magic_word);
+        setSlug(data.slug || "");
       }
     } catch (error) {
       console.error('Error fetching public board:', error);
@@ -73,10 +76,10 @@ export const PublicBoardSettings = () => {
   };
 
   const handleSaveSettings = async () => {
-    if (!user || !magicWord.trim()) {
+    if (!user || !magicWord.trim() || (isPublic && !slug.trim())) {
       toast({
         title: t("common.error"),
-        description: t("publicBoard.magicWordRequired"),
+        description: !magicWord.trim() ? t("publicBoard.magicWordRequired") : t("publicBoard.slugRequired"),
         variant: "destructive",
       });
       return;
@@ -90,6 +93,7 @@ export const PublicBoardSettings = () => {
           .from('public_boards')
           .update({
             magic_word: magicWord.trim(),
+            slug: slug.trim(),
             is_active: isPublic,
             updated_at: new Date().toISOString(),
           })
@@ -100,6 +104,7 @@ export const PublicBoardSettings = () => {
         setPublicBoard(prev => prev ? {
           ...prev,
           magic_word: magicWord.trim(),
+          slug: slug.trim(),
           is_active: isPublic,
         } : null);
       } else {
@@ -109,6 +114,7 @@ export const PublicBoardSettings = () => {
           .insert({
             user_id: user.id,
             magic_word: magicWord.trim(),
+            slug: slug.trim(),
             is_active: isPublic,
           })
           .select()
@@ -151,10 +157,12 @@ export const PublicBoardSettings = () => {
       <DialogTrigger asChild>
         <Button 
           variant="outline" 
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 border-primary/20 hover:border-primary/30 transition-all duration-300"
         >
-          {isPublic ? <Globe className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-          {isPublic ? t("publicBoard.public") : t("publicBoard.private")}
+          {isPublic ? <Globe className="h-4 w-4 text-green-500" /> : <Lock className="h-4 w-4 text-muted-foreground" />}
+          <span className="font-medium">
+            {isPublic ? t("publicBoard.public") : t("publicBoard.private")}
+          </span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
@@ -188,28 +196,50 @@ export const PublicBoardSettings = () => {
               />
             </div>
 
-            {/* Magic Word Input */}
+            {/* Slug and Magic Word Inputs */}
             {isPublic && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className="space-y-2"
+                className="space-y-4"
               >
-                <Label htmlFor="magic-word" className="text-sm font-medium">
-                  {t("publicBoard.magicWord")} *
-                </Label>
-                <Input
-                  id="magic-word"
-                  type="text"
-                  value={magicWord}
-                  onChange={(e) => setMagicWord(e.target.value)}
-                  placeholder={t("publicBoard.enterMagicWord")}
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t("publicBoard.magicWordDescription")}
-                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="slug" className="text-sm font-medium">
+                    {t("publicBoard.boardSlug")} *
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{window.location.origin}/board/</span>
+                    <Input
+                      id="slug"
+                      type="text"
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                      placeholder={t("publicBoard.enterSlug")}
+                      className="flex-1"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {t("publicBoard.slugDescription")}
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="magic-word" className="text-sm font-medium">
+                    {t("publicBoard.magicWord")} *
+                  </Label>
+                  <Input
+                    id="magic-word"
+                    type="text"
+                    value={magicWord}
+                    onChange={(e) => setMagicWord(e.target.value)}
+                    placeholder={t("publicBoard.enterMagicWord")}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {t("publicBoard.magicWordDescription")}
+                  </p>
+                </div>
               </motion.div>
             )}
 
@@ -250,8 +280,8 @@ export const PublicBoardSettings = () => {
             {/* Save Button */}
             <Button
               onClick={handleSaveSettings}
-              disabled={isSubmitting || (isPublic && !magicWord.trim())}
-              className="w-full"
+              disabled={isSubmitting || (isPublic && (!magicWord.trim() || !slug.trim()))}
+              className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
             >
               {isSubmitting ? (
                 <div className="flex items-center gap-2">
