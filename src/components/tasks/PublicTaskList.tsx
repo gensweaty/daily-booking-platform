@@ -298,6 +298,24 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
           isOpen={!!viewingTask}
           onClose={() => setViewingTask(null)}
           onEdit={handleEditFromView}
+          onDelete={(id: string) => {
+            // Sub-users can only delete tasks they created
+            const canDelete = viewingTask.created_by_type === 'external_user' && 
+                            viewingTask.created_by_name === `${externalUserName} (Sub User)`;
+            if (canDelete) {
+              updateTaskMutation.mutate({
+                id,
+                updates: { 
+                  archived: true,
+                  archived_at: new Date().toISOString(),
+                  last_edited_by_type: 'external_user',
+                  last_edited_by_name: `${externalUserName} (Sub User)`,
+                  last_edited_at: new Date().toISOString()
+                }
+              });
+              setViewingTask(null);
+            }
+          }}
           externalUserName={externalUserName}
           externalUserEmail={externalUserEmail}
         />

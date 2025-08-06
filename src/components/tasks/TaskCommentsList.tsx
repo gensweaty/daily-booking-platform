@@ -202,7 +202,12 @@ export const TaskCommentsList = ({
                 <div key={comment.id}>
                   <TaskCommentItem
                     comment={comment}
-                    canDelete={!isExternal} // Only admin can delete comments
+                    canDelete={
+                      isExternal 
+                        ? comment.created_by_type === 'external_user' && 
+                          comment.created_by_name === `${externalUserName} (Sub User)`
+                        : userId === comment.user_id
+                    }
                     username={username}
                     externalUserName={externalUserName}
                     isExternal={isExternal}

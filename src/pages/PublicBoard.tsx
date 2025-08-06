@@ -157,11 +157,16 @@ export const PublicBoard = () => {
       
       // Also update last login time for this sub user session
       if (data.external_user_email && boardData) {
-        await supabase
+        console.log('Updating last login during token validation for:', data.external_user_email);
+        const { error: updateLoginError } = await supabase
           .from('sub_users')
           .update({ last_login_at: new Date().toISOString() })
           .eq('board_owner_id', boardData.user_id)
           .eq('email', data.external_user_email);
+          
+        if (updateLoginError) {
+          console.error('Error updating login time during token validation:', updateLoginError);
+        }
       }
         
         // Update last accessed time
@@ -230,7 +235,7 @@ export const PublicBoard = () => {
       // Find the sub user to get their fullname and update last login
       const { data: subUser, error: findError } = await supabase
         .from('sub_users')
-        .select('fullname')
+        .select('id, fullname, email')
         .eq('board_owner_id', boardData.user_id)
         .eq('email', email.trim())
         .single();
@@ -248,14 +253,16 @@ export const PublicBoard = () => {
 
       // Update last login for existing sub user
       if (subUser) {
+        console.log('Updating last login for sub user:', subUser.id, subUser.email);
         const { error: updateError } = await supabase
           .from('sub_users')
           .update({ last_login_at: new Date().toISOString() })
-          .eq('board_owner_id', boardData.user_id)
-          .eq('email', email.trim());
+          .eq('id', subUser.id);
 
         if (updateError) {
           console.error('Error updating last login:', updateError);
+        } else {
+          console.log('Successfully updated last login for sub user');
         }
       }
 
