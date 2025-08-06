@@ -45,12 +45,50 @@ export const PublicBoard = () => {
   }, [slug]);
 
   useEffect(() => {
-    // Check for existing access token
-    const storedToken = localStorage.getItem(`public-board-access-${slug}`);
-    if (storedToken && boardData) {
-      verifyExistingAccess(storedToken);
+    // Check for existing access token with 3-hour expiration
+    const storedData = localStorage.getItem(`public-board-access-${slug}`);
+    if (storedData && boardData) {
+      try {
+        const { token, timestamp } = JSON.parse(storedData);
+        const threeHoursInMs = 3 * 60 * 60 * 1000; // 3 hours
+        const isExpired = Date.now() - timestamp > threeHoursInMs;
+        
+        if (!isExpired) {
+          verifyExistingAccess(token);
+        } else {
+          // Clear expired token
+          localStorage.removeItem(`public-board-access-${slug}`);
+        }
+      } catch (error) {
+        // Clear invalid stored data
+        localStorage.removeItem(`public-board-access-${slug}`);
+      }
     }
   }, [boardData, slug]);
+
+  // Track tab visibility to maintain session
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isAuthenticated && accessToken) {
+        // Tab became visible again, update session timestamp
+        const storedData = localStorage.getItem(`public-board-access-${slug}`);
+        if (storedData) {
+          try {
+            const { token } = JSON.parse(storedData);
+            localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
+              token,
+              timestamp: Date.now()
+            }));
+          } catch (error) {
+            console.error('Error updating session timestamp:', error);
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isAuthenticated, accessToken, slug]);
 
   const checkBoardAccess = async () => {
     if (!slug) return;
@@ -220,8 +258,11 @@ export const PublicBoard = () => {
 
       if (error) throw error;
 
-      // Store token and authenticate
-      localStorage.setItem(`public-board-access-${slug}`, token);
+      // Store token with timestamp and authenticate
+      localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
+        token,
+        timestamp: Date.now()
+      }));
       setAccessToken(token);
       setIsAuthenticated(true);
 
