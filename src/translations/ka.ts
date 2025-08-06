@@ -432,9 +432,9 @@ export const translations: TranslationType = {
     hoursAgo: "საათის წინ",
     daysAgo: "დღის წინ",
     schedule: "გრაფიკი",
-    created: "შექმნილია:",
-    lastUpdated: "ბოლო განახლება:",
-    by: "-ს მიერ"
+    created: "შექმნილია",
+    lastUpdated: "ბოლოს განახლდა",
+    by: "მიერ"
   },
   auth: {
     welcome: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში",
