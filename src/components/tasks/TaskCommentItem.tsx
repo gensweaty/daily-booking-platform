@@ -19,12 +19,18 @@ interface TaskCommentItemProps {
   username?: string;
   externalUserName?: string;
   isExternal?: boolean;
+  taskCreatorName?: string;
 }
 
-const getDisplayName = (comment: TaskComment) => {
+const getDisplayName = (comment: TaskComment, fallbackName?: string) => {
+  // For external users, prioritize the fallback name (from task metadata) if available
+  if (comment.created_by_type === 'external' && fallbackName && fallbackName !== 'Unknown User') {
+    return fallbackName;
+  }
+  
   if (comment.created_by_name && comment.created_by_name !== 'Unknown User') {
-    // For external users showing email, extract the username part
-    if (comment.created_by_type === 'external' && comment.created_by_name.includes('@')) {
+    // If it's an email, try to extract a meaningful display name
+    if (comment.created_by_name.includes('@')) {
       const emailMatch = comment.created_by_name.match(/^([^@]+)@/);
       if (emailMatch) {
         return emailMatch[1];
@@ -40,7 +46,8 @@ export const TaskCommentItem = ({
   canDelete, 
   username, 
   externalUserName, 
-  isExternal = false 
+  isExternal = false,
+  taskCreatorName
 }: TaskCommentItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
@@ -154,7 +161,7 @@ export const TaskCommentItem = ({
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">
-              {getDisplayName(comment)}
+              {getDisplayName(comment, taskCreatorName)}
             </span>
             <span className="text-xs text-muted-foreground">
               {comment.created_by_type === 'external' ? '(External)' : '(User)'}

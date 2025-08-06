@@ -150,11 +150,11 @@ export const TaskFullView = ({
                 </div>
                 {task.description ? (
                   <div 
-                    className="text-sm sm:text-base text-foreground leading-relaxed prose-sm max-w-none bg-muted/30 rounded-md p-2 sm:p-3 border border-muted/40 overflow-hidden"
+                    className="text-base sm:text-lg text-foreground leading-relaxed prose-sm max-w-none bg-muted/30 rounded-md p-2 sm:p-3 border border-muted/40 overflow-hidden"
                     dangerouslySetInnerHTML={{ __html: task.description }}
                   />
                 ) : (
-                  <p className="text-sm sm:text-base text-muted-foreground italic bg-muted/30 rounded-md p-2 sm:p-3 border border-muted/40">
+                  <p className="text-base sm:text-lg text-muted-foreground italic bg-muted/30 rounded-md p-2 sm:p-3 border border-muted/40">
                     {t("common.noDescription")}
                   </p>
                 )}
@@ -238,6 +238,7 @@ export const TaskFullView = ({
                 username={user?.user_metadata?.full_name || user?.email || 'Admin'}
                 isExternal={false}
                 userId={user?.id}
+                taskCreatorName={task.created_by_name}
               />
             </div>
           </div>

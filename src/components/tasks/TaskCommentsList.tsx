@@ -20,6 +20,7 @@ interface TaskCommentsListProps {
   externalUserName?: string;
   isExternal?: boolean;
   userId?: string;
+  taskCreatorName?: string;
 }
 
 export const TaskCommentsList = ({ 
@@ -28,7 +29,8 @@ export const TaskCommentsList = ({
   username, 
   externalUserName, 
   isExternal = false,
-  userId
+  userId,
+  taskCreatorName
 }: TaskCommentsListProps) => {
   const [newComment, setNewComment] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -204,6 +206,7 @@ export const TaskCommentsList = ({
                     username={username}
                     externalUserName={externalUserName}
                     isExternal={isExternal}
+                    taskCreatorName={taskCreatorName}
                   />
                   {index < comments.length - 1 && <Separator />}
                 </div>
