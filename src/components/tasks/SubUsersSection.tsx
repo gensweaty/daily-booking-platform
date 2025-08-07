@@ -29,6 +29,29 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
   useEffect(() => {
     if (boardOwnerId) {
       fetchSubUsers();
+      
+      // Set up real-time updates for sub_users table
+      const channel = supabase
+        .channel('sub-users-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'sub_users',
+            filter: `board_owner_id=eq.${boardOwnerId}`
+          },
+          (payload) => {
+            console.log('Sub user updated:', payload);
+            // Refresh the sub users list when any update occurs
+            fetchSubUsers();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [boardOwnerId]);
 
