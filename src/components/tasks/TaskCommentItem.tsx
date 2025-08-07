@@ -24,7 +24,7 @@ interface TaskCommentItemProps {
 
 const getDisplayName = (comment: TaskComment, fallbackName?: string) => {
   // For external users, use their stored name directly from the comment
-  if (comment.created_by_type === 'external') {
+  if (comment.created_by_type === 'external' || comment.created_by_type === 'external_user') {
     if (comment.created_by_name && comment.created_by_name !== 'Unknown User' && comment.created_by_name !== 'External User') {
       return comment.created_by_name;
     }
@@ -138,7 +138,7 @@ export const TaskCommentItem = ({
     if (!editContent.trim()) return;
     
     const editorName = isExternal ? externalUserName || 'External User' : username || 'Admin';
-    const editorType = isExternal ? 'external' : 'admin';
+    const editorType = isExternal ? 'external_user' : 'admin';
     
     updateMutation.mutate({
       content: editContent,
@@ -172,7 +172,7 @@ export const TaskCommentItem = ({
               {getDisplayName(comment, taskCreatorName)}
             </span>
             <span className="text-xs text-muted-foreground">
-              {comment.created_by_type === 'external' ? '(External)' : '(User)'}
+              {(comment.created_by_type === 'external' || comment.created_by_type === 'external_user') ? '(Sub User)' : '(User)'}
             </span>
           </div>
           <div className="flex items-center gap-2">

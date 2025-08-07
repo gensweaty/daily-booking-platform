@@ -43,8 +43,10 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
           },
           (payload) => {
             console.log('Sub user updated:', payload);
-            // Refresh the sub users list when any update occurs
-            fetchSubUsers();
+            // Delay refresh to ensure data is committed
+            setTimeout(() => {
+              fetchSubUsers();
+            }, 500);
           }
         )
         .subscribe();

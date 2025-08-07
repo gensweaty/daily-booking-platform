@@ -50,11 +50,17 @@ export const PublicBoard = () => {
     const storedData = localStorage.getItem(`public-board-access-${slug}`);
     if (storedData && boardData) {
       try {
-        const { token, timestamp } = JSON.parse(storedData);
+        const parsedData = JSON.parse(storedData);
+        const { token, timestamp, fullName: storedFullName, email: storedEmail } = parsedData;
         const threeHoursInMs = 3 * 60 * 60 * 1000; // 3 hours
         const isExpired = Date.now() - timestamp > threeHoursInMs;
         
         if (!isExpired) {
+          // If we have stored fullName and email, use them immediately
+          if (storedFullName && storedEmail) {
+            setFullName(storedFullName);
+            setEmail(storedEmail);
+          }
           verifyExistingAccess(token);
         } else {
           // Clear expired token
@@ -75,10 +81,13 @@ export const PublicBoard = () => {
         const storedData = localStorage.getItem(`public-board-access-${slug}`);
         if (storedData) {
           try {
-            const { token } = JSON.parse(storedData);
+            const parsedData = JSON.parse(storedData);
+            const { token, fullName: storedFullName, email: storedEmail } = parsedData;
             localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
               token,
-              timestamp: Date.now()
+              timestamp: Date.now(),
+              fullName: storedFullName,
+              email: storedEmail
             }));
           } catch (error) {
             console.error('Error updating session timestamp:', error);
@@ -275,8 +284,8 @@ export const PublicBoard = () => {
           console.error('Error updating last login:', updateError);
         } else {
           console.log('Successfully updated last login for sub user to:', currentTime);
-          // Force a small delay to ensure the update is committed
-          await new Promise(resolve => setTimeout(resolve, 200));
+          // Force a longer delay and ensure the database transaction is committed
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
 
@@ -298,15 +307,19 @@ export const PublicBoard = () => {
 
       if (error) throw error;
 
-      // Store token with timestamp and authenticate
+      // Store token with timestamp and authenticate with the correct fullname
       localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
         token,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        fullName: actualFullName,
+        email: email.trim()
       }));
       setAccessToken(token);
       setIsAuthenticated(true);
       setFullName(actualFullName);
       setEmail(email.trim());
+      
+      console.log('Setting fullName in state:', actualFullName);
 
       toast({
         title: t("common.success"),
@@ -418,10 +431,14 @@ export const PublicBoard = () => {
       // Store token with timestamp and authenticate
       localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
         token,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        fullName: fullName.trim(),
+        email: email.trim()
       }));
       setAccessToken(token);
       setIsAuthenticated(true);
+      
+      console.log('Registration: Setting fullName in state:', fullName.trim());
 
       toast({
         title: t("common.success"),
