@@ -200,6 +200,61 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
     done: tasks.filter((task: Task) => task.status === 'done'),
   };
 
+  // External users should only be able to delete/edit their own tasks
+  const canDeleteTask = (task: Task) => {
+    return task.created_by_type === 'external_user' && 
+           task.created_by_name === `${externalUserName} (Sub User)`;
+  };
+
+  const canEditTask = (task: Task) => {
+    return task.created_by_type === 'external_user' && 
+           task.created_by_name === `${externalUserName} (Sub User)`;
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    const task = tasks?.find(t => t.id === taskId);
+    if (!task || !canDeleteTask(task)) {
+      toast({
+        title: t("common.error"),
+        description: "You can only delete tasks you created",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ 
+          archived: true,
+          archived_at: new Date().toISOString(),
+          last_edited_by_type: 'external_user',
+          last_edited_by_name: `${externalUserName} (Sub User)`,
+          last_edited_at: new Date().toISOString()
+        })
+        .eq('id', taskId)
+        .eq('user_id', boardUserId);
+
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ 
+        queryKey: ['publicTasks', boardUserId] 
+      });
+
+      toast({
+        title: t("common.success"),
+        description: t("tasks.taskDeleted"),
+      });
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast({
+        title: t("common.error"),
+        description: t("common.deleteError"),
+        variant: "destructive",
+      });
+    }
+  };
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -237,9 +292,30 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
                 key={status}
                 status={status}
                 tasks={statusTasks}
-                onEdit={setEditingTask}
+                onEdit={(task) => {
+                  if (canEditTask(task)) {
+                    setEditingTask(task);
+                  } else {
+                    toast({
+                      title: t("common.error"),
+                      description: "You can only edit tasks you created",
+                      variant: "destructive",
+                    });
+                  }
+                }}
                 onView={setViewingTask}
-                onDelete={() => {}} // External users cannot delete
+                onDelete={(taskId) => {
+                  const task = tasks.find(t => t.id === taskId);
+                  if (task && canDeleteTask(task)) {
+                    handleDeleteTask(taskId);
+                  } else {
+                    toast({
+                      title: t("common.error"),
+                      description: "You can only delete tasks you created",
+                      variant: "destructive",
+                    });
+                  }
+                }}
                 isPublicBoard={true}
               />
             ))}
@@ -297,25 +373,8 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
           task={viewingTask}
           isOpen={!!viewingTask}
           onClose={() => setViewingTask(null)}
-          onEdit={handleEditFromView}
-          onDelete={(id: string) => {
-            // Sub-users can only delete tasks they created
-            const canDelete = viewingTask?.created_by_type === 'external_user' && 
-                            viewingTask?.created_by_name === `${externalUserName} (Sub User)`;
-            if (canDelete) {
-              updateTaskMutation.mutate({
-                id,
-                updates: { 
-                  archived: true,
-                  archived_at: new Date().toISOString(),
-                  last_edited_by_type: 'external_user',
-                  last_edited_by_name: `${externalUserName} (Sub User)`,
-                  last_edited_at: new Date().toISOString()
-                }
-              });
-              setViewingTask(null);
-            }
-          }}
+          onEdit={canEditTask(viewingTask) ? handleEditFromView : undefined}
+          onDelete={canDeleteTask(viewingTask) ? handleDeleteTask : undefined}
           externalUserName={externalUserName}
           externalUserEmail={externalUserEmail}
         />
