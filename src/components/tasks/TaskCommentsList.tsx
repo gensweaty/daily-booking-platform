@@ -87,6 +87,7 @@ export const TaskCommentsList = ({
   const handleAddComment = () => {
     if (!newComment.trim()) return;
     
+    // Use the full name from sub_users table, not email
     const creatorName = isExternal ? `${externalUserName || 'External User'} (Sub User)` : username || 'Admin';
     const creatorType = isExternal ? 'external_user' : 'admin';
     
