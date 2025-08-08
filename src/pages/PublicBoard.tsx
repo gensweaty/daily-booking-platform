@@ -11,7 +11,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PublicTaskList } from "@/components/tasks/PublicTaskList";
 import { motion } from "framer-motion";
-import { Loader2, Globe } from "lucide-react";
+import { Loader2, Globe, LogOut } from "lucide-react";
 import { PresenceAvatars } from "@/components/PresenceAvatars";
 import { useBoardPresence } from "@/hooks/useBoardPresence";
 
@@ -166,33 +166,60 @@ export const PublicBoard = () => {
         .single();
 
       if (!error && data) {
-      setAccessToken(token);
-      setIsAuthenticated(true);
-      setFullName(data.external_user_name);
-      setEmail(data.external_user_email || "");
-      
-      // Also update last login time for this sub user session
-      if (data.external_user_email && boardData) {
-        console.log('Updating last login during token validation for:', data.external_user_email);
-        const currentTime = new Date().toISOString();
-        const { error: updateLoginError } = await supabase
-          .from('sub_users')
-          .update({ 
-            last_login_at: currentTime,
-            updated_at: currentTime
-          })
-          .eq('board_owner_id', boardData.user_id)
-          .eq('email', data.external_user_email);
+        // Normalize email and sync display name from sub_users if available
+        const normalizedEmail = (data.external_user_email || '').trim().toLowerCase();
+        let displayName = data.external_user_name;
 
-        if (updateLoginError) {
-          console.error('Error updating login time during token validation:', updateLoginError);
-        } else {
-          console.log('Successfully updated last login during token validation to:', currentTime);
-          // Force a small delay to ensure the update is committed
-          await new Promise(resolve => setTimeout(resolve, 200));
+        if (boardData) {
+          const { data: subUser } = await supabase
+            .from('sub_users')
+            .select('id, fullname, email')
+            .eq('board_owner_id', boardData.user_id)
+            .ilike('email', normalizedEmail)
+            .maybeSingle();
+
+          if (subUser?.fullname) {
+            displayName = subUser.fullname;
+
+            // Update last login time for this user (case-insensitive match)
+            const currentTime = new Date().toISOString();
+            const { error: updateLoginError } = await supabase
+              .from('sub_users')
+              .update({ last_login_at: currentTime, updated_at: currentTime })
+              .eq('board_owner_id', boardData.user_id)
+              .ilike('email', normalizedEmail);
+
+            if (updateLoginError) {
+              console.error('Error updating login time during token validation:', updateLoginError);
+            } else {
+              // Small delay to ensure commit
+              await new Promise(resolve => setTimeout(resolve, 200));
+            }
+
+            // Ensure access record has the latest display name
+            if (displayName && displayName !== data.external_user_name) {
+              await supabase
+                .from('public_board_access')
+                .update({ external_user_name: displayName })
+                .eq('id', data.id);
+            }
+          }
         }
-      }
-        
+
+        // Apply session state with normalized email and synced name
+        setAccessToken(token);
+        setIsAuthenticated(true);
+        setFullName(displayName || normalizedEmail);
+        setEmail(normalizedEmail);
+
+        // Persist refreshed info
+        localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
+          token,
+          timestamp: Date.now(),
+          fullName: displayName || normalizedEmail,
+          email: normalizedEmail,
+        }));
+
         // Update last accessed time
         await supabase
           .from('public_board_access')
@@ -256,15 +283,16 @@ export const PublicBoard = () => {
 
     setIsSubmitting(true);
     try {
+      const normalizedEmail = email.trim().toLowerCase();
       // Find the sub user to get their fullname and update last login
       const { data: subUser, error: findError } = await supabase
         .from('sub_users')
         .select('id, fullname, email')
         .eq('board_owner_id', boardData.user_id)
-        .eq('email', email.trim())
-        .single();
+        .ilike('email', normalizedEmail)
+        .maybeSingle();
 
-      if (findError && findError.code !== 'PGRST116') {
+      if (findError) {
         console.error('Error finding sub user:', findError);
         toast({
           title: t("common.error"),
@@ -309,7 +337,7 @@ export const PublicBoard = () => {
           board_id: boardData.id,
           access_token: token,
           external_user_name: actualFullName,
-          external_user_email: email.trim(),
+          external_user_email: normalizedEmail,
         });
 
       if (error) throw error;
@@ -319,12 +347,12 @@ export const PublicBoard = () => {
         token,
         timestamp: Date.now(),
         fullName: actualFullName,
-        email: email.trim()
+        email: normalizedEmail
       }));
       setAccessToken(token);
       setIsAuthenticated(true);
       setFullName(actualFullName);
-      setEmail(email.trim());
+      setEmail(normalizedEmail);
       
       console.log('Setting fullName in state:', actualFullName);
 
@@ -382,6 +410,7 @@ export const PublicBoard = () => {
 
     setIsSubmitting(true);
     try {
+      const normalizedEmail = email.trim().toLowerCase();
       // Check if max sub users limit is reached
       const { data: existingSubUsers, error: countError } = await supabase
         .from('sub_users')
@@ -405,7 +434,7 @@ export const PublicBoard = () => {
         .insert({
           board_owner_id: boardData.user_id,
           fullname: fullName.trim(),
-          email: email.trim(),
+          email: normalizedEmail,
         });
 
       if (subUserError) {
@@ -430,7 +459,7 @@ export const PublicBoard = () => {
           board_id: boardData.id,
           access_token: token,
           external_user_name: fullName.trim(),
-          external_user_email: email.trim(),
+          external_user_email: normalizedEmail,
         });
 
       if (error) throw error;
@@ -440,10 +469,11 @@ export const PublicBoard = () => {
         token,
         timestamp: Date.now(),
         fullName: fullName.trim(),
-        email: email.trim()
+        email: normalizedEmail
       }));
       setAccessToken(token);
       setIsAuthenticated(true);
+      setEmail(normalizedEmail);
       
       console.log('Registration: Setting fullName in state:', fullName.trim());
 
@@ -460,6 +490,20 @@ export const PublicBoard = () => {
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleLogout = () => {
+    try {
+      if (slug) localStorage.removeItem(`public-board-access-${slug}`);
+      setIsAuthenticated(false);
+      setAccessToken(null);
+      setFullName("");
+      setEmail("");
+      setMagicWord("");
+      toast({ title: t("common.success"), description: "You have been logged out." });
+    } catch (e) {
+      console.error('Logout error:', e);
     }
   };
 
@@ -623,6 +667,9 @@ export const PublicBoard = () => {
               </span>
               <PresenceAvatars users={onlineUsers} currentUserEmail={email} />
               <LanguageSwitcher />
+              <Button variant="ghost" size="icon" onClick={handleLogout} title="Log out" aria-label="Log out">
+                <LogOut className="h-4 w-4" />
+              </Button>
               <ThemeToggle />
             </div>
           </div>
