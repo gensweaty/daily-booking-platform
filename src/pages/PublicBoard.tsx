@@ -12,6 +12,8 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PublicTaskList } from "@/components/tasks/PublicTaskList";
 import { motion } from "framer-motion";
 import { Loader2, Globe } from "lucide-react";
+import { PresenceAvatars } from "@/components/PresenceAvatars";
+import { useBoardPresence } from "@/hooks/useBoardPresence";
 
 interface PublicBoardData {
   id: string;
@@ -36,6 +38,11 @@ export const PublicBoard = () => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
+
+  const { onlineUsers } = useBoardPresence(
+    boardData?.id,
+    isAuthenticated ? { name: fullName, email } : null
+  );
 
   useEffect(() => {
     if (slug) {
@@ -610,7 +617,11 @@ export const PublicBoard = () => {
                 className="h-8 w-auto"
               />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <span className="hidden sm:inline text-sm text-muted-foreground">
+                Hello, <span className="font-semibold">{fullName}</span>
+              </span>
+              <PresenceAvatars users={onlineUsers} currentUserEmail={email} />
               <LanguageSwitcher />
               <ThemeToggle />
             </div>
