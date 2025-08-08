@@ -9,7 +9,8 @@ export type BoardPresenceUser = {
 
 export function useBoardPresence(
   boardId?: string | null,
-  currentUser?: BoardPresenceUser | null
+  currentUser?: BoardPresenceUser | null,
+  options?: { updateSubUserLastLogin?: boolean; boardOwnerId?: string | null }
 ) {
   const [onlineUsers, setOnlineUsers] = useState<BoardPresenceUser[]>([]);
 
@@ -42,12 +43,28 @@ export function useBoardPresence(
           email: currentUser.email,
           online_at: new Date().toISOString(),
         });
+
+        // Optionally refresh sub-user last login atomically on presence connect
+        if (options?.updateSubUserLastLogin && options?.boardOwnerId) {
+          try {
+            await supabase
+              .from("sub_users")
+              .update({
+                last_login_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("board_owner_id", options.boardOwnerId)
+              .ilike("email", (currentUser.email || "").trim().toLowerCase());
+          } catch (e) {
+            console.error("Failed updating sub user last login on presence connect", e);
+          }
+        }
       });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [boardId, currentUser?.email, currentUser?.name]);
+  }, [boardId, currentUser?.email, currentUser?.name, options?.updateSubUserLastLogin, options?.boardOwnerId]);
 
   const sortedUsers = useMemo(() => {
     // Put current user first, then alphabetical

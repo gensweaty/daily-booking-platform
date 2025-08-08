@@ -41,7 +41,8 @@ export const PublicBoard = () => {
 
   const { onlineUsers } = useBoardPresence(
     boardData?.id,
-    isAuthenticated ? { name: fullName, email } : null
+    isAuthenticated ? { name: fullName, email } : null,
+    { updateSubUserLastLogin: true, boardOwnerId: boardData?.user_id || null }
   );
 
   useEffect(() => {
@@ -79,6 +80,23 @@ export const PublicBoard = () => {
       }
     }
   }, [boardData, slug]);
+
+  // Ensure we never show email in greeting; resolve to sub user fullname if needed
+  useEffect(() => {
+    const resolveName = async () => {
+      if (!boardData || !isAuthenticated) return;
+      if (fullName && fullName.includes("@")) {
+        const { data: subUser } = await supabase
+          .from('sub_users')
+          .select('fullname')
+          .eq('board_owner_id', boardData.user_id)
+          .ilike('email', (email || '').trim().toLowerCase())
+          .maybeSingle();
+        if (subUser?.fullname) setFullName(subUser.fullname);
+      }
+    };
+    resolveName();
+  }, [fullName, email, isAuthenticated, boardData?.user_id]);
 
   // Track tab visibility to maintain session
   useEffect(() => {

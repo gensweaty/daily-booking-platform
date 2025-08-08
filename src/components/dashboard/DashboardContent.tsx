@@ -25,6 +25,7 @@ import { LanguageText } from "@/components/shared/LanguageText"
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText"
 import { cn } from "@/lib/utils"
 import { useQueryClient } from "@tanstack/react-query"
+import { TasksPresenceHeader } from "@/components/tasks/TasksPresenceHeader"
 
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
@@ -322,6 +323,8 @@ export const DashboardContent = ({
                     )}
                   </CardTitle>
                   <div className="flex items-center gap-2">
+                    {/* Presence circles for current board (no greeting) */}
+                    <TasksPresenceHeader />
                     {!showArchive && (
                       <>
                         <PublicBoardSettings />
