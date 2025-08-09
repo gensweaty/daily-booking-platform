@@ -107,21 +107,6 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
     }
   };
 
-  const taskVariants = {
-    hidden: { opacity: 0, y: 10, scale: 0.95 },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
-      scale: 1,
-      transition: { duration: 0.3 }
-    },
-    exit: { 
-      opacity: 0, 
-      y: -10, 
-      scale: 0.95,
-      transition: { duration: 0.2 }
-    }
-  };
 
   const emptyStateVariants = {
     hidden: { opacity: 0, y: 20, scale: 0.9 },
@@ -139,7 +124,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
         <motion.div
           ref={provided.innerRef}
           {...provided.droppableProps}
-          className={`p-6 min-h-[500px] flex flex-col relative overflow-hidden ${getColumnStyle(status)}`}
+          className={`p-6 min-h-[500px] flex flex-col relative overflow-visible ${getColumnStyle(status)}`}
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -222,29 +207,20 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
           
           {/* Tasks Container */}
           <div className="space-y-4 flex-1 relative">
-            <AnimatePresence mode="popLayout">
-              {tasks.length > 0 ? (
-                tasks.map((task: Task, index: number) => (
-                  <motion.div
-                    key={task.id}
-                    variants={taskVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                    layout
-                    className="w-full"
-                  >
-                    <TaskCard
-                      task={task}
-                      index={index}
-                      onEdit={onEdit}
-                      onView={onView}
-                      onDelete={onDelete}
-                      isPublicBoard={isPublicBoard}
-                    />
-                  </motion.div>
-                ))
-              ) : (
+            {tasks.length > 0 ? (
+              tasks.map((task: Task, index: number) => (
+                <div key={task.id} className="w-full">
+                  <TaskCard
+                    task={task}
+                    index={index}
+                    onEdit={onEdit}
+                    onView={onView}
+                    onDelete={onDelete}
+                    isPublicBoard={isPublicBoard}
+                  />
+                </div>
+              ))
+            ) : (
                 <motion.div
                   variants={emptyStateVariants}
                   initial="hidden"
@@ -285,8 +261,6 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
                   )}
                 </motion.div>
               )}
-            </AnimatePresence>
-            
             {provided.placeholder}
             
             {/* Enhanced Drop Zone Indicator */}
