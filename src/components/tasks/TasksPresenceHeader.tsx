@@ -44,8 +44,8 @@ export const TasksPresenceHeader = () => {
 
   if (!boardId) return null;
   return (
-    <div className="hidden sm:flex items-center ml-2">
-      <PresenceAvatars users={users} currentUserEmail={user?.email || undefined} />
+    <div className="flex items-center ml-0 sm:ml-2">
+      <PresenceAvatars users={users} currentUserEmail={user?.email || undefined} max={3} />
     </div>
   );
 };
