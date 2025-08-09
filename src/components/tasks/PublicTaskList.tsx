@@ -281,11 +281,8 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
         </div>
 
         <DragDropContext onDragEnd={handleDragEnd}>
-          <motion.div 
+          <div 
             className="grid grid-cols-1 md:grid-cols-3 gap-6"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
           >
             {Object.entries(columns).map(([status, statusTasks]) => (
               <TaskColumn
@@ -319,7 +316,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
                 isPublicBoard={true}
               />
             ))}
-          </motion.div>
+          </div>
         </DragDropContext>
       </div>
 

@@ -97,9 +97,9 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`p-4 bg-background dark:bg-gray-800 rounded-xl cursor-pointer relative overflow-hidden ${
-            snapshot.isDragging ? 'transition-none shadow-2xl z-50' : 'transition-all duration-200 hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-lg'
-          } ${getTaskStyle(task.status)}`}
+          className={`p-4 bg-background dark:bg-gray-800 rounded-xl relative overflow-hidden ${getTaskStyle(task.status)} ${
+            snapshot.isDragging ? 'shadow-2xl z-50 cursor-grabbing' : 'hover:shadow-lg cursor-grab'
+          } transition-shadow duration-200`}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
@@ -121,8 +121,6 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
                         onClick={handleTitleClick}
                         title={task.title}
                         style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                        whileHover={{ x: 2 }}
-                        transition={{ duration: 0.2 }}
                       >
                         <GeorgianAuthText fontWeight="bold">{task.title}</GeorgianAuthText>
                       </motion.h3>
@@ -132,8 +130,6 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
                         onClick={handleTitleClick}
                         title={task.title}
                         style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                        whileHover={{ x: 2 }}
-                        transition={{ duration: 0.2 }}
                       >
                         {task.title}
                       </motion.h3>
@@ -145,8 +141,6 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
                     {files && files.length > 0 && (
                       <motion.div 
                         className="flex items-center text-gray-600"
-                        whileHover={{ scale: 1.1 }}
-                        transition={{ duration: 0.2 }}
                       >
                         <Paperclip className="h-4 w-4" />
                         <motion.span 
@@ -166,8 +160,6 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
                   <motion.div 
                     className="prose dark:prose-invert max-w-none mt-2 line-clamp-3 text-sm opacity-70 hover:opacity-100 transition-opacity"
                     dangerouslySetInnerHTML={{ __html: task.description }}
-                    whileHover={{ y: -1 }}
-                    transition={{ duration: 0.2 }}
                   />
                 )}
                 

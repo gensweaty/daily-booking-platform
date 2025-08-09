@@ -121,13 +121,10 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
   return (
     <Droppable droppableId={status}>
       {(provided, snapshot) => (
-        <motion.div
+        <div
           ref={provided.innerRef}
           {...provided.droppableProps}
           className={`p-6 min-h-[500px] flex flex-col relative overflow-visible ${getColumnStyle(status)}`}
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
           onDragEnter={() => setIsDragOver(true)}
           onDragLeave={() => setIsDragOver(false)}
         >
@@ -209,16 +206,15 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
           <div className="space-y-4 flex-1 relative">
             {tasks.length > 0 ? (
               tasks.map((task: Task, index: number) => (
-                <div key={task.id} className="w-full">
-                  <TaskCard
-                    task={task}
-                    index={index}
-                    onEdit={onEdit}
-                    onView={onView}
-                    onDelete={onDelete}
-                    isPublicBoard={isPublicBoard}
-                  />
-                </div>
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  index={index}
+                  onEdit={onEdit}
+                  onView={onView}
+                  onDelete={onDelete}
+                  isPublicBoard={isPublicBoard}
+                />
               ))
             ) : (
                 <motion.div
@@ -289,7 +285,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
               )}
             </AnimatePresence>
           </div>
-        </motion.div>
+        </div>
       )}
     </Droppable>
   );

@@ -197,11 +197,8 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
   return (
     <>
       <DragDropContext onDragEnd={handleDragEnd}>
-        <motion.div 
+        <div 
           className="grid grid-cols-1 md:grid-cols-3 gap-6"
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
         >
           {Object.entries(columns).map(([status, statusTasks]) => (
             <TaskColumn
@@ -213,7 +210,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
               onDelete={handleDeleteClick}
             />
           ))}
-        </motion.div>
+        </div>
       </DragDropContext>
 
       <AnimatePresence>
