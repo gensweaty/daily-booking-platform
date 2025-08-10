@@ -271,31 +271,37 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
   return (
     <>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4 w-full sm:w-auto">
-            <h2 className="text-2xl font-bold text-foreground">{t('dashboard.tasks')}</h2>
-            {/* Mobile: Show presence circles centered next to title */}
-            <div className="flex sm:hidden">
-              <TasksPresenceHeader />
-            </div>
+        {/* Mobile: Header line with Tasks left, circles center, Add button right */}
+        <div className="flex sm:hidden items-center justify-between w-full">
+          <h2 className="text-2xl font-bold text-foreground">{t('dashboard.tasks')}</h2>
+          <div className="flex items-center">
+            <TasksPresenceHeader />
           </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+          <Button 
+            onClick={() => setIsAddingTask(true)}
+            className="flex items-center gap-1 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-3 text-xs w-auto min-w-[80px]"
+          >
+            <Plus className="h-3 w-3" />
+            <span>
+              {isGeorgian ? 'დამატება' : 'Add'}
+            </span>
+          </Button>
+        </div>
+
+        {/* Desktop: Original layout */}
+        <div className="hidden sm:flex flex-row items-center justify-between gap-4">
+          <h2 className="text-2xl font-bold text-foreground">{t('dashboard.tasks')}</h2>
+          <div className="flex items-center gap-2">
             <Button 
               onClick={() => setIsAddingTask(true)}
-              className="flex items-center gap-1 sm:gap-2 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-3 sm:px-4 text-xs sm:text-sm w-auto min-w-[80px] sm:min-w-[120px]"
+              className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-4 text-sm min-w-[120px]"
             >
-              <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">
+              <Plus className="h-4 w-4" />
+              <span>
                 {t('tasks.addTask')}
               </span>
-              <span className="sm:hidden">
-                {isGeorgian ? 'დამატება' : 'Add'}
-              </span>
             </Button>
-            {/* Desktop: Show presence circles */}
-            <div className="hidden sm:flex">
-              <TasksPresenceHeader />
-            </div>
+            <TasksPresenceHeader />
           </div>
         </div>
 

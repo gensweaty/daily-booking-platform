@@ -307,11 +307,11 @@ export const DashboardContent = ({
                  <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
                    <CardTitle>
                      <div className="flex items-center justify-between w-full">
-                       {/* Mobile: Show circles on left, title on right */}
+                       {/* Mobile: Show circles on far left, title on far right */}
                        <div className="flex sm:hidden">
                          <TasksPresenceHeader />
                        </div>
-                       <div className="flex sm:w-full sm:justify-start">
+                       <div className="flex sm:w-full sm:justify-start ml-auto sm:ml-0">
                          {showArchive ? (
                            isGeorgian ? (
                              <GeorgianAuthText fontWeight="bold">
