@@ -304,66 +304,89 @@ export const DashboardContent = ({
               exit="exit"
             >
               <Card className="min-h-[calc(100vh-12rem)]">
-                <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
-                  <CardTitle>
-                    {showArchive ? (
-                      isGeorgian ? (
-                        <GeorgianAuthText fontWeight="bold">
-                          {t("tasks.archivedTasks")}
-                        </GeorgianAuthText>
-                      ) : (
-                        <LanguageText>{t("tasks.archivedTasks")}</LanguageText>
-                      )
-                    ) : (
-                      isGeorgian ? (
-                        <GeorgianAuthText>დავალებები</GeorgianAuthText>
-                      ) : (
-                        <LanguageText>{t("dashboard.tasks")}</LanguageText>
-                      )
-                    )}
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    {/* Presence circles for current board (no greeting) */}
-                    <TasksPresenceHeader />
-                    {!showArchive && (
-                      <>
-                        <PublicBoardSettings />
-                        <Button
-                          onClick={handleArchiveClick}
-                          variant="outline"
-                          className="flex items-center gap-2"
-                        >
-                          <motion.div
-                            whileHover={{ rotate: 15 }}
-                            transition={{ duration: 0.3 }}
-                          >
-                            <Archive className="w-4 h-4" />
-                          </motion.div>
-                          {isGeorgian ? (
-                            <GeorgianAuthText>{t("tasks.archive")}</GeorgianAuthText>
-                          ) : (
-                            <LanguageText>{t("tasks.archive")}</LanguageText>
-                          )}
-                        </Button>
-                         <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
-                          <DialogTrigger asChild>
-                            <Button 
-                              className="flex items-center gap-2 w-20 sm:w-auto bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95"
-                            >
-                              <motion.div
-                                whileHover={{ rotate: 180 }}
-                                transition={{ duration: 0.3 }}
-                              >
-                                <PlusCircle className="w-4 h-4" />
-                              </motion.div>
-                              <span className="hidden sm:inline">
-                                <LanguageText>{t("tasks.addTask")}</LanguageText>
-                              </span>
-                              <span className="sm:hidden text-xs">
-                                <LanguageText>{t("common.add")}</LanguageText>
-                              </span>
-                            </Button>
-                          </DialogTrigger>
+                 <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
+                   <CardTitle>
+                     <div className="flex items-center justify-between w-full">
+                       <div>
+                         {showArchive ? (
+                           isGeorgian ? (
+                             <GeorgianAuthText fontWeight="bold">
+                               {t("tasks.archivedTasks")}
+                             </GeorgianAuthText>
+                           ) : (
+                             <LanguageText>{t("tasks.archivedTasks")}</LanguageText>
+                           )
+                         ) : (
+                           isGeorgian ? (
+                             <GeorgianAuthText>დავალებები</GeorgianAuthText>
+                           ) : (
+                             <LanguageText>{t("dashboard.tasks")}</LanguageText>
+                           )
+                         )}
+                       </div>
+                       {/* Mobile: Show presence circles on the right side of title */}
+                       <div className="flex sm:hidden">
+                         <TasksPresenceHeader />
+                       </div>
+                     </div>
+                   </CardTitle>
+                   <div className="flex items-center gap-2 ml-auto">
+                       {/* Desktop: Show presence circles */}
+                       <div className="hidden sm:flex">
+                         <TasksPresenceHeader />
+                       </div>
+                       {!showArchive && (
+                         <>
+                           <PublicBoardSettings />
+                           <Button
+                             onClick={handleArchiveClick}
+                             variant="outline"
+                             className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 text-xs sm:text-sm"
+                           >
+                             <motion.div
+                               whileHover={{ rotate: 15 }}
+                               transition={{ duration: 0.3 }}
+                             >
+                               <Archive className="w-3 h-3 sm:w-4 sm:h-4" />
+                             </motion.div>
+                             <span className="hidden sm:inline">
+                               {isGeorgian ? (
+                                 <GeorgianAuthText>{t("tasks.archive")}</GeorgianAuthText>
+                               ) : (
+                                 <LanguageText>{t("tasks.archive")}</LanguageText>
+                               )}
+                             </span>
+                             <span className="sm:hidden">
+                               {isGeorgian ? (
+                                 <GeorgianAuthText>არქივი</GeorgianAuthText>
+                               ) : (
+                                 <LanguageText>Archive</LanguageText>
+                               )}
+                             </span>
+                           </Button>
+                            <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+                             <DialogTrigger asChild>
+                               <Button 
+                                 className="flex items-center gap-1 sm:gap-2 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-3 sm:px-4 text-xs sm:text-sm w-auto min-w-[80px] sm:min-w-[120px]"
+                               >
+                                 <motion.div
+                                   whileHover={{ rotate: 180 }}
+                                   transition={{ duration: 0.3 }}
+                                 >
+                                   <PlusCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                                 </motion.div>
+                                 <span className="hidden sm:inline">
+                                   <LanguageText>{t("tasks.addTask")}</LanguageText>
+                                 </span>
+                                 <span className="sm:hidden">
+                                   {isGeorgian ? (
+                                     <GeorgianAuthText>დამატება</GeorgianAuthText>
+                                   ) : (
+                                     <LanguageText>Add</LanguageText>
+                                   )}
+                                 </span>
+                               </Button>
+                             </DialogTrigger>
                           <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                             <motion.div
                               initial={{ opacity: 0, scale: 0.95 }}
@@ -388,11 +411,11 @@ export const DashboardContent = ({
                           <GeorgianAuthText>{t("tasks.backToTasks")}</GeorgianAuthText>
                         ) : (
                           <LanguageText>{t("tasks.backToTasks")}</LanguageText>
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                </CardHeader>
+                         )}
+                       </Button>
+                     )}
+                   </div>
+                 </CardHeader>
                 <CardContent>
                   <motion.div
                     variants={cardVariants}

@@ -13,6 +13,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { TasksPresenceHeader } from "./TasksPresenceHeader";
 
 interface PublicTaskListProps {
   boardUserId: string;
@@ -23,7 +24,8 @@ interface PublicTaskListProps {
 export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmail }: PublicTaskListProps) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isGeorgian = language === 'ka';
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isAddingTask, setIsAddingTask] = useState(false);
@@ -270,14 +272,31 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
     <>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <h2 className="text-2xl font-bold text-foreground">{t('dashboard.tasks')}</h2>
-          <Button 
-            onClick={() => setIsAddingTask(true)}
-            className="flex items-center gap-2 w-full sm:w-auto"
-          >
-            <Plus className="h-4 w-4" />
-            {t('tasks.addTask')}
-          </Button>
+          <div className="flex items-center justify-between w-full sm:w-auto">
+            <h2 className="text-2xl font-bold text-foreground">{t('dashboard.tasks')}</h2>
+            {/* Mobile: Show presence circles next to title */}
+            <div className="flex sm:hidden ml-4">
+              <TasksPresenceHeader />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Desktop: Show presence circles */}
+            <div className="hidden sm:flex">
+              <TasksPresenceHeader />
+            </div>
+            <Button 
+              onClick={() => setIsAddingTask(true)}
+              className="flex items-center gap-1 sm:gap-2 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-3 sm:px-4 text-xs sm:text-sm w-auto min-w-[80px] sm:min-w-[120px]"
+            >
+              <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">
+                {t('tasks.addTask')}
+              </span>
+              <span className="sm:hidden">
+                {isGeorgian ? 'დამატება' : 'Add'}
+              </span>
+            </Button>
+          </div>
         </div>
 
         <DragDropContext onDragEnd={handleDragEnd}>
