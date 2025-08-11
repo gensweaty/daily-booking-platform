@@ -194,7 +194,6 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
       } else {
         await queryClient.invalidateQueries({ queryKey: ['tasks'] });
       }
-      await queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] });
       await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
       
       toast({
@@ -229,7 +228,6 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
       } else {
         await queryClient.invalidateQueries({ queryKey: ['tasks'] });
       }
-      await queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] });
       
       toast({
         title: t("common.success"),
@@ -274,7 +272,6 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
       } else {
         await queryClient.invalidateQueries({ queryKey: ['tasks'] });
       }
-      await queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] });
       
       toast({
         title: t("common.success"),
