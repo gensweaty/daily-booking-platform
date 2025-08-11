@@ -10,6 +10,7 @@ import { GeorgianAuthText } from "../shared/GeorgianAuthText";
 import { TaskDateInfo } from "./TaskDateInfo";
 import { motion } from "framer-motion";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 
 interface TaskCardProps {
   task: Task;
@@ -92,129 +93,132 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
 
   return (
     <Draggable draggableId={String(task.id)} index={index}>
-      {(provided, snapshot) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          className={`p-4 bg-background dark:bg-gray-800 rounded-xl relative overflow-hidden ${getTaskStyle(task.status)} ${
-            snapshot.isDragging ? 'shadow-2xl z-50 cursor-grabbing' : 'hover:shadow-lg cursor-grab'
-          } transition-shadow duration-200`}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          {/* Subtle animated background gradient */}
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0"
-            animate={{ opacity: isHovered && !snapshot.isDragging ? 1 : 0 }}
-            transition={{ duration: 0.3 }}
-          />
-          
-          <div className="relative z-10">
-            <div className="flex justify-between items-start gap-2 mb-3">
-              <div className={`flex-1 min-w-0 ${task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'}`}>
-                <div className="flex items-start gap-2 mb-2">
-                  <div className="flex-1 min-w-0">
-                    {isGeorgian ? (
-                      <motion.h3 
-                        className="font-semibold cursor-pointer hover:text-primary transition-colors break-words line-clamp-2 leading-tight" 
-                        onClick={handleTitleClick}
-                        title={task.title}
-                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                      >
-                        <GeorgianAuthText fontWeight="bold">{task.title}</GeorgianAuthText>
-                      </motion.h3>
-                    ) : (
-                      <motion.h3 
-                        className="font-semibold cursor-pointer hover:text-primary transition-colors break-words line-clamp-2 leading-tight"
-                        onClick={handleTitleClick}
-                        title={task.title}
-                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                      >
-                        {task.title}
-                      </motion.h3>
-                    )}
+      {(provided, snapshot) => {
+        const child = (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            className={`p-4 bg-background dark:bg-gray-800 rounded-xl relative overflow-hidden ${getTaskStyle(task.status)} ${
+              snapshot.isDragging ? 'shadow-2xl z-50 cursor-grabbing' : 'hover:shadow-lg cursor-grab'
+            } transition-shadow duration-200`}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            {/* Subtle animated background gradient */}
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0"
+              animate={{ opacity: isHovered && !snapshot.isDragging ? 1 : 0 }}
+              transition={{ duration: 0.3 }}
+            />
+            
+            <div className="relative z-10">
+              <div className="flex justify-between items-start gap-2 mb-3">
+                <div className={`flex-1 min-w-0 ${task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'}`}>
+                  <div className="flex items-start gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      {isGeorgian ? (
+                        <motion.h3 
+                          className="font-semibold cursor-pointer hover:text-primary transition-colors break-words line-clamp-2 leading-tight" 
+                          onClick={handleTitleClick}
+                          title={task.title}
+                          style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                        >
+                          <GeorgianAuthText fontWeight="bold">{task.title}</GeorgianAuthText>
+                        </motion.h3>
+                      ) : (
+                        <motion.h3 
+                          className="font-semibold cursor-pointer hover:text-primary transition-colors break-words line-clamp-2 leading-tight"
+                          onClick={handleTitleClick}
+                          title={task.title}
+                          style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                        >
+                          {task.title}
+                        </motion.h3>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {getPriorityIndicator()}
+                      {files && files.length > 0 && (
+                        <motion.div 
+                          className="flex items-center text-gray-600"
+                        >
+                          <Paperclip className="h-4 w-4" />
+                          <motion.span 
+                            className="text-sm ml-1 bg-primary/10 text-primary px-1.5 py-0.5 rounded-full"
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ delay: 0.1 }}
+                          >
+                            {files.length}
+                          </motion.span>
+                        </motion.div>
+                      )}
+                    </div>
                   </div>
                   
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    {getPriorityIndicator()}
-                    {files && files.length > 0 && (
-                      <motion.div 
-                        className="flex items-center text-gray-600"
-                      >
-                        <Paperclip className="h-4 w-4" />
-                        <motion.span 
-                          className="text-sm ml-1 bg-primary/10 text-primary px-1.5 py-0.5 rounded-full"
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ delay: 0.1 }}
-                        >
-                          {files.length}
-                        </motion.span>
-                      </motion.div>
-                    )}
+                  {task.description && (
+                    <motion.div 
+                      className="prose dark:prose-invert max-w-none mt-2 line-clamp-3 text-sm opacity-70 hover:opacity-100 transition-opacity"
+                      dangerouslySetInnerHTML={{ __html: task.description }}
+                    />
+                  )}
+                  
+                  <div className="mt-3">
+                    <TaskDateInfo 
+                      deadline={task.deadline_at} 
+                      reminderAt={task.reminder_at} 
+                      compact 
+                    />
                   </div>
                 </div>
                 
-                {task.description && (
-                  <motion.div 
-                    className="prose dark:prose-invert max-w-none mt-2 line-clamp-3 text-sm opacity-70 hover:opacity-100 transition-opacity"
-                    dangerouslySetInnerHTML={{ __html: task.description }}
-                  />
-                )}
-                
-                <div className="mt-3">
-                  <TaskDateInfo 
-                    deadline={task.deadline_at} 
-                    reminderAt={task.reminder_at} 
-                    compact 
-                  />
-                </div>
-              </div>
-              
-              <motion.div 
-                className="flex gap-1 flex-shrink-0 opacity-0"
-                animate={{ opacity: isHovered ? 1 : 0 }}
-                transition={{ duration: 0.2, delay: 0.1 }}
-              >
-                <motion.div variants={iconVariants} animate={isHovered ? "hover" : "idle"}>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEdit(task);
-                    }}
-                    className="text-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 transition-all duration-200"
-                    title="Edit task"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                </motion.div>
-                
                 <motion.div 
-                  variants={iconVariants} 
-                  animate={isHovered ? "hover" : "idle"}
-                  transition={{ delay: 0.05 }}
+                  className="flex gap-1 flex-shrink-0 opacity-0"
+                  animate={{ opacity: isHovered ? 1 : 0 }}
+                  transition={{ duration: 0.2, delay: 0.1 }}
                 >
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(task.id);
-                    }}
-                    className="text-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 transition-all duration-200"
-                    title="Delete task"
+                  <motion.div variants={iconVariants} animate={isHovered ? "hover" : "idle"}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(task);
+                      }}
+                      className="text-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 transition-all duration-200"
+                      title="Edit task"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </motion.div>
+                  
+                  <motion.div 
+                    variants={iconVariants} 
+                    animate={isHovered ? "hover" : "idle"}
+                    transition={{ delay: 0.05 }}
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(task.id);
+                      }}
+                      className="text-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 transition-all duration-200"
+                      title="Delete task"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </motion.div>
                 </motion.div>
-              </motion.div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+        return snapshot.isDragging ? createPortal(child, document.body) : child;
+      }}
     </Draggable>
   );
 };
