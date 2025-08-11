@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface SubUser {
   id: string;
@@ -25,6 +26,8 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
   const { toast } = useToast();
   const [subUsers, setSubUsers] = useState<SubUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [selectedSubUser, setSelectedSubUser] = useState<SubUser | null>(null);
 
   useEffect(() => {
     if (boardOwnerId) {
@@ -191,7 +194,10 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDeleteSubUser(subUser.id)}
+                        onClick={() => {
+                          setSelectedSubUser(subUser);
+                          setConfirmOpen(true);
+                        }}
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -212,6 +218,29 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
           )}
         </div>
       )}
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("publicBoard.deleteSubUser")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("publicBoard.deleteSubUserConfirm")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (selectedSubUser) {
+                  handleDeleteSubUser(selectedSubUser.id);
+                }
+              }}
+            >
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 };

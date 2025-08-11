@@ -343,6 +343,8 @@ export const translations: TranslationType = {
     accessBoard: "დაფაზე წვდომა",
     invalidAccess: "არასწორი ჯადოსნური სიტყვა ან წვდომის ტოკენი",
     welcomeToBoard: "კეთილი იყოს თქვენი მობრძანება დაფაზე",
+    deleteSubUser: "ქვე-მომხმარებლის წაშლა?",
+    deleteSubUserConfirm: "დარწმუნებული ხართ, რომ გსურთ ქვე-მომხმარებლის წაშლა? ეს მოქმედება შეუქცევადია.",
   },
   events: {
     addEvent: "ღონისძიების დამატება",

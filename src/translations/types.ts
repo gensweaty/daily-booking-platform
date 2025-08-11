@@ -338,6 +338,8 @@ export interface TranslationType {
     accessBoard: string;
     invalidAccess: string;
     welcomeToBoard: string;
+    deleteSubUser: string;
+    deleteSubUserConfirm: string;
   };
   events: {
     addEvent: string;

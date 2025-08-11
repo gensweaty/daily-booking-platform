@@ -332,6 +332,8 @@ export const translations: TranslationType = {
     accessBoard: "Access Board",
     invalidAccess: "Invalid magic word or access token",
     welcomeToBoard: "Welcome to the board",
+    deleteSubUser: "Delete Sub User?",
+    deleteSubUserConfirm: "Are you sure you want to delete this sub user? This action cannot be undone.",
   },
   bookings: {
     approvedBooking: "Booking request approved",

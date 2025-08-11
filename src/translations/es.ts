@@ -343,6 +343,8 @@ export const translations: TranslationType = {
     accessBoard: "Acceder al Tablero",
     invalidAccess: "Palabra mágica o token de acceso inválido",
     welcomeToBoard: "Bienvenido al tablero",
+    deleteSubUser: "¿Eliminar Sub Usuario?",
+    deleteSubUserConfirm: "¿Está seguro de que desea eliminar este sub usuario? Esta acción no se puede deshacer.",
   },
   events: {
     addEvent: "Agregar Evento",
