@@ -215,7 +215,7 @@ export const TaskCommentsList = ({
             />
           </div>
         ) : (
-          <ScrollArea className="max-h-[45vh] sm:max-h-[400px]">
+          <ScrollArea className="h-[45vh] sm:h-[400px]">
             <div className="space-y-0 pr-1">
               {comments.slice(0, 20).map((comment, index) => (
                 <div key={comment.id}>
