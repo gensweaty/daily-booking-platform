@@ -195,12 +195,12 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
     );
   }
 
-// Map database status to UI status and sort by last edited ascending (oldest first)
+// Map database status to UI status and sort by last edit descending (newest first at top)
   const getSortTime = (t: Task) => new Date(t.last_edited_at || t.updated_at || t.created_at).getTime();
   const columns = {
-    todo: tasks.filter((task: Task) => task.status === 'todo').sort((a: Task, b: Task) => getSortTime(a) - getSortTime(b)),
-    'in-progress': tasks.filter((task: Task) => task.status === 'inprogress').sort((a: Task, b: Task) => getSortTime(a) - getSortTime(b)),
-    done: tasks.filter((task: Task) => task.status === 'done').sort((a: Task, b: Task) => getSortTime(a) - getSortTime(b)),
+    todo: tasks.filter((task: Task) => task.status === 'todo').sort((a: Task, b: Task) => getSortTime(b) - getSortTime(a)),
+    'in-progress': tasks.filter((task: Task) => task.status === 'inprogress').sort((a: Task, b: Task) => getSortTime(b) - getSortTime(a)),
+    done: tasks.filter((task: Task) => task.status === 'done').sort((a: Task, b: Task) => getSortTime(b) - getSortTime(a)),
   };
 
   // External users should only be able to delete/edit their own tasks

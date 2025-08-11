@@ -1,7 +1,7 @@
 
 import { Task } from "@/lib/types";
 import { Draggable } from "@hello-pangea/dnd";
-import { Pencil, Trash2, Paperclip, Clock, AlertCircle } from "lucide-react";
+import { Pencil, Trash2, Paperclip, Clock, AlertCircle, Eye } from "lucide-react";
 import { Button } from "../ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -174,7 +174,7 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
                   </div>
                 </div>
                 
-{(onEdit || onDelete) && (
+{(onEdit || onDelete) ? (
                   <motion.div 
                     className="flex gap-1 flex-shrink-0 opacity-0"
                     animate={{ opacity: isHovered ? 1 : 0 }}
@@ -216,6 +216,27 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
                         </Button>
                       </motion.div>
                     )}
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    className="flex gap-1 flex-shrink-0 opacity-0"
+                    animate={{ opacity: isHovered ? 1 : 0 }}
+                    transition={{ duration: 0.2, delay: 0.1 }}
+                  >
+                    <motion.div variants={iconVariants} animate={isHovered ? "hover" : "idle"}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onView(task);
+                        }}
+                        className="text-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 transition-all duration-200"
+                        title="Preview task"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </motion.div>
                   </motion.div>
                 )}
               </div>
