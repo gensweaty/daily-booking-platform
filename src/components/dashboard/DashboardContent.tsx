@@ -306,30 +306,30 @@ export const DashboardContent = ({
               <Card className="min-h-[calc(100vh-12rem)]">
                  <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
                    <CardTitle>
-                     <div className="flex items-center justify-between w-full">
-                       {/* Mobile: Title on left, presence circles on right */}
-                       <div className="flex sm:w-full sm:justify-start">
-                         {showArchive ? (
-                           isGeorgian ? (
-                             <GeorgianAuthText fontWeight="bold">
-                               {t("tasks.archivedTasks")}
-                             </GeorgianAuthText>
-                           ) : (
-                             <LanguageText>{t("tasks.archivedTasks")}</LanguageText>
-                           )
-                         ) : (
-                           isGeorgian ? (
-                             <GeorgianAuthText>დავალებები</GeorgianAuthText>
-                           ) : (
-                             <LanguageText>{t("dashboard.tasks")}</LanguageText>
-                           )
-                         )}
-                       </div>
-                       {/* Mobile presence circles aligned to right */}
-                       <div className="flex sm:hidden ml-auto">
-                         <TasksPresenceHeader />
-                       </div>
-                     </div>
+<div className="flex w-full items-center gap-2">
+  {/* Mobile: Title on left, presence circles on right */}
+  <div className="flex-1 min-w-0">
+    {showArchive ? (
+      isGeorgian ? (
+        <GeorgianAuthText fontWeight="bold">
+          {t("tasks.archivedTasks")}
+        </GeorgianAuthText>
+      ) : (
+        <LanguageText>{t("tasks.archivedTasks")}</LanguageText>
+      )
+    ) : (
+      isGeorgian ? (
+        <GeorgianAuthText>დავალებები</GeorgianAuthText>
+      ) : (
+        <LanguageText>{t("dashboard.tasks")}</LanguageText>
+      )
+    )}
+  </div>
+  {/* Mobile presence circles aligned to right */}
+  <div className="sm:hidden shrink-0 ml-2">
+    <TasksPresenceHeader />
+  </div>
+</div>
                    </CardTitle>
                    <div className="flex items-center gap-2 ml-auto">
                        {/* Desktop: Show presence circles */}
