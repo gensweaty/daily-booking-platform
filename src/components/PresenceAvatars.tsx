@@ -23,28 +23,31 @@ export function PresenceAvatars({ users, currentUserEmail, max = 5 }: PresenceAv
     <div className="flex items-center">
       <div className="flex -space-x-2">
         <TooltipProvider>
-          {visible.map((u) => (
-            <Tooltip key={u.email}>
-              <TooltipTrigger asChild>
-                <Avatar
-                    className={cn(
-                      "h-6 w-6 sm:h-7 sm:w-7 ring-2 ring-offset-2 ring-offset-background transition-transform duration-200 hover:scale-110 shadow-sm",
-                      "bg-muted text-foreground/80",
-                      u.email === currentUserEmail ? "ring-primary" : "ring-muted"
-                    )}
-                  title={u.name}
-                  aria-label={u.name}
-                >
-                  <AvatarFallback className="text-[10px] font-medium">
-                    {getInitials(u.name)}
-                  </AvatarFallback>
-                </Avatar>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="px-2 py-1 text-xs">
-                {u.name}
-              </TooltipContent>
-            </Tooltip>
-          ))}
+          {visible.map((u) => {
+            const displayName = u.name && u.name.includes('@') ? u.name.split('@')[0] : (u.name || 'User');
+            return (
+              <Tooltip key={u.email}>
+                <TooltipTrigger asChild>
+                  <Avatar
+                      className={cn(
+                        "h-6 w-6 sm:h-7 sm:w-7 ring-2 ring-offset-2 ring-offset-background transition-transform duration-200 hover:scale-110 shadow-sm",
+                        "bg-muted text-foreground/80",
+                        u.email === currentUserEmail ? "ring-primary" : "ring-muted"
+                      )}
+                    title={displayName}
+                    aria-label={displayName}
+                  >
+                    <AvatarFallback className="text-[10px] font-medium">
+                      {getInitials(displayName)}
+                    </AvatarFallback>
+                  </Avatar>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="px-2 py-1 text-xs">
+                  {displayName}
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
         </TooltipProvider>
         {extra > 0 && (
           <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-muted ring-2 ring-muted ring-offset-2 ring-offset-background flex items-center justify-center text-[10px] text-foreground/70">

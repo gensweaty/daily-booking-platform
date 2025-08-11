@@ -131,6 +131,14 @@ export const TaskFullView = ({
   const formattedCreatedDate = formatDate(task.created_at);
   const formattedUpdatedDate = task.updated_at ? formatDate(task.updated_at) : formattedCreatedDate;
 
+  const normalizeName = (name?: string) => {
+    if (!name) return undefined;
+    if (name.includes('@')) {
+      return externalUserName || name.split('@')[0];
+    }
+    return name;
+  };
+
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -214,7 +222,9 @@ export const TaskFullView = ({
                   {t("common.created")} {format(parseISO(task.created_at), 'MM/dd/yy HH:mm')}
                    {task.created_by_name && (
                       <span className="ml-1">
-                        {language === 'ka' ? `${task.created_by_name}-ს ${t("common.by")}` : `${t("common.by")} ${task.created_by_name}`}
+                        {language === 'ka' 
+                          ? `${normalizeName(task.created_by_name)}-ს ${t("common.by")}` 
+                          : `${t("common.by")} ${normalizeName(task.created_by_name)}`}
                       </span>
                     )}
                 </span>
@@ -225,7 +235,9 @@ export const TaskFullView = ({
                   {t("common.lastUpdated")} {format(parseISO(task.updated_at || task.created_at), 'MM/dd/yy HH:mm')}
                    {task.last_edited_by_name && task.last_edited_at && (
                       <span className="ml-1">
-                        {language === 'ka' ? `${task.last_edited_by_name}-ს ${t("common.by")}` : `${t("common.by")} ${task.last_edited_by_name}`}
+                        {language === 'ka' 
+                          ? `${normalizeName(task.last_edited_by_name)}-ს ${t("common.by")}` 
+                          : `${t("common.by")} ${normalizeName(task.last_edited_by_name)}`}
                       </span>
                     )}
                 </span>

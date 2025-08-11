@@ -22,31 +22,24 @@ interface TaskCommentItemProps {
   taskCreatorName?: string;
 }
 
-const getDisplayName = (comment: TaskComment, fallbackName?: string) => {
-  // For external users, use their stored name directly from the comment
+const getDisplayName = (comment: TaskComment, fallbackName?: string, externalName?: string) => {
+  // Prefer non-email names
+  const sanitize = (name?: string) => {
+    if (!name) return undefined;
+    return name.includes('@') ? name.split('@')[0] : name;
+  };
+
+  // For external users
   if (comment.created_by_type === 'external' || comment.created_by_type === 'external_user') {
-    if (comment.created_by_name && comment.created_by_name !== 'Unknown User' && comment.created_by_name !== 'External User') {
-      return comment.created_by_name;
-    }
-    // Fallback to the task creator name for external users
-    if (fallbackName && fallbackName !== 'Unknown User') {
-      return fallbackName;
-    }
-    return 'External User';
+    const fromComment = sanitize(comment.created_by_name);
+    const fromFallback = sanitize(fallbackName);
+    const fromExternal = sanitize(externalName);
+    return fromComment || fromFallback || fromExternal || 'External User';
   }
   
-  // For admin users, use their stored name
-  if (comment.created_by_name && comment.created_by_name !== 'Unknown User') {
-    // If it's an email, try to extract a meaningful display name
-    if (comment.created_by_name.includes('@')) {
-      const emailMatch = comment.created_by_name.match(/^([^@]+)@/);
-      if (emailMatch) {
-        return emailMatch[1];
-      }
-    }
-    return comment.created_by_name;
-  }
-  return 'Unknown User';
+  // For admin users
+  const adminName = sanitize(comment.created_by_name);
+  return adminName || 'Unknown User';
 };
 
 export const TaskCommentItem = ({ 
@@ -63,6 +56,8 @@ export const TaskCommentItem = ({
   const { toast } = useToast();
   const { t } = useLanguage();
   const queryClient = useQueryClient();
+
+  const sanitizeName = (name?: string) => (name ? (name.includes('@') ? name.split('@')[0] : name) : '');
 
   // Fetch comment files
   const { data: files = [] } = useQuery({
@@ -169,7 +164,7 @@ export const TaskCommentItem = ({
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">
-              {getDisplayName(comment, taskCreatorName)}
+              {getDisplayName(comment, taskCreatorName, externalUserName)}
             </span>
             <span className="text-xs text-muted-foreground">
               {(comment.created_by_type === 'external' || comment.created_by_type === 'external_user') ? '(Sub User)' : '(User)'}
@@ -285,7 +280,7 @@ export const TaskCommentItem = ({
           </span>
           {comment.last_edited_at && (
             <span>
-              {t?.('common.lastUpdated') || 'Last updated'}: {format(parseISO(comment.last_edited_at), 'MMM dd, yyyy HH:mm')} {t?.('common.by') || 'by'} {comment.last_edited_by_name} ({comment.last_edited_by_type})
+              {t?.('common.lastUpdated') || 'Last updated'}: {format(parseISO(comment.last_edited_at), 'MMM dd, yyyy HH:mm')} {t?.('common.by') || 'by'} {sanitizeName(comment.last_edited_by_name)} ({comment.last_edited_by_type})
             </span>
           )}
         </div>
