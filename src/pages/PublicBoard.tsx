@@ -187,10 +187,10 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
         .single();
 
       if (!error && data) {
-        // Normalize email and sync display name from sub_users if available
         const normalizedEmail = (data.external_user_email || '').trim().toLowerCase();
         let displayName = data.external_user_name;
 
+        // Require that this email is still present in sub_users for this board
         if (boardData) {
           const { data: subUser } = await supabase
             .from('sub_users')
@@ -199,31 +199,36 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
             .ilike('email', normalizedEmail)
             .maybeSingle();
 
-          if (subUser?.fullname) {
-            displayName = subUser.fullname;
+          if (!subUser) {
+            // Token is invalid because sub user was removed – clear and force re-auth
+            localStorage.removeItem(`public-board-access-${slug}`);
+            setIsAuthenticated(false);
+            setAccessToken(null);
+            setFullName("");
+            setEmail("");
+            setMagicWord("");
+            return;
+          }
 
-            // Update last login time for this user (case-insensitive match)
-            const currentTime = new Date().toISOString();
-            const { error: updateLoginError } = await supabase
-              .from('sub_users')
-              .update({ last_login_at: currentTime, updated_at: currentTime })
-              .eq('board_owner_id', boardData.user_id)
-              .ilike('email', normalizedEmail);
+          // Sync display name and last login
+          if (subUser.fullname) displayName = subUser.fullname;
+          const currentTime = new Date().toISOString();
+          const { error: updateLoginError } = await supabase
+            .from('sub_users')
+            .update({ last_login_at: currentTime, updated_at: currentTime })
+            .eq('id', subUser.id);
+          if (updateLoginError) {
+            console.error('Error updating login time during token validation:', updateLoginError);
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
 
-            if (updateLoginError) {
-              console.error('Error updating login time during token validation:', updateLoginError);
-            } else {
-              // Small delay to ensure commit
-              await new Promise(resolve => setTimeout(resolve, 200));
-            }
-
-            // Ensure access record has the latest display name
-            if (displayName && displayName !== data.external_user_name) {
-              await supabase
-                .from('public_board_access')
-                .update({ external_user_name: displayName })
-                .eq('id', data.id);
-            }
+          // Ensure access record has the latest display name
+          if (displayName && displayName !== data.external_user_name) {
+            await supabase
+              .from('public_board_access')
+              .update({ external_user_name: displayName })
+              .eq('id', data.id);
           }
         }
 
