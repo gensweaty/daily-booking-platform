@@ -35,26 +35,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       
       console.log('Fetching task stats for user:', userId);
       
-      try {
-        // Try the RPC function first
-        const { data: rpcData, error: rpcError } = await supabase
-          .rpc('get_task_stats', { user_id_param: userId });
-
-        if (!rpcError && rpcData && rpcData.length > 0) {
-          console.log('RPC task stats success:', rpcData[0]);
-          const stats = rpcData[0];
-          return {
-            total: Number(stats.total) || 0,
-            completed: Number(stats.completed) || 0,
-            inProgress: Number(stats.in_progress) || 0,
-            todo: Number(stats.todo) || 0
-          };
-        }
-        
-        console.log('RPC failed, using fallback query. RPC Error:', rpcError);
-      } catch (error) {
-        console.log('RPC function failed, using direct query fallback:', error);
-      }
+      // For correctness, skip RPC and use direct query below to ensure archived tasks are excluded consistently across environments.
+      // (Previous RPC path could include archived items depending on deployed DB function version.)
 
       // Fallback to direct aggregation query (exclude archived tasks)
       const { data: tasks, error } = await supabase
