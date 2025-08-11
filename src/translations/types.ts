@@ -279,6 +279,7 @@ export interface TranslationType {
     totalEvents: string;
     partlyPaid: string;
     fullyPaid: string;
+    notPaid: string;
     totalIncome: string;
     fromAllEvents: string;
     exportSuccessful: string;

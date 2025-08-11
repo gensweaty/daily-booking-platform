@@ -441,9 +441,10 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const startDateStr = dateRange.start.toISOString();
       const endDateStr = dateRange.end.toISOString();
 
-      // Create a Set to track unique customers by email/phone to avoid double counting
+      // Track unique customers and split into with/without booking sets
       const uniqueCustomers = new Set<string>();
-      let totalCustomers = 0;
+      const withBookingSet = new Set<string>();
+      const withoutBookingSet = new Set<string>();
 
       // Get regular events in the date range (main persons) - filter by start_date for events happening in this period
       const { data: regularEvents, error: regularEventsError } = await supabase
@@ -457,14 +458,12 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       if (regularEventsError) {
         console.error('Error fetching regular events for customer stats:', regularEventsError);
       } else if (regularEvents) {
-        // Add main event persons as unique customers
+        // Add main event persons as unique customers (WITH booking)
         regularEvents.forEach(event => {
           const customerKey = `${event.social_network_link || 'no-email'}_${event.user_number || 'no-phone'}_${event.user_surname || 'no-name'}`;
-          if (!uniqueCustomers.has(customerKey)) {
-            uniqueCustomers.add(customerKey);
-            totalCustomers++;
-            console.log('Added event customer:', { email: event.social_network_link, phone: event.user_number, name: event.user_surname });
-          }
+          uniqueCustomers.add(customerKey);
+          withBookingSet.add(customerKey);
+          console.log('Added event customer:', { email: event.social_network_link, phone: event.user_number, name: event.user_surname });
         });
       }
 
@@ -481,14 +480,12 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       if (bookingRequestsError) {
         console.error('Error fetching booking requests for customer stats:', bookingRequestsError);
       } else if (bookingRequests) {
-        // Add booking request persons as unique customers
+        // Add booking request persons (WITH booking)
         bookingRequests.forEach(booking => {
           const customerKey = `${booking.requester_email || 'no-email'}_${booking.requester_phone || 'no-phone'}_${booking.requester_name || 'no-name'}`;
-          if (!uniqueCustomers.has(customerKey)) {
-            uniqueCustomers.add(customerKey);
-            totalCustomers++;
-            console.log('Added booking request customer:', { email: booking.requester_email, phone: booking.requester_phone, name: booking.requester_name });
-          }
+          uniqueCustomers.add(customerKey);
+          withBookingSet.add(customerKey);
+          console.log('Added booking request customer:', { email: booking.requester_email, phone: booking.requester_phone, name: booking.requester_name });
         });
       }
 
@@ -505,14 +502,12 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       if (crmCustomersError) {
         console.error('Error fetching CRM customers for customer stats:', crmCustomersError);
       } else if (crmCustomers) {
-        // Add CRM customers as unique customers (these are additional persons for events)
+        // These are additional persons for events (WITH booking)
         crmCustomers.forEach(customer => {
           const customerKey = `${customer.social_network_link || 'no-email'}_${customer.user_number || 'no-phone'}_${customer.user_surname || customer.title || 'no-name'}`;
-          if (!uniqueCustomers.has(customerKey)) {
-            uniqueCustomers.add(customerKey);
-            totalCustomers++;
-            console.log('Added CRM customer:', { email: customer.social_network_link, phone: customer.user_number, name: customer.user_surname || customer.title });
-          }
+          uniqueCustomers.add(customerKey);
+          withBookingSet.add(customerKey);
+          console.log('Added CRM customer (event-linked):', { email: customer.social_network_link, phone: customer.user_number, name: customer.user_surname || customer.title });
         });
       }
 
@@ -528,20 +523,23 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       if (standaloneCrmError) {
         console.error('Error fetching standalone CRM customers:', standaloneCrmError);
       } else if (standaloneCrmCustomers) {
-        // Add standalone CRM customers
+        // Standalone CRM customers (WITHOUT booking)
         standaloneCrmCustomers.forEach(customer => {
           const customerKey = `${customer.social_network_link || 'no-email'}_${customer.user_number || 'no-phone'}_${customer.user_surname || customer.title || 'no-name'}`;
-          if (!uniqueCustomers.has(customerKey)) {
-            uniqueCustomers.add(customerKey);
-            totalCustomers++;
-            console.log('Added standalone CRM customer:', { email: customer.social_network_link, phone: customer.user_number, name: customer.user_surname || customer.title });
-          }
+          uniqueCustomers.add(customerKey);
+          withoutBookingSet.add(customerKey);
+          console.log('Added standalone CRM customer:', { email: customer.social_network_link, phone: customer.user_number, name: customer.user_surname || customer.title });
         });
       }
 
-      // All customers found are "with booking" since they either come from events or are in CRM
-      const withBooking = totalCustomers;
-      const withoutBooking = 0; // No customers without booking in this context
+      // Ensure customers that appear in both sets are counted as WITH booking
+      for (const key of withBookingSet) {
+        if (withoutBookingSet.has(key)) withoutBookingSet.delete(key);
+      }
+
+      const totalCustomers = uniqueCustomers.size;
+      const withBooking = withBookingSet.size;
+      const withoutBooking = withoutBookingSet.size;
 
       console.log('Final customer stats calculation (including booking requests):', {
         uniqueCustomersFound: uniqueCustomers.size,

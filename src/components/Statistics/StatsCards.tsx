@@ -84,6 +84,7 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
   const withBookingText = t("dashboard.withBooking");
   const withoutBookingText = t("dashboard.withoutBooking");
   const customerDetailsText = `${customerStats.withBooking} ${withBookingText}, ${customerStats.withoutBooking} ${withoutBookingText}`;
+  const notPaidCount = Math.max(0, (eventStats.total || 0) - (eventStats.partlyPaid || 0) - (eventStats.fullyPaid || 0));
 
   return (
     <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
@@ -108,7 +109,7 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
       <StatCard
         title={t("dashboard.totalEvents")}
         value={eventStats.total}
-        description={`${eventStats.partlyPaid} ${t("dashboard.partlyPaid")}, ${eventStats.fullyPaid} ${t("dashboard.fullyPaid")}`}
+        description={`${eventStats.partlyPaid} ${t("dashboard.partlyPaid")}, ${eventStats.fullyPaid} ${t("dashboard.fullyPaid")}, ${notPaidCount} ${t("dashboard.notPaid")}`}
         icon={CalendarCheck}
         color="green"
         trend="+23%"

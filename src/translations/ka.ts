@@ -284,6 +284,7 @@ export const translations: TranslationType = {
     totalEvents: "ღონისძიებების ჯამი",
     partlyPaid: "ნაწილობრივ გადახდილი",
     fullyPaid: "სრულიად გადახდილი",
+    notPaid: "გადაუხდელი",
     totalIncome: "სულ შემოსავალი",
     fromAllEvents: "ყველა ღონისძიებიდან",
     exportSuccessful: "ექსპორტი წარმატებით დასრულდა",

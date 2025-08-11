@@ -273,6 +273,7 @@ export const translations: TranslationType = {
     totalEvents: "Total Events",
     partlyPaid: "Partly Paid",
     fullyPaid: "Fully Paid",
+    notPaid: "Not Paid",
     totalIncome: "Total Income",
     fromAllEvents: "From all events",
     exportSuccessful: "Export Successful",
