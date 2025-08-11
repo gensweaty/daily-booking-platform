@@ -297,12 +297,7 @@ export const DashboardContent = ({
           </TabsContent>
 
           <TabsContent key="tasks" value="tasks">
-            <motion.div
-              variants={tabVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-            >
+            <div>
               <Card className="min-h-[calc(100vh-12rem)]">
                  <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
                    <CardTitle>
@@ -418,16 +413,12 @@ export const DashboardContent = ({
                    </div>
                  </CardHeader>
                 <CardContent>
-                  <motion.div
-                    variants={cardVariants}
-                    initial="hidden"
-                    animate="visible"
-                  >
+                  <div>
                     {showArchive ? <ArchivedTasksPage /> : <TaskList username={username} />}
-                  </motion.div>
+                  </div>
                 </CardContent>
               </Card>
-            </motion.div>
+            </div>
           </TabsContent>
 
           <TabsContent key="crm" value="crm">
