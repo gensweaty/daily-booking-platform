@@ -174,71 +174,65 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
                   </div>
                 </div>
                 
-{(onEdit || onDelete) ? (
-                  <motion.div 
-                    className="flex gap-1 flex-shrink-0 opacity-0"
-                    animate={{ opacity: isHovered ? 1 : 0 }}
-                    transition={{ duration: 0.2, delay: 0.1 }}
-                  >
-                    {onEdit && (
-                      <motion.div variants={iconVariants} animate={isHovered ? "hover" : "idle"}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEdit(task);
-                          }}
-                          className="text-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 transition-all duration-200"
-                          title="Edit task"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </motion.div>
-                    )}
-                    {onDelete && (
-                      <motion.div 
-                        variants={iconVariants} 
-                        animate={isHovered ? "hover" : "idle"}
-                        transition={{ delay: 0.05 }}
-                      >
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDelete(task.id);
-                          }}
-                          className="text-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 transition-all duration-200"
-                          title="Delete task"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </motion.div>
-                    )}
+<motion.div 
+                  className="flex gap-1 flex-shrink-0 opacity-0"
+                  animate={{ opacity: isHovered ? 1 : 0 }}
+                  transition={{ duration: 0.2, delay: 0.1 }}
+                >
+                  {/* Always show Preview */}
+                  <motion.div variants={iconVariants} animate={isHovered ? "hover" : "idle"}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onView(task);
+                      }}
+                      className="text-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 transition-all duration-200"
+                      title="Preview task"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
                   </motion.div>
-                ) : (
-                  <motion.div 
-                    className="flex gap-1 flex-shrink-0 opacity-0"
-                    animate={{ opacity: isHovered ? 1 : 0 }}
-                    transition={{ duration: 0.2, delay: 0.1 }}
-                  >
+
+                  {/* Conditionally show Edit/Delete */}
+                  {onEdit && (
                     <motion.div variants={iconVariants} animate={isHovered ? "hover" : "idle"}>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onView(task);
+                          onEdit(task);
                         }}
                         className="text-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 transition-all duration-200"
-                        title="Preview task"
+                        title="Edit task"
                       >
-                        <Eye className="h-4 w-4" />
+                        <Pencil className="h-4 w-4" />
                       </Button>
                     </motion.div>
-                  </motion.div>
-                )}
+                  )}
+                  {onDelete && (
+                    <motion.div 
+                      variants={iconVariants} 
+                      animate={isHovered ? "hover" : "idle"}
+                      transition={{ delay: 0.05 }}
+                    >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(task.id);
+                        }}
+                        className="text-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 transition-all duration-200"
+                        title="Delete task"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </motion.div>
+                  )}
+                </motion.div>
               </div>
             </div>
           </div>
