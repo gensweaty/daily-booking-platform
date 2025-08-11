@@ -307,50 +307,29 @@ export const DashboardContent = ({
                  <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
                    <CardTitle>
                      <div className="flex items-center justify-between w-full">
-+                       {/* Mobile: Title on left, presence circles on right */}
-+                       <div className="flex sm:w-full sm:justify-start">
-+                         {showArchive ? (
-+                           isGeorgian ? (
-+                             <GeorgianAuthText fontWeight="bold">
-+                               {t("tasks.archivedTasks")}
-+                             </GeorgianAuthText>
-+                           ) : (
-+                             <LanguageText>{t("tasks.archivedTasks")}</LanguageText>
-+                           )
-+                         ) : (
-+                           isGeorgian ? (
-+                             <GeorgianAuthText>დავალებები</GeorgianAuthText>
-+                           ) : (
-+                             <LanguageText>{t("dashboard.tasks")}</LanguageText>
-+                           )
-+                         )}
-+                       </div>
-+                       {/* Mobile presence circles aligned to right */}
-+                       <div className="flex sm:hidden ml-auto">
-+                         <TasksPresenceHeader />
-+                       </div>
--                       {/* Mobile: Show circles on far left, title on far right */}
--                       <div className="flex sm:hidden">
--                         <TasksPresenceHeader />
--                       </div>
--                       <div className="flex sm:w-full sm:justify-start ml-auto sm:ml-0">
--                         {showArchive ? (
--                           isGeorgian ? (
--                             <GeorgianAuthText fontWeight="bold">
--                               {t("tasks.archivedTasks")}
--                             </GeorgIANAuthText>
--                           ) : (
--                             <LanguageText>{t("tasks.archivedTasks")}</LanguageText>
--                           )
--                         ) : (
--                           isGeorgian ? (
--                             <GeorgianAuthText>დავალებები</GeorgიანAuthText>
--                           ) : (
--                             <LanguageText>{t("dashboard.tasks")}</LanguageText>
--                           )
--                         )}
--                       </div>
-                      </div>
+                       {/* Mobile: Title on left, presence circles on right */}
+                       <div className="flex sm:w-full sm:justify-start">
+                         {showArchive ? (
+                           isGeorgian ? (
+                             <GeorgianAuthText fontWeight="bold">
+                               {t("tasks.archivedTasks")}
+                             </GeorgianAuthText>
+                           ) : (
+                             <LanguageText>{t("tasks.archivedTasks")}</LanguageText>
+                           )
+                         ) : (
+                           isGeorgian ? (
+                             <GeorgianAuthText>დავალებები</GeorgianAuthText>
+                           ) : (
+                             <LanguageText>{t("dashboard.tasks")}</LanguageText>
+                           )
+                         )}
+                       </div>
+                       {/* Mobile presence circles aligned to right */}
+                       <div className="flex sm:hidden ml-auto">
+                         <TasksPresenceHeader />
+                       </div>
+                     </div>
                    </CardTitle>
                    <div className="flex items-center gap-2 ml-auto">
                        {/* Desktop: Show presence circles */}
