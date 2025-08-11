@@ -198,8 +198,24 @@ export const TaskCommentsList = ({
             <MessageSquare className="h-4 w-4 mx-auto mb-1 opacity-50" />
             <p className="text-xs">{t?.('taskComments.noComments') || 'No comments yet'}</p>
           </div>
+        ) : comments.length === 1 ? (
+          <div className="space-y-0 pr-1">
+            <TaskCommentItem
+              comment={comments[0]}
+              canDelete={
+                isExternal 
+                  ? comments[0].created_by_type === 'external_user' && 
+                    comments[0].created_by_name === `${externalUserName} (Sub User)`
+                  : userId === comments[0].user_id
+              }
+              username={username}
+              externalUserName={externalUserName}
+              isExternal={isExternal}
+              taskCreatorName={taskCreatorName}
+            />
+          </div>
         ) : (
-          <ScrollArea className="max-h-[50vh] sm:max-h-[400px]">
+          <ScrollArea className="max-h-[45vh] sm:max-h-[400px]">
             <div className="space-y-0 pr-1">
               {comments.slice(0, 20).map((comment, index) => (
                 <div key={comment.id}>
