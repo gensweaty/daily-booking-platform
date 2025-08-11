@@ -56,11 +56,13 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         console.log('RPC function failed, using direct query fallback:', error);
       }
 
-      // Fallback to direct aggregation query
+      // Fallback to direct aggregation query (exclude archived tasks)
       const { data: tasks, error } = await supabase
         .from('tasks')
         .select('status')
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('archived', false)
+        .is('archived_at', null);
 
       if (error) {
         console.error('Error fetching tasks:', error);

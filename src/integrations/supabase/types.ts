@@ -1475,6 +1475,16 @@ export type Database = {
           user_surname: string | null
         }[]
       }
+      get_sub_user_auth: {
+        Args: { p_owner_id: string; p_email: string }
+        Returns: {
+          id: string
+          fullname: string
+          email: string
+          password_hash: string
+          password_salt: string
+        }[]
+      }
       get_task_stats: {
         Args: { user_id_param: string }
         Returns: {
