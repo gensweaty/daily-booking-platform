@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { format, parseISO, startOfMonth, endOfMonth, addMonths } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, addMonths, endOfDay } from 'date-fns';
 
 interface OptimizedTaskStats {
   total: number;
@@ -439,7 +439,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       console.log('Fetching customer stats for user:', userId, 'date range:', dateRange);
 
       const startDateStr = dateRange.start.toISOString();
-      const endDateStr = dateRange.end.toISOString();
+      const endDateStr = endOfDay(dateRange.end).toISOString();
 
       // Track unique customers and split into with/without booking sets
       const uniqueCustomers = new Set<string>();
@@ -451,8 +451,9 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         .from('events')
         .select('*')
         .eq('user_id', userId)
-        .gte('start_date', startDateStr)
-        .lte('start_date', endDateStr)
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
+        .is('parent_event_id', null)
         .is('deleted_at', null);
 
       if (regularEventsError) {
@@ -479,15 +480,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
 
       if (bookingRequestsError) {
         console.error('Error fetching booking requests for customer stats:', bookingRequestsError);
-      } else if (bookingRequests) {
-        // Add booking request persons (WITH booking)
-        bookingRequests.forEach(booking => {
-          const customerKey = `${booking.requester_email || 'no-email'}_${booking.requester_phone || 'no-phone'}_${booking.requester_name || 'no-name'}`;
-          uniqueCustomers.add(customerKey);
-          withBookingSet.add(customerKey);
-          console.log('Added booking request customer:', { email: booking.requester_email, phone: booking.requester_phone, name: booking.requester_name });
-        });
       }
+      // Booking requests are intentionally excluded from customerStats to match CRM page counts.
 
       // Get additional customers from CRM (type = 'customer') created in the date range
       const { data: crmCustomers, error: crmCustomersError } = await supabase
@@ -518,6 +512,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         .eq('user_id', userId)
         .or('type.neq.customer,type.is.null') // Get customers that are NOT additional persons
         .is('event_id', null) // Not associated with events
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
         .is('deleted_at', null);
 
       if (standaloneCrmError) {
