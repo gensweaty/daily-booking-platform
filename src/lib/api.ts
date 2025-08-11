@@ -64,6 +64,7 @@ export const getTasks = async (userId: string) => {
     .select('*')
     .eq('user_id', userId)
     .eq('archived', false)  // Only get non-archived tasks
+    .is('deleted_at', null) // Exclude soft-deleted tasks
     .order('position', { ascending: true });
 
   if (error) {
@@ -105,6 +106,7 @@ export const getArchivedTasks = async (userId: string) => {
     .select('*')
     .eq('user_id', userId)
     .eq('archived', true)
+    .is('deleted_at', null)
     .order('archived_at', { ascending: false });
 
   if (error) {

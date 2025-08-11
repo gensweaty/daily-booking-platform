@@ -35,6 +35,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     mutationFn: (id: string) => deleteTask(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] });
       toast({
         title: t("common.success"),
         description: t("common.deleteSuccess"),
@@ -44,14 +45,15 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
 
   const archiveTaskMutation = useMutation({
     mutationFn: (id: string) => archiveTask(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['archivedTasks'] });
-      toast({
-        title: t("common.success"),
-        description: t("tasks.taskArchived"),
-      });
-    },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['archivedTasks'] });
+    queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] });
+    toast({
+      title: t("common.success"),
+      description: t("tasks.taskArchived"),
+    });
+  },
     onError: (error: any) => {
       toast({
         title: t("common.error"),
@@ -61,26 +63,23 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     },
   });
 
-  const updateTaskMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Partial<Task> }) =>
-      updateTask(id, updates),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      
-      // Show celebration animation for completed tasks
-      if (variables.updates.status === 'done') {
-        toast({
-          title: "🎉 Task Completed!",
-          description: t("tasks.taskUpdated"),
-        });
-      } else {
-        toast({
-          title: t("common.success"),
-          description: t("tasks.taskUpdated"),
-        });
-      }
-    },
-  });
+  onSuccess: (_, variables) => {
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] });
+    
+    // Show celebration animation for completed tasks
+    if (variables.updates.status === 'done') {
+      toast({
+        title: "🎉 Task Completed!",
+        description: t("tasks.taskUpdated"),
+      });
+    } else {
+      toast({
+        title: t("common.success"),
+        description: t("tasks.taskUpdated"),
+      });
+    }
+  },
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
