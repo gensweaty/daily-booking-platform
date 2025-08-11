@@ -70,6 +70,30 @@ export const DashboardContent = ({
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
 
+  // One-time cleanup for specific sub-users requested by admin
+  useEffect(() => {
+    const key = 'subuser-cleanup-20250811';
+    if (localStorage.getItem(key)) return;
+    const emails = [
+      'gensweaty@gmail.com',
+      'anania.devsurashvili885@law.tsu.edu.ge',
+      'anastasiamiskina30@gmail.com',
+    ];
+    (async () => {
+      try {
+        const { data, error } = await (await import("@/lib/supabase")).supabase.functions.invoke('admin-delete-sub-users', {
+          body: { ownerEmail: 'grandtube33@gmail.com', emails },
+        });
+        if (error) throw error as any;
+        console.log('Cleanup result', data);
+        toast({ title: 'Cleanup complete', description: 'Requested sub-users have been removed.' });
+        localStorage.setItem(key, 'done');
+      } catch (e: any) {
+        console.error('Cleanup failed', e);
+      }
+    })();
+  }, []);
+
   // Show notification when pendingCount changes (new request arrives)
   useEffect(() => {
     if (pendingCount > 0 && activeTab !== "business") {

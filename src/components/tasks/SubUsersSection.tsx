@@ -84,6 +84,8 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
 
   const handleDeleteSubUser = async (subUserId: string) => {
     try {
+      const target = subUsers.find(u => u.id === subUserId);
+
       const { error } = await supabase
         .from('sub_users')
         .delete()
@@ -91,6 +93,22 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
         .eq('board_owner_id', boardOwnerId);
 
       if (error) throw error;
+
+      // Also revoke any existing public access tokens for this sub user across this owner's boards
+      if (target && boardOwnerId) {
+        const { data: boards } = await supabase
+          .from('public_boards')
+          .select('id')
+          .eq('user_id', boardOwnerId);
+        const boardIds = (boards || []).map((b: any) => b.id);
+        if (boardIds.length > 0) {
+          await supabase
+            .from('public_board_access')
+            .delete()
+            .in('board_id', boardIds)
+            .ilike('external_user_email', (target.email || '').trim().toLowerCase());
+        }
+      }
 
       setSubUsers(prev => prev.filter(user => user.id !== subUserId));
       toast({

@@ -46,6 +46,9 @@ verify_jwt = false
 [functions.process-reminders]
 verify_jwt = false
 
+[functions.admin-delete-sub-users]
+verify_jwt = true
+
 [storage]
 # The maximum file size allowed (e.g. "5MB", "500KB").
 # file_size_limit = "50MiB"
