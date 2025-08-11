@@ -15,9 +15,9 @@ import { createPortal } from "react-dom";
 interface TaskCardProps {
   task: Task;
   index: number;
-  onEdit: (task: Task) => void;
+  onEdit?: (task: Task) => void;
   onView: (task: Task) => void;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
   isPublicBoard?: boolean;
 }
 
@@ -174,45 +174,50 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
                   </div>
                 </div>
                 
-                <motion.div 
-                  className="flex gap-1 flex-shrink-0 opacity-0"
-                  animate={{ opacity: isHovered ? 1 : 0 }}
-                  transition={{ duration: 0.2, delay: 0.1 }}
-                >
-                  <motion.div variants={iconVariants} animate={isHovered ? "hover" : "idle"}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit(task);
-                      }}
-                      className="text-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 transition-all duration-200"
-                      title="Edit task"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  </motion.div>
-                  
+{(onEdit || onDelete) && (
                   <motion.div 
-                    variants={iconVariants} 
-                    animate={isHovered ? "hover" : "idle"}
-                    transition={{ delay: 0.05 }}
+                    className="flex gap-1 flex-shrink-0 opacity-0"
+                    animate={{ opacity: isHovered ? 1 : 0 }}
+                    transition={{ duration: 0.2, delay: 0.1 }}
                   >
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(task.id);
-                      }}
-                      className="text-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 transition-all duration-200"
-                      title="Delete task"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {onEdit && (
+                      <motion.div variants={iconVariants} animate={isHovered ? "hover" : "idle"}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEdit(task);
+                          }}
+                          className="text-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 transition-all duration-200"
+                          title="Edit task"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </motion.div>
+                    )}
+                    {onDelete && (
+                      <motion.div 
+                        variants={iconVariants} 
+                        animate={isHovered ? "hover" : "idle"}
+                        transition={{ delay: 0.05 }}
+                      >
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(task.id);
+                          }}
+                          className="text-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 transition-all duration-200"
+                          title="Delete task"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </motion.div>
+                    )}
                   </motion.div>
-                </motion.div>
+                )}
               </div>
             </div>
           </div>

@@ -16,9 +16,11 @@ interface TaskColumnProps {
   onView: (task: Task) => void;
   onDelete: (id: string) => void;
   isPublicBoard?: boolean;
+  canEditTask?: (task: Task) => boolean;
+  canDeleteTask?: (task: Task) => boolean;
 }
 
-export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBoard = false }: TaskColumnProps) => {
+export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBoard = false, canEditTask, canDeleteTask }: TaskColumnProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
   const [isDragOver, setIsDragOver] = useState(false);
@@ -205,58 +207,62 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
           {/* Tasks Container */}
           <div className="space-y-4 flex-1 relative">
             {tasks.length > 0 ? (
-              tasks.map((task: Task, index: number) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  index={index}
-                  onEdit={onEdit}
-                  onView={onView}
-                  onDelete={onDelete}
-                  isPublicBoard={isPublicBoard}
-                />
-              ))
+              tasks.map((task: Task, index: number) => {
+                const allowEdit = canEditTask ? canEditTask(task) : true;
+                const allowDelete = canDeleteTask ? canDeleteTask(task) : true;
+                return (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    index={index}
+                    onEdit={allowEdit ? onEdit : undefined}
+                    onView={onView}
+                    onDelete={allowDelete ? onDelete : undefined}
+                    isPublicBoard={isPublicBoard}
+                  />
+                );
+              })
             ) : (
+              <motion.div
+                variants={emptyStateVariants}
+                initial="hidden"
+                animate="visible"
+                className="flex flex-col items-center justify-center py-16 text-center"
+              >
                 <motion.div
-                  variants={emptyStateVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className="flex flex-col items-center justify-center py-16 text-center"
+                  animate={{ 
+                    y: [0, -8, 0],
+                    rotate: [0, 10, -10, 0],
+                    opacity: [0.4, 0.8, 0.4]
+                  }}
+                  transition={{ 
+                    duration: 4,
+                    repeat: Infinity
+                  }}
+                  className="mb-6"
                 >
-                  <motion.div
-                    animate={{ 
-                      y: [0, -8, 0],
-                      rotate: [0, 10, -10, 0],
-                      opacity: [0.4, 0.8, 0.4]
-                    }}
-                    transition={{ 
-                      duration: 4,
-                      repeat: Infinity
-                    }}
-                    className="mb-6"
-                  >
-                    <Plus className="h-16 w-16 text-muted-foreground/30" />
-                  </motion.div>
-                  
-                  <motion.p 
-                    className="text-muted-foreground text-base font-medium mb-2"
-                    animate={{ opacity: [0.6, 1, 0.6] }}
-                    transition={{ duration: 3, repeat: Infinity }}
-                  >
-                    {getEmptyStateMessage(status)}
-                  </motion.p>
-                  
-                  {status === 'todo' && (
-                    <motion.p 
-                      className="text-sm text-muted-foreground/60"
-                      animate={{ opacity: [0.4, 0.8, 0.4] }}
-                      transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }}
-                    >
-                      Drag tasks here or create a new one
-                    </motion.p>
-                  )}
+                  <Plus className="h-16 w-16 text-muted-foreground/30" />
                 </motion.div>
-              )}
+                
+                <motion.p 
+                  className="text-muted-foreground text-base font-medium mb-2"
+                  animate={{ opacity: [0.6, 1, 0.6] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                >
+                  {getEmptyStateMessage(status)}
+                </motion.p>
+                
+                {status === 'todo' && (
+                  <motion.p 
+                    className="text-sm text-muted-foreground/60"
+                    animate={{ opacity: [0.4, 0.8, 0.4] }}
+                    transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }}
+                  >
+                    Drag tasks here or create a new one
+                  </motion.p>
+                )}
+              </motion.div>
+            )}
             {provided.placeholder}
             
             {/* Enhanced Drop Zone Indicator */}

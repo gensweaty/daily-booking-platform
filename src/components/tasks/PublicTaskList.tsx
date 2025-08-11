@@ -195,11 +195,12 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
     );
   }
 
-  // Map database status to UI status
+// Map database status to UI status and sort by last edited ascending (oldest first)
+  const getSortTime = (t: Task) => new Date(t.last_edited_at || t.updated_at || t.created_at).getTime();
   const columns = {
-    todo: tasks.filter((task: Task) => task.status === 'todo'),
-    'in-progress': tasks.filter((task: Task) => task.status === 'inprogress'),
-    done: tasks.filter((task: Task) => task.status === 'done'),
+    todo: tasks.filter((task: Task) => task.status === 'todo').sort((a: Task, b: Task) => getSortTime(a) - getSortTime(b)),
+    'in-progress': tasks.filter((task: Task) => task.status === 'inprogress').sort((a: Task, b: Task) => getSortTime(a) - getSortTime(b)),
+    done: tasks.filter((task: Task) => task.status === 'done').sort((a: Task, b: Task) => getSortTime(a) - getSortTime(b)),
   };
 
   // External users should only be able to delete/edit their own tasks
@@ -314,31 +315,12 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
                 key={status}
                 status={status}
                 tasks={statusTasks}
-                onEdit={(task) => {
-                  if (canEditTask(task)) {
-                    setEditingTask(task);
-                  } else {
-                    toast({
-                      title: t("common.error"),
-                      description: "You can only edit tasks you created",
-                      variant: "destructive",
-                    });
-                  }
-                }}
+                onEdit={setEditingTask}
                 onView={setViewingTask}
-                onDelete={(taskId) => {
-                  const task = tasks.find(t => t.id === taskId);
-                  if (task && canDeleteTask(task)) {
-                    handleDeleteTask(taskId);
-                  } else {
-                    toast({
-                      title: t("common.error"),
-                      description: "You can only delete tasks you created",
-                      variant: "destructive",
-                    });
-                  }
-                }}
+                onDelete={handleDeleteTask}
                 isPublicBoard={true}
+                canEditTask={canEditTask}
+                canDeleteTask={canDeleteTask}
               />
             ))}
           </div>
