@@ -51,11 +51,15 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         return { total: 0, completed: 0, inProgress: 0, todo: 0 };
       }
 
+      const completed = tasks?.filter(t => t.status === 'done').length || 0;
+      const inProgress = tasks?.filter(t => t.status === 'inprogress').length || 0;
+      const todo = tasks?.filter(t => t.status === 'todo').length || 0;
+
       const stats = {
-        total: tasks?.length || 0,
-        completed: tasks?.filter(t => t.status === 'done').length || 0,
-        inProgress: tasks?.filter(t => t.status === 'inprogress').length || 0,
-        todo: tasks?.filter(t => t.status === 'todo').length || 0
+        total: completed + inProgress + todo, // ensure total matches board-visible columns only
+        completed,
+        inProgress,
+        todo
       };
 
       console.log('Direct query task stats:', stats);
