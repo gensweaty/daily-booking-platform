@@ -309,6 +309,10 @@ export interface TranslationType {
     slugDescription: string;
     slugRequired: string;
     emailAddress: string;
+    password: string;
+    enterPassword: string;
+    confirmPassword: string;
+    repeatPassword: string;
     subUsers: string;
     lastLogin: string;
     userAlreadyExists: string;
