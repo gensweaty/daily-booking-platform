@@ -97,7 +97,7 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
             setFullName(storedFullName);
             setEmail(storedEmail);
           }
-          verifyExistingAccess(token);
+          verifyExistingAccess(token, storedEmail, storedFullName);
         } else {
           // Clear expired token
           localStorage.removeItem(`public-board-access-${slug}`);
@@ -114,13 +114,13 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
     const resolveName = async () => {
       if (!boardData || !isAuthenticated) return;
       if (fullName && fullName.includes("@")) {
-        const { data: subUser } = await supabase
-          .from('sub_users')
-          .select('fullname')
-          .eq('board_owner_id', boardData.user_id)
-          .ilike('email', (email || '').trim().toLowerCase())
-          .maybeSingle();
-        if (subUser?.fullname) setFullName(subUser.fullname);
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_sub_user_auth', {
+          p_owner_id: boardData.user_id,
+          p_email: (email || '').trim().toLowerCase(),
+        });
+        if (!rpcError && rpcData && rpcData.length > 0 && rpcData[0].fullname) {
+          setFullName(rpcData[0].fullname);
+        }
       }
     };
     resolveName();
@@ -202,29 +202,28 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
     }
   };
 
-  const verifyExistingAccess = async (token: string) => {
+  const verifyExistingAccess = async (token: string, storedEmail?: string, storedFullName?: string) => {
     try {
-      const { data, error } = await supabase
-        .from('public_board_access')
-        .select('*')
-        .eq('access_token', token)
-        .eq('board_id', boardData?.id)
-        .single();
+      // Use SECURITY DEFINER RPC to validate token without requiring SELECT privileges
+      const { data: tokenData, error: tokenError } = await supabase.rpc('get_public_board_by_token', {
+        access_token_param: token,
+      });
 
-      if (!error && data) {
-        const normalizedEmail = (data.external_user_email || '').trim().toLowerCase();
-        let displayName = data.external_user_name;
+      const tokenInfo = (tokenData && tokenData[0]) || null;
 
-        // Require that this email is still present in sub_users for this board
-        if (boardData) {
-          const { data: subUser } = await supabase
-            .from('sub_users')
-            .select('id, fullname, email')
-            .eq('board_owner_id', boardData.user_id)
-            .ilike('email', normalizedEmail)
-            .maybeSingle();
+      if (!tokenError && tokenInfo && tokenInfo.is_active && tokenInfo.board_id === boardData?.id) {
+        // Prefer stored email and name from local storage
+        const normalizedEmail = (storedEmail || '').trim().toLowerCase();
+        let displayName = storedFullName || tokenInfo.external_user_name || normalizedEmail;
 
-          if (!subUser) {
+        if (normalizedEmail) {
+          // Verify sub user still exists using SECURITY DEFINER RPC (bypasses RLS)
+          const { data: subData, error: subErr } = await supabase.rpc('get_sub_user_auth', {
+            p_owner_id: tokenInfo.user_id,
+            p_email: normalizedEmail,
+          });
+          const subUser = (subData && subData[0]) || null;
+          if (!subUser || subErr) {
             // Token is invalid because sub user was removed – clear and force re-auth
             localStorage.removeItem(`public-board-access-${slug}`);
             setIsAuthenticated(false);
@@ -248,34 +247,27 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
             await new Promise(resolve => setTimeout(resolve, 200));
           }
 
-          // Ensure access record has the latest display name
-          if (displayName && displayName !== data.external_user_name) {
-            await supabase
-              .from('public_board_access')
-              .update({ external_user_name: displayName })
-              .eq('id', data.id);
-          }
+          // Ensure access record has the latest display name and timestamp (UPDATE allowed publicly)
+          await supabase
+            .from('public_board_access')
+            .update({ external_user_name: displayName, last_accessed_at: new Date().toISOString() })
+            .eq('board_id', tokenInfo.board_id)
+            .eq('access_token', token);
         }
 
         // Apply session state with normalized email and synced name
         setAccessToken(token);
         setIsAuthenticated(true);
-        setFullName(displayName || normalizedEmail);
+        setFullName(displayName);
         setEmail(normalizedEmail);
 
         // Persist refreshed info
         localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
           token,
           timestamp: Date.now(),
-          fullName: displayName || normalizedEmail,
+          fullName: displayName,
           email: normalizedEmail,
         }));
-
-        // Update last accessed time
-        await supabase
-          .from('public_board_access')
-          .update({ last_accessed_at: new Date().toISOString() })
-          .eq('id', data.id);
       } else {
         // Invalid or expired token - clear storage and show auth form
         localStorage.removeItem(`public-board-access-${slug}`);
@@ -326,12 +318,11 @@ const handleLogin = async () => {
       const normalizedEmail = email.trim().toLowerCase();
 
       // Find sub user for this board
-      const { data: subUser, error: findError } = await supabase
-        .from('sub_users')
-        .select('id, fullname, email, password_hash, password_salt')
-        .eq('board_owner_id', boardData.user_id)
-        .ilike('email', normalizedEmail)
-        .maybeSingle();
+      const { data: authData, error: findError } = await supabase.rpc('get_sub_user_auth', {
+        p_owner_id: boardData.user_id,
+        p_email: normalizedEmail,
+      });
+      const subUser = authData && authData[0];
 
       if (findError || !subUser) {
         toast({ title: t('common.error'), description: 'This account is not registered for this board.', variant: 'destructive' });
