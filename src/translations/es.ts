@@ -302,7 +302,8 @@ export const translations: TranslationType = {
     eventsData: "Datos de Eventos",
     totalCustomers: "Total de Clientes",
     withBooking: "con reserva",
-    withoutBooking: "sin reserva"
+    withoutBooking: "sin reserva",
+    currentMonth: "Este mes"
   },
   publicBoard: {
     public: "Público",

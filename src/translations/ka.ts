@@ -302,7 +302,8 @@ export const translations: TranslationType = {
     eventsData: "ღონისძიებების მონაცემები",
     totalCustomers: "სულ კლიენტები",
     withBooking: "დაჯავშნული",
-    withoutBooking: "დაჯავშნული არაა"
+    withoutBooking: "დაჯავშნული არაა",
+    currentMonth: "მიმდინარე თვეში"
   },
   publicBoard: {
     public: "საჯარო",

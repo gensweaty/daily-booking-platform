@@ -298,6 +298,7 @@ export interface TranslationType {
     totalCustomers: string;
     withBooking: string;
     withoutBooking: string;
+    currentMonth: string;
   };
   publicBoard: {
     public: string;

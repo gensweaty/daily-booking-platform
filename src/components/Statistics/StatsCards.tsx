@@ -95,7 +95,6 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
         icon={CheckCircle2}
         color="purple"
         trend="+12%"
-        trendLabel="from last month"
       />
       <StatCard
         title={t("dashboard.totalCustomers")}
@@ -104,7 +103,7 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
         icon={Users}
         color="orange"
         trend="+8%"
-        trendLabel="from last month"
+        trendLabel={t("dashboard.currentMonth")}
       />
       <StatCard
         title={t("dashboard.totalEvents")}
@@ -113,7 +112,7 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
         icon={CalendarCheck}
         color="green"
         trend="+23%"
-        trendLabel="from last month"
+        trendLabel={t("dashboard.currentMonth")}
       />
       <StatCard
         title={t("dashboard.totalIncome")}
@@ -123,7 +122,7 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
         valueClassName="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent"
         color="blue"
         trend="+15%"
-        trendLabel="from last month"
+        trendLabel={t("dashboard.currentMonth")}
       />
     </div>
   );

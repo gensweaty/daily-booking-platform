@@ -291,7 +291,8 @@ export const translations: TranslationType = {
     eventsData: "Events Data",
     totalCustomers: "Total Customers",
     withBooking: "with booking",
-    withoutBooking: "without booking"
+    withoutBooking: "without booking",
+    currentMonth: "Current month"
   },
   publicBoard: {
     public: "Public",
