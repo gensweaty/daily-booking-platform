@@ -14,6 +14,7 @@ import { motion } from "framer-motion";
 import { Loader2, Globe, LogOut } from "lucide-react";
 import { PresenceAvatars } from "@/components/PresenceAvatars";
 import { useBoardPresence } from "@/hooks/useBoardPresence";
+import { validatePassword } from "@/utils/signupValidation";
 
 interface PublicBoardData {
   id: string;
@@ -37,7 +38,9 @@ export const PublicBoard = () => {
   const [boardData, setBoardData] = useState<PublicBoardData | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
+const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const { onlineUsers } = useBoardPresence(
     boardData?.id,
@@ -264,12 +267,11 @@ export const PublicBoard = () => {
     }
   };
 
-  const handleLogin = async () => {
-    if (!email.trim() || !magicWord.trim() || !boardData) {
+const handleLogin = async () => {
+    if (!email.trim() || !password.trim() || !boardData) {
       let description = "";
       if (!email.trim()) description = t("publicBoard.emailAddress");
-      else description = t("publicBoard.enterMagicWordForAccess");
-      
+      else description = "Please enter your password";
       toast({
         title: t("common.error"),
         description,
@@ -289,20 +291,18 @@ export const PublicBoard = () => {
       return;
     }
 
-    // Validate magic word (case-sensitive exact match)
-    if (magicWord.trim() !== boardData.magic_word) {
-      toast({
-        title: t("common.error"),
-        description: t("publicBoard.invalidAccess"),
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsSubmitting(true);
     try {
+      // Authenticate sub user with email/password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (signInError) throw signInError;
+
       const normalizedEmail = email.trim().toLowerCase();
-      // Find the sub user to get their fullname and update last login
+
+      // Ensure this account is registered as a sub user for this board
       const { data: subUser, error: findError } = await supabase
         .from('sub_users')
         .select('id, fullname, email')
@@ -310,45 +310,28 @@ export const PublicBoard = () => {
         .ilike('email', normalizedEmail)
         .maybeSingle();
 
-      if (findError) {
-        console.error('Error finding sub user:', findError);
+      if (findError || !subUser) {
         toast({
           title: t("common.error"),
-          description: t("publicBoard.userNotFound"),
+          description: "This account is not registered for this board.",
           variant: "destructive",
         });
         setIsSubmitting(false);
         return;
       }
 
-      // Update last login for existing sub user
-      if (subUser) {
-        console.log('Updating last login for sub user:', subUser.id, subUser.email);
-        const currentTime = new Date().toISOString();
-        const { error: updateError } = await supabase
-          .from('sub_users')
-          .update({ 
-            last_login_at: currentTime,
-            updated_at: currentTime
-          })
-          .eq('id', subUser.id);
+      // Update last login for sub user
+      const currentTime = new Date().toISOString();
+      await supabase
+        .from('sub_users')
+        .update({ last_login_at: currentTime, updated_at: currentTime })
+        .eq('id', subUser.id);
 
-        if (updateError) {
-          console.error('Error updating last login:', updateError);
-        } else {
-          console.log('Successfully updated last login for sub user to:', currentTime);
-          // Force a longer delay and ensure the database transaction is committed
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
+      const actualFullName = subUser.fullname || email.trim();
 
-      // Use the fullname from sub_users table
-      const actualFullName = subUser?.fullname || email.trim();
-
-      // Generate access token
+      // Generate access token for public board session
       const token = `${boardData.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Create access record
+
       const { error } = await supabase
         .from('public_board_access')
         .insert({
@@ -357,32 +340,27 @@ export const PublicBoard = () => {
           external_user_name: actualFullName,
           external_user_email: normalizedEmail,
         });
-
       if (error) throw error;
 
-      // Store token with timestamp and authenticate with the correct fullname
+      // Persist session locally for the public board
       localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
         token,
         timestamp: Date.now(),
         fullName: actualFullName,
-        email: normalizedEmail
+        email: normalizedEmail,
       }));
+
       setAccessToken(token);
       setIsAuthenticated(true);
       setFullName(actualFullName);
       setEmail(normalizedEmail);
-      
-      console.log('Setting fullName in state:', actualFullName);
 
-      toast({
-        title: t("common.success"),
-        description: t("publicBoard.welcomeToBoard"),
-      });
-    } catch (error) {
+      toast({ title: t("common.success"), description: t("publicBoard.welcomeToBoard") });
+    } catch (error: any) {
       console.error('Error logging in:', error);
       toast({
         title: t("common.error"),
-        description: t("publicBoard.invalidAccess"),
+        description: error?.message || "Invalid email or password",
         variant: "destructive",
       });
     } finally {
@@ -390,7 +368,7 @@ export const PublicBoard = () => {
     }
   };
 
-  const handleRegister = async () => {
+const handleRegister = async () => {
     if (!fullName.trim() || !email.trim() || !magicWord.trim() || !boardData) {
       let description = "";
       if (!fullName.trim()) description = t("publicBoard.enterFullName");
@@ -426,51 +404,85 @@ export const PublicBoard = () => {
       return;
     }
 
+    // Validate password
+    if (!password.trim() || !confirmPassword.trim()) {
+      toast({ title: t("common.error"), description: "Please enter and confirm your password", variant: "destructive" });
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast({ title: t("common.error"), description: "Passwords do not match", variant: "destructive" });
+      return;
+    }
+    const pwdError = validatePassword(password);
+    if (pwdError) {
+      toast({ title: t("common.error"), description: pwdError, variant: "destructive" });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      // Check if max sub users limit is reached
+
+      // Create auth account for sub user (magic word is only for registration)
+      const redirectUrl = `${window.location.origin}/`;
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+        options: {
+          data: { full_name: fullName.trim(), role: 'sub_user', board_owner_id: boardData.user_id },
+          emailRedirectTo: redirectUrl,
+        },
+      });
+      if (signUpError) {
+        // If the account already exists, ask the user to log in instead
+        toast({
+          title: t("common.error"),
+          description: signUpError.message || "Account already exists. Please sign in.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Respect max sub users limit
       const { data: existingSubUsers, error: countError } = await supabase
         .from('sub_users')
         .select('id')
         .eq('board_owner_id', boardData.user_id);
-
       if (countError) throw countError;
-
       if (existingSubUsers && existingSubUsers.length >= 10) {
-        toast({
-          title: t("common.error"),
-          description: "Maximum number of sub users (10) reached for this board",
-          variant: "destructive",
-        });
+        toast({ title: t("common.error"), description: "Maximum number of sub users (10) reached for this board", variant: "destructive" });
         return;
       }
 
-      // Try to create new sub user
-      const { error: subUserError } = await supabase
+      // Upsert-like behavior: update name if email exists, otherwise insert
+      const { data: existing, error: findExistingError } = await supabase
         .from('sub_users')
-        .insert({
-          board_owner_id: boardData.user_id,
-          fullname: fullName.trim(),
-          email: normalizedEmail,
-        });
+        .select('id')
+        .eq('board_owner_id', boardData.user_id)
+        .ilike('email', normalizedEmail)
+        .maybeSingle();
+      if (findExistingError) throw findExistingError;
 
-      if (subUserError) {
-        if (subUserError.code === '23505') { // Unique constraint violation
-          toast({
-            title: t("common.error"),
-            description: t("publicBoard.userAlreadyExists"),
-            variant: "destructive",
+      const now = new Date().toISOString();
+      if (existing) {
+        await supabase
+          .from('sub_users')
+          .update({ fullname: fullName.trim(), last_login_at: now, updated_at: now })
+          .eq('id', existing.id);
+      } else {
+        await supabase
+          .from('sub_users')
+          .insert({
+            board_owner_id: boardData.user_id,
+            fullname: fullName.trim(),
+            email: normalizedEmail,
+            last_login_at: now,
           });
-          return;
-        }
-        throw subUserError;
       }
 
-      // Generate access token
+      // Create access token for immediate board access
       const token = `${boardData.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Create access record
       const { error } = await supabase
         .from('public_board_access')
         .insert({
@@ -479,33 +491,26 @@ export const PublicBoard = () => {
           external_user_name: fullName.trim(),
           external_user_email: normalizedEmail,
         });
-
       if (error) throw error;
 
-      // Store token with timestamp and authenticate
       localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
         token,
         timestamp: Date.now(),
         fullName: fullName.trim(),
-        email: normalizedEmail
+        email: normalizedEmail,
       }));
       setAccessToken(token);
       setIsAuthenticated(true);
       setEmail(normalizedEmail);
-      
-      console.log('Registration: Setting fullName in state:', fullName.trim());
 
-      toast({
-        title: t("common.success"),
-        description: "Successfully registered and logged in to the board!",
-      });
-    } catch (error) {
+      // Clear sensitive fields
+      setPassword("");
+      setConfirmPassword("");
+
+      toast({ title: t("common.success"), description: "Successfully registered and logged in to the board!" });
+    } catch (error: any) {
       console.error('Error registering:', error);
-      toast({
-        title: t("common.error"),
-        description: "Failed to register. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: t("common.error"), description: error?.message || "Failed to register. Please try again.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -577,12 +582,12 @@ export const PublicBoard = () => {
                 <p className="text-muted-foreground">
                   {isRegisterMode 
                     ? t("publicBoard.createAccountToAccess")
-                    : t("publicBoard.enterMagicWordForAccess")
+                    : "Enter your email and password to access the board"
                   }
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
-{isRegisterMode && (
+                {isRegisterMode && (
                   <div className="space-y-2">
                     <Label htmlFor="fullName" className="text-sm font-medium">
                       {t("publicBoard.enterFullName")} *
@@ -612,27 +617,66 @@ export const PublicBoard = () => {
                   />
                 </div>
                 
+                {isRegisterMode && (
+                  <div className="space-y-2">
+                    <Label htmlFor="magicWord" className="text-sm font-medium">
+                      {t("publicBoard.magicWord")} *
+                    </Label>
+                    <Input
+                      id="magicWord"
+                      type="password"
+                      value={magicWord}
+                      onChange={(e) => setMagicWord(e.target.value)}
+                      placeholder={t("publicBoard.enterMagicWord")}
+                      className="w-full"
+                      onKeyPress={(e) => e.key === 'Enter' && handleRegister()}
+                    />
+                  </div>
+                )}
+
+                {/* Password fields */}
                 <div className="space-y-2">
-                  <Label htmlFor="magicWord" className="text-sm font-medium">
-                    {t("publicBoard.magicWord")} *
+                  <Label htmlFor="password" className="text-sm font-medium">
+                    Password *
                   </Label>
                   <Input
-                    id="magicWord"
+                    id="password"
                     type="password"
-                    value={magicWord}
-                    onChange={(e) => setMagicWord(e.target.value)}
-                    placeholder={t("publicBoard.enterMagicWord")}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
                     className="w-full"
                     onKeyPress={(e) => e.key === 'Enter' && (isRegisterMode ? handleRegister() : handleLogin())}
                   />
                 </div>
 
+                {isRegisterMode && (
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword" className="text-sm font-medium">
+                      Confirm Password *
+                    </Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Repeat your password"
+                      className="w-full"
+                      onKeyPress={(e) => e.key === 'Enter' && handleRegister()}
+                    />
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   <Button
                     onClick={isRegisterMode ? handleRegister : handleLogin}
-                    disabled={isSubmitting || 
-                      (isRegisterMode && (!fullName.trim() || !email.trim() || !magicWord.trim())) ||
-                      (!isRegisterMode && (!email.trim() || !magicWord.trim()))}
+                    disabled={
+                      isSubmitting ||
+                      (isRegisterMode
+                        ? (!fullName.trim() || !email.trim() || !magicWord.trim() || !password.trim() || !confirmPassword.trim() || password !== confirmPassword)
+                        : (!email.trim() || !password.trim())
+                      )
+                    }
                     className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                   >
                     {isSubmitting ? (
@@ -640,9 +684,9 @@ export const PublicBoard = () => {
                         <Loader2 className="h-4 w-4 animate-spin" />
                         {t("common.loading")}
                       </div>
-                     ) : (
-                       isRegisterMode ? t("publicBoard.register") : t("publicBoard.login")
-                     )}
+                    ) : (
+                      isRegisterMode ? t("publicBoard.register") : t("publicBoard.login")
+                    )}
                   </Button>
 
                   <div className="text-center">
