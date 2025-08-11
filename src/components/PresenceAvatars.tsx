@@ -24,7 +24,7 @@ export function PresenceAvatars({ users, currentUserEmail, max = 5 }: PresenceAv
       <div className="flex -space-x-2">
         <TooltipProvider>
           {visible.map((u) => {
-            const displayName = u.name && u.name.includes('@') ? u.name.split('@')[0] : (u.name || 'User');
+            const displayName = (u.name || 'User');
             return (
               <Tooltip key={u.email}>
                 <TooltipTrigger asChild>

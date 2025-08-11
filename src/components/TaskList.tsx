@@ -104,7 +104,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
       updates: { 
         status: dbStatus,
         last_edited_by_type: 'admin',
-        last_edited_by_name: username || user?.email?.split('@')[0] || 'Admin',
+        last_edited_by_name: username || (user?.user_metadata?.full_name as string) || 'Admin',
         last_edited_at: new Date().toISOString()
       },
     });

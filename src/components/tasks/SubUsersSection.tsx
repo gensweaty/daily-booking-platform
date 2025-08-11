@@ -66,7 +66,7 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
         .from('sub_users')
         .select('*')
         .eq('board_owner_id', boardOwnerId)
-        .order('created_at', { ascending: false });
+        .order('last_login_at', { ascending: false });
 
       if (error) throw error;
       setSubUsers(data || []);

@@ -36,6 +36,23 @@ export function useBoardPresence(
 
     channel
       .on("presence", { event: "sync" }, handleSync)
+      .on("presence", { event: "join" }, async ({ key }) => {
+        // Refresh last login when this user joins
+        if (options?.updateSubUserLastLogin && options?.boardOwnerId && key === currentUser.email) {
+          try {
+            await supabase
+              .from("sub_users")
+              .update({
+                last_login_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("board_owner_id", options.boardOwnerId)
+              .ilike("email", (currentUser.email || "").trim().toLowerCase());
+          } catch (e) {
+            console.error("Failed updating sub user last login on presence join", e);
+          }
+        }
+      })
       .subscribe(async (status) => {
         if (status !== "SUBSCRIBED") return;
         await channel.track({

@@ -27,7 +27,7 @@ export const TasksPresenceHeader = () => {
           .select("username")
           .eq("id", user.id)
           .maybeSingle();
-        setDisplayName(profile?.username || user.email || "Admin");
+        setDisplayName(profile?.username || (user.user_metadata?.full_name as string) || "Admin");
       } catch (e) {
         console.error("Failed to init TasksPresenceHeader", e);
       }
