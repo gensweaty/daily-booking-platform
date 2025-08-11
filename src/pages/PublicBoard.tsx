@@ -16,6 +16,31 @@ import { PresenceAvatars } from "@/components/PresenceAvatars";
 import { useBoardPresence } from "@/hooks/useBoardPresence";
 import { validatePassword } from "@/utils/signupValidation";
 
+// Password hashing utilities (PBKDF2, client-side)
+const bufToBase64 = (buffer: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)));
+const base64ToBuf = (b64: string) => {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+};
+const deriveBits = async (password: string, salt: Uint8Array) => {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveBits"]);
+  return crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" }, keyMaterial, 256);
+};
+const createPasswordHash = async (password: string) => {
+  const salt = new Uint8Array(16);
+  crypto.getRandomValues(salt);
+  const bits = await deriveBits(password, salt);
+  return { hash: bufToBase64(bits), salt: bufToBase64(salt.buffer) };
+};
+const verifyPasswordHash = async (password: string, saltB64: string, hashB64: string) => {
+  const salt = new Uint8Array(base64ToBuf(saltB64));
+  const bits = await deriveBits(password, salt);
+  return bufToBase64(bits) === hashB64;
+};
+
 interface PublicBoardData {
   id: string;
   user_id: string;
@@ -298,29 +323,31 @@ const handleLogin = async () => {
 
     setIsSubmitting(true);
     try {
-      // Authenticate sub user with email/password
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-      if (signInError) throw signInError;
-
       const normalizedEmail = email.trim().toLowerCase();
 
-      // Ensure this account is registered as a sub user for this board
+      // Find sub user for this board
       const { data: subUser, error: findError } = await supabase
         .from('sub_users')
-        .select('id, fullname, email')
+        .select('id, fullname, email, password_hash, password_salt')
         .eq('board_owner_id', boardData.user_id)
         .ilike('email', normalizedEmail)
         .maybeSingle();
 
       if (findError || !subUser) {
-        toast({
-          title: t("common.error"),
-          description: "This account is not registered for this board.",
-          variant: "destructive",
-        });
+        toast({ title: t('common.error'), description: 'This account is not registered for this board.', variant: 'destructive' });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Verify password against stored hash
+      if (!subUser.password_hash || !subUser.password_salt) {
+        toast({ title: t('common.error'), description: 'Password not set. Please register again.', variant: 'destructive' });
+        setIsSubmitting(false);
+        return;
+      }
+      const isValid = await verifyPasswordHash(password, subUser.password_salt, subUser.password_hash);
+      if (!isValid) {
+        toast({ title: t('common.error'), description: 'Invalid email or password', variant: 'destructive' });
         setIsSubmitting(false);
         return;
       }
@@ -360,14 +387,10 @@ const handleLogin = async () => {
       setFullName(actualFullName);
       setEmail(normalizedEmail);
 
-      toast({ title: t("common.success"), description: t("publicBoard.welcomeToBoard") });
+      toast({ title: t('common.success'), description: t('publicBoard.welcomeToBoard') });
     } catch (error: any) {
       console.error('Error logging in:', error);
-      toast({
-        title: t("common.error"),
-        description: error?.message || "Invalid email or password",
-        variant: "destructive",
-      });
+      toast({ title: t('common.error'), description: error?.message || 'Invalid email or password', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
@@ -428,26 +451,8 @@ const handleRegister = async () => {
     try {
       const normalizedEmail = email.trim().toLowerCase();
 
-      // Create auth account for sub user (magic word is only for registration)
-      const redirectUrl = `${window.location.origin}/`;
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: normalizedEmail,
-        password,
-        options: {
-          data: { full_name: fullName.trim(), role: 'sub_user', board_owner_id: boardData.user_id },
-          emailRedirectTo: redirectUrl,
-        },
-      });
-      if (signUpError) {
-        // If the account already exists, ask the user to log in instead
-        toast({
-          title: t("common.error"),
-          description: signUpError.message || "Account already exists. Please sign in.",
-          variant: "destructive",
-        });
-        setIsSubmitting(false);
-        return;
-      }
+      // Hash password client-side (PBKDF2)
+      const { hash, salt } = await createPasswordHash(password);
 
       // Respect max sub users limit
       const { data: existingSubUsers, error: countError } = await supabase
@@ -456,7 +461,7 @@ const handleRegister = async () => {
         .eq('board_owner_id', boardData.user_id);
       if (countError) throw countError;
       if (existingSubUsers && existingSubUsers.length >= 10) {
-        toast({ title: t("common.error"), description: "Maximum number of sub users (10) reached for this board", variant: "destructive" });
+        toast({ title: t('common.error'), description: 'Maximum number of sub users (10) reached for this board', variant: 'destructive' });
         return;
       }
 
@@ -473,7 +478,7 @@ const handleRegister = async () => {
       if (existing) {
         await supabase
           .from('sub_users')
-          .update({ fullname: fullName.trim(), last_login_at: now, updated_at: now })
+          .update({ fullname: fullName.trim(), password_hash: hash, password_salt: salt, last_login_at: now, updated_at: now })
           .eq('id', existing.id);
       } else {
         await supabase
@@ -482,6 +487,8 @@ const handleRegister = async () => {
             board_owner_id: boardData.user_id,
             fullname: fullName.trim(),
             email: normalizedEmail,
+            password_hash: hash,
+            password_salt: salt,
             last_login_at: now,
           });
       }
@@ -642,14 +649,14 @@ const handleRegister = async () => {
                 {/* Password fields */}
                 <div className="space-y-2">
                   <Label htmlFor="password" className="text-sm font-medium">
-                    Password *
+                    {t("publicBoard.password")} *
                   </Label>
                   <Input
                     id="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
+                    placeholder={t("publicBoard.enterPassword")}
                     className="w-full"
                     onKeyPress={(e) => e.key === 'Enter' && (isRegisterMode ? handleRegister() : handleLogin())}
                   />
@@ -658,17 +665,17 @@ const handleRegister = async () => {
                 {isRegisterMode && (
                   <div className="space-y-2">
                     <Label htmlFor="confirmPassword" className="text-sm font-medium">
-                      Confirm Password *
-                    </Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Repeat your password"
-                      className="w-full"
-                      onKeyPress={(e) => e.key === 'Enter' && handleRegister()}
-                    />
+                    {t("publicBoard.confirmPassword")} *
+                  </Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder={t("publicBoard.repeatPassword")}
+                    className="w-full"
+                    onKeyPress={(e) => e.key === 'Enter' && handleRegister()}
+                  />
                   </div>
                 )}
 

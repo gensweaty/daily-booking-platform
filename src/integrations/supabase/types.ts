@@ -1045,6 +1045,8 @@ export type Database = {
           fullname: string
           id: string
           last_login_at: string
+          password_hash: string | null
+          password_salt: string | null
           updated_at: string
         }
         Insert: {
@@ -1054,6 +1056,8 @@ export type Database = {
           fullname: string
           id?: string
           last_login_at?: string
+          password_hash?: string | null
+          password_salt?: string | null
           updated_at?: string
         }
         Update: {
@@ -1063,6 +1067,8 @@ export type Database = {
           fullname?: string
           id?: string
           last_login_at?: string
+          password_hash?: string | null
+          password_salt?: string | null
           updated_at?: string
         }
         Relationships: []
