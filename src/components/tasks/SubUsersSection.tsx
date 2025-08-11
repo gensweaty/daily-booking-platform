@@ -36,17 +36,17 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
         .on(
           'postgres_changes',
           {
-            event: 'UPDATE',
+            event: '*',
             schema: 'public',
             table: 'sub_users',
             filter: `board_owner_id=eq.${boardOwnerId}`
           },
           (payload) => {
-            console.log('Sub user updated:', payload);
+            console.log('Sub user change:', payload);
             // Delay refresh to ensure data is committed
             setTimeout(() => {
               fetchSubUsers();
-            }, 500);
+            }, 300);
           }
         )
         .subscribe();

@@ -199,8 +199,8 @@ export const TaskCommentsList = ({
             <p className="text-xs">{t?.('taskComments.noComments') || 'No comments yet'}</p>
           </div>
         ) : (
-          <ScrollArea className="max-h-[400px]">
-            <div className="space-y-0">
+          <ScrollArea className="h-[50vh] sm:h-[400px]">
+            <div className="space-y-0 pr-1">
               {comments.slice(0, 20).map((comment, index) => (
                 <div key={comment.id}>
                   <TaskCommentItem

@@ -272,14 +272,14 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
     <>
       <div className="space-y-6">
         {/* Mobile: Header line with Tasks left, circles center, Add button right */}
-        <div className="flex sm:hidden items-center justify-between w-full">
+        <div className="grid sm:hidden grid-cols-[auto_1fr_auto] items-center w-full">
           <h2 className="text-2xl font-bold text-foreground">{t('dashboard.tasks')}</h2>
-          <div className="flex items-center">
+          <div className="flex items-center justify-center">
             <TasksPresenceHeader />
           </div>
           <Button 
             onClick={() => setIsAddingTask(true)}
-            className="flex items-center gap-1 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-3 text-xs w-auto min-w-[80px]"
+            className="flex items-center gap-1 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-3 text-xs w-auto min-w-[80px] justify-self-end"
           >
             <Plus className="h-3 w-3" />
             <span>
