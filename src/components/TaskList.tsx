@@ -63,23 +63,27 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     },
   });
 
-  onSuccess: (_, variables) => {
-    queryClient.invalidateQueries({ queryKey: ['tasks'] });
-    queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] });
-    
-    // Show celebration animation for completed tasks
-    if (variables.updates.status === 'done') {
-      toast({
-        title: "🎉 Task Completed!",
-        description: t("tasks.taskUpdated"),
-      });
-    } else {
-      toast({
-        title: t("common.success"),
-        description: t("tasks.taskUpdated"),
-      });
-    }
-  },
+  const updateTaskMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<Task> }) =>
+      updateTask(id, updates),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] });
+      
+      // Show celebration animation for completed tasks
+      if (variables.updates.status === 'done') {
+        toast({
+          title: "🎉 Task Completed!",
+          description: t("tasks.taskUpdated"),
+        });
+      } else {
+        toast({
+          title: t("common.success"),
+          description: t("tasks.taskUpdated"),
+        });
+      }
+    },
+  });
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
