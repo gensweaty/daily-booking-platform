@@ -74,6 +74,19 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
       if (task) setViewingTask(task);
     };
     window.addEventListener('open-task', handler as unknown as EventListener);
+
+    // Deep link support via ?openTask=ID
+    const params = new URLSearchParams(window.location.search);
+    const deepTaskId = params.get('openTask');
+    if (deepTaskId) {
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId: deepTaskId } }));
+        const url = new URL(window.location.href);
+        url.searchParams.delete('openTask');
+        window.history.replaceState({}, '', url.toString());
+      }, 100);
+    }
+
     return () => window.removeEventListener('open-task', handler as unknown as EventListener);
   }, [tasks, boardUserId]);
 

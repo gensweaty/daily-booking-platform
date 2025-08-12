@@ -1,4 +1,3 @@
-
 # A string used to distinguish different Supabase projects on the same host. Defaults to the project ID.
 project_id = "mrueqpffzauvdxmuwhfa"
 
@@ -48,6 +47,9 @@ verify_jwt = false
 
 [functions.admin-delete-sub-users]
 verify_jwt = true
+
+[functions.send-comment-email]
+verify_jwt = false
 
 [storage]
 # The maximum file size allowed (e.g. "5MB", "500KB").

@@ -17,6 +17,27 @@ export const createComment = async (comment: {
       .single();
 
     if (error) throw error;
+
+    // Fire-and-forget email notification via Edge Function
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const actorEmail = auth?.user?.email;
+      const baseUrl = window.location.origin;
+      await supabase.functions.invoke('send-comment-email', {
+        body: {
+          taskId: comment.task_id,
+          commentId: data?.id,
+          actorName: comment.created_by_name,
+          actorType: comment.created_by_type,
+          actorEmail,
+          content: comment.content,
+          baseUrl,
+        },
+      });
+    } catch (e) {
+      console.warn('[commentApi] Failed to invoke send-comment-email:', e);
+    }
+
     return data;
   } catch (error) {
     console.error('Error creating comment:', error);
