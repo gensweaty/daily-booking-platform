@@ -345,16 +345,13 @@ export const DashboardContent = ({
     )}
   </div>
   {/* Mobile presence circles aligned to right */}
-  <div className="sm:hidden shrink-0 ml-2">
-    <TasksPresenceHeader />
-  </div>
 </div>
                    </CardTitle>
                    <div className="flex items-center gap-2 ml-auto">
                        {/* Desktop: Show presence circles */}
-                       <div className="hidden sm:flex">
-                         <TasksPresenceHeader />
-                       </div>
+                        <div className="hidden sm:flex">
+                          <TasksPresenceHeader max={2} />
+                        </div>
                        {!showArchive && (
                          <>
                            <PublicBoardSettings />
