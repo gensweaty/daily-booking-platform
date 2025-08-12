@@ -85,7 +85,7 @@ serve(async (req) => {
     // Load task
     const { data: task, error: taskErr } = await supabase
       .from("tasks")
-      .select("id, title, user_id")
+      .select("id, title, user_id, created_by_name, created_by_type, external_user_email")
       .eq("id", payload.taskId)
       .maybeSingle();
 
@@ -111,8 +111,8 @@ serve(async (req) => {
     const preview = commentContent ? commentContent.slice(0, 300) : "New comment received";
     const actorName = payload.actorName || "Someone";
 
-    // Get owner email, public board slug, and sub-user emails in parallel to reduce latency
-    const [ownerEmail, publicSlug, subEmails] = await Promise.all([
+    // Get owner email, public board slug, and sub-users (fullname + email) in parallel to reduce latency
+    const [ownerEmail, publicSlug, subUsers] = await Promise.all([
       (async () => {
         try {
           const { data: ownerRes } = await supabase.auth.admin.getUserById(task.user_id);
@@ -136,17 +136,15 @@ serve(async (req) => {
         try {
           const { data: subs, error: subErr } = await supabase
             .from("sub_users")
-            .select("email")
+            .select("email, fullname")
             .eq("board_owner_id", task.user_id);
           if (!subErr && subs) {
-            return subs
-              .map((s: any) => (s?.email || "").trim().toLowerCase())
-              .filter((e: string) => !!e);
+            return subs as Array<{ email: string; fullname: string | null }>;
           }
-          return [] as string[];
+          return [] as Array<{ email: string; fullname: string | null }>;
         } catch (e) {
           console.log("Sub-users lookup failed", e);
-          return [] as string[];
+          return [] as Array<{ email: string; fullname: string | null }>;
         }
       })(),
     ]);
@@ -171,14 +169,66 @@ serve(async (req) => {
       // Do not early return; exclude the actor later from recipients
     }
 
-    // Build recipients: owner + sub-users; exclude actor if possible
+    // Build participant recipients per rules: notify creator or anyone who has commented; exclude actor
     const recipients = new Set<string>();
-    if (ownerEmailLower) recipients.add(ownerEmailLower);
-    for (const em of subEmails) recipients.add(em);
-    if (actorEmail) recipients.delete(actorEmail);
+
+    // Map sub-user fullname -> email (lowercased)
+    const subUserMap = new Map<string, string>();
+    for (const su of subUsers) {
+      const nameLower = (su.fullname || '').trim().toLowerCase();
+      const emailLower = (su.email || '').trim().toLowerCase();
+      if (nameLower && emailLower) subUserMap.set(nameLower, emailLower);
+    }
+
+    // Include task creator if eligible
+    const createdByType = (task.created_by_type || '').toLowerCase();
+    const createdByNameLower = (task.created_by_name || '').trim().toLowerCase();
+    if (["owner", "admin", "user"].includes(createdByType)) {
+      if (ownerEmailLower) recipients.add(ownerEmailLower);
+    } else if (["external_user", "sub_user"].includes(createdByType)) {
+      const creatorEmailLower =
+        (task.external_user_email || '').trim().toLowerCase() ||
+        (createdByNameLower ? (subUserMap.get(createdByNameLower) || '') : '');
+      if (creatorEmailLower) recipients.add(creatorEmailLower);
+    }
+
+    // Load commenters and include them
+    const { data: commenters, error: commentersErr } = await supabase
+      .from('task_comments')
+      .select('created_by_name, created_by_type')
+      .eq('task_id', payload.taskId)
+      .is('deleted_at', null);
+
+    if (commentersErr) {
+      console.log('Commenters lookup failed', commentersErr);
+    }
+
+    let ownerCommented = false;
+    for (const c of commenters || []) {
+      const t = (c.created_by_type || '').toLowerCase();
+      const nLower = (c.created_by_name || '').trim().toLowerCase();
+      if (["owner","admin","user"].includes(t)) {
+        ownerCommented = true;
+      } else if (["external_user","sub_user"].includes(t)) {
+        const em = nLower ? subUserMap.get(nLower) : undefined;
+        if (em) recipients.add(em);
+      }
+    }
+    if (ownerCommented && ownerEmailLower) recipients.add(ownerEmailLower);
+
+    // Exclude actor (do not email the person who just commented)
+    if (actorEmail) {
+      recipients.delete(actorEmail);
+    } else if (["external_user","sub_user"].includes(actorType)) {
+      const actorNameLower = (payload.actorName || '').trim().toLowerCase();
+      const em = actorNameLower ? subUserMap.get(actorNameLower) : undefined;
+      if (em) recipients.delete(em);
+    } else if (["owner","admin","user"].includes(actorType) && ownerEmailLower) {
+      recipients.delete(ownerEmailLower);
+    }
 
     if (recipients.size === 0) {
-      console.log('No recipients for comment email', { ownerEmail, actorEmail });
+      console.log('No recipients for comment email after filtering', { ownerEmail, actorType, actorName: payload.actorName });
       return new Response(JSON.stringify({ message: 'No recipients' }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
     }
 
