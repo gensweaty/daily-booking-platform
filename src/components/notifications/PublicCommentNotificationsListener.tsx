@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { supabase as publicSupabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ensureNotificationPermission } from "@/utils/notificationUtils";
 import { platformNotificationManager } from "@/utils/platformNotificationManager";
@@ -89,6 +90,14 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
               toast({
                 title,
                 description: body,
+                duration: 10000,
+                action: (
+                  <ToastAction altText="Open task" onClick={() => {
+                    window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId: c.task_id } }));
+                  }}>
+                    Open
+                  </ToastAction>
+                ),
               });
             }
           }
@@ -131,6 +140,14 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
           toast({
             title,
             description: body,
+            duration: 10000,
+            action: (
+              <ToastAction altText="Open task" onClick={() => {
+                window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId: comment.task_id } }));
+              }}>
+                Open
+              </ToastAction>
+            ),
           });
 
           // Update last seen on every incoming notification

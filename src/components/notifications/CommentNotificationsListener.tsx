@@ -79,6 +79,7 @@ export const CommentNotificationsListener: React.FC = () => {
               toast({
                 title,
                 description: body,
+                duration: 10000,
                 action: (
                   <ToastAction altText="Open task" onClick={() => {
                     window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId: c.task_id } }));
@@ -138,6 +139,7 @@ export const CommentNotificationsListener: React.FC = () => {
             toast({
               title,
               description: body,
+              duration: 10000,
               action: (
                 <ToastAction altText="Open task" onClick={() => {
                   window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId: comment.task_id } }));
