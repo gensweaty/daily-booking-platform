@@ -61,8 +61,9 @@ serve(async (req) => {
 
   try {
     const payload: SendCommentEmailPayload = await req.json();
+    console.log('📧 send-comment-email invoked', { taskId: payload?.taskId, commentId: payload?.commentId, actorName: payload?.actorName, actorType: payload?.actorType });
     if (!payload?.taskId) {
-      return new Response(JSON.stringify({ error: "taskId is required" }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      return new Response(JSON.stringify({ error: 'taskId is required' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
     }
 
     const baseUrl = getBaseUrl(req, payload.baseUrl);
@@ -142,7 +143,8 @@ serve(async (req) => {
     if (actorEmail) recipients.delete(actorEmail);
 
     if (recipients.size === 0) {
-      return new Response(JSON.stringify({ message: "No recipients" }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      console.log('No recipients for comment email', { ownerEmail, subEmails, actorEmail });
+      return new Response(JSON.stringify({ message: 'No recipients' }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
     }
 
     const subject = `New comment on "${task.title || "Task"}"`;
@@ -151,12 +153,12 @@ serve(async (req) => {
     // Send email
     const to = Array.from(recipients);
     console.log("Sending comment email to:", to);
-    const emailRes = await resend.emails.send({
-      from: "SmartBookly <onboarding@resend.dev>",
-      to,
-      subject,
-      html,
-    });
+      const emailRes = await resend.emails.send({
+        from: 'SmartBookly <noreply@smartbookly.com>',
+        to,
+        subject,
+        html,
+      });
 
     return new Response(JSON.stringify({ ok: true, to, emailRes }), {
       status: 200,
