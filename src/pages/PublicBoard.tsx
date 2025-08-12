@@ -14,6 +14,7 @@ import { motion } from "framer-motion";
 import { Loader2, Globe, LogOut } from "lucide-react";
 import { useBoardPresence } from "@/hooks/useBoardPresence";
 import { validatePassword } from "@/utils/signupValidation";
+import { useTheme } from "next-themes";
 
 // Password hashing utilities (PBKDF2, client-side)
 const bufToBase64 = (buffer: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -53,6 +54,7 @@ export const PublicBoard = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { toast } = useToast();
+  const { theme } = useTheme();
   
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -552,7 +554,10 @@ const handleRegister = async () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <img 
-                  src="/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                  src={theme === 'dark' 
+                    ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                    : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+                  }
                   alt="SmartBookly Logo" 
                   className="h-8 w-auto"
                 />
@@ -720,7 +725,10 @@ const handleRegister = async () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <img 
-                src="/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                src={theme === 'dark' 
+                  ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                  : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+                }
                 alt="SmartBookly Logo" 
                 className="h-8 w-auto"
               />
