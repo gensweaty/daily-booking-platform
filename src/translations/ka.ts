@@ -458,14 +458,19 @@ export const translations: TranslationType = {
     save: "შენახვა",
     saving: "შენახვა...",
     select: "არჩევა",
-    fileDeleted: "ფაილი წარმატებით წაიშალა",
+    fileDeleted: "ფაილი સફળებით წაიშალა",
     minutesAgo: "წუთის წინ",
     hoursAgo: "საათის წინ",
     daysAgo: "დღის წინ",
     schedule: "გრაფიკი",
     created: "შექმნილია",
     lastUpdated: "ბოლოს განახლდა",
-    by: "მიერ"
+    by: "მიერ",
+    someone: "ვიღაცა"
+  },
+  notifications: {
+    newCommentTitle: "ახალი კომენტარი დავალებაზე",
+    newCommentBody: "{{name}}-მა დატოვა კომენტარი \"{{task}}\"-ზე"
   },
   auth: {
     welcome: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში",

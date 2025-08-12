@@ -467,7 +467,12 @@ export const translations: TranslationType = {
     schedule: "Schedule",
     created: "Created:",
     lastUpdated: "Last updated:",
-    by: "by"
+    by: "by",
+    someone: "Someone"
+  },
+  notifications: {
+    newCommentTitle: "New task comment",
+    newCommentBody: "{{name}} commented on \"{{task}}\""
   },
   auth: {
     welcome: "Welcome to SmartBookly",

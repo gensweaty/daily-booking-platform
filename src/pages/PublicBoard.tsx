@@ -15,6 +15,7 @@ import { Loader2, Globe, LogOut } from "lucide-react";
 import { useBoardPresence } from "@/hooks/useBoardPresence";
 import { validatePassword } from "@/utils/signupValidation";
 import { useTheme } from "next-themes";
+import { PublicCommentNotificationsListener } from "@/components/notifications/PublicCommentNotificationsListener";
 
 // Password hashing utilities (PBKDF2, client-side)
 const bufToBase64 = (buffer: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -750,12 +751,19 @@ const handleRegister = async () => {
       {/* Public Task List */}
       <div className="container mx-auto px-4 py-6">
         {boardData && (
-          <PublicTaskList 
-            boardUserId={boardData.user_id} 
-            externalUserName={fullName}
-            externalUserEmail={email}
-            onlineUsers={onlineUsers}
-          />
+          <>
+            {/* Live comment notifications for this sub-user */}
+            <PublicCommentNotificationsListener 
+              boardUserId={boardData.user_id} 
+              externalUserName={fullName} 
+            />
+            <PublicTaskList 
+              boardUserId={boardData.user_id} 
+              externalUserName={fullName}
+              externalUserEmail={email}
+              onlineUsers={onlineUsers}
+            />
+          </>
         )}
       </div>
     </div>
