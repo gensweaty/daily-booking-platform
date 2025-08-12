@@ -33,11 +33,9 @@ export const CommentNotificationsListener: React.FC = () => {
 
       // Don't block on permission; request in background
       ensureNotificationPermission().catch(() => {});
-
-
       // Show missed notifications since last seen
+      const lastSeenKey = `comments_last_seen_${user.id}`;
       try {
-        const lastSeenKey = `comments_last_seen_${user.id}`;
         const lastSeen = localStorage.getItem(lastSeenKey);
 
         // Fetch all task ids for this user first
@@ -85,8 +83,6 @@ export const CommentNotificationsListener: React.FC = () => {
           }
         }
 
-        // Update last seen to now
-        localStorage.setItem(lastSeenKey, new Date().toISOString());
       } catch (e) {
         console.error('[CommentsNotify] Missed notifications check failed:', e);
       }
@@ -142,7 +138,13 @@ export const CommentNotificationsListener: React.FC = () => {
             console.error('[CommentsNotify] Realtime notification error:', err);
           }
         })
-        .subscribe();
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            try {
+              localStorage.setItem(`comments_last_seen_${user.id}`, new Date().toISOString());
+            } catch (_) {}
+          }
+        });
 
       channelRef.current = channel;
     };

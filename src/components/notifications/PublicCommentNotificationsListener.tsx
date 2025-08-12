@@ -93,8 +93,6 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
             }
           }
         }
-        // Update last seen
-        localStorage.setItem(lastSeenKey, new Date().toISOString());
       } catch (e) {
         console.error('[PublicCommentsNotify] Missed notifications check failed:', e);
       }
@@ -138,7 +136,13 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
           // Update last seen on every incoming notification
           localStorage.setItem(lastSeenKey, new Date().toISOString());
         })
-        .subscribe();
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            try {
+              localStorage.setItem(lastSeenKey, new Date().toISOString());
+            } catch (_) {}
+          }
+        });
 
       channelRef.current = channel;
     };

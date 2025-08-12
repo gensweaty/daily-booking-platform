@@ -53,17 +53,29 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
   });
 
   useEffect(() => {
-    const handler = (e: CustomEvent) => {
+    const handler = async (e: CustomEvent) => {
       const taskId = (e as any).detail?.taskId as string | undefined;
       if (!taskId) return;
-      const task = (tasks as Task[]).find((t) => t.id === taskId);
-      if (task) {
-        setViewingTask(task);
+
+      // Try cached list first
+      let task = (tasks as Task[]).find((t) => t.id === taskId) || null;
+
+      // If not found, fetch latest tasks via RPC and open
+      if (!task) {
+        try {
+          const { data } = await supabase.rpc('get_public_board_tasks', { board_user_id: boardUserId });
+          const freshTasks = (data || []) as Task[];
+          task = freshTasks.find((t) => t.id === taskId) || null;
+        } catch (_) {
+          // ignore fetch failure
+        }
       }
+
+      if (task) setViewingTask(task);
     };
     window.addEventListener('open-task', handler as unknown as EventListener);
     return () => window.removeEventListener('open-task', handler as unknown as EventListener);
-  }, [tasks]);
+  }, [tasks, boardUserId]);
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Task> }) => {

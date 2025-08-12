@@ -169,13 +169,28 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
   });
 
   useEffect(() => {
-    const handler = (e: CustomEvent) => {
+    const handler = async (e: CustomEvent) => {
       const taskId = (e as any).detail?.taskId as string | undefined;
       if (!taskId) return;
-      const task = (tasks as Task[]).find((t) => t.id === taskId);
-      if (task) {
-        setViewingTask(task);
+
+      // Try to find in current cache first
+      let task = (tasks as Task[]).find((t) => t.id === taskId) || null;
+
+      // If not present yet (page just loaded), fetch it directly
+      if (!task) {
+        try {
+          const { data, error } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('id', taskId)
+            .maybeSingle();
+          if (!error && data) task = data as Task;
+        } catch (_) {
+          // ignore fetch failure
+        }
       }
+
+      if (task) setViewingTask(task);
     };
     window.addEventListener('open-task', handler as unknown as EventListener);
     return () => window.removeEventListener('open-task', handler as unknown as EventListener);
