@@ -155,15 +155,15 @@ serve(async (req) => {
     const actorType = (payload.actorType || "").toLowerCase();
     const actorEmail = (payload.actorEmail || "").trim().toLowerCase();
     const ownerEmailLower = ownerEmail?.trim().toLowerCase() || null;
-    const shouldSkipSelf = !!(
+    const isOwnerSelfComment = !!(
       ownerEmailLower &&
       actorEmail &&
       ownerEmailLower === actorEmail &&
       (actorType === "owner" || actorType === "admin" || actorType === "user")
     );
-    if (shouldSkipSelf) {
-      console.log('Skipping email: self comment by owner/admin', { ownerEmail, actorEmail, actorType, taskId: task.id, commentId: payload.commentId });
-      return new Response(JSON.stringify({ message: 'Self comment - no email sent' }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    if (isOwnerSelfComment) {
+      console.log('Owner/admin self-comment detected: will notify sub-users only', { ownerEmail, actorEmail, actorType, taskId: task.id, commentId: payload.commentId });
+      // Do not early return; exclude the actor later from recipients
     }
 
     // Build recipients: owner + sub-users; exclude actor if possible
