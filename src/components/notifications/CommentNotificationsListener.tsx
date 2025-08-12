@@ -1,6 +1,6 @@
 
 import { useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
@@ -230,6 +230,7 @@ export const CommentNotificationsListener: React.FC = () => {
     return () => {
       isMounted = false;
       if (channelRef.current) supabase.removeChannel(channelRef.current);
+      if (broadcastRef.current) supabase.removeChannel(broadcastRef.current);
     };
   }, [user?.id]);
 

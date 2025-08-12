@@ -97,14 +97,40 @@ const { user } = useAuth();
       
       return comment;
     },
-    onSuccess: () => {
+    onSuccess: async (comment, variables) => {
       queryClient.invalidateQueries({ queryKey: ['taskComments', taskId] });
       setNewComment("");
       setSelectedFile(null);
       setShowAddComment(false);
       toast({
         title: t?.('taskComments.createSuccess') || 'Comment added successfully',
+        duration: 10000,
       });
+
+      // Broadcast to owner so internal dashboard gets notified instantly
+      try {
+        const { data: taskRow } = await supabase
+          .from('tasks')
+          .select('user_id, title')
+          .eq('id', taskId)
+          .maybeSingle();
+        const ownerId = (taskRow as any)?.user_id as string | undefined;
+        if (ownerId) {
+          const ch = supabase.channel(`task-comments-user-${ownerId}`);
+          ch.subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              ch.send({
+                type: 'broadcast',
+                event: 'new-comment',
+                payload: { id: (comment as any)?.id, task_id: taskId, created_by_name: (variables as any)?.created_by_name },
+              });
+              supabase.removeChannel(ch);
+            }
+          });
+        }
+      } catch (err) {
+        console.error('[TaskCommentsList] Broadcast new-comment failed:', err);
+      }
     },
     onError: (error) => {
       console.error('Error creating comment:', error);

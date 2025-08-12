@@ -203,9 +203,11 @@ function toast({ ...props }: Toast) {
       },
     },
   })
-
-  setTimeout(dismiss, TOAST_REMOVE_DELAY)
-
+ 
+  // Respect per-toast duration if provided, fallback to default
+  const initialDuration = (props.duration as number | undefined) ?? TOAST_REMOVE_DELAY
+  setTimeout(dismiss, initialDuration)
+ 
   return {
     id: id,
     dismiss,
