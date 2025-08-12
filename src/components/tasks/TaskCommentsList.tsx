@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { createComment, uploadCommentFile, getTaskComments } from "@/lib/commentApi";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 interface TaskCommentsListProps {
   taskId: string;
@@ -39,7 +40,8 @@ export const TaskCommentsList = ({
   const [showAddComment, setShowAddComment] = useState(false);
   const { toast } = useToast();
   const { t } = useLanguage();
-  const queryClient = useQueryClient();
+const queryClient = useQueryClient();
+const { session: adminSession } = useAdminAuth();
 
   // Fetch comments
   const { data: comments = [], isLoading } = useQuery({
@@ -87,8 +89,17 @@ export const TaskCommentsList = ({
   const handleAddComment = () => {
     if (!newComment.trim()) return;
     
-    // Use the full name from sub_users table, not email
-    const creatorName = isExternal ? `${externalUserName || 'External User'} (Sub User)` : username || 'Admin';
+    // Choose proper display name: use admin username from admin session, avoid email prefixes
+    const getAdminName = () => {
+      if (username && !username.includes('@')) return username;
+      if (adminSession?.isAuthenticated) return adminSession.username;
+      const name = username || 'Admin';
+      return name.includes('@') ? name.split('@')[0] : name;
+    };
+
+    const creatorName = isExternal
+      ? `${externalUserName || 'External User'} (Sub User)`
+      : getAdminName();
     const creatorType = isExternal ? 'external_user' : 'admin';
     
     createMutation.mutate({

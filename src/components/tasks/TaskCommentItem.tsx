@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { updateComment, deleteComment, uploadCommentFile, getCommentFiles } from "@/lib/commentApi";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 interface TaskCommentItemProps {
   comment: TaskComment;
@@ -55,7 +56,8 @@ export const TaskCommentItem = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
   const { t } = useLanguage();
-  const queryClient = useQueryClient();
+const queryClient = useQueryClient();
+const { session: adminSession } = useAdminAuth();
 
   const sanitizeName = (name?: string) => (name ? (name.includes('@') ? name.split('@')[0] : name) : '');
 
@@ -132,7 +134,14 @@ export const TaskCommentItem = ({
   const handleSave = () => {
     if (!editContent.trim()) return;
     
-    const editorName = isExternal ? externalUserName || 'External User' : username || 'Admin';
+    const editorName = isExternal
+      ? externalUserName || 'External User'
+      : (adminSession?.isAuthenticated
+          ? adminSession.username
+          : (() => {
+              const name = username || 'Admin';
+              return name.includes('@') ? name.split('@')[0] : name;
+            })());
     const editorType = isExternal ? 'external_user' : 'admin';
     
     updateMutation.mutate({
