@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TaskComment } from "@/lib/types";
 import { TaskCommentItem } from "./TaskCommentItem";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { createComment, uploadCommentFile, getTaskComments } from "@/lib/comment
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 interface TaskCommentsListProps {
   taskId: string;
@@ -50,6 +51,32 @@ const { user } = useAuth();
     queryKey: ['taskComments', taskId],
     queryFn: () => getTaskComments(taskId),
   });
+
+  // Realtime updates for comments on this task
+  useEffect(() => {
+    if (!taskId) return;
+
+    const channel = supabase
+      .channel(`task_comments_${taskId}_${Date.now()}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'task_comments',
+          filter: `task_id=eq.${taskId}`,
+        },
+        () => {
+          // Invalidate this task's comments cache immediately
+          queryClient.invalidateQueries({ queryKey: ['taskComments', taskId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [taskId, queryClient]);
 
   // Create comment mutation
   const createMutation = useMutation({
