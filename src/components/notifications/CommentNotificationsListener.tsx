@@ -31,7 +31,9 @@ export const CommentNotificationsListener: React.FC = () => {
     const setup = async () => {
       if (!user) return;
 
-      await ensureNotificationPermission();
+      // Don't block on permission; request in background
+      ensureNotificationPermission().catch(() => {});
+
 
       // Show missed notifications since last seen
       try {
@@ -54,24 +56,32 @@ export const CommentNotificationsListener: React.FC = () => {
             .gt('created_at', lastSeen);
           if (!cmErr && comments && comments.length) {
             // Notify for each missed comment
-            comments.forEach((c) => {
+            for (const c of comments as any[]) {
               // Skip if it's our own comment
-              if (c.user_id === user.id) return;
+              if (c.user_id === user.id) continue;
               const taskTitle = tasks.find(t => t.id === c.task_id)?.title || 'Task';
               const actorName = c.created_by_name || 'Someone';
-               const { title, body } = getTexts(actorName, taskTitle);
+              const { title, body } = getTexts(actorName, taskTitle);
 
-               platformNotificationManager.createNotification({
-                 title,
-                 body,
-                 tag: `comment-${c.id}`,
-               });
+              const result = await platformNotificationManager.createNotification({
+                title,
+                body,
+                tag: `comment-${c.id}`,
+              });
 
-               toast({
-                 title,
-                 description: body,
-               });
-            });
+              if (result.notification) {
+                result.notification.onclick = () => {
+                  window.focus();
+                  window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId: c.task_id } }));
+                  result.notification?.close();
+                };
+              }
+
+              toast({
+                title,
+                description: body,
+              });
+            }
           }
         }
 
@@ -107,11 +117,19 @@ export const CommentNotificationsListener: React.FC = () => {
             const actorName = comment.created_by_name || 'Someone';
             const { title, body } = getTexts(actorName, task.title || 'Task');
 
-            platformNotificationManager.createNotification({
+            const result = await platformNotificationManager.createNotification({
               title,
               body,
               tag: `comment-${comment.id}`,
             });
+
+            if (result.notification) {
+              result.notification.onclick = () => {
+                window.focus();
+                window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId: comment.task_id } }));
+                result.notification?.close();
+              };
+            }
 
             toast({
               title,
