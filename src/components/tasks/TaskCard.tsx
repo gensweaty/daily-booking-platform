@@ -86,6 +86,11 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
     onView(task);
   };
 
+  const handleDescriptionClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onView(task);
+  };
+
   const iconVariants = {
     idle: { scale: 1, rotate: 0 },
     hover: { scale: 1.1, rotate: 5, transition: { duration: 0.2 } }
@@ -160,7 +165,9 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
                   
                   {task.description && (
                     <motion.div 
-                      className="prose dark:prose-invert max-w-none mt-2 line-clamp-3 text-sm opacity-70 hover:opacity-100 transition-opacity"
+                      className="prose dark:prose-invert max-w-none mt-2 line-clamp-3 text-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+                      onClick={handleDescriptionClick}
+                      role="button"
                       dangerouslySetInnerHTML={{ __html: task.description }}
                     />
                   )}
@@ -180,7 +187,7 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
                   transition={{ duration: 0.2, delay: 0.1 }}
                 >
                   {/* Always show Preview */}
-                  <motion.div variants={iconVariants} animate={isHovered ? "hover" : "idle"}>
+                  <motion.div variants={iconVariants} initial="idle" whileHover="hover">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -197,7 +204,7 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
 
                   {/* Conditionally show Edit */}
                   {onEdit && (
-                    <motion.div variants={iconVariants} animate={isHovered ? "hover" : "idle"}>
+                    <motion.div variants={iconVariants} initial="idle" whileHover="hover">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -225,7 +232,7 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
                 >
                   <motion.div 
                     variants={iconVariants} 
-                    animate={isHovered ? "hover" : "idle"}
+                    initial="idle" whileHover="hover"
                   >
                     <Button
                       variant="ghost"
