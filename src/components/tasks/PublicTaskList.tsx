@@ -52,6 +52,19 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
     refetchInterval: false,
   });
 
+  useEffect(() => {
+    const handler = (e: CustomEvent) => {
+      const taskId = (e as any).detail?.taskId as string | undefined;
+      if (!taskId) return;
+      const task = (tasks as Task[]).find((t) => t.id === taskId);
+      if (task) {
+        setViewingTask(task);
+      }
+    };
+    window.addEventListener('open-task', handler as unknown as EventListener);
+    return () => window.removeEventListener('open-task', handler as unknown as EventListener);
+  }, [tasks]);
+
   const updateTaskMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Task> }) => {
       // Add metadata tracking for external user edits

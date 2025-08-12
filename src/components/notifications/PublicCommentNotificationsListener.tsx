@@ -34,7 +34,7 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
     const setup = async () => {
       if (!boardUserId || !externalUserName) return;
 
-      await ensureNotificationPermission();
+      ensureNotificationPermission().catch(() => {});
 
       const subUserLabel = `${externalUserName} (Sub User)`;
       const lastSeenKey = `public_comments_last_seen_${boardUserId}_${externalUserName}`;
@@ -66,24 +66,31 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
             .gt('created_at', lastSeen);
 
           if (!cmErr && comments && comments.length) {
-            comments
-              .filter((c: any) => c.created_by_name !== subUserLabel)
-              .forEach((c: any) => {
-                const taskTitle = tasksMapRef.current.get(c.task_id)?.title || 'Task';
-                const actorName = c.created_by_name || 'Someone';
-                const { title, body } = getTexts(actorName, taskTitle);
+            for (const c of (comments as any[])) {
+              if (c.created_by_name === subUserLabel) continue;
+              const taskTitle = tasksMapRef.current.get(c.task_id)?.title || 'Task';
+              const actorName = c.created_by_name || 'Someone';
+              const { title, body } = getTexts(actorName, taskTitle);
 
-                platformNotificationManager.createNotification({
-                  title,
-                  body,
-                  tag: `comment-${c.id}`,
-                });
-
-                toast({
-                  title,
-                  description: body,
-                });
+              const result = await platformNotificationManager.createNotification({
+                title,
+                body,
+                tag: `comment-${c.id}`,
               });
+
+              if (result.notification) {
+                result.notification.onclick = () => {
+                  window.focus();
+                  window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId: c.task_id } }));
+                  result.notification?.close();
+                };
+              }
+
+              toast({
+                title,
+                description: body,
+              });
+            }
           }
         }
         // Update last seen
@@ -109,11 +116,19 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
           const actorName = comment.created_by_name || 'Someone';
           const { title, body } = getTexts(actorName, taskTitle);
 
-          platformNotificationManager.createNotification({
+          const result = await platformNotificationManager.createNotification({
             title,
             body,
             tag: `comment-${comment.id}`,
           });
+
+          if (result.notification) {
+            result.notification.onclick = () => {
+              window.focus();
+              window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId: comment.task_id } }));
+              result.notification?.close();
+            };
+          }
 
           toast({
             title,
