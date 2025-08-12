@@ -131,8 +131,21 @@ serve(async (req) => {
       .maybeSingle();
     publicSlug = board?.slug || null;
 
-    // Sub users disabled for comment emails per requirements
-    const subEmails: string[] = [];
+    // Load sub-user emails for this owner (notify sub users as well)
+    let subEmails: string[] = [];
+    try {
+      const { data: subs, error: subErr } = await supabase
+        .from("sub_users")
+        .select("email")
+        .eq("board_owner_id", task.user_id);
+      if (!subErr && subs) {
+        subEmails = subs
+          .map((s: any) => (s?.email || "").trim().toLowerCase())
+          .filter((e: string) => !!e);
+      }
+    } catch (e) {
+      console.log("Sub-users lookup failed", e);
+    }
 
     // Build links
     const dashboardLink = `${baseUrl}/dashboard?openTask=${task.id}`;
@@ -153,9 +166,11 @@ serve(async (req) => {
       return new Response(JSON.stringify({ message: 'Self comment - no email sent' }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
     }
 
-    // Build recipients: owner only
+    // Build recipients: owner + sub-users; exclude actor if possible
     const recipients = new Set<string>();
-    if (ownerEmail) recipients.add(ownerEmail.trim().toLowerCase());
+    if (ownerEmailLower) recipients.add(ownerEmailLower);
+    for (const em of subEmails) recipients.add(em);
+    if (actorEmail) recipients.delete(actorEmail);
 
     if (recipients.size === 0) {
       console.log('No recipients for comment email', { ownerEmail, actorEmail });
