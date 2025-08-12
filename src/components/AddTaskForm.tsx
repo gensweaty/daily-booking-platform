@@ -195,6 +195,18 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
         await queryClient.invalidateQueries({ queryKey: ['tasks'] });
       }
       await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
+
+      // Broadcast change to public board viewers
+      const ownerId = boardUserId || user.id;
+      if (ownerId) {
+        const ch = supabase.channel(`public_board_tasks_${ownerId}`);
+        ch.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            ch.send({ type: 'broadcast', event: 'tasks-changed', payload: { ts: Date.now() } });
+            supabase.removeChannel(ch);
+          }
+        });
+      }
       
       toast({
         title: t("common.success"),
@@ -227,6 +239,18 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
         await queryClient.invalidateQueries({ queryKey: ['publicTasks', boardUserId] });
       } else {
         await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      }
+      
+      // Broadcast change to public board viewers
+      const ownerId = boardUserId || user.id;
+      if (ownerId) {
+        const ch = supabase.channel(`public_board_tasks_${ownerId}`);
+        ch.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            ch.send({ type: 'broadcast', event: 'tasks-changed', payload: { ts: Date.now() } });
+            supabase.removeChannel(ch);
+          }
+        });
       }
       
       toast({
@@ -271,6 +295,18 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
         await queryClient.invalidateQueries({ queryKey: ['publicTasks', boardUserId] });
       } else {
         await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      }
+      
+      // Broadcast change to public board viewers
+      const ownerId = boardUserId || user.id;
+      if (ownerId) {
+        const ch = supabase.channel(`public_board_tasks_${ownerId}`);
+        ch.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            ch.send({ type: 'broadcast', event: 'tasks-changed', payload: { ts: Date.now() } });
+            supabase.removeChannel(ch);
+          }
+        });
       }
       
       toast({

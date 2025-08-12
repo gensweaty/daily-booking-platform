@@ -16,6 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "@/lib/supabase";
 
 interface TaskListProps {
   username?: string;
@@ -35,6 +36,16 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     mutationFn: (id: string) => deleteTask(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+
+      // Broadcast change to public boards for this owner
+      const ch = supabase.channel(`public_board_tasks_${user?.id}`);
+      ch.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          ch.send({ type: 'broadcast', event: 'tasks-changed', payload: { ts: Date.now() } });
+          supabase.removeChannel(ch);
+        }
+      });
+
       toast({
         title: t("common.success"),
         description: t("common.deleteSuccess"),
@@ -47,6 +58,16 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['archivedTasks'] });
+
+      // Broadcast change to public boards for this owner
+      const ch = supabase.channel(`public_board_tasks_${user?.id}`);
+      ch.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          ch.send({ type: 'broadcast', event: 'tasks-changed', payload: { ts: Date.now() } });
+          supabase.removeChannel(ch);
+        }
+      });
+
       toast({
         title: t("common.success"),
         description: t("tasks.taskArchived"),
@@ -64,8 +85,17 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<Task> }) =>
       updateTask(id, updates),
-    onSuccess: (_, variables) => {
+  onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      
+      // Broadcast change to public boards for this owner
+      const ch = supabase.channel(`public_board_tasks_${user?.id}`);
+      ch.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          ch.send({ type: 'broadcast', event: 'tasks-changed', payload: { ts: Date.now() } });
+          supabase.removeChannel(ch);
+        }
+      });
       
       // Show celebration animation for completed tasks
       if (variables.updates.status === 'done') {

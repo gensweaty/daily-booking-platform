@@ -190,6 +190,15 @@ export const PublicAddTaskForm = ({
       await queryClient.invalidateQueries({ queryKey: ['publicTasks', boardUserId] });
       await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
       
+      // Notify other public sessions viewing this board
+      const ch = supabase.channel(`public_board_tasks_${boardUserId}`);
+      ch.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          ch.send({ type: 'broadcast', event: 'tasks-changed', payload: { ts: Date.now() } });
+          supabase.removeChannel(ch);
+        }
+      });
+      
       toast({
         title: t("common.success"),
         description: editingTask ? t("tasks.taskUpdated") : t("tasks.taskAdded"),

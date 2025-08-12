@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Task } from "@/lib/types";
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { PublicAddTaskForm } from "./PublicAddTaskForm";
@@ -75,6 +75,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['publicTasks', boardUserId] });
+      notifyBoardChange();
       
       // Show celebration animation for completed tasks
       if (variables.updates.status === 'done') {
@@ -157,6 +158,36 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
       supabase.removeChannel(channel);
     };
   }, [boardUserId, queryClient]);
+
+  // Broadcast channel for boards without DB realtime (anonymous)
+  const broadcastChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  useEffect(() => {
+    if (!boardUserId) return;
+    const channelName = `public_board_tasks_${boardUserId}`;
+    const ch = supabase
+      .channel(channelName)
+      .on('broadcast', { event: 'tasks-changed' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['publicTasks', boardUserId] });
+      })
+      .subscribe();
+    broadcastChannelRef.current = ch;
+    return () => {
+      supabase.removeChannel(ch);
+      broadcastChannelRef.current = null;
+    };
+  }, [boardUserId, queryClient]);
+
+  const notifyBoardChange = async () => {
+    try {
+      await broadcastChannelRef.current?.send({
+        type: 'broadcast',
+        event: 'tasks-changed',
+        payload: { ts: Date.now() },
+      });
+    } catch (e) {
+      console.error('Broadcast send failed', e);
+    }
+  };
 
   // Loading skeleton
   if (isLoading) {
@@ -244,6 +275,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
       await queryClient.invalidateQueries({ 
         queryKey: ['publicTasks', boardUserId] 
       });
+      notifyBoardChange();
 
       toast({
         title: t("common.success"),
