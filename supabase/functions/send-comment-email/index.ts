@@ -9,6 +9,16 @@ const corsHeaders = {
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY") || "");
 
+// Dedup emails to prevent duplicates within a short window (same method as reminders)
+const recentlySent = new Map<string, number>();
+const DEDUP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, ts] of recentlySent) {
+    if (now - ts > DEDUP_WINDOW_MS) recentlySent.delete(key);
+  }
+}, 60 * 1000);
+
 interface SendCommentEmailPayload {
   taskId: string;
   commentId?: string;
@@ -121,29 +131,26 @@ serve(async (req) => {
       .maybeSingle();
     publicSlug = board?.slug || null;
 
-    // Get sub users
-    const { data: subs } = await supabase
-      .from("sub_users")
-      .select("email")
-      .eq("board_owner_id", task.user_id);
-
-    const subEmails = (subs || [])
-      .map((s) => (s?.email || "").trim().toLowerCase())
-      .filter((e) => !!e);
+    // Sub users disabled for comment emails per requirements
+    const subEmails: string[] = [];
 
     // Build links
     const dashboardLink = `${baseUrl}/dashboard?openTask=${task.id}`;
     const publicLink = publicSlug ? `${baseUrl}/board/${publicSlug}?openTask=${task.id}` : undefined;
 
-    // Build recipients: owner + sub users, excluding actor email if known
+    // Determine if self-comment (skip sending to self)
     const actorEmail = (payload.actorEmail || "").trim().toLowerCase();
+    if (ownerEmail && actorEmail && ownerEmail.trim().toLowerCase() === actorEmail) {
+      console.log('Skipping email: self comment by owner', { ownerEmail, actorEmail, taskId: task.id, commentId: payload.commentId });
+      return new Response(JSON.stringify({ message: 'Self comment - no email sent' }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    }
+
+    // Build recipients: owner only
     const recipients = new Set<string>();
     if (ownerEmail) recipients.add(ownerEmail.trim().toLowerCase());
-    subEmails.forEach((e) => recipients.add(e));
-    if (actorEmail) recipients.delete(actorEmail);
 
     if (recipients.size === 0) {
-      console.log('No recipients for comment email', { ownerEmail, subEmails, actorEmail });
+      console.log('No recipients for comment email', { ownerEmail, actorEmail });
       return new Response(JSON.stringify({ message: 'No recipients' }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
     }
 
@@ -153,12 +160,24 @@ serve(async (req) => {
     // Send email
     const to = Array.from(recipients);
     console.log("Sending comment email to:", to);
-      const emailRes = await resend.emails.send({
-        from: 'SmartBookly <noreply@smartbookly.com>',
-        to,
-        subject,
-        html,
-      });
+
+    // Dedup check (avoid resending within window)
+    const dedupKey = `${task.id}:${payload.commentId || preview.slice(0, 50)}`;
+    const nowTs = Date.now();
+    const lastTs = recentlySent.get(dedupKey) || 0;
+    if (nowTs - lastTs < DEDUP_WINDOW_MS) {
+      console.log('Skipping duplicate comment email within dedup window', { dedupKey });
+      return new Response(JSON.stringify({ message: 'Duplicate skipped' }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    }
+
+    const emailRes = await resend.emails.send({
+      from: 'SmartBookly <noreply@smartbookly.com>',
+      to,
+      subject,
+      html,
+    });
+
+    recentlySent.set(dedupKey, nowTs);
 
     return new Response(JSON.stringify({ ok: true, to, emailRes }), {
       status: 200,
