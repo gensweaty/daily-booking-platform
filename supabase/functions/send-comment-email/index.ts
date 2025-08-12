@@ -150,8 +150,9 @@ serve(async (req) => {
 
     // Send email
     const to = Array.from(recipients);
+    console.log("Sending comment email to:", to);
     const emailRes = await resend.emails.send({
-      from: "SmartBookly <notifications@resend.dev>",
+      from: "SmartBookly <onboarding@resend.dev>",
       to,
       subject,
       html,

@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { TaskComment, CommentFile } from './types';
 
 // Comment CRUD operations
