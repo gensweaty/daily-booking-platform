@@ -49,6 +49,28 @@ export const TaskFullView = ({
   const { user } = useAuth();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
+  const [profileUsername, setProfileUsername] = useState<string>("");
+  
+  useEffect(() => {
+    const fetchProfileUsername = async () => {
+      try {
+        if (!user?.id) return;
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (error) {
+          console.error('Error fetching profile username:', error);
+          return;
+        }
+        if (data?.username) setProfileUsername(data.username);
+      } catch (err) {
+        console.error('Exception fetching profile username:', err);
+      }
+    };
+    fetchProfileUsername();
+  }, [user?.id]);
   
   useEffect(() => {
     console.log("TaskFullView - task received:", task);
@@ -252,7 +274,7 @@ export const TaskFullView = ({
               <TaskCommentsList 
                 taskId={task.id} 
                 isEditing={!isArchived}
-                username={user?.user_metadata?.full_name || user?.email || 'Admin'}
+                username={profileUsername || (user?.user_metadata?.full_name as string) || user?.email || 'Admin'}
                 externalUserName={externalUserName}
                 externalUserEmail={externalUserEmail}
                 isExternal={!!externalUserName}
