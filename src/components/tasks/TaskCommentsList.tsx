@@ -13,6 +13,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { createComment, uploadCommentFile, getTaskComments } from "@/lib/commentApi";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface TaskCommentsListProps {
   taskId: string;
@@ -42,6 +43,7 @@ export const TaskCommentsList = ({
   const { t } = useLanguage();
 const queryClient = useQueryClient();
 const { session: adminSession } = useAdminAuth();
+const { user } = useAuth();
 
   // Fetch comments
   const { data: comments = [], isLoading } = useQuery({
@@ -89,11 +91,12 @@ const { session: adminSession } = useAdminAuth();
   const handleAddComment = () => {
     if (!newComment.trim()) return;
     
-    // Choose proper display name: use admin username from admin session, avoid email prefixes
     const getAdminName = () => {
       if (username && !username.includes('@')) return username;
-      if (adminSession?.isAuthenticated) return adminSession.username;
-      const name = username || 'Admin';
+      const fullName = (user?.user_metadata?.full_name as string) || '';
+      if (fullName && !fullName.includes('@')) return fullName;
+      if (adminSession?.isAuthenticated && adminSession.username && !adminSession.username.includes('@')) return adminSession.username;
+      const name = username || (fullName || user?.email || 'Admin');
       return name.includes('@') ? name.split('@')[0] : name;
     };
 

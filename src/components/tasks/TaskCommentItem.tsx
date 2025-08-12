@@ -13,6 +13,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { updateComment, deleteComment, uploadCommentFile, getCommentFiles } from "@/lib/commentApi";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface TaskCommentItemProps {
   comment: TaskComment;
@@ -58,6 +59,7 @@ export const TaskCommentItem = ({
   const { t } = useLanguage();
 const queryClient = useQueryClient();
 const { session: adminSession } = useAdminAuth();
+const { user } = useAuth();
 
   const sanitizeName = (name?: string) => (name ? (name.includes('@') ? name.split('@')[0] : name) : '');
 
@@ -131,17 +133,22 @@ const { session: adminSession } = useAdminAuth();
     },
   });
 
+  // Prefer admin profile full name; fallback to session username; never email prefix
+  const getAdminName = () => {
+    if (username && !username.includes('@')) return username;
+    const fullName = (user?.user_metadata?.full_name as string) || '';
+    if (fullName && !fullName.includes('@')) return fullName;
+    if (adminSession?.isAuthenticated && adminSession.username && !adminSession.username.includes('@')) return adminSession.username;
+    const name = username || (fullName || user?.email || 'Admin');
+    return name.includes('@') ? name.split('@')[0] : name;
+  };
+
   const handleSave = () => {
     if (!editContent.trim()) return;
     
     const editorName = isExternal
       ? externalUserName || 'External User'
-      : (adminSession?.isAuthenticated
-          ? adminSession.username
-          : (() => {
-              const name = username || 'Admin';
-              return name.includes('@') ? name.split('@')[0] : name;
-            })());
+      : getAdminName();
     const editorType = isExternal ? 'external_user' : 'admin';
     
     updateMutation.mutate({
