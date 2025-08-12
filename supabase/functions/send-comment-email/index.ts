@@ -40,6 +40,13 @@ const getBaseUrl = (req: Request, bodyBase?: string) => {
   }
 };
 
+// Normalize sub-user display names like "GEO (Sub User)" -> "geo"
+const cleanName = (s: string | null | undefined) => (s || '')
+  .toLowerCase()
+  .replace(/\(.*?\)/g, '')
+  .replace(/sub user/gi, '')
+  .trim();
+
 const htmlTemplate = (
   subject: string,
   title: string,
@@ -172,13 +179,7 @@ serve(async (req) => {
     // Build participant recipients per rules: notify creator or anyone who has commented; exclude actor
     const recipients = new Set<string>();
 
-    // Map sub-user fullname -> email (lowercased)
-    const subUserMap = new Map<string, string>();
-    for (const su of subUsers) {
-      const nameLower = (su.fullname || '').trim().toLowerCase();
-      const emailLower = (su.email || '').trim().toLowerCase();
-      if (nameLower && emailLower) subUserMap.set(nameLower, emailLower);
-    }
+    // Removed global sub-user map; resolve emails only for actual commenter names to avoid notifying unrelated sub-users
 
     // Include task creator if eligible
     const createdByType = (task.created_by_type || '').toLowerCase();
@@ -186,17 +187,16 @@ serve(async (req) => {
     if (["owner", "admin", "user"].includes(createdByType)) {
       if (ownerEmailLower) recipients.add(ownerEmailLower);
     } else if (["external_user", "sub_user"].includes(createdByType)) {
-      const creatorEmailLower =
-        (task.external_user_email || '').trim().toLowerCase() ||
-        (createdByNameLower ? (subUserMap.get(createdByNameLower) || '') : '');
+      const creatorEmailLower = (task.external_user_email || '').trim().toLowerCase();
       if (creatorEmailLower) recipients.add(creatorEmailLower);
     }
 
-    // Load commenters and include them
+    // Load previous commenters (exclude current comment) and include only them
     const { data: commenters, error: commentersErr } = await supabase
       .from('task_comments')
       .select('created_by_name, created_by_type')
       .eq('task_id', payload.taskId)
+      .neq('id', payload.commentId || '')
       .is('deleted_at', null);
 
     if (commentersErr) {
@@ -204,28 +204,71 @@ serve(async (req) => {
     }
 
     let ownerCommented = false;
+    const subUserNames = new Set<string>();
     for (const c of commenters || []) {
       const t = (c.created_by_type || '').toLowerCase();
-      const nLower = (c.created_by_name || '').trim().toLowerCase();
+      const name = (c.created_by_name || '').trim();
       if (["owner","admin","user"].includes(t)) {
         ownerCommented = true;
-      } else if (["external_user","sub_user"].includes(t)) {
-        const em = nLower ? subUserMap.get(nLower) : undefined;
-        if (em) recipients.add(em);
+      } else if (["external_user","sub_user"].includes(t) && name) {
+        subUserNames.add(name);
       }
     }
     if (ownerCommented && ownerEmailLower) recipients.add(ownerEmailLower);
 
-    // Exclude actor (do not email the person who just commented)
-    if (actorEmail) {
-      recipients.delete(actorEmail);
-    } else if (["external_user","sub_user"].includes(actorType)) {
-      const actorNameLower = (payload.actorName || '').trim().toLowerCase();
-      const em = actorNameLower ? subUserMap.get(actorNameLower) : undefined;
-      if (em) recipients.delete(em);
-    } else if (["owner","admin","user"].includes(actorType) && ownerEmailLower) {
-      recipients.delete(ownerEmailLower);
+    if (subUserNames.size > 0) {
+      const lookups = Array.from(subUserNames).map(async (nm) => {
+        const nameTrim = nm.trim();
+        const { data: suExact } = await supabase
+          .from('sub_users')
+          .select('email, fullname')
+          .eq('board_owner_id', task.user_id)
+          .eq('fullname', nameTrim)
+          .maybeSingle();
+        if (suExact?.email) return suExact.email.trim().toLowerCase();
+        const { data: suLike } = await supabase
+          .from('sub_users')
+          .select('email, fullname')
+          .eq('board_owner_id', task.user_id)
+          .ilike('fullname', nameTrim)
+          .limit(5);
+        const match = (suLike || []).find((s) => (s.fullname || '').trim().toLowerCase() === nameTrim.toLowerCase()) || (suLike || [])[0];
+        return match?.email?.trim().toLowerCase() || null;
+      });
+      const emails = await Promise.all(lookups);
+      emails.filter(Boolean).forEach((e) => recipients.add(e as string));
     }
+
+    // Exclude actor (do not email the person who just commented)
+    let actorEmailResolved = actorEmail;
+    if (!actorEmailResolved) {
+      if (["owner","admin","user"].includes(actorType)) {
+        actorEmailResolved = ownerEmailLower;
+      } else if (["external_user","sub_user"].includes(actorType)) {
+        const actorNameTrim = (payload.actorName || '').trim();
+        if (actorNameTrim) {
+          const { data: suExact } = await supabase
+            .from('sub_users')
+            .select('email, fullname')
+            .eq('board_owner_id', task.user_id)
+            .eq('fullname', actorNameTrim)
+            .maybeSingle();
+          if (suExact?.email) {
+            actorEmailResolved = suExact.email.trim().toLowerCase();
+          } else {
+            const { data: suLike } = await supabase
+              .from('sub_users')
+              .select('email, fullname')
+              .eq('board_owner_id', task.user_id)
+              .ilike('fullname', actorNameTrim)
+              .limit(5);
+            const match = (suLike || []).find((s) => (s.fullname || '').trim().toLowerCase() === actorNameTrim.toLowerCase()) || (suLike || [])[0];
+            actorEmailResolved = match?.email?.trim().toLowerCase() || null;
+          }
+        }
+      }
+    }
+    if (actorEmailResolved) recipients.delete(actorEmailResolved);
 
     if (recipients.size === 0) {
       console.log('No recipients for comment email after filtering', { ownerEmail, actorType, actorName: payload.actorName });
