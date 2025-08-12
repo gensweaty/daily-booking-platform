@@ -14,6 +14,7 @@ export const CommentNotificationsListener: React.FC = () => {
   const { toast } = useToast();
   const { t, language } = useLanguage();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const broadcastRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const getTexts = (name: string, task: string) => {
     switch (language) {
@@ -164,6 +165,64 @@ export const CommentNotificationsListener: React.FC = () => {
         });
 
       channelRef.current = channel;
+
+      // Broadcast fallback: listen for explicit new-comment events from clients
+      if (broadcastRef.current) {
+        supabase.removeChannel(broadcastRef.current);
+      }
+      const broadcastChannel = supabase
+        .channel(`task-comments-user-${user.id}`)
+        .on('broadcast', { event: 'new-comment' }, async (payload) => {
+          if (!isMounted || !payload?.payload) return;
+          const data = payload.payload as { id?: string; task_id: string; created_by_name?: string };
+
+          try {
+            // Ensure this comment is for a task owned by the user
+            const { data: task, error: taskErr } = await supabase
+              .from('tasks')
+              .select('id, title, user_id')
+              .eq('id', data.task_id)
+              .maybeSingle();
+            if (taskErr || !task || task.user_id !== user.id) return;
+
+            const actorName = data.created_by_name || 'Someone';
+            const { title, body } = getTexts(actorName, task.title || 'Task');
+
+            const result = await platformNotificationManager.createNotification({
+              title,
+              body,
+              tag: `comment-${data.id || data.task_id}`,
+            });
+
+            if (result.notification) {
+              result.notification.onclick = () => {
+                window.focus();
+                window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId: data.task_id } }));
+                result.notification?.close();
+              };
+            }
+
+            toast({
+              title,
+              description: body,
+              duration: 10000,
+              action: (
+                <ToastAction altText="Open task" onClick={() => {
+                  window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId: data.task_id } }));
+                }}>
+                  Open
+                </ToastAction>
+              ),
+            });
+
+            localStorage.setItem(`comments_last_seen_${user.id}`, new Date().toISOString());
+          } catch (err) {
+            console.error('[CommentsNotify] Broadcast notification error:', err);
+          }
+        })
+        .subscribe();
+
+      broadcastRef.current = broadcastChannel;
     };
 
     setup();
