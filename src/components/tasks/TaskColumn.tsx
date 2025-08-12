@@ -26,7 +26,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
   const [isDragOver, setIsDragOver] = useState(false);
   
   const getColumnStyle = (status: string) => {
-    const baseStyle = "border rounded-xl transition-all duration-300 backdrop-blur-sm bg-card/60";
+    const baseStyle = "border rounded-xl transition-all duration-300 backdrop-blur-sm bg-card/70 ring-1 ring-border/60 dark:ring-0";
     
     if (isDragOver) {
       switch (status) {
@@ -149,7 +149,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
           
           {/* Column Header */}
           <motion.div 
-            className="flex items-center justify-between mb-6 pb-4 border-b border-border/40"
+            className="flex items-center justify-between mb-6 pb-4 border-b border-border/60 dark:border-border/40"
             variants={headerVariants}
             whileHover={{ y: -2 }}
             transition={{ duration: 0.2 }}

@@ -40,11 +40,11 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
   const getTaskStyle = (status: string) => {
     switch (status) {
       case 'in-progress':
-        return 'border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/20 dark:to-transparent';
+        return 'border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50/70 to-transparent dark:from-amber-900/20 dark:to-transparent';
       case 'done':
-        return 'border-l-4 border-l-green-500 bg-gradient-to-r from-green-50/50 to-transparent dark:from-green-900/20 dark:to-transparent';
+        return 'border-l-4 border-l-green-500 bg-gradient-to-r from-green-50/70 to-transparent dark:from-green-900/20 dark:to-transparent';
       default:
-        return 'border-l-4 border-l-gray-300 dark:border-l-gray-600 bg-gradient-to-r from-gray-50/50 to-transparent dark:from-gray-800/50 dark:to-transparent';
+        return 'border-l-4 border-l-gray-400 dark:border-l-gray-600 bg-gradient-to-r from-gray-50/70 to-transparent dark:from-gray-800/50 dark:to-transparent';
     }
   };
 
@@ -104,8 +104,8 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            className={`p-4 bg-card dark:bg-gray-800 rounded-xl relative overflow-hidden border border-border/60 ${getTaskStyle(task.status)} ${
-              snapshot.isDragging ? 'shadow-2xl z-50 cursor-grabbing' : 'shadow-sm hover:shadow-md cursor-grab'
+            className={`p-4 bg-card dark:bg-gray-800 rounded-xl relative overflow-hidden border border-border/80 dark:border-border/50 ${getTaskStyle(task.status)} ${
+              snapshot.isDragging ? 'shadow-2xl z-50 cursor-grabbing' : 'shadow hover:shadow-md cursor-grab'
             } transition-shadow duration-200`}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
