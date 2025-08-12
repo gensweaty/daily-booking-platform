@@ -12,7 +12,6 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PublicTaskList } from "@/components/tasks/PublicTaskList";
 import { motion } from "framer-motion";
 import { Loader2, Globe, LogOut } from "lucide-react";
-import { PresenceAvatars } from "@/components/PresenceAvatars";
 import { useBoardPresence } from "@/hooks/useBoardPresence";
 import { validatePassword } from "@/utils/signupValidation";
 
@@ -747,6 +746,7 @@ const handleRegister = async () => {
             boardUserId={boardData.user_id} 
             externalUserName={fullName}
             externalUserEmail={email}
+            onlineUsers={onlineUsers}
           />
         )}
       </div>

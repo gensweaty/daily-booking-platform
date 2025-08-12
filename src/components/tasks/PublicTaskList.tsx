@@ -13,15 +13,16 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { TasksPresenceHeader } from "./TasksPresenceHeader";
+import { PresenceAvatars } from "@/components/PresenceAvatars";
 
 interface PublicTaskListProps {
   boardUserId: string;
   externalUserName: string;
   externalUserEmail: string;
+  onlineUsers: { name: string; email: string }[];
 }
 
-export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmail }: PublicTaskListProps) => {
+export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmail, onlineUsers }: PublicTaskListProps) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { t, language } = useLanguage();
@@ -276,7 +277,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
         <div className="grid sm:hidden grid-cols-[auto_1fr_auto] items-center w-full">
           <h2 className="text-2xl font-bold text-foreground">{t('dashboard.tasks')}</h2>
           <div className="flex items-center justify-center">
-            <TasksPresenceHeader />
+            <PresenceAvatars users={onlineUsers} currentUserEmail={externalUserEmail} max={2} />
           </div>
           <Button 
             onClick={() => setIsAddingTask(true)}
@@ -289,10 +290,11 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
           </Button>
         </div>
 
-        {/* Desktop: Original layout */}
+        {/* Desktop: Header with presence left of Add button */}
         <div className="hidden sm:flex flex-row items-center justify-between gap-4">
           <h2 className="text-2xl font-bold text-foreground">{t('dashboard.tasks')}</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <PresenceAvatars users={onlineUsers} currentUserEmail={externalUserEmail} max={2} />
             <Button 
               onClick={() => setIsAddingTask(true)}
               className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-4 text-sm min-w-[120px]"
@@ -302,7 +304,6 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
                 {t('tasks.addTask')}
               </span>
             </Button>
-            <TasksPresenceHeader />
           </div>
         </div>
 
