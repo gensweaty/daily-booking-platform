@@ -138,10 +138,18 @@ serve(async (req) => {
     const dashboardLink = `${baseUrl}/dashboard?openTask=${task.id}`;
     const publicLink = publicSlug ? `${baseUrl}/board/${publicSlug}?openTask=${task.id}` : undefined;
 
-    // Determine if self-comment (skip sending to self)
+    // Determine if self-comment (skip sending to self) - only for real owner/admin comments
+    const actorType = (payload.actorType || "").toLowerCase();
     const actorEmail = (payload.actorEmail || "").trim().toLowerCase();
-    if (ownerEmail && actorEmail && ownerEmail.trim().toLowerCase() === actorEmail) {
-      console.log('Skipping email: self comment by owner', { ownerEmail, actorEmail, taskId: task.id, commentId: payload.commentId });
+    const ownerEmailLower = ownerEmail?.trim().toLowerCase() || null;
+    const shouldSkipSelf = !!(
+      ownerEmailLower &&
+      actorEmail &&
+      ownerEmailLower === actorEmail &&
+      (actorType === "owner" || actorType === "admin" || actorType === "user")
+    );
+    if (shouldSkipSelf) {
+      console.log('Skipping email: self comment by owner/admin', { ownerEmail, actorEmail, actorType, taskId: task.id, commentId: payload.commentId });
       return new Response(JSON.stringify({ message: 'Self comment - no email sent' }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
     }
 

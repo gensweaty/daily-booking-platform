@@ -21,7 +21,12 @@ export const createComment = async (comment: {
     // Fire-and-forget email notification via Edge Function
     try {
       const { data: auth } = await supabase.auth.getUser();
-      const actorEmail = auth?.user?.email;
+      const actorEmailRaw = auth?.user?.email || undefined;
+      const actorTypeLower = (comment.created_by_type || '').toLowerCase();
+      // Avoid passing owner email for sub/external users (prevents false self-skip)
+      const actorEmail = (actorTypeLower === 'external_user' || actorTypeLower === 'sub_user')
+        ? undefined
+        : actorEmailRaw;
       const baseUrl = window.location.origin;
       await supabase.functions.invoke('send-comment-email', {
         body: {
