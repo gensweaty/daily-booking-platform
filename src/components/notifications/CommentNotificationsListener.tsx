@@ -1,8 +1,9 @@
 
 import { useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ensureNotificationPermission } from "@/utils/notificationUtils";
 import { platformNotificationManager } from "@/utils/platformNotificationManager";
@@ -78,6 +79,13 @@ export const CommentNotificationsListener: React.FC = () => {
               toast({
                 title,
                 description: body,
+                action: (
+                  <ToastAction altText="Open task" onClick={() => {
+                    window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId: c.task_id } }));
+                  }}>
+                    Open
+                  </ToastAction>
+                ),
               });
             }
           }
@@ -130,6 +138,13 @@ export const CommentNotificationsListener: React.FC = () => {
             toast({
               title,
               description: body,
+              action: (
+                <ToastAction altText="Open task" onClick={() => {
+                  window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId: comment.task_id } }));
+                }}>
+                  Open
+                </ToastAction>
+              ),
             });
 
             // Update last seen time on every incoming notification
