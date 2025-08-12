@@ -730,7 +730,6 @@ const handleRegister = async () => {
               <span className="hidden sm:inline text-sm text-muted-foreground">
                 Hello, <span className="font-semibold">{fullName}</span>
               </span>
-              <PresenceAvatars users={onlineUsers} currentUserEmail={email} />
               <LanguageSwitcher />
               <Button variant="ghost" size="icon" onClick={handleLogout} title="Log out" aria-label="Log out">
                 <LogOut className="h-4 w-4" />

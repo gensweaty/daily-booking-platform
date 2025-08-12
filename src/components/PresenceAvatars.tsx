@@ -1,6 +1,8 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useToast } from "@/hooks/use-toast";
 
 interface PresenceAvatarsProps {
   users: { name: string; email: string }[];
@@ -11,6 +13,8 @@ interface PresenceAvatarsProps {
 export function PresenceAvatars({ users, currentUserEmail, max = 5 }: PresenceAvatarsProps) {
   const visible = users.slice(0, max);
   const extra = users.length - visible.length;
+  const isMobile = useMediaQuery("(max-width: 640px)");
+  const { toast } = useToast();
 
   const getInitials = (name?: string) => {
     if (!name) return "?";
@@ -19,24 +23,32 @@ export function PresenceAvatars({ users, currentUserEmail, max = 5 }: PresenceAv
     return (parts[0][0] + parts[1][0]).toUpperCase();
   };
 
+  const handleMobileClick = (displayName: string) => {
+    if (isMobile) {
+      toast({ description: displayName });
+    }
+  };
+
   return (
     <div className="flex items-center">
       <div className="flex -space-x-2">
         <TooltipProvider>
           {visible.map((u) => {
             const displayName = (u.name || 'User');
+            const isCurrent = u.email === currentUserEmail;
             return (
               <Tooltip key={u.email}>
                 <TooltipTrigger asChild>
                   <Avatar
                       className={cn(
-                        "h-6 w-6 sm:h-7 sm:w-7 ring-2 ring-offset-2 ring-offset-background transition-transform duration-200 hover:scale-110 shadow-sm",
-                        "bg-muted text-foreground/80",
-                        u.email === currentUserEmail ? "ring-primary" : "ring-muted"
+                        "h-6 w-6 sm:h-7 sm:w-7 ring-2 ring-offset-2 ring-offset-background transition-all duration-200 hover:scale-110 shadow-sm",
+                        "bg-card text-foreground/80",
+                        isCurrent ? "ring-primary" : "ring-muted"
                       )}
-                    title={displayName}
-                    aria-label={displayName}
-                  >
+                      title={displayName}
+                      aria-label={displayName}
+                      onClick={() => handleMobileClick(displayName)}
+                    >
                     <AvatarFallback className="text-[10px] font-medium">
                       {getInitials(displayName)}
                     </AvatarFallback>
@@ -50,7 +62,7 @@ export function PresenceAvatars({ users, currentUserEmail, max = 5 }: PresenceAv
           })}
         </TooltipProvider>
         {extra > 0 && (
-          <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-muted ring-2 ring-muted ring-offset-2 ring-offset-background flex items-center justify-center text-[10px] text-foreground/70">
+          <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-card ring-2 ring-muted ring-offset-2 ring-offset-background flex items-center justify-center text-[10px] text-foreground/70">
             +{extra}
           </div>
         )}
