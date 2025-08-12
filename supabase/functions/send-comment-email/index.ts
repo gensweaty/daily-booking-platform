@@ -217,26 +217,11 @@ serve(async (req) => {
     if (ownerCommented && ownerEmailLower) recipients.add(ownerEmailLower);
 
     if (subUserNames.size > 0) {
-      const lookups = Array.from(subUserNames).map(async (nm) => {
-        const nameTrim = nm.trim();
-        const { data: suExact } = await supabase
-          .from('sub_users')
-          .select('email, fullname')
-          .eq('board_owner_id', task.user_id)
-          .eq('fullname', nameTrim)
-          .maybeSingle();
-        if (suExact?.email) return suExact.email.trim().toLowerCase();
-        const { data: suLike } = await supabase
-          .from('sub_users')
-          .select('email, fullname')
-          .eq('board_owner_id', task.user_id)
-          .ilike('fullname', nameTrim)
-          .limit(5);
-        const match = (suLike || []).find((s) => (s.fullname || '').trim().toLowerCase() === nameTrim.toLowerCase()) || (suLike || [])[0];
-        return match?.email?.trim().toLowerCase() || null;
-      });
-      const emails = await Promise.all(lookups);
-      emails.filter(Boolean).forEach((e) => recipients.add(e as string));
+      const nameMap = new Map(subUsers.map(su => [cleanName(su.fullname), (su.email || '').trim().toLowerCase()]));
+      for (const nm of subUserNames) {
+        const email = nameMap.get(cleanName(nm));
+        if (email) recipients.add(email);
+      }
     }
 
     // Exclude actor (do not email the person who just commented)
@@ -247,24 +232,8 @@ serve(async (req) => {
       } else if (["external_user","sub_user"].includes(actorType)) {
         const actorNameTrim = (payload.actorName || '').trim();
         if (actorNameTrim) {
-          const { data: suExact } = await supabase
-            .from('sub_users')
-            .select('email, fullname')
-            .eq('board_owner_id', task.user_id)
-            .eq('fullname', actorNameTrim)
-            .maybeSingle();
-          if (suExact?.email) {
-            actorEmailResolved = suExact.email.trim().toLowerCase();
-          } else {
-            const { data: suLike } = await supabase
-              .from('sub_users')
-              .select('email, fullname')
-              .eq('board_owner_id', task.user_id)
-              .ilike('fullname', actorNameTrim)
-              .limit(5);
-            const match = (suLike || []).find((s) => (s.fullname || '').trim().toLowerCase() === actorNameTrim.toLowerCase()) || (suLike || [])[0];
-            actorEmailResolved = match?.email?.trim().toLowerCase() || null;
-          }
+          const nameMap = new Map(subUsers.map(su => [cleanName(su.fullname), (su.email || '').trim().toLowerCase()]));
+          actorEmailResolved = nameMap.get(cleanName(actorNameTrim)) || null;
         }
       }
     }
