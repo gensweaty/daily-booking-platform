@@ -16,7 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TaskListProps {
   username?: string;
@@ -167,6 +167,27 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     queryFn: () => getTasks(user?.id || ''),
     enabled: !!user?.id,
   });
+
+  // Realtime: keep task list in sync for this user (INSERT/UPDATE/DELETE)
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`tasks-changes-user-${user.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'tasks',
+        filter: `user_id=eq.${user.id}`,
+      }, (payload) => {
+        console.log('[Realtime] tasks change for user', user.id, payload.eventType);
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, queryClient]);
 
   useEffect(() => {
     const handler = async (e: CustomEvent) => {
