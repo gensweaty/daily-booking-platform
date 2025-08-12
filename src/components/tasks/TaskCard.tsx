@@ -104,8 +104,8 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            className={`p-4 bg-background dark:bg-gray-800 rounded-xl relative overflow-hidden ${getTaskStyle(task.status)} ${
-              snapshot.isDragging ? 'shadow-2xl z-50 cursor-grabbing' : 'hover:shadow-lg cursor-grab'
+            className={`p-4 bg-card dark:bg-gray-800 rounded-xl relative overflow-hidden border border-border/60 ${getTaskStyle(task.status)} ${
+              snapshot.isDragging ? 'shadow-2xl z-50 cursor-grabbing' : 'shadow-sm hover:shadow-md cursor-grab'
             } transition-shadow duration-200`}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}

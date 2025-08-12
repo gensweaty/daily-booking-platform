@@ -26,7 +26,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
   const [isDragOver, setIsDragOver] = useState(false);
   
   const getColumnStyle = (status: string) => {
-    const baseStyle = "border rounded-xl transition-all duration-300 backdrop-blur-sm";
+    const baseStyle = "border rounded-xl transition-all duration-300 backdrop-blur-sm bg-card/60";
     
     if (isDragOver) {
       switch (status) {
@@ -41,11 +41,12 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
     
     switch (status) {
       case 'in-progress':
-        return `${baseStyle} bg-gradient-to-br from-amber-50/30 to-amber-100/10 dark:from-amber-900/10 dark:to-amber-800/5 border-amber-200/50 dark:border-amber-700/30 shadow-lg shadow-amber-500/10`;
+        return `${baseStyle} bg-gradient-to-br from-amber-50/60 to-amber-100/30 dark:from-amber-900/10 dark:to-amber-800/5 border-amber-200/70 dark:border-amber-700/30 shadow-lg shadow-amber-500/10`;
       case 'done':
-        return `${baseStyle} bg-gradient-to-br from-green-50/30 to-green-100/10 dark:from-green-900/10 dark:to-green-800/5 border-green-200/50 dark:border-green-700/30 shadow-lg shadow-green-500/10`;
+        return `${baseStyle} bg-gradient-to-br from-green-50/60 to-green-100/30 dark:from-green-900/10 dark:to-green-800/5 border-green-200/70 dark:border-green-700/30 shadow-lg shadow-green-500/10`;
       default:
-        return `${baseStyle} bg-gradient-to-br from-gray-50/30 to-gray-100/10 dark:from-gray-900/10 dark:to-gray-800/5 border-gray-200/50 dark:border-gray-700/30 shadow-lg`;
+        return `${baseStyle} bg-gradient-to-br from-gray-50/60 to-gray-100/30 dark:from-gray-900/10 dark:to-gray-800/5 border-gray-200/70 dark:border-gray-700/30 shadow-lg`;
+
     }
   };
 
