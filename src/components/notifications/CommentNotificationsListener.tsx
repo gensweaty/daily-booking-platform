@@ -11,8 +11,19 @@ import { platformNotificationManager } from "@/utils/platformNotificationManager
 export const CommentNotificationsListener: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  const getTexts = (name: string, task: string) => {
+    switch (language) {
+      case 'es':
+        return { title: 'Nuevo comentario', body: `${name} comentó en "${task}"` };
+      case 'ka':
+        return { title: 'ახალი კომენტარი', body: `${name}-მა დატოვა კომენტარი "${task}"-ზე` };
+      default:
+        return { title: 'New comment', body: `${name} commented on "${task}"` };
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -47,19 +58,19 @@ export const CommentNotificationsListener: React.FC = () => {
               // Skip if it's our own comment
               if (c.user_id === user.id) return;
               const taskTitle = tasks.find(t => t.id === c.task_id)?.title || 'Task';
-              const actorName = c.created_by_name || t('common.someone') || 'Someone';
-              const body = t('notifications.newCommentBody', { name: actorName, task: taskTitle });
+              const actorName = c.created_by_name || 'Someone';
+               const { title, body } = getTexts(actorName, taskTitle);
 
-              platformNotificationManager.createNotification({
-                title: t('notifications.newCommentTitle'),
-                body,
-                tag: `comment-${c.id}`,
-              });
+               platformNotificationManager.createNotification({
+                 title,
+                 body,
+                 tag: `comment-${c.id}`,
+               });
 
-              toast({
-                title: t('notifications.newCommentTitle'),
-                description: body,
-              });
+               toast({
+                 title,
+                 description: body,
+               });
             });
           }
         }
@@ -93,17 +104,17 @@ export const CommentNotificationsListener: React.FC = () => {
             // Ignore own comments
             if (comment.user_id === user.id) return;
 
-            const actorName = comment.created_by_name || t('common.someone') || 'Someone';
-            const body = t('notifications.newCommentBody', { name: actorName, task: task.title || 'Task' });
+            const actorName = comment.created_by_name || 'Someone';
+            const { title, body } = getTexts(actorName, task.title || 'Task');
 
             platformNotificationManager.createNotification({
-              title: t('notifications.newCommentTitle'),
+              title,
               body,
               tag: `comment-${comment.id}`,
             });
 
             toast({
-              title: t('notifications.newCommentTitle'),
+              title,
               description: body,
             });
 

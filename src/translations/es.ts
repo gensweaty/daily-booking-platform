@@ -466,11 +466,7 @@ export const translations: TranslationType = {
     created: "Creado:",
     lastUpdated: "Última actualización:",
     by: "por",
-    someone: "Alguien"
-  },
-  notifications: {
-    newCommentTitle: "Nuevo comentario en tarea",
-    newCommentBody: "{{name}} comentó en \"{{task}}\""
+    
   },
   auth: {
     welcome: "Bienvenido a SmartBookly",

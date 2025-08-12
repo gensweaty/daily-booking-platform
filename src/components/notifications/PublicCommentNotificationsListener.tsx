@@ -13,9 +13,20 @@ interface Props {
 // Listen to new comments for the current sub-user's tasks on the Public Board
 export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserId, externalUserName }) => {
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const channelRef = useRef<ReturnType<typeof publicSupabase.channel> | null>(null);
   const tasksMapRef = useRef<Map<string, { title: string }>>(new Map());
+
+  const getTexts = (name: string, task: string) => {
+    switch (language) {
+      case 'es':
+        return { title: 'Nuevo comentario', body: `${name} comentó en "${task}"` };
+      case 'ka':
+        return { title: 'ახალი კომენტარი', body: `${name}-მა დატოვა კომენტარი "${task}"-ზე` };
+      default:
+        return { title: 'New comment', body: `${name} commented on "${task}"` };
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -59,17 +70,17 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
               .filter((c: any) => c.created_by_name !== subUserLabel)
               .forEach((c: any) => {
                 const taskTitle = tasksMapRef.current.get(c.task_id)?.title || 'Task';
-                const actorName = c.created_by_name || t('common.someone') || 'Someone';
-                const body = t('notifications.newCommentBody', { name: actorName, task: taskTitle });
+                const actorName = c.created_by_name || 'Someone';
+                const { title, body } = getTexts(actorName, taskTitle);
 
                 platformNotificationManager.createNotification({
-                  title: t('notifications.newCommentTitle'),
+                  title,
                   body,
                   tag: `comment-${c.id}`,
                 });
 
                 toast({
-                  title: t('notifications.newCommentTitle'),
+                  title,
                   description: body,
                 });
               });
@@ -95,17 +106,17 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
           if (comment.created_by_name === subUserLabel) return;
 
           const taskTitle = tasksMapRef.current.get(comment.task_id)?.title || 'Task';
-          const actorName = comment.created_by_name || t('common.someone') || 'Someone';
-          const body = t('notifications.newCommentBody', { name: actorName, task: taskTitle });
+          const actorName = comment.created_by_name || 'Someone';
+          const { title, body } = getTexts(actorName, taskTitle);
 
           platformNotificationManager.createNotification({
-            title: t('notifications.newCommentTitle'),
+            title,
             body,
             tag: `comment-${comment.id}`,
           });
 
           toast({
-            title: t('notifications.newCommentTitle'),
+            title,
             description: body,
           });
 

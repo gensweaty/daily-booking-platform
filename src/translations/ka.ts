@@ -466,11 +466,7 @@ export const translations: TranslationType = {
     created: "შექმნილია",
     lastUpdated: "ბოლოს განახლდა",
     by: "მიერ",
-    someone: "ვიღაცა"
-  },
-  notifications: {
-    newCommentTitle: "ახალი კომენტარი დავალებაზე",
-    newCommentBody: "{{name}}-მა დატოვა კომენტარი \"{{task}}\"-ზე"
+    
   },
   auth: {
     welcome: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში",
