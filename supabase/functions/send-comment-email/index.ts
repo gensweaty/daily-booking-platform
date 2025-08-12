@@ -111,41 +111,46 @@ serve(async (req) => {
     const preview = commentContent ? commentContent.slice(0, 300) : "New comment received";
     const actorName = payload.actorName || "Someone";
 
-    // Get owner email via Admin API
-    let ownerEmail: string | null = null;
-    try {
-      const { data: ownerRes } = await supabase.auth.admin.getUserById(task.user_id);
-      ownerEmail = ownerRes?.user?.email ?? null;
-    } catch (e) {
-      console.log("Owner email lookup failed", e);
-    }
+    // Get owner email, public board slug, and sub-user emails in parallel to reduce latency
+    const [ownerEmail, publicSlug, subEmails] = await Promise.all([
+      (async () => {
+        try {
+          const { data: ownerRes } = await supabase.auth.admin.getUserById(task.user_id);
+          return ownerRes?.user?.email ?? null;
+        } catch (e) {
+          console.log("Owner email lookup failed", e);
+          return null;
+        }
+      })(),
+      (async () => {
+        const { data: board } = await supabase
+          .from("public_boards")
+          .select("slug")
+          .eq("user_id", task.user_id)
+          .eq("is_active", true)
+          .limit(1)
+          .maybeSingle();
+        return board?.slug || null;
+      })(),
+      (async () => {
+        try {
+          const { data: subs, error: subErr } = await supabase
+            .from("sub_users")
+            .select("email")
+            .eq("board_owner_id", task.user_id);
+          if (!subErr && subs) {
+            return subs
+              .map((s: any) => (s?.email || "").trim().toLowerCase())
+              .filter((e: string) => !!e);
+          }
+          return [] as string[];
+        } catch (e) {
+          console.log("Sub-users lookup failed", e);
+          return [] as string[];
+        }
+      })(),
+    ]);
 
-    // Get public board slug (optional)
-    let publicSlug: string | null = null;
-    const { data: board } = await supabase
-      .from("public_boards")
-      .select("slug")
-      .eq("user_id", task.user_id)
-      .eq("is_active", true)
-      .limit(1)
-      .maybeSingle();
-    publicSlug = board?.slug || null;
-
-    // Load sub-user emails for this owner (notify sub users as well)
-    let subEmails: string[] = [];
-    try {
-      const { data: subs, error: subErr } = await supabase
-        .from("sub_users")
-        .select("email")
-        .eq("board_owner_id", task.user_id);
-      if (!subErr && subs) {
-        subEmails = subs
-          .map((s: any) => (s?.email || "").trim().toLowerCase())
-          .filter((e: string) => !!e);
-      }
-    } catch (e) {
-      console.log("Sub-users lookup failed", e);
-    }
 
     // Build links
     const dashboardLink = `${baseUrl}/dashboard?openTask=${task.id}`;
