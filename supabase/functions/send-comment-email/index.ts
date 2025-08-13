@@ -121,18 +121,20 @@ serve(async (req) => {
     // Ultra-fast minimal queries - get only essential data
     const [ownerEmailRes, subUsersRes, previousCommentersRes] = await Promise.all([
       supabase.auth.admin.getUserById(task.user_id),
-      supabase.from("sub_users").select("email, fullname").eq("board_owner_id", task.user_id).limit(50), // Limit to prevent huge queries
-      supabase.from("task_comments").select("id, user_id, created_by_name, created_by_type").eq("task_id", payload.taskId).is("deleted_at", null)
+      supabase.from("sub_users").select("email, fullname").eq("board_owner_id", task.user_id).limit(20), // Reduced limit for faster queries
+      supabase.from("task_comments").select("id, user_id, created_by_name, created_by_type").eq("task_id", payload.taskId).is("deleted_at", null).limit(10) // Limit comments query too
     ]);
 
     const ownerEmail = ownerEmailRes?.data?.user?.email ?? null;
     const subUsers = subUsersRes?.data || [];
     const previousCommenters = previousCommentersRes?.data || [];
 
-    // Get public board slug only if no owner email (rare case)
-    const publicSlug = !ownerEmail ? 
-      (await supabase.from("public_boards").select("slug").eq("user_id", task.user_id).eq("is_active", true).limit(1).maybeSingle()).data?.slug || null 
-      : null;
+    // Only get public board slug if absolutely needed (no owner email)
+    let publicSlug = null;
+    if (!ownerEmail) {
+      const slugRes = await supabase.from("public_boards").select("slug").eq("user_id", task.user_id).eq("is_active", true).limit(1).maybeSingle();
+      publicSlug = slugRes.data?.slug || null;
+    }
 
 
     // Build links
