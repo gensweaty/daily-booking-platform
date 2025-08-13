@@ -152,39 +152,46 @@ serve(async (req) => {
       // Do not early return; exclude the actor later from recipients
     }
 
-    // FAST recipient resolution - notify all relevant users immediately
+    // ULTRA-FAST recipient resolution - notify all relevant users immediately
     const recipients = new Set<string>();
     
-    // Always notify the task owner if it exists
-    if (ownerEmailLower) recipients.add(ownerEmailLower);
+    // 1. Always notify the task owner first (highest priority)
+    if (ownerEmailLower) {
+      recipients.add(ownerEmailLower);
+    }
     
-    // Always notify all sub-users (they are likely interested in task activity)  
+    // 2. Always notify ALL sub-users immediately (they are stakeholders in board activity)
     subUsers.forEach(su => {
       const email = (su.email || '').trim().toLowerCase();
       if (email) recipients.add(email);
     });
     
-    // If task was created by external user, make sure they get notified
+    // 3. Ensure task creator gets notified if external
     const createdByType = (task.created_by_type || '').toLowerCase();
     if (["external_user", "sub_user"].includes(createdByType)) {
       const creatorEmail = (task.external_user_email || '').trim().toLowerCase();
       if (creatorEmail) recipients.add(creatorEmail);
     }
 
-    // Exclude actor (do not email the person who just commented)
+    // 4. Exclude the actor (person who commented) - build fast lookup
     let actorEmailResolved = actorEmail;
-    if (!actorEmailResolved) {
+    if (!actorEmailResolved && payload.actorName) {
+      const actorNameClean = cleanName(payload.actorName);
       if (["owner","admin","user"].includes(actorType)) {
         actorEmailResolved = ownerEmailLower;
-      } else if (["external_user","sub_user"].includes(actorType)) {
-        const actorNameTrim = (payload.actorName || '').trim();
-        if (actorNameTrim) {
-          const nameMap = new Map(subUsers.map(su => [cleanName(su.fullname), (su.email || '').trim().toLowerCase()]));
-          actorEmailResolved = nameMap.get(cleanName(actorNameTrim)) || null;
+      } else if (["external_user","sub_user"].includes(actorType) && actorNameClean) {
+        // Fast lookup for sub-user email by name
+        for (const su of subUsers) {
+          if (cleanName(su.fullname) === actorNameClean) {
+            actorEmailResolved = (su.email || '').trim().toLowerCase();
+            break;
+          }
         }
       }
     }
-    if (actorEmailResolved) recipients.delete(actorEmailResolved);
+    if (actorEmailResolved) {
+      recipients.delete(actorEmailResolved);
+    }
 
     if (recipients.size === 0) {
       console.log('No recipients for comment email after filtering', { ownerEmail, actorType, actorName: payload.actorName });

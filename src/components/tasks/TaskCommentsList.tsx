@@ -52,34 +52,71 @@ const { user } = useAuth();
     queryFn: () => getTaskComments(taskId),
   });
 
-  // Enhanced realtime updates for comments - works across all board types
+  // Enhanced multi-board realtime sync - ensures instant updates across all board instances
   useEffect(() => {
     if (!taskId) return;
 
-    const channel = supabase
-      .channel(`task_comments_${taskId}_global`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'task_comments',
-          filter: `task_id=eq.${taskId}`,
-        },
-        (payload) => {
-          console.log('Task comment real-time update:', payload);
-          // Immediate invalidation for instant updates across all board types
-          queryClient.invalidateQueries({ queryKey: ['taskComments', taskId] });
-          queryClient.invalidateQueries({ queryKey: ['tasks'] });
-          queryClient.invalidateQueries({ queryKey: ['publicBoardTasks'] });
-        }
-      )
-      .subscribe();
+    // Create multiple channels for comprehensive coverage across all board types
+    const channels = [
+      // 1. Global comments channel (all public boards and dashboards)
+      supabase
+        .channel('global_task_comments_sync')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'task_comments',
+          },
+          (payload) => {
+            console.log('Global comment update:', payload);
+            queryClient.invalidateQueries({ queryKey: ['taskComments'] });
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            queryClient.invalidateQueries({ queryKey: ['publicBoardTasks'] });
+          }
+        )
+        .subscribe(),
+        
+      // 2. Task-specific channel for instant updates
+      supabase
+        .channel(`task_comments_${taskId}_instant`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'task_comments',
+            filter: `task_id=eq.${taskId}`,
+          },
+          (payload) => {
+            console.log('Task-specific comment update:', payload);
+            queryClient.invalidateQueries({ queryKey: ['taskComments', taskId] });
+          }
+        )
+        .subscribe(),
+        
+      // 3. User-board sync (if userId available)
+      ...(userId ? [supabase
+        .channel(`user_board_${userId}_comments_sync`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'tasks',
+          },
+          () => {
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            queryClient.invalidateQueries({ queryKey: ['publicBoardTasks'] });
+          }
+        )
+        .subscribe()] : [])
+    ];
 
     return () => {
-      supabase.removeChannel(channel);
+      channels.forEach(channel => supabase.removeChannel(channel));
     };
-  }, [taskId, queryClient]);
+  }, [taskId, queryClient, userId]);
 
   // Create comment mutation
   const createMutation = useMutation({
