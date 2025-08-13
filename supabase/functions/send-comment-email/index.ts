@@ -122,7 +122,7 @@ serve(async (req) => {
     const [ownerEmailRes, subUsersRes, previousCommentersRes] = await Promise.all([
       supabase.auth.admin.getUserById(task.user_id),
       supabase.from("sub_users").select("email, fullname").eq("board_owner_id", task.user_id).limit(50), // Limit to prevent huge queries
-      supabase.from("task_comments").select("user_id, created_by_name, created_by_type").eq("task_id", payload.taskId).is("deleted_at", null)
+      supabase.from("task_comments").select("id, user_id, created_by_name, created_by_type").eq("task_id", payload.taskId).is("deleted_at", null)
     ]);
 
     const ownerEmail = ownerEmailRes?.data?.user?.email ?? null;
@@ -154,13 +154,22 @@ serve(async (req) => {
       // Do not early return; exclude the actor later from recipients
     }
 
-    // TARGETED recipient resolution - only notify task creator and previous commenters
+    // TARGETED recipient resolution - only notify task creator and previous commenters (excluding current commenter)
     const recipients = new Set<string>();
+    
+    console.log('📋 Task info:', { 
+      taskId: task.id, 
+      createdByName: task.created_by_name, 
+      createdByType: task.created_by_type,
+      actorName: payload.actorName,
+      actorType: payload.actorType
+    });
     
     // 1. Always notify the task creator (if it's the main owner)
     const createdByType = (task.created_by_type || '').toLowerCase();
     if (["owner", "admin", "user"].includes(createdByType) && ownerEmailLower) {
       recipients.add(ownerEmailLower);
+      console.log('✅ Added task creator (main owner) to recipients:', ownerEmailLower);
     }
     
     // 2. Notify task creator if external/sub-user
@@ -168,32 +177,45 @@ serve(async (req) => {
       const creatorEmail = (task.external_user_email || '').trim().toLowerCase();
       if (creatorEmail) {
         recipients.add(creatorEmail);
+        console.log('✅ Added task creator (external) to recipients:', creatorEmail);
       } else if (task.created_by_name) {
         // Find creator email among sub-users
         const creatorNameClean = cleanName(task.created_by_name);
+        console.log('🔍 Looking for task creator among sub-users:', creatorNameClean);
         for (const su of subUsers) {
           if (cleanName(su.fullname) === creatorNameClean) {
             const email = (su.email || '').trim().toLowerCase();
-            if (email) recipients.add(email);
+            if (email) {
+              recipients.add(email);
+              console.log('✅ Added task creator (sub-user) to recipients:', email);
+            }
             break;
           }
         }
       }
     }
     
-    // 3. Notify users who have previously commented on this task
-    for (const commenter of previousCommenters) {
+    // 3. Only notify users who have previously commented on this task (excluding the current comment)
+    const relevantCommenters = previousCommenters.filter(c => c.id !== payload.commentId);
+    console.log('📝 Previous commenters (excluding current):', relevantCommenters.length);
+    
+    for (const commenter of relevantCommenters) {
       const commenterType = (commenter.created_by_type || '').toLowerCase();
+      const commenterName = commenter.created_by_name;
       
       if (["owner", "admin", "user"].includes(commenterType) && ownerEmailLower) {
         recipients.add(ownerEmailLower);
-      } else if (["external_user", "sub_user"].includes(commenterType) && commenter.created_by_name) {
+        console.log('✅ Added previous commenter (main owner) to recipients:', ownerEmailLower);
+      } else if (["external_user", "sub_user"].includes(commenterType) && commenterName) {
         // Find commenter email among sub-users
-        const commenterNameClean = cleanName(commenter.created_by_name);
+        const commenterNameClean = cleanName(commenterName);
         for (const su of subUsers) {
           if (cleanName(su.fullname) === commenterNameClean) {
             const email = (su.email || '').trim().toLowerCase();
-            if (email) recipients.add(email);
+            if (email) {
+              recipients.add(email);
+              console.log('✅ Added previous commenter (sub-user) to recipients:', email, 'for name:', commenterName);
+            }
             break;
           }
         }
