@@ -160,7 +160,6 @@ serve(async (req) => {
 
     // Optimized recipient resolution - build email map once for fast lookups
     const recipients = new Set<string>();
-    const ownerEmailLower = ownerEmail?.trim().toLowerCase() || null;
     
     // Create fast lookup maps
     const subUserEmailMap = new Map(
