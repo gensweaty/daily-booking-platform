@@ -14,7 +14,6 @@ export function PresenceAvatars({ users, currentUserEmail, max = 5 }: PresenceAv
   // Filter out current user from display - they shouldn't see themselves
   const otherUsers = users.filter(user => user.email !== currentUserEmail);
   const visible = otherUsers.slice(0, max);
-  const extra = otherUsers.length - visible.length;
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { toast } = useToast();
 
@@ -61,11 +60,6 @@ export function PresenceAvatars({ users, currentUserEmail, max = 5 }: PresenceAv
             );
           })}
         </TooltipProvider>
-        {extra > 0 && (
-          <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-card ring-2 ring-muted ring-offset-2 ring-offset-background flex items-center justify-center text-[10px] text-foreground/70">
-            +{extra}
-          </div>
-        )}
       </div>
     </div>
   );
