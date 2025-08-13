@@ -17,6 +17,16 @@ export function PresenceAvatars({ users, currentUserEmail, max = 5 }: PresenceAv
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { toast } = useToast();
 
+  // Debug logging
+  console.log("PresenceAvatars Debug:", {
+    totalUsers: users.length,
+    currentUserEmail,
+    otherUsers: otherUsers.length,
+    visible: visible.length,
+    userEmails: users.map(u => u.email),
+    visibleEmails: visible.map(u => u.email)
+  });
+
   const getInitials = (name?: string) => {
     if (!name) return "?";
     const parts = name.trim().split(/\s+/);

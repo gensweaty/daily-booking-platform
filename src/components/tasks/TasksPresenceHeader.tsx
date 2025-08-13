@@ -42,6 +42,15 @@ export const TasksPresenceHeader = ({ max = 5 }: { max?: number } = {}) => {
 
   const users = useMemo(() => onlineUsers, [onlineUsers]);
 
+  // Debug logging
+  console.log("TasksPresenceHeader Debug:", {
+    boardId,
+    userCount: users.length,
+    currentEmail: user?.email,
+    displayName,
+    userEmails: users.map(u => u.email)
+  });
+
   if (!boardId) return null;
   return (
     <div className="flex items-center ml-0 sm:ml-2">
