@@ -30,9 +30,15 @@ export function PresenceAvatars({ users, currentUserEmail, max = 5 }: PresenceAv
     }
   };
 
+  if (visible.length === 0) return null;
+
   return (
-    <div className="flex items-center">
-      <div className="flex -space-x-2">
+    <div className="flex items-center min-w-0">
+      <div className={cn(
+        "flex items-center",
+        visible.length <= 3 ? "-space-x-2" : "-space-x-1",
+        "max-w-[160px] sm:max-w-[200px]"
+      )}>
         <TooltipProvider>
           {visible.map((u) => {
             const displayName = (u.name || 'User');
@@ -41,14 +47,14 @@ export function PresenceAvatars({ users, currentUserEmail, max = 5 }: PresenceAv
                 <TooltipTrigger asChild>
                   <Avatar
                       className={cn(
-                        "h-6 w-6 sm:h-7 sm:w-7 ring-2 ring-offset-2 ring-offset-background transition-all duration-200 hover:scale-110 shadow-sm",
-                        "bg-card text-foreground/80 ring-muted"
+                        "h-6 w-6 sm:h-7 sm:w-7 ring-1 sm:ring-2 ring-offset-1 sm:ring-offset-2 ring-offset-background transition-all duration-200 hover:scale-110 shadow-sm flex-shrink-0",
+                        "bg-card text-foreground/80 ring-muted hover:ring-primary"
                       )}
                       title={displayName}
                       aria-label={displayName}
                       onClick={() => handleMobileClick(displayName)}
                     >
-                    <AvatarFallback className="text-[10px] font-medium">
+                    <AvatarFallback className="text-[10px] sm:text-xs font-medium">
                       {getInitials(displayName)}
                     </AvatarFallback>
                   </Avatar>
