@@ -119,13 +119,15 @@ serve(async (req) => {
     const actorName = payload.actorName || "Someone";
 
     // Ultra-fast minimal queries - get only essential data
-    const [ownerEmailRes, subUsersRes] = await Promise.all([
+    const [ownerEmailRes, subUsersRes, previousCommentersRes] = await Promise.all([
       supabase.auth.admin.getUserById(task.user_id),
-      supabase.from("sub_users").select("email, fullname").eq("board_owner_id", task.user_id).limit(50) // Limit to prevent huge queries
+      supabase.from("sub_users").select("email, fullname").eq("board_owner_id", task.user_id).limit(50), // Limit to prevent huge queries
+      supabase.from("task_comments").select("user_id, created_by_name, created_by_type").eq("task_id", payload.taskId).is("deleted_at", null)
     ]);
 
     const ownerEmail = ownerEmailRes?.data?.user?.email ?? null;
     const subUsers = subUsersRes?.data || [];
+    const previousCommenters = previousCommentersRes?.data || [];
 
     // Get public board slug only if no owner email (rare case)
     const publicSlug = !ownerEmail ? 
@@ -152,25 +154,50 @@ serve(async (req) => {
       // Do not early return; exclude the actor later from recipients
     }
 
-    // ULTRA-FAST recipient resolution - notify all relevant users immediately
+    // TARGETED recipient resolution - only notify task creator and previous commenters
     const recipients = new Set<string>();
     
-    // 1. Always notify the task owner first (highest priority)
-    if (ownerEmailLower) {
+    // 1. Always notify the task creator (if it's the main owner)
+    const createdByType = (task.created_by_type || '').toLowerCase();
+    if (["owner", "admin", "user"].includes(createdByType) && ownerEmailLower) {
       recipients.add(ownerEmailLower);
     }
     
-    // 2. Always notify ALL sub-users immediately (they are stakeholders in board activity)
-    subUsers.forEach(su => {
-      const email = (su.email || '').trim().toLowerCase();
-      if (email) recipients.add(email);
-    });
-    
-    // 3. Ensure task creator gets notified if external
-    const createdByType = (task.created_by_type || '').toLowerCase();
+    // 2. Notify task creator if external/sub-user
     if (["external_user", "sub_user"].includes(createdByType)) {
       const creatorEmail = (task.external_user_email || '').trim().toLowerCase();
-      if (creatorEmail) recipients.add(creatorEmail);
+      if (creatorEmail) {
+        recipients.add(creatorEmail);
+      } else if (task.created_by_name) {
+        // Find creator email among sub-users
+        const creatorNameClean = cleanName(task.created_by_name);
+        for (const su of subUsers) {
+          if (cleanName(su.fullname) === creatorNameClean) {
+            const email = (su.email || '').trim().toLowerCase();
+            if (email) recipients.add(email);
+            break;
+          }
+        }
+      }
+    }
+    
+    // 3. Notify users who have previously commented on this task
+    for (const commenter of previousCommenters) {
+      const commenterType = (commenter.created_by_type || '').toLowerCase();
+      
+      if (["owner", "admin", "user"].includes(commenterType) && ownerEmailLower) {
+        recipients.add(ownerEmailLower);
+      } else if (["external_user", "sub_user"].includes(commenterType) && commenter.created_by_name) {
+        // Find commenter email among sub-users
+        const commenterNameClean = cleanName(commenter.created_by_name);
+        for (const su of subUsers) {
+          if (cleanName(su.fullname) === commenterNameClean) {
+            const email = (su.email || '').trim().toLowerCase();
+            if (email) recipients.add(email);
+            break;
+          }
+        }
+      }
     }
 
     // 4. Exclude the actor (person who commented) - build fast lookup
