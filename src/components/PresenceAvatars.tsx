@@ -17,16 +17,6 @@ export function PresenceAvatars({ users, currentUserEmail, max = 5 }: PresenceAv
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { toast } = useToast();
 
-  // Debug logging
-  console.log("PresenceAvatars Debug:", {
-    totalUsers: users.length,
-    currentUserEmail,
-    otherUsers: otherUsers.length,
-    visible: visible.length,
-    userEmails: users.map(u => u.email),
-    visibleEmails: visible.map(u => u.email)
-  });
-
   const getInitials = (name?: string) => {
     if (!name) return "?";
     const parts = name.trim().split(/\s+/);
@@ -46,8 +36,8 @@ export function PresenceAvatars({ users, currentUserEmail, max = 5 }: PresenceAv
     <div className="flex items-center min-w-0">
       <div className={cn(
         "flex items-center",
-        visible.length <= 3 ? "-space-x-2" : "-space-x-1",
-        "max-w-[160px] sm:max-w-[200px]"
+        visible.length <= 3 ? "-space-x-2" : "-space-x-1.5",
+        "max-w-[180px] sm:max-w-[220px]"
       )}>
         <TooltipProvider>
           {visible.map((u) => {
