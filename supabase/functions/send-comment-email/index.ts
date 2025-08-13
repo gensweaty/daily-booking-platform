@@ -118,18 +118,25 @@ serve(async (req) => {
     const preview = commentContent ? commentContent.slice(0, 300) : "New comment received";
     const actorName = payload.actorName || "Someone";
 
-    // Fast parallel queries without timeout complexity
-    const [ownerEmailRes, publicBoardRes, subUsersRes, commentersRes] = await Promise.all([
+    // Ultra-fast batch query - get only what we need for recipient resolution
+    const [ownerEmailRes, publicBoardRes, subUsersRes] = await Promise.all([
       supabase.auth.admin.getUserById(task.user_id),
       supabase.from("public_boards").select("slug").eq("user_id", task.user_id).eq("is_active", true).limit(1).maybeSingle(),
-      supabase.from("sub_users").select("email, fullname").eq("board_owner_id", task.user_id),
-      supabase.from('task_comments').select('created_by_name, created_by_type').eq('task_id', payload.taskId).neq('id', payload.commentId || '').is('deleted_at', null)
+      supabase.from("sub_users").select("email, fullname").eq("board_owner_id", task.user_id)
     ]);
 
     const ownerEmail = ownerEmailRes?.data?.user?.email ?? null;
     const publicSlug = publicBoardRes?.data?.slug || null;
     const subUsers = subUsersRes?.data || [];
-    const commenters = commentersRes?.data || [];
+
+    // Get commenters data only if we have sub-users (optimization)
+    const commenters = subUsers.length > 0 
+      ? (await supabase.from('task_comments')
+          .select('created_by_name, created_by_type')
+          .eq('task_id', payload.taskId)
+          .neq('id', payload.commentId || '')
+          .is('deleted_at', null)).data || []
+      : [];
 
 
     // Build links
@@ -151,43 +158,48 @@ serve(async (req) => {
       // Do not early return; exclude the actor later from recipients
     }
 
-    // Build participant recipients per rules: notify creator or anyone who has commented; exclude actor
+    // Optimized recipient resolution - build email map once for fast lookups
     const recipients = new Set<string>();
+    const ownerEmailLower = ownerEmail?.trim().toLowerCase() || null;
+    
+    // Create fast lookup maps
+    const subUserEmailMap = new Map(
+      subUsers.map(su => [cleanName(su.fullname), (su.email || '').trim().toLowerCase()])
+    );
 
-    // Removed global sub-user map; resolve emails only for actual commenter names to avoid notifying unrelated sub-users
-
-    // Include task creator if eligible
+    // Include task creator
     const createdByType = (task.created_by_type || '').toLowerCase();
-    const createdByNameLower = (task.created_by_name || '').trim().toLowerCase();
     if (["owner", "admin", "user"].includes(createdByType)) {
       if (ownerEmailLower) recipients.add(ownerEmailLower);
     } else if (["external_user", "sub_user"].includes(createdByType)) {
-      const creatorEmailLower = (task.external_user_email || '').trim().toLowerCase();
-      if (creatorEmailLower) recipients.add(creatorEmailLower);
-    }
-
-    // Use pre-loaded commenters data (no additional query needed)
-
-    let ownerCommented = false;
-    const subUserNames = new Set<string>();
-    for (const c of commenters || []) {
-      const t = (c.created_by_type || '').toLowerCase();
-      const name = (c.created_by_name || '').trim();
-      if (["owner","admin","user"].includes(t)) {
-        ownerCommented = true;
-      } else if (["external_user","sub_user"].includes(t) && name) {
-        subUserNames.add(name);
-      }
-    }
-    if (ownerCommented && ownerEmailLower) recipients.add(ownerEmailLower);
-
-    if (subUserNames.size > 0) {
-      const nameMap = new Map(subUsers.map(su => [cleanName(su.fullname), (su.email || '').trim().toLowerCase()]));
-      for (const nm of subUserNames) {
-        const email = nameMap.get(cleanName(nm));
+      const creatorEmail = (task.external_user_email || '').trim().toLowerCase();
+      if (creatorEmail) {
+        recipients.add(creatorEmail);
+      } else {
+        // Try to resolve sub-user creator by name
+        const creatorName = cleanName(task.created_by_name);
+        const email = subUserEmailMap.get(creatorName);
         if (email) recipients.add(email);
       }
     }
+
+    // Process commenters efficiently 
+    let ownerCommented = false;
+    const commentedSubUsers = new Set<string>();
+    
+    for (const c of commenters) {
+      const commentType = (c.created_by_type || '').toLowerCase();
+      if (["owner","admin","user"].includes(commentType)) {
+        ownerCommented = true;
+      } else if (["external_user","sub_user"].includes(commentType)) {
+        const cleanedName = cleanName(c.created_by_name);
+        const email = subUserEmailMap.get(cleanedName);
+        if (email) commentedSubUsers.add(email);
+      }
+    }
+    
+    if (ownerCommented && ownerEmailLower) recipients.add(ownerEmailLower);
+    commentedSubUsers.forEach(email => recipients.add(email));
 
     // Exclude actor (do not email the person who just commented)
     let actorEmailResolved = actorEmail;

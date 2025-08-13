@@ -52,12 +52,12 @@ const { user } = useAuth();
     queryFn: () => getTaskComments(taskId),
   });
 
-  // Realtime updates for comments on this task
+  // Enhanced realtime updates for comments - works across all board types
   useEffect(() => {
     if (!taskId) return;
 
     const channel = supabase
-      .channel(`task_comments_${taskId}_${Date.now()}`)
+      .channel(`task_comments_${taskId}_global`)
       .on(
         'postgres_changes',
         {
@@ -66,9 +66,12 @@ const { user } = useAuth();
           table: 'task_comments',
           filter: `task_id=eq.${taskId}`,
         },
-        () => {
-          // Invalidate this task's comments cache immediately
+        (payload) => {
+          console.log('Task comment real-time update:', payload);
+          // Immediate invalidation for instant updates across all board types
           queryClient.invalidateQueries({ queryKey: ['taskComments', taskId] });
+          queryClient.invalidateQueries({ queryKey: ['tasks'] });
+          queryClient.invalidateQueries({ queryKey: ['publicBoardTasks'] });
         }
       )
       .subscribe();
