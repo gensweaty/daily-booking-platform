@@ -118,25 +118,18 @@ serve(async (req) => {
     const preview = commentContent ? commentContent.slice(0, 300) : "New comment received";
     const actorName = payload.actorName || "Someone";
 
-    // Get all data in a single optimized query batch with timeout
-    const queryPromise = Promise.all([
-      // Owner email
-      supabase.auth.admin.getUserById(task.user_id).then(res => res?.data?.user?.email ?? null).catch(() => null),
-      // Public board slug  
-      supabase.from("public_boards").select("slug").eq("user_id", task.user_id).eq("is_active", true).limit(1).maybeSingle().then(res => res?.data?.slug || null).catch(() => null),
-      // Sub-users and previous commenters in one batch
-      Promise.all([
-        supabase.from("sub_users").select("email, fullname").eq("board_owner_id", task.user_id).then(res => res?.data || []).catch(() => []),
-        supabase.from('task_comments').select('created_by_name, created_by_type').eq('task_id', payload.taskId).neq('id', payload.commentId || '').is('deleted_at', null).then(res => res?.data || []).catch(() => [])
-      ])
+    // Fast parallel queries without timeout complexity
+    const [ownerEmailRes, publicBoardRes, subUsersRes, commentersRes] = await Promise.all([
+      supabase.auth.admin.getUserById(task.user_id),
+      supabase.from("public_boards").select("slug").eq("user_id", task.user_id).eq("is_active", true).limit(1).maybeSingle(),
+      supabase.from("sub_users").select("email, fullname").eq("board_owner_id", task.user_id),
+      supabase.from('task_comments').select('created_by_name, created_by_type').eq('task_id', payload.taskId).neq('id', payload.commentId || '').is('deleted_at', null)
     ]);
 
-    // Add 10 second timeout to prevent hanging
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Query timeout')), 10000)
-    );
-
-    const [ownerEmail, publicSlug, [subUsers, commenters]] = await Promise.race([queryPromise, timeoutPromise]) as [string | null, string | null, [Array<{ email: string; fullname: string | null }>, Array<{ created_by_name: string | null; created_by_type: string | null }>]];
+    const ownerEmail = ownerEmailRes?.data?.user?.email ?? null;
+    const publicSlug = publicBoardRes?.data?.slug || null;
+    const subUsers = subUsersRes?.data || [];
+    const commenters = commentersRes?.data || [];
 
 
     // Build links
