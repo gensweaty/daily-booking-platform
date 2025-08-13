@@ -4,7 +4,7 @@ import { useBoardPresence } from "@/hooks/useBoardPresence";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 
-export const TasksPresenceHeader = ({ max = 2 }: { max?: number } = {}) => {
+export const TasksPresenceHeader = ({ max = 5 }: { max?: number } = {}) => {
   const { user } = useAuth();
   const [boardId, setBoardId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string>("");
