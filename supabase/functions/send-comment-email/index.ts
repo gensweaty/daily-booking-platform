@@ -118,43 +118,25 @@ serve(async (req) => {
     const preview = commentContent ? commentContent.slice(0, 300) : "New comment received";
     const actorName = payload.actorName || "Someone";
 
-    // Get owner email, public board slug, and sub-users (fullname + email) in parallel to reduce latency
-    const [ownerEmail, publicSlug, subUsers] = await Promise.all([
-      (async () => {
-        try {
-          const { data: ownerRes } = await supabase.auth.admin.getUserById(task.user_id);
-          return ownerRes?.user?.email ?? null;
-        } catch (e) {
-          console.log("Owner email lookup failed", e);
-          return null;
-        }
-      })(),
-      (async () => {
-        const { data: board } = await supabase
-          .from("public_boards")
-          .select("slug")
-          .eq("user_id", task.user_id)
-          .eq("is_active", true)
-          .limit(1)
-          .maybeSingle();
-        return board?.slug || null;
-      })(),
-      (async () => {
-        try {
-          const { data: subs, error: subErr } = await supabase
-            .from("sub_users")
-            .select("email, fullname")
-            .eq("board_owner_id", task.user_id);
-          if (!subErr && subs) {
-            return subs as Array<{ email: string; fullname: string | null }>;
-          }
-          return [] as Array<{ email: string; fullname: string | null }>;
-        } catch (e) {
-          console.log("Sub-users lookup failed", e);
-          return [] as Array<{ email: string; fullname: string | null }>;
-        }
-      })(),
+    // Get all data in a single optimized query batch with timeout
+    const queryPromise = Promise.all([
+      // Owner email
+      supabase.auth.admin.getUserById(task.user_id).then(res => res?.data?.user?.email ?? null).catch(() => null),
+      // Public board slug  
+      supabase.from("public_boards").select("slug").eq("user_id", task.user_id).eq("is_active", true).limit(1).maybeSingle().then(res => res?.data?.slug || null).catch(() => null),
+      // Sub-users and previous commenters in one batch
+      Promise.all([
+        supabase.from("sub_users").select("email, fullname").eq("board_owner_id", task.user_id).then(res => res?.data || []).catch(() => []),
+        supabase.from('task_comments').select('created_by_name, created_by_type').eq('task_id', payload.taskId).neq('id', payload.commentId || '').is('deleted_at', null).then(res => res?.data || []).catch(() => [])
+      ])
     ]);
+
+    // Add 10 second timeout to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Query timeout')), 10000)
+    );
+
+    const [ownerEmail, publicSlug, [subUsers, commenters]] = await Promise.race([queryPromise, timeoutPromise]) as [string | null, string | null, [Array<{ email: string; fullname: string | null }>, Array<{ created_by_name: string | null; created_by_type: string | null }>]];
 
 
     // Build links
@@ -191,17 +173,7 @@ serve(async (req) => {
       if (creatorEmailLower) recipients.add(creatorEmailLower);
     }
 
-    // Load previous commenters (exclude current comment) and include only them
-    const { data: commenters, error: commentersErr } = await supabase
-      .from('task_comments')
-      .select('created_by_name, created_by_type')
-      .eq('task_id', payload.taskId)
-      .neq('id', payload.commentId || '')
-      .is('deleted_at', null);
-
-    if (commentersErr) {
-      console.log('Commenters lookup failed', commentersErr);
-    }
+    // Use pre-loaded commenters data (no additional query needed)
 
     let ownerCommented = false;
     const subUserNames = new Set<string>();
