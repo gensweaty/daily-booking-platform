@@ -118,25 +118,19 @@ serve(async (req) => {
     const preview = commentContent ? commentContent.slice(0, 300) : "New comment received";
     const actorName = payload.actorName || "Someone";
 
-    // Ultra-fast batch query - get only what we need for recipient resolution
-    const [ownerEmailRes, publicBoardRes, subUsersRes] = await Promise.all([
+    // Ultra-fast minimal queries - get only essential data
+    const [ownerEmailRes, subUsersRes] = await Promise.all([
       supabase.auth.admin.getUserById(task.user_id),
-      supabase.from("public_boards").select("slug").eq("user_id", task.user_id).eq("is_active", true).limit(1).maybeSingle(),
-      supabase.from("sub_users").select("email, fullname").eq("board_owner_id", task.user_id)
+      supabase.from("sub_users").select("email, fullname").eq("board_owner_id", task.user_id).limit(50) // Limit to prevent huge queries
     ]);
 
     const ownerEmail = ownerEmailRes?.data?.user?.email ?? null;
-    const publicSlug = publicBoardRes?.data?.slug || null;
     const subUsers = subUsersRes?.data || [];
 
-    // Get commenters data only if we have sub-users (optimization)
-    const commenters = subUsers.length > 0 
-      ? (await supabase.from('task_comments')
-          .select('created_by_name, created_by_type')
-          .eq('task_id', payload.taskId)
-          .neq('id', payload.commentId || '')
-          .is('deleted_at', null)).data || []
-      : [];
+    // Get public board slug only if no owner email (rare case)
+    const publicSlug = !ownerEmail ? 
+      (await supabase.from("public_boards").select("slug").eq("user_id", task.user_id).eq("is_active", true).limit(1).maybeSingle()).data?.slug || null 
+      : null;
 
 
     // Build links
@@ -158,47 +152,24 @@ serve(async (req) => {
       // Do not early return; exclude the actor later from recipients
     }
 
-    // Optimized recipient resolution - build email map once for fast lookups
+    // FAST recipient resolution - notify all relevant users immediately
     const recipients = new Set<string>();
     
-    // Create fast lookup maps
-    const subUserEmailMap = new Map(
-      subUsers.map(su => [cleanName(su.fullname), (su.email || '').trim().toLowerCase()])
-    );
-
-    // Include task creator
+    // Always notify the task owner if it exists
+    if (ownerEmailLower) recipients.add(ownerEmailLower);
+    
+    // Always notify all sub-users (they are likely interested in task activity)  
+    subUsers.forEach(su => {
+      const email = (su.email || '').trim().toLowerCase();
+      if (email) recipients.add(email);
+    });
+    
+    // If task was created by external user, make sure they get notified
     const createdByType = (task.created_by_type || '').toLowerCase();
-    if (["owner", "admin", "user"].includes(createdByType)) {
-      if (ownerEmailLower) recipients.add(ownerEmailLower);
-    } else if (["external_user", "sub_user"].includes(createdByType)) {
+    if (["external_user", "sub_user"].includes(createdByType)) {
       const creatorEmail = (task.external_user_email || '').trim().toLowerCase();
-      if (creatorEmail) {
-        recipients.add(creatorEmail);
-      } else {
-        // Try to resolve sub-user creator by name
-        const creatorName = cleanName(task.created_by_name);
-        const email = subUserEmailMap.get(creatorName);
-        if (email) recipients.add(email);
-      }
+      if (creatorEmail) recipients.add(creatorEmail);
     }
-
-    // Process commenters efficiently 
-    let ownerCommented = false;
-    const commentedSubUsers = new Set<string>();
-    
-    for (const c of commenters) {
-      const commentType = (c.created_by_type || '').toLowerCase();
-      if (["owner","admin","user"].includes(commentType)) {
-        ownerCommented = true;
-      } else if (["external_user","sub_user"].includes(commentType)) {
-        const cleanedName = cleanName(c.created_by_name);
-        const email = subUserEmailMap.get(cleanedName);
-        if (email) commentedSubUsers.add(email);
-      }
-    }
-    
-    if (ownerCommented && ownerEmailLower) recipients.add(ownerEmailLower);
-    commentedSubUsers.forEach(email => recipients.add(email));
 
     // Exclude actor (do not email the person who just commented)
     let actorEmailResolved = actorEmail;
