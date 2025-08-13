@@ -347,7 +347,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
         <div className="grid sm:hidden grid-cols-[auto_1fr_auto] items-center w-full">
           <h2 className="text-2xl font-bold text-foreground">{t('dashboard.tasks')}</h2>
           <div className="flex items-center justify-center">
-            <PresenceAvatars users={onlineUsers} currentUserEmail={externalUserEmail} max={2} />
+            <PresenceAvatars users={onlineUsers} currentUserEmail={externalUserEmail} max={5} />
           </div>
           <Button 
             onClick={() => setIsAddingTask(true)}
@@ -364,8 +364,8 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
         <div className="hidden sm:flex flex-row items-center justify-between gap-4">
           <h2 className="text-2xl font-bold text-foreground">{t('dashboard.tasks')}</h2>
           <div className="flex items-center gap-3">
-            <PresenceAvatars users={onlineUsers} currentUserEmail={externalUserEmail} max={2} />
-            <Button 
+            <PresenceAvatars users={onlineUsers} currentUserEmail={externalUserEmail} max={5} />
+            <Button
               onClick={() => setIsAddingTask(true)}
               className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-4 text-sm min-w-[120px]"
             >
