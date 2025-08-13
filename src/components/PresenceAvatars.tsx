@@ -11,8 +11,10 @@ interface PresenceAvatarsProps {
 }
 
 export function PresenceAvatars({ users, currentUserEmail, max = 5 }: PresenceAvatarsProps) {
-  const visible = users.slice(0, max);
-  const extra = users.length - visible.length;
+  // Filter out current user from display - they shouldn't see themselves
+  const otherUsers = users.filter(user => user.email !== currentUserEmail);
+  const visible = otherUsers.slice(0, max);
+  const extra = otherUsers.length - visible.length;
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { toast } = useToast();
 
@@ -35,15 +37,13 @@ export function PresenceAvatars({ users, currentUserEmail, max = 5 }: PresenceAv
         <TooltipProvider>
           {visible.map((u) => {
             const displayName = (u.name || 'User');
-            const isCurrent = u.email === currentUserEmail;
             return (
               <Tooltip key={u.email}>
                 <TooltipTrigger asChild>
                   <Avatar
                       className={cn(
                         "h-6 w-6 sm:h-7 sm:w-7 ring-2 ring-offset-2 ring-offset-background transition-all duration-200 hover:scale-110 shadow-sm",
-                        "bg-card text-foreground/80",
-                        isCurrent ? "ring-primary" : "ring-muted"
+                        "bg-card text-foreground/80 ring-muted"
                       )}
                       title={displayName}
                       aria-label={displayName}
