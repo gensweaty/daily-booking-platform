@@ -325,7 +325,7 @@ export const DashboardContent = ({
               <Card className="min-h-[calc(100vh-12rem)]">
                  <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
                    <CardTitle>
-<div className="flex w-full items-center gap-2">
+<div className="flex w-full items-center justify-between gap-2">
   {/* Mobile: Title on left, presence circles on right */}
   <div className="flex-1 min-w-0">
     {showArchive ? (
@@ -344,14 +344,17 @@ export const DashboardContent = ({
       )
     )}
   </div>
-  {/* Mobile presence circles aligned to right */}
+  {/* Mobile presence circles on same line, separated from title */}
+  <div className="flex sm:hidden ml-2">
+    <TasksPresenceHeader max={5} />
+  </div>
 </div>
-                   </CardTitle>
-                    <div className="flex items-center gap-2 ml-auto">
-                        {/* Show presence circles on both mobile and desktop */}
-                         <div className="flex">
-                           <TasksPresenceHeader max={5} />
-                         </div>
+                    </CardTitle>
+                     <div className="flex items-center gap-2 ml-auto">
+                         {/* Desktop presence circles */}
+                          <div className="hidden sm:flex">
+                            <TasksPresenceHeader max={5} />
+                          </div>
                        {!showArchive && (
                          <>
                            <PublicBoardSettings />
