@@ -109,7 +109,6 @@ export const CustomerList = ({
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { isSubUser } = useSubUserPermissions();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [filteredData, setFilteredData] = useState<any[]>([]);
@@ -175,186 +174,56 @@ export const CustomerList = ({
   }, [user?.id, t, toast]);
 
   const canEditDelete = useCallback((customer: any) => {
-    // For non-public mode (regular authenticated users), check if they're a sub-user
-    if (!isPublicMode && !isSubUser) return true;
+    if (!isPublicMode) return true;
     
-    console.log('🔍 Checking permissions for customer:', {
-      id: customer.id,
-      created_by_type: customer.created_by_type,
-      created_by_name: customer.created_by_name,
-      last_edited_by_type: customer.last_edited_by_type,
-      last_edited_by_name: customer.last_edited_by_name,
-      user_id: customer.user_id,
-      externalUserName,
-      publicBoardUserId,
-      isSubUser,
-      currentUserEmail: user?.email
-    });
-    
-    // Permission logic for both public mode (external sub-users) and regular sub-users
-    if (isPublicMode) {
-      // In public mode, allow edit/delete if:
-      // 1. The item was created by this sub-user, OR
-      // 2. The item was last edited by this sub-user, OR  
-      // 3. Legacy data without creator info but belongs to the board owner (for backwards compatibility)
-      const canEdit = (customer.created_by_type === 'sub_user' && customer.created_by_name === externalUserName) ||
-             (customer.last_edited_by_type === 'sub_user' && customer.last_edited_by_name === externalUserName) ||
-             (!customer.created_by_type && !customer.created_by_name && customer.user_id === publicBoardUserId);
-      
-      console.log('🔍 Public mode permission result:', canEdit);
-      return canEdit;
-    } else if (isSubUser) {
-      // For regular authenticated sub-users, allow edit/delete if:
-      // 1. The item was created by this sub-user (PRIMARY CHECK), OR
-      // 2. The item was last edited by this sub-user (SECONDARY CHECK), OR
-      // 3. Legacy data without metadata (BACKWARDS COMPATIBILITY)
-      const userEmail = user?.email;
-      if (!userEmail) return false;
-      
-      // Primary check: created_by metadata
-      if (customer.created_by_type === 'sub_user' && customer.created_by_name === userEmail) {
-        console.log('✅ Permission granted: Created by this sub-user');
-        return true;
-      }
-      
-      // Secondary check: last_edited_by metadata
-      if (customer.last_edited_by_type === 'sub_user' && customer.last_edited_by_name === userEmail) {
-        console.log('✅ Permission granted: Last edited by this sub-user');
-        return true;
-      }
-      
-      // Legacy fallback: no metadata exists
-      if (!customer.created_by_type && !customer.created_by_name && !customer.last_edited_by_type && !customer.last_edited_by_name) {
-        console.log('✅ Permission granted: Legacy data without metadata');
-        return true;
-      }
-      
-      console.log('❌ Permission denied: Not created or edited by this sub-user');
-      return false;
-    }
-    
-    return true; // Admin has all permissions
-  }, [isPublicMode, externalUserName, publicBoardUserId, isSubUser, user?.email, user?.id]);
-
-  // Helper function to get the effective user ID for operations
-  const getEffectiveUserId = () => {
-    console.log('🔍 CustomerList getEffectiveUserId:', {
-      isPublicMode,
-      publicBoardUserId,
-      userId: user?.id,
-      userEmail: user?.email,
-      isSubUser
-    });
-    
-    // For public mode, use the board owner's ID
-    if (isPublicMode && publicBoardUserId) {
-      return publicBoardUserId;
-    }
-    
-    // For authenticated users (including sub-users), use their actual user ID
-    if (user?.id) {
-      return user.id;
-    }
-    
-    return null;
-  };
+    // In public mode, allow edit/delete if:
+    // 1. The item was created by this sub-user (directly or via events), OR
+    // 2. Legacy data without creator info (for backwards compatibility)
+    return (customer.created_by_type === 'sub_user' && customer.created_by_name === externalUserName) ||
+           (!customer.created_by_type && !customer.created_by_name);
+  }, [isPublicMode, externalUserName]);
 
   const handleConfirmDelete = useCallback(async () => {
-    if (!customerToDelete) {
-      toast({
-        title: t("common.error"),
-        description: "No customer selected for deletion",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!customerToDelete || !user?.id) return;
 
-    const effectiveUserId = getEffectiveUserId();
-    
-    console.log('🗑️ Customer deletion attempt:', {
-      customerId: customerToDelete?.id,
-      customerEventId: customerToDelete?.event_id,
-      effectiveUserId,
-      isPublicMode,
-      publicBoardUserId,
-      userId: user?.id,
-      hasPermissions: canEditDelete(customerToDelete),
-      customerCreatedBy: customerToDelete?.created_by_name,
-      customerCreatedByType: customerToDelete?.created_by_type
-    });
-    
-    if (!effectiveUserId) {
+    // Check permissions in public mode
+    if (isPublicMode && !canEditDelete(customerToDelete)) {
       toast({
         title: t("common.error"),
-        description: "Authentication required for deletion",
+        description: "You can only delete items you created",
         variant: "destructive",
       });
-      setCustomerToDelete(null);
-      setIsDeleteConfirmOpen(false);
-      return;
-    }
-    
-    // For authenticated users, check if they have permission to delete
-    if (!isPublicMode && !canEditDelete(customerToDelete)) {
-      console.log('❌ Authenticated user lacks permission to delete customer');
-      toast({
-        title: t("common.error"),
-        description: "You don't have permission to delete this customer",
-        variant: "destructive",
-      });
-      setCustomerToDelete(null);
-      setIsDeleteConfirmOpen(false);
       return;
     }
 
     try {
-      console.log('🗑️ Starting customer deletion process...');
-      
       if (customerToDelete.id.startsWith('event-')) {
         const eventId = customerToDelete.id.replace('event-', '');
-        console.log('📅 Deleting event (soft delete):', eventId);
         const { error } = await supabase
           .from('events')
           .update({ 
             deleted_at: new Date().toISOString(),
             last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
-            last_edited_by_name: isPublicMode ? externalUserName : user?.email,
+            last_edited_by_name: isPublicMode ? externalUserName : user.email,
             last_edited_at: new Date().toISOString()
           })
           .eq('id', eventId)
-          .eq('user_id', effectiveUserId);
+          .eq('user_id', isPublicMode ? publicBoardUserId : user.id);
 
-        if (error) {
-          console.error('❌ Event deletion error:', error);
-          throw error;
-        }
-        console.log('✅ Event soft deleted successfully');
+        if (error) throw error;
       } else {
-        console.log('👤 Deleting customer (hard delete):', customerToDelete.id);
         const { error } = await supabase
           .from('customers')
-          .delete()
+          .update({ 
+            deleted_at: new Date().toISOString(),
+            last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
+            last_edited_by_name: isPublicMode ? externalUserName : user.email,
+            last_edited_at: new Date().toISOString()
+          })
           .eq('id', customerToDelete.id)
-          .eq('user_id', effectiveUserId);
+          .eq('user_id', isPublicMode ? publicBoardUserId : user.id);
 
-        if (error) {
-          console.error('❌ Customer deletion error:', error);
-          throw error;
-        }
-        console.log('✅ Customer deleted successfully');
-
-        // Also delete associated files
-        console.log('📎 Deleting customer files...');
-        const { error: filesError } = await supabase
-          .from('customer_files_new')
-          .delete()
-          .eq('customer_id', customerToDelete.id);
-
-        if (filesError) {
-          console.warn('⚠️ Error deleting customer files:', filesError);
-        } else {
-          console.log('✅ Customer files deleted');
-        }
+        if (error) throw error;
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
@@ -377,7 +246,7 @@ export const CustomerList = ({
         variant: "destructive",
       });
     }
-  }, [customerToDelete, user?.id, publicBoardUserId, queryClient, toast, t, isPublicMode, canEditDelete, externalUserName]);
+  }, [customerToDelete, user?.id, queryClient, toast, t, isPublicMode, canEditDelete, externalUserName]);
 
   const handleSearchSelect = useCallback((customer: any) => {
     openEditDialog(customer);

@@ -422,18 +422,10 @@ export const translations: TranslationType = {
     weekOf: "Semana de"
   },
   common: {
-    add: "Agregar",
     cancel: "Cancelar",
     success: "Éxito",
     error: "Error",
     warning: "Advertencia",
-    metadata: "Detalles del Elemento",
-    createdBy: "Creado por",
-    lastEditedBy: "Última edición por",
-    created: "Creado",
-    updated: "Actualizado",
-    subUser: "Sub Usuario",
-    admin: "Administrador",
     submitting: "Enviando...",
     loading: "Cargando...",
     rateLimitReached: "Límite de Tasa Alcanzado",
@@ -471,6 +463,7 @@ export const translations: TranslationType = {
     hoursAgo: "hace horas",
     daysAgo: "hace días",
     schedule: "Cronograma",
+    created: "Creado:",
     lastUpdated: "Última actualización:",
     by: "por",
     

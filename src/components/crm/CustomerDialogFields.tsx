@@ -13,7 +13,7 @@ import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Clock, ChevronUp, ChevronDown, History } from "lucide-react";
+import { CalendarIcon, Clock, ChevronUp, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -53,18 +53,6 @@ interface CustomerDialogFieldsProps {
   setEventEndDate: (date: Date) => void;
   fileBucketName?: string;
   fallbackBuckets?: string[];
-  metadata?: {
-    created_by_type?: string;
-    created_by_name?: string;
-    last_edited_by_type?: string;
-    last_edited_by_name?: string;
-    last_edited_at?: string;
-    created_at?: string;
-    updated_at?: string;
-  };
-  // External user context for public boards
-  externalUserName?: string;
-  externalUserEmail?: string;
 }
 
 export const CustomerDialogFields = ({
@@ -100,9 +88,6 @@ export const CustomerDialogFields = ({
   setEventEndDate,
   fileBucketName = "customer_attachments",
   fallbackBuckets = [],
-  metadata,
-  externalUserName,
-  externalUserEmail,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
@@ -111,21 +96,12 @@ export const CustomerDialogFields = ({
   // Show payment amount field if payment status is partly_paid or fully_paid
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
 
-  // Helper function to normalize names - same as TaskFullView
-  const normalizeName = (name?: string) => {
-    if (!name) return undefined;
-    if (name.includes('@')) {
-      return externalUserName || name.split('@')[0];
-    }
-    return name;
-  };
-
-  // Helper function to format date and time for display - matching TaskFullView format
+  // Helper function to format date and time for display
   const formatDateTime = (dateStr: string | null | undefined) => {
     if (!dateStr) return "-";
     try {
       const date = new Date(dateStr);
-      return format(date, 'MM/dd/yy HH:mm'); // Same format as TaskFullView
+      return format(date, "PPp"); // Format using date-fns for localized date and time
     } catch (error) {
       console.error("Error formatting date:", error);
       return dateStr;
@@ -523,40 +499,6 @@ export const CustomerDialogFields = ({
         </>
       )}
 
-      {/* Customer Metadata - matching TaskFullView design exactly */}
-      {(metadata?.created_at || metadata?.updated_at) && (
-        <div className="px-2 py-1 sm:px-3 sm:py-2 rounded-md border border-border bg-card text-card-foreground w-fit">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-muted-foreground">
-            <div className="flex items-center">
-              <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-              <span className="truncate">
-                {t("common.created")} {formatDateTime(metadata.created_at)}
-                {metadata.created_by_name && (
-                  <span className="ml-1">
-                    {language === 'ka' 
-                      ? `${normalizeName(metadata.created_by_name)}-ს ${t("common.by")}` 
-                      : `${t("common.by")} ${normalizeName(metadata.created_by_name)}`}
-                  </span>
-                )}
-              </span>
-            </div>
-            <div className="flex items-center">
-              <History className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-              <span className="truncate">
-                {t("common.lastUpdated")} {formatDateTime(metadata.updated_at || metadata.created_at)}
-                {metadata.last_edited_by_name && metadata.last_edited_at && (
-                  <span className="ml-1">
-                    {language === 'ka' 
-                      ? `${normalizeName(metadata.last_edited_by_name)}-ს ${t("common.by")}` 
-                      : `${t("common.by")} ${normalizeName(metadata.last_edited_by_name)}`}
-                  </span>
-                )}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="space-y-2">
         <Label htmlFor="notes">{t("crm.comment")}</Label>
         <Textarea
@@ -588,46 +530,6 @@ export const CustomerDialogFields = ({
           setFileError={setFileError}
         />
       </div>
-
-      {/* Display customer metadata - matching TaskFullView format */}
-      {metadata && (
-        <div className="rounded-md bg-muted p-3 space-y-2">
-          <Label className="font-medium flex items-center gap-2">
-            <History className="h-4 w-4" />
-            {t("common.metadata")}
-          </Label>
-          
-          <div className="text-sm space-y-1">
-            {metadata.created_at && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">{t("common.created")}:</span>
-                <span>
-                  {formatDateTime(metadata.created_at)}
-                  {metadata.created_by_name && (
-                    <span className="text-muted-foreground ml-1">
-                      by {normalizeName(metadata.created_by_name)}
-                    </span>
-                  )}
-                </span>
-              </div>
-            )}
-            
-            {metadata.updated_at && metadata.updated_at !== metadata.created_at && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">{t("common.lastEdited")}:</span>
-                <span>
-                  {formatDateTime(metadata.updated_at)}
-                  {metadata.last_edited_by_name && (
-                    <span className="text-muted-foreground ml-1">
-                      by {normalizeName(metadata.last_edited_by_name)}
-                    </span>
-                  )}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

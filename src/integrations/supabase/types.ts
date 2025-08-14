@@ -1539,23 +1539,12 @@ export type Database = {
         }[]
       }
       save_event_with_persons: {
-        Args:
-          | {
-              p_additional_persons: Json
-              p_created_by_name?: string
-              p_created_by_type?: string
-              p_event_data: Json
-              p_event_id?: string
-              p_last_edited_by_name?: string
-              p_last_edited_by_type?: string
-              p_user_id: string
-            }
-          | {
-              p_additional_persons: Json
-              p_event_data: Json
-              p_event_id?: string
-              p_user_id: string
-            }
+        Args: {
+          p_additional_persons: Json
+          p_event_data: Json
+          p_event_id?: string
+          p_user_id: string
+        }
         Returns: string
       }
       validate_and_use_redeem_code: {

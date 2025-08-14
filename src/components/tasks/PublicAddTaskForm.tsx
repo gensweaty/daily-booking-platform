@@ -54,32 +54,19 @@ export const PublicAddTaskForm = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     
-    console.log('🎯 PublicAddTaskForm submit started:', {
-      boardUserId,
-      externalUserName,
-      externalUserEmail,
-      title,
-      description,
-      status,
-      deadline,
-      reminderAt,
-      emailReminder,
-      editingTask: !!editingTask
-    });
+    if (!title.trim()) {
+      toast({
+        title: t("common.error"),
+        description: t("tasks.titleRequired"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
 
     try {
-      if (!title.trim()) {
-        toast({
-          title: "Error",
-          description: t("tasks.titleRequired"),
-          variant: "destructive"
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
       // Validate deadline if provided
       if (deadline) {
         const deadlineValidation = await validateDateTime(deadline, 'deadline');
@@ -112,48 +99,33 @@ export const PublicAddTaskForm = ({
         }
       }
 
-      // Determine the correct user context for task creation
-      const isAuthenticatedUser = !externalUserName && !externalUserEmail;
-      const currentUserName = isAuthenticatedUser ? 'User' : externalUserName;
-      const currentUserType = isAuthenticatedUser ? 'admin' : 'external_user';
-      
-      console.log('📝 Task data preparation:', {
-        isAuthenticatedUser,
-        currentUserName,
-        currentUserType,
-        boardUserId,
-        actualUserId: boardUserId
-      });
-
       const taskData = {
         title,
         description,
         status: status,
-        user_id: boardUserId, // Always use board user ID for task ownership
+        user_id: boardUserId,
         position: editingTask?.position || 0,
         deadline_at: deadline && deadline.trim() !== '' ? deadline : null,
         reminder_at: reminderAt && reminderAt.trim() !== '' ? reminderAt : null,
         email_reminder_enabled: emailReminder && reminderAt ? emailReminder : false,
-        external_user_email: isAuthenticatedUser ? null : externalUserEmail,
-        external_user_name: isAuthenticatedUser ? null : externalUserName,
-        created_by_type: currentUserType,
-        created_by_name: currentUserName,
+        external_user_email: externalUserEmail, // Store external user email for reminders
         ...(editingTask ? {
-          last_edited_by_type: currentUserType,
-          last_edited_by_name: currentUserName,
+          // External user editing
+          last_edited_by_type: 'external_user',
+          last_edited_by_name: `${externalUserName} (Sub User)`,
           last_edited_at: new Date().toISOString()
         } : {
-          last_edited_by_type: currentUserType,
-          last_edited_by_name: currentUserName,
+          // External user creating
+          created_by_type: 'external_user',
+          created_by_name: `${externalUserName} (Sub User)`,
+          last_edited_by_type: 'external_user',
+          last_edited_by_name: `${externalUserName} (Sub User)`,
           last_edited_at: new Date().toISOString()
         })
       };
 
-      console.log('📝 Task data prepared:', taskData);
-
       let taskResponse;
       if (editingTask) {
-        console.log('🔄 Updating existing task:', editingTask.id);
         const { data, error } = await supabase
           .from('tasks')
           .update(taskData)
@@ -162,26 +134,17 @@ export const PublicAddTaskForm = ({
           .select()
           .single();
 
-        if (error) {
-          console.error('❌ Task update error:', error);
-          throw error;
-        }
+        if (error) throw error;
         taskResponse = data;
-        console.log('✅ Task updated successfully:', taskResponse);
       } else {
-        console.log('➕ Creating new task');
         const { data, error } = await supabase
           .from('tasks')
           .insert(taskData)
           .select()
           .single();
 
-        if (error) {
-          console.error('❌ Task creation error:', error);
-          throw error;
-        }
+        if (error) throw error;
         taskResponse = data;
-        console.log('✅ Task created successfully:', taskResponse);
       }
 
       // Handle file upload with proper bucket assignment
@@ -236,13 +199,6 @@ export const PublicAddTaskForm = ({
         }
       });
       
-      console.log('✅ Task operation completed successfully');
-      
-      // Invalidate queries to refresh the task list
-      await queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      await queryClient.invalidateQueries({ queryKey: ['publicTasks', boardUserId] });
-      await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
-      
       toast({
         title: t("common.success"),
         description: editingTask ? t("tasks.taskUpdated") : t("tasks.taskAdded"),
@@ -250,18 +206,7 @@ export const PublicAddTaskForm = ({
       
       onClose();
     } catch (error: any) {
-      console.error('❌ Task operation error:', {
-        error: error.message,
-        details: error,
-        taskData: {
-          title,
-          description,
-          status,
-          boardUserId,
-          externalUserName,
-          externalUserEmail
-        }
-      });
+      console.error('Task operation error:', error);
       toast({
         title: "Error",
         description: error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Please try again.`,
