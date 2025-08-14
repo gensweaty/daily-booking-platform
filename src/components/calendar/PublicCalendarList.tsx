@@ -43,6 +43,7 @@ export const PublicCalendarList = ({
   onlineUsers,
   hasPermissions = false
 }: PublicCalendarListProps) => {
+  console.log('🔍 PublicCalendarList props:', { hasPermissions, externalUserName, boardUserId });
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
@@ -231,8 +232,13 @@ export const PublicCalendarList = ({
   };
 
   const handleAddEventClick = () => {
-    if (!hasPermissions) return;
+    console.log('🔍 Add Event clicked - hasPermissions:', hasPermissions);
+    if (!hasPermissions) {
+      console.log('❌ No permissions - returning early');
+      return;
+    }
     
+    console.log('✅ Permissions ok - opening dialog');
     const now = new Date();
     now.setHours(9, 0, 0, 0);
     

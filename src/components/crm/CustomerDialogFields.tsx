@@ -560,31 +560,28 @@ export const CustomerDialogFields = ({
         />
       </div>
 
-      {/* Display metadata for existing customers/events at the bottom */}
+      {/* Display metadata for existing customers/events at the bottom - exact same style as EventDialog */}
       {initialData && (initialData.created_at || initialData.updated_at) && (
-        <div className="flex flex-col gap-2 text-sm text-muted-foreground rounded-md p-4 border border-border bg-card">
-          {initialData.created_at && (
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              <span>
-                {language === 'ka' ? (
-                  <GeorgianAuthText letterSpacing="-0.05px">შექმნა:</GeorgianAuthText>
-                ) : (
-                  t("common.created")
-                )} {formatMetadataDate(initialData.created_at)}
+        <div className="flex items-center text-sm text-muted-foreground mb-4 rounded-md p-4 py-[8px] px-[8px] border border-border bg-card">
+          <span className="flex items-center mr-4">
+            <Clock className="mr-1 h-4 w-4" />
+            <span>
+              {language === 'ka' ? (
+                <GeorgianAuthText letterSpacing="-0.05px">შექმნა:</GeorgianAuthText>
+              ) : (
+                t("common.created")
+              )} {formatMetadataDate(initialData.created_at)}
+            </span>
+            {initialData.created_by_type && (
+              <span className="ml-2 flex items-center">
+                {renderMetadataIcon(initialData.created_by_type)}
+                <span className="ml-1">{formatMetadataName(initialData.created_by_name, initialData.created_by_type)}</span>
               </span>
-              {initialData.created_by_type && (
-                <div className="flex items-center gap-1">
-                  {renderMetadataIcon(initialData.created_by_type)}
-                  <span>{formatMetadataName(initialData.created_by_name, initialData.created_by_type)}</span>
-                </div>
-              )}
-            </div>
-          )}
-          
+            )}
+          </span>
           {initialData.updated_at && (
-            <div className="flex items-center gap-2">
-              <RefreshCcw className="h-4 w-4" />
+            <span className="flex items-center">
+              <RefreshCcw className="mr-1 h-4 w-4" />
               <span>
                 {language === 'ka' ? (
                   <GeorgianAuthText letterSpacing="-0.05px">ბოლო განახლება:</GeorgianAuthText>
@@ -593,12 +590,12 @@ export const CustomerDialogFields = ({
                 )} {formatMetadataDate(initialData.updated_at)}
               </span>
               {initialData.last_edited_by_type && (
-                <div className="flex items-center gap-1">
+                <span className="ml-2 flex items-center">
                   {renderMetadataIcon(initialData.last_edited_by_type)}
-                  <span>{formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}</span>
-                </div>
+                  <span className="ml-1">{formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}</span>
+                </span>
               )}
-            </div>
+            </span>
           )}
         </div>
       )}

@@ -112,12 +112,14 @@ export const PublicBoardNavigation = ({
           // User is a sub-user
           setIsSubUser(true);
           // IMPORTANT: Give calendar permission by default for adding events
-          setPermissions({
+          const finalPermissions = {
             calendar_permission: true, // Always allow calendar access for sub-users
             crm_permission: subUserData.crm_permission || false,
             statistics_permission: subUserData.statistics_permission || false,
-          });
-          console.log('✅ Sub-user found with calendar access enabled');
+          };
+          setPermissions(finalPermissions);
+          console.log('✅ Sub-user found with permissions:', finalPermissions);
+          console.log('🔍 Will pass to PublicCalendarList hasPermissions:', true);
         } else {
           // User is not found as sub-user, assume admin
           setIsSubUser(false);
@@ -254,13 +256,13 @@ export const PublicBoardNavigation = ({
                            initial="hidden"
                            animate="visible"
                          >
-                          <PublicCalendarList 
-                            boardUserId={boardUserId}
-                            externalUserName={fullName}
-                            externalUserEmail={email}
-                            onlineUsers={onlineUsers}
-                            hasPermissions={!!permissions?.calendar_permission}
-                          />
+                           <PublicCalendarList 
+                             boardUserId={boardUserId}
+                             externalUserName={fullName}
+                             externalUserEmail={email}
+                             onlineUsers={onlineUsers}
+                             hasPermissions={!!permissions?.calendar_permission}
+                           />
                          </motion.div>
                      </CardContent>
                   </Card>
