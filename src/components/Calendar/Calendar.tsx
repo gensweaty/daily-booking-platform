@@ -28,6 +28,8 @@ import { BookingRequestForm } from "../business/BookingRequestForm";
 import { useToast } from "@/hooks/use-toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
+import { PermissionGate } from "@/components/PermissionGate";
+import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -41,7 +43,7 @@ interface CalendarProps {
   directEvents?: CalendarEventType[];
 }
 
-export const Calendar = ({ 
+const CalendarContent = ({ 
   defaultView = "week", 
   currentView,
   onViewChange,
@@ -365,5 +367,13 @@ export const Calendar = ({
         </Dialog>
       )}
     </div>
+  );
+};
+
+export const Calendar = (props: CalendarProps) => {
+  return (
+    <PermissionGate requiredPermission="calendar">
+      <CalendarContent {...props} />
+    </PermissionGate>
   );
 };

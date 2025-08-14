@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog } from "lucide-react";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -15,6 +15,8 @@ import * as XLSX from 'xlsx';
 import { LanguageText } from "@/components/shared/LanguageText";
 import { getCurrencySymbol } from "@/lib/currency";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { PermissionGate } from "@/components/PermissionGate";
+import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 import {
   Table,
   TableBody,

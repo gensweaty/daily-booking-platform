@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Trash2, Clock, Mail, User } from "lucide-react";
+import { Users, Trash2, Clock, Mail, User, Settings, Calendar, BarChart3, UserCog } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,15 +7,11 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Switch } from "@/components/ui/switch";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { UserWithPermissions } from "@/hooks/useSubUserPermissions";
 
-interface SubUser {
-  id: string;
-  fullname: string;
-  email: string;
-  last_login_at: string;
-  created_at: string;
-}
+interface SubUser extends UserWithPermissions {}
 
 interface SubUsersSectionProps {
   boardOwnerId?: string;
@@ -28,6 +24,7 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedSubUser, setSelectedSubUser] = useState<SubUser | null>(null);
+  const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
   useEffect(() => {
     if (boardOwnerId) {
@@ -128,6 +125,36 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
     }
   };
 
+  const handlePermissionUpdate = async (subUserId: string, permission: string, value: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('sub_users')
+        .update({ [permission]: value })
+        .eq('id', subUserId);
+
+      if (error) throw error;
+
+      // Update local state
+      setSubUsers(prev => prev.map(user => 
+        user.id === subUserId 
+          ? { ...user, [permission]: value }
+          : user
+      ));
+
+      toast({
+        title: "Permission Updated",
+        description: `${permission.replace('_', ' ')} permission ${value ? 'granted' : 'revoked'} successfully`,
+      });
+    } catch (error) {
+      console.error('Error updating permission:', error);
+      toast({
+        title: t("common.error"),
+        description: "Failed to update permission",
+        variant: "destructive",
+      });
+    }
+  };
+
   const formatLastLogin = (lastLoginAt: string) => {
     const date = new Date(lastLoginAt);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { 
@@ -189,20 +216,111 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
                              {t("publicBoard.lastLogin")}: {formatLastLogin(subUser.last_login_at)}
                            </span>
                         </div>
+                        
+                        {/* Permission indicators */}
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {subUser.calendar_permission && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 rounded-full text-xs">
+                              <Calendar className="h-3 w-3" />
+                              Calendar
+                            </div>
+                          )}
+                          {subUser.crm_permission && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200 rounded-full text-xs">
+                              <UserCog className="h-3 w-3" />
+                              CRM
+                            </div>
+                          )}
+                          {subUser.statistics_permission && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200 rounded-full text-xs">
+                              <BarChart3 className="h-3 w-3" />
+                              Statistics
+                            </div>
+                          )}
+                        </div>
                       </div>
                       
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedSubUser(subUser);
-                          setConfirmOpen(true);
-                        }}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setExpandedUser(expandedUser === subUser.id ? null : subUser.id)}
+                          className="hover:bg-muted"
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                        
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedSubUser(subUser);
+                            setConfirmOpen(true);
+                          }}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
+                    
+                    {/* Expandable permissions section */}
+                    <AnimatePresence>
+                      {expandedUser === subUser.id && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="mt-4 pt-4 border-t border-border space-y-3"
+                        >
+                          <div className="text-sm font-medium text-foreground mb-2">Page Permissions:</div>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-blue-600" />
+                              <span className="text-sm">Calendar Access</span>
+                            </div>
+                            <Switch
+                              checked={subUser.calendar_permission}
+                              onCheckedChange={(checked) => 
+                                handlePermissionUpdate(subUser.id, 'calendar_permission', checked)
+                              }
+                            />
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <UserCog className="h-4 w-4 text-green-600" />
+                              <span className="text-sm">CRM Access</span>
+                            </div>
+                            <Switch
+                              checked={subUser.crm_permission}
+                              onCheckedChange={(checked) => 
+                                handlePermissionUpdate(subUser.id, 'crm_permission', checked)
+                              }
+                            />
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <BarChart3 className="h-4 w-4 text-purple-600" />
+                              <span className="text-sm">Statistics Access</span>
+                            </div>
+                            <Switch
+                              checked={subUser.statistics_permission}
+                              onCheckedChange={(checked) => 
+                                handlePermissionUpdate(subUser.id, 'statistics_permission', checked)
+                              }
+                            />
+                          </div>
+                          
+                          <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted/50 rounded">
+                            <strong>Note:</strong> Task board access is automatically granted to all sub-users. Business page access is admin-only.
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </CardContent>
                 </Card>
               </motion.div>

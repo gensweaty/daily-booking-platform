@@ -14,8 +14,9 @@ import { LanguageText } from "./shared/LanguageText";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { GeorgianAuthText } from "./shared/GeorgianAuthText";
 import { useQueryClient } from "@tanstack/react-query";
+import { PermissionGate } from "./PermissionGate";
 
-export const Statistics = () => {
+const StatisticsContent = () => {
   const { user } = useAuth();
   const { language } = useLanguage();
   const queryClient = useQueryClient();
@@ -201,5 +202,13 @@ export const Statistics = () => {
         </>
       )}
     </div>
+  );
+};
+
+export const Statistics = () => {
+  return (
+    <PermissionGate requiredPermission="statistics">
+      <StatisticsContent />
+    </PermissionGate>
   );
 };

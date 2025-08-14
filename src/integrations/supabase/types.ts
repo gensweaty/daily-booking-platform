@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -374,12 +374,17 @@ export type Database = {
         Row: {
           create_event: boolean | null
           created_at: string | null
+          created_by_name: string | null
+          created_by_type: string | null
           deleted_at: string | null
           end_date: string | null
           event_id: string | null
           event_notes: string | null
           id: string
           is_group_member: boolean | null
+          last_edited_at: string | null
+          last_edited_by_name: string | null
+          last_edited_by_type: string | null
           parent_group_id: string | null
           payment_amount: number | null
           payment_status: string | null
@@ -394,12 +399,17 @@ export type Database = {
         Insert: {
           create_event?: boolean | null
           created_at?: string | null
+          created_by_name?: string | null
+          created_by_type?: string | null
           deleted_at?: string | null
           end_date?: string | null
           event_id?: string | null
           event_notes?: string | null
           id?: string
           is_group_member?: boolean | null
+          last_edited_at?: string | null
+          last_edited_by_name?: string | null
+          last_edited_by_type?: string | null
           parent_group_id?: string | null
           payment_amount?: number | null
           payment_status?: string | null
@@ -414,12 +424,17 @@ export type Database = {
         Update: {
           create_event?: boolean | null
           created_at?: string | null
+          created_by_name?: string | null
+          created_by_type?: string | null
           deleted_at?: string | null
           end_date?: string | null
           event_id?: string | null
           event_notes?: string | null
           id?: string
           is_group_member?: boolean | null
+          last_edited_at?: string | null
+          last_edited_by_name?: string | null
+          last_edited_by_type?: string | null
           parent_group_id?: string | null
           payment_amount?: number | null
           payment_status?: string | null
@@ -541,6 +556,8 @@ export type Database = {
           booking_request_id: string | null
           content_type: string | null
           created_at: string | null
+          created_by_name: string | null
+          created_by_type: string | null
           deleted_at: string | null
           email_reminder_enabled: boolean | null
           end_date: string
@@ -555,6 +572,9 @@ export type Database = {
           is_group_event: boolean | null
           is_recurring: boolean | null
           language: string | null
+          last_edited_at: string | null
+          last_edited_by_name: string | null
+          last_edited_by_type: string | null
           original_booking_id: string | null
           parent_event_id: string | null
           parent_group_id: string | null
@@ -580,6 +600,8 @@ export type Database = {
           booking_request_id?: string | null
           content_type?: string | null
           created_at?: string | null
+          created_by_name?: string | null
+          created_by_type?: string | null
           deleted_at?: string | null
           email_reminder_enabled?: boolean | null
           end_date: string
@@ -594,6 +616,9 @@ export type Database = {
           is_group_event?: boolean | null
           is_recurring?: boolean | null
           language?: string | null
+          last_edited_at?: string | null
+          last_edited_by_name?: string | null
+          last_edited_by_type?: string | null
           original_booking_id?: string | null
           parent_event_id?: string | null
           parent_group_id?: string | null
@@ -619,6 +644,8 @@ export type Database = {
           booking_request_id?: string | null
           content_type?: string | null
           created_at?: string | null
+          created_by_name?: string | null
+          created_by_type?: string | null
           deleted_at?: string | null
           email_reminder_enabled?: boolean | null
           end_date?: string
@@ -633,6 +660,9 @@ export type Database = {
           is_group_event?: boolean | null
           is_recurring?: boolean | null
           language?: string | null
+          last_edited_at?: string | null
+          last_edited_by_name?: string | null
+          last_edited_by_type?: string | null
           original_booking_id?: string | null
           parent_event_id?: string | null
           parent_group_id?: string | null
@@ -1040,35 +1070,44 @@ export type Database = {
       sub_users: {
         Row: {
           board_owner_id: string
+          calendar_permission: boolean | null
           created_at: string
+          crm_permission: boolean | null
           email: string
           fullname: string
           id: string
           last_login_at: string
           password_hash: string | null
           password_salt: string | null
+          statistics_permission: boolean | null
           updated_at: string
         }
         Insert: {
           board_owner_id: string
+          calendar_permission?: boolean | null
           created_at?: string
+          crm_permission?: boolean | null
           email: string
           fullname: string
           id?: string
           last_login_at?: string
           password_hash?: string | null
           password_salt?: string | null
+          statistics_permission?: boolean | null
           updated_at?: string
         }
         Update: {
           board_owner_id?: string
+          calendar_permission?: boolean | null
           created_at?: string
+          crm_permission?: boolean | null
           email?: string
           fullname?: string
           id?: string
           last_login_at?: string
           password_hash?: string | null
           password_salt?: string | null
+          statistics_permission?: boolean | null
           updated_at?: string
         }
         Relationships: []
@@ -1292,15 +1331,15 @@ export type Database = {
     }
     Functions: {
       activate_subscription: {
-        Args: { p_user_id: string; p_subscription_type: string }
+        Args: { p_subscription_type: string; p_user_id: string }
         Returns: Json
       }
       check_and_lock_redeem_code: {
         Args: { p_code: string }
         Returns: {
-          is_valid: boolean
           code_id: string
           error_message: string
+          is_valid: boolean
         }[]
       }
       check_subscription_status: {
@@ -1313,20 +1352,20 @@ export type Database = {
       }
       create_subscription: {
         Args: {
-          p_user_id: string
+          p_current_period_end: string
+          p_current_period_start: string
           p_plan_id: string
           p_plan_type: string
           p_trial_end_date: string
-          p_current_period_start: string
-          p_current_period_end: string
+          p_user_id: string
         }
         Returns: undefined
       }
       create_user_subscription: {
         Args: {
-          p_user_id: string
-          p_plan_type: string
           p_is_redeem_code: boolean
+          p_plan_type: string
+          p_user_id: string
         }
         Returns: string
       }
@@ -1336,9 +1375,9 @@ export type Database = {
       }
       delete_recurring_series: {
         Args: {
+          p_delete_choice?: string
           p_event_id: string
           p_user_id: string
-          p_delete_choice?: string
         }
         Returns: number
       }
@@ -1348,45 +1387,45 @@ export type Database = {
       }
       generate_recurring_events: {
         Args: {
-          p_parent_event_id: string
-          p_start_date: string
           p_end_date: string
+          p_parent_event_id: string
           p_repeat_pattern: string
           p_repeat_until: string
+          p_start_date: string
           p_user_id: string
         }
         Returns: number
       }
       get_all_related_files: {
         Args: {
-          event_id_param?: string
           customer_id_param?: string
           entity_name_param?: string
+          event_id_param?: string
         }
         Returns: {
-          id: string
-          filename: string
-          file_path: string
           content_type: string
-          size: number
           created_at: string
-          user_id: string
-          event_id: string
           customer_id: string
+          event_id: string
+          file_path: string
+          filename: string
+          id: string
+          size: number
           source: string
+          user_id: string
         }[]
       }
       get_booking_request_files: {
         Args: { booking_id_param: string }
         Returns: {
-          id: string
-          filename: string
-          file_path: string
           content_type: string
-          size: number
           created_at: string
-          user_id: string
           event_id: string
+          file_path: string
+          filename: string
+          id: string
+          size: number
+          user_id: string
         }[]
       }
       get_business_owner_email: {
@@ -1399,10 +1438,10 @@ export type Database = {
         Args: { access_token_param: string }
         Returns: {
           board_id: string
-          user_id: string
-          magic_word: string
-          is_active: boolean
           external_user_name: string
+          is_active: boolean
+          magic_word: string
+          user_id: string
         }[]
       }
       get_public_board_tasks: {
@@ -1439,6 +1478,8 @@ export type Database = {
           booking_request_id: string | null
           content_type: string | null
           created_at: string | null
+          created_by_name: string | null
+          created_by_type: string | null
           deleted_at: string | null
           email_reminder_enabled: boolean | null
           end_date: string
@@ -1453,6 +1494,9 @@ export type Database = {
           is_group_event: boolean | null
           is_recurring: boolean | null
           language: string | null
+          last_edited_at: string | null
+          last_edited_by_name: string | null
+          last_edited_by_type: string | null
           original_booking_id: string | null
           parent_event_id: string | null
           parent_group_id: string | null
@@ -1476,11 +1520,11 @@ export type Database = {
         }[]
       }
       get_sub_user_auth: {
-        Args: { p_owner_id: string; p_email: string }
+        Args: { p_email: string; p_owner_id: string }
         Returns: {
-          id: string
-          fullname: string
           email: string
+          fullname: string
+          id: string
           password_hash: string
           password_salt: string
         }[]
@@ -1488,18 +1532,18 @@ export type Database = {
       get_task_stats: {
         Args: { user_id_param: string }
         Returns: {
-          total: number
           completed: number
           in_progress: number
           todo: number
+          total: number
         }[]
       }
       save_event_with_persons: {
         Args: {
-          p_event_data: Json
           p_additional_persons: Json
-          p_user_id: string
+          p_event_data: Json
           p_event_id?: string
+          p_user_id: string
         }
         Returns: string
       }

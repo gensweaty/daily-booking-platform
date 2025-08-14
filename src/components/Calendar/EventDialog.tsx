@@ -13,6 +13,7 @@ import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recu
 import { deleteCalendarEvent, clearCalendarCache } from "@/services/calendarService";
 import { Clock, RefreshCcw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 
 interface EventDialogProps {
   open: boolean;
