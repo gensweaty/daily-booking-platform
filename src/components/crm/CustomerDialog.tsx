@@ -404,7 +404,13 @@ export const CustomerDialog = ({
           user_id: effectiveUserId,
           create_event: createEvent,
           start_date: createEvent ? eventStartDate.toISOString() : null,
-          end_date: createEvent ? eventEndDate.toISOString() : null
+          end_date: createEvent ? eventEndDate.toISOString() : null,
+          // Add edit metadata for sub-users
+          ...(isPublicMode && externalUserName ? {
+            last_edited_by_type: 'sub_user',
+            last_edited_by_name: externalUserName,
+            last_edited_at: new Date().toISOString()
+          } : {})
         };
 
         let tableToUpdate = 'customers';
@@ -538,7 +544,9 @@ export const CustomerDialog = ({
           // Add creator metadata for sub-users
           ...(isPublicMode && externalUserName ? {
             created_by_type: 'sub_user',
-            created_by_name: externalUserName
+            created_by_name: externalUserName,
+            last_edited_by_type: 'sub_user',
+            last_edited_by_name: externalUserName
           } : {})
         };
 

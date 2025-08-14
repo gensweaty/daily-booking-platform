@@ -178,10 +178,10 @@ export const CustomerList = ({
     
     // In public mode, allow edit/delete if:
     // 1. The item was created by this sub-user (directly or via events), OR
-    // 2. Legacy data without creator info (for backwards compatibility)
+    // 2. Legacy data without creator info but belongs to the board owner (for backwards compatibility)
     return (customer.created_by_type === 'sub_user' && customer.created_by_name === externalUserName) ||
-           (!customer.created_by_type && !customer.created_by_name);
-  }, [isPublicMode, externalUserName]);
+           (!customer.created_by_type && !customer.created_by_name && customer.user_id === publicBoardUserId);
+  }, [isPublicMode, externalUserName, publicBoardUserId]);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!customerToDelete || !user?.id) return;

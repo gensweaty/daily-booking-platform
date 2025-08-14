@@ -851,7 +851,11 @@ export const EventDialog = ({
           p_event_data: eventData,
           p_additional_persons: additionalPersons,
           p_user_id: effectiveUserId,
-          p_event_id: actualEventId
+          p_event_id: actualEventId,
+          p_created_by_type: isPublicMode ? 'sub_user' : 'admin',
+          p_created_by_name: isPublicMode ? externalUserName : null,
+          p_last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
+          p_last_edited_by_name: isPublicMode ? externalUserName : null,
         });
 
         if (result.error) throw result.error;
@@ -899,7 +903,11 @@ export const EventDialog = ({
         result = await supabase.rpc('save_event_with_persons', {
           p_event_data: eventData,
           p_additional_persons: additionalPersons,
-          p_user_id: effectiveUserId
+          p_user_id: effectiveUserId,
+          p_created_by_type: isPublicMode ? 'sub_user' : 'admin',
+          p_created_by_name: isPublicMode ? externalUserName : null,
+          p_last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
+          p_last_edited_by_name: isPublicMode ? externalUserName : null,
         });
 
         if (result.error) throw result.error;
