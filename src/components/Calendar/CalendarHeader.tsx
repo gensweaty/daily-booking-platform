@@ -107,21 +107,34 @@ export const CalendarHeader = ({
         {onAddEvent && (
           <Button 
             onClick={(e) => {
+              console.log('=== CALENDAR HEADER BUTTON CLICK START ===');
               console.log('🚀 CalendarHeader Add Event button clicked');
               console.log('📱 Device info:', {
                 isTouchDevice: 'ontouchstart' in window,
                 userAgent: navigator.userAgent,
                 screenWidth: window.screen.width,
-                innerWidth: window.innerWidth
+                innerWidth: window.innerWidth,
+                platform: navigator.platform
               });
               console.log('🎯 Click event details:', {
                 type: e.type,
                 button: e.button,
                 clientX: e.clientX,
                 clientY: e.clientY,
-                target: e.target
+                target: e.target,
+                currentTarget: e.currentTarget
               });
-              onAddEvent();
+              console.log('🔧 onAddEvent function:', typeof onAddEvent, onAddEvent);
+              
+              try {
+                console.log('📞 Calling onAddEvent...');
+                onAddEvent();
+                console.log('✅ onAddEvent called successfully');
+              } catch (error) {
+                console.error('❌ Error calling onAddEvent:', error);
+              }
+              
+              console.log('=== CALENDAR HEADER BUTTON CLICK END ===');
             }} 
             size="sm" 
             variant="dynamic"
