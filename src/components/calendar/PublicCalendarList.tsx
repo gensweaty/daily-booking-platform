@@ -79,42 +79,29 @@ export const PublicCalendarList = ({
     deleteEvent: hasPermissions ? deleteEvent : undefined,
   });
 
-  // Add debugging for event creation flow
-  const debugCreateEvent = async (data: Partial<CalendarEventType>) => {
-    console.log('[PublicCalendarList] 🎯 Debug create event called with:', data);
+  // CRITICAL FIX: Direct save functions that bypass useEventDialog
+  const directCreateEvent = async (data: Partial<CalendarEventType>) => {
+    console.log('[PublicCalendarList] 🎯 Direct create event called with:', data);
     try {
-      const result = await handleCreateEvent(data);
-      console.log('[PublicCalendarList] ✅ Debug create event success:', result);
+      const result = await createEvent(data);
+      console.log('[PublicCalendarList] ✅ Direct create event success:', result);
       await handleEventCreated();
       return result;
     } catch (error) {
-      console.error('[PublicCalendarList] ❌ Debug create event error:', error);
+      console.error('[PublicCalendarList] ❌ Direct create event error:', error);
       throw error;
     }
   };
 
-  const debugUpdateEvent = async (data: Partial<CalendarEventType>) => {
-    console.log('[PublicCalendarList] 🎯 Debug update event called with:', data);
+  const directUpdateEvent = async (data: Partial<CalendarEventType>) => {
+    console.log('[PublicCalendarList] 🎯 Direct update event called with:', data);
     try {
-      const result = await handleUpdateEvent(data);
-      console.log('[PublicCalendarList] ✅ Debug update event success:', result);
+      const result = await updateEvent(data);
+      console.log('[PublicCalendarList] ✅ Direct update event success:', result);
       await handleEventUpdated();
       return result;
     } catch (error) {
-      console.error('[PublicCalendarList] ❌ Debug update event error:', error);
-      throw error;
-    }
-  };
-
-  const debugDeleteEvent = async (params: { id: string; deleteChoice?: "this" | "series" }) => {
-    console.log('[PublicCalendarList] 🎯 Debug delete event called with:', params);
-    try {
-      const result = await handleDeleteEvent(params.deleteChoice);
-      console.log('[PublicCalendarList] ✅ Debug delete event success:', result);
-      await handleEventDeleted();
-      return result;
-    } catch (error) {
-      console.error('[PublicCalendarList] ❌ Debug delete event error:', error);
+      console.error('[PublicCalendarList] ❌ Direct update event error:', error);
       throw error;
     }
   };
@@ -358,7 +345,7 @@ export const PublicCalendarList = ({
             externalUserName={externalUserName}
             isPublicMode={true}
             onEventCreated={handleEventCreated}
-            onSave={debugCreateEvent}
+            onSave={directCreateEvent}
           />
 
           {selectedEvent && (
@@ -373,7 +360,7 @@ export const PublicCalendarList = ({
               isPublicMode={true}
               onEventUpdated={handleEventUpdated}
               onEventDeleted={handleEventDeleted}
-              onSave={debugUpdateEvent}
+              onSave={directUpdateEvent}
             />
           )}
         </>
