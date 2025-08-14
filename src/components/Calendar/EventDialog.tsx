@@ -155,6 +155,7 @@ export const EventDialog = ({
   const { toast } = useToast();
   const { t, language } = useLanguage();
   const queryClient = useQueryClient();
+  const { isSubUser } = useSubUserPermissions();
   
   // Helper function to get the effective user ID for operations
   const getEffectiveUserId = () => {
@@ -822,12 +823,13 @@ export const EventDialog = ({
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
         reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
         email_reminder_enabled: emailReminderEnabled,
-        // Add sub-user metadata when in public mode
+        // Add sub-user metadata
         ...(isPublicMode && externalUserName ? {
-          created_by_type: eventId || initialData ? undefined : 'sub_user',
-          created_by_name: eventId || initialData ? undefined : externalUserName,
           last_edited_by_type: 'sub_user',
           last_edited_by_name: externalUserName
+        } : isSubUser ? {
+          last_edited_by_type: 'sub_user',
+          last_edited_by_name: user?.email || 'sub_user'
         } : {})
       };
 
@@ -851,7 +853,11 @@ export const EventDialog = ({
           p_event_data: eventData,
           p_additional_persons: additionalPersons,
           p_user_id: effectiveUserId,
-          p_event_id: actualEventId
+          p_event_id: actualEventId,
+          p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+          p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+          p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+          p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
         });
 
         if (result.error) throw result.error;
@@ -899,7 +905,11 @@ export const EventDialog = ({
         result = await supabase.rpc('save_event_with_persons', {
           p_event_data: eventData,
           p_additional_persons: additionalPersons,
-          p_user_id: effectiveUserId
+          p_user_id: effectiveUserId,
+          p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+          p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+          p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+          p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
         });
 
         if (result.error) throw result.error;

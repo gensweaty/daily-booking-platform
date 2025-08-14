@@ -109,6 +109,7 @@ export const CustomerList = ({
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isSubUser } = useSubUserPermissions();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [filteredData, setFilteredData] = useState<any[]>([]);
@@ -174,14 +175,66 @@ export const CustomerList = ({
   }, [user?.id, t, toast]);
 
   const canEditDelete = useCallback((customer: any) => {
-    if (!isPublicMode) return true;
+    // For non-public mode (regular authenticated users), check if they're a sub-user
+    if (!isPublicMode && !isSubUser) return true;
     
-    // In public mode, allow edit/delete if:
-    // 1. The item was created by this sub-user (directly or via events), OR
-    // 2. Legacy data without creator info (for backwards compatibility)
-    return (customer.created_by_type === 'sub_user' && customer.created_by_name === externalUserName) ||
-           (!customer.created_by_type && !customer.created_by_name);
-  }, [isPublicMode, externalUserName]);
+    console.log('🔍 Checking permissions for customer:', {
+      id: customer.id,
+      created_by_type: customer.created_by_type,
+      created_by_name: customer.created_by_name,
+      last_edited_by_type: customer.last_edited_by_type,
+      last_edited_by_name: customer.last_edited_by_name,
+      user_id: customer.user_id,
+      externalUserName,
+      publicBoardUserId,
+      isSubUser,
+      currentUserEmail: user?.email
+    });
+    
+    // Permission logic for both public mode (external sub-users) and regular sub-users
+    if (isPublicMode) {
+      // In public mode, allow edit/delete if:
+      // 1. The item was created by this sub-user, OR
+      // 2. The item was last edited by this sub-user, OR  
+      // 3. Legacy data without creator info but belongs to the board owner (for backwards compatibility)
+      const canEdit = (customer.created_by_type === 'sub_user' && customer.created_by_name === externalUserName) ||
+             (customer.last_edited_by_type === 'sub_user' && customer.last_edited_by_name === externalUserName) ||
+             (!customer.created_by_type && !customer.created_by_name && customer.user_id === publicBoardUserId);
+      
+      console.log('🔍 Public mode permission result:', canEdit);
+      return canEdit;
+    } else if (isSubUser) {
+      // For regular authenticated sub-users, allow edit/delete if:
+      // 1. The item was created by this sub-user (PRIMARY CHECK), OR
+      // 2. The item was last edited by this sub-user (SECONDARY CHECK), OR
+      // 3. Legacy data without metadata (BACKWARDS COMPATIBILITY)
+      const userEmail = user?.email;
+      if (!userEmail) return false;
+      
+      // Primary check: created_by metadata
+      if (customer.created_by_type === 'sub_user' && customer.created_by_name === userEmail) {
+        console.log('✅ Permission granted: Created by this sub-user');
+        return true;
+      }
+      
+      // Secondary check: last_edited_by metadata
+      if (customer.last_edited_by_type === 'sub_user' && customer.last_edited_by_name === userEmail) {
+        console.log('✅ Permission granted: Last edited by this sub-user');
+        return true;
+      }
+      
+      // Legacy fallback: no metadata exists
+      if (!customer.created_by_type && !customer.created_by_name && !customer.last_edited_by_type && !customer.last_edited_by_name) {
+        console.log('✅ Permission granted: Legacy data without metadata');
+        return true;
+      }
+      
+      console.log('❌ Permission denied: Not created or edited by this sub-user');
+      return false;
+    }
+    
+    return true; // Admin has all permissions
+  }, [isPublicMode, externalUserName, publicBoardUserId, isSubUser, user?.email, user?.id]);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!customerToDelete || !user?.id) return;

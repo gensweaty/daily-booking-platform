@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { sendBookingConfirmationEmail, sendBookingConfirmationToMultipleRecipients } from "@/lib/api";
+import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 
 interface CustomerDialogProps {
   open: boolean;
@@ -44,6 +45,7 @@ export const CustomerDialog = ({
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isSubUser } = useSubUserPermissions();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     title: "",
@@ -404,7 +406,17 @@ export const CustomerDialog = ({
           user_id: effectiveUserId,
           create_event: createEvent,
           start_date: createEvent ? eventStartDate.toISOString() : null,
-          end_date: createEvent ? eventEndDate.toISOString() : null
+          end_date: createEvent ? eventEndDate.toISOString() : null,
+          // Add edit metadata for sub-users
+          ...(isPublicMode && externalUserName ? {
+            last_edited_by_type: 'sub_user',
+            last_edited_by_name: externalUserName,
+            last_edited_at: new Date().toISOString()
+          } : isSubUser ? {
+            last_edited_by_type: 'sub_user',
+            last_edited_by_name: user?.email || 'sub_user',
+            last_edited_at: new Date().toISOString()
+          } : {})
         };
 
         let tableToUpdate = 'customers';
@@ -415,6 +427,15 @@ export const CustomerDialog = ({
           id = customerId.replace('event-', '');
         }
 
+        // Log data for debugging
+        console.log('🔍 CustomerDialog update data:', {
+          customerId,
+          isPublicMode,
+          externalUserName,
+          publicBoardUserId,
+          updates
+        });
+
         // For public mode (sub-users), use simplified ownership logic
         let query = supabase
           .from(tableToUpdate)
@@ -423,7 +444,6 @@ export const CustomerDialog = ({
         
         if (isPublicMode && publicBoardUserId) {
           // In public mode, always filter by board owner's user_id
-          // The frontend permission check (canEditDelete) ensures only proper records are editable
           query = query.eq('user_id', publicBoardUserId);
         } else {
           query = query.eq('user_id', effectiveUserId);
@@ -538,7 +558,14 @@ export const CustomerDialog = ({
           // Add creator metadata for sub-users
           ...(isPublicMode && externalUserName ? {
             created_by_type: 'sub_user',
-            created_by_name: externalUserName
+            created_by_name: externalUserName,
+            last_edited_by_type: 'sub_user',
+            last_edited_by_name: externalUserName
+          } : isSubUser ? {
+            created_by_type: 'sub_user',
+            created_by_name: user?.email || 'sub_user',
+            last_edited_by_type: 'sub_user',
+            last_edited_by_name: user?.email || 'sub_user'
           } : {})
         };
 
@@ -585,6 +612,11 @@ export const CustomerDialog = ({
               created_by_name: externalUserName,
               last_edited_by_type: 'sub_user',
               last_edited_by_name: externalUserName
+            } : isSubUser ? {
+              created_by_type: 'sub_user',
+              created_by_name: user?.email || 'sub_user',
+              last_edited_by_type: 'sub_user',
+              last_edited_by_name: user?.email || 'sub_user'
             } : {})
           };
 
@@ -668,6 +700,14 @@ export const CustomerDialog = ({
         id = customerId.replace('event-', '');
       }
 
+      // Log data for debugging
+      console.log('🔍 CustomerDialog delete data:', {
+        customerId: id,
+        isPublicMode,
+        externalUserName,
+        publicBoardUserId
+      });
+
       // For public mode (sub-users), use simplified ownership logic
       let query = supabase
         .from(tableToUpdate)
@@ -676,7 +716,6 @@ export const CustomerDialog = ({
       
       if (isPublicMode && publicBoardUserId) {
         // In public mode, always filter by board owner's user_id
-        // The frontend permission check (canEditDelete) ensures only proper records are deletable
         query = query.eq('user_id', publicBoardUserId);
       } else {
         query = query.eq('user_id', effectiveUserId);
