@@ -792,6 +792,7 @@ export const CustomerDialog = ({
               setEventEndDate={setEventEndDate}
               fileBucketName={customerId?.startsWith('event-') ? "event_attachments" : "customer_attachments"}
               fallbackBuckets={["event_attachments", "customer_attachments", "booking_attachments"]}
+              initialData={initialData}
             />
 
             <div className="flex justify-between">

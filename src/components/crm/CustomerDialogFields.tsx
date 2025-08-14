@@ -13,7 +13,7 @@ import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Clock, ChevronUp, ChevronDown } from "lucide-react";
+import { CalendarIcon, Clock, ChevronUp, ChevronDown, RefreshCcw, User, UserCog } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -53,6 +53,8 @@ interface CustomerDialogFieldsProps {
   setEventEndDate: (date: Date) => void;
   fileBucketName?: string;
   fallbackBuckets?: string[];
+  // Metadata props
+  initialData?: any;
 }
 
 export const CustomerDialogFields = ({
@@ -88,6 +90,7 @@ export const CustomerDialogFields = ({
   setEventEndDate,
   fileBucketName = "customer_attachments",
   fallbackBuckets = [],
+  initialData,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
@@ -159,6 +162,30 @@ export const CustomerDialogFields = ({
     return format(date, 'MM/dd/yyyy HH:mm');
   };
 
+  const renderMetadataIcon = (type: string | null) => {
+    if (type === 'sub_user') {
+      return <UserCog className="h-3 w-3" />;
+    }
+    return <User className="h-3 w-3" />;
+  };
+
+  const formatMetadataName = (name: string | null, type: string | null) => {
+    if (!name) return 'Unknown';
+    if (type === 'sub_user') {
+      return name.includes('@') ? name.split('@')[0] : name;
+    }
+    return name;
+  };
+
+  const formatMetadataDate = (dateString: string | null) => {
+    if (!dateString) return 'Unknown';
+    try {
+      return new Date(dateString).toLocaleString(language);
+    } catch {
+      return 'Invalid date';
+    }
+  };
+
   // Generate time options for hours selection grid - full 24 hours
   const hours = Array.from({ length: 24 }, (_, i) => {
     const hour = i.toString().padStart(2, '0');
@@ -173,6 +200,48 @@ export const CustomerDialogFields = ({
 
   return (
     <div className="space-y-4 mt-4">
+      {/* Display metadata for existing customers/events */}
+      {initialData && (initialData.created_at || initialData.updated_at) && (
+        <div className="flex flex-col gap-2 text-sm text-muted-foreground rounded-md p-4 border border-border bg-card">
+          {initialData.created_at && (
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              <span>
+                {language === 'ka' ? (
+                  <GeorgianAuthText letterSpacing="-0.05px">შექმნა:</GeorgianAuthText>
+                ) : (
+                  t("common.created")
+                )} {formatMetadataDate(initialData.created_at)}
+              </span>
+              {initialData.created_by_type && (
+                <div className="flex items-center gap-1">
+                  {renderMetadataIcon(initialData.created_by_type)}
+                  <span>{formatMetadataName(initialData.created_by_name, initialData.created_by_type)}</span>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {initialData.updated_at && (
+            <div className="flex items-center gap-2">
+              <RefreshCcw className="h-4 w-4" />
+              <span>
+                {language === 'ka' ? (
+                  <GeorgianAuthText letterSpacing="-0.05px">ბოლო განახლება:</GeorgianAuthText>
+                ) : (
+                  t("common.lastUpdated")
+                )} {formatMetadataDate(initialData.updated_at)}
+              </span>
+              {initialData.last_edited_by_type && (
+                <div className="flex items-center gap-1">
+                  {renderMetadataIcon(initialData.last_edited_by_type)}
+                  <span>{formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       <div className="space-y-2">
         <Label htmlFor="title">
           {isGeorgian ? (
