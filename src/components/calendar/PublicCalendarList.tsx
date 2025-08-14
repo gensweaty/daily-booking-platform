@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
-import { PublicCalendarWithPermissions } from "./PublicCalendarWithPermissions";
+import { Calendar } from "../Calendar/Calendar";
 import { PresenceAvatars } from "@/components/PresenceAvatars";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -124,11 +124,13 @@ export const PublicCalendarList = ({
         </div>
       </div>
 
-      {/* Full Calendar functionality with permissions */}
-      <PublicCalendarWithPermissions 
-        boardUserId={boardUserId}
-        externalUserName={externalUserName}
-        externalUserEmail={externalUserEmail}
+      {/* Direct Calendar Component - No Auth Override */}
+      <Calendar 
+        defaultView="month"
+        directEvents={events}
+        isExternalCalendar={true}
+        businessUserId={boardUserId}
+        showAllEvents={true}
       />
     </div>
   );

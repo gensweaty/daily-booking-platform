@@ -58,7 +58,7 @@ const CalendarContent = ({
   businessUserId,
   showAllEvents = false,
   allowBookingRequests = false,
-  directEvents
+  directEvents,
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);

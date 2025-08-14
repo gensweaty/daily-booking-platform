@@ -95,9 +95,15 @@ interface CustomerListProps {
   isPublicMode?: boolean;
   externalUserName?: string;
   externalUserEmail?: string;
+  publicBoardUserId?: string;
 }
 
-export const CustomerList = ({ isPublicMode = false, externalUserName, externalUserEmail }: CustomerListProps = {}) => {
+export const CustomerList = ({ 
+  isPublicMode = false, 
+  externalUserName, 
+  externalUserEmail, 
+  publicBoardUserId 
+}: CustomerListProps = {}) => {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -121,7 +127,10 @@ export const CustomerList = ({ isPublicMode = false, externalUserName, externalU
   const currencySymbol = useMemo(() => getCurrencySymbol(language), [language]);
   const isGeorgian = language === 'ka';
 
-  const { combinedData, isLoading, isFetching } = useCRMData(user?.id, dateRange);
+  const { combinedData, isLoading, isFetching } = useCRMData(
+    isPublicMode ? publicBoardUserId : user?.id, 
+    dateRange
+  );
 
   useEffect(() => {
     if (combinedData.length > 0 && !searchValueRef.current) {
