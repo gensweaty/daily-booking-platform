@@ -53,6 +53,14 @@ interface CustomerDialogFieldsProps {
   setEventEndDate: (date: Date) => void;
   fileBucketName?: string;
   fallbackBuckets?: string[];
+  metadata?: {
+    created_by_type?: string;
+    created_by_name?: string;
+    last_edited_by_type?: string;
+    last_edited_by_name?: string;
+    created_at?: string;
+    updated_at?: string;
+  };
 }
 
 export const CustomerDialogFields = ({
@@ -88,6 +96,7 @@ export const CustomerDialogFields = ({
   setEventEndDate,
   fileBucketName = "customer_attachments",
   fallbackBuckets = [],
+  metadata,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
@@ -497,6 +506,43 @@ export const CustomerDialogFields = ({
             </div>
           )}
         </>
+      )}
+
+      {/* Metadata display */}
+      {metadata && (metadata.created_by_type || metadata.last_edited_by_type) && (
+        <div className="rounded-md bg-muted/50 p-3 space-y-2 border">
+          <Label className="font-medium text-sm text-muted-foreground">{t("common.metadata")}</Label>
+          <div className="space-y-1 text-xs text-muted-foreground">
+            {metadata.created_by_type && (
+              <div className="flex justify-between">
+                <span>{t("common.createdBy")}:</span>
+                <span className="font-medium">
+                  {metadata.created_by_name} ({metadata.created_by_type === 'sub_user' ? t("common.subUser") : t("common.admin")})
+                </span>
+              </div>
+            )}
+            {metadata.last_edited_by_type && (
+              <div className="flex justify-between">
+                <span>{t("common.lastEditedBy")}:</span>
+                <span className="font-medium">
+                  {metadata.last_edited_by_name} ({metadata.last_edited_by_type === 'sub_user' ? t("common.subUser") : t("common.admin")})
+                </span>
+              </div>
+            )}
+            {metadata.created_at && (
+              <div className="flex justify-between">
+                <span>{t("common.created")}:</span>
+                <span>{formatDateTime(metadata.created_at)}</span>
+              </div>
+            )}
+            {metadata.updated_at && metadata.updated_at !== metadata.created_at && (
+              <div className="flex justify-between">
+                <span>{t("common.updated")}:</span>
+                <span>{formatDateTime(metadata.updated_at)}</span>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       <div className="space-y-2">

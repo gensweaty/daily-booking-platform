@@ -687,7 +687,14 @@ export const CustomerDialog = ({
 
   const handleConfirmDelete = async () => {
     const effectiveUserId = getEffectiveUserId();
-    if (!customerId || !effectiveUserId || effectiveUserId === 'temp-public-user') return;
+    if (!customerId || !effectiveUserId || effectiveUserId === 'temp-public-user') {
+      toast({
+        title: t("common.error"),
+        description: "Missing customer ID or user information",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -792,6 +799,14 @@ export const CustomerDialog = ({
               setEventEndDate={setEventEndDate}
               fileBucketName={customerId?.startsWith('event-') ? "event_attachments" : "customer_attachments"}
               fallbackBuckets={["event_attachments", "customer_attachments", "booking_attachments"]}
+              metadata={{
+                created_by_type: initialData?.created_by_type,
+                created_by_name: initialData?.created_by_name,
+                last_edited_by_type: initialData?.last_edited_by_type,
+                last_edited_by_name: initialData?.last_edited_by_name,
+                created_at: initialData?.created_at,
+                updated_at: initialData?.updated_at
+              }}
             />
 
             <div className="flex justify-between">
