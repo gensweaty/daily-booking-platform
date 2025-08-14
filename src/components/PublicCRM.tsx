@@ -1,28 +1,20 @@
-import { CustomerList } from "@/components/crm/CustomerList";
+import { CRMWithPermissions } from "@/components/crm/CRMWithPermissions";
+import { PublicBoardAuthContext } from "@/components/PublicBoardNavigation";
 
 interface PublicCRMProps {
   boardUserId: string;
 }
 
 export const PublicCRM = ({ boardUserId }: PublicCRMProps) => {
-  // Override the auth context for CRM to use the board user ID
-  const originalAuthHook = require("@/contexts/AuthContext").useAuth;
-  
-  // Mock the auth context to return the board user
   const mockAuth = {
-    user: { id: boardUserId },
-    loading: false,
-    signOut: () => {},
-    signIn: () => {},
-    signUp: () => {}
+    user: { id: boardUserId, email: "" },
   };
 
-  // Temporarily override the auth context
-  require("@/contexts/AuthContext").useAuth = () => mockAuth;
-
   return (
-    <div className="w-full">
-      <CustomerList />
-    </div>
+    <PublicBoardAuthContext.Provider value={mockAuth}>
+      <div className="w-full">
+        <CRMWithPermissions />
+      </div>
+    </PublicBoardAuthContext.Provider>
   );
 };

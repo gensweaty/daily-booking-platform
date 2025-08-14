@@ -14,7 +14,7 @@ import { PresenceAvatars } from "@/components/PresenceAvatars";
 import { supabase } from "@/lib/supabase";
 
 // Create a context for public board auth
-const PublicBoardAuthContext = createContext<{
+export const PublicBoardAuthContext = createContext<{
   user: { id: string; email: string } | null;
 }>({
   user: null,

@@ -1,29 +1,20 @@
 import { Calendar } from "@/components/Calendar/Calendar";
-import { usePublicBoardAuth } from "@/components/PublicBoardNavigation";
+import { PublicBoardAuthContext } from "@/components/PublicBoardNavigation";
 
 interface PublicCalendarProps {
   boardUserId: string;
 }
 
 export const PublicCalendar = ({ boardUserId }: PublicCalendarProps) => {
-  // Override the auth context for the calendar to use the board user ID
-  const originalAuthHook = require("@/contexts/AuthContext").useAuth;
-  
-  // Mock the auth context to return the board user
   const mockAuth = {
-    user: { id: boardUserId },
-    loading: false,
-    signOut: () => {},
-    signIn: () => {},
-    signUp: () => {}
+    user: { id: boardUserId, email: "" },
   };
 
-  // Temporarily override the auth context
-  require("@/contexts/AuthContext").useAuth = () => mockAuth;
-
   return (
-    <div className="w-full">
-      <Calendar defaultView="month" />
-    </div>
+    <PublicBoardAuthContext.Provider value={mockAuth}>
+      <div className="w-full">
+        <Calendar defaultView="month" />
+      </div>
+    </PublicBoardAuthContext.Provider>
   );
 };
