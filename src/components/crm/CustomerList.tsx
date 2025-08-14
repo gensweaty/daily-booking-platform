@@ -288,11 +288,8 @@ export const CustomerList = ({
     }
 
     try {
-      console.log('🗑️ Starting customer deletion process...');
-      
       if (customerToDelete.id.startsWith('event-')) {
         const eventId = customerToDelete.id.replace('event-', '');
-        console.log('📅 Deleting event (soft delete):', eventId);
         const { error } = await supabase
           .from('events')
           .update({ 
@@ -304,37 +301,20 @@ export const CustomerList = ({
           .eq('id', eventId)
           .eq('user_id', effectiveUserId);
 
-        if (error) {
-          console.error('❌ Event deletion error:', error);
-          throw error;
-        }
-        console.log('✅ Event soft deleted successfully');
+        if (error) throw error;
       } else {
-        console.log('👤 Deleting customer (hard delete):', customerToDelete.id);
         const { error } = await supabase
           .from('customers')
-          .delete()
+          .update({ 
+            deleted_at: new Date().toISOString(),
+            last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
+            last_edited_by_name: isPublicMode ? externalUserName : user?.email,
+            last_edited_at: new Date().toISOString()
+          })
           .eq('id', customerToDelete.id)
           .eq('user_id', effectiveUserId);
 
-        if (error) {
-          console.error('❌ Customer deletion error:', error);
-          throw error;
-        }
-        console.log('✅ Customer deleted successfully');
-
-        // Also delete associated files
-        console.log('📎 Deleting customer files...');
-        const { error: filesError } = await supabase
-          .from('customer_files_new')
-          .delete()
-          .eq('customer_id', customerToDelete.id);
-
-        if (filesError) {
-          console.warn('⚠️ Error deleting customer files:', filesError);
-        } else {
-          console.log('✅ Customer files deleted');
-        }
+        if (error) throw error;
       }
 
       await queryClient.invalidateQueries({ queryKey: ['customers'] });

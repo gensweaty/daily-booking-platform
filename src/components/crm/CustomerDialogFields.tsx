@@ -62,9 +62,6 @@ interface CustomerDialogFieldsProps {
     created_at?: string;
     updated_at?: string;
   };
-  // External user context for public boards
-  externalUserName?: string;
-  externalUserEmail?: string;
 }
 
 export const CustomerDialogFields = ({
@@ -101,8 +98,6 @@ export const CustomerDialogFields = ({
   fileBucketName = "customer_attachments",
   fallbackBuckets = [],
   metadata,
-  externalUserName,
-  externalUserEmail,
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
@@ -110,15 +105,6 @@ export const CustomerDialogFields = ({
   
   // Show payment amount field if payment status is partly_paid or fully_paid
   const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
-
-  // Helper function to normalize names - same as TaskFullView
-  const normalizeName = (name?: string) => {
-    if (!name) return undefined;
-    if (name.includes('@')) {
-      return externalUserName || name.split('@')[0];
-    }
-    return name;
-  };
 
   // Helper function to format date and time for display - matching TaskFullView format
   const formatDateTime = (dateStr: string | null | undefined) => {
@@ -534,8 +520,8 @@ export const CustomerDialogFields = ({
                 {metadata.created_by_name && (
                   <span className="ml-1">
                     {language === 'ka' 
-                      ? `${normalizeName(metadata.created_by_name)}-ს ${t("common.by")}` 
-                      : `${t("common.by")} ${normalizeName(metadata.created_by_name)}`}
+                      ? `${metadata.created_by_name}-ს ${t("common.by")}` 
+                      : `${t("common.by")} ${metadata.created_by_name}`}
                   </span>
                 )}
               </span>
@@ -547,8 +533,8 @@ export const CustomerDialogFields = ({
                 {metadata.last_edited_by_name && metadata.last_edited_at && (
                   <span className="ml-1">
                     {language === 'ka' 
-                      ? `${normalizeName(metadata.last_edited_by_name)}-ს ${t("common.by")}` 
-                      : `${t("common.by")} ${normalizeName(metadata.last_edited_by_name)}`}
+                      ? `${metadata.last_edited_by_name}-ს ${t("common.by")}` 
+                      : `${t("common.by")} ${metadata.last_edited_by_name}`}
                   </span>
                 )}
               </span>
