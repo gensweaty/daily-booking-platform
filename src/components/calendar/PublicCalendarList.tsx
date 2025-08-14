@@ -360,6 +360,9 @@ export const PublicCalendarList = ({
             open={isNewEventDialogOpen}
             onOpenChange={setIsNewEventDialogOpen}
             selectedDate={dialogSelectedDate}
+            publicBoardUserId={boardUserId}
+            externalUserName={externalUserName}
+            isPublicMode={true}
             onEventCreated={async () => {
               queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
             }}
@@ -372,13 +375,15 @@ export const PublicCalendarList = ({
               onOpenChange={() => setSelectedEvent(null)}
               selectedDate={new Date(selectedEvent.start_date)}
               initialData={selectedEvent}
+              publicBoardUserId={boardUserId}
+              externalUserName={externalUserName}
+              isPublicMode={true}
               onEventUpdated={async () => {
                 queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
               }}
               onEventDeleted={async () => {
                 queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
               }}
-              
             />
           )}
         </>

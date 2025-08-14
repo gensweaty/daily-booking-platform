@@ -24,6 +24,10 @@ interface EventDialogProps {
   onEventCreated?: () => void;
   onEventUpdated?: () => void;
   onEventDeleted?: () => void;
+  // Public board context props
+  publicBoardUserId?: string;
+  externalUserName?: string;
+  isPublicMode?: boolean;
   // Legacy props for backward compatibility
   isOpen?: boolean;
   onClose?: () => void;
@@ -139,6 +143,9 @@ export const EventDialog = ({
   onEventCreated,
   onEventUpdated,
   onEventDeleted,
+  publicBoardUserId,
+  externalUserName,
+  isPublicMode = false,
   // Legacy props with defaults
   isOpen = false,
   onClose = () => {},
@@ -148,6 +155,14 @@ export const EventDialog = ({
   const { toast } = useToast();
   const { t, language } = useLanguage();
   const queryClient = useQueryClient();
+  
+  // Helper function to get the effective user ID for operations
+  const getEffectiveUserId = () => {
+    if (isPublicMode && publicBoardUserId) {
+      return publicBoardUserId;
+    }
+    return user?.id;
+  };
   
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
@@ -474,7 +489,7 @@ export const EventDialog = ({
           file_path: fileName,
           content_type: file.type,
           size: file.size,
-          user_id: user?.id,
+          user_id: getEffectiveUserId(),
           event_id: eventId
         });
 
@@ -497,7 +512,7 @@ export const EventDialog = ({
       const { data: businessData } = await supabase
         .from('business_profiles')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', getEffectiveUserId())
         .maybeSingle();
 
       if (!businessData) {
@@ -600,10 +615,14 @@ export const EventDialog = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
+    
+    const effectiveUserId = getEffectiveUserId();
+    
+    if (!effectiveUserId) {
       toast({
         title: t("common.error"),
-        description: t("common.authRequired")
+        description: isPublicMode ? "Board owner authentication required" : t("common.authRequired"),
+        variant: "destructive"
       });
       return;
     }
@@ -802,7 +821,14 @@ export const EventDialog = ({
         repeat_pattern: isRecurring && repeatPattern ? repeatPattern : null,
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
         reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
-        email_reminder_enabled: emailReminderEnabled
+        email_reminder_enabled: emailReminderEnabled,
+        // Add sub-user metadata when in public mode
+        ...(isPublicMode && externalUserName ? {
+          created_by_type: eventId || initialData ? undefined : 'sub_user',
+          created_by_name: eventId || initialData ? undefined : externalUserName,
+          last_edited_by_type: 'sub_user',
+          last_edited_by_name: externalUserName
+        } : {})
       };
 
       console.log("📤 Sending event data to backend with reminder fields:", {
@@ -824,7 +850,7 @@ export const EventDialog = ({
         result = await supabase.rpc('save_event_with_persons', {
           p_event_data: eventData,
           p_additional_persons: additionalPersons,
-          p_user_id: user.id,
+          p_user_id: effectiveUserId,
           p_event_id: actualEventId
         });
 
@@ -873,7 +899,7 @@ export const EventDialog = ({
         result = await supabase.rpc('save_event_with_persons', {
           p_event_data: eventData,
           p_additional_persons: additionalPersons,
-          p_user_id: user.id
+          p_user_id: effectiveUserId
         });
 
         if (result.error) throw result.error;
@@ -979,7 +1005,7 @@ export const EventDialog = ({
 
       const { error } = await supabase.rpc('delete_recurring_series', {
         p_event_id: parentId,
-        p_user_id: user?.id,
+        p_user_id: getEffectiveUserId(),
         p_delete_choice: 'series'
       });
 

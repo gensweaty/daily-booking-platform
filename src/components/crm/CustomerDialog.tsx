@@ -579,6 +579,13 @@ export const CustomerDialog = ({
             user_id: effectiveUserId,
             start_date: eventStartDate.toISOString(),
             end_date: eventEndDate.toISOString(),
+            // Add metadata for sub-users when creating events from customers
+            ...(isPublicMode && externalUserName ? {
+              created_by_type: 'sub_user',
+              created_by_name: externalUserName,
+              last_edited_by_type: 'sub_user',
+              last_edited_by_name: externalUserName
+            } : {})
           };
 
           console.log("Creating event from customer with payment status:", eventData.payment_status);
