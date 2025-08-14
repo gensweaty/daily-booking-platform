@@ -106,13 +106,29 @@ export const CalendarHeader = ({
         
         {onAddEvent && (
           <Button 
-            onClick={() => {
+            onClick={(e) => {
               console.log('🚀 CalendarHeader Add Event button clicked');
+              console.log('📱 Device info:', {
+                isTouchDevice: 'ontouchstart' in window,
+                userAgent: navigator.userAgent,
+                screenWidth: window.screen.width,
+                innerWidth: window.innerWidth
+              });
+              console.log('🎯 Click event details:', {
+                type: e.type,
+                button: e.button,
+                clientX: e.clientX,
+                clientY: e.clientY,
+                target: e.target
+              });
+              e.preventDefault();
+              e.stopPropagation();
               onAddEvent();
             }} 
             size="sm" 
             variant="dynamic"
-            className={cn("ml-auto sm:ml-0 font-semibold", isGeorgian ? "font-georgian" : "")}
+            className={cn("ml-auto sm:ml-0 font-semibold pointer-events-auto", isGeorgian ? "font-georgian" : "")}
+            style={{ touchAction: 'manipulation' }}
           >
             <Plus className="h-4 w-4" />
             {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}

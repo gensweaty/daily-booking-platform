@@ -160,20 +160,6 @@ export const CustomerList = ({
     return filteredData.slice(startIndex, endIndex);
   }, [filteredData, currentPage, pageSize]);
 
-  const handleDeleteCustomer = useCallback(async (customer: any) => {
-    if (!user?.id) {
-      toast({
-        title: t("common.error"),
-        description: t("common.missingUserInfo"),
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setCustomerToDelete(customer);
-    setIsDeleteConfirmOpen(true);
-  }, [user?.id, t, toast]);
-
   const canEditDelete = useCallback((customer: any) => {
     // For non-public mode (regular authenticated users), check if they're a sub-user
     if (!isPublicMode && !isSubUser) return true;
@@ -235,6 +221,41 @@ export const CustomerList = ({
     
     return true; // Admin has all permissions
   }, [isPublicMode, externalUserName, publicBoardUserId, isSubUser, user?.email, user?.id]);
+
+  const handleDeleteCustomer = useCallback(async (customer: any) => {
+    console.log('🗑️ Delete customer clicked:', {
+      customerId: customer.id,
+      hasPermissions,
+      isPublicMode,
+      userAgent: navigator.userAgent,
+      canEditDelete: canEditDelete(customer)
+    });
+    
+    if (!user?.id) {
+      console.log('❌ No user ID available');
+      toast({
+        title: t("common.error"),
+        description: t("common.missingUserInfo"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check permissions before opening dialog
+    if (!canEditDelete(customer)) {
+      console.log('❌ No permission to delete this customer');
+      toast({
+        title: t("common.error"),
+        description: "You can only delete items you created",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log('✅ Opening delete confirmation dialog');
+    setCustomerToDelete(customer);
+    setIsDeleteConfirmOpen(true);
+  }, [user?.id, t, toast, hasPermissions, isPublicMode, canEditDelete]);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!customerToDelete || !user?.id) return;

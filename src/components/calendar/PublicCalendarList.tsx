@@ -241,6 +241,14 @@ export const PublicCalendarList = ({
 
   const handleAddEventClick = () => {
     console.log('🔍 Add Event clicked - hasPermissions:', hasPermissions);
+    console.log('📱 Device detection:', {
+      isTouchDevice: 'ontouchstart' in window,
+      userAgent: navigator.userAgent,
+      screenWidth: window.screen.width,
+      innerWidth: window.innerWidth,
+      isMobile
+    });
+    
     if (!hasPermissions) {
       console.log('❌ No permissions - returning early');
       return;
@@ -251,7 +259,9 @@ export const PublicCalendarList = ({
     now.setHours(9, 0, 0, 0);
     
     setDialogSelectedDate(now);
-    setTimeout(() => setIsNewEventDialogOpen(true), 0);
+    
+    // Force synchronous state update for desktop compatibility
+    setIsNewEventDialogOpen(true);
   };
 
   // Check if sub-user can edit/delete event
