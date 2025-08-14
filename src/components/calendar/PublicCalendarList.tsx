@@ -139,7 +139,8 @@ export const PublicCalendarList = ({
     handleUpdateEvent,
     handleDeleteEvent,
   } = useEventDialog({
-    createEvent: hasPermissions !== false ? async (data) => {
+    // Always allow event creation for users with permissions
+    createEvent: hasPermissions ? async (data) => {
       console.log('Creating event with sub-user metadata:', data);
       
       const { data: result, error } = await supabase
@@ -162,9 +163,12 @@ export const PublicCalendarList = ({
         description: "Your event has been added to the calendar.",
       });
       
+      queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
       return result;
     } : undefined,
-    updateEvent: hasPermissions !== false ? async (data) => {
+    
+    // Always allow event updates for users with permissions
+    updateEvent: hasPermissions ? async (data) => {
       console.log('Updating event with sub-user metadata:', data);
       
       const { data: result, error } = await supabase
@@ -186,8 +190,11 @@ export const PublicCalendarList = ({
         description: "Your changes have been saved.",
       });
       
+      queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
       return result;
     } : undefined,
+    
+    // Only allow deletion for events created by this sub-user
     deleteEvent: hasPermissions ? async ({ id: eventId, deleteChoice }) => {
       console.log('Deleting event:', eventId);
       
@@ -205,6 +212,7 @@ export const PublicCalendarList = ({
         description: "The event has been removed from the calendar.",
       });
       
+      queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
       return result;
     } : undefined
   });

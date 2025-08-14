@@ -149,6 +149,10 @@ export const PublicBoardNavigation = ({
 
   const hasPermission = (permission: 'calendar' | 'crm' | 'statistics') => {
     if (!isSubUser) return true; // Admin has all permissions
+    
+    // For calendar specifically, we always allow access since we set it to true above
+    if (permission === 'calendar') return true;
+    
     return permissions[`${permission}_permission`];
   };
 
