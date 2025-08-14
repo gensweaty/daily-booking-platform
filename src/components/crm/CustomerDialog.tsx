@@ -687,10 +687,29 @@ export const CustomerDialog = ({
 
   const handleConfirmDelete = async () => {
     const effectiveUserId = getEffectiveUserId();
-    if (!customerId || !effectiveUserId || effectiveUserId === 'temp-public-user') {
+    
+    console.log('🗑️ Customer deletion attempt (CustomerDialog):', {
+      customerId,
+      effectiveUserId,
+      isPublicMode,
+      publicBoardUserId,
+      userId: user?.id,
+      externalUserName
+    });
+    
+    if (!customerId) {
       toast({
         title: t("common.error"),
-        description: "Missing customer ID or user information",
+        description: "Customer ID is missing",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!effectiveUserId || effectiveUserId === 'temp-public-user') {
+      toast({
+        title: t("common.error"),
+        description: isPublicMode ? "Board owner authentication required" : "Missing customer ID or user information",
         variant: "destructive"
       });
       return;

@@ -159,10 +159,26 @@ export const EventDialog = ({
   
   // Helper function to get the effective user ID for operations
   const getEffectiveUserId = () => {
+    console.log('🔍 Getting effective user ID:', {
+      isPublicMode,
+      publicBoardUserId,
+      userId: user?.id,
+      isSubUser,
+      externalUserName
+    });
+
     if (isPublicMode && publicBoardUserId) {
+      console.log('✅ Using public board user ID:', publicBoardUserId);
       return publicBoardUserId;
     }
-    return user?.id;
+    
+    if (user?.id) {
+      console.log('✅ Using authenticated user ID:', user.id);
+      return user.id;
+    }
+
+    console.warn('⚠️ No effective user ID found');
+    return null;
   };
   
   const [title, setTitle] = useState("");
@@ -619,7 +635,19 @@ export const EventDialog = ({
     
     const effectiveUserId = getEffectiveUserId();
     
-    if (!effectiveUserId) {
+    console.log('🎯 Event creation attempt:', {
+      effectiveUserId,
+      isPublicMode,
+      publicBoardUserId,
+      userId: user?.id,
+      isSubUser,
+      externalUserName,
+      title,
+      userSurname
+    });
+    
+    if (!effectiveUserId || effectiveUserId === 'temp-public-user') {
+      console.error('❌ Missing effective user ID for event creation');
       toast({
         title: t("common.error"),
         description: isPublicMode ? "Board owner authentication required" : t("common.authRequired"),

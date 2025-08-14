@@ -236,6 +236,14 @@ export const CustomerList = ({
     return true; // Admin has all permissions
   }, [isPublicMode, externalUserName, publicBoardUserId, isSubUser, user?.email, user?.id]);
 
+  // Helper function to get the effective user ID for operations
+  const getEffectiveUserId = () => {
+    if (isPublicMode && publicBoardUserId) {
+      return publicBoardUserId;
+    }
+    return user?.id;
+  };
+
   const handleConfirmDelete = useCallback(async () => {
     if (!customerToDelete) {
       toast({
@@ -246,13 +254,24 @@ export const CustomerList = ({
       return;
     }
 
-    // Get the appropriate user ID based on context
-    const effectiveUserId = isPublicMode ? publicBoardUserId : user?.id;
+    const effectiveUserId = getEffectiveUserId();
     
-    if (!effectiveUserId) {
+    console.log('🗑️ Customer deletion attempt:', {
+      customerId: customerToDelete?.id,
+      customerEventId: customerToDelete?.event_id,
+      effectiveUserId,
+      isPublicMode,
+      publicBoardUserId,
+      userId: user?.id,
+      hasPermissions: canEditDelete(customerToDelete),
+      customerCreatedBy: customerToDelete?.created_by_name,
+      customerCreatedByType: customerToDelete?.created_by_type
+    });
+    
+    if (!effectiveUserId || effectiveUserId === 'temp-public-user') {
       toast({
         title: t("common.error"),
-        description: t("common.missingUserInfo"),
+        description: isPublicMode ? "Board owner authentication required" : t("common.missingUserInfo"),
         variant: "destructive",
       });
       return;
