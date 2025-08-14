@@ -139,7 +139,7 @@ export const PublicEventDialog = ({
   // Check if current user is the creator of this event
   const isEventCreatedByCurrentUser = initialData ? 
     (initialData.created_by_type === 'sub_user' && initialData.created_by_name === externalUserName) ||
-    (initialData.created_by_type !== 'sub_user') : true;
+    (initialData.created_by_type !== 'sub_user' && initialData.created_by_type !== 'admin') : true;
 
   // Initialize form data
   useEffect(() => {
@@ -429,33 +429,29 @@ export const PublicEventDialog = ({
             />
             
             {(initialData || currentEventData) && (
-              <div className="flex flex-col gap-2 text-sm text-muted-foreground mb-4 rounded-md p-4 border border-border bg-card">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center">
-                    <Clock className="mr-1 h-4 w-4" />
-                    <span>
-                      {t("common.created")} {new Date((currentEventData || initialData)?.created_at || '').toLocaleString(language)}
-                    </span>
+              <div className="flex items-center text-sm text-muted-foreground mb-4 rounded-md p-4 py-[8px] px-[8px] border border-border bg-card">
+                <span className="flex items-center mr-4">
+                  <Clock className="mr-1 h-4 w-4" />
+                  <span>
+                    {t("common.created")} {new Date((currentEventData || initialData)?.created_at || '').toLocaleString(language)}
+                    {(currentEventData || initialData)?.created_by_name && (
+                      <span className="ml-2 text-xs">
+                        by {(currentEventData || initialData)?.created_by_name} ({(currentEventData || initialData)?.created_by_type || 'admin'})
+                      </span>
+                    )}
                   </span>
-                  {(currentEventData || initialData)?.created_by_name && (
-                    <span className="text-xs">
-                      by {(currentEventData || initialData)?.created_by_name} ({(currentEventData || initialData)?.created_by_type || 'admin'})
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center">
-                    <RefreshCcw className="mr-1 h-4 w-4" />
-                    <span>
-                      {t("common.lastUpdated")} {new Date((currentEventData || initialData)?.updated_at || (currentEventData || initialData)?.created_at || '').toLocaleString(language)}
-                    </span>
+                </span>
+                <span className="flex items-center">
+                  <RefreshCcw className="mr-1 h-4 w-4" />
+                  <span>
+                    {t("common.lastUpdated")} {new Date((currentEventData || initialData)?.updated_at || (currentEventData || initialData)?.created_at || '').toLocaleString(language)}
+                    {(currentEventData || initialData)?.last_edited_by_name && (
+                      <span className="ml-2 text-xs">
+                        by {(currentEventData || initialData)?.last_edited_by_name} ({(currentEventData || initialData)?.last_edited_by_type || 'admin'})
+                      </span>
+                    )}
                   </span>
-                  {(currentEventData || initialData)?.last_edited_by_name && (
-                    <span className="text-xs">
-                      by {(currentEventData || initialData)?.last_edited_by_name} ({(currentEventData || initialData)?.last_edited_by_type || 'admin'})
-                    </span>
-                  )}
-                </div>
+                </span>
               </div>
             )}
             
