@@ -9,6 +9,10 @@ import { TaskFormHeader } from "./TaskFormHeader";
 import { TaskFormFields } from "./TaskFormFields";
 import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { getCreationMetadata, getUpdateMetadata } from "@/utils/permissionUtils";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
+import { useUserContext } from "@/hooks/useUserContext";
 
 interface PublicAddTaskFormProps {
   onClose: () => void;
@@ -25,6 +29,13 @@ export const PublicAddTaskForm = ({
   externalUserName,
   externalUserEmail 
 }: PublicAddTaskFormProps) => {
+  const { user } = useAuth();
+  const { isSubUser } = useSubUserPermissions();
+  const userContext = useUserContext({
+    isPublicMode: !!externalUserName,
+    externalUserName,
+    externalUserEmail,
+  });
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [fileError, setFileError] = useState("");
@@ -112,6 +123,9 @@ export const PublicAddTaskForm = ({
         }
       }
 
+      // Get metadata based on user context
+      const metadata = editingTask ? getUpdateMetadata(userContext) : getCreationMetadata(userContext);
+
       const taskData = {
         title,
         description,
@@ -121,20 +135,8 @@ export const PublicAddTaskForm = ({
         deadline_at: deadline && deadline.trim() !== '' ? deadline : null,
         reminder_at: reminderAt && reminderAt.trim() !== '' ? reminderAt : null,
         email_reminder_enabled: emailReminder && reminderAt ? emailReminder : false,
-        external_user_email: externalUserEmail, // Store external user email for reminders
-        ...(editingTask ? {
-          // External user editing
-          last_edited_by_type: 'external_user',
-          last_edited_by_name: `${externalUserName} (Sub User)`,
-          last_edited_at: new Date().toISOString()
-        } : {
-          // External user creating
-          created_by_type: 'external_user',
-          created_by_name: `${externalUserName} (Sub User)`,
-          last_edited_by_type: 'external_user',
-          last_edited_by_name: `${externalUserName} (Sub User)`,
-          last_edited_at: new Date().toISOString()
-        })
+        external_user_email: userContext.isPublicMode ? externalUserEmail : null,
+        ...metadata
       };
 
       console.log('📝 Task data prepared:', taskData);
