@@ -10,7 +10,7 @@ import { createCheckoutSession } from "@/utils/stripeUtils";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
-export const PricingSection = () => {
+const PricingSection = () => {
   const [isYearly, setIsYearly] = useState(false);
   const [loading, setLoading] = useState<'monthly' | 'yearly' | null>(null);
   const { t, language } = useLanguage();
@@ -303,3 +303,5 @@ export const PricingSection = () => {
     </section>
   );
 };
+
+export default PricingSection;
