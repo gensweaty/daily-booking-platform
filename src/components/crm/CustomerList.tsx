@@ -176,11 +176,23 @@ export const CustomerList = ({
   const canEditDelete = useCallback((customer: any) => {
     if (!isPublicMode) return true;
     
+    console.log('🔍 Checking permissions for customer:', {
+      id: customer.id,
+      created_by_type: customer.created_by_type,
+      created_by_name: customer.created_by_name,
+      user_id: customer.user_id,
+      externalUserName,
+      publicBoardUserId
+    });
+    
     // In public mode, allow edit/delete if:
     // 1. The item was created by this sub-user (directly or via events), OR
     // 2. Legacy data without creator info but belongs to the board owner (for backwards compatibility)
-    return (customer.created_by_type === 'sub_user' && customer.created_by_name === externalUserName) ||
+    const canEdit = (customer.created_by_type === 'sub_user' && customer.created_by_name === externalUserName) ||
            (!customer.created_by_type && !customer.created_by_name && customer.user_id === publicBoardUserId);
+    
+    console.log('🔍 Permission result:', canEdit);
+    return canEdit;
   }, [isPublicMode, externalUserName, publicBoardUserId]);
 
   const handleConfirmDelete = useCallback(async () => {

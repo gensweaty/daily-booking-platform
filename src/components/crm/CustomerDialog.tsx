@@ -421,6 +421,15 @@ export const CustomerDialog = ({
           id = customerId.replace('event-', '');
         }
 
+        // Log data for debugging
+        console.log('🔍 CustomerDialog update data:', {
+          customerId,
+          isPublicMode,
+          externalUserName,
+          publicBoardUserId,
+          updates
+        });
+
         // For public mode (sub-users), use simplified ownership logic
         let query = supabase
           .from(tableToUpdate)
@@ -429,7 +438,6 @@ export const CustomerDialog = ({
         
         if (isPublicMode && publicBoardUserId) {
           // In public mode, always filter by board owner's user_id
-          // The frontend permission check (canEditDelete) ensures only proper records are editable
           query = query.eq('user_id', publicBoardUserId);
         } else {
           query = query.eq('user_id', effectiveUserId);
@@ -676,6 +684,14 @@ export const CustomerDialog = ({
         id = customerId.replace('event-', '');
       }
 
+      // Log data for debugging
+      console.log('🔍 CustomerDialog delete data:', {
+        customerId: id,
+        isPublicMode,
+        externalUserName,
+        publicBoardUserId
+      });
+
       // For public mode (sub-users), use simplified ownership logic
       let query = supabase
         .from(tableToUpdate)
@@ -684,7 +700,6 @@ export const CustomerDialog = ({
       
       if (isPublicMode && publicBoardUserId) {
         // In public mode, always filter by board owner's user_id
-        // The frontend permission check (canEditDelete) ensures only proper records are deletable
         query = query.eq('user_id', publicBoardUserId);
       } else {
         query = query.eq('user_id', effectiveUserId);
