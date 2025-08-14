@@ -2,7 +2,26 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
-import { Calendar } from "../Calendar/Calendar";
+import { CalendarHeader } from "../Calendar/CalendarHeader";
+import { CalendarView } from "../Calendar/CalendarView";
+import { EventDialog } from "../Calendar/EventDialog";
+import { TimeIndicator } from "../Calendar/TimeIndicator";
+import { useEventDialog } from "../Calendar/hooks/useEventDialog";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useTheme } from "next-themes";
+import {
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  addDays,
+  startOfMonth,
+  endOfMonth,
+  addMonths,
+  subMonths,
+  setHours,
+  startOfDay,
+  format,
+} from "date-fns";
 import { PresenceAvatars } from "@/components/PresenceAvatars";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,6 +43,12 @@ export const PublicCalendarList = ({
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
+  
+  // Calendar state
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [view, setView] = useState<CalendarViewType>("month");
+  const isMobile = useMediaQuery("(max-width: 640px)");
+  const { theme } = useTheme();
 
   // Fetch events using RPC function for public access
   const { data: events = [], isLoading } = useQuery({
@@ -44,6 +69,63 @@ export const PublicCalendarList = ({
     enabled: !!boardUserId,
     refetchInterval: false,
   });
+
+  // Calendar helper functions
+  const getDaysForView = () => {
+    switch (view) {
+      case "month": {
+        const monthStart = startOfMonth(selectedDate);
+        return eachDayOfInterval({
+          start: monthStart,
+          end: endOfMonth(selectedDate),
+        });
+      }
+      case "week":
+        return eachDayOfInterval({
+          start: startOfWeek(selectedDate),
+          end: endOfWeek(selectedDate),
+        });
+      case "day":
+        return [startOfDay(selectedDate)];
+    }
+  };
+
+  const handlePrevious = () => {
+    switch (view) {
+      case "month":
+        setSelectedDate(subMonths(selectedDate, 1));
+        break;
+      case "week":
+        setSelectedDate(addDays(selectedDate, -7));
+        break;
+      case "day":
+        setSelectedDate(addDays(selectedDate, -1));
+        break;
+    }
+  };
+
+  const handleNext = () => {
+    switch (view) {
+      case "month":
+        setSelectedDate(addMonths(selectedDate, 1));
+        break;
+      case "week":
+        setSelectedDate(addDays(selectedDate, 7));
+        break;
+      case "day":
+        setSelectedDate(addDays(selectedDate, 1));
+        break;
+    }
+  };
+
+  const handleViewChange = (newView: CalendarViewType) => {
+    setView(newView);
+  };
+
+  const handleEventClick = (event: CalendarEventType) => {
+    // For sub-users, only allow viewing events, no editing
+    console.log('Event clicked:', event);
+  };
 
   // Set up real-time subscription for calendar changes
   useEffect(() => {
@@ -124,14 +206,31 @@ export const PublicCalendarList = ({
         </div>
       </div>
 
-      {/* Direct Calendar Component - No Auth Override */}
-      <Calendar 
-        defaultView="month"
-        directEvents={events}
-        isExternalCalendar={true}
-        businessUserId={boardUserId}
-        showAllEvents={true}
-      />
+      {/* Custom Calendar Implementation */}
+      <div className={`h-full flex flex-col ${isMobile ? 'gap-2 -mx-4' : 'gap-4'}`}>
+        <CalendarHeader
+          selectedDate={selectedDate}
+          view={view}
+          onViewChange={handleViewChange}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          isExternalCalendar={true}
+        />
+
+        <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
+          {view !== 'month' && <TimeIndicator />}
+          <div className={`flex-1 ${theme === "dark" ? "bg-gray-900" : "bg-white"} ${theme === "dark" ? "text-white" : "text-foreground"}`}>
+            <CalendarView
+              days={getDaysForView()}
+              events={events || []}
+              selectedDate={selectedDate}
+              view={view}
+              onEventClick={handleEventClick}
+              isExternalCalendar={true}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
