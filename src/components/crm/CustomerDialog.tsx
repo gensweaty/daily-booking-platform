@@ -25,6 +25,9 @@ interface CustomerDialogProps {
   onOpenChange: (open: boolean) => void;
   customerId?: string | null;
   initialData?: any;
+  isPublicMode?: boolean;
+  externalUserName?: string;
+  externalUserEmail?: string;
 }
 
 export const CustomerDialog = ({
@@ -32,6 +35,9 @@ export const CustomerDialog = ({
   onOpenChange,
   customerId,
   initialData,
+  isPublicMode = false,
+  externalUserName,
+  externalUserEmail,
 }: CustomerDialogProps) => {
   const { t, language } = useLanguage();
   const { user } = useAuth();

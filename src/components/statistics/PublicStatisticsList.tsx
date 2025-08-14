@@ -9,6 +9,9 @@ import { BookingChart } from "@/components/Statistics/BookingChart";
 import { IncomeChart } from "@/components/Statistics/IncomeChart";
 import { StatsHeader } from "@/components/Statistics/StatsHeader";
 import { StatsCards } from "@/components/Statistics/StatsCards";
+import { useExcelExport } from "@/components/Statistics/ExcelExport";
+import { FileSpreadsheet } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { startOfMonth, endOfMonth } from 'date-fns';
 
 interface PublicStatisticsListProps {
@@ -26,6 +29,7 @@ export const PublicStatisticsList = ({
 }: PublicStatisticsListProps) => {
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
+  const { exportToExcel } = useExcelExport();
   const isGeorgian = language === 'ka';
   
   const currentDate = useMemo(() => new Date(), []);
@@ -54,7 +58,7 @@ export const PublicStatisticsList = ({
     refetchInterval: false,
   });
 
-  // Fetch event statistics
+  // Fetch event statistics with chart data
   const { data: eventStats, isLoading: isLoadingEvents } = useQuery({
     queryKey: ['publicEventStats', boardUserId, dateRange],
     queryFn: async () => {
@@ -79,14 +83,72 @@ export const PublicStatisticsList = ({
       const fullyPaid = events?.filter(e => e.payment_status === 'fully_paid').length || 0;
       const totalIncome = events?.reduce((sum, e) => sum + (parseFloat(e.payment_amount) || 0), 0) || 0;
       
-      console.log('Processed event stats:', { total, partlyPaid, fullyPaid, totalIncome });
+      // Prepare chart data arrays
+      let dailyStats: Array<{ day: string; bookings: number; date: Date; month: string }> = [];
+      let monthlyIncome: Array<{ month: string; income: number }> = [];
+
+      if (events?.length) {
+        // Process events for booking chart - group by date and count bookings
+        const eventsByDate = new Map<string, number>();
+        
+        events.forEach((event: any) => {
+          if (event.start_date) {
+            const eventDate = new Date(event.start_date);
+            const dateKey = eventDate.toISOString().split('T')[0];
+            eventsByDate.set(dateKey, (eventsByDate.get(dateKey) || 0) + 1);
+          }
+        });
+
+        // Convert to dailyStats format sorted by date
+        const sortedDates = Array.from(eventsByDate.keys()).sort();
+        dailyStats = sortedDates.map(dateKey => {
+          const date = new Date(dateKey);
+          return {
+            day: date.getDate().toString(),
+            bookings: eventsByDate.get(dateKey) || 0,
+            date,
+            month: date.toLocaleDateString('en-US', { month: 'short' })
+          };
+        });
+
+        // Process events for income chart by month
+        const incomeByMonth = new Map<string, number>();
+        
+        events.forEach((event: any) => {
+          if (event.start_date && event.payment_amount) {
+            const eventDate = new Date(event.start_date);
+            const monthKey = eventDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            incomeByMonth.set(monthKey, (incomeByMonth.get(monthKey) || 0) + Number(event.payment_amount));
+          }
+        });
+
+        // Convert to monthlyIncome format - sort by date
+        const sortedMonths = Array.from(incomeByMonth.keys()).sort((a, b) => {
+          const dateA = new Date(a);
+          const dateB = new Date(b);
+          return dateA.getTime() - dateB.getTime();
+        });
+        
+        monthlyIncome = sortedMonths.map(month => ({
+          month,
+          income: incomeByMonth.get(month) || 0
+        }));
+      }
+      
+      console.log('Processed event stats with charts:', { 
+        total, partlyPaid, fullyPaid, totalIncome,
+        dailyStatsCount: dailyStats.length,
+        monthlyIncomeCount: monthlyIncome.length
+      });
+      
       return {
         total,
         partlyPaid,
         fullyPaid,
         totalIncome,
-        dailyStats: [],
-        monthlyIncome: []
+        dailyStats,
+        monthlyIncome,
+        events: events || []
       };
     },
     enabled: !!boardUserId,
@@ -194,12 +256,22 @@ export const PublicStatisticsList = ({
   };
 
   const handleExport = () => {
-    console.log("Export functionality not available in public view");
+    if (currentEventStats && currentTaskStats && currentCustomerStats) {
+      const exportData = {
+        taskStats: currentTaskStats,
+        eventStats: {
+          ...currentEventStats,
+          events: eventStats?.events || []
+        },
+        customerStats: currentCustomerStats
+      };
+      exportToExcel(exportData);
+    }
   };
 
   // Default stats
   const defaultTaskStats = { total: 0, completed: 0, inProgress: 0, todo: 0 };
-  const defaultEventStats = { total: 0, partlyPaid: 0, fullyPaid: 0, totalIncome: 0, monthlyIncome: [], dailyStats: [] };
+  const defaultEventStats = { total: 0, partlyPaid: 0, fullyPaid: 0, totalIncome: 0, monthlyIncome: [], dailyStats: [], events: [] };
   const defaultCustomerStats = { total: 0, withBooking: 0, withoutBooking: 0 };
 
   const currentTaskStats = taskStats || defaultTaskStats;
@@ -271,9 +343,23 @@ export const PublicStatisticsList = ({
         customerStats={currentCustomerStats}
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <BookingChart data={currentEventStats.dailyStats} />
-        <IncomeChart data={currentEventStats.monthlyIncome} />
+      {/* Charts and Excel Export */}
+      <div className="space-y-6">
+        <div className="flex justify-end">
+          <Button
+            onClick={handleExport}
+            disabled={isLoading || !currentEventStats.events.length}
+            className="flex items-center gap-2"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            {language === 'es' ? "Exportar a Excel" : "Export to Excel"}
+          </Button>
+        </div>
+        
+        <div className="grid gap-4 md:grid-cols-2">
+          <BookingChart data={currentEventStats.dailyStats || []} />
+          <IncomeChart data={currentEventStats.monthlyIncome || []} />
+        </div>
       </div>
     </div>
   );

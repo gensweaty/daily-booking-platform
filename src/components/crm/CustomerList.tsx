@@ -91,7 +91,13 @@ const LoadingCustomerList = React.memo(() => {
 
 LoadingCustomerList.displayName = 'LoadingCustomerList';
 
-export const CustomerList = () => {
+interface CustomerListProps {
+  isPublicMode?: boolean;
+  externalUserName?: string;
+  externalUserEmail?: string;
+}
+
+export const CustomerList = ({ isPublicMode = false, externalUserName, externalUserEmail }: CustomerListProps = {}) => {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -156,15 +162,38 @@ export const CustomerList = () => {
     setIsDeleteConfirmOpen(true);
   }, [user?.id, t, toast]);
 
+  const canEditDelete = useCallback((customer: any) => {
+    if (!isPublicMode) return true;
+    
+    // In public mode, only allow edit/delete if the item was created by this sub-user
+    return customer.created_by_type === 'sub_user' && 
+           customer.created_by_name === externalUserName;
+  }, [isPublicMode, externalUserName]);
+
   const handleConfirmDelete = useCallback(async () => {
     if (!customerToDelete || !user?.id) return;
+
+    // Check permissions in public mode
+    if (isPublicMode && !canEditDelete(customerToDelete)) {
+      toast({
+        title: t("common.error"),
+        description: "You can only delete items you created",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       if (customerToDelete.id.startsWith('event-')) {
         const eventId = customerToDelete.id.replace('event-', '');
         const { error } = await supabase
           .from('events')
-          .update({ deleted_at: new Date().toISOString() })
+          .update({ 
+            deleted_at: new Date().toISOString(),
+            last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
+            last_edited_by_name: isPublicMode ? externalUserName : user.email,
+            last_edited_at: new Date().toISOString()
+          })
           .eq('id', eventId)
           .eq('user_id', user.id);
 
@@ -172,7 +201,12 @@ export const CustomerList = () => {
       } else {
         const { error } = await supabase
           .from('customers')
-          .update({ deleted_at: new Date().toISOString() })
+          .update({ 
+            deleted_at: new Date().toISOString(),
+            last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
+            last_edited_by_name: isPublicMode ? externalUserName : user.email,
+            last_edited_at: new Date().toISOString()
+          })
           .eq('id', customerToDelete.id)
           .eq('user_id', user.id);
 
@@ -199,7 +233,7 @@ export const CustomerList = () => {
         variant: "destructive",
       });
     }
-  }, [customerToDelete, user?.id, queryClient, toast, t]);
+  }, [customerToDelete, user?.id, queryClient, toast, t, isPublicMode, canEditDelete, externalUserName]);
 
   const handleSearchSelect = useCallback((customer: any) => {
     openEditDialog(customer);
@@ -574,6 +608,7 @@ export const CustomerList = () => {
                             variant="ghost"
                             size="icon"
                             onClick={() => openEditDialog(customer)}
+                            title={isPublicMode ? "View/Edit (read-only unless you created it)" : "Edit"}
                           >
                             <Pencil className="w-4 h-4" />
                           </Button>
@@ -581,9 +616,20 @@ export const CustomerList = () => {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDeleteCustomer(customer)}
+                            disabled={isPublicMode && !canEditDelete(customer)}
+                            title={isPublicMode && !canEditDelete(customer) ? "You can only delete items you created" : "Delete"}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
+                          {isPublicMode && (
+                            <div className="flex items-center ml-2">
+                              {customer.created_by_type === 'sub_user' ? (
+                                <User className="w-3 h-3 text-blue-500" />
+                              ) : (
+                                <UserCog className="w-3 h-3 text-green-500" />
+                              )}
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -624,6 +670,9 @@ export const CustomerList = () => {
         onOpenChange={setIsDialogOpen}
         customerId={selectedCustomer?.id}
         initialData={selectedCustomer}
+        isPublicMode={isPublicMode}
+        externalUserName={externalUserName}
+        externalUserEmail={externalUserEmail}
       />
 
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>

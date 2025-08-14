@@ -41,6 +41,9 @@ interface CalendarProps {
   showAllEvents?: boolean;
   allowBookingRequests?: boolean;
   directEvents?: CalendarEventType[];
+  isPublicMode?: boolean;
+  externalUserName?: string;
+  externalUserEmail?: string;
 }
 
 const CalendarContent = ({ 
@@ -48,6 +51,9 @@ const CalendarContent = ({
   currentView,
   onViewChange,
   isExternalCalendar = false,
+  isPublicMode = false,
+  externalUserName,
+  externalUserEmail,
   businessId,
   businessUserId,
   showAllEvents = false,
