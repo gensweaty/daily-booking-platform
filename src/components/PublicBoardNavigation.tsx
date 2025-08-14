@@ -5,9 +5,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CalendarIcon, BarChart, Users, ListTodo } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { PublicTaskList } from "@/components/tasks/PublicTaskList";
-import { PublicCalendar } from "@/components/PublicCalendar";
-import { PublicCRM } from "@/components/PublicCRM";
-import { PublicStatistics } from "@/components/PublicStatistics";
+import { PublicCalendarList } from "@/components/calendar/PublicCalendarList";
+import { PublicCRMList } from "@/components/crm/PublicCRMList";
+import { PublicStatisticsList } from "@/components/statistics/PublicStatisticsList";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { PresenceAvatars } from "@/components/PresenceAvatars";
@@ -241,25 +241,20 @@ export const PublicBoardNavigation = ({
                   exit="exit"
                 >
                   <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">
-                    <CardHeader className="flex flex-row items-center justify-between">
-                      <CardTitle>
-                        <LanguageText>{t("dashboard.bookingCalendar")}</LanguageText>
-                      </CardTitle>
-                      <div className="flex items-center gap-2">
-                        <PresenceAvatars users={onlineUsers} max={5} />
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      <div className="px-6 pt-0">
-                        <motion.div
-                          variants={cardVariants}
-                          initial="hidden"
-                          animate="visible"
-                        >
-                          <PublicCalendar boardUserId={boardUserId} />
-                        </motion.div>
-                      </div>
-                    </CardContent>
+                     <CardContent className="p-6 pt-0">
+                         <motion.div
+                           variants={cardVariants}
+                           initial="hidden"
+                           animate="visible"
+                         >
+                           <PublicCalendarList 
+                             boardUserId={boardUserId}
+                             externalUserName={fullName}
+                             externalUserEmail={email}
+                             onlineUsers={onlineUsers}
+                           />
+                         </motion.div>
+                     </CardContent>
                   </Card>
                 </motion.div>
               </TabsContent>
@@ -274,26 +269,19 @@ export const PublicBoardNavigation = ({
                   exit="exit"
                 >
                   <Card className="min-h-[calc(100vh-12rem)]">
-                    <CardHeader className="flex flex-row items-center justify-between">
-                      <CardTitle>
-                        {isGeorgian ? (
-                          <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტიკა</GeorgianAuthText>
-                        ) : (
-                          <LanguageText>{t("dashboard.statistics")}</LanguageText>
-                        )}
-                      </CardTitle>
-                      <div className="flex items-center gap-2">
-                        <PresenceAvatars users={onlineUsers} max={5} />
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <motion.div
-                        variants={cardVariants}
-                        initial="hidden"
-                        animate="visible"
-                      >
-                        <PublicStatistics boardUserId={boardUserId} />
-                      </motion.div>
+                     <CardContent className="p-6 pt-0">
+                       <motion.div
+                         variants={cardVariants}
+                         initial="hidden"
+                         animate="visible"
+                       >
+                         <PublicStatisticsList 
+                           boardUserId={boardUserId}
+                           externalUserName={fullName}
+                           externalUserEmail={email}
+                           onlineUsers={onlineUsers}
+                         />
+                       </motion.div>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -309,26 +297,19 @@ export const PublicBoardNavigation = ({
                   exit="exit"
                 >
                   <Card className="min-h-[calc(100vh-12rem)]">
-                    <CardHeader className="flex flex-row items-center justify-between">
-                      <CardTitle>
-                        {isGeorgian ? (
-                          <GeorgianAuthText>მომხმარებლების მართვა</GeorgianAuthText>
-                        ) : (
-                          <LanguageText>{t("dashboard.crm")}</LanguageText>
-                        )}
-                      </CardTitle>
-                      <div className="flex items-center gap-2">
-                        <PresenceAvatars users={onlineUsers} max={5} />
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <motion.div
-                        variants={cardVariants}
-                        initial="hidden"
-                        animate="visible"
-                      >
-                        <PublicCRM boardUserId={boardUserId} />
-                      </motion.div>
+                     <CardContent className="p-6 pt-0">
+                       <motion.div
+                         variants={cardVariants}
+                         initial="hidden"
+                         animate="visible"
+                       >
+                         <PublicCRMList 
+                           boardUserId={boardUserId}
+                           externalUserName={fullName}
+                           externalUserEmail={email}
+                           onlineUsers={onlineUsers}
+                         />
+                       </motion.div>
                     </CardContent>
                   </Card>
                 </motion.div>
