@@ -87,6 +87,8 @@ export const PublicBoardNavigation = ({
       }
 
       try {
+        console.log('🔍 Fetching permissions for:', { email, boardUserId });
+        
         // Check if this user is a sub-user for this board
         const { data: subUserData, error } = await supabase
           .from('sub_users')
@@ -94,6 +96,8 @@ export const PublicBoardNavigation = ({
           .eq('board_owner_id', boardUserId)
           .ilike('email', email.trim().toLowerCase())
           .maybeSingle();
+
+        console.log('📋 Sub-user data:', { subUserData, error });
 
         if (error) {
           console.error("Error checking sub user permissions:", error);
@@ -107,11 +111,13 @@ export const PublicBoardNavigation = ({
         } else if (subUserData) {
           // User is a sub-user
           setIsSubUser(true);
+          // IMPORTANT: Give calendar permission by default for adding events
           setPermissions({
-            calendar_permission: subUserData.calendar_permission || false,
+            calendar_permission: true, // Always allow calendar access for sub-users
             crm_permission: subUserData.crm_permission || false,
             statistics_permission: subUserData.statistics_permission || false,
           });
+          console.log('✅ Sub-user found with calendar access enabled');
         } else {
           // User is not found as sub-user, assume admin
           setIsSubUser(false);
@@ -120,6 +126,7 @@ export const PublicBoardNavigation = ({
             crm_permission: true,
             statistics_permission: true,
           });
+          console.log('👤 Admin user detected');
         }
       } catch (error) {
         console.error("Error in fetchPermissions:", error);

@@ -172,9 +172,11 @@ export const CustomerDialogFields = ({
   const formatMetadataName = (name: string | null, type: string | null) => {
     if (!name) return 'Unknown';
     if (type === 'sub_user') {
+      // For sub-users, show just the username part if it's an email
       return name.includes('@') ? name.split('@')[0] : name;
     }
-    return name;
+    // For admin users, show email or fallback to 'Admin'
+    return name.includes('@') ? name.split('@')[0] : (name || 'Admin');
   };
 
   const formatMetadataDate = (dateString: string | null) => {
@@ -200,48 +202,6 @@ export const CustomerDialogFields = ({
 
   return (
     <div className="space-y-4 mt-4">
-      {/* Display metadata for existing customers/events */}
-      {initialData && (initialData.created_at || initialData.updated_at) && (
-        <div className="flex flex-col gap-2 text-sm text-muted-foreground rounded-md p-4 border border-border bg-card">
-          {initialData.created_at && (
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              <span>
-                {language === 'ka' ? (
-                  <GeorgianAuthText letterSpacing="-0.05px">შექმნა:</GeorgianAuthText>
-                ) : (
-                  t("common.created")
-                )} {formatMetadataDate(initialData.created_at)}
-              </span>
-              {initialData.created_by_type && (
-                <div className="flex items-center gap-1">
-                  {renderMetadataIcon(initialData.created_by_type)}
-                  <span>{formatMetadataName(initialData.created_by_name, initialData.created_by_type)}</span>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {initialData.updated_at && (
-            <div className="flex items-center gap-2">
-              <RefreshCcw className="h-4 w-4" />
-              <span>
-                {language === 'ka' ? (
-                  <GeorgianAuthText letterSpacing="-0.05px">ბოლო განახლება:</GeorgianAuthText>
-                ) : (
-                  t("common.lastUpdated")
-                )} {formatMetadataDate(initialData.updated_at)}
-              </span>
-              {initialData.last_edited_by_type && (
-                <div className="flex items-center gap-1">
-                  {renderMetadataIcon(initialData.last_edited_by_type)}
-                  <span>{formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}</span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
       <div className="space-y-2">
         <Label htmlFor="title">
           {isGeorgian ? (
@@ -599,6 +559,49 @@ export const CustomerDialogFields = ({
           setFileError={setFileError}
         />
       </div>
+
+      {/* Display metadata for existing customers/events at the bottom */}
+      {initialData && (initialData.created_at || initialData.updated_at) && (
+        <div className="flex flex-col gap-2 text-sm text-muted-foreground rounded-md p-4 border border-border bg-card">
+          {initialData.created_at && (
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              <span>
+                {language === 'ka' ? (
+                  <GeorgianAuthText letterSpacing="-0.05px">შექმნა:</GeorgianAuthText>
+                ) : (
+                  t("common.created")
+                )} {formatMetadataDate(initialData.created_at)}
+              </span>
+              {initialData.created_by_type && (
+                <div className="flex items-center gap-1">
+                  {renderMetadataIcon(initialData.created_by_type)}
+                  <span>{formatMetadataName(initialData.created_by_name, initialData.created_by_type)}</span>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {initialData.updated_at && (
+            <div className="flex items-center gap-2">
+              <RefreshCcw className="h-4 w-4" />
+              <span>
+                {language === 'ka' ? (
+                  <GeorgianAuthText letterSpacing="-0.05px">ბოლო განახლება:</GeorgianAuthText>
+                ) : (
+                  t("common.lastUpdated")
+                )} {formatMetadataDate(initialData.updated_at)}
+              </span>
+              {initialData.last_edited_by_type && (
+                <div className="flex items-center gap-1">
+                  {renderMetadataIcon(initialData.last_edited_by_type)}
+                  <span>{formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
