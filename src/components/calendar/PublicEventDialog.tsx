@@ -147,9 +147,9 @@ export const PublicEventDialog = ({
   // Helper function to normalize names (similar to tasks)
   const normalizeName = (name?: string, type?: string) => {
     if (!name) return undefined;
-    if (type === 'admin' && name.includes('@')) {
-      // For admin users, try to get username from profile
-      return creatorDisplayName || editorDisplayName || name.split('@')[0];
+    if (type === 'admin') {
+      // For admin users, return the fetched display name or fallback
+      return creatorDisplayName || editorDisplayName || (name.includes('@') ? name.split('@')[0] : name);
     }
     return name;
   };
@@ -160,45 +160,49 @@ export const PublicEventDialog = ({
       const eventData = currentEventData || initialData;
       if (!eventData) return;
 
-      // Fetch creator display name if admin and email
-      if (eventData.created_by_type === 'admin' && eventData.created_by_name?.includes('@')) {
+      // Fetch creator display name if admin
+      if (eventData.created_by_type === 'admin' && eventData.created_by_name) {
         try {
-          const { data: users } = await supabase
+          // Try to find profile by user ID first (if name is actually a user ID)
+          const { data: profileById } = await supabase
             .from('profiles')
-            .select('id, username')
-            .limit(100);
-
-          const matchingUser = users?.find(u => u.id === eventData.created_by_name?.split('@')[0] || false);
-          if (matchingUser?.username) {
-            setCreatorDisplayName(matchingUser.username);
+            .select('username')
+            .eq('id', eventData.created_by_name)
+            .single();
+          
+          if (profileById?.username) {
+            setCreatorDisplayName(profileById.username);
           } else {
-            setCreatorDisplayName(eventData.created_by_name?.split('@')[0] || eventData.created_by_name);
+            // If not found by ID and it's an email, get username from email prefix
+            setCreatorDisplayName(eventData.created_by_name.includes('@') ? eventData.created_by_name.split('@')[0] : eventData.created_by_name);
           }
         } catch (error) {
           console.error('Error fetching creator profile:', error);
-          setCreatorDisplayName(eventData.created_by_name?.split('@')[0] || eventData.created_by_name);
+          setCreatorDisplayName(eventData.created_by_name.includes('@') ? eventData.created_by_name.split('@')[0] : eventData.created_by_name);
         }
       } else {
         setCreatorDisplayName(eventData.created_by_name || '');
       }
 
-      // Fetch editor display name if admin and email
-      if (eventData.last_edited_by_type === 'admin' && eventData.last_edited_by_name?.includes('@')) {
+      // Fetch editor display name if admin
+      if (eventData.last_edited_by_type === 'admin' && eventData.last_edited_by_name) {
         try {
-          const { data: users } = await supabase
+          // Try to find profile by user ID first
+          const { data: profileById } = await supabase
             .from('profiles')
-            .select('id, username')
-            .limit(100);
-
-          const matchingUser = users?.find(u => u.id === eventData.last_edited_by_name?.split('@')[0] || false);
-          if (matchingUser?.username) {
-            setEditorDisplayName(matchingUser.username);
+            .select('username')
+            .eq('id', eventData.last_edited_by_name)
+            .single();
+          
+          if (profileById?.username) {
+            setEditorDisplayName(profileById.username);
           } else {
-            setEditorDisplayName(eventData.last_edited_by_name?.split('@')[0] || eventData.last_edited_by_name);
+            // If not found by ID and it's an email, get username from email prefix
+            setEditorDisplayName(eventData.last_edited_by_name.includes('@') ? eventData.last_edited_by_name.split('@')[0] : eventData.last_edited_by_name);
           }
         } catch (error) {
           console.error('Error fetching editor profile:', error);
-          setEditorDisplayName(eventData.last_edited_by_name?.split('@')[0] || eventData.last_edited_by_name);
+          setEditorDisplayName(eventData.last_edited_by_name.includes('@') ? eventData.last_edited_by_name.split('@')[0] : eventData.last_edited_by_name);
         }
       } else {
         setEditorDisplayName(eventData.last_edited_by_name || '');
