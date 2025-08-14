@@ -487,8 +487,8 @@ export const PublicEventDialog = ({
             />
             
             {(initialData || currentEventData) && (
-              <div className="flex items-center text-sm text-muted-foreground mb-4 rounded-md p-4 py-[8px] px-[8px] border border-border bg-card">
-                <span className="flex items-center mr-4">
+              <div className="text-sm text-muted-foreground mb-4 rounded-md p-4 py-[8px] px-[8px] border border-border bg-card">
+                <span className="flex items-center">
                   <Clock className="mr-1 h-4 w-4" />
                   <span>
                     {t("common.created")} {new Date((currentEventData || initialData)?.created_at || '').toLocaleString(language)}
@@ -497,12 +497,7 @@ export const PublicEventDialog = ({
                         by {creatorDisplayName} ({(currentEventData || initialData)?.created_by_type || 'admin'})
                       </span>
                     )}
-                  </span>
-                </span>
-                <span className="flex items-center">
-                  <RefreshCcw className="mr-1 h-4 w-4" />
-                  <span>
-                    {t("common.lastUpdated")} {new Date((currentEventData || initialData)?.updated_at || (currentEventData || initialData)?.created_at || '').toLocaleString(language)}
+                    , {t("common.lastUpdated")} {new Date((currentEventData || initialData)?.updated_at || (currentEventData || initialData)?.created_at || '').toLocaleString(language)}
                     {editorDisplayName && (
                       <span className="ml-2 text-xs">
                         by {editorDisplayName} ({(currentEventData || initialData)?.last_edited_by_type || 'admin'})

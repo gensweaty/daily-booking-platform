@@ -200,10 +200,66 @@ export const EventDialog = ({
   const [currentEventData, setCurrentEventData] = useState<CalendarEvent | null>(null);
   const [reminderAt, setReminderAt] = useState("");
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
+  const [creatorDisplayName, setCreatorDisplayName] = useState<string>("");
+  const [editorDisplayName, setEditorDisplayName] = useState<string>("");
 
   const isNewEvent = !initialData && !eventId;
   const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
   const isRecurringEvent = initialData?.is_recurring || isVirtualEvent || isRecurring;
+
+  // Fetch display names for admin users
+  useEffect(() => {
+    const fetchDisplayNames = async () => {
+      const eventData = currentEventData || initialData;
+      if (!eventData) return;
+
+      // Fetch creator display name if admin
+      if (eventData.created_by_type === 'admin' && eventData.created_by_name) {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', eventData.created_by_name)
+            .single();
+          
+          if (profile?.username) {
+            setCreatorDisplayName(profile.username);
+          } else {
+            setCreatorDisplayName(eventData.created_by_name);
+          }
+        } catch (error) {
+          console.error('Error fetching creator profile:', error);
+          setCreatorDisplayName(eventData.created_by_name);
+        }
+      } else {
+        setCreatorDisplayName(eventData.created_by_name || '');
+      }
+
+      // Fetch editor display name if admin
+      if (eventData.last_edited_by_type === 'admin' && eventData.last_edited_by_name) {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', eventData.last_edited_by_name)
+            .single();
+          
+          if (profile?.username) {
+            setEditorDisplayName(profile.username);
+          } else {
+            setEditorDisplayName(eventData.last_edited_by_name);
+          }
+        } catch (error) {
+          console.error('Error fetching editor profile:', error);
+          setEditorDisplayName(eventData.last_edited_by_name);
+        }
+      } else {
+        setEditorDisplayName(eventData.last_edited_by_name || '');
+      }
+    };
+
+    fetchDisplayNames();
+  }, [currentEventData, initialData]);
 
   const loadAdditionalPersons = async (targetEventId: string) => {
     try {
@@ -437,6 +493,8 @@ export const EventDialog = ({
     setCurrentEventData(null);
     setReminderAt("");
     setEmailReminderEnabled(false);
+    setCreatorDisplayName("");
+    setEditorDisplayName("");
     console.log('🔄 Form fields reset');
   };
 
@@ -1159,12 +1217,22 @@ export const EventDialog = ({
                   <Clock className="mr-1 h-4 w-4" />
                   <span>
                     {t("common.created")} {new Date((currentEventData || initialData)?.created_at || '').toLocaleString(language)}
+                    {creatorDisplayName && (
+                      <span className="ml-2 text-xs">
+                        by {creatorDisplayName} ({(currentEventData || initialData)?.created_by_type || 'admin'})
+                      </span>
+                    )}
                   </span>
                 </span>
                 <span className="flex items-center">
                   <RefreshCcw className="mr-1 h-4 w-4" />
                   <span>
                     {t("common.lastUpdated")} {new Date((currentEventData || initialData)?.updated_at || (currentEventData || initialData)?.created_at || '').toLocaleString(language)}
+                    {editorDisplayName && (
+                      <span className="ml-2 text-xs">
+                        by {editorDisplayName} ({(currentEventData || initialData)?.last_edited_by_type || 'admin'})
+                      </span>
+                    )}
                   </span>
                 </span>
               </div>
