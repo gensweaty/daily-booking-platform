@@ -96,13 +96,15 @@ interface CustomerListProps {
   externalUserName?: string;
   externalUserEmail?: string;
   publicBoardUserId?: string;
+  hasPermissions?: boolean;
 }
 
 export const CustomerList = ({ 
   isPublicMode = false, 
   externalUserName, 
-  externalUserEmail, 
-  publicBoardUserId 
+  externalUserEmail,
+  publicBoardUserId,
+  hasPermissions = false
 }: CustomerListProps = {}) => {
   const { t, language } = useLanguage();
   const { user } = useAuth();
@@ -682,6 +684,7 @@ export const CustomerList = ({
         isPublicMode={isPublicMode}
         externalUserName={externalUserName}
         externalUserEmail={externalUserEmail}
+        publicBoardUserId={publicBoardUserId}
       />
 
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>

@@ -247,12 +247,13 @@ export const PublicBoardNavigation = ({
                            initial="hidden"
                            animate="visible"
                          >
-                           <PublicCalendarList 
-                             boardUserId={boardUserId}
-                             externalUserName={fullName}
-                             externalUserEmail={email}
-                             onlineUsers={onlineUsers}
-                           />
+                          <PublicCalendarList 
+                            boardUserId={boardUserId}
+                            externalUserName={fullName}
+                            externalUserEmail={email}
+                            onlineUsers={onlineUsers}
+                            hasPermissions={!!permissions?.calendar_permission}
+                          />
                          </motion.div>
                      </CardContent>
                   </Card>
@@ -303,12 +304,13 @@ export const PublicBoardNavigation = ({
                          initial="hidden"
                          animate="visible"
                        >
-                         <PublicCRMList 
-                           boardUserId={boardUserId}
-                           externalUserName={fullName}
-                           externalUserEmail={email}
-                           onlineUsers={onlineUsers}
-                         />
+                          <PublicCRMList 
+                            boardUserId={boardUserId}
+                            externalUserName={fullName}
+                            externalUserEmail={email}
+                            onlineUsers={onlineUsers}
+                            hasPermissions={!!permissions?.crm_permission}
+                          />
                        </motion.div>
                     </CardContent>
                   </Card>

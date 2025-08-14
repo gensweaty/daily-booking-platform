@@ -28,6 +28,7 @@ interface CustomerDialogProps {
   isPublicMode?: boolean;
   externalUserName?: string;
   externalUserEmail?: string;
+  publicBoardUserId?: string;
 }
 
 export const CustomerDialog = ({
@@ -38,6 +39,7 @@ export const CustomerDialog = ({
   isPublicMode = false,
   externalUserName,
   externalUserEmail,
+  publicBoardUserId,
 }: CustomerDialogProps) => {
   const { t, language } = useLanguage();
   const { user } = useAuth();
@@ -365,13 +367,23 @@ export const CustomerDialog = ({
     }
   };
 
+  // Helper function to get the effective user ID for operations
+  const getEffectiveUserId = () => {
+    if (isPublicMode && publicBoardUserId) {
+      return publicBoardUserId;
+    }
+    return user?.id;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user?.id) {
+    const effectiveUserId = getEffectiveUserId();
+
+    if (!effectiveUserId || effectiveUserId === 'temp-public-user') {
       toast({
         title: t("common.error"),
-        description: t("common.missingUserInfo"),
+        description: isPublicMode ? "Board owner authentication required" : t("common.missingUserInfo"),
         variant: "destructive"
       });
       return;
@@ -389,7 +401,7 @@ export const CustomerDialog = ({
           event_notes,
           payment_status,
           payment_amount: payment_amount ? parseFloat(payment_amount) : null,
-          user_id: user.id,
+          user_id: effectiveUserId,
           create_event: createEvent,
           start_date: createEvent ? eventStartDate.toISOString() : null,
           end_date: createEvent ? eventEndDate.toISOString() : null
@@ -407,7 +419,7 @@ export const CustomerDialog = ({
           .from(tableToUpdate)
           .update(updates)
           .eq('id', id)
-          .eq('user_id', user.id)
+          .eq('user_id', effectiveUserId)
           .select()
           .single();
 
@@ -428,7 +440,7 @@ export const CustomerDialog = ({
             .from('events')
             .select('id')
             .eq('title', title)
-            .eq('user_id', user.id)
+            .eq('user_id', effectiveUserId)
             .is('deleted_at', null);
             
           if (eventCheckError) {
@@ -443,7 +455,7 @@ export const CustomerDialog = ({
             event_notes: event_notes,
             payment_status: payment_status,
             payment_amount: payment_amount ? parseFloat(payment_amount) : null,
-            user_id: user.id,
+            user_id: effectiveUserId,
             start_date: eventStartDate.toISOString(),
             end_date: eventEndDate.toISOString(),
           };
@@ -509,7 +521,7 @@ export const CustomerDialog = ({
           event_notes,
           payment_status,
           payment_amount: payment_amount ? parseFloat(payment_amount) : null,
-          user_id: user.id,
+          user_id: effectiveUserId,
           create_event: createEvent,
           start_date: createEvent ? eventStartDate.toISOString() : null,
           end_date: createEvent ? eventEndDate.toISOString() : null
@@ -549,7 +561,7 @@ export const CustomerDialog = ({
             event_notes: event_notes,
             payment_status: payment_status,
             payment_amount: payment_amount ? parseFloat(payment_amount) : null,
-            user_id: user.id,
+            user_id: effectiveUserId,
             start_date: eventStartDate.toISOString(),
             end_date: eventEndDate.toISOString(),
           };
@@ -637,7 +649,7 @@ export const CustomerDialog = ({
         .from(tableToUpdate)
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', id)
-        .eq('user_id', user.id);
+        .eq('user_id', getEffectiveUserId());
 
       if (error) throw error;
 

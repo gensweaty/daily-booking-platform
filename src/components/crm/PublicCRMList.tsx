@@ -12,13 +12,15 @@ interface PublicCRMListProps {
   externalUserName: string;
   externalUserEmail: string;
   onlineUsers: { name: string; email: string }[];
+  hasPermissions?: boolean;
 }
 
 export const PublicCRMList = ({ 
   boardUserId, 
   externalUserName, 
   externalUserEmail, 
-  onlineUsers 
+  onlineUsers,
+  hasPermissions = false
 }: PublicCRMListProps) => {
   const { t } = useLanguage();
   const isMobile = useMediaQuery("(max-width: 640px)");
@@ -84,10 +86,11 @@ export const PublicCRMList = ({
 
       {/* Direct CustomerList Component - No Auth Override */}
       <CustomerList 
-        isPublicMode={true}
+        isPublicMode={hasPermissions}
         externalUserName={externalUserName}
         externalUserEmail={externalUserEmail}
         publicBoardUserId={boardUserId}
+        hasPermissions={hasPermissions}
       />
     </div>
   );

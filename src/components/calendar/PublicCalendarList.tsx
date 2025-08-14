@@ -9,6 +9,7 @@ import { TimeIndicator } from "../Calendar/TimeIndicator";
 import { useEventDialog } from "../Calendar/hooks/useEventDialog";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
+import { useToast } from "@/hooks/use-toast";
 import {
   startOfWeek,
   endOfWeek,
@@ -32,17 +33,20 @@ interface PublicCalendarListProps {
   externalUserName: string;
   externalUserEmail: string;
   onlineUsers: { name: string; email: string }[];
+  hasPermissions?: boolean;
 }
 
 export const PublicCalendarList = ({ 
   boardUserId, 
   externalUserName, 
   externalUserEmail, 
-  onlineUsers 
+  onlineUsers,
+  hasPermissions = false
 }: PublicCalendarListProps) => {
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
+  const { toast } = useToast();
   
   // Calendar state
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -122,9 +126,123 @@ export const PublicCalendarList = ({
     setView(newView);
   };
 
+  // Use the event dialog hook for managing events
+  const {
+    selectedEvent,
+    setSelectedEvent,
+    isNewEventDialogOpen,
+    setIsNewEventDialogOpen,
+    selectedDate: dialogSelectedDate,
+    setSelectedDate: setDialogSelectedDate,
+    handleCreateEvent,
+    handleUpdateEvent,
+    handleDeleteEvent,
+  } = useEventDialog({
+    createEvent: hasPermissions ? async (data) => {
+      console.log('Creating event with sub-user metadata:', data);
+      
+      const { data: result, error } = await supabase
+        .rpc('save_event_with_persons', {
+          p_event_data: {
+            ...data,
+            created_by_type: 'sub_user',
+            created_by_name: externalUserName,
+            last_edited_by_type: 'sub_user',
+            last_edited_by_name: externalUserName
+          },
+          p_additional_persons: [],
+          p_user_id: boardUserId
+        });
+
+      if (error) throw error;
+      
+      toast({
+        title: "Event created successfully",
+        description: "Your event has been added to the calendar.",
+      });
+      
+      return result;
+    } : undefined,
+    updateEvent: hasPermissions ? async (data) => {
+      console.log('Updating event with sub-user metadata:', data);
+      
+      const { data: result, error } = await supabase
+        .rpc('save_event_with_persons', {
+          p_event_data: {
+            ...data,
+            last_edited_by_type: 'sub_user',
+            last_edited_by_name: externalUserName
+          },
+          p_additional_persons: [],
+          p_user_id: boardUserId,
+          p_event_id: data.id
+        });
+
+      if (error) throw error;
+      
+      toast({
+        title: "Event updated successfully",
+        description: "Your changes have been saved.",
+      });
+      
+      return result;
+    } : undefined,
+    deleteEvent: hasPermissions ? async ({ id: eventId, deleteChoice }) => {
+      console.log('Deleting event:', eventId);
+      
+      const { data: result, error } = await supabase
+        .rpc('delete_recurring_series', {
+          p_event_id: eventId,
+          p_user_id: boardUserId,
+          p_delete_choice: deleteChoice || 'this'
+        });
+
+      if (error) throw error;
+      
+      toast({
+        title: "Event deleted successfully",
+        description: "The event has been removed from the calendar.",
+      });
+      
+      return result;
+    } : undefined
+  });
+
   const handleEventClick = (event: CalendarEventType) => {
-    // For sub-users, only allow viewing events, no editing
-    console.log('Event clicked:', event);
+    if (hasPermissions) {
+      setSelectedEvent(event);
+    } else {
+      // For external users, just show toast that slot is booked
+      toast({
+        title: "Time slot not available",
+        description: "This time slot is already booked. Please select a different time.",
+      });
+    }
+  };
+
+  const handleCalendarDayClick = (date: Date, hour?: number) => {
+    if (!hasPermissions) return;
+    
+    const clickedDate = new Date(date);
+    clickedDate.setHours(hour !== undefined ? hour : 9, 0, 0, 0);
+    
+    setDialogSelectedDate(clickedDate);
+    setTimeout(() => setIsNewEventDialogOpen(true), 0);
+  };
+
+  const handleAddEventClick = () => {
+    if (!hasPermissions) return;
+    
+    const now = new Date();
+    now.setHours(9, 0, 0, 0);
+    
+    setDialogSelectedDate(now);
+    setTimeout(() => setIsNewEventDialogOpen(true), 0);
+  };
+
+  // Check if sub-user can edit/delete event
+  const canEditEvent = (event: CalendarEventType) => {
+    return event.created_by_type === 'sub_user' && event.created_by_name === externalUserName;
   };
 
   // Set up real-time subscription for calendar changes
@@ -214,7 +332,8 @@ export const PublicCalendarList = ({
           onViewChange={handleViewChange}
           onPrevious={handlePrevious}
           onNext={handleNext}
-          isExternalCalendar={true}
+          onAddEvent={hasPermissions ? handleAddEventClick : undefined}
+          isExternalCalendar={!hasPermissions}
         />
 
         <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
@@ -225,12 +344,45 @@ export const PublicCalendarList = ({
               events={events || []}
               selectedDate={selectedDate}
               view={view}
+              onDayClick={hasPermissions ? handleCalendarDayClick : undefined}
               onEventClick={handleEventClick}
-              isExternalCalendar={true}
+              isExternalCalendar={!hasPermissions}
             />
           </div>
         </div>
       </div>
+
+      {/* Event Dialogs for sub-users with permissions */}
+      {hasPermissions && (
+        <>
+          <EventDialog
+            key={dialogSelectedDate?.getTime()}
+            open={isNewEventDialogOpen}
+            onOpenChange={setIsNewEventDialogOpen}
+            selectedDate={dialogSelectedDate}
+            onEventCreated={async () => {
+              queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
+            }}
+          />
+
+          {selectedEvent && (
+            <EventDialog
+              key={selectedEvent.id}
+              open={!!selectedEvent}
+              onOpenChange={() => setSelectedEvent(null)}
+              selectedDate={new Date(selectedEvent.start_date)}
+              initialData={selectedEvent}
+              onEventUpdated={async () => {
+                queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
+              }}
+              onEventDeleted={async () => {
+                queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
+              }}
+              
+            />
+          )}
+        </>
+      )}
     </div>
   );
 };
