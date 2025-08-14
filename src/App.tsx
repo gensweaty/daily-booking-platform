@@ -255,7 +255,6 @@ const AppContent = () => {
         <BusinessRouteInterceptor />
         <RouteAwareThemeProvider>
           <RouteAwareWrapper>
-            <SEOManager />
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/dashboard" element={<Index />} />
@@ -332,6 +331,7 @@ function App() {
       <LanguageProvider>
         <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
           <BrowserRouter>
+            <SEOManager />
             <AppContent />
           </BrowserRouter>
         </ThemeProvider>
