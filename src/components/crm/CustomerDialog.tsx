@@ -823,9 +823,12 @@ export const CustomerDialog = ({
                 created_by_name: initialData?.created_by_name,
                 last_edited_by_type: initialData?.last_edited_by_type,
                 last_edited_by_name: initialData?.last_edited_by_name,
+                last_edited_at: initialData?.last_edited_at,
                 created_at: initialData?.created_at,
                 updated_at: initialData?.updated_at
               }}
+              externalUserName={externalUserName}
+              externalUserEmail={externalUserEmail}
             />
 
             <div className="flex justify-between">

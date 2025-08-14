@@ -54,19 +54,32 @@ export const PublicAddTaskForm = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!title.trim()) {
-      toast({
-        title: t("common.error"),
-        description: t("tasks.titleRequired"),
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsSubmitting(true);
+    
+    console.log('🎯 PublicAddTaskForm submit started:', {
+      boardUserId,
+      externalUserName,
+      externalUserEmail,
+      title,
+      description,
+      status,
+      deadline,
+      reminderAt,
+      emailReminder,
+      editingTask: !!editingTask
+    });
 
     try {
+      if (!title.trim()) {
+        toast({
+          title: "Error",
+          description: t("tasks.titleRequired"),
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       // Validate deadline if provided
       if (deadline) {
         const deadlineValidation = await validateDateTime(deadline, 'deadline');
@@ -124,8 +137,11 @@ export const PublicAddTaskForm = ({
         })
       };
 
+      console.log('📝 Task data prepared:', taskData);
+
       let taskResponse;
       if (editingTask) {
+        console.log('🔄 Updating existing task:', editingTask.id);
         const { data, error } = await supabase
           .from('tasks')
           .update(taskData)
@@ -134,17 +150,26 @@ export const PublicAddTaskForm = ({
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('❌ Task update error:', error);
+          throw error;
+        }
         taskResponse = data;
+        console.log('✅ Task updated successfully:', taskResponse);
       } else {
+        console.log('➕ Creating new task');
         const { data, error } = await supabase
           .from('tasks')
           .insert(taskData)
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('❌ Task creation error:', error);
+          throw error;
+        }
         taskResponse = data;
+        console.log('✅ Task created successfully:', taskResponse);
       }
 
       // Handle file upload with proper bucket assignment
@@ -204,9 +229,21 @@ export const PublicAddTaskForm = ({
         description: editingTask ? t("tasks.taskUpdated") : t("tasks.taskAdded"),
       });
       
+      console.log('✅ Task operation completed successfully');
       onClose();
     } catch (error: any) {
-      console.error('Task operation error:', error);
+      console.error('❌ Task operation error:', {
+        error: error.message,
+        details: error,
+        taskData: {
+          title,
+          description,
+          status,
+          boardUserId,
+          externalUserName,
+          externalUserEmail
+        }
+      });
       toast({
         title: "Error",
         description: error.message || `Failed to ${editingTask ? 'update' : 'create'} task. Please try again.`,
