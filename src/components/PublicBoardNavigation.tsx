@@ -261,7 +261,11 @@ export const PublicBoardNavigation = ({
                               externalUserName={fullName}
                               externalUserEmail={email}
                               onlineUsers={onlineUsers}
-                              hasPermissions={hasPermission("calendar")}
+                              hasPermissions={(() => {
+                                const result = hasPermission("calendar");
+                                console.log('🔍 Passing hasPermissions to PublicCalendarList:', result, 'for email:', email);
+                                return result;
+                              })()}
                             />
                          </motion.div>
                      </CardContent>

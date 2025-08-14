@@ -338,7 +338,10 @@ export const PublicCalendarList = ({
           onViewChange={handleViewChange}
           onPrevious={handlePrevious}
           onNext={handleNext}
-          onAddEvent={hasPermissions ? handleAddEventClick : undefined}
+          onAddEvent={hasPermissions ? (() => {
+            console.log('🚀 Add Event button clicked from CalendarHeader');
+            handleAddEventClick();
+          }) : undefined}
           isExternalCalendar={!hasPermissions}
         />
 

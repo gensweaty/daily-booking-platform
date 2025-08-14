@@ -30,6 +30,9 @@ export const CalendarHeader = ({
   const { formatDate } = useLocalizedDate();
   const isGeorgian = language === 'ka';
 
+  // Debug logging for onAddEvent
+  console.log('🔍 CalendarHeader: onAddEvent provided?', !!onAddEvent, 'isExternalCalendar:', isExternalCalendar);
+
   const getFormattedDate = () => {
     switch (view) {
       case "month":
@@ -103,7 +106,10 @@ export const CalendarHeader = ({
         
         {onAddEvent && (
           <Button 
-            onClick={onAddEvent} 
+            onClick={() => {
+              console.log('🚀 CalendarHeader Add Event button clicked');
+              onAddEvent();
+            }} 
             size="sm" 
             variant="dynamic"
             className={cn("ml-auto sm:ml-0 font-semibold", isGeorgian ? "font-georgian" : "")}
@@ -112,6 +118,7 @@ export const CalendarHeader = ({
             {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
           </Button>
         )}
+        
       </div>
     </div>
   );
