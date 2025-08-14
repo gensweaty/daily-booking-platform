@@ -131,6 +131,28 @@ export const usePublicCalendarEvents = (
       }
       
       console.log('[usePublicCalendarEvents] Event created successfully:', completeEvent);
+      
+      // Send booking approval email just like in dashboard
+      try {
+        console.log('[usePublicCalendarEvents] Sending booking approval email...');
+        await supabase.functions.invoke('send-booking-approval-email', {
+          body: {
+            recipientEmail: completeEvent.user_number, // This should be the email
+            fullName: completeEvent.user_surname || completeEvent.title,
+            businessName: 'SmartBookly.Com',
+            paymentStatus: completeEvent.payment_status || 'not_paid',
+            paymentAmount: completeEvent.payment_amount,
+            language: completeEvent.language || 'en',
+            eventNotes: completeEvent.event_notes || '',
+            source: 'public-board'
+          }
+        });
+        console.log('[usePublicCalendarEvents] Booking approval email sent successfully');
+      } catch (emailError) {
+        console.error('[usePublicCalendarEvents] Failed to send booking approval email:', emailError);
+        // Don't throw error for email failure, just log it
+      }
+      
       return completeEvent as CalendarEventType;
     },
     onSuccess: async () => {
