@@ -424,18 +424,10 @@ export const translations: TranslationType = {
     weekOf: "Week of"
   },
   common: {
-    add: "Add",
     cancel: "Cancel",
     success: "Success",
     error: "Error",
     warning: "Warning",
-    metadata: "Item Details",
-    createdBy: "Created by",
-    lastEditedBy: "Last edited by",
-    created: "Created",
-    updated: "Updated",
-    subUser: "Sub User",
-    admin: "Admin",
     submitting: "Submitting...",
     loading: "Loading...",
     rateLimitReached: "Rate Limit Reached",
@@ -473,6 +465,7 @@ export const translations: TranslationType = {
     hoursAgo: "hours ago",
     daysAgo: "days ago",
     schedule: "Schedule",
+    created: "Created:",
     lastUpdated: "Last updated:",
     by: "by",
     

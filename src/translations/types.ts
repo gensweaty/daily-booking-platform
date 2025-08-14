@@ -417,18 +417,10 @@ export interface TranslationType {
     weekOf: string;
   };
   common: {
-    add: string;
     cancel: string;
     success: string;
     error: string;
     warning: string;
-    metadata: string;
-    createdBy: string;
-    lastEditedBy: string;
-    created: string;
-    updated: string;
-    subUser: string;
-    admin: string;
     submitting: string;
     loading: string;
     rateLimitReached: string;
@@ -466,6 +458,7 @@ export interface TranslationType {
     hoursAgo: string;
     daysAgo: string;
     schedule: string;
+    created: string;
     lastUpdated: string;
     by: string;
   };
