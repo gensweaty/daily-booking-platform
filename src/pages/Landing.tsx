@@ -14,7 +14,9 @@ const LazyFeatureSection = lazy(() =>
 );
 
 const LazyPricingSection = lazy(() => 
-  import("@/components/landing/PricingSection")
+  import("@/components/landing/PricingSection").then(module => ({ 
+    default: module.PricingSection 
+  }))
 );
 
 const LazyFooterSection = lazy(() => 

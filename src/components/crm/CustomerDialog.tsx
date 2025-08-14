@@ -415,33 +415,14 @@ export const CustomerDialog = ({
           id = customerId.replace('event-', '');
         }
 
-        // For public mode (sub-users), check ownership properly
+        // For public mode (sub-users), we need to check ownership differently
         let query = supabase
           .from(tableToUpdate)
           .update(updates)
           .eq('id', id);
         
+        // Always filter by the board owner's user_id, regardless of who's editing
         if (isPublicMode && publicBoardUserId) {
-          // First check if this is something the sub-user created
-          const { data: existingRecord } = await supabase
-            .from(tableToUpdate)
-            .select('created_by_type, created_by_name, user_id')
-            .eq('id', id)
-            .single();
-          
-          // Allow editing if:
-          // 1. It was created by this sub-user, OR
-          // 2. It belongs to the board owner and no specific creator info (legacy data)
-          const canEdit = existingRecord && (
-            (existingRecord.created_by_type === 'sub_user' && existingRecord.created_by_name === externalUserName) ||
-            (existingRecord.user_id === publicBoardUserId && !existingRecord.created_by_type)
-          );
-          
-          if (!canEdit) {
-            throw new Error("You don't have permission to edit this record");
-          }
-          
-          // Apply the filter based on board owner
           query = query.eq('user_id', publicBoardUserId);
         } else {
           query = query.eq('user_id', effectiveUserId);
@@ -552,12 +533,7 @@ export const CustomerDialog = ({
           user_id: effectiveUserId,
           create_event: createEvent,
           start_date: createEvent ? eventStartDate.toISOString() : null,
-          end_date: createEvent ? eventEndDate.toISOString() : null,
-          // Add creator metadata for sub-users
-          ...(isPublicMode && externalUserName ? {
-            created_by_type: 'sub_user',
-            created_by_name: externalUserName
-          } : {})
+          end_date: createEvent ? eventEndDate.toISOString() : null
         };
 
         console.log("Creating new customer:", newCustomer);
@@ -665,8 +641,7 @@ export const CustomerDialog = ({
   };
 
   const handleConfirmDelete = async () => {
-    const effectiveUserId = getEffectiveUserId();
-    if (!customerId || !effectiveUserId || effectiveUserId === 'temp-public-user') return;
+    if (!customerId || !user?.id) return;
 
     try {
       setIsLoading(true);
@@ -679,40 +654,11 @@ export const CustomerDialog = ({
         id = customerId.replace('event-', '');
       }
 
-      // For public mode (sub-users), use the same ownership logic as updates
-      if (isPublicMode && publicBoardUserId) {
-        // First check if this is something the sub-user created
-        const { data: existingRecord } = await supabase
-          .from(tableToUpdate)
-          .select('created_by_type, created_by_name, user_id')
-          .eq('id', id)
-          .single();
-        
-        // Allow deleting if:
-        // 1. It was created by this sub-user, OR
-        // 2. It belongs to the board owner and no specific creator info (legacy data)
-        const canDelete = existingRecord && (
-          (existingRecord.created_by_type === 'sub_user' && existingRecord.created_by_name === externalUserName) ||
-          (existingRecord.user_id === publicBoardUserId && !existingRecord.created_by_type)
-        );
-        
-        if (!canDelete) {
-          throw new Error("You don't have permission to delete this record");
-        }
-      }
-
-      let query = supabase
+      const { error } = await supabase
         .from(tableToUpdate)
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', id);
-      
-      if (isPublicMode && publicBoardUserId) {
-        query = query.eq('user_id', publicBoardUserId);
-      } else {
-        query = query.eq('user_id', effectiveUserId);
-      }
-
-      const { error } = await query;
+        .eq('id', id)
+        .eq('user_id', getEffectiveUserId());
 
       if (error) throw error;
 
