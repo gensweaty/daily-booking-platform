@@ -242,13 +242,21 @@ export const CustomerList = ({
       isPublicMode,
       publicBoardUserId,
       userId: user?.id,
-      userEmail: user?.email
+      userEmail: user?.email,
+      isSubUser
     });
     
+    // For public mode, use the board owner's ID
     if (isPublicMode && publicBoardUserId) {
       return publicBoardUserId;
     }
-    return user?.id;
+    
+    // For authenticated users (including sub-users), use their actual user ID
+    if (user?.id) {
+      return user.id;
+    }
+    
+    return null;
   };
 
   const handleConfirmDelete = useCallback(async () => {
