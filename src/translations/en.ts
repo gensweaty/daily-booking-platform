@@ -428,6 +428,7 @@ export const translations: TranslationType = {
     success: "Success",
     error: "Error",
     warning: "Warning",
+    add: "Add",
     submitting: "Submitting...",
     loading: "Loading...",
     rateLimitReached: "Rate Limit Reached",

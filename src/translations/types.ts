@@ -421,6 +421,7 @@ export interface TranslationType {
     success: string;
     error: string;
     warning: string;
+    add: string;
     submitting: string;
     loading: string;
     rateLimitReached: string;

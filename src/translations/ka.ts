@@ -426,6 +426,7 @@ export const translations: TranslationType = {
     success: "წარმატება",
     error: "შეცდომა",
     warning: "გაფრთხილება",
+    add: "დამატება",
     submitting: "გაგზავნა...",
     loading: "ჩატვირთვა...",
     rateLimitReached: "მაქსიმალური ლიმიტი მიღწეულია",

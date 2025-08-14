@@ -144,13 +144,22 @@ export const PublicCalendarList = ({
   };
 
   const handleAddEventClick = () => {
-    if (!hasPermissions) return;
+    console.log('🔍 Add Event button clicked! hasPermissions:', hasPermissions, 'externalUserName:', externalUserName);
+    
+    if (!hasPermissions) {
+      console.log('❌ No permissions, blocking add event');
+      return;
+    }
     
     const now = new Date();
     now.setHours(9, 0, 0, 0);
     
+    console.log('✅ Setting dialog date and opening:', now);
     setDialogSelectedDate(now);
-    setTimeout(() => setIsNewEventDialogOpen(true), 0);
+    setTimeout(() => {
+      console.log('✅ Opening new event dialog');
+      setIsNewEventDialogOpen(true);
+    }, 0);
   };
 
   const handleEventClick = (event: CalendarEventType) => {
