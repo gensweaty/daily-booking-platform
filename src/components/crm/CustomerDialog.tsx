@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { sendBookingConfirmationEmail, sendBookingConfirmationToMultipleRecipients } from "@/lib/api";
+import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 
 interface CustomerDialogProps {
   open: boolean;
@@ -44,6 +45,7 @@ export const CustomerDialog = ({
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isSubUser } = useSubUserPermissions();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     title: "",
@@ -410,6 +412,10 @@ export const CustomerDialog = ({
             last_edited_by_type: 'sub_user',
             last_edited_by_name: externalUserName,
             last_edited_at: new Date().toISOString()
+          } : isSubUser ? {
+            last_edited_by_type: 'sub_user',
+            last_edited_by_name: user?.email || 'sub_user',
+            last_edited_at: new Date().toISOString()
           } : {})
         };
 
@@ -555,6 +561,11 @@ export const CustomerDialog = ({
             created_by_name: externalUserName,
             last_edited_by_type: 'sub_user',
             last_edited_by_name: externalUserName
+          } : isSubUser ? {
+            created_by_type: 'sub_user',
+            created_by_name: user?.email || 'sub_user',
+            last_edited_by_type: 'sub_user',
+            last_edited_by_name: user?.email || 'sub_user'
           } : {})
         };
 
@@ -601,6 +612,11 @@ export const CustomerDialog = ({
               created_by_name: externalUserName,
               last_edited_by_type: 'sub_user',
               last_edited_by_name: externalUserName
+            } : isSubUser ? {
+              created_by_type: 'sub_user',
+              created_by_name: user?.email || 'sub_user',
+              last_edited_by_type: 'sub_user',
+              last_edited_by_name: user?.email || 'sub_user'
             } : {})
           };
 
