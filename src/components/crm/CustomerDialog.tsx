@@ -415,14 +415,16 @@ export const CustomerDialog = ({
           id = customerId.replace('event-', '');
         }
 
-        // For public mode (sub-users), we need to check ownership differently
+        // For public mode (sub-users), check ownership properly
         let query = supabase
           .from(tableToUpdate)
           .update(updates)
           .eq('id', id);
         
-        // Always filter by the board owner's user_id, regardless of who's editing
+        // In public mode, check if user can edit (either they created it or it belongs to board owner)
         if (isPublicMode && publicBoardUserId) {
+          // For events created from customers or customers created by sub-users,
+          // they should be associated with the board owner but editable by sub-users
           query = query.eq('user_id', publicBoardUserId);
         } else {
           query = query.eq('user_id', effectiveUserId);
@@ -641,7 +643,8 @@ export const CustomerDialog = ({
   };
 
   const handleConfirmDelete = async () => {
-    if (!customerId || !user?.id) return;
+    const effectiveUserId = getEffectiveUserId();
+    if (!customerId || !effectiveUserId || effectiveUserId === 'temp-public-user') return;
 
     try {
       setIsLoading(true);
@@ -654,11 +657,19 @@ export const CustomerDialog = ({
         id = customerId.replace('event-', '');
       }
 
-      const { error } = await supabase
+      // For public mode (sub-users), use the same ownership logic as updates
+      let query = supabase
         .from(tableToUpdate)
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', id)
-        .eq('user_id', getEffectiveUserId());
+        .eq('id', id);
+      
+      if (isPublicMode && publicBoardUserId) {
+        query = query.eq('user_id', publicBoardUserId);
+      } else {
+        query = query.eq('user_id', effectiveUserId);
+      }
+
+      const { error } = await query;
 
       if (error) throw error;
 
