@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PublicTaskList } from "@/components/tasks/PublicTaskList";
+import { PublicBoardNavigation } from "@/components/PublicBoardNavigation";
 import { motion } from "framer-motion";
 import { Loader2, Globe, LogOut } from "lucide-react";
 import { useBoardPresence } from "@/hooks/useBoardPresence";
@@ -757,11 +758,12 @@ const handleRegister = async () => {
               boardUserId={boardData.user_id} 
               externalUserName={fullName} 
             />
-            <PublicTaskList 
-              boardUserId={boardData.user_id} 
-              externalUserName={fullName}
-              externalUserEmail={email}
-              onlineUsers={onlineUsers}
+            <PublicBoardNavigation
+              boardId={boardData.id}
+              boardUserId={boardData.user_id}
+              accessToken={accessToken || ''}
+              fullName={fullName}
+              email={email}
             />
           </>
         )}
