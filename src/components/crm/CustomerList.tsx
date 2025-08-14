@@ -283,22 +283,27 @@ export const CustomerList = ({
       customerCreatedByType: customerToDelete?.created_by_type
     });
     
-    if (!effectiveUserId || effectiveUserId === 'temp-public-user') {
+    if (!effectiveUserId) {
       toast({
         title: t("common.error"),
-        description: isPublicMode ? "Board owner authentication required" : t("common.missingUserInfo"),
+        description: "Authentication required for deletion",
         variant: "destructive",
       });
+      setCustomerToDelete(null);
+      setIsDeleteConfirmOpen(false);
       return;
     }
-
-    // Check permissions in public mode
-    if (isPublicMode && !canEditDelete(customerToDelete)) {
+    
+    // For authenticated users, check if they have permission to delete
+    if (!isPublicMode && !canEditDelete(customerToDelete)) {
+      console.log('❌ Authenticated user lacks permission to delete customer');
       toast({
         title: t("common.error"),
-        description: "You can only delete items you created",
+        description: "You don't have permission to delete this customer",
         variant: "destructive",
       });
+      setCustomerToDelete(null);
+      setIsDeleteConfirmOpen(false);
       return;
     }
 

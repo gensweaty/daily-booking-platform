@@ -588,6 +588,46 @@ export const CustomerDialogFields = ({
           setFileError={setFileError}
         />
       </div>
+
+      {/* Display customer metadata - matching TaskFullView format */}
+      {metadata && (
+        <div className="rounded-md bg-muted p-3 space-y-2">
+          <Label className="font-medium flex items-center gap-2">
+            <History className="h-4 w-4" />
+            {t("common.metadata")}
+          </Label>
+          
+          <div className="text-sm space-y-1">
+            {metadata.created_at && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("common.created")}:</span>
+                <span>
+                  {formatDateTime(metadata.created_at)}
+                  {metadata.created_by_name && (
+                    <span className="text-muted-foreground ml-1">
+                      by {normalizeName(metadata.created_by_name)}
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+            
+            {metadata.updated_at && metadata.updated_at !== metadata.created_at && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("common.lastEdited")}:</span>
+                <span>
+                  {formatDateTime(metadata.updated_at)}
+                  {metadata.last_edited_by_name && (
+                    <span className="text-muted-foreground ml-1">
+                      by {normalizeName(metadata.last_edited_by_name)}
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

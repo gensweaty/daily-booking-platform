@@ -112,27 +112,39 @@ export const PublicAddTaskForm = ({
         }
       }
 
+      // Determine the correct user context for task creation
+      const isAuthenticatedUser = !externalUserName && !externalUserEmail;
+      const currentUserName = isAuthenticatedUser ? 'User' : externalUserName;
+      const currentUserType = isAuthenticatedUser ? 'admin' : 'external_user';
+      
+      console.log('📝 Task data preparation:', {
+        isAuthenticatedUser,
+        currentUserName,
+        currentUserType,
+        boardUserId,
+        actualUserId: boardUserId
+      });
+
       const taskData = {
         title,
         description,
         status: status,
-        user_id: boardUserId,
+        user_id: boardUserId, // Always use board user ID for task ownership
         position: editingTask?.position || 0,
         deadline_at: deadline && deadline.trim() !== '' ? deadline : null,
         reminder_at: reminderAt && reminderAt.trim() !== '' ? reminderAt : null,
         email_reminder_enabled: emailReminder && reminderAt ? emailReminder : false,
-        external_user_email: externalUserEmail, // Store external user email for reminders
+        external_user_email: isAuthenticatedUser ? null : externalUserEmail,
+        external_user_name: isAuthenticatedUser ? null : externalUserName,
+        created_by_type: currentUserType,
+        created_by_name: currentUserName,
         ...(editingTask ? {
-          // External user editing
-          last_edited_by_type: 'external_user',
-          last_edited_by_name: `${externalUserName} (Sub User)`,
+          last_edited_by_type: currentUserType,
+          last_edited_by_name: currentUserName,
           last_edited_at: new Date().toISOString()
         } : {
-          // External user creating
-          created_by_type: 'external_user',
-          created_by_name: `${externalUserName} (Sub User)`,
-          last_edited_by_type: 'external_user',
-          last_edited_by_name: `${externalUserName} (Sub User)`,
+          last_edited_by_type: currentUserType,
+          last_edited_by_name: currentUserName,
           last_edited_at: new Date().toISOString()
         })
       };
