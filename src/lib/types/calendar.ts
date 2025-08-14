@@ -40,6 +40,11 @@ export interface CalendarEventType {
   reminder_at?: string;
   email_reminder_enabled?: boolean;
   reminder_sent_at?: string;
+  // Sub-user tracking properties
+  created_by_type?: string;
+  created_by_name?: string;
+  last_edited_by_type?: string;
+  last_edited_by_name?: string;
   files?: Array<{
     id: string;
     event_id: string;

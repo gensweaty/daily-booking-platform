@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
-import { Calendar } from "@/components/Calendar/Calendar";
+import { PublicCalendarComponent } from "./PublicCalendarComponent";
 import { PresenceAvatars } from "@/components/PresenceAvatars";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -124,12 +124,12 @@ export const PublicCalendarList = ({
         </div>
       </div>
 
-      {/* Calendar Component with direct events */}
-      <Calendar 
-        defaultView="month"
-        directEvents={events}
-        isExternalCalendar={true}
-        showAllEvents={true}
+      {/* Calendar Component with Add Event functionality for sub-users */}
+      <PublicCalendarComponent 
+        boardUserId={boardUserId}
+        externalUserName={externalUserName}
+        externalUserEmail={externalUserEmail}
+        events={events}
       />
     </div>
   );
