@@ -1,16 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion, AnimatePresence } from "framer-motion";
 import { CalendarIcon, BarChart, Users, ListTodo } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { PublicTaskList } from "@/components/tasks/PublicTaskList";
-import { Calendar } from "@/components/Calendar/Calendar";
-import { Statistics } from "@/components/Statistics";
-import { CRMWithPermissions } from "@/components/crm/CRMWithPermissions";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { PresenceAvatars } from "@/components/PresenceAvatars";
 import { supabase } from "@/lib/supabase";
+
+// Create a context for public board auth
+const PublicBoardAuthContext = createContext<{
+  user: { id: string; email: string } | null;
+}>({
+  user: null,
+});
+
+export const usePublicBoardAuth = () => useContext(PublicBoardAuthContext);
 
 interface PublicBoardNavigationProps {
   boardId: string;
@@ -152,163 +159,187 @@ export const PublicBoardNavigation = ({
   // If only task board is available, show just the task list without tabs
   if (availableTabs.length === 1) {
     return (
-      <div className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
-                <PublicTaskList 
-                  boardUserId={boardUserId}
-                  externalUserName={fullName}
-                  externalUserEmail={email}
-                  onlineUsers={onlineUsers}
-                />
-      </div>
+      <PublicBoardAuthContext.Provider value={{ user: { id: boardUserId, email } }}>
+        <div className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
+          <PublicTaskList 
+            boardUserId={boardUserId}
+            externalUserName={fullName}
+            externalUserEmail={email}
+            onlineUsers={onlineUsers}
+          />
+        </div>
+      </PublicBoardAuthContext.Provider>
     );
   }
 
   return (
-    <div className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="bg-muted/50 border border-border/60 rounded-lg p-1 mb-2">
-          <TabsList className="grid w-full bg-transparent p-0 gap-1 h-auto" style={{ gridTemplateColumns: `repeat(${availableTabs.length}, minmax(0, 1fr))` }}>
-            {availableTabs.map((tab) => (
-              <TabsTrigger 
-                key={tab.id}
-                value={tab.id}
-                className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
-              >
-                <motion.div
-                  whileHover={{ rotate: 15 }}
-                  transition={{ duration: 0.2 }}
+    <PublicBoardAuthContext.Provider value={{ user: { id: boardUserId, email } }}>
+      <div className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="bg-muted/50 border border-border/60 rounded-lg p-1 mb-2">
+            <TabsList className="grid w-full bg-transparent p-0 gap-1 h-auto" style={{ gridTemplateColumns: `repeat(${availableTabs.length}, minmax(0, 1fr))` }}>
+              {availableTabs.map((tab) => (
+                <TabsTrigger 
+                  key={tab.id}
+                  value={tab.id}
+                  className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
                 >
-                  <tab.icon className="w-4 h-4" />
-                </motion.div>
-                <span className="hidden sm:inline">
-                  {tab.id === "tasks" && isGeorgian ? (
-                    <GeorgianAuthText>დავალებები</GeorgianAuthText>
-                  ) : tab.id === "crm" && isGeorgian ? (
-                    <GeorgianAuthText>მომხმარებლების მართვა</GeorgianAuthText>
-                  ) : tab.id === "statistics" && isGeorgian ? (
-                    <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტიკა</GeorgianAuthText>
-                  ) : (
-                    <LanguageText>{tab.label}</LanguageText>
-                  )}
-                </span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
+                  <motion.div
+                    whileHover={{ rotate: 15 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <tab.icon className="w-4 h-4" />
+                  </motion.div>
+                  <span className="hidden sm:inline">
+                    {tab.id === "tasks" && isGeorgian ? (
+                      <GeorgianAuthText>დავალებები</GeorgianAuthText>
+                    ) : tab.id === "crm" && isGeorgian ? (
+                      <GeorgianAuthText>მომხმარებლების მართვა</GeorgianAuthText>
+                    ) : tab.id === "statistics" && isGeorgian ? (
+                      <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტიკა</GeorgianAuthText>
+                    ) : (
+                      <LanguageText>{tab.label}</LanguageText>
+                    )}
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
 
-        <AnimatePresence mode="wait">
-          <TabsContent key="tasks" value="tasks" className="mt-0">
-            <motion.div
-              variants={tabVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-            >
-              <motion.div
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-              >
-        <PublicTaskList 
-          boardUserId={boardUserId}
-          externalUserName={fullName}
-          externalUserEmail={email}
-          onlineUsers={onlineUsers}
-        />
-              </motion.div>
-            </motion.div>
-          </TabsContent>
-
-          {hasPermission("calendar") && (
-            <TabsContent key="calendar" value="calendar" className="mt-0">
+          <AnimatePresence mode="wait">
+            <TabsContent key="tasks" value="tasks" className="mt-0">
               <motion.div
                 variants={tabVariants}
                 initial="hidden"
                 animate="visible"
                 exit="exit"
               >
-                <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="px-6 pt-6">
+                <motion.div
+                  variants={cardVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  <PublicTaskList 
+                    boardUserId={boardUserId}
+                    externalUserName={fullName}
+                    externalUserEmail={email}
+                    onlineUsers={onlineUsers}
+                  />
+                </motion.div>
+              </motion.div>
+            </TabsContent>
+
+            {hasPermission("calendar") && (
+              <TabsContent key="calendar" value="calendar" className="mt-0">
+                <motion.div
+                  variants={tabVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                >
+                  <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <CardTitle>
+                        <LanguageText>{t("dashboard.bookingCalendar")}</LanguageText>
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <PresenceAvatars users={onlineUsers} max={5} />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="px-6 pt-0">
+                        <motion.div
+                          variants={cardVariants}
+                          initial="hidden"
+                          animate="visible"
+                        >
+                          <div className="text-center py-8">
+                            <p className="text-muted-foreground">Calendar functionality coming soon for public boards</p>
+                          </div>
+                        </motion.div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TabsContent>
+            )}
+
+            {hasPermission("statistics") && (
+              <TabsContent key="statistics" value="statistics">
+                <motion.div
+                  variants={tabVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                >
+                  <Card className="min-h-[calc(100vh-12rem)]">
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <CardTitle>
+                        {isGeorgian ? (
+                          <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტიკა</GeorgianAuthText>
+                        ) : (
+                          <LanguageText>{t("dashboard.statistics")}</LanguageText>
+                        )}
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <PresenceAvatars users={onlineUsers} max={5} />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
                       <motion.div
                         variants={cardVariants}
                         initial="hidden"
                         animate="visible"
                       >
-                        <Calendar defaultView="month" />
+                        <div className="text-center py-8">
+                          <p className="text-muted-foreground">Statistics functionality coming soon for public boards</p>
+                        </div>
                       </motion.div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </TabsContent>
-          )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TabsContent>
+            )}
 
-          {hasPermission("statistics") && (
-            <TabsContent key="statistics" value="statistics">
-              <motion.div
-                variants={tabVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-              >
-                <Card className="min-h-[calc(100vh-12rem)]">
-                  <CardHeader>
-                    <CardTitle>
-                      {isGeorgian ? (
-                        <GeorgianAuthText fontWeight="normal" letterSpacing="-0.5px">სტატისტიკა</GeorgianAuthText>
-                      ) : (
-                        <LanguageText>{t("dashboard.statistics")}</LanguageText>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <motion.div
-                      variants={cardVariants}
-                      initial="hidden"
-                      animate="visible"
-                    >
-                      <Statistics />
-                    </motion.div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </TabsContent>
-          )}
-
-          {hasPermission("crm") && (
-            <TabsContent key="crm" value="crm">
-              <motion.div
-                variants={tabVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-              >
-                <Card className="min-h-[calc(100vh-12rem)]">
-                  <CardHeader>
-                    <CardTitle>
-                      {isGeorgian ? (
-                        <GeorgianAuthText>მომხმარებლების მართვა</GeorgianAuthText>
-                      ) : (
-                        <LanguageText>{t("dashboard.crm")}</LanguageText>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <motion.div
-                      variants={cardVariants}
-                      initial="hidden"
-                      animate="visible"
-                    >
-                      <CRMWithPermissions />
-                    </motion.div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </TabsContent>
-          )}
-        </AnimatePresence>
-      </Tabs>
-    </div>
+            {hasPermission("crm") && (
+              <TabsContent key="crm" value="crm">
+                <motion.div
+                  variants={tabVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                >
+                  <Card className="min-h-[calc(100vh-12rem)]">
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <CardTitle>
+                        {isGeorgian ? (
+                          <GeorgianAuthText>მომხმარებლების მართვა</GeorgianAuthText>
+                        ) : (
+                          <LanguageText>{t("dashboard.crm")}</LanguageText>
+                        )}
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <PresenceAvatars users={onlineUsers} max={5} />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <motion.div
+                        variants={cardVariants}
+                        initial="hidden"
+                        animate="visible"
+                      >
+                        <div className="text-center py-8">
+                          <p className="text-muted-foreground">CRM functionality coming soon for public boards</p>
+                        </div>
+                      </motion.div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TabsContent>
+            )}
+          </AnimatePresence>
+        </Tabs>
+      </div>
+    </PublicBoardAuthContext.Provider>
   );
 };
