@@ -26,29 +26,52 @@ export function useBoardPresence(
       },
     });
 
-    const updateLastLogin = async () => {
-      if (options?.updateSubUserLastLogin && options?.boardOwnerId && currentUser.email) {
-        try {
+  const updateLastLogin = async (userEmail?: string) => {
+    const emailToUpdate = userEmail || currentUser?.email;
+    
+    // Always try to update sub_users table for any user joining the board
+    if (emailToUpdate) {
+      try {
+        console.log("🔄 Attempting to update sub user login for:", emailToUpdate);
+        
+        // First try to find if this is a sub-user
+        const { data: subUserCheck, error: checkError } = await supabase
+          .from("sub_users")
+          .select("id, board_owner_id, email")
+          .ilike("email", emailToUpdate.trim().toLowerCase())
+          .limit(1);
+          
+        if (checkError) {
+          console.error("Error checking sub user:", checkError);
+          return;
+        }
+        
+        if (subUserCheck && subUserCheck.length > 0) {
+          const subUser = subUserCheck[0];
+          console.log("📋 Found sub user, updating login time:", subUser);
+          
           const { data, error } = await supabase
             .from("sub_users")
             .update({
               last_login_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             })
-            .eq("board_owner_id", options.boardOwnerId)
-            .ilike("email", currentUser.email.trim().toLowerCase())
+            .eq("id", subUser.id)
             .select();
           
           if (error) {
-            console.error("Error updating sub user last login:", error);
+            console.error("❌ Error updating sub user last login:", error);
           } else {
-            console.log("Updated sub user last login:", data);
+            console.log("✅ Successfully updated sub user last login:", data);
           }
-        } catch (e) {
-          console.error("Failed updating sub user last login", e);
+        } else {
+          console.log("ℹ️ User is not a sub-user:", emailToUpdate);
         }
+      } catch (e) {
+        console.error("❌ Failed updating sub user last login", e);
       }
-    };
+    }
+  };
 
     const handleSync = () => {
       const state = channel.presenceState() as Record<string, BoardPresenceUser[]>;
@@ -93,10 +116,10 @@ export function useBoardPresence(
       })
       .on("presence", { event: "join" }, async ({ key, newPresences }) => {
         console.log("User joined presence:", key, newPresences);
-        // Update last login for the current user when they join
+        // Update last login for any user who joins presence
         const joinedUser = newPresences?.[0];
-        if (joinedUser?.email === currentUser.email) {
-          await updateLastLogin();
+        if (joinedUser?.email) {
+          await updateLastLogin(joinedUser.email);
         }
         handleSync();
       })
