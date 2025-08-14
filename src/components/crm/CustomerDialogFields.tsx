@@ -13,7 +13,7 @@ import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Clock, ChevronUp, ChevronDown, RefreshCcw, User, UserCog } from "lucide-react";
+import { CalendarIcon, Clock, ChevronUp, ChevronDown, RefreshCcw, User, UserCog, Calendar as CalendarClockIcon, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -560,43 +560,37 @@ export const CustomerDialogFields = ({
         />
       </div>
 
-      {/* Display metadata for existing customers/events at the bottom - exact same style as EventDialog */}
-      {initialData && (initialData.created_at || initialData.updated_at) && (
-        <div className="flex items-center text-sm text-muted-foreground mb-4 rounded-md p-4 py-[8px] px-[8px] border border-border bg-card">
-          <span className="flex items-center mr-4">
-            <Clock className="mr-1 h-4 w-4" />
-            <span>
-              {language === 'ka' ? (
-                <GeorgianAuthText letterSpacing="-0.05px">შექმნა:</GeorgianAuthText>
-              ) : (
-                t("common.created")
-              )} {formatMetadataDate(initialData.created_at)}
-            </span>
-            {initialData.created_by_type && (
-              <span className="ml-2 flex items-center">
-                {renderMetadataIcon(initialData.created_by_type)}
-                <span className="ml-1">{formatMetadataName(initialData.created_by_name, initialData.created_by_type)}</span>
+      {/* Metadata display for created and updated info */}
+      {initialData && (
+        <div className="px-2 py-1 sm:px-3 sm:py-2 rounded-md border border-border bg-card text-card-foreground w-fit">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-muted-foreground">
+            <div className="flex items-center">
+              <CalendarClockIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+              <span className="truncate">
+                {t("common.created")} {format(new Date(initialData.created_at), 'MM/dd/yy HH:mm')}
+                 {initialData.created_by_name && (
+                    <span className="ml-1">
+                      {language === 'ka' 
+                        ? `${formatMetadataName(initialData.created_by_name, initialData.created_by_type)}-ს ${t("common.by")}` 
+                        : `${t("common.by")} ${formatMetadataName(initialData.created_by_name, initialData.created_by_type)}`}
+                    </span>
+                  )}
               </span>
-            )}
-          </span>
-          {initialData.updated_at && (
-            <span className="flex items-center">
-              <RefreshCcw className="mr-1 h-4 w-4" />
-              <span>
-                {language === 'ka' ? (
-                  <GeorgianAuthText letterSpacing="-0.05px">ბოლო განახლება:</GeorgianAuthText>
-                ) : (
-                  t("common.lastUpdated")
-                )} {formatMetadataDate(initialData.updated_at)}
+            </div>
+            <div className="flex items-center">
+              <History className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+              <span className="truncate">
+                {t("common.lastUpdated")} {format(new Date(initialData.updated_at || initialData.created_at), 'MM/dd/yy HH:mm')}
+                 {initialData.last_edited_by_name && initialData.last_edited_at && (
+                    <span className="ml-1">
+                      {language === 'ka' 
+                        ? `${formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}-ს ${t("common.by")}` 
+                        : `${t("common.by")} ${formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}`}
+                    </span>
+                  )}
               </span>
-              {initialData.last_edited_by_type && (
-                <span className="ml-2 flex items-center">
-                  {renderMetadataIcon(initialData.last_edited_by_type)}
-                  <span className="ml-1">{formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}</span>
-                </span>
-              )}
-            </span>
-          )}
+            </div>
+          </div>
         </div>
       )}
     </div>

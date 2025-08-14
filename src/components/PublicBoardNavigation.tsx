@@ -256,13 +256,13 @@ export const PublicBoardNavigation = ({
                            initial="hidden"
                            animate="visible"
                          >
-                           <PublicCalendarList 
-                             boardUserId={boardUserId}
-                             externalUserName={fullName}
-                             externalUserEmail={email}
-                             onlineUsers={onlineUsers}
-                             hasPermissions={!!permissions?.calendar_permission}
-                           />
+                            <PublicCalendarList 
+                              boardUserId={boardUserId}
+                              externalUserName={fullName}
+                              externalUserEmail={email}
+                              onlineUsers={onlineUsers}
+                              hasPermissions={hasPermission("calendar")}
+                            />
                          </motion.div>
                      </CardContent>
                   </Card>

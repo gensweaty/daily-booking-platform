@@ -139,7 +139,7 @@ export const PublicCalendarList = ({
     handleUpdateEvent,
     handleDeleteEvent,
   } = useEventDialog({
-    createEvent: hasPermissions ? async (data) => {
+    createEvent: hasPermissions !== false ? async (data) => {
       console.log('Creating event with sub-user metadata:', data);
       
       const { data: result, error } = await supabase
@@ -164,7 +164,7 @@ export const PublicCalendarList = ({
       
       return result;
     } : undefined,
-    updateEvent: hasPermissions ? async (data) => {
+    updateEvent: hasPermissions !== false ? async (data) => {
       console.log('Updating event with sub-user metadata:', data);
       
       const { data: result, error } = await supabase
