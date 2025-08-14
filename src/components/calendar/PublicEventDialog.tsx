@@ -8,7 +8,7 @@ import { RecurringDeleteDialog } from "../Calendar/RecurringDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
-import { Clock, RefreshCcw } from "lucide-react";
+import { Clock, RefreshCcw, User } from "lucide-react";
 
 interface PublicEventDialogProps {
   open: boolean;
@@ -131,6 +131,8 @@ export const PublicEventDialog = ({
   const [currentEventData, setCurrentEventData] = useState<CalendarEventType | null>(null);
   const [reminderAt, setReminderAt] = useState("");
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
+  const [creatorDisplayName, setCreatorDisplayName] = useState<string>("");
+  const [editorDisplayName, setEditorDisplayName] = useState<string>("");
 
   const isNewEvent = !initialData && !eventId;
   const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
@@ -140,6 +142,60 @@ export const PublicEventDialog = ({
   const isEventCreatedByCurrentUser = initialData ? 
     (initialData.created_by_type === 'sub_user' && initialData.created_by_name === externalUserName) ||
     (initialData.created_by_type !== 'sub_user' && initialData.created_by_type !== 'admin') : true;
+
+  // Fetch display names for admin users
+  useEffect(() => {
+    const fetchDisplayNames = async () => {
+      const eventData = currentEventData || initialData;
+      if (!eventData) return;
+
+      // Fetch creator display name if admin
+      if (eventData.created_by_type === 'admin' && eventData.created_by_name) {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', eventData.created_by_name)
+            .single();
+          
+          if (profile?.username) {
+            setCreatorDisplayName(profile.username);
+          } else {
+            setCreatorDisplayName(eventData.created_by_name);
+          }
+        } catch (error) {
+          console.error('Error fetching creator profile:', error);
+          setCreatorDisplayName(eventData.created_by_name);
+        }
+      } else {
+        setCreatorDisplayName(eventData.created_by_name || '');
+      }
+
+      // Fetch editor display name if admin
+      if (eventData.last_edited_by_type === 'admin' && eventData.last_edited_by_name) {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', eventData.last_edited_by_name)
+            .single();
+          
+          if (profile?.username) {
+            setEditorDisplayName(profile.username);
+          } else {
+            setEditorDisplayName(eventData.last_edited_by_name);
+          }
+        } catch (error) {
+          console.error('Error fetching editor profile:', error);
+          setEditorDisplayName(eventData.last_edited_by_name);
+        }
+      } else {
+        setEditorDisplayName(eventData.last_edited_by_name || '');
+      }
+    };
+
+    fetchDisplayNames();
+  }, [currentEventData, initialData]);
 
   // Initialize form data
   useEffect(() => {
@@ -210,6 +266,8 @@ export const PublicEventDialog = ({
     setCurrentEventData(null);
     setReminderAt("");
     setEmailReminderEnabled(false);
+    setCreatorDisplayName("");
+    setEditorDisplayName("");
     console.log('[PublicEventDialog] Form fields reset');
   };
 
@@ -434,9 +492,9 @@ export const PublicEventDialog = ({
                   <Clock className="mr-1 h-4 w-4" />
                   <span>
                     {t("common.created")} {new Date((currentEventData || initialData)?.created_at || '').toLocaleString(language)}
-                    {(currentEventData || initialData)?.created_by_name && (
+                    {creatorDisplayName && (
                       <span className="ml-2 text-xs">
-                        by {(currentEventData || initialData)?.created_by_name} ({(currentEventData || initialData)?.created_by_type || 'admin'})
+                        by {creatorDisplayName} ({(currentEventData || initialData)?.created_by_type || 'admin'})
                       </span>
                     )}
                   </span>
@@ -445,9 +503,9 @@ export const PublicEventDialog = ({
                   <RefreshCcw className="mr-1 h-4 w-4" />
                   <span>
                     {t("common.lastUpdated")} {new Date((currentEventData || initialData)?.updated_at || (currentEventData || initialData)?.created_at || '').toLocaleString(language)}
-                    {(currentEventData || initialData)?.last_edited_by_name && (
+                    {editorDisplayName && (
                       <span className="ml-2 text-xs">
-                        by {(currentEventData || initialData)?.last_edited_by_name} ({(currentEventData || initialData)?.last_edited_by_type || 'admin'})
+                        by {editorDisplayName} ({(currentEventData || initialData)?.last_edited_by_type || 'admin'})
                       </span>
                     )}
                   </span>
