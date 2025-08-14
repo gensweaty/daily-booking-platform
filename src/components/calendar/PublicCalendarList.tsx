@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { CalendarHeader } from "../Calendar/CalendarHeader";
 import { CalendarView } from "../Calendar/CalendarView";
 import { EventDialog } from "../Calendar/EventDialog";
 import { TimeIndicator } from "../Calendar/TimeIndicator";
-
+import { useEventDialog } from "../Calendar/hooks/useEventDialog";
+import { usePublicCalendarEvents } from "@/hooks/usePublicCalendarEvents";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
 import { useToast } from "@/hooks/use-toast";
@@ -55,27 +56,30 @@ export const PublicCalendarList = ({
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
 
-  // Fetch events using RPC function for public access
-  const { data: events = [], isLoading } = useQuery({
-    queryKey: ['publicCalendarEvents', boardUserId],
-    queryFn: async () => {
-      console.log('Fetching public calendar events for user:', boardUserId);
-      const { data, error } = await supabase
-        .rpc('get_public_events_by_user_id', { user_id_param: boardUserId });
-      
-      if (error) {
-        console.error('Error fetching public calendar events:', error);
-        throw error;
-      }
-      
-      console.log('Fetched calendar events:', data);
-      return (data || []) as CalendarEventType[];
-    },
-    enabled: !!boardUserId,
-    refetchInterval: false,
+  // Use the public calendar events hook - same pattern as dashboard
+  const { events, isLoading, error, createEvent, updateEvent, deleteEvent } = usePublicCalendarEvents(
+    boardUserId,
+    externalUserName
+  );
+
+  // Use the event dialog hook - EXACT same pattern as dashboard
+  const {
+    selectedEvent,
+    setSelectedEvent,
+    isNewEventDialogOpen,
+    setIsNewEventDialogOpen,
+    selectedDate: dialogSelectedDate,
+    setSelectedDate: setDialogSelectedDate,
+    handleCreateEvent,
+    handleUpdateEvent,
+    handleDeleteEvent,
+  } = useEventDialog({
+    createEvent: hasPermissions ? createEvent : undefined,
+    updateEvent: hasPermissions ? updateEvent : undefined,
+    deleteEvent: hasPermissions ? deleteEvent : undefined,
   });
 
-  // Calendar helper functions
+  // Calendar helper functions - EXACT same as dashboard
   const getDaysForView = () => {
     switch (view) {
       case "month": {
@@ -127,10 +131,26 @@ export const PublicCalendarList = ({
     setView(newView);
   };
 
-  // Simple direct event dialog state - no complex hooks
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
-  const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
-  const [newEventDate, setNewEventDate] = useState<Date | undefined>(undefined);
+  // Event handlers - EXACT same pattern as dashboard
+  const handleCalendarDayClick = (date: Date, hour?: number) => {
+    if (!hasPermissions) return;
+    
+    const clickedDate = new Date(date);
+    clickedDate.setHours(hour !== undefined ? hour : 9, 0, 0, 0);
+    
+    setDialogSelectedDate(clickedDate);
+    setTimeout(() => setIsNewEventDialogOpen(true), 0);
+  };
+
+  const handleAddEventClick = () => {
+    if (!hasPermissions) return;
+    
+    const now = new Date();
+    now.setHours(9, 0, 0, 0);
+    
+    setDialogSelectedDate(now);
+    setTimeout(() => setIsNewEventDialogOpen(true), 0);
+  };
 
   const handleEventClick = (event: CalendarEventType) => {
     if (hasPermissions) {
@@ -144,58 +164,29 @@ export const PublicCalendarList = ({
     }
   };
 
-  const handleCalendarDayClick = (date: Date, hour?: number) => {
-    if (!hasPermissions) return;
+  // Functions to handle event operations and refresh calendar - EXACT same as dashboard
+  const refreshCalendar = async () => {
+    const queryKey = ['publicCalendarEvents', boardUserId];
     
-    const clickedDate = new Date(date);
-    clickedDate.setHours(hour !== undefined ? hour : 9, 0, 0, 0);
+    // Wait a bit for database operations to complete
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
-    setNewEventDate(clickedDate);
-    setIsNewEventDialogOpen(true);
+    queryClient.invalidateQueries({ queryKey });
   };
 
-  const handleAddEventClick = () => {
-    if (!hasPermissions) return;
-    
-    const now = new Date();
-    now.setHours(9, 0, 0, 0);
-    
-    setNewEventDate(now);
-    setIsNewEventDialogOpen(true);
-  };
-
-  // Event handlers for dialog callbacks
   const handleEventCreated = async () => {
-    setIsNewEventDialogOpen(false);
-    setNewEventDate(undefined);
-    queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
-    toast({
-      title: "Event created successfully",
-      description: "Your event has been added to the calendar.",
-    });
+    console.log("Event created, refreshing calendar...");
+    await refreshCalendar();
   };
 
   const handleEventUpdated = async () => {
-    setSelectedEvent(null);
-    queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
-    toast({
-      title: "Event updated successfully", 
-      description: "Your changes have been saved.",
-    });
+    console.log("Event updated, refreshing calendar...");
+    await refreshCalendar();
   };
 
   const handleEventDeleted = async () => {
-    setSelectedEvent(null);
-    queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
-    toast({
-      title: "Event deleted successfully",
-      description: "The event has been removed from the calendar.",
-    });
-  };
-
-  // Check if sub-user can edit/delete event
-  const canEditEvent = (event: CalendarEventType) => {
-    return event.created_by_type === 'sub_user' && event.created_by_name === externalUserName;
+    console.log("Event deleted, refreshing calendar...");
+    await refreshCalendar();
   };
 
   // Set up real-time subscription for calendar changes
@@ -229,6 +220,12 @@ export const PublicCalendarList = ({
     };
   }, [boardUserId, queryClient]);
 
+  // Error handling
+  if (error) {
+    console.error("Calendar error:", error);
+    return <div className="text-red-500">Error loading calendar: {error.message}</div>;
+  }
+
   // Loading skeleton
   if (isLoading) {
     return (
@@ -259,6 +256,10 @@ export const PublicCalendarList = ({
     );
   }
 
+  const isDarkTheme = theme === "dark";
+  const gridBgClass = isDarkTheme ? "bg-gray-900" : "bg-white";
+  const textClass = isDarkTheme ? "text-white" : "text-foreground";
+
   return (
     <div className="space-y-6">
       {/* Mobile: Header line with Calendar left, circles center */}
@@ -277,7 +278,7 @@ export const PublicCalendarList = ({
         </div>
       </div>
 
-      {/* Custom Calendar Implementation */}
+      {/* Calendar Implementation - EXACT same structure as dashboard */}
       <div className={`h-full flex flex-col ${isMobile ? 'gap-2 -mx-4' : 'gap-4'}`}>
         <CalendarHeader
           selectedDate={selectedDate}
@@ -291,7 +292,7 @@ export const PublicCalendarList = ({
 
         <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
           {view !== 'month' && <TimeIndicator />}
-          <div className={`flex-1 ${theme === "dark" ? "bg-gray-900" : "bg-white"} ${theme === "dark" ? "text-white" : "text-foreground"}`}>
+          <div className={`flex-1 ${gridBgClass} ${textClass}`}>
             <CalendarView
               days={getDaysForView()}
               events={events || []}
@@ -305,25 +306,23 @@ export const PublicCalendarList = ({
         </div>
       </div>
 
-      {/* Event Dialogs for sub-users with permissions */}
+      {/* Event Dialogs - EXACT same pattern as dashboard */}
       {hasPermissions && (
         <>
-          {/* New Event Dialog */}
           <EventDialog
-            key={`new-${newEventDate?.getTime()}`}
+            key={dialogSelectedDate?.getTime()}
             open={isNewEventDialogOpen}
             onOpenChange={setIsNewEventDialogOpen}
-            selectedDate={newEventDate}
+            selectedDate={dialogSelectedDate}
             publicBoardUserId={boardUserId}
             externalUserName={externalUserName}
             isPublicMode={true}
             onEventCreated={handleEventCreated}
           />
 
-          {/* Edit Event Dialog */}
           {selectedEvent && (
             <EventDialog
-              key={`edit-${selectedEvent.id}`}
+              key={selectedEvent.id}
               open={!!selectedEvent}
               onOpenChange={() => setSelectedEvent(null)}
               selectedDate={new Date(selectedEvent.start_date)}
