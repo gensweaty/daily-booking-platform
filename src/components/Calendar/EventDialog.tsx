@@ -933,15 +933,30 @@ export const EventDialog = ({
             user_id: effectiveUserId
           };
           
-          const createdEvent = await onSave(calendarEventData);
-          console.log('[EventDialog] ✅ Event created via onSave callback:', createdEvent);
-          
-          if (files.length > 0 && createdEvent && typeof createdEvent === 'object' && createdEvent !== null && 'id' in createdEvent) {
-            await uploadFiles((createdEvent as { id: string }).id);
+          try {
+            const createdEvent = await onSave(calendarEventData);
+            console.log('[EventDialog] ✅ Event created via onSave callback:', createdEvent);
+            
+            // CRITICAL FIX: Handle both full event object and ID-only returns
+            let eventId: string;
+            if (createdEvent && typeof createdEvent === 'object' && 'id' in createdEvent) {
+              eventId = (createdEvent as { id: string }).id;
+            } else if (typeof createdEvent === 'string') {
+              eventId = createdEvent;
+            } else {
+              throw new Error('Invalid event creation response');
+            }
+            
+            if (files.length > 0 && eventId) {
+              await uploadFiles(eventId);
+            }
+            
+            // Skip email sending for public mode sub-users
+            console.log('[EventDialog] ℹ️ Skipping email notifications for public mode');
+          } catch (error) {
+            console.error('[EventDialog] ❌ Error in onSave callback:', error);
+            throw error;
           }
-          
-          // Skip email sending for public mode sub-users
-          console.log('[EventDialog] ℹ️ Skipping email notifications for public mode');
           
         } else {
           // Original flow for authenticated users

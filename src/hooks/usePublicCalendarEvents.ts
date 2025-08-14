@@ -40,7 +40,7 @@ export const usePublicCalendarEvents = (
     refetchInterval: false,
   });
 
-  // Create event function
+  // CRITICAL FIX: Create event function that fetches complete data after RPC call
   const createEvent = async (data: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     try {
       console.log('[PublicCalendarEvents] 🚀 Creating event with data:', data);
@@ -85,7 +85,25 @@ export const usePublicCalendarEvents = (
         throw error;
       }
       
-      console.log('[PublicCalendarEvents] ✅ Event created successfully:', result);
+      console.log('[PublicCalendarEvents] ✅ Event created with ID:', result);
+      
+      if (!result) {
+        throw new Error('No event ID returned from RPC call');
+      }
+      
+      // CRITICAL FIX: Fetch the complete event data after creation
+      const { data: completeEvent, error: fetchError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', result)
+        .single();
+        
+      if (fetchError) {
+        console.error('[PublicCalendarEvents] ❌ Error fetching created event:', fetchError);
+        throw fetchError;
+      }
+      
+      console.log('[PublicCalendarEvents] ✅ Fetched complete event data:', completeEvent);
       
       // Invalidate and refetch
       queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
@@ -95,17 +113,7 @@ export const usePublicCalendarEvents = (
         description: "Event created successfully",
       });
       
-      return {
-        id: result,
-        title: eventData.title,
-        start_date: eventData.start_date || new Date().toISOString(),
-        end_date: eventData.end_date || new Date().toISOString(),
-        user_id: boardUserId,
-        type: eventData.type,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        ...data
-      } as CalendarEventType;
+      return completeEvent as CalendarEventType;
     } catch (error: any) {
       console.error('[PublicCalendarEvents] ❌ Failed to create event:', error);
       toast({
@@ -117,11 +125,15 @@ export const usePublicCalendarEvents = (
     }
   };
 
-  // Update event function
+  // CRITICAL FIX: Update event function that fetches complete data after RPC call
   const updateEvent = async (data: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     try {
       console.log('[PublicCalendarEvents] 🔄 Updating event with data:', data);
       console.log('[PublicCalendarEvents] 👤 External user:', externalUserName);
+      
+      if (!data.id) {
+        throw new Error('Event ID is required for update');
+      }
       
       const eventData = {
         title: data.user_surname || data.title || 'Untitled Event',
@@ -161,7 +173,25 @@ export const usePublicCalendarEvents = (
         throw error;
       }
       
-      console.log('[PublicCalendarEvents] ✅ Event updated successfully:', result);
+      console.log('[PublicCalendarEvents] ✅ Event updated with ID:', result);
+      
+      if (!result) {
+        throw new Error('No event ID returned from update RPC call');
+      }
+      
+      // CRITICAL FIX: Fetch the complete event data after update
+      const { data: completeEvent, error: fetchError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', result)
+        .single();
+        
+      if (fetchError) {
+        console.error('[PublicCalendarEvents] ❌ Error fetching updated event:', fetchError);
+        throw fetchError;
+      }
+      
+      console.log('[PublicCalendarEvents] ✅ Fetched complete updated event data:', completeEvent);
       
       // Invalidate and refetch
       queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
@@ -171,17 +201,7 @@ export const usePublicCalendarEvents = (
         description: "Event updated successfully",
       });
       
-      return {
-        id: result,
-        title: eventData.title,
-        start_date: eventData.start_date || new Date().toISOString(),
-        end_date: eventData.end_date || new Date().toISOString(),
-        user_id: boardUserId,
-        type: eventData.type,
-        created_at: data.created_at || new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        ...data
-      } as CalendarEventType;
+      return completeEvent as CalendarEventType;
     } catch (error: any) {
       console.error('[PublicCalendarEvents] ❌ Failed to update event:', error);
       toast({
