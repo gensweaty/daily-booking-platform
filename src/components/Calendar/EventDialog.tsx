@@ -31,7 +31,7 @@ interface EventDialogProps {
   // Legacy props for backward compatibility
   isOpen?: boolean;
   onClose?: () => void;
-  onSave?: (data: any) => void;
+  onSave?: (data: any) => Promise<any>;
 }
 
 // Helper function to check if two time ranges overlap
@@ -149,7 +149,7 @@ export const EventDialog = ({
   // Legacy props with defaults
   isOpen = false,
   onClose = () => {},
-  onSave = () => {}
+  onSave
 }: EventDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -912,7 +912,7 @@ export const EventDialog = ({
 
         onEventUpdated?.();
       } else {
-        console.log('📤 Creating new event with data:', {
+        console.log('[EventDialog] 📤 Creating new event with data:', {
           eventData,
           additionalPersons,
           effectiveUserId,
@@ -921,35 +921,60 @@ export const EventDialog = ({
           isSubUser
         });
 
-        result = await supabase.rpc('save_event_with_persons', {
-          p_event_data: eventData,
-          p_additional_persons: additionalPersons,
-          p_user_id: effectiveUserId,
-          p_event_id: null,
-          p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-          p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : (user?.email || 'admin'),
-          p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-          p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : (user?.email || 'admin'),
-        });
+        // CRITICAL FIX: Use onSave callback if in public mode, otherwise use direct RPC
+        if (isPublicMode && onSave) {
+          console.log('[EventDialog] 🎯 Using onSave callback for public mode event creation');
+          
+          const calendarEventData = {
+            ...eventData,
+            type: 'event' as const,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            user_id: effectiveUserId
+          };
+          
+          const createdEvent = await onSave(calendarEventData);
+          console.log('[EventDialog] ✅ Event created via onSave callback:', createdEvent);
+          
+          if (files.length > 0 && createdEvent && typeof createdEvent === 'object' && createdEvent !== null && 'id' in createdEvent) {
+            await uploadFiles((createdEvent as { id: string }).id);
+          }
+          
+          // Skip email sending for public mode sub-users
+          console.log('[EventDialog] ℹ️ Skipping email notifications for public mode');
+          
+        } else {
+          // Original flow for authenticated users
+          result = await supabase.rpc('save_event_with_persons', {
+            p_event_data: eventData,
+            p_additional_persons: additionalPersons,
+            p_user_id: effectiveUserId,
+            p_event_id: null,
+            p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+            p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : (user?.email || 'admin'),
+            p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+            p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : (user?.email || 'admin'),
+          });
 
-        if (result.error) throw result.error;
+          if (result.error) throw result.error;
 
-        const newEventId = result.data;
-        console.log("✅ Event created with ID:", newEventId);
+          const newEventId = result.data;
+          console.log("✅ Event created with ID:", newEventId);
 
-        if (files.length > 0) {
-          await uploadFiles(newEventId);
+          if (files.length > 0) {
+            await uploadFiles(newEventId);
+          }
+
+          if (isRecurring && repeatPattern) {
+            console.log("⏳ Waiting for recurring instances to be generated...");
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+
+          await sendEmailToAllPersons({
+            ...eventData,
+            id: newEventId
+          }, additionalPersons);
         }
-
-        if (isRecurring && repeatPattern) {
-          console.log("⏳ Waiting for recurring instances to be generated...");
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-
-        await sendEmailToAllPersons({
-          ...eventData,
-          id: newEventId
-        }, additionalPersons);
 
         if (isRecurring) {
           toast({

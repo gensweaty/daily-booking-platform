@@ -43,29 +43,76 @@ export const usePublicCalendarEvents = (
   // Create event function
   const createEvent = async (data: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     try {
-      console.log('Creating event with sub-user metadata:', data);
+      console.log('[PublicCalendarEvents] 🚀 Creating event with data:', data);
+      console.log('[PublicCalendarEvents] 👤 External user:', externalUserName);
+      console.log('[PublicCalendarEvents] 🏢 Board user ID:', boardUserId);
+      
+      const eventData = {
+        title: data.user_surname || data.title || 'Untitled Event',
+        user_surname: data.user_surname,
+        user_number: data.user_number,
+        social_network_link: data.social_network_link,
+        event_notes: data.event_notes,
+        event_name: data.event_name,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        payment_status: data.payment_status || 'not_paid',
+        payment_amount: data.payment_amount?.toString() || '',
+        type: data.type || 'event',
+        is_recurring: data.is_recurring || false,
+        repeat_pattern: data.repeat_pattern,
+        repeat_until: data.repeat_until,
+        reminder_at: data.reminder_at,
+        email_reminder_enabled: data.email_reminder_enabled || false
+      };
+
+      console.log('[PublicCalendarEvents] 📋 Formatted event data:', eventData);
       
       const { data: result, error } = await supabase
         .rpc('save_event_with_persons', {
-          p_event_data: {
-            ...data,
-            created_by_type: 'sub_user',
-            created_by_name: externalUserName,
-            last_edited_by_type: 'sub_user',
-            last_edited_by_name: externalUserName
-          },
+          p_event_data: eventData,
           p_additional_persons: [],
-          p_user_id: boardUserId
+          p_user_id: boardUserId,
+          p_event_id: null,
+          p_created_by_type: 'sub_user',
+          p_created_by_name: externalUserName,
+          p_last_edited_by_type: 'sub_user',
+          p_last_edited_by_name: externalUserName
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[PublicCalendarEvents] ❌ RPC error:', error);
+        throw error;
+      }
+      
+      console.log('[PublicCalendarEvents] ✅ Event created successfully:', result);
       
       // Invalidate and refetch
       queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
       
-      return result;
+      toast({
+        title: "Success",
+        description: "Event created successfully",
+      });
+      
+      return {
+        id: result,
+        title: eventData.title,
+        start_date: eventData.start_date || new Date().toISOString(),
+        end_date: eventData.end_date || new Date().toISOString(),
+        user_id: boardUserId,
+        type: eventData.type,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        ...data
+      } as CalendarEventType;
     } catch (error: any) {
-      console.error('Failed to create event:', error);
+      console.error('[PublicCalendarEvents] ❌ Failed to create event:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create event",
+        variant: "destructive",
+      });
       throw error;
     }
   };
@@ -73,28 +120,75 @@ export const usePublicCalendarEvents = (
   // Update event function
   const updateEvent = async (data: Partial<CalendarEventType>): Promise<CalendarEventType> => {
     try {
-      console.log('Updating event with sub-user metadata:', data);
+      console.log('[PublicCalendarEvents] 🔄 Updating event with data:', data);
+      console.log('[PublicCalendarEvents] 👤 External user:', externalUserName);
+      
+      const eventData = {
+        title: data.user_surname || data.title || 'Untitled Event',
+        user_surname: data.user_surname,
+        user_number: data.user_number,
+        social_network_link: data.social_network_link,
+        event_notes: data.event_notes,
+        event_name: data.event_name,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        payment_status: data.payment_status || 'not_paid',
+        payment_amount: data.payment_amount?.toString() || '',
+        type: data.type || 'event',
+        is_recurring: data.is_recurring || false,
+        repeat_pattern: data.repeat_pattern,
+        repeat_until: data.repeat_until,
+        reminder_at: data.reminder_at,
+        email_reminder_enabled: data.email_reminder_enabled || false
+      };
+
+      console.log('[PublicCalendarEvents] 📋 Formatted update data:', eventData);
       
       const { data: result, error } = await supabase
         .rpc('save_event_with_persons', {
-          p_event_data: {
-            ...data,
-            last_edited_by_type: 'sub_user',
-            last_edited_by_name: externalUserName
-          },
+          p_event_data: eventData,
           p_additional_persons: [],
           p_user_id: boardUserId,
-          p_event_id: data.id
+          p_event_id: data.id,
+          p_created_by_type: 'sub_user', // Keep original creator type
+          p_created_by_name: externalUserName, // Keep original creator name  
+          p_last_edited_by_type: 'sub_user',
+          p_last_edited_by_name: externalUserName
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[PublicCalendarEvents] ❌ Update RPC error:', error);
+        throw error;
+      }
+      
+      console.log('[PublicCalendarEvents] ✅ Event updated successfully:', result);
       
       // Invalidate and refetch
       queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
       
-      return result;
+      toast({
+        title: "Success",
+        description: "Event updated successfully",
+      });
+      
+      return {
+        id: result,
+        title: eventData.title,
+        start_date: eventData.start_date || new Date().toISOString(),
+        end_date: eventData.end_date || new Date().toISOString(),
+        user_id: boardUserId,
+        type: eventData.type,
+        created_at: data.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        ...data
+      } as CalendarEventType;
     } catch (error: any) {
-      console.error('Failed to update event:', error);
+      console.error('[PublicCalendarEvents] ❌ Failed to update event:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update event",
+        variant: "destructive",
+      });
       throw error;
     }
   };
@@ -102,7 +196,7 @@ export const usePublicCalendarEvents = (
   // Delete event function
   const deleteEvent = async ({ id: eventId, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }): Promise<{ success: boolean; }> => {
     try {
-      console.log('Deleting event:', eventId);
+      console.log('[PublicCalendarEvents] 🗑️ Deleting event:', eventId, 'choice:', deleteChoice);
       
       const { data: result, error } = await supabase
         .rpc('delete_recurring_series', {
@@ -111,14 +205,29 @@ export const usePublicCalendarEvents = (
           p_delete_choice: deleteChoice || 'this'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[PublicCalendarEvents] ❌ Delete RPC error:', error);
+        throw error;
+      }
+      
+      console.log('[PublicCalendarEvents] ✅ Event deleted successfully:', result);
       
       // Invalidate and refetch
       queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
       
+      toast({
+        title: "Success",
+        description: "Event deleted successfully",
+      });
+      
       return { success: true };
     } catch (error: any) {
-      console.error('Failed to delete event:', error);
+      console.error('[PublicCalendarEvents] ❌ Failed to delete event:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete event",
+        variant: "destructive",
+      });
       throw error;
     }
   };
