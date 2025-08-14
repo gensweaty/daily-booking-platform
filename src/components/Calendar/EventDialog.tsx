@@ -24,6 +24,10 @@ interface EventDialogProps {
   onEventCreated?: () => void;
   onEventUpdated?: () => void;
   onEventDeleted?: () => void;
+  // Public board context props
+  publicBoardUserId?: string;
+  externalUserName?: string;
+  isPublicMode?: boolean;
   // Legacy props for backward compatibility
   isOpen?: boolean;
   onClose?: () => void;
@@ -139,6 +143,9 @@ export const EventDialog = ({
   onEventCreated,
   onEventUpdated,
   onEventDeleted,
+  publicBoardUserId,
+  externalUserName,
+  isPublicMode = false,
   // Legacy props with defaults
   isOpen = false,
   onClose = () => {},
@@ -148,6 +155,31 @@ export const EventDialog = ({
   const { toast } = useToast();
   const { t, language } = useLanguage();
   const queryClient = useQueryClient();
+  const { isSubUser } = useSubUserPermissions();
+  
+  // Helper function to get the effective user ID for operations
+  const getEffectiveUserId = () => {
+    console.log('🔍 Getting effective user ID:', {
+      isPublicMode,
+      publicBoardUserId,
+      userId: user?.id,
+      isSubUser,
+      externalUserName
+    });
+
+    if (isPublicMode && publicBoardUserId) {
+      console.log('✅ Using public board user ID:', publicBoardUserId);
+      return publicBoardUserId;
+    }
+    
+    if (user?.id) {
+      console.log('✅ Using authenticated user ID:', user.id);
+      return user.id;
+    }
+
+    console.warn('⚠️ No effective user ID found');
+    return null;
+  };
   
   const [title, setTitle] = useState("");
   const [userSurname, setUserSurname] = useState("");
@@ -474,7 +506,7 @@ export const EventDialog = ({
           file_path: fileName,
           content_type: file.type,
           size: file.size,
-          user_id: user?.id,
+          user_id: getEffectiveUserId(),
           event_id: eventId
         });
 
@@ -497,7 +529,7 @@ export const EventDialog = ({
       const { data: businessData } = await supabase
         .from('business_profiles')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', getEffectiveUserId())
         .maybeSingle();
 
       if (!businessData) {
@@ -600,10 +632,26 @@ export const EventDialog = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
+    
+    const effectiveUserId = getEffectiveUserId();
+    
+    console.log('🎯 Event creation attempt:', {
+      effectiveUserId,
+      isPublicMode,
+      publicBoardUserId,
+      userId: user?.id,
+      isSubUser,
+      externalUserName,
+      title,
+      userSurname
+    });
+    
+    if (!effectiveUserId || effectiveUserId === 'temp-public-user') {
+      console.error('❌ Missing effective user ID for event creation');
       toast({
         title: t("common.error"),
-        description: t("common.authRequired")
+        description: isPublicMode ? "Board owner authentication required" : t("common.authRequired"),
+        variant: "destructive"
       });
       return;
     }
@@ -802,7 +850,15 @@ export const EventDialog = ({
         repeat_pattern: isRecurring && repeatPattern ? repeatPattern : null,
         repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
         reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
-        email_reminder_enabled: emailReminderEnabled
+        email_reminder_enabled: emailReminderEnabled,
+        // Add sub-user metadata
+        ...(isPublicMode && externalUserName ? {
+          last_edited_by_type: 'sub_user',
+          last_edited_by_name: externalUserName
+        } : isSubUser ? {
+          last_edited_by_type: 'sub_user',
+          last_edited_by_name: user?.email || 'sub_user'
+        } : {})
       };
 
       console.log("📤 Sending event data to backend with reminder fields:", {
@@ -824,8 +880,12 @@ export const EventDialog = ({
         result = await supabase.rpc('save_event_with_persons', {
           p_event_data: eventData,
           p_additional_persons: additionalPersons,
-          p_user_id: user.id,
-          p_event_id: actualEventId
+          p_user_id: effectiveUserId,
+          p_event_id: actualEventId,
+          p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+          p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+          p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+          p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
         });
 
         if (result.error) throw result.error;
@@ -873,7 +933,11 @@ export const EventDialog = ({
         result = await supabase.rpc('save_event_with_persons', {
           p_event_data: eventData,
           p_additional_persons: additionalPersons,
-          p_user_id: user.id
+          p_user_id: effectiveUserId,
+          p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+          p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+          p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+          p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
         });
 
         if (result.error) throw result.error;
@@ -914,6 +978,13 @@ export const EventDialog = ({
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error saving event:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        stack: error.stack
+      });
       toast({
         title: t("common.error"),
         description: error.message || "Failed to save event",
@@ -979,7 +1050,7 @@ export const EventDialog = ({
 
       const { error } = await supabase.rpc('delete_recurring_series', {
         p_event_id: parentId,
-        p_user_id: user?.id,
+        p_user_id: getEffectiveUserId(),
         p_delete_choice: 'series'
       });
 

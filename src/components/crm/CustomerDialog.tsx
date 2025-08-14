@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { sendBookingConfirmationEmail, sendBookingConfirmationToMultipleRecipients } from "@/lib/api";
+import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 
 interface CustomerDialogProps {
   open: boolean;
@@ -44,6 +45,7 @@ export const CustomerDialog = ({
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isSubUser } = useSubUserPermissions();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     title: "",
@@ -404,7 +406,17 @@ export const CustomerDialog = ({
           user_id: effectiveUserId,
           create_event: createEvent,
           start_date: createEvent ? eventStartDate.toISOString() : null,
-          end_date: createEvent ? eventEndDate.toISOString() : null
+          end_date: createEvent ? eventEndDate.toISOString() : null,
+          // Add edit metadata for sub-users
+          ...(isPublicMode && externalUserName ? {
+            last_edited_by_type: 'sub_user',
+            last_edited_by_name: externalUserName,
+            last_edited_at: new Date().toISOString()
+          } : isSubUser ? {
+            last_edited_by_type: 'sub_user',
+            last_edited_by_name: user?.email || 'sub_user',
+            last_edited_at: new Date().toISOString()
+          } : {})
         };
 
         let tableToUpdate = 'customers';
@@ -415,14 +427,23 @@ export const CustomerDialog = ({
           id = customerId.replace('event-', '');
         }
 
-        // For public mode (sub-users), we need to check ownership differently
+        // Log data for debugging
+        console.log('🔍 CustomerDialog update data:', {
+          customerId,
+          isPublicMode,
+          externalUserName,
+          publicBoardUserId,
+          updates
+        });
+
+        // For public mode (sub-users), use simplified ownership logic
         let query = supabase
           .from(tableToUpdate)
           .update(updates)
           .eq('id', id);
         
-        // Always filter by the board owner's user_id, regardless of who's editing
         if (isPublicMode && publicBoardUserId) {
+          // In public mode, always filter by board owner's user_id
           query = query.eq('user_id', publicBoardUserId);
         } else {
           query = query.eq('user_id', effectiveUserId);
@@ -533,7 +554,19 @@ export const CustomerDialog = ({
           user_id: effectiveUserId,
           create_event: createEvent,
           start_date: createEvent ? eventStartDate.toISOString() : null,
-          end_date: createEvent ? eventEndDate.toISOString() : null
+          end_date: createEvent ? eventEndDate.toISOString() : null,
+          // Add creator metadata for sub-users
+          ...(isPublicMode && externalUserName ? {
+            created_by_type: 'sub_user',
+            created_by_name: externalUserName,
+            last_edited_by_type: 'sub_user',
+            last_edited_by_name: externalUserName
+          } : isSubUser ? {
+            created_by_type: 'sub_user',
+            created_by_name: user?.email || 'sub_user',
+            last_edited_by_type: 'sub_user',
+            last_edited_by_name: user?.email || 'sub_user'
+          } : {})
         };
 
         console.log("Creating new customer:", newCustomer);
@@ -573,6 +606,18 @@ export const CustomerDialog = ({
             user_id: effectiveUserId,
             start_date: eventStartDate.toISOString(),
             end_date: eventEndDate.toISOString(),
+            // Add metadata for sub-users when creating events from customers
+            ...(isPublicMode && externalUserName ? {
+              created_by_type: 'sub_user',
+              created_by_name: externalUserName,
+              last_edited_by_type: 'sub_user',
+              last_edited_by_name: externalUserName
+            } : isSubUser ? {
+              created_by_type: 'sub_user',
+              created_by_name: user?.email || 'sub_user',
+              last_edited_by_type: 'sub_user',
+              last_edited_by_name: user?.email || 'sub_user'
+            } : {})
           };
 
           console.log("Creating event from customer with payment status:", eventData.payment_status);
@@ -641,7 +686,34 @@ export const CustomerDialog = ({
   };
 
   const handleConfirmDelete = async () => {
-    if (!customerId || !user?.id) return;
+    const effectiveUserId = getEffectiveUserId();
+    
+    console.log('🗑️ Customer deletion attempt (CustomerDialog):', {
+      customerId,
+      effectiveUserId,
+      isPublicMode,
+      publicBoardUserId,
+      userId: user?.id,
+      externalUserName
+    });
+    
+    if (!customerId) {
+      toast({
+        title: t("common.error"),
+        description: "Customer ID is missing",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!effectiveUserId || effectiveUserId === 'temp-public-user') {
+      toast({
+        title: t("common.error"),
+        description: isPublicMode ? "Board owner authentication required" : "Missing customer ID or user information",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -654,11 +726,28 @@ export const CustomerDialog = ({
         id = customerId.replace('event-', '');
       }
 
-      const { error } = await supabase
+      // Log data for debugging
+      console.log('🔍 CustomerDialog delete data:', {
+        customerId: id,
+        isPublicMode,
+        externalUserName,
+        publicBoardUserId
+      });
+
+      // For public mode (sub-users), use simplified ownership logic
+      let query = supabase
         .from(tableToUpdate)
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', id)
-        .eq('user_id', getEffectiveUserId());
+        .eq('id', id);
+      
+      if (isPublicMode && publicBoardUserId) {
+        // In public mode, always filter by board owner's user_id
+        query = query.eq('user_id', publicBoardUserId);
+      } else {
+        query = query.eq('user_id', effectiveUserId);
+      }
+
+      const { error } = await query;
 
       if (error) throw error;
 
@@ -729,6 +818,17 @@ export const CustomerDialog = ({
               setEventEndDate={setEventEndDate}
               fileBucketName={customerId?.startsWith('event-') ? "event_attachments" : "customer_attachments"}
               fallbackBuckets={["event_attachments", "customer_attachments", "booking_attachments"]}
+              metadata={{
+                created_by_type: initialData?.created_by_type,
+                created_by_name: initialData?.created_by_name,
+                last_edited_by_type: initialData?.last_edited_by_type,
+                last_edited_by_name: initialData?.last_edited_by_name,
+                last_edited_at: initialData?.last_edited_at,
+                created_at: initialData?.created_at,
+                updated_at: initialData?.updated_at
+              }}
+              externalUserName={externalUserName}
+              externalUserEmail={externalUserEmail}
             />
 
             <div className="flex justify-between">
