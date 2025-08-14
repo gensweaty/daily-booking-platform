@@ -96,7 +96,12 @@ export const PublicCalendarList = ({
   const directUpdateEvent = async (data: Partial<CalendarEventType>) => {
     console.log('[PublicCalendarList] 🎯 Direct update event called with:', data);
     try {
-      const result = await updateEvent(data);
+      // Ensure ID is included for update
+      const dataWithId = { ...data, id: data.id || selectedEvent?.id };
+      if (!dataWithId.id) {
+        throw new Error('Event ID is required for update');
+      }
+      const result = await updateEvent(dataWithId as Partial<CalendarEventType> & { id: string });
       console.log('[PublicCalendarList] ✅ Direct update event success:', result);
       await handleEventUpdated();
       return result;
