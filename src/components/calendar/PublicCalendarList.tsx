@@ -258,10 +258,17 @@ export const PublicCalendarList = ({
     const now = new Date();
     now.setHours(9, 0, 0, 0);
     
-    setDialogSelectedDate(now);
+    // Use React's functional state update to ensure consistency
+    setDialogSelectedDate(() => {
+      console.log('📅 Setting dialog selected date:', now);
+      return now;
+    });
     
-    // Force synchronous state update for desktop compatibility
-    setIsNewEventDialogOpen(true);
+    // Use requestAnimationFrame to ensure state is set before opening dialog
+    requestAnimationFrame(() => {
+      console.log('🚪 Opening new event dialog');
+      setIsNewEventDialogOpen(true);
+    });
   };
 
   // Check if sub-user can edit/delete event

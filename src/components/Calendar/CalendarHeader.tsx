@@ -121,14 +121,12 @@ export const CalendarHeader = ({
                 clientY: e.clientY,
                 target: e.target
               });
-              e.preventDefault();
-              e.stopPropagation();
               onAddEvent();
             }} 
             size="sm" 
             variant="dynamic"
-            className={cn("ml-auto sm:ml-0 font-semibold pointer-events-auto", isGeorgian ? "font-georgian" : "")}
-            style={{ touchAction: 'manipulation' }}
+            className={cn("ml-auto sm:ml-0 font-semibold", isGeorgian ? "font-georgian" : "")}
+            type="button"
           >
             <Plus className="h-4 w-4" />
             {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
