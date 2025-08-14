@@ -205,15 +205,32 @@ export const CustomerList = ({
       return canEdit;
     } else if (isSubUser) {
       // For regular authenticated sub-users, allow edit/delete if:
-      // 1. The item was created by this sub-user, OR
-      // 2. The item was last edited by this sub-user, OR
-      // 3. Legacy data without creator info but belongs to this user (for backwards compatibility)
-      const canEdit = (customer.created_by_type === 'sub_user' && customer.created_by_name === user?.email) ||
-             (customer.last_edited_by_type === 'sub_user' && customer.last_edited_by_name === user?.email) ||
-             (!customer.created_by_type && !customer.created_by_name && customer.user_id === user?.id);
+      // 1. The item was created by this sub-user (PRIMARY CHECK), OR
+      // 2. The item was last edited by this sub-user (SECONDARY CHECK), OR
+      // 3. Legacy data without metadata (BACKWARDS COMPATIBILITY)
+      const userEmail = user?.email;
+      if (!userEmail) return false;
       
-      console.log('🔍 Sub-user permission result:', canEdit);
-      return canEdit;
+      // Primary check: created_by metadata
+      if (customer.created_by_type === 'sub_user' && customer.created_by_name === userEmail) {
+        console.log('✅ Permission granted: Created by this sub-user');
+        return true;
+      }
+      
+      // Secondary check: last_edited_by metadata
+      if (customer.last_edited_by_type === 'sub_user' && customer.last_edited_by_name === userEmail) {
+        console.log('✅ Permission granted: Last edited by this sub-user');
+        return true;
+      }
+      
+      // Legacy fallback: no metadata exists
+      if (!customer.created_by_type && !customer.created_by_name && !customer.last_edited_by_type && !customer.last_edited_by_name) {
+        console.log('✅ Permission granted: Legacy data without metadata');
+        return true;
+      }
+      
+      console.log('❌ Permission denied: Not created or edited by this sub-user');
+      return false;
     }
     
     return true; // Admin has all permissions
