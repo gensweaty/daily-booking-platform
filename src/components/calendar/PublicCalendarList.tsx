@@ -240,55 +240,13 @@ export const PublicCalendarList = ({
   };
 
   const handleAddEventClick = () => {
-    console.log('=== HANDLE ADD EVENT CLICK START ===');
-    console.log('🔍 Add Event clicked - hasPermissions:', hasPermissions);
-    console.log('📱 Device detection:', {
-      isTouchDevice: 'ontouchstart' in window,
-      userAgent: navigator.userAgent,
-      screenWidth: window.screen.width,
-      innerWidth: window.innerWidth,
-      isMobile,
-      platform: navigator.platform
-    });
+    if (!hasPermissions) return;
     
-    console.log('🔍 Current dialog state:', {
-      isNewEventDialogOpen,
-      dialogSelectedDate,
-      selectedEvent
-    });
-    
-    if (!hasPermissions) {
-      console.log('❌ No permissions - returning early');
-      return;
-    }
-    
-    console.log('✅ Permissions ok - opening dialog');
     const now = new Date();
     now.setHours(9, 0, 0, 0);
-    console.log('📅 Created date object:', now);
     
-    try {
-      // Use React's functional state update to ensure consistency
-      console.log('📅 Setting dialog selected date...');
-      setDialogSelectedDate(() => {
-        console.log('📅 Inside setDialogSelectedDate callback with date:', now);
-        return now;
-      });
-      
-      // Use requestAnimationFrame to ensure state is set before opening dialog
-      console.log('🔄 Using requestAnimationFrame to open dialog...');
-      requestAnimationFrame(() => {
-        console.log('🚪 Inside requestAnimationFrame - opening new event dialog');
-        setIsNewEventDialogOpen(true);
-        console.log('🚪 setIsNewEventDialogOpen(true) called');
-      });
-      
-      console.log('✅ handleAddEventClick completed successfully');
-    } catch (error) {
-      console.error('❌ Error in handleAddEventClick:', error);
-    }
-    
-    console.log('=== HANDLE ADD EVENT CLICK END ===');
+    setDialogSelectedDate(now);
+    setTimeout(() => setIsNewEventDialogOpen(true), 0);
   };
 
   // Check if sub-user can edit/delete event
@@ -383,15 +341,7 @@ export const PublicCalendarList = ({
           onViewChange={handleViewChange}
           onPrevious={handlePrevious}
           onNext={handleNext}
-          onAddEvent={hasPermissions ? (() => {
-            console.log('🚀 Add Event button clicked from CalendarHeader');
-            console.log('🔍 Current state before handleAddEventClick:', {
-              hasPermissions,
-              isNewEventDialogOpen,
-              dialogSelectedDate
-            });
-            handleAddEventClick();
-          }) : undefined}
+          onAddEvent={hasPermissions ? handleAddEventClick : undefined}
           isExternalCalendar={!hasPermissions}
         />
 
@@ -415,23 +365,14 @@ export const PublicCalendarList = ({
       {hasPermissions && (
         <>
           <EventDialog
-            key={`new-event-${dialogSelectedDate?.getTime() || 'no-date'}`}
+            key={dialogSelectedDate?.getTime()}
             open={isNewEventDialogOpen}
-            onOpenChange={(open) => {
-              console.log('🔄 EventDialog onOpenChange called with:', open);
-              console.log('🔄 Previous state - isNewEventDialogOpen:', isNewEventDialogOpen);
-              setIsNewEventDialogOpen(open);
-              if (!open) {
-                console.log('🔄 Dialog closed, clearing selectedDate');
-                setDialogSelectedDate(undefined);
-              }
-            }}
+            onOpenChange={setIsNewEventDialogOpen}
             selectedDate={dialogSelectedDate}
             publicBoardUserId={boardUserId}
             externalUserName={externalUserName}
             isPublicMode={true}
             onEventCreated={async () => {
-              console.log('🎉 Event created, invalidating queries');
               queryClient.invalidateQueries({ queryKey: ['publicCalendarEvents', boardUserId] });
             }}
           />

@@ -151,17 +151,6 @@ export const EventDialog = ({
   onClose = () => {},
   onSave = () => {}
 }: EventDialogProps) => {
-  console.log('🔍 EventDialog render with props:', {
-    open,
-    isOpen,
-    selectedDate,
-    eventId,
-    initialData: !!initialData,
-    isPublicMode,
-    publicBoardUserId,
-    externalUserName
-  });
-  
   const { user } = useAuth();
   const { toast } = useToast();
   const { t, language } = useLanguage();
