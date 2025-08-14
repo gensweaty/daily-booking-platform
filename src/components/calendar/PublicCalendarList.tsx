@@ -4,9 +4,9 @@ import { supabase } from "@/lib/supabase";
 import { CalendarEventType, CalendarViewType } from "@/lib/types/calendar";
 import { CalendarHeader } from "../Calendar/CalendarHeader";
 import { CalendarView } from "../Calendar/CalendarView";
-import { EventDialog } from "../Calendar/EventDialog";
+import { PublicEventDialog } from "./PublicEventDialog";
 import { TimeIndicator } from "../Calendar/TimeIndicator";
-import { useEventDialog } from "../Calendar/hooks/useEventDialog";
+import { usePublicEventDialog } from "@/hooks/usePublicEventDialog";
 import { usePublicCalendarEvents } from "@/hooks/usePublicCalendarEvents";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
@@ -62,7 +62,7 @@ export const PublicCalendarList = ({
     externalUserName
   );
 
-  // Use the event dialog hook - EXACT same pattern as dashboard
+  // Use the public event dialog hook - designed for public boards
   const {
     selectedEvent,
     setSelectedEvent,
@@ -73,43 +73,12 @@ export const PublicCalendarList = ({
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
-  } = useEventDialog({
+  } = usePublicEventDialog({
     createEvent: hasPermissions ? createEvent : undefined,
     updateEvent: hasPermissions ? updateEvent : undefined,
     deleteEvent: hasPermissions ? deleteEvent : undefined,
   });
 
-  // CRITICAL FIX: Direct save functions that bypass useEventDialog
-  const directCreateEvent = async (data: Partial<CalendarEventType>) => {
-    console.log('[PublicCalendarList] 🎯 Direct create event called with:', data);
-    try {
-      const result = await createEvent(data);
-      console.log('[PublicCalendarList] ✅ Direct create event success:', result);
-      await handleEventCreated();
-      return result;
-    } catch (error) {
-      console.error('[PublicCalendarList] ❌ Direct create event error:', error);
-      throw error;
-    }
-  };
-
-  const directUpdateEvent = async (data: Partial<CalendarEventType>) => {
-    console.log('[PublicCalendarList] 🎯 Direct update event called with:', data);
-    try {
-      // Ensure ID is included for update
-      const dataWithId = { ...data, id: data.id || selectedEvent?.id };
-      if (!dataWithId.id) {
-        throw new Error('Event ID is required for update');
-      }
-      const result = await updateEvent(dataWithId as Partial<CalendarEventType> & { id: string });
-      console.log('[PublicCalendarList] ✅ Direct update event success:', result);
-      await handleEventUpdated();
-      return result;
-    } catch (error) {
-      console.error('[PublicCalendarList] ❌ Direct update event error:', error);
-      throw error;
-    }
-  };
 
   // Calendar helper functions - EXACT same as dashboard
   const getDaysForView = () => {
@@ -338,34 +307,31 @@ export const PublicCalendarList = ({
         </div>
       </div>
 
-      {/* Event Dialogs - EXACT same pattern as dashboard */}
+      {/* Public Event Dialogs - designed for public boards */}
       {hasPermissions && (
         <>
-          <EventDialog
-            key={dialogSelectedDate?.getTime()}
+          <PublicEventDialog
             open={isNewEventDialogOpen}
             onOpenChange={setIsNewEventDialogOpen}
             selectedDate={dialogSelectedDate}
             publicBoardUserId={boardUserId}
             externalUserName={externalUserName}
-            isPublicMode={true}
             onEventCreated={handleEventCreated}
-            onSave={directCreateEvent}
+            onSave={createEvent}
           />
 
           {selectedEvent && (
-            <EventDialog
-              key={selectedEvent.id}
+            <PublicEventDialog
               open={!!selectedEvent}
               onOpenChange={() => setSelectedEvent(null)}
               selectedDate={new Date(selectedEvent.start_date)}
               initialData={selectedEvent}
               publicBoardUserId={boardUserId}
               externalUserName={externalUserName}
-              isPublicMode={true}
               onEventUpdated={handleEventUpdated}
               onEventDeleted={handleEventDeleted}
-              onSave={directUpdateEvent}
+              onUpdate={updateEvent}
+              onDelete={deleteEvent}
             />
           )}
         </>
