@@ -5,6 +5,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CalendarIcon, BarChart, Users, ListTodo } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { PublicTaskList } from "@/components/tasks/PublicTaskList";
+import { PublicCalendar } from "@/components/PublicCalendar";
+import { PublicCRM } from "@/components/PublicCRM";
+import { PublicStatistics } from "@/components/PublicStatistics";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { PresenceAvatars } from "@/components/PresenceAvatars";
@@ -253,9 +256,7 @@ export const PublicBoardNavigation = ({
                           initial="hidden"
                           animate="visible"
                         >
-                          <div className="text-center py-8">
-                            <p className="text-muted-foreground">Calendar functionality coming soon for public boards</p>
-                          </div>
+                          <PublicCalendar boardUserId={boardUserId} />
                         </motion.div>
                       </div>
                     </CardContent>
@@ -291,9 +292,7 @@ export const PublicBoardNavigation = ({
                         initial="hidden"
                         animate="visible"
                       >
-                        <div className="text-center py-8">
-                          <p className="text-muted-foreground">Statistics functionality coming soon for public boards</p>
-                        </div>
+                        <PublicStatistics boardUserId={boardUserId} />
                       </motion.div>
                     </CardContent>
                   </Card>
@@ -328,9 +327,7 @@ export const PublicBoardNavigation = ({
                         initial="hidden"
                         animate="visible"
                       >
-                        <div className="text-center py-8">
-                          <p className="text-muted-foreground">CRM functionality coming soon for public boards</p>
-                        </div>
+                        <PublicCRM boardUserId={boardUserId} />
                       </motion.div>
                     </CardContent>
                   </Card>
