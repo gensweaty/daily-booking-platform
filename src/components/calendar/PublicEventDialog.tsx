@@ -135,6 +135,11 @@ export const PublicEventDialog = ({
   const isNewEvent = !initialData && !eventId;
   const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
   const isRecurringEvent = initialData?.is_recurring || isVirtualEvent || isRecurring;
+  
+  // Check if current user is the creator of this event
+  const isEventCreatedByCurrentUser = initialData ? 
+    (initialData.created_by_type === 'sub_user' && initialData.created_by_name === externalUserName) ||
+    (initialData.created_by_type !== 'sub_user') : true;
 
   // Initialize form data
   useEffect(() => {
@@ -424,28 +429,44 @@ export const PublicEventDialog = ({
             />
             
             {(initialData || currentEventData) && (
-              <div className="flex items-center text-sm text-muted-foreground mb-4 rounded-md p-4 py-[8px] px-[8px] border border-border bg-card">
-                <span className="flex items-center mr-4">
-                  <Clock className="mr-1 h-4 w-4" />
-                  <span>
-                    {t("common.created")} {new Date((currentEventData || initialData)?.created_at || '').toLocaleString(language)}
+              <div className="flex flex-col gap-2 text-sm text-muted-foreground mb-4 rounded-md p-4 border border-border bg-card">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center">
+                    <Clock className="mr-1 h-4 w-4" />
+                    <span>
+                      {t("common.created")} {new Date((currentEventData || initialData)?.created_at || '').toLocaleString(language)}
+                    </span>
                   </span>
-                </span>
-                <span className="flex items-center">
-                  <RefreshCcw className="mr-1 h-4 w-4" />
-                  <span>
-                    {t("common.lastUpdated")} {new Date((currentEventData || initialData)?.updated_at || (currentEventData || initialData)?.created_at || '').toLocaleString(language)}
+                  {(currentEventData || initialData)?.created_by_name && (
+                    <span className="text-xs">
+                      by {(currentEventData || initialData)?.created_by_name} ({(currentEventData || initialData)?.created_by_type || 'admin'})
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center">
+                    <RefreshCcw className="mr-1 h-4 w-4" />
+                    <span>
+                      {t("common.lastUpdated")} {new Date((currentEventData || initialData)?.updated_at || (currentEventData || initialData)?.created_at || '').toLocaleString(language)}
+                    </span>
                   </span>
-                </span>
+                  {(currentEventData || initialData)?.last_edited_by_name && (
+                    <span className="text-xs">
+                      by {(currentEventData || initialData)?.last_edited_by_name} ({(currentEventData || initialData)?.last_edited_by_type || 'admin'})
+                    </span>
+                  )}
+                </div>
               </div>
             )}
             
             <div className="flex flex-col sm:flex-row gap-2 pt-4">
-              <Button type="submit" disabled={isLoading} className="flex-1">
-                {isLoading ? t("common.loading") : eventId || initialData ? t("common.update") : t("common.add")}
-              </Button>
+              {isEventCreatedByCurrentUser && (
+                <Button type="submit" disabled={isLoading} className="flex-1">
+                  {isLoading ? t("common.loading") : eventId || initialData ? t("common.update") : t("common.add")}
+                </Button>
+              )}
               
-              {(eventId || initialData) && (
+              {(eventId || initialData) && isEventCreatedByCurrentUser && (
                 <Button 
                   type="button" 
                   variant="destructive" 
@@ -455,6 +476,12 @@ export const PublicEventDialog = ({
                 >
                   {t("common.delete")}
                 </Button>
+              )}
+              
+              {!isEventCreatedByCurrentUser && (eventId || initialData) && (
+                <div className="text-sm text-muted-foreground text-center p-2 bg-muted/50 rounded">
+                  {language === 'ka' ? 'მხოლოდ ღონისძიების შემქმნელს შეუძლია მისი რედაქტირება ან წაშლა' : 'Only the event creator can edit or delete this event'}
+                </div>
               )}
             </div>
           </form>
