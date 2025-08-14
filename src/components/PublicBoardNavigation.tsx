@@ -1,17 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion, AnimatePresence } from "framer-motion";
 import { CalendarIcon, BarChart, Users, ListTodo } from "lucide-react";
-import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { PublicTaskList } from "@/components/tasks/PublicTaskList";
-import { PermissionGate } from "@/components/PermissionGate";
 import { Calendar } from "@/components/Calendar/Calendar";
 import { Statistics } from "@/components/Statistics";
 import { CRMWithPermissions } from "@/components/crm/CRMWithPermissions";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { supabase } from "@/lib/supabase";
 
 interface PublicBoardNavigationProps {
   boardId: string;
@@ -19,6 +18,13 @@ interface PublicBoardNavigationProps {
   accessToken: string;
   fullName: string;
   email: string;
+  onlineUsers: { name: string; email: string }[];
+}
+
+interface SubUserPermissions {
+  calendar_permission: boolean;
+  crm_permission: boolean;
+  statistics_permission: boolean;
 }
 
 const tabVariants = {
@@ -49,12 +55,83 @@ export const PublicBoardNavigation = ({
   boardUserId,
   accessToken, 
   fullName, 
-  email 
+  email,
+  onlineUsers
 }: PublicBoardNavigationProps) => {
-  const { hasPermission, loading, isSubUser } = useSubUserPermissions();
   const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState("tasks");
+  const [permissions, setPermissions] = useState<SubUserPermissions>({
+    calendar_permission: false,
+    crm_permission: false,
+    statistics_permission: false,
+  });
+  const [loading, setLoading] = useState(true);
+  const [isSubUser, setIsSubUser] = useState(false);
   const isGeorgian = language === 'ka';
+
+  useEffect(() => {
+    const fetchPermissions = async () => {
+      if (!email || !boardUserId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Check if this user is a sub-user for this board
+        const { data: subUserData, error } = await supabase
+          .from('sub_users')
+          .select('calendar_permission, crm_permission, statistics_permission')
+          .eq('board_owner_id', boardUserId)
+          .ilike('email', email.trim().toLowerCase())
+          .maybeSingle();
+
+        if (error) {
+          console.error("Error checking sub user permissions:", error);
+          // If error, assume not a sub-user (admin)
+          setIsSubUser(false);
+          setPermissions({
+            calendar_permission: true,
+            crm_permission: true,
+            statistics_permission: true,
+          });
+        } else if (subUserData) {
+          // User is a sub-user
+          setIsSubUser(true);
+          setPermissions({
+            calendar_permission: subUserData.calendar_permission || false,
+            crm_permission: subUserData.crm_permission || false,
+            statistics_permission: subUserData.statistics_permission || false,
+          });
+        } else {
+          // User is not found as sub-user, assume admin
+          setIsSubUser(false);
+          setPermissions({
+            calendar_permission: true,
+            crm_permission: true,
+            statistics_permission: true,
+          });
+        }
+      } catch (error) {
+        console.error("Error in fetchPermissions:", error);
+        // On error, assume admin permissions
+        setIsSubUser(false);
+        setPermissions({
+          calendar_permission: true,
+          crm_permission: true,
+          statistics_permission: true,
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPermissions();
+  }, [email, boardUserId]);
+
+  const hasPermission = (permission: 'calendar' | 'crm' | 'statistics') => {
+    if (!isSubUser) return true; // Admin has all permissions
+    return permissions[`${permission}_permission`];
+  };
 
   if (loading) {
     return (
@@ -76,12 +153,12 @@ export const PublicBoardNavigation = ({
   if (availableTabs.length === 1) {
     return (
       <div className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
-            <PublicTaskList 
-              boardUserId={boardUserId}
-              externalUserName={fullName}
-              externalUserEmail={email}
-              onlineUsers={[]}
-            />
+                <PublicTaskList 
+                  boardUserId={boardUserId}
+                  externalUserName={fullName}
+                  externalUserEmail={email}
+                  onlineUsers={onlineUsers}
+                />
       </div>
     );
   }
@@ -132,12 +209,12 @@ export const PublicBoardNavigation = ({
                 initial="hidden"
                 animate="visible"
               >
-                <PublicTaskList 
-                  boardUserId={boardUserId}
-                  externalUserName={fullName}
-                  externalUserEmail={email}
-                  onlineUsers={[]}
-                />
+        <PublicTaskList 
+          boardUserId={boardUserId}
+          externalUserName={fullName}
+          externalUserEmail={email}
+          onlineUsers={onlineUsers}
+        />
               </motion.div>
             </motion.div>
           </TabsContent>
@@ -158,9 +235,7 @@ export const PublicBoardNavigation = ({
                         initial="hidden"
                         animate="visible"
                       >
-                        <PermissionGate requiredPermission="calendar">
-                          <Calendar defaultView="month" />
-                        </PermissionGate>
+                        <Calendar defaultView="month" />
                       </motion.div>
                     </div>
                   </CardContent>
@@ -193,9 +268,7 @@ export const PublicBoardNavigation = ({
                       initial="hidden"
                       animate="visible"
                     >
-                      <PermissionGate requiredPermission="statistics">
-                        <Statistics />
-                      </PermissionGate>
+                      <Statistics />
                     </motion.div>
                   </CardContent>
                 </Card>
@@ -227,9 +300,7 @@ export const PublicBoardNavigation = ({
                       initial="hidden"
                       animate="visible"
                     >
-                      <PermissionGate requiredPermission="crm">
-                        <CRMWithPermissions />
-                      </PermissionGate>
+                      <CRMWithPermissions />
                     </motion.div>
                   </CardContent>
                 </Card>

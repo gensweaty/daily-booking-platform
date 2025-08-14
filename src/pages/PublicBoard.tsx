@@ -764,6 +764,7 @@ const handleRegister = async () => {
               accessToken={accessToken || ''}
               fullName={fullName}
               email={email}
+              onlineUsers={onlineUsers}
             />
           </>
         )}
