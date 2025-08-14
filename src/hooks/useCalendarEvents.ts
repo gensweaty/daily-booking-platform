@@ -201,7 +201,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         },
         p_additional_persons: [],
         p_user_id: user.id,
-        p_event_id: null
+        p_event_id: null,
+        p_created_by_type: 'admin',
+        p_created_by_name: user.email || 'User',
+        p_last_edited_by_type: 'admin',
+        p_last_edited_by_name: user.email || 'User'
       });
 
       if (error) throw error;
@@ -293,7 +297,11 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           },
           p_additional_persons: [],
           p_user_id: user.id,
-          p_event_id: eventData.id
+          p_event_id: eventData.id,
+          p_created_by_type: 'admin',
+          p_created_by_name: user.email || 'User',
+          p_last_edited_by_type: 'admin',
+          p_last_edited_by_name: user.email || 'User'
         });
 
         if (error) throw error;

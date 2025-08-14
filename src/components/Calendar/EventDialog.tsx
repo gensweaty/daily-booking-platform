@@ -906,6 +906,7 @@ export const EventDialog = ({
           p_event_data: eventData,
           p_additional_persons: additionalPersons,
           p_user_id: effectiveUserId,
+          p_event_id: null,
           p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
           p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
           p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
