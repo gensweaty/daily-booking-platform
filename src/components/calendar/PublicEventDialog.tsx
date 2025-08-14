@@ -8,7 +8,8 @@ import { RecurringDeleteDialog } from "../Calendar/RecurringDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
-import { Clock, RefreshCcw, User } from "lucide-react";
+import { Clock, RefreshCcw, User, Calendar, History } from "lucide-react";
+import { format, parseISO } from "date-fns";
 
 interface PublicEventDialogProps {
   open: boolean;
@@ -143,51 +144,61 @@ export const PublicEventDialog = ({
     (initialData.created_by_type === 'sub_user' && initialData.created_by_name === externalUserName) ||
     (initialData.created_by_type !== 'sub_user' && initialData.created_by_type !== 'admin') : true;
 
+  // Helper function to normalize names (similar to tasks)
+  const normalizeName = (name?: string, type?: string) => {
+    if (!name) return undefined;
+    if (type === 'admin' && name.includes('@')) {
+      // For admin users, try to get username from profile
+      return creatorDisplayName || editorDisplayName || name.split('@')[0];
+    }
+    return name;
+  };
+
   // Fetch display names for admin users
   useEffect(() => {
     const fetchDisplayNames = async () => {
       const eventData = currentEventData || initialData;
       if (!eventData) return;
 
-      // Fetch creator display name if admin
-      if (eventData.created_by_type === 'admin' && eventData.created_by_name) {
+      // Fetch creator display name if admin and email
+      if (eventData.created_by_type === 'admin' && eventData.created_by_name?.includes('@')) {
         try {
-          const { data: profile } = await supabase
+          const { data: users } = await supabase
             .from('profiles')
-            .select('username')
-            .eq('id', eventData.created_by_name)
-            .single();
-          
-          if (profile?.username) {
-            setCreatorDisplayName(profile.username);
+            .select('id, username')
+            .limit(100);
+
+          const matchingUser = users?.find(u => u.id === eventData.created_by_name?.split('@')[0] || false);
+          if (matchingUser?.username) {
+            setCreatorDisplayName(matchingUser.username);
           } else {
-            setCreatorDisplayName(eventData.created_by_name);
+            setCreatorDisplayName(eventData.created_by_name?.split('@')[0] || eventData.created_by_name);
           }
         } catch (error) {
           console.error('Error fetching creator profile:', error);
-          setCreatorDisplayName(eventData.created_by_name);
+          setCreatorDisplayName(eventData.created_by_name?.split('@')[0] || eventData.created_by_name);
         }
       } else {
         setCreatorDisplayName(eventData.created_by_name || '');
       }
 
-      // Fetch editor display name if admin
-      if (eventData.last_edited_by_type === 'admin' && eventData.last_edited_by_name) {
+      // Fetch editor display name if admin and email
+      if (eventData.last_edited_by_type === 'admin' && eventData.last_edited_by_name?.includes('@')) {
         try {
-          const { data: profile } = await supabase
+          const { data: users } = await supabase
             .from('profiles')
-            .select('username')
-            .eq('id', eventData.last_edited_by_name)
-            .single();
-          
-          if (profile?.username) {
-            setEditorDisplayName(profile.username);
+            .select('id, username')
+            .limit(100);
+
+          const matchingUser = users?.find(u => u.id === eventData.last_edited_by_name?.split('@')[0] || false);
+          if (matchingUser?.username) {
+            setEditorDisplayName(matchingUser.username);
           } else {
-            setEditorDisplayName(eventData.last_edited_by_name);
+            setEditorDisplayName(eventData.last_edited_by_name?.split('@')[0] || eventData.last_edited_by_name);
           }
         } catch (error) {
           console.error('Error fetching editor profile:', error);
-          setEditorDisplayName(eventData.last_edited_by_name);
+          setEditorDisplayName(eventData.last_edited_by_name?.split('@')[0] || eventData.last_edited_by_name);
         }
       } else {
         setEditorDisplayName(eventData.last_edited_by_name || '');
@@ -487,24 +498,35 @@ export const PublicEventDialog = ({
             />
             
             {(initialData || currentEventData) && (
-              <div className="text-sm text-muted-foreground mb-4 rounded-md p-4 py-[8px] px-[8px] border border-border bg-card">
-                <span className="flex items-center">
-                  <Clock className="mr-1 h-4 w-4" />
-                  <span>
-                    {t("common.created")} {new Date((currentEventData || initialData)?.created_at || '').toLocaleString(language)}
-                    {creatorDisplayName && (
-                      <span className="ml-2 text-xs">
-                        by {creatorDisplayName} ({(currentEventData || initialData)?.created_by_type || 'admin'})
-                      </span>
-                    )}
-                    , {t("common.lastUpdated")} {new Date((currentEventData || initialData)?.updated_at || (currentEventData || initialData)?.created_at || '').toLocaleString(language)}
-                    {editorDisplayName && (
-                      <span className="ml-2 text-xs">
-                        by {editorDisplayName} ({(currentEventData || initialData)?.last_edited_by_type || 'admin'})
-                      </span>
-                    )}
-                  </span>
-                </span>
+              <div className="px-2 py-1 sm:px-3 sm:py-2 rounded-md border border-border bg-card text-card-foreground w-fit mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-muted-foreground">
+                  <div className="flex items-center">
+                    <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                    <span className="truncate">
+                      {t("common.created")} {format(parseISO((currentEventData || initialData)?.created_at || ''), 'MM/dd/yy HH:mm')}
+                      {(currentEventData || initialData)?.created_by_name && (
+                        <span className="ml-1">
+                          {language === 'ka' 
+                            ? `${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type) || creatorDisplayName}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type) || creatorDisplayName}`}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    <History className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                    <span className="truncate">
+                      {t("common.lastUpdated")} {format(parseISO((currentEventData || initialData)?.updated_at || (currentEventData || initialData)?.created_at || ''), 'MM/dd/yy HH:mm')}
+                      {(currentEventData || initialData)?.last_edited_by_name && (currentEventData || initialData)?.updated_at && (
+                        <span className="ml-1">
+                          {language === 'ka' 
+                            ? `${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type) || editorDisplayName}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type) || editorDisplayName}`}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
             
