@@ -13,7 +13,7 @@ import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Clock, ChevronUp, ChevronDown } from "lucide-react";
+import { CalendarIcon, Clock, ChevronUp, ChevronDown, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -508,37 +508,38 @@ export const CustomerDialogFields = ({
         </>
       )}
 
-      {/* Metadata display */}
+      {/* Metadata display - matching task metadata design */}
       {metadata && (metadata.created_by_type || metadata.last_edited_by_type) && (
-        <div className="rounded-md bg-muted/50 p-3 space-y-2 border">
-          <Label className="font-medium text-sm text-muted-foreground">{t("common.metadata")}</Label>
-          <div className="space-y-1 text-xs text-muted-foreground">
-            {metadata.created_by_type && (
-              <div className="flex justify-between">
-                <span>{t("common.createdBy")}:</span>
-                <span className="font-medium">
-                  {metadata.created_by_name} ({metadata.created_by_type === 'sub_user' ? t("common.subUser") : t("common.admin")})
+        <div className="px-2 py-1 sm:px-3 sm:py-2 rounded-md border border-border bg-card text-card-foreground w-fit">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-muted-foreground">
+            {metadata.created_by_type && metadata.created_at && (
+              <div className="flex items-center">
+                <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="truncate">
+                  {t("common.created")} {formatDateTime(metadata.created_at)}
+                  {metadata.created_by_name && (
+                    <span className="ml-1">
+                      {language === 'ka' 
+                        ? `${metadata.created_by_name}-ს ${t("common.by")}` 
+                        : `${t("common.by")} ${metadata.created_by_name}`}
+                    </span>
+                  )}
                 </span>
               </div>
             )}
-            {metadata.last_edited_by_type && (
-              <div className="flex justify-between">
-                <span>{t("common.lastEditedBy")}:</span>
-                <span className="font-medium">
-                  {metadata.last_edited_by_name} ({metadata.last_edited_by_type === 'sub_user' ? t("common.subUser") : t("common.admin")})
+            {metadata.last_edited_by_type && metadata.updated_at && (
+              <div className="flex items-center">
+                <History className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="truncate">
+                  {t("common.lastUpdated")} {formatDateTime(metadata.updated_at)}
+                  {metadata.last_edited_by_name && (
+                    <span className="ml-1">
+                      {language === 'ka' 
+                        ? `${metadata.last_edited_by_name}-ს ${t("common.by")}` 
+                        : `${t("common.by")} ${metadata.last_edited_by_name}`}
+                    </span>
+                  )}
                 </span>
-              </div>
-            )}
-            {metadata.created_at && (
-              <div className="flex justify-between">
-                <span>{t("common.created")}:</span>
-                <span>{formatDateTime(metadata.created_at)}</span>
-              </div>
-            )}
-            {metadata.updated_at && metadata.updated_at !== metadata.created_at && (
-              <div className="flex justify-between">
-                <span>{t("common.updated")}:</span>
-                <span>{formatDateTime(metadata.updated_at)}</span>
               </div>
             )}
           </div>

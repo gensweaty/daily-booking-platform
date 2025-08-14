@@ -237,7 +237,26 @@ export const CustomerList = ({
   }, [isPublicMode, externalUserName, publicBoardUserId, isSubUser, user?.email, user?.id]);
 
   const handleConfirmDelete = useCallback(async () => {
-    if (!customerToDelete || !user?.id) return;
+    if (!customerToDelete) {
+      toast({
+        title: t("common.error"),
+        description: "No customer selected for deletion",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get the appropriate user ID based on context
+    const effectiveUserId = isPublicMode ? publicBoardUserId : user?.id;
+    
+    if (!effectiveUserId) {
+      toast({
+        title: t("common.error"),
+        description: t("common.missingUserInfo"),
+        variant: "destructive",
+      });
+      return;
+    }
 
     // Check permissions in public mode
     if (isPublicMode && !canEditDelete(customerToDelete)) {
@@ -257,11 +276,11 @@ export const CustomerList = ({
           .update({ 
             deleted_at: new Date().toISOString(),
             last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
-            last_edited_by_name: isPublicMode ? externalUserName : user.email,
+            last_edited_by_name: isPublicMode ? externalUserName : user?.email,
             last_edited_at: new Date().toISOString()
           })
           .eq('id', eventId)
-          .eq('user_id', isPublicMode ? publicBoardUserId : user.id);
+          .eq('user_id', effectiveUserId);
 
         if (error) throw error;
       } else {
@@ -270,11 +289,11 @@ export const CustomerList = ({
           .update({ 
             deleted_at: new Date().toISOString(),
             last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
-            last_edited_by_name: isPublicMode ? externalUserName : user.email,
+            last_edited_by_name: isPublicMode ? externalUserName : user?.email,
             last_edited_at: new Date().toISOString()
           })
           .eq('id', customerToDelete.id)
-          .eq('user_id', isPublicMode ? publicBoardUserId : user.id);
+          .eq('user_id', effectiveUserId);
 
         if (error) throw error;
       }
@@ -299,7 +318,7 @@ export const CustomerList = ({
         variant: "destructive",
       });
     }
-  }, [customerToDelete, user?.id, queryClient, toast, t, isPublicMode, canEditDelete, externalUserName]);
+  }, [customerToDelete, user?.id, publicBoardUserId, queryClient, toast, t, isPublicMode, canEditDelete, externalUserName]);
 
   const handleSearchSelect = useCallback((customer: any) => {
     openEditDialog(customer);

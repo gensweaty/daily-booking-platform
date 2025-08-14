@@ -950,6 +950,13 @@ export const EventDialog = ({
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error saving event:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        stack: error.stack
+      });
       toast({
         title: t("common.error"),
         description: error.message || "Failed to save event",
