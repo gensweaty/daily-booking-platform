@@ -176,11 +176,9 @@ export const CustomerList = ({
   const canEditDelete = useCallback((customer: any) => {
     if (!isPublicMode) return true;
     
-    // In public mode, allow edit/delete if:
-    // 1. The item was created by this sub-user (directly or via events), OR
-    // 2. Legacy data without creator info (for backwards compatibility)
-    return (customer.created_by_type === 'sub_user' && customer.created_by_name === externalUserName) ||
-           (!customer.created_by_type && !customer.created_by_name);
+    // In public mode, only allow edit/delete if the item was created by this sub-user
+    return customer.created_by_type === 'sub_user' && 
+           customer.created_by_name === externalUserName;
   }, [isPublicMode, externalUserName]);
 
   const handleConfirmDelete = useCallback(async () => {
@@ -208,7 +206,7 @@ export const CustomerList = ({
             last_edited_at: new Date().toISOString()
           })
           .eq('id', eventId)
-          .eq('user_id', isPublicMode ? publicBoardUserId : user.id);
+          .eq('user_id', user.id);
 
         if (error) throw error;
       } else {
@@ -221,7 +219,7 @@ export const CustomerList = ({
             last_edited_at: new Date().toISOString()
           })
           .eq('id', customerToDelete.id)
-          .eq('user_id', isPublicMode ? publicBoardUserId : user.id);
+          .eq('user_id', user.id);
 
         if (error) throw error;
       }

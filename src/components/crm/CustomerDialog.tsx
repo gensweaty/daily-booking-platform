@@ -415,15 +415,33 @@ export const CustomerDialog = ({
           id = customerId.replace('event-', '');
         }
 
-        // For public mode (sub-users), use simplified ownership logic
+        // For public mode (sub-users), check ownership properly
         let query = supabase
           .from(tableToUpdate)
           .update(updates)
           .eq('id', id);
         
         if (isPublicMode && publicBoardUserId) {
-          // In public mode, always filter by board owner's user_id
-          // The frontend permission check (canEditDelete) ensures only proper records are editable
+          // First check if this is something the sub-user created
+          const { data: existingRecord } = await supabase
+            .from(tableToUpdate)
+            .select('created_by_type, created_by_name, user_id')
+            .eq('id', id)
+            .single();
+          
+          // Allow editing if:
+          // 1. It was created by this sub-user, OR
+          // 2. It belongs to the board owner and no specific creator info (legacy data)
+          const canEdit = existingRecord && (
+            (existingRecord.created_by_type === 'sub_user' && existingRecord.created_by_name === externalUserName) ||
+            (existingRecord.user_id === publicBoardUserId && !existingRecord.created_by_type)
+          );
+          
+          if (!canEdit) {
+            throw new Error("You don't have permission to edit this record");
+          }
+          
+          // Apply the filter based on board owner
           query = query.eq('user_id', publicBoardUserId);
         } else {
           query = query.eq('user_id', effectiveUserId);
@@ -661,15 +679,34 @@ export const CustomerDialog = ({
         id = customerId.replace('event-', '');
       }
 
-      // For public mode (sub-users), use simplified ownership logic
+      // For public mode (sub-users), use the same ownership logic as updates
+      if (isPublicMode && publicBoardUserId) {
+        // First check if this is something the sub-user created
+        const { data: existingRecord } = await supabase
+          .from(tableToUpdate)
+          .select('created_by_type, created_by_name, user_id')
+          .eq('id', id)
+          .single();
+        
+        // Allow deleting if:
+        // 1. It was created by this sub-user, OR
+        // 2. It belongs to the board owner and no specific creator info (legacy data)
+        const canDelete = existingRecord && (
+          (existingRecord.created_by_type === 'sub_user' && existingRecord.created_by_name === externalUserName) ||
+          (existingRecord.user_id === publicBoardUserId && !existingRecord.created_by_type)
+        );
+        
+        if (!canDelete) {
+          throw new Error("You don't have permission to delete this record");
+        }
+      }
+
       let query = supabase
         .from(tableToUpdate)
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', id);
       
       if (isPublicMode && publicBoardUserId) {
-        // In public mode, always filter by board owner's user_id
-        // The frontend permission check (canEditDelete) ensures only proper records are deletable
         query = query.eq('user_id', publicBoardUserId);
       } else {
         query = query.eq('user_id', effectiveUserId);
