@@ -135,16 +135,28 @@ export const usePublicCalendarEvents = (
       // Send booking approval email just like in dashboard
       try {
         console.log('[usePublicCalendarEvents] Sending booking approval email...');
+        
+        // Get business profile for business name
+        const { data: businessProfile } = await supabase
+          .from('business_profiles')
+          .select('business_name, contact_address')
+          .eq('user_id', boardUserId)
+          .single();
+        
         await supabase.functions.invoke('send-booking-approval-email', {
           body: {
-            recipientEmail: completeEvent.user_number, // This should be the email
+            eventId: completeEvent.id,
+            recipientEmail: completeEvent.social_network_link || completeEvent.user_number, // Use social_network_link as email field
             fullName: completeEvent.user_surname || completeEvent.title,
-            businessName: 'SmartBookly.Com',
+            businessName: businessProfile?.business_name || 'SmartBookly.Com',
             paymentStatus: completeEvent.payment_status || 'not_paid',
             paymentAmount: completeEvent.payment_amount,
             language: completeEvent.language || 'en',
             eventNotes: completeEvent.event_notes || '',
-            source: 'public-board'
+            source: 'event-creation',
+            hasBusinessAddress: !!businessProfile?.contact_address,
+            startDate: completeEvent.start_date,
+            endDate: completeEvent.end_date
           }
         });
         console.log('[usePublicCalendarEvents] Booking approval email sent successfully');
