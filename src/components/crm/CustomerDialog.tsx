@@ -415,11 +415,20 @@ export const CustomerDialog = ({
           id = customerId.replace('event-', '');
         }
 
-        const { data, error } = await supabase
+        // For public mode (sub-users), we need to check ownership differently
+        let query = supabase
           .from(tableToUpdate)
           .update(updates)
-          .eq('id', id)
-          .eq('user_id', effectiveUserId)
+          .eq('id', id);
+        
+        // Always filter by the board owner's user_id, regardless of who's editing
+        if (isPublicMode && publicBoardUserId) {
+          query = query.eq('user_id', publicBoardUserId);
+        } else {
+          query = query.eq('user_id', effectiveUserId);
+        }
+        
+        const { data, error } = await query
           .select()
           .single();
 
