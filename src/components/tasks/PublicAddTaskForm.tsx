@@ -224,12 +224,18 @@ export const PublicAddTaskForm = ({
         }
       });
       
+      console.log('✅ Task operation completed successfully');
+      
+      // Invalidate queries to refresh the task list
+      await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      await queryClient.invalidateQueries({ queryKey: ['publicTasks', boardUserId] });
+      await queryClient.invalidateQueries({ queryKey: ['taskFiles'] });
+      
       toast({
         title: t("common.success"),
         description: editingTask ? t("tasks.taskUpdated") : t("tasks.taskAdded"),
       });
       
-      console.log('✅ Task operation completed successfully');
       onClose();
     } catch (error: any) {
       console.error('❌ Task operation error:', {

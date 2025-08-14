@@ -238,6 +238,13 @@ export const CustomerList = ({
 
   // Helper function to get the effective user ID for operations
   const getEffectiveUserId = () => {
+    console.log('🔍 CustomerList getEffectiveUserId:', {
+      isPublicMode,
+      publicBoardUserId,
+      userId: user?.id,
+      userEmail: user?.email
+    });
+    
     if (isPublicMode && publicBoardUserId) {
       return publicBoardUserId;
     }
