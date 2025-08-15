@@ -48,6 +48,7 @@ export const CustomerDialog = ({
   const { isSubUser } = useSubUserPermissions();
   const queryClient = useQueryClient();
   const [subUserName, setSubUserName] = useState<string | null>(null);
+  const [adminUserName, setAdminUserName] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     user_number: "",
@@ -68,10 +69,12 @@ export const CustomerDialog = ({
   const [eventEndDate, setEventEndDate] = useState<Date>(new Date());
   const [createEvent, setCreateEvent] = useState(false);
 
-  // Fetch sub-user's fullname if they are a sub-user
+  // Fetch user's fullname (either sub-user or admin)
   useEffect(() => {
-    const fetchSubUserName = async () => {
-      if (isSubUser && user?.email) {
+    const fetchUserName = async () => {
+      if (!user?.email) return;
+
+      if (isSubUser) {
         try {
           const { data: subUserData, error } = await supabase
             .from('sub_users')
@@ -85,11 +88,26 @@ export const CustomerDialog = ({
         } catch (error) {
           console.error("Error fetching sub-user name:", error);
         }
+      } else {
+        // Fetch admin user's profile
+        try {
+          const { data: profileData, error } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (!error && profileData) {
+            setAdminUserName(profileData.username);
+          }
+        } catch (error) {
+          console.error("Error fetching admin user name:", error);
+        }
       }
     };
 
-    fetchSubUserName();
-  }, [isSubUser, user?.email]);
+    fetchUserName();
+  }, [isSubUser, user?.email, user?.id]);
 
   useEffect(() => {
     if (initialData) {
@@ -440,7 +458,11 @@ export const CustomerDialog = ({
              last_edited_by_type: 'sub_user',
              last_edited_by_name: subUserName || user?.email || 'sub_user',
              last_edited_at: new Date().toISOString()
-           } : {})
+           } : {
+             last_edited_by_type: 'admin',
+             last_edited_by_name: adminUserName || user?.email || 'admin',
+             last_edited_at: new Date().toISOString()
+           })
         };
 
         let tableToUpdate = 'customers';
@@ -592,7 +614,9 @@ export const CustomerDialog = ({
              last_edited_by_name: subUserName || user?.email || 'sub_user'
            } : {
             created_by_type: 'admin',
-            created_by_name: user?.email || 'admin'
+            created_by_name: adminUserName || user?.email || 'admin',
+            last_edited_by_type: 'admin',
+            last_edited_by_name: adminUserName || user?.email || 'admin'
           })
         };
 
@@ -644,7 +668,12 @@ export const CustomerDialog = ({
                created_by_name: subUserName || user?.email || 'sub_user',
                last_edited_by_type: 'sub_user',
                last_edited_by_name: subUserName || user?.email || 'sub_user'
-             } : {})
+             } : {
+               created_by_type: 'admin',
+               created_by_name: adminUserName || user?.email || 'admin',
+               last_edited_by_type: 'admin',
+               last_edited_by_name: adminUserName || user?.email || 'admin'
+             })
           };
 
           console.log("Creating event from customer with payment status:", eventData.payment_status);
