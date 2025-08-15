@@ -64,24 +64,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     },
   },
   global: {
-    fetch: (...args: Parameters<typeof fetch>) => {
-      const [url, options] = args;
-      const originalFetch = globalThis.fetch;
-      
-      // Add retry logic for important endpoints
-      return originalFetch(url, options).catch(async (error) => {
-        console.error(`Fetch error for ${typeof url === 'string' ? url : 'request'}:`, error);
-        
-        // Only retry specific non-GET requests for critical business operations
-        if (options?.method && options.method !== 'GET') {
-          console.log("Retrying POST/PUT/DELETE request after error");
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          return originalFetch(url, options);
-        }
-        
-        throw error;
-      });
-    },
+    fetch: globalThis.fetch, // Use native fetch without retry logic to avoid conflicts
   },
 });
 

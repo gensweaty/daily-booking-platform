@@ -60,13 +60,23 @@ export const getUnifiedCalendarEvents = async (
       return { events: [], bookings: [] };
     }
 
+    // Create a timeout promise to prevent hanging requests
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Request timeout')), 10000);
+    });
+
     // Fetch events from the events table - STRICT deleted_at filtering
-    const { data: events, error: eventsError } = await supabase
+    const eventsPromise = supabase
       .from('events')
       .select('*')
       .eq('user_id', targetUserId)
       .is('deleted_at', null)
       .order('start_date', { ascending: true });
+
+    const { data: events, error: eventsError } = await Promise.race([
+      eventsPromise,
+      timeoutPromise
+    ]);
 
     if (eventsError) {
       console.error('[CalendarService] Error fetching events:', eventsError);

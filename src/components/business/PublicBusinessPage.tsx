@@ -102,17 +102,29 @@ export const PublicBusinessPage = () => {
         setIsLoading(true);
         console.log("[PublicBusinessPage] Fetching business profile for slug:", businessSlug);
         
-        await forceBucketCreation();
-        
-        const { data, error } = await supabase
+        // Try direct exact match first
+        let { data, error } = await supabase
           .from("business_profiles")
           .select("*")
           .eq("slug", businessSlug)
-          .single();
+          .maybeSingle();
+
+        // If exact match fails, try case-insensitive search
+        if (!data && !error) {
+          console.log("[PublicBusinessPage] Exact match failed, trying case-insensitive search");
+          const { data: caseInsensitiveData, error: caseInsensitiveError } = await supabase
+            .from("business_profiles")
+            .select("*")
+            .ilike("slug", businessSlug)
+            .maybeSingle();
+          
+          data = caseInsensitiveData;
+          error = caseInsensitiveError;
+        }
 
         if (error) {
           console.error("Error fetching business profile:", error);
-          setError("Failed to load business information");
+          setError(`Database error: ${error.message}`);
           return;
         }
         
@@ -125,20 +137,15 @@ export const PublicBusinessPage = () => {
         console.log("[PublicBusinessPage] Fetched business profile:", data);
         setBusiness(data as BusinessProfile);
         
-        if (data.cover_photo_url) {
-          if (!data.cover_photo_url.startsWith('blob:')) {
-            const timestamp = Date.now();
-            let photoUrl = data.cover_photo_url.split('?')[0];
-            photoUrl = `${photoUrl}?t=${timestamp}`;
-            
-            console.log("[PublicBusinessPage] Setting cover photo URL with cache busting:", photoUrl);
-            setCoverPhotoUrl(photoUrl);
-            setImageLoaded(false);
-            imageRetryCount.current = 0;
-          } else {
-            console.warn("[PublicBusinessPage] Ignoring blob URL:", data.cover_photo_url);
-            setCoverPhotoUrl(null);
-          }
+        if (data?.cover_photo_url) {
+          const timestamp = Date.now();
+          let photoUrl = data.cover_photo_url.split('?')[0];
+          photoUrl = `${photoUrl}?t=${timestamp}`;
+          
+          console.log("[PublicBusinessPage] Setting cover photo URL with cache busting:", photoUrl);
+          setCoverPhotoUrl(photoUrl);
+          setImageLoaded(false);
+          imageRetryCount.current = 0;
         }
         
         if (data?.business_name) {
