@@ -108,7 +108,8 @@ export const translations: TranslationType = {
     customerUpdated: "Cliente actualizado exitosamente",
     customerDeleted: "Cliente eliminado exitosamente",
     noDataToExport: "No hay datos para exportar",
-    error: "Error"
+    error: "Error",
+    open: "Abrir"
   },
   tasks: {
     title: "Gestión de Tareas",
@@ -447,6 +448,10 @@ export const translations: TranslationType = {
     requests: "solicitudes",
     backToHome: "Volver al inicio",
     create: "Crear",
+    download: "Descargar",
+    downloadStarted: "Descarga iniciada",
+    downloadError: "Error de descarga",
+    open: "Abrir",
     update: "Actualizar",
     delete: "Eliminar",
     and: "y",

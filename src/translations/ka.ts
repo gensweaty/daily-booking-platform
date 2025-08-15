@@ -108,7 +108,8 @@ export const translations: TranslationType = {
     customerUpdated: "კლიენტი წარმატებით განახლდა",
     customerDeleted: "კლიენტი წარმატებით წაიშალა",
     noDataToExport: "ექსპორტისთვის მონაცემები არ არის",
-    error: "შეცდომა"
+    error: "შეცდომა",
+    open: "გახსნა"
   },
   tasks: {
     title: "დავალებების მართვა",
@@ -447,6 +448,10 @@ export const translations: TranslationType = {
     requests: "მოთხოვნები",
     backToHome: "მთავარ გვერდზე დაბრუნება",
     create: "შექმნა",
+    download: "ჩამოტვირთვა",
+    downloadStarted: "ჩამოტვირთვა დაიწყო",
+    downloadError: "ჩამოტვირთვის შეცდომა",
+    open: "გახსნა",
     update: "განახლება",
     delete: "წაშლა",
     and: "და",

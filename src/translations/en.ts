@@ -97,7 +97,8 @@ export const translations: TranslationType = {
     customerUpdated: "Customer updated successfully",
     customerDeleted: "Customer deleted successfully",
     noDataToExport: "No data to export",
-    error: "Error"
+    error: "Error",
+    open: "Open"
   },
   tasks: {
     title: "Task Management",
@@ -449,6 +450,10 @@ export const translations: TranslationType = {
     requests: "requests",
     backToHome: "Back to home",
     create: "Create",
+    download: "Download",
+    downloadStarted: "Download started",
+    downloadError: "Download failed",
+    open: "Open",
     update: "Update",
     delete: "Delete",
     and: "and",
