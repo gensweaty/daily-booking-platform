@@ -201,80 +201,20 @@ export const EventDialog = ({
   const [currentEventData, setCurrentEventData] = useState<CalendarEvent | null>(null);
   const [reminderAt, setReminderAt] = useState("");
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
-  const [creatorDisplayName, setCreatorDisplayName] = useState<string>("");
-  const [editorDisplayName, setEditorDisplayName] = useState<string>("");
 
   const isNewEvent = !initialData && !eventId;
   const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
   const isRecurringEvent = initialData?.is_recurring || isVirtualEvent || isRecurring;
 
   // Helper function to normalize names (similar to tasks)
-  const normalizeName = (name?: string, type?: string) => {
+  const normalizeName = (name?: string) => {
     if (!name) return undefined;
-    if (type === 'admin') {
-      // For admin users, return the fetched display name or fallback
-      return creatorDisplayName || editorDisplayName || (name.includes('@') ? name.split('@')[0] : name);
+    if (name.includes('@')) {
+      return name.split('@')[0];
     }
     return name;
   };
 
-  // Fetch display names for admin users
-  useEffect(() => {
-    const fetchDisplayNames = async () => {
-      const eventData = currentEventData || initialData;
-      if (!eventData) return;
-
-      // Fetch creator display name if admin
-      if (eventData.created_by_type === 'admin' && eventData.created_by_name) {
-        try {
-          // Try to find profile by user ID first (if name is actually a user ID)
-          const { data: profileById } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('id', eventData.created_by_name)
-            .single();
-          
-          if (profileById?.username) {
-            setCreatorDisplayName(profileById.username);
-          } else {
-            // If not found by ID and it's an email, get username from email prefix
-            setCreatorDisplayName(eventData.created_by_name.includes('@') ? eventData.created_by_name.split('@')[0] : eventData.created_by_name);
-          }
-        } catch (error) {
-          console.error('Error fetching creator profile:', error);
-          setCreatorDisplayName(eventData.created_by_name.includes('@') ? eventData.created_by_name.split('@')[0] : eventData.created_by_name);
-        }
-      } else {
-        setCreatorDisplayName(eventData.created_by_name || '');
-      }
-
-      // Fetch editor display name if admin
-      if (eventData.last_edited_by_type === 'admin' && eventData.last_edited_by_name) {
-        try {
-          // Try to find profile by user ID first
-          const { data: profileById } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('id', eventData.last_edited_by_name)
-            .single();
-          
-          if (profileById?.username) {
-            setEditorDisplayName(profileById.username);
-          } else {
-            // If not found by ID and it's an email, get username from email prefix
-            setEditorDisplayName(eventData.last_edited_by_name.includes('@') ? eventData.last_edited_by_name.split('@')[0] : eventData.last_edited_by_name);
-          }
-        } catch (error) {
-          console.error('Error fetching editor profile:', error);
-          setEditorDisplayName(eventData.last_edited_by_name.includes('@') ? eventData.last_edited_by_name.split('@')[0] : eventData.last_edited_by_name);
-        }
-      } else {
-        setEditorDisplayName(eventData.last_edited_by_name || '');
-      }
-    };
-
-    fetchDisplayNames();
-  }, [currentEventData, initialData]);
 
   const loadAdditionalPersons = async (targetEventId: string) => {
     try {
@@ -508,8 +448,6 @@ export const EventDialog = ({
     setCurrentEventData(null);
     setReminderAt("");
     setEmailReminderEnabled(false);
-    setCreatorDisplayName("");
-    setEditorDisplayName("");
     console.log('🔄 Form fields reset');
   };
 
@@ -1236,8 +1174,8 @@ export const EventDialog = ({
                       {(currentEventData || initialData)?.created_by_name && (
                         <span className="ml-1">
                           {language === 'ka' 
-                            ? `${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type) || creatorDisplayName}-ს ${t("common.by")}` 
-                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type) || creatorDisplayName}`}
+                            ? `${normalizeName((currentEventData || initialData)?.created_by_name)}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.created_by_name)}`}
                         </span>
                       )}
                     </span>
@@ -1249,8 +1187,8 @@ export const EventDialog = ({
                       {(currentEventData || initialData)?.last_edited_by_name && (currentEventData || initialData)?.updated_at && (
                         <span className="ml-1">
                           {language === 'ka' 
-                            ? `${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type) || editorDisplayName}-ს ${t("common.by")}` 
-                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type) || editorDisplayName}`}
+                            ? `${normalizeName((currentEventData || initialData)?.last_edited_by_name)}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.last_edited_by_name)}`}
                         </span>
                       )}
                     </span>
