@@ -132,8 +132,7 @@ export const PublicEventDialog = ({
   const [currentEventData, setCurrentEventData] = useState<CalendarEventType | null>(null);
   const [reminderAt, setReminderAt] = useState("");
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
-  const [creatorDisplayName, setCreatorDisplayName] = useState<string>("");
-  const [editorDisplayName, setEditorDisplayName] = useState<string>("");
+  const [currentUserProfileName, setCurrentUserProfileName] = useState<string>("");
 
   const isNewEvent = !initialData && !eventId;
   const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
@@ -144,73 +143,49 @@ export const PublicEventDialog = ({
     (initialData.created_by_type === 'sub_user' && initialData.created_by_name === externalUserName) ||
     (initialData.created_by_type !== 'sub_user' && initialData.created_by_type !== 'admin') : true;
 
-  // Helper function to normalize names (similar to tasks)
+  // Helper function to normalize names and get current user's username
   const normalizeName = (name?: string, type?: string) => {
     if (!name) return undefined;
-    if (type === 'admin') {
-      // For admin users, return the fetched display name or fallback
-      return creatorDisplayName || editorDisplayName || (name.includes('@') ? name.split('@')[0] : name);
+    
+    // If this is an admin user and we have their profile username, use it
+    if (type === 'admin' && currentUserProfileName) {
+      return currentUserProfileName;
+    }
+    
+    // For other cases, normalize the stored name
+    if (name.includes('@')) {
+      return name.split('@')[0];
     }
     return name;
   };
 
-  // Fetch display names for admin users
+  // Fetch current user's profile username for display
   useEffect(() => {
-    const fetchDisplayNames = async () => {
-      const eventData = currentEventData || initialData;
-      if (!eventData) return;
-
-      // Fetch creator display name if admin
-      if (eventData.created_by_type === 'admin' && eventData.created_by_name) {
-        try {
-          // Try to find profile by user ID first (if name is actually a user ID)
-          const { data: profileById } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('id', eventData.created_by_name)
-            .single();
+    const fetchCurrentUserProfile = async () => {
+      if (!publicBoardUserId) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', publicBoardUserId)
+          .maybeSingle();
           
-          if (profileById?.username) {
-            setCreatorDisplayName(profileById.username);
-          } else {
-            // If not found by ID and it's an email, get username from email prefix
-            setCreatorDisplayName(eventData.created_by_name.includes('@') ? eventData.created_by_name.split('@')[0] : eventData.created_by_name);
-          }
-        } catch (error) {
-          console.error('Error fetching creator profile:', error);
-          setCreatorDisplayName(eventData.created_by_name.includes('@') ? eventData.created_by_name.split('@')[0] : eventData.created_by_name);
+        if (error) {
+          console.error('Error fetching current user profile:', error);
+          return;
         }
-      } else {
-        setCreatorDisplayName(eventData.created_by_name || '');
-      }
-
-      // Fetch editor display name if admin
-      if (eventData.last_edited_by_type === 'admin' && eventData.last_edited_by_name) {
-        try {
-          // Try to find profile by user ID first
-          const { data: profileById } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('id', eventData.last_edited_by_name)
-            .single();
-          
-          if (profileById?.username) {
-            setEditorDisplayName(profileById.username);
-          } else {
-            // If not found by ID and it's an email, get username from email prefix
-            setEditorDisplayName(eventData.last_edited_by_name.includes('@') ? eventData.last_edited_by_name.split('@')[0] : eventData.last_edited_by_name);
-          }
-        } catch (error) {
-          console.error('Error fetching editor profile:', error);
-          setEditorDisplayName(eventData.last_edited_by_name.includes('@') ? eventData.last_edited_by_name.split('@')[0] : eventData.last_edited_by_name);
+        
+        if (data?.username) {
+          setCurrentUserProfileName(data.username);
         }
-      } else {
-        setEditorDisplayName(eventData.last_edited_by_name || '');
+      } catch (err) {
+        console.error('Exception fetching current user profile:', err);
       }
     };
-
-    fetchDisplayNames();
-  }, [currentEventData, initialData]);
+    
+    fetchCurrentUserProfile();
+  }, [publicBoardUserId]);
 
   // Initialize form data
   useEffect(() => {
@@ -281,8 +256,7 @@ export const PublicEventDialog = ({
     setCurrentEventData(null);
     setReminderAt("");
     setEmailReminderEnabled(false);
-    setCreatorDisplayName("");
-    setEditorDisplayName("");
+    setCurrentUserProfileName("");
     console.log('[PublicEventDialog] Form fields reset');
   };
 
@@ -511,8 +485,8 @@ export const PublicEventDialog = ({
                       {(currentEventData || initialData)?.created_by_name && (
                         <span className="ml-1">
                           {language === 'ka' 
-                            ? `${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type) || creatorDisplayName}-ს ${t("common.by")}` 
-                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type) || creatorDisplayName}`}
+                            ? `${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type)}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type)}`}
                         </span>
                       )}
                     </span>
@@ -524,8 +498,8 @@ export const PublicEventDialog = ({
                       {(currentEventData || initialData)?.last_edited_by_name && (currentEventData || initialData)?.updated_at && (
                         <span className="ml-1">
                           {language === 'ka' 
-                            ? `${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type) || editorDisplayName}-ს ${t("common.by")}` 
-                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type) || editorDisplayName}`}
+                            ? `${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type)}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type)}`}
                         </span>
                       )}
                     </span>
