@@ -16,7 +16,32 @@ import { PublicProfileButton } from "./PublicProfileButton";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { supabase } from "@/lib/supabase";
-import { createPasswordHash } from "@/utils/signupValidation";
+
+// Password hashing utilities (same as in PublicBoard.tsx)
+const bufToBase64 = (buffer: ArrayBuffer) => {
+  const binary = String.fromCharCode(...new Uint8Array(buffer));
+  return btoa(binary);
+};
+
+const base64ToBuf = (base64: string) => {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+};
+
+const deriveBits = async (password: string, salt: Uint8Array) => {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveBits"]);
+  return crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" }, keyMaterial, 256);
+};
+
+const createPasswordHash = async (password: string) => {
+  const salt = new Uint8Array(16);
+  crypto.getRandomValues(salt);
+  const bits = await deriveBits(password, salt);
+  return { hash: bufToBase64(bits), salt: bufToBase64(salt.buffer) };
+};
 
 interface PublicProfileDialogProps {
   boardUserId: string;
