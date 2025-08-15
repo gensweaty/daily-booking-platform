@@ -92,10 +92,15 @@ export const PublicProfileDialog = ({
     }
   };
 
+  // Load profile data on component mount
+  useEffect(() => {
+    fetchSubUserProfile();
+  }, [boardUserId, userEmail]);
+
   const handleDialogOpenChange = (open: boolean) => {
     setDialogOpen(open);
     if (open) {
-      fetchSubUserProfile();
+      fetchSubUserProfile(); // Refresh data when dialog opens
     }
   };
 
