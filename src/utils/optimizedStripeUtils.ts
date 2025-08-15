@@ -152,6 +152,12 @@ export const checkSubscriptionStatus = async (reason: string = 'manual_check', f
       }
     }
 
+    // For critical check on page load, clear cache to ensure fresh data
+    if (reason === 'component_mount' || reason === 'page_load') {
+      console.log(`[SUBSCRIPTION_CHECK] Clearing cache for fresh check on ${reason}`);
+      subscriptionCache.clearCache();
+    }
+
     // Check throttling
     if (!forceRefresh && !edgeFunctionThrottler.canCall('sync-stripe-subscription', reason)) {
       const cached = subscriptionCache.getCachedStatus();

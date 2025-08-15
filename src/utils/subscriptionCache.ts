@@ -65,6 +65,12 @@ class SubscriptionCacheManager {
     console.log('[SUBSCRIPTION_CACHE] Cache cleared');
   }
 
+  // Force clear cache and reset subscription status
+  forceRefresh(): void {
+    this.clearCache();
+    console.log('[SUBSCRIPTION_CACHE] Forced cache refresh');
+  }
+
   getLastSyncInfo(): { minutesAgo: number; reason?: string } | null {
     const cached = this.getCachedStatus();
     if (!cached) return null;
