@@ -181,10 +181,12 @@ export const checkSubscriptionStatus = async (reason: string = 'manual_check', f
       .from('subscriptions')
       .select('*')
       .eq('user_id', userData.user.id)
+      .order('created_at', { ascending: false })
       .maybeSingle();
     
     if (subError) {
       console.error('Error checking subscription:', subError);
+      // Don't return trial_expired on database errors, let it continue to try Stripe sync
     }
     
     // If user has ultimate plan, return that immediately
@@ -201,8 +203,44 @@ export const checkSubscriptionStatus = async (reason: string = 'manual_check', f
       subscriptionCache.setCachedStatus(result, reason);
       return result;
     }
+
+    // If user has any existing subscription (yearly, monthly), preserve it
+    if (subscription) {
+      console.log('User has existing subscription:', subscription);
+      const now = new Date();
+      let status = subscription.status;
+      
+      // Check if trial has expired
+      if (status === 'trial' && subscription.trial_end_date) {
+        const trialEnd = new Date(subscription.trial_end_date);
+        if (now > trialEnd) {
+          status = 'trial_expired';
+        }
+      }
+      
+      // Check if active subscription has expired
+      if (status === 'active' && subscription.current_period_end) {
+        const periodEnd = new Date(subscription.current_period_end);
+        if (now > periodEnd) {
+          status = 'expired';
+        }
+      }
+      
+      const result = {
+        success: true,
+        status: status,
+        planType: subscription.plan_type,
+        currentPeriodEnd: subscription.current_period_end,
+        trialEnd: subscription.trial_end_date,
+        subscription_start_date: subscription.subscription_start_date,
+        subscription_end_date: subscription.subscription_end_date
+      };
+      
+      subscriptionCache.setCachedStatus(result, reason);
+      return result;
+    }
     
-    // For non-ultimate users, use the sync function to check status
+    // For users without any subscription, use the sync function to check Stripe
     const response = await supabase.functions.invoke('sync-stripe-subscription', {
       body: { 
         user_id: userData.user.id
@@ -214,6 +252,7 @@ export const checkSubscriptionStatus = async (reason: string = 'manual_check', f
     
     if (error) {
       console.error('Error checking subscription status:', error);
+      // If sync fails but no existing subscription, then return trial_expired
       return { success: false, status: 'trial_expired' };
     }
     
@@ -236,6 +275,20 @@ export const checkSubscriptionStatus = async (reason: string = 'manual_check', f
     return result;
   } catch (error) {
     console.error('Error in checkSubscriptionStatus:', error);
+    // On error, don't default to trial_expired immediately - try to get cached status first
+    const cached = subscriptionCache.getCachedStatus();
+    if (cached) {
+      console.log('Returning cached status due to error');
+      return {
+        success: true,
+        status: cached.status,
+        planType: cached.planType,
+        currentPeriodEnd: cached.currentPeriodEnd,
+        trialEnd: cached.trialEnd,
+        subscription_start_date: cached.subscription_start_date,
+        subscription_end_date: cached.subscription_end_date
+      };
+    }
     return { success: false, status: 'trial_expired' };
   }
 };
