@@ -66,8 +66,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       return stats;
     },
     enabled: !!userId,
-    staleTime: 5 * 60 * 1000, // 5 minutes - reduced from 15 for fresher data
-    gcTime: 10 * 60 * 1000, // 10 minutes - reduced from 30
+    staleTime: 10 * 60 * 1000, // 10 minutes - optimized for performance
+    gcTime: 15 * 60 * 1000, // 15 minutes - optimized for memory
   });
 
   // Fixed event stats query to properly handle booking requests in statistics - filter by start_date
@@ -412,8 +412,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       return result;
     },
     enabled: !!userId,
-    staleTime: 3 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
+    staleTime: 8 * 60 * 1000, // Increased for better performance
+    gcTime: 20 * 60 * 1000, // Increased for memory optimization
   });
 
   // Fixed customer stats query to properly count booking request customers - filter by start_date

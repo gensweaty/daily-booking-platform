@@ -147,16 +147,52 @@ class SubscriptionManager {
     return this.subscriptions.has(subscriptionKey);
   }
 
-  // Start monitoring for cleanup
+  // Start monitoring for cleanup with aggressive limits
   private startCleanupMonitoring(): void {
     if (this.cleanupInterval) return;
 
     this.cleanupInterval = setInterval(() => {
       const count = this.getActiveSubscriptionCount();
-      if (count > 50) { // If too many subscriptions, log warning
-        console.warn(`[SUBSCRIPTION_MANAGER] High subscription count: ${count}`);
+      
+      // More aggressive cleanup thresholds
+      if (count > 20) {
+        console.warn(`[SUBSCRIPTION_MANAGER] High subscription count: ${count}, cleaning up old ones`);
+        this.cleanupOldSubscriptions();
       }
-    }, 30000); // Check every 30 seconds
+      
+      // Memory pressure cleanup
+      if (count > 30) {
+        console.warn(`[SUBSCRIPTION_MANAGER] Critical subscription count: ${count}, force cleanup`);
+        this.forceCleanupHalf();
+      }
+    }, 15000); // Check every 15 seconds instead of 30
+  }
+
+  // Cleanup old subscriptions
+  private cleanupOldSubscriptions(): void {
+    let cleanedCount = 0;
+    const now = Date.now();
+    
+    for (const [key, subscription] of this.subscriptions) {
+      // Remove subscriptions older than 5 minutes
+      if (key.includes('_') && cleanedCount < 5) {
+        const timestamp = key.split('_').pop();
+        if (timestamp && (now - parseInt(timestamp)) > 5 * 60 * 1000) {
+          this.unsubscribe(key);
+          cleanedCount++;
+        }
+      }
+    }
+  }
+
+  // Force cleanup half of subscriptions when critical
+  private forceCleanupHalf(): void {
+    const subscriptionKeys = Array.from(this.subscriptions.keys());
+    const halfCount = Math.floor(subscriptionKeys.length / 2);
+    
+    for (let i = 0; i < halfCount; i++) {
+      this.unsubscribe(subscriptionKeys[i]);
+    }
   }
 
   // Stop cleanup monitoring

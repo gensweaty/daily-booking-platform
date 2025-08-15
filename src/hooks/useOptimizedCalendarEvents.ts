@@ -1,8 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfDay, endOfDay } from 'date-fns';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { clearCalendarCache } from '@/services/calendarService';
+import { advancedPerformanceOptimizer } from '@/utils/advancedPerformanceOptimizer';
+import { useConsolidatedCalendarSubscription } from '@/hooks/useOptimizedSubscriptions';
 
 interface OptimizedEvent {
   id: string;
@@ -42,6 +44,13 @@ export const useOptimizedCalendarEvents = (userId: string | undefined, currentDa
     queryFn: async () => {
       if (!userId) return { events: [], bookingRequests: [] };
 
+      // Check smart cache first
+      const cacheKey = `calendar_events_${userId}_${format(currentDate, 'yyyy-MM')}`;
+      const cached = advancedPerformanceOptimizer.getFromSmartCache(cacheKey);
+      if (cached) {
+        return cached;
+      }
+
       // Fetch only essential fields for events - STRICT deleted_at filtering
       const { data: events, error: eventsError } = await supabase
         .from('events')
@@ -50,26 +59,22 @@ export const useOptimizedCalendarEvents = (userId: string | undefined, currentDa
           title,
           start_date,
           end_date,
-          user_id,
           payment_status,
-          payment_amount,
-          type,
-          created_at,
-          deleted_at
+          type
         `)
         .eq('user_id', userId)
         .gte('start_date', monthStart.toISOString())
         .lte('start_date', monthEnd.toISOString())
-        .is('deleted_at', null) // CRITICAL: Only non-deleted events
+        .is('deleted_at', null)
         .order('start_date', { ascending: true })
-        .limit(100);
+        .limit(50); // Reduced from 100
 
       if (eventsError) {
         console.error('Error fetching optimized events:', eventsError);
         throw eventsError;
       }
 
-      // Fetch booking requests with minimal fields - STRICT deleted_at filtering and only approved bookings
+      // Fetch booking requests with minimal fields
       const { data: bookingRequests, error: bookingError } = await supabase
         .from('booking_requests')
         .select(`
@@ -77,44 +82,53 @@ export const useOptimizedCalendarEvents = (userId: string | undefined, currentDa
           title,
           start_date,
           end_date,
-          status,
-          business_id,
-          created_at,
-          deleted_at
+          status
         `)
         .eq('user_id', userId)
-        .eq('status', 'approved') // Only include approved bookings
+        .eq('status', 'approved')
         .gte('start_date', monthStart.toISOString())
         .lte('start_date', monthEnd.toISOString())
-        .is('deleted_at', null) // CRITICAL: Only non-deleted bookings
+        .is('deleted_at', null)
         .order('start_date', { ascending: true })
-        .limit(50);
+        .limit(25); // Reduced from 50
 
       if (bookingError) {
         console.error('Error fetching booking requests:', bookingError);
         throw bookingError;
       }
 
-      // Filter out any deleted events as a final safety check
-      const validEvents = (events as OptimizedEvent[])?.filter(event => !event.deleted_at) || [];
-      const validBookings = (bookingRequests as OptimizedBookingRequest[])?.filter(booking => !booking.deleted_at) || [];
+      // Optimize data structures
+      const optimizedEvents = advancedPerformanceOptimizer.optimizeDataStructure(
+        events || [],
+        ['id', 'title', 'start_date', 'end_date', 'payment_status', 'type']
+      );
+      
+      const optimizedBookings = advancedPerformanceOptimizer.optimizeDataStructure(
+        bookingRequests || [],
+        ['id', 'title', 'start_date', 'end_date', 'status']
+      );
 
-      // Filter out booking requests that are already present as events (avoid duplicates)
-      const eventIds = new Set(validEvents.map(e => e.id));
-      const uniqueBookings = validBookings.filter(booking => !eventIds.has(booking.id));
+      // Filter out duplicates
+      const eventIds = new Set(optimizedEvents.map(e => e.id));
+      const uniqueBookings = optimizedBookings.filter(booking => !eventIds.has(booking.id));
 
-      return {
-        events: validEvents,
+      const result = {
+        events: optimizedEvents,
         bookingRequests: uniqueBookings
       };
+
+      // Cache the result
+      advancedPerformanceOptimizer.setSmartCache(cacheKey, result, 3); // 3 minutes
+
+      return result;
     },
     enabled: !!userId,
-    staleTime: 0, // Always consider data stale for immediate updates
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    refetchInterval: 3000, // Moderate polling every 3 seconds
-    refetchIntervalInBackground: false, // Prevent background refetch to avoid loading indicators
+    staleTime: 2 * 60 * 1000, // 2 minutes instead of 0
+    gcTime: 3 * 60 * 1000, // 3 minutes instead of 5
+    refetchOnWindowFocus: false, // Disabled to reduce queries
+    refetchOnMount: false, // Disabled to reduce queries
+    refetchInterval: 5000, // Increased from 3000 to 5000
+    refetchIntervalInBackground: false,
   });
 
   // Debounced event handlers to prevent excessive calls
@@ -157,65 +171,14 @@ export const useOptimizedCalendarEvents = (userId: string | undefined, currentDa
     };
   }, [queryClient, queryKey]);
 
-  // Optimized real-time subscriptions
-  useEffect(() => {
-    if (!userId) return;
-
-    console.log('[useOptimizedCalendarEvents] Setting up real-time subscriptions');
-
-    let debounceTimer: NodeJS.Timeout;
-
-    const debouncedUpdate = () => {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        clearCalendarCache();
-        queryClient.invalidateQueries({ queryKey });
-      }, 200);
-    };
-
-    // Subscribe to events table changes
-    const eventsChannel = supabase
-      .channel(`optimized_events_${userId}_${Date.now()}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'events',
-          filter: `user_id=eq.${userId}`
-        },
-        (payload) => {
-          console.log('[useOptimizedCalendarEvents] Events table changed:', payload);
-          debouncedUpdate();
-        }
-      )
-      .subscribe();
-
-    // Subscribe to booking_requests table changes
-    const bookingsChannel = supabase
-      .channel(`optimized_bookings_${userId}_${Date.now()}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'booking_requests',
-          filter: `user_id=eq.${userId}`
-        },
-        (payload) => {
-          console.log('[useOptimizedCalendarEvents] Booking requests table changed:', payload);
-          debouncedUpdate();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      clearTimeout(debounceTimer);
-      console.log('[useOptimizedCalendarEvents] Cleaning up real-time subscriptions');
-      supabase.removeChannel(eventsChannel);
-      supabase.removeChannel(bookingsChannel);
-    };
-  }, [userId, queryClient, queryKey]);
+  // Use consolidated subscriptions for better performance
+  const { subscriptionCount } = useConsolidatedCalendarSubscription(
+    userId,
+    useCallback(() => {
+      clearCalendarCache();
+      queryClient.invalidateQueries({ queryKey });
+    }, [queryClient, queryKey])
+  );
 
   return query;
 };
