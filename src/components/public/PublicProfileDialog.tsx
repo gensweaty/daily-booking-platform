@@ -96,28 +96,24 @@ export const PublicProfileDialog = ({
     }
   };
 
-  // Sub-user avatar upload handler (separate from main user system)
+  // Sub-user avatar upload handler (using base64 for now since sub-users can't auth to storage)
   const handleSubUserAvatarUpload = async (file: File) => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `sub-users/${boardUserId}/${userEmail}/avatar.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName);
-
-      setAvatarUrl(publicUrl);
-      
-      toast({
-        title: t('common.success'),
-        description: "Avatar updated successfully",
-      });
+      // For sub-users, we'll store the avatar as base64 data URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setAvatarUrl(result);
+        
+        toast({
+          title: t('common.success'),
+          description: "Avatar updated successfully",
+        });
+      };
+      reader.onerror = () => {
+        throw new Error('Failed to read file');
+      };
+      reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error uploading sub-user avatar:', error);
       toast({
@@ -304,9 +300,6 @@ export const PublicProfileDialog = ({
                 <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border">
                   <p className={`${isMobile ? 'text-sm pl-9' : 'text-lg font-semibold pl-11'} text-gray-800 dark:text-gray-200`}>
                     {displayUserName}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 pl-9 md:pl-11">
-                    Name cannot be changed
                   </p>
                 </div>
               </div>
