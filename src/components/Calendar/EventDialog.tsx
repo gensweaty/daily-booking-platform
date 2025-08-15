@@ -201,14 +201,50 @@ export const EventDialog = ({
   const [currentEventData, setCurrentEventData] = useState<CalendarEvent | null>(null);
   const [reminderAt, setReminderAt] = useState("");
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
+  const [currentUserProfileName, setCurrentUserProfileName] = useState<string>("");
 
   const isNewEvent = !initialData && !eventId;
   const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
   const isRecurringEvent = initialData?.is_recurring || isVirtualEvent || isRecurring;
 
-  // Helper function to normalize names (similar to tasks)
-  const normalizeName = (name?: string) => {
+  // Fetch current user's profile username for display
+  useEffect(() => {
+    const fetchCurrentUserProfile = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .maybeSingle();
+          
+        if (error) {
+          console.error('Error fetching current user profile:', error);
+          return;
+        }
+        
+        if (data?.username) {
+          setCurrentUserProfileName(data.username);
+        }
+      } catch (err) {
+        console.error('Exception fetching current user profile:', err);
+      }
+    };
+    
+    fetchCurrentUserProfile();
+  }, [user?.id]);
+
+  // Helper function to normalize names and get current user's username
+  const normalizeName = (name?: string, isCurrentUser = false) => {
     if (!name) return undefined;
+    
+    // If this is the current user and we have their profile username, use it
+    if (isCurrentUser && currentUserProfileName) {
+      return currentUserProfileName;
+    }
+    
+    // For other cases, normalize the stored name
     if (name.includes('@')) {
       return name.split('@')[0];
     }
@@ -448,6 +484,7 @@ export const EventDialog = ({
     setCurrentEventData(null);
     setReminderAt("");
     setEmailReminderEnabled(false);
+    setCurrentUserProfileName("");
     console.log('🔄 Form fields reset');
   };
 
@@ -1174,8 +1211,8 @@ export const EventDialog = ({
                       {(currentEventData || initialData)?.created_by_name && (
                         <span className="ml-1">
                           {language === 'ka' 
-                            ? `${normalizeName((currentEventData || initialData)?.created_by_name)}-ს ${t("common.by")}` 
-                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.created_by_name)}`}
+                            ? `${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_name === currentUserProfileName || (currentEventData || initialData)?.created_by_name === user?.email)}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_name === currentUserProfileName || (currentEventData || initialData)?.created_by_name === user?.email)}`}
                         </span>
                       )}
                     </span>
@@ -1187,8 +1224,8 @@ export const EventDialog = ({
                       {(currentEventData || initialData)?.last_edited_by_name && (currentEventData || initialData)?.updated_at && (
                         <span className="ml-1">
                           {language === 'ka' 
-                            ? `${normalizeName((currentEventData || initialData)?.last_edited_by_name)}-ს ${t("common.by")}` 
-                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.last_edited_by_name)}`}
+                            ? `${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_name === currentUserProfileName || (currentEventData || initialData)?.last_edited_by_name === user?.email)}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_name === currentUserProfileName || (currentEventData || initialData)?.last_edited_by_name === user?.email)}`}
                         </span>
                       )}
                     </span>
