@@ -880,7 +880,9 @@ export const CustomerDialog = ({
                 </Button>
               ) : customerId ? (
                 <div className="flex-1 mr-2 px-4 py-2 bg-muted/50 rounded-md border border-muted text-muted-foreground text-sm flex items-center">
-                  {t("common.noPermissionToEdit")}
+                  {language === 'en' ? "You don't have permission to edit this customer" : 
+                   language === 'es' ? "No tienes permisos para editar este cliente" : 
+                   "თქვენ არ გაქვთ ნებართვა ამ მომხმარებლის რედაქტირებისთვის"}
                 </div>
               ) : (
                 <Button
@@ -906,7 +908,9 @@ export const CustomerDialog = ({
               )}
               {customerId && !canDeleteCustomer() && (
                 <div className="px-4 py-2 bg-muted/50 rounded-md border border-muted text-muted-foreground text-sm flex items-center">
-                  {t("common.noPermissionToDelete")}
+                  {language === 'en' ? "You don't have permission to delete this customer" : 
+                   language === 'es' ? "No tienes permisos para eliminar este cliente" : 
+                   "თქვენ არ გაქვთ ნებართვა ამ მომხმარებლის წაშლისთვის"}
                 </div>
               )}
             </div>

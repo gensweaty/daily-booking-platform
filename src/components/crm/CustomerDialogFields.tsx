@@ -178,12 +178,12 @@ export const CustomerDialogFields = ({
 
   const formatMetadataName = (name: string | null, type: string | null) => {
     if (!name) return 'Unknown';
-    if (type === 'sub_user') {
-      // For sub-users, show just the username part if it's an email
-      return name.includes('@') ? name.split('@')[0] : name;
+    
+    // Use the same logic as EventDialog - normalize the name properly
+    if (name.includes('@')) {
+      return name.split('@')[0];
     }
-    // For admin users, show email or fallback to 'Admin'
-    return name.includes('@') ? name.split('@')[0] : (name || 'Admin');
+    return name || 'Unknown';
   };
 
   const formatMetadataDate = (dateString: string | null) => {
