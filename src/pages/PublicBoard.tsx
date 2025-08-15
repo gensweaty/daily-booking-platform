@@ -17,6 +17,7 @@ import { useBoardPresence } from "@/hooks/useBoardPresence";
 import { validatePassword } from "@/utils/signupValidation";
 import { useTheme } from "next-themes";
 import { PublicCommentNotificationsListener } from "@/components/notifications/PublicCommentNotificationsListener";
+import { PublicProfileDialog } from "@/components/public/PublicProfileDialog";
 
 // Password hashing utilities (PBKDF2, client-side)
 const bufToBase64 = (buffer: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -740,6 +741,11 @@ const handleRegister = async () => {
                 Hello, <span className="font-semibold">{fullName}</span>
               </span>
               <LanguageSwitcher />
+              <PublicProfileDialog 
+                boardUserId={boardData.user_id}
+                userEmail={email}
+                userName={fullName}
+              />
               <Button variant="ghost" size="icon" onClick={handleLogout} title="Log out" aria-label="Log out">
                 <LogOut className="h-4 w-4" />
               </Button>
