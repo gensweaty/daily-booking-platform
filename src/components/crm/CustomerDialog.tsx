@@ -438,32 +438,68 @@ export const CustomerDialog = ({
       const { title, user_number, social_network_link, event_notes, payment_status, payment_amount } = formData;
 
       if (customerId) {
-        const updates = {
-          title,
-          user_number,
-          social_network_link,
-          event_notes,
-          payment_status,
-          payment_amount: payment_amount ? parseFloat(payment_amount) : null,
-          user_id: effectiveUserId,
-          create_event: createEvent,
-          start_date: createEvent ? eventStartDate.toISOString() : null,
-          end_date: createEvent ? eventEndDate.toISOString() : null,
-          // Add edit metadata for sub-users
-          ...(isPublicMode && externalUserName ? {
-            last_edited_by_type: 'sub_user',
-             last_edited_by_name: externalUserName,
-             last_edited_at: new Date().toISOString()
-           } : isSubUser ? {
-             last_edited_by_type: 'sub_user',
-             last_edited_by_name: subUserName || user?.email || 'sub_user',
-             last_edited_at: new Date().toISOString()
-           } : {
-             last_edited_by_type: 'admin',
-             last_edited_by_name: adminUserName || user?.email || 'admin',
-             last_edited_at: new Date().toISOString()
-           })
-        };
+        // Determine if we're updating an event or customer
+        const isEventUpdate = customerId.startsWith('event-');
+        
+        let updates: any;
+        
+        if (isEventUpdate) {
+          // For events, use event-specific fields
+          updates = {
+            title,
+            user_surname: title, // Events use user_surname field
+            user_number,
+            social_network_link,
+            event_notes,
+            payment_status,
+            payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+            user_id: effectiveUserId,
+            start_date: eventStartDate.toISOString(),
+            end_date: eventEndDate.toISOString(),
+            // Add edit metadata for sub-users
+            ...(isPublicMode && externalUserName ? {
+              last_edited_by_type: 'sub_user',
+              last_edited_by_name: externalUserName,
+              last_edited_at: new Date().toISOString()
+            } : isSubUser ? {
+              last_edited_by_type: 'sub_user',
+              last_edited_by_name: subUserName || user?.email || 'sub_user',
+              last_edited_at: new Date().toISOString()
+            } : {
+              last_edited_by_type: 'admin',
+              last_edited_by_name: adminUserName || user?.email || 'admin',
+              last_edited_at: new Date().toISOString()
+            })
+          };
+        } else {
+          // For customers, use customer-specific fields
+          updates = {
+            title,
+            user_number,
+            social_network_link,
+            event_notes,
+            payment_status,
+            payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+            user_id: effectiveUserId,
+            create_event: createEvent,
+            start_date: createEvent ? eventStartDate.toISOString() : null,
+            end_date: createEvent ? eventEndDate.toISOString() : null,
+            // Add edit metadata for sub-users
+            ...(isPublicMode && externalUserName ? {
+              last_edited_by_type: 'sub_user',
+              last_edited_by_name: externalUserName,
+              last_edited_at: new Date().toISOString()
+            } : isSubUser ? {
+              last_edited_by_type: 'sub_user',
+              last_edited_by_name: subUserName || user?.email || 'sub_user',
+              last_edited_at: new Date().toISOString()
+            } : {
+              last_edited_by_type: 'admin',
+              last_edited_by_name: adminUserName || user?.email || 'admin',
+              last_edited_at: new Date().toISOString()
+            })
+          };
+        }
 
         let tableToUpdate = 'customers';
         let id = customerId;
