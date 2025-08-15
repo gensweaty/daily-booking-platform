@@ -4,12 +4,41 @@ import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getUnifiedCalendarEvents, deleteCalendarEvent, clearCalendarCache } from '@/services/calendarService';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [username, setUsername] = useState<string>("");
+
+  // Fetch username from profile
+  useEffect(() => {
+    const fetchUsername = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .maybeSingle();
+          
+        if (error) {
+          console.error('Error fetching profile username:', error);
+          return;
+        }
+        
+        if (data?.username) {
+          setUsername(data.username);
+        }
+      } catch (err) {
+        console.error('Exception fetching profile username:', err);
+      }
+    };
+    
+    fetchUsername();
+  }, [user?.id]);
 
   const fetchEvents = async (): Promise<CalendarEventType[]> => {
     try {
@@ -203,9 +232,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         p_user_id: user.id,
         p_event_id: null,
         p_created_by_type: 'admin',
-        p_created_by_name: user.email || 'User',
+        p_created_by_name: username || 'Admin',
         p_last_edited_by_type: 'admin',
-        p_last_edited_by_name: user.email || 'User'
+        p_last_edited_by_name: username || 'Admin'
       });
 
       if (error) throw error;
@@ -299,9 +328,9 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           p_user_id: user.id,
           p_event_id: eventData.id,
           p_created_by_type: 'admin',
-          p_created_by_name: user.email || 'User',
+          p_created_by_name: username || 'Admin',
           p_last_edited_by_type: 'admin',
-          p_last_edited_by_name: user.email || 'User'
+          p_last_edited_by_name: username || 'Admin'
         });
 
         if (error) throw error;
