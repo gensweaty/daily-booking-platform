@@ -209,7 +209,7 @@ export const PublicProfileDialog = ({
   return (
     <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
       <DialogTrigger asChild>
-        <div className={className}>
+        <div>
           <PublicProfileButton 
             onClick={() => {}} 
             mobileVersion={isMobile}
