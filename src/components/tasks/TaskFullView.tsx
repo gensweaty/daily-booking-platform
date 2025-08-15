@@ -228,6 +228,9 @@ export const TaskFullView = ({
                       allowDelete={!isArchived}
                       onFileDeleted={handleFileDeleted}
                       parentId={task.id}
+                      currentUserName={externalUserName || profileUsername || user?.email}
+                      currentUserType={externalUserName ? 'sub_user' : 'admin'}
+                      isSubUser={!!externalUserName}
                     />
                   </div>
                 </CardContent>

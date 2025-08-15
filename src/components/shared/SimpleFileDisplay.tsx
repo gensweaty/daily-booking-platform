@@ -14,6 +14,10 @@ interface SimpleFileDisplayProps {
   allowDelete?: boolean;
   onFileDeleted?: (fileId: string) => void;
   parentId?: string;
+  // Permission props for sub-users
+  currentUserName?: string;
+  currentUserType?: string;
+  isSubUser?: boolean;
 }
 
 export const SimpleFileDisplay = ({ 
@@ -21,7 +25,10 @@ export const SimpleFileDisplay = ({
   parentType,
   allowDelete = false, 
   onFileDeleted,
-  parentId
+  parentId,
+  currentUserName,
+  currentUserType = 'admin',
+  isSubUser = false
 }: SimpleFileDisplayProps) => {
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -234,6 +241,32 @@ export const SimpleFileDisplay = ({
     return null;
   }
 
+  // Function to check if current user can delete a file
+  const canDeleteFile = (file: FileRecord): boolean => {
+    if (!allowDelete) return false;
+    
+    // If user is not a sub-user (admin), they can delete any file
+    if (!isSubUser) return true;
+    
+    // For sub-users, they should only be able to delete files they uploaded
+    // However, since files don't always have direct user attribution, 
+    // we use a more conservative approach for now
+    
+    if (parentType === 'task') {
+      // For tasks, sub-users should not be able to delete files uploaded by admin users
+      // This prevents sub-users from deleting files they didn't upload
+      // In the future, this could be enhanced to check the actual file uploader
+      return false; // Conservative: sub-users can't delete task files for now
+    } else if (parentType === 'event') {
+      // For events, files don't have direct user attribution, 
+      // so we rely on event-level permissions which are handled at the dialog level
+      return true; // Allow deletion if the event dialog allows it
+    }
+    
+    // For other types (customer, note), allow deletion
+    return true;
+  };
+
   const bucketName = getBucketName(parentType);
   console.log(`SimpleFileDisplay rendering ${files.length} files for ${parentType} using bucket: ${bucketName}`);
 
@@ -279,7 +312,7 @@ export const SimpleFileDisplay = ({
                 >
                   <Download className="h-4 w-4" />
                 </Button>
-                {allowDelete && (
+                {canDeleteFile(file) && (
                   <Button
                     type="button"
                     variant="ghost"

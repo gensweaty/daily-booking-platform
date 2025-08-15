@@ -187,12 +187,40 @@ export const PublicEventDialog = ({
     fetchCurrentUserProfile();
   }, [publicBoardUserId]);
 
+  // Load existing files for event
+  const loadExistingFiles = async (targetEventId: string) => {
+    try {
+      console.log('[PublicEventDialog] Loading existing files for event:', targetEventId);
+
+      const { data: eventFiles, error } = await supabase
+        .from('event_files')
+        .select('*')
+        .eq('event_id', targetEventId);
+
+      if (error) {
+        console.error('[PublicEventDialog] Error loading event files:', error);
+        return;
+      }
+
+      console.log('[PublicEventDialog] Loaded existing files:', eventFiles?.length || 0, 'files for event:', targetEventId);
+      setExistingFiles(eventFiles || []);
+    } catch (error) {
+      console.error('[PublicEventDialog] Error loading existing files:', error);
+    }
+  };
+
   // Initialize form data
   useEffect(() => {
     const loadAndSetEventData = async () => {
       if (open) {
         if (initialData || eventId) {
+          const targetEventId = eventId || initialData?.id;
           const eventData = initialData;
+          
+          // Load existing files if we have an event ID
+          if (targetEventId) {
+            loadExistingFiles(targetEventId);
+          }
           
           if (eventData) {
             console.log('[PublicEventDialog] Loading event data for editing:', eventData);
