@@ -15,6 +15,10 @@ interface FileDisplayProps {
   parentId?: string;
   parentType?: string;
   fallbackBuckets?: string[]; // Add fallback buckets to try if the file is not found in the primary bucket
+  // Permission props for sub-users
+  currentUserName?: string;
+  currentUserType?: string;
+  isSubUser?: boolean;
 }
 
 export const FileDisplay = ({ 
@@ -24,7 +28,10 @@ export const FileDisplay = ({
   onFileDeleted,
   parentId,
   parentType,
-  fallbackBuckets = []
+  fallbackBuckets = [],
+  currentUserName,
+  currentUserType = 'admin',
+  isSubUser = false
 }: FileDisplayProps) => {
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [fileURLs, setFileURLs] = useState<{[key: string]: string}>({});
@@ -382,6 +389,30 @@ export const FileDisplay = ({
     }
   };
 
+  // Function to check if current user can delete a file
+  const canDeleteFile = (file: FileRecord): boolean => {
+    if (!allowDelete) return false;
+    
+    // If user is not a sub-user (admin), they can delete any file
+    if (!isSubUser) return true;
+    
+    // For sub-users, they should only be able to delete files they uploaded
+    // However, since files don't always have direct user attribution, 
+    // we use a more conservative approach for now
+    
+    if (parentType === 'task') {
+      // For tasks, sub-users should not be able to delete files uploaded by admin users
+      return false; // Conservative: sub-users can't delete task files for now
+    } else if (parentType === 'event') {
+      // For events, files don't have direct user attribution, 
+      // so we rely on event-level permissions which are handled at the dialog level
+      return true; // Allow deletion if the event dialog allows it
+    }
+    
+    // For other types (customer, note), allow deletion
+    return true;
+  };
+
   if (!uniqueFiles || uniqueFiles.length === 0) {
     return null;
   }
@@ -436,7 +467,7 @@ export const FileDisplay = ({
                 >
                   <Download className="h-4 w-4" />
                 </Button>
-                {allowDelete && (
+                {canDeleteFile(file) && (
                   <Button
                     type="button"
                     variant="ghost"

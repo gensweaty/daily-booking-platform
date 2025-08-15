@@ -501,6 +501,9 @@ export const PublicEventDialog = ({
               setReminderAt={setReminderAt}
               emailReminderEnabled={emailReminderEnabled}
               setEmailReminderEnabled={setEmailReminderEnabled}
+              currentUserName={currentUserProfileName}
+              currentUserType={currentUserProfileName ? 'sub_user' : 'admin'}
+              isSubUser={!!currentUserProfileName}
             />
             
             {(initialData || currentEventData) && (

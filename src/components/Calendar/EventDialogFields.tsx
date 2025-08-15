@@ -90,6 +90,10 @@ interface EventDialogFieldsProps {
   setReminderAt: (value: string) => void;
   emailReminderEnabled: boolean;
   setEmailReminderEnabled: (value: boolean) => void;
+  // Permission props for sub-users
+  currentUserName?: string;
+  currentUserType?: string;
+  isSubUser?: boolean;
 }
 
 export const EventDialogFields = ({
@@ -132,7 +136,10 @@ export const EventDialogFields = ({
   reminderAt,
   setReminderAt,
   emailReminderEnabled,
-  setEmailReminderEnabled
+  setEmailReminderEnabled,
+  currentUserName,
+  currentUserType = 'admin',
+  isSubUser = false
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -735,6 +742,9 @@ export const EventDialogFields = ({
             allowDelete={true}
             onFileDeleted={handleRemoveExistingFile}
             parentType="event"
+            currentUserName={currentUserName}
+            currentUserType={currentUserType}
+            isSubUser={isSubUser}
           />
         </div>
       )}
