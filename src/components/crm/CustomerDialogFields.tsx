@@ -576,29 +576,29 @@ export const CustomerDialogFields = ({
           <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-muted-foreground">
             <div className="flex items-center">
               <CalendarClockIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-              <span className="truncate">
-                {t("common.created")} {format(new Date(initialData.created_at), 'MM/dd/yy HH:mm')}
+               <span className="truncate">
+                 {t("common.created")} {format(new Date(initialData.created_at), 'MM/dd/yy HH:mm')}
                  {initialData.created_by_name && (
-                    <span className="ml-1">
-                      {language === 'ka' 
-                        ? `${formatMetadataName(initialData.created_by_name, initialData.created_by_type)}-ს ${t("common.by")}` 
-                        : `${t("common.by")} ${formatMetadataName(initialData.created_by_name, initialData.created_by_type)}`}
-                    </span>
-                  )}
-              </span>
+                   <span className="ml-1">
+                     {language === 'ka' 
+                       ? `${formatMetadataName(initialData.created_by_name, initialData.created_by_type)}-ს ${t("common.by")}` 
+                       : `${t("common.by")} ${formatMetadataName(initialData.created_by_name, initialData.created_by_type)}`}
+                   </span>
+                 )}
+               </span>
             </div>
             <div className="flex items-center">
               <History className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-              <span className="truncate">
-                {t("common.lastUpdated")} {format(new Date(initialData.updated_at || initialData.created_at), 'MM/dd/yy HH:mm')}
+               <span className="truncate">
+                 {t("common.lastUpdated")} {format(new Date(initialData.updated_at || initialData.created_at), 'MM/dd/yy HH:mm')}
                  {initialData.last_edited_by_name && initialData.last_edited_at && (
-                    <span className="ml-1">
-                      {language === 'ka' 
-                        ? `${formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}-ს ${t("common.by")}` 
-                        : `${t("common.by")} ${formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}`}
-                    </span>
-                  )}
-              </span>
+                   <span className="ml-1">
+                     {language === 'ka' 
+                       ? `${formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}-ს ${t("common.by")}` 
+                       : `${t("common.by")} ${formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}`}
+                   </span>
+                 )}
+               </span>
             </div>
           </div>
         </div>

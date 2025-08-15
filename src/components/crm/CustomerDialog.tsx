@@ -869,7 +869,7 @@ export const CustomerDialog = ({
 
             {/* Action Buttons with Permissions */}
             <div className="flex justify-between">
-              {/* Update Button or Permission Text */}
+              {/* Update Button */}
               {canEditCustomer() ? (
                 <Button
                   type="submit"
@@ -879,11 +879,13 @@ export const CustomerDialog = ({
                   {customerId ? t("common.update") : t("common.add")}
                 </Button>
               ) : customerId ? (
-                <div className="flex-1 mr-2 px-4 py-2 bg-muted/50 rounded-md border border-muted text-muted-foreground text-sm flex items-center">
-                  {language === 'en' ? "You don't have permission to edit this customer" : 
-                   language === 'es' ? "No tienes permisos para editar este cliente" : 
-                   "თქვენ არ გაქვთ ნებართვა ამ მომხმარებლის რედაქტირებისთვის"}
-                </div>
+                <Button
+                  type="submit"
+                  disabled={true}
+                  className="flex-1 mr-2"
+                >
+                  {t("common.update")}
+                </Button>
               ) : (
                 <Button
                   type="submit"
@@ -894,7 +896,7 @@ export const CustomerDialog = ({
                 </Button>
               )}
               
-              {/* Delete Button or Permission Text */}
+              {/* Delete Button */}
               {customerId && canDeleteCustomer() && (
                 <Button
                   type="button"
@@ -907,13 +909,27 @@ export const CustomerDialog = ({
                 </Button>
               )}
               {customerId && !canDeleteCustomer() && (
-                <div className="px-4 py-2 bg-muted/50 rounded-md border border-muted text-muted-foreground text-sm flex items-center">
-                  {language === 'en' ? "You don't have permission to delete this customer" : 
-                   language === 'es' ? "No tienes permisos para eliminar este cliente" : 
-                   "თქვენ არ გაქვთ ნებართვა ამ მომხმარებლის წაშლისთვის"}
-                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  disabled={true}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               )}
             </div>
+            
+            {/* Unified Permission Message */}
+            {customerId && (!canEditCustomer() || !canDeleteCustomer()) && (
+              <div className="mt-2 px-3 py-2 bg-muted/30 rounded-md border border-muted text-center">
+                <span className="text-sm text-muted-foreground">
+                  {language === 'en' ? "Only the customer creator can edit or delete this customer" : 
+                   language === 'es' ? "Solo el creador del cliente puede editar o eliminar este cliente" : 
+                   "მხოლოდ მომხმარებლის შემქმნელს შეუძლია ამ მომხმარებლის რედაქტირება ან წაშლა"}
+                </span>
+              </div>
+            )}
           </form>
         </DialogContent>
       </Dialog>
