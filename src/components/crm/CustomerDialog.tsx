@@ -47,6 +47,7 @@ export const CustomerDialog = ({
   const { toast } = useToast();
   const { isSubUser } = useSubUserPermissions();
   const queryClient = useQueryClient();
+  const [subUserName, setSubUserName] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     user_number: "",
@@ -66,6 +67,29 @@ export const CustomerDialog = ({
   const [eventStartDate, setEventStartDate] = useState<Date>(new Date());
   const [eventEndDate, setEventEndDate] = useState<Date>(new Date());
   const [createEvent, setCreateEvent] = useState(false);
+
+  // Fetch sub-user's fullname if they are a sub-user
+  useEffect(() => {
+    const fetchSubUserName = async () => {
+      if (isSubUser && user?.email) {
+        try {
+          const { data: subUserData, error } = await supabase
+            .from('sub_users')
+            .select('fullname')
+            .ilike('email', user.email.trim().toLowerCase())
+            .maybeSingle();
+
+          if (!error && subUserData) {
+            setSubUserName(subUserData.fullname);
+          }
+        } catch (error) {
+          console.error("Error fetching sub-user name:", error);
+        }
+      }
+    };
+
+    fetchSubUserName();
+  }, [isSubUser, user?.email]);
 
   useEffect(() => {
     if (initialData) {
@@ -410,13 +434,13 @@ export const CustomerDialog = ({
           // Add edit metadata for sub-users
           ...(isPublicMode && externalUserName ? {
             last_edited_by_type: 'sub_user',
-            last_edited_by_name: externalUserName,
-            last_edited_at: new Date().toISOString()
-          } : isSubUser ? {
-            last_edited_by_type: 'sub_user',
-            last_edited_by_name: user?.email || 'sub_user',
-            last_edited_at: new Date().toISOString()
-          } : {})
+             last_edited_by_name: externalUserName,
+             last_edited_at: new Date().toISOString()
+           } : isSubUser ? {
+             last_edited_by_type: 'sub_user',
+             last_edited_by_name: subUserName || user?.email || 'sub_user',
+             last_edited_at: new Date().toISOString()
+           } : {})
         };
 
         let tableToUpdate = 'customers';
@@ -561,12 +585,12 @@ export const CustomerDialog = ({
             created_by_name: externalUserName,
             last_edited_by_type: 'sub_user',
             last_edited_by_name: externalUserName
-          } : isSubUser ? {
-            created_by_type: 'sub_user',
-            created_by_name: user?.email || 'sub_user',
-            last_edited_by_type: 'sub_user',
-            last_edited_by_name: user?.email || 'sub_user'
-          } : {
+           } : isSubUser ? {
+             created_by_type: 'sub_user',
+             created_by_name: subUserName || user?.email || 'sub_user',
+             last_edited_by_type: 'sub_user',
+             last_edited_by_name: subUserName || user?.email || 'sub_user'
+           } : {
             created_by_type: 'admin',
             created_by_name: user?.email || 'admin'
           })
@@ -615,12 +639,12 @@ export const CustomerDialog = ({
               created_by_name: externalUserName,
               last_edited_by_type: 'sub_user',
               last_edited_by_name: externalUserName
-            } : isSubUser ? {
-              created_by_type: 'sub_user',
-              created_by_name: user?.email || 'sub_user',
-              last_edited_by_type: 'sub_user',
-              last_edited_by_name: user?.email || 'sub_user'
-            } : {})
+             } : isSubUser ? {
+               created_by_type: 'sub_user',
+               created_by_name: subUserName || user?.email || 'sub_user',
+               last_edited_by_type: 'sub_user',
+               last_edited_by_name: subUserName || user?.email || 'sub_user'
+             } : {})
           };
 
           console.log("Creating event from customer with payment status:", eventData.payment_status);
