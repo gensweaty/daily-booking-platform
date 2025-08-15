@@ -793,6 +793,9 @@ export const CustomerDialog = ({
               fileBucketName={customerId?.startsWith('event-') ? "event_attachments" : "customer_attachments"}
               fallbackBuckets={["event_attachments", "customer_attachments", "booking_attachments"]}
               initialData={initialData}
+              currentUserName={externalUserName}
+              currentUserType={isPublicMode && externalUserName ? 'sub_user' : 'admin'}
+              isSubUser={isSubUser || (isPublicMode && !!externalUserName)}
             />
 
             <div className="flex justify-between">

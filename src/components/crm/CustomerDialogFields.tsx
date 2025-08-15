@@ -55,6 +55,10 @@ interface CustomerDialogFieldsProps {
   fallbackBuckets?: string[];
   // Metadata props
   initialData?: any;
+  // Permission props for sub-users
+  currentUserName?: string;
+  currentUserType?: string;
+  isSubUser?: boolean;
 }
 
 export const CustomerDialogFields = ({
@@ -91,6 +95,9 @@ export const CustomerDialogFields = ({
   fileBucketName = "customer_attachments",
   fallbackBuckets = [],
   initialData,
+  currentUserName,
+  currentUserType = 'admin',
+  isSubUser = false
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
@@ -548,6 +555,9 @@ export const CustomerDialogFields = ({
             onFileDeleted={onFileDeleted}
             parentType="customer"
             fallbackBuckets={fallbackBuckets}
+            currentUserName={currentUserName}
+            currentUserType={currentUserType}
+            isSubUser={isSubUser}
           />
         </div>
       )}

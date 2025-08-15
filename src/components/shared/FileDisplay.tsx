@@ -404,12 +404,14 @@ export const FileDisplay = ({
       // For tasks, sub-users should not be able to delete files uploaded by admin users
       return false; // Conservative: sub-users can't delete task files for now
     } else if (parentType === 'event') {
-      // For events, files don't have direct user attribution, 
-      // so we rely on event-level permissions which are handled at the dialog level
-      return true; // Allow deletion if the event dialog allows it
+      // For events, sub-users should not be able to delete files uploaded by admin users
+      return false; // Conservative: sub-users can't delete event files for now
+    } else if (parentType === 'customer') {
+      // For customers, sub-users should not be able to delete files uploaded by admin users
+      return false; // Conservative: sub-users can't delete customer files for now
     }
     
-    // For other types (customer, note), allow deletion
+    // For other types (note), allow deletion
     return true;
   };
 
