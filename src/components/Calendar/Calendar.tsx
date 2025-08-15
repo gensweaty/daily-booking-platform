@@ -288,7 +288,7 @@ const CalendarContent = ({
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
 
-  if (isLoading && !directEvents) {
+  if (isLoading && !directEvents && !isExternalCalendar) {
     return (
       <div className="space-y-4">
         <div className="h-10 w-full bg-gray-200 animate-pulse rounded" />

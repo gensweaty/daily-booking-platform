@@ -26,6 +26,14 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     console.log("[External Calendar] Mounted with business ID:", businessId);
     setLoadingError(null);
     clearCalendarCache();
+    
+    // Set a timeout to stop loading after 10 seconds to ensure booking functionality is always available
+    const loadingTimeout = setTimeout(() => {
+      console.log("[External Calendar] Loading timeout reached, stopping loading");
+      setIsInitialLoading(false);
+    }, 10000);
+    
+    return () => clearTimeout(loadingTimeout);
   }, [businessId]);
 
   // Retry mechanism for failed API calls
@@ -59,6 +67,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         if (error) {
           console.error("Error fetching business profile:", error);
           setLoadingError("Failed to fetch business user information");
+          setIsInitialLoading(false); // Stop loading to show calendar functionality
           return;
         }
         
@@ -156,15 +165,19 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             console.error("Failed to recover events from session storage:", e);
           }
           
+          // Always stop loading even if there's an error to show booking functionality
           if (showLoading) {
             setIsInitialLoading(false);
           }
           
-          toast({
-            title: t("common.error"),
-            description: t("common.error"),
-            variant: "destructive"
-          });
+          // Don't show toast for network issues to avoid spam
+          if (!error.toString().includes('Failed to fetch')) {
+            toast({
+              title: t("common.error"),
+              description: t("common.error"),
+              variant: "destructive"
+            });
+          }
         }
       }
     };
