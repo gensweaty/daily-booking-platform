@@ -68,7 +68,28 @@ class SubscriptionCacheManager {
   // Force clear cache and reset subscription status
   forceRefresh(): void {
     this.clearCache();
-    console.log('[SUBSCRIPTION_CACHE] Forced cache refresh');
+    // Set a flag to force refresh on next check
+    localStorage.setItem('subscription_force_refresh', Date.now().toString());
+    console.log('[SUBSCRIPTION_CACHE] Forced cache refresh with reload flag');
+  }
+
+  // Check if we need to force refresh due to a recent fix
+  shouldForceRefresh(): boolean {
+    const forceRefreshFlag = localStorage.getItem('subscription_force_refresh');
+    if (forceRefreshFlag) {
+      const flagTime = parseInt(forceRefreshFlag);
+      const now = Date.now();
+      // Force refresh if flag was set within the last 5 minutes
+      if (now - flagTime < 5 * 60 * 1000) {
+        console.log('[SUBSCRIPTION_CACHE] Force refresh flag detected, clearing...');
+        localStorage.removeItem('subscription_force_refresh');
+        return true;
+      } else {
+        // Remove old flag
+        localStorage.removeItem('subscription_force_refresh');
+      }
+    }
+    return false;
   }
 
   getLastSyncInfo(): { minutesAgo: number; reason?: string } | null {
@@ -84,3 +105,10 @@ class SubscriptionCacheManager {
 }
 
 export const subscriptionCache = SubscriptionCacheManager.getInstance();
+
+// CRITICAL FIX: Trigger force refresh for all users after edge function fix
+if (typeof window !== 'undefined') {
+  // Set the force refresh flag to ensure all users get fresh subscription data
+  localStorage.setItem('subscription_force_refresh', Date.now().toString());
+  console.log('🔄 SUBSCRIPTION FIX: Set force refresh flag for all users');
+}

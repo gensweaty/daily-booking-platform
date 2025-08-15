@@ -135,6 +135,13 @@ export const checkSubscriptionStatus = async (reason: string = 'manual_check', f
       return { success: false, status: 'not_authenticated' };
     }
 
+    // CRITICAL FIX: Clear cache to force fresh check after edge function fix
+    if (reason === 'post_fix_refresh' || subscriptionCache.shouldForceRefresh()) {
+      console.log('[SUBSCRIPTION_CHECK] Clearing cache for post-fix refresh');
+      subscriptionCache.clearCache();
+      forceRefresh = true;
+    }
+
     // Check cache first unless force refresh
     if (!forceRefresh) {
       const cached = subscriptionCache.getCachedStatus();
@@ -452,6 +459,18 @@ export const openStripeCustomerPortal = async () => {
   } catch (error) {
     console.error('Error in openStripeCustomerPortal:', error);
     return false;
+  }
+};
+
+// Function to force refresh subscription status after fix
+export const forceRefreshSubscriptionStatus = async () => {
+  try {
+    console.log('🔄 Force refreshing subscription status after edge function fix');
+    subscriptionCache.clearCache();
+    return await checkSubscriptionStatus('post_fix_refresh', true);
+  } catch (error) {
+    console.error('Error in forceRefreshSubscriptionStatus:', error);
+    throw error;
   }
 };
 

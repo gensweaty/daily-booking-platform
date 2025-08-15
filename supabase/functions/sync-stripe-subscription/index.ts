@@ -518,6 +518,65 @@ serve(async (req) => {
 
     if (!customersResponse.ok) {
       logStep("Error fetching customers from Stripe", { status: customersResponse.status });
+      
+      // CRITICAL: Don't throw error on Stripe failure - preserve existing valid subscriptions
+      if (existingSubscription) {
+        if (existingSubscription.plan_type === 'ultimate' && existingSubscription.status === 'active') {
+          logStep("Stripe failed but preserving ultimate subscription");
+          return new Response(JSON.stringify({
+            success: true,
+            status: 'active',
+            planType: 'ultimate',
+            subscription_start_date: existingSubscription.subscription_start_date,
+            subscription_end_date: null
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        }
+        
+        if (existingSubscription.status === 'active' && existingSubscription.subscription_end_date) {
+          const endDate = new Date(existingSubscription.subscription_end_date);
+          const now = new Date();
+          
+          if (endDate > now) {
+            logStep("Stripe failed but preserving active subscription with future end date");
+            return new Response(JSON.stringify({
+              success: true,
+              status: 'active',
+              planType: existingSubscription.plan_type,
+              currentPeriodEnd: existingSubscription.subscription_end_date,
+              subscription_start_date: existingSubscription.subscription_start_date,
+              subscription_end_date: existingSubscription.subscription_end_date
+            }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            });
+          }
+        }
+        
+        if (existingSubscription.status === 'trial' && existingSubscription.trial_end_date) {
+          const trialEnd = new Date(existingSubscription.trial_end_date);
+          const now = new Date();
+          
+          if (trialEnd > now) {
+            logStep("Stripe failed but preserving valid trial");
+            return new Response(JSON.stringify({
+              success: true,
+              status: 'trial',
+              planType: existingSubscription.plan_type,
+              trialEnd: existingSubscription.trial_end_date,
+              currentPeriodEnd: existingSubscription.trial_end_date,
+              subscription_end_date: null
+            }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            });
+          }
+        }
+      }
+      
+      // Only throw error if no existing subscription to preserve
       throw new Error(`Failed to fetch customers: ${customersResponse.status}`);
     }
 
