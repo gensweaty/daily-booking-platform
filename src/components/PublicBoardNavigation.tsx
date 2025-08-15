@@ -111,15 +111,15 @@ export const PublicBoardNavigation = ({
         } else if (subUserData) {
           // User is a sub-user
           setIsSubUser(true);
-          // IMPORTANT: Give calendar permission by default for adding events
+          // Use actual permissions from database
           const finalPermissions = {
-            calendar_permission: true, // Always allow calendar access for sub-users
+            calendar_permission: subUserData.calendar_permission || false,
             crm_permission: subUserData.crm_permission || false,
             statistics_permission: subUserData.statistics_permission || false,
           };
           setPermissions(finalPermissions);
           console.log('✅ Sub-user found with permissions:', finalPermissions);
-          console.log('🔍 Will pass to PublicCalendarList hasPermissions:', true);
+          console.log('🔍 Will pass to PublicCalendarList hasPermissions:', finalPermissions.calendar_permission);
         } else {
           // User is not found as sub-user, assume admin
           setIsSubUser(false);
@@ -149,9 +149,6 @@ export const PublicBoardNavigation = ({
 
   const hasPermission = (permission: 'calendar' | 'crm' | 'statistics') => {
     if (!isSubUser) return true; // Admin has all permissions
-    
-    // For calendar specifically, we always allow access since we set it to true above
-    if (permission === 'calendar') return true;
     
     return permissions[`${permission}_permission`];
   };
