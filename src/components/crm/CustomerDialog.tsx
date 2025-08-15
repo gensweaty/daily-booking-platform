@@ -749,6 +749,75 @@ export const CustomerDialog = ({
     }
   };
 
+  // Permission check functions for sub-users
+  const canEditCustomer = () => {
+    // Allow creation of new customers
+    if (!customerId) return true;
+    
+    // In public mode (sub-users), check if they created this customer
+    if (isPublicMode && externalUserName) {
+      return (
+        initialData?.created_by_type === 'sub_user' && 
+        initialData?.created_by_name === externalUserName
+      ) || (
+        // Also allow if they were the last to edit it
+        initialData?.last_edited_by_type === 'sub_user' &&
+        initialData?.last_edited_by_name === externalUserName
+      ) || (
+        // Allow if no metadata (legacy data)
+        !initialData?.created_by_type && !initialData?.created_by_name
+      );
+    }
+    
+    // For authenticated sub-users
+    if (isSubUser && user?.email) {
+      return (
+        initialData?.created_by_type === 'sub_user' && 
+        initialData?.created_by_name === user.email
+      ) || (
+        // Also allow if they were the last to edit it
+        initialData?.last_edited_by_type === 'sub_user' &&
+        initialData?.last_edited_by_name === user.email
+      ) || (
+        // Allow if no metadata (legacy data)
+        !initialData?.created_by_type && !initialData?.created_by_name
+      );
+    }
+    
+    // Main users can edit all customers they own
+    return true;
+  };
+
+  const canDeleteCustomer = () => {
+    // Don't allow deletion of new customers (no customerId yet)
+    if (!customerId) return false;
+    
+    // In public mode (sub-users), check if they created this customer
+    if (isPublicMode && externalUserName) {
+      return (
+        initialData?.created_by_type === 'sub_user' && 
+        initialData?.created_by_name === externalUserName
+      ) || (
+        // Allow if no metadata (legacy data)
+        !initialData?.created_by_type && !initialData?.created_by_name
+      );
+    }
+    
+    // For authenticated sub-users
+    if (isSubUser && user?.email) {
+      return (
+        initialData?.created_by_type === 'sub_user' && 
+        initialData?.created_by_name === user.email
+      ) || (
+        // Allow if no metadata (legacy data)
+        !initialData?.created_by_type && !initialData?.created_by_name
+      );
+    }
+    
+    // Main users can delete all customers they own
+    return true;
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -798,15 +867,33 @@ export const CustomerDialog = ({
               isSubUser={isSubUser || (isPublicMode && !!externalUserName)}
             />
 
+            {/* Action Buttons with Permissions */}
             <div className="flex justify-between">
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="flex-1 mr-2"
-              >
-                {customerId ? t("common.update") : t("common.add")}
-              </Button>
-              {customerId && (
+              {/* Update Button or Permission Text */}
+              {canEditCustomer() ? (
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="flex-1 mr-2"
+                >
+                  {customerId ? t("common.update") : t("common.add")}
+                </Button>
+              ) : customerId ? (
+                <div className="flex-1 mr-2 px-4 py-2 bg-muted/50 rounded-md border border-muted text-muted-foreground text-sm flex items-center">
+                  {t("common.noPermissionToEdit")}
+                </div>
+              ) : (
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="flex-1 mr-2"
+                >
+                  {t("common.add")}
+                </Button>
+              )}
+              
+              {/* Delete Button or Permission Text */}
+              {customerId && canDeleteCustomer() && (
                 <Button
                   type="button"
                   variant="destructive"
@@ -816,6 +903,11 @@ export const CustomerDialog = ({
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
+              )}
+              {customerId && !canDeleteCustomer() && (
+                <div className="px-4 py-2 bg-muted/50 rounded-md border border-muted text-muted-foreground text-sm flex items-center">
+                  {t("common.noPermissionToDelete")}
+                </div>
               )}
             </div>
           </form>
