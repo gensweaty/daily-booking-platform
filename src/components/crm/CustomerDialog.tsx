@@ -555,7 +555,7 @@ export const CustomerDialog = ({
           create_event: createEvent,
           start_date: createEvent ? eventStartDate.toISOString() : null,
           end_date: createEvent ? eventEndDate.toISOString() : null,
-          // Add creator metadata for sub-users
+          // Add creator metadata for all users
           ...(isPublicMode && externalUserName ? {
             created_by_type: 'sub_user',
             created_by_name: externalUserName,
@@ -566,7 +566,10 @@ export const CustomerDialog = ({
             created_by_name: user?.email || 'sub_user',
             last_edited_by_type: 'sub_user',
             last_edited_by_name: user?.email || 'sub_user'
-          } : {})
+          } : {
+            created_by_type: 'admin',
+            created_by_name: user?.email || 'admin'
+          })
         };
 
         console.log("Creating new customer:", newCustomer);
