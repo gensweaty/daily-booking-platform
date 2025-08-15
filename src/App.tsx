@@ -153,14 +153,9 @@ const SessionAndRealtimeWrapper = ({ children }: { children: React.ReactNode }) 
 // Route-aware theme wrapper component that doesn't use hooks outside of component
 const RouteAwareThemeProvider = ({ children }: { children: React.ReactNode }) => {
   return (
-    <ThemeProvider 
-      defaultTheme="system"
-      storageKey="vite-ui-theme"
-      enableSystem={true}
-      enableColorScheme={true}
-    >
+    <>
       {children}
-    </ThemeProvider>
+    </>
   );
 };
 
