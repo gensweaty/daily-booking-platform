@@ -102,9 +102,9 @@ export interface TranslationType {
     customerCreated: string;
     customerUpdated: string;
     customerDeleted: string;
-  noDataToExport: string;
-  error: string;
-  open: string;
+    noDataToExport: string;
+    error: string;
+    open: string;
   };
   tasks: {
     title: string;
@@ -442,12 +442,12 @@ export interface TranslationType {
     request: string;
     requests: string;
     backToHome: string;
-  create: string;
-  download: string;
-  downloadStarted: string;
-  downloadError: string;
-  open: string;
-  update: string;
+    create: string;
+    download: string;
+    downloadStarted: string;
+    downloadError: string;
+    open: string;
+    update: string;
     delete: string;
     and: string;
     supportedFormats: string;
