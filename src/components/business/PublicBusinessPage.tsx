@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { supabase, forceBucketCreation } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
+import { forceBucketCreation } from "@/lib/supabase";
 import { BusinessProfile } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";

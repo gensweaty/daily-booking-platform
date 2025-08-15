@@ -4,7 +4,7 @@ import { Calendar } from "./Calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarViewType, CalendarEventType } from "@/lib/types/calendar";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { getUnifiedCalendarEvents, clearCalendarCache } from "@/services/calendarService";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -27,11 +27,11 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     setLoadingError(null);
     clearCalendarCache();
     
-    // Set a timeout to stop loading after 10 seconds to ensure booking functionality is always available
+    // Set a shorter timeout to ensure booking functionality is always available
     const loadingTimeout = setTimeout(() => {
       console.log("[External Calendar] Loading timeout reached, stopping loading");
       setIsInitialLoading(false);
-    }, 10000);
+    }, 5000); // Reduced from 10 seconds to 5 seconds
     
     return () => clearTimeout(loadingTimeout);
   }, [businessId]);
@@ -66,8 +66,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         
         if (error) {
           console.error("Error fetching business profile:", error);
-          setLoadingError("Failed to fetch business user information");
-          setIsInitialLoading(false); // Stop loading to show calendar functionality
+          // Don't show error for network issues - just proceed without user ID
+          setIsInitialLoading(false);
           return;
         }
         
@@ -77,17 +77,18 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           sessionStorage.setItem(`business_user_id_${businessId}`, data.user_id);
         } else {
           console.error("No user ID found for business:", businessId);
-          setLoadingError("Invalid business profile");
-          
+          // Try to recover from cache, but don't show error to user
           const cachedUserId = sessionStorage.getItem(`business_user_id_${businessId}`);
           if (cachedUserId) {
             console.log("[External Calendar] Recovered business user ID from session storage:", cachedUserId);
             setBusinessUserId(cachedUserId);
           }
+          setIsInitialLoading(false); // Always stop loading to show booking functionality
         }
       } catch (error) {
         console.error("Exception fetching business user ID:", error);
-        setLoadingError("Failed to load business information");
+        // Don't show error to user, just stop loading
+        setIsInitialLoading(false);
       }
     };
     
@@ -152,8 +153,6 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         console.error("Exception in ExternalCalendar.fetchAllEvents:", error);
         
         if (isMounted) {
-          setLoadingError("Failed to load calendar events");
-          
           // Try to recover events from session storage
           try {
             const cachedEvents = sessionStorage.getItem(`calendar_events_${businessId}`);
@@ -170,14 +169,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             setIsInitialLoading(false);
           }
           
-          // Don't show toast for network issues to avoid spam
-          if (!error.toString().includes('Failed to fetch')) {
-            toast({
-              title: t("common.error"),
-              description: t("common.error"),
-              variant: "destructive"
-            });
-          }
+          // Silently handle network errors to prevent blocking the calendar interface
         }
       }
     };
@@ -318,14 +310,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             </div>
           )}
           
-          {loadingError && !events.length && (
-            <div className="bg-background/80 py-8 text-center">
-              <p className="text-red-500 mb-2">{loadingError}</p>
-              <Button onClick={() => setRetryCount(prev => prev + 1)} className="mt-2">
-                Retry Loading
-              </Button>
-            </div>
-          )}
+          {/* Removed error display to always show calendar interface for booking */}
           
           <Calendar 
             defaultView={view}
