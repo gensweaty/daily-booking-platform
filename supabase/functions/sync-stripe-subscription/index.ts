@@ -298,6 +298,67 @@ serve(async (req) => {
         subscriptionEndDate: existingSubscription.subscription_end_date
       });
 
+      // CRITICAL: If user has ultimate plan, NEVER change it
+      if (existingSubscription.plan_type === 'ultimate' && existingSubscription.status === 'active') {
+        logStep("User has ultimate plan, returning without checking Stripe");
+        return new Response(JSON.stringify({
+          success: true,
+          status: 'active',
+          planType: 'ultimate',
+          subscription_start_date: existingSubscription.subscription_start_date,
+          subscription_end_date: null // Ultimate has no end date
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
+      // CRITICAL: If user has active subscription with future end date, preserve it
+      if (existingSubscription.status === 'active' && existingSubscription.subscription_end_date) {
+        const endDate = new Date(existingSubscription.subscription_end_date);
+        const now = new Date();
+        
+        if (endDate > now) {
+          logStep("User has active subscription with future end date, preserving it", {
+            endDate: existingSubscription.subscription_end_date,
+            planType: existingSubscription.plan_type,
+            daysRemaining: Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+          });
+          
+          return new Response(JSON.stringify({
+            success: true,
+            status: 'active',
+            planType: existingSubscription.plan_type,
+            currentPeriodEnd: existingSubscription.subscription_end_date,
+            subscription_start_date: existingSubscription.subscription_start_date,
+            subscription_end_date: existingSubscription.subscription_end_date
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        } else {
+          // Subscription has expired, update status
+          logStep("Active subscription has expired, updating status");
+          await supabase
+            .from('subscriptions')
+            .update({
+              status: 'expired',
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id);
+
+          return new Response(JSON.stringify({
+            success: true,
+            status: 'expired',
+            planType: existingSubscription.plan_type,
+            subscription_end_date: existingSubscription.subscription_end_date
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        }
+      }
+
       // For trial subscriptions, check if trial is still valid
       if (existingSubscription.status === 'trial' && existingSubscription.trial_end_date) {
         const trialEnd = new Date(existingSubscription.trial_end_date);
@@ -337,7 +398,7 @@ serve(async (req) => {
         }
       }
 
-      // Check Stripe if user has a customer ID
+      // Only check Stripe if user has a customer ID and we need to validate/update
       if (existingSubscription.stripe_customer_id) {
         const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
         const subscriptionsResponse = await fetch(
@@ -392,6 +453,48 @@ serve(async (req) => {
               currentPeriodEnd: subscription_end_date,
               subscription_start_date: subscription_start_date,
               subscription_end_date: subscription_end_date
+            }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            });
+          } else {
+            // No active Stripe subscription found, but preserve existing valid subscription if still valid
+            if (existingSubscription.status === 'active' && existingSubscription.subscription_end_date) {
+              const endDate = new Date(existingSubscription.subscription_end_date);
+              const now = new Date();
+              
+              if (endDate > now) {
+                logStep("No Stripe subscription but local subscription still valid, preserving it");
+                return new Response(JSON.stringify({
+                  success: true,
+                  status: 'active',
+                  planType: existingSubscription.plan_type,
+                  currentPeriodEnd: existingSubscription.subscription_end_date,
+                  subscription_start_date: existingSubscription.subscription_start_date,
+                  subscription_end_date: existingSubscription.subscription_end_date
+                }), {
+                  headers: { ...corsHeaders, "Content-Type": "application/json" },
+                  status: 200,
+                });
+              }
+            }
+          }
+        }
+      } else {
+        // No Stripe customer ID, but user has existing subscription - preserve it if valid
+        if (existingSubscription.status === 'active' && existingSubscription.subscription_end_date) {
+          const endDate = new Date(existingSubscription.subscription_end_date);
+          const now = new Date();
+          
+          if (endDate > now) {
+            logStep("No Stripe customer ID but local subscription still valid, preserving it");
+            return new Response(JSON.stringify({
+              success: true,
+              status: 'active',
+              planType: existingSubscription.plan_type,
+              currentPeriodEnd: existingSubscription.subscription_end_date,
+              subscription_start_date: existingSubscription.subscription_start_date,
+              subscription_end_date: existingSubscription.subscription_end_date
             }), {
               headers: { ...corsHeaders, "Content-Type": "application/json" },
               status: 200,
