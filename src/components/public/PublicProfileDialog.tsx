@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
-import { AvatarUpload } from "@/components/AvatarUpload";
+import { SubUserAvatarUpload } from "./SubUserAvatarUpload";
 import { PublicProfileButton } from "./PublicProfileButton";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -62,11 +62,10 @@ export const PublicProfileDialog = ({
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [currentUserName, setCurrentUserName] = useState(userName);
+  const [displayUserName, setDisplayUserName] = useState(userName);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
-  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
   const fetchSubUserProfile = async () => {
     try {
@@ -83,7 +82,7 @@ export const PublicProfileDialog = ({
       }
 
       if (data?.fullname) {
-        setCurrentUserName(data.fullname);
+        setDisplayUserName(data.fullname);
       }
     } catch (error) {
       console.error('Error fetching sub user profile:', error);
@@ -97,48 +96,35 @@ export const PublicProfileDialog = ({
     }
   };
 
-  const handleAvatarUpdate = (newAvatarUrl: string) => {
-    setAvatarUrl(newAvatarUrl);
-  };
-
-  const handleUpdateProfile = async () => {
-    if (!currentUserName.trim()) {
-      toast({
-        title: t('common.error'),
-        description: "Please enter your name",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsUpdatingProfile(true);
+  // Sub-user avatar upload handler (separate from main user system)
+  const handleSubUserAvatarUpload = async (file: File) => {
     try {
-      const { error } = await supabase
-        .from('sub_users')
-        .update({ 
-          fullname: currentUserName.trim(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('board_owner_id', boardUserId)
-        .ilike('email', userEmail.trim().toLowerCase());
+      const fileExt = file.name.split('.').pop();
+      const fileName = `sub-users/${boardUserId}/${userEmail}/avatar.${fileExt}`;
 
-      if (error) {
-        throw error;
-      }
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true });
 
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      setAvatarUrl(publicUrl);
+      
       toast({
         title: t('common.success'),
-        description: "Profile updated successfully",
+        description: "Avatar updated successfully",
       });
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('Error uploading sub-user avatar:', error);
       toast({
         title: t('common.error'),
-        description: "Failed to update profile",
+        description: "Failed to update avatar",
         variant: "destructive",
       });
-    } finally {
-      setIsUpdatingProfile(false);
     }
   };
 
@@ -214,7 +200,7 @@ export const PublicProfileDialog = ({
             onClick={() => {}} 
             mobileVersion={isMobile}
             avatarUrl={avatarUrl}
-            userName={currentUserName}
+            userName={displayUserName}
             userEmail={userEmail}
             className="md:flex hidden"
           />
@@ -222,7 +208,7 @@ export const PublicProfileDialog = ({
             onClick={() => {}} 
             mobileVersion={true}
             avatarUrl={avatarUrl}
-            userName={currentUserName}
+            userName={displayUserName}
             userEmail={userEmail}
             className="md:hidden flex"
           />
@@ -273,9 +259,9 @@ export const PublicProfileDialog = ({
             </DialogHeader>
             <div className="text-center">
               <div className="mx-auto mb-4">
-                <AvatarUpload 
+                <SubUserAvatarUpload 
                   avatarUrl={avatarUrl}
-                  onAvatarUpdate={handleAvatarUpdate}
+                  onAvatarUpload={handleSubUserAvatarUpload}
                   size={isMobile ? "md" : "lg"}
                 />
               </div>
@@ -315,21 +301,13 @@ export const PublicProfileDialog = ({
                     <LanguageText>{t('profile.username')}</LanguageText>
                   </p>
                 </div>
-                <div className="space-y-2">
-                  <Input
-                    value={currentUserName}
-                    onChange={(e) => setCurrentUserName(e.target.value)}
-                    className="text-sm"
-                    placeholder="Enter your name"
-                  />
-                  <Button
-                    onClick={handleUpdateProfile}
-                    disabled={isUpdatingProfile}
-                    size="sm"
-                    className="w-full"
-                  >
-                    {isUpdatingProfile ? "Updating..." : "Update Name"}
-                  </Button>
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border">
+                  <p className={`${isMobile ? 'text-sm pl-9' : 'text-lg font-semibold pl-11'} text-gray-800 dark:text-gray-200`}>
+                    {displayUserName}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 pl-9 md:pl-11">
+                    Name cannot be changed
+                  </p>
                 </div>
               </div>
             </div>
