@@ -1069,6 +1069,7 @@ export type Database = {
       }
       sub_users: {
         Row: {
+          avatar_url: string | null
           board_owner_id: string
           calendar_permission: boolean | null
           created_at: string
@@ -1083,6 +1084,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           board_owner_id: string
           calendar_permission?: boolean | null
           created_at?: string
@@ -1097,6 +1099,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           board_owner_id?: string
           calendar_permission?: boolean | null
           created_at?: string

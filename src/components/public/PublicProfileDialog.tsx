@@ -71,7 +71,7 @@ export const PublicProfileDialog = ({
     try {
       const { data, error } = await supabase
         .from('sub_users')
-        .select('fullname')
+        .select('fullname, avatar_url')
         .eq('board_owner_id', boardUserId)
         .ilike('email', userEmail.trim().toLowerCase())
         .maybeSingle();
@@ -83,6 +83,9 @@ export const PublicProfileDialog = ({
 
       if (data?.fullname) {
         setDisplayUserName(data.fullname);
+      }
+      if (data?.avatar_url) {
+        setAvatarUrl(data.avatar_url);
       }
     } catch (error) {
       console.error('Error fetching sub user profile:', error);
@@ -96,13 +99,28 @@ export const PublicProfileDialog = ({
     }
   };
 
-  // Sub-user avatar upload handler (using base64 for now since sub-users can't auth to storage)
+  // Sub-user avatar upload handler - saves to database
   const handleSubUserAvatarUpload = async (file: File) => {
     try {
-      // For sub-users, we'll store the avatar as base64 data URL
+      // Convert file to base64 data URL
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const result = e.target?.result as string;
+        
+        // Save avatar URL to database
+        const { error } = await supabase
+          .from('sub_users')
+          .update({ 
+            avatar_url: result,
+            updated_at: new Date().toISOString()
+          })
+          .eq('board_owner_id', boardUserId)
+          .ilike('email', userEmail.trim().toLowerCase());
+
+        if (error) {
+          throw error;
+        }
+
         setAvatarUrl(result);
         
         toast({
