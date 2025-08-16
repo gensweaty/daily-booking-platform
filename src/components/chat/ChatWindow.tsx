@@ -15,7 +15,7 @@ interface ChatWindowProps {
 type WindowState = 'normal' | 'minimized' | 'maximized';
 
 export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
-  const [windowState, setWindowState] = useState<WindowState>('normal');
+  const [windowState, setWindowState] = useState<'normal'|'minimized'|'maximized'>('normal');
   const [size, setSize] = useState({ width: 520, height: 560 }); // compact, fits laptops
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -237,8 +237,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
               transform: `translate(${Math.max(0, position.x)}px, ${Math.max(0, position.y)}px)`,
               maxWidth: '96vw',
               maxHeight: '94vh'
-            }),
-        zIndex: 9998
+            })
       }}
     >
       {/* Title Bar */}

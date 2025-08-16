@@ -138,7 +138,7 @@ export const ChatProvider: React.FC = () => {
     (async () => {
       if (!user?.id) { setMe(null); return; }
 
-      // Try sub-user record first
+      // Try sub-user record first (if your schema names differ, update the column names only)
       const { data: su } = await supabase
         .from('sub_users')
         .select('id, fullname, avatar_url')
