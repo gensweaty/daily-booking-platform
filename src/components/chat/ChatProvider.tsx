@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ChatIcon } from "./ChatIcon";
@@ -24,6 +25,21 @@ export const useChat = () => {
 
 export const ChatProvider: React.FC = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  
+  // Only show chat on dashboard routes
+  const isDashboardRoute = useMemo(() => {
+    const path = location.pathname;
+    // Show on main dashboard, external board, and other dashboard pages
+    return path === '/dashboard' || 
+           path.startsWith('/board/') || 
+           path === '/admin' || 
+           path === '/tasks' || 
+           path === '/calendar' || 
+           path === '/crm' || 
+           path === '/statistics' ||
+           path === '/business';
+  }, [location.pathname]);
 
   // UI state
   const [isOpen, setIsOpen] = useState<boolean>(() => {
@@ -134,8 +150,8 @@ export const ChatProvider: React.FC = () => {
     isOpen, open, close, toggle, isInitialized, hasSubUsers
   }), [isOpen, open, close, toggle, isInitialized, hasSubUsers]);
 
-  // Gate: only show icon if we have sub-users AND we've finished init
-  const shouldShowIcon = isInitialized && hasSubUsers;
+  // Gate: only show icon if we have sub-users AND we've finished init AND we're on a dashboard route
+  const shouldShowIcon = isInitialized && hasSubUsers && isDashboardRoute;
 
   // Nothing to render until portal root is ready
   if (!portalRef.current) return null;

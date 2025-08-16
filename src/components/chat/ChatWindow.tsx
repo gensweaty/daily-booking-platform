@@ -26,19 +26,28 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const windowRef = useRef<HTMLDivElement>(null);
   const chat = useChat();
 
-  // Initialize position and responsive size
+  // Initialize position and responsive size - default to full screen on mobile
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const isMobile = window.innerWidth < 768;
-      const responsiveSize = isMobile 
-        ? { width: Math.min(360, window.innerWidth - 20), height: Math.min(500, window.innerHeight - 100) }
-        : { width: 800, height: 600 };
       
-      setSize(responsiveSize);
-      setPosition({
-        x: isMobile ? 10 : window.innerWidth - responsiveSize.width - 120,
-        y: isMobile ? 50 : window.innerHeight - responsiveSize.height - 120
-      });
+      if (isMobile) {
+        // Full screen on mobile by default
+        setWindowState('maximized');
+        setSize({ width: window.innerWidth, height: window.innerHeight });
+        setPosition({ x: 0, y: 0 });
+      } else {
+        // Large responsive size on desktop
+        const desktopSize = { 
+          width: Math.min(1000, window.innerWidth - 40), 
+          height: Math.min(700, window.innerHeight - 40) 
+        };
+        setSize(desktopSize);
+        setPosition({
+          x: (window.innerWidth - desktopSize.width) / 2,
+          y: (window.innerHeight - desktopSize.height) / 2
+        });
+      }
     }
   }, []);
 
@@ -47,13 +56,16 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     const handleResize = () => {
       if (typeof window !== 'undefined') {
         const isMobile = window.innerWidth < 768;
-        if (isMobile && windowState === 'normal') {
-          const mobileSize = { 
-            width: Math.min(360, window.innerWidth - 20), 
-            height: Math.min(500, window.innerHeight - 100) 
-          };
-          setSize(mobileSize);
-          setPosition({ x: 10, y: 50 });
+        
+        if (isMobile) {
+          // Force maximized on mobile
+          setWindowState('maximized');
+          setSize({ width: window.innerWidth, height: window.innerHeight });
+          setPosition({ x: 0, y: 0 });
+        } else if (windowState === 'maximized') {
+          // Keep maximized state on desktop if it was maximized
+          setSize({ width: window.innerWidth, height: window.innerHeight });
+          setPosition({ x: 0, y: 0 });
         }
       }
     };
@@ -122,11 +134,27 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   };
 
   const toggleMinimize = () => {
+    // Don't allow minimize on mobile
+    if (window.innerWidth < 768) return;
     setWindowState(windowState === 'minimized' ? 'normal' : 'minimized');
   };
 
   const toggleMaximize = () => {
-    setWindowState(windowState === 'maximized' ? 'normal' : 'maximized');
+    if (windowState === 'maximized') {
+      // Return to normal centered position
+      const isMobile = window.innerWidth < 768;
+      if (!isMobile) {
+        const normalSize = { width: Math.min(1000, window.innerWidth - 40), height: Math.min(700, window.innerHeight - 40) };
+        setSize(normalSize);
+        setPosition({
+          x: (window.innerWidth - normalSize.width) / 2,
+          y: (window.innerHeight - normalSize.height) / 2
+        });
+      }
+      setWindowState('normal');
+    } else {
+      setWindowState('maximized');
+    }
   };
 
   if (!isOpen) {
@@ -152,8 +180,20 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   );
 
   const getWindowStyle = () => {
+    const isMobile = window.innerWidth < 768;
+    
     switch (windowState) {
       case 'minimized':
+        // Don't allow minimize on mobile
+        if (isMobile) {
+          return {
+            width: '100vw',
+            height: '100vh',
+            transform: 'translate(0, 0)',
+            top: 0,
+            left: 0
+          };
+        }
         return {
           width: '300px',
           height: '50px',
@@ -206,14 +246,17 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
         </div>
         
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleMinimize}
-            className="h-6 w-6 p-0 hover:bg-muted"
-          >
-            <Minus className="h-3 w-3" />
-          </Button>
+          {/* Hide minimize button on mobile */}
+          {window.innerWidth >= 768 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleMinimize}
+              className="h-6 w-6 p-0 hover:bg-muted"
+            >
+              <Minus className="h-3 w-3" />
+            </Button>
+          )}
           
           <Button
             variant="ghost"

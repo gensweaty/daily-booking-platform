@@ -4,9 +4,17 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageInput } from './MessageInput';
 import { useChat } from './ChatProvider';
+import { useChatMessages } from '@/hooks/useChatMessages';
 
 export const ChatArea = () => {
   const chat = useChat();
+  const { messages, currentChannel, sendMessage, loading } = useChatMessages();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   return (
     <div className="flex-1 flex flex-col">
@@ -40,24 +48,53 @@ export const ChatArea = () => {
       <div className="flex-1 flex flex-col min-h-0">
         <ScrollArea className="flex-1">
           <div className="p-4">
-            <div className="flex flex-col items-center justify-center py-12">
-              <Hash className="h-16 w-16 text-muted-foreground/30 mb-4" />
-              <h3 className="text-lg font-medium text-muted-foreground mb-2">Welcome to #general</h3>
-              <p className="text-sm text-muted-foreground/70 text-center max-w-md">
-                This is the beginning of the #general channel. Start a conversation with your team!
-              </p>
-            </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Hash className="h-16 w-16 text-muted-foreground/30 mb-4" />
+                <h3 className="text-lg font-medium text-muted-foreground mb-2">
+                  Welcome to #{currentChannel?.name || 'general'}
+                </h3>
+                <p className="text-sm text-muted-foreground/70 text-center max-w-md">
+                  This is the beginning of the #{currentChannel?.name || 'general'} channel. Start a conversation with your team!
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((message) => (
+                  <div key={message.id} className="flex flex-col space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-xs font-medium text-primary">
+                          {message.sender_name?.charAt(0).toUpperCase() || 'U'}
+                        </span>
+                      </div>
+                      <span className="text-sm font-medium text-foreground">
+                        {message.sender_name || 'Unknown User'}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(message.created_at).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <div className="ml-10">
+                      <p className="text-sm text-foreground">{message.content}</p>
+                    </div>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
           </div>
         </ScrollArea>
 
         {/* Message Input */}
         <div className="border-t border-border bg-background/50">
           <MessageInput 
-            onSendMessage={(content) => {
-              console.log('💬 Sending message:', content);
-              // TODO: Integrate with actual chat functionality
-            }}
-            placeholder="Message #general"
+            onSendMessage={sendMessage}
+            placeholder={`Message #${currentChannel?.name || 'general'}`}
           />
         </div>
       </div>
