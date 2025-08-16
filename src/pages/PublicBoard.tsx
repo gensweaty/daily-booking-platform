@@ -18,8 +18,6 @@ import { validatePassword } from "@/utils/signupValidation";
 import { useTheme } from "next-themes";
 import { PublicCommentNotificationsListener } from "@/components/notifications/PublicCommentNotificationsListener";
 import { PublicProfileDialog } from "@/components/public/PublicProfileDialog";
-import { ChatProvider } from "@/components/chat/ChatProvider";
-import { PublicBoardAuthProvider } from "@/contexts/PublicBoardAuthContext";
 
 // Password hashing utilities (PBKDF2, client-side)
 const bufToBase64 = (buffer: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -727,65 +725,60 @@ const handleRegister = async () => {
   }
 
   return (
-    <PublicBoardAuthProvider>
-      <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
-        {/* Header */}
-        <header className="bg-background/80 backdrop-blur-sm border-b border-border/40 sticky top-0 z-50">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <img 
-                  src={theme === 'dark' 
-                    ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
-                    : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
-                  }
-                  alt="SmartBookly Logo" 
-                  className="h-8 w-auto"
-                />
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="hidden sm:inline text-sm text-muted-foreground">
-                  Hello, <span className="font-semibold">{fullName}</span>
-                </span>
-                <LanguageSwitcher />
-                <PublicProfileDialog 
-                  boardUserId={boardData.user_id}
-                  userEmail={email}
-                  userName={fullName}
-                />
-                <Button variant="ghost" size="icon" onClick={handleLogout} title="Log out" aria-label="Log out">
-                  <LogOut className="h-4 w-4" />
-                </Button>
-                <ThemeToggle />
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
+      {/* Header */}
+      <header className="bg-background/80 backdrop-blur-sm border-b border-border/40 sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <img 
+                src={theme === 'dark' 
+                  ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+                  : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+                }
+                alt="SmartBookly Logo" 
+                className="h-8 w-auto"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="hidden sm:inline text-sm text-muted-foreground">
+                Hello, <span className="font-semibold">{fullName}</span>
+              </span>
+              <LanguageSwitcher />
+              <PublicProfileDialog 
+                boardUserId={boardData.user_id}
+                userEmail={email}
+                userName={fullName}
+              />
+              <Button variant="ghost" size="icon" onClick={handleLogout} title="Log out" aria-label="Log out">
+                <LogOut className="h-4 w-4" />
+              </Button>
+              <ThemeToggle />
             </div>
           </div>
-        </header>
-
-        {/* Public Task List */}
-        <div className="container mx-auto px-4 py-6">
-          {boardData && (
-            <>
-              {/* Live comment notifications for this sub-user */}
-              <PublicCommentNotificationsListener 
-                boardUserId={boardData.user_id} 
-                externalUserName={fullName} 
-              />
-              <PublicBoardNavigation
-                boardId={boardData.id}
-                boardUserId={boardData.user_id}
-                accessToken={accessToken || ''}
-                fullName={fullName}
-                email={email}
-                onlineUsers={onlineUsers}
-              />
-            </>
-          )}
         </div>
-        
-        {/* Chat Provider for Sub-Users */}
-        <ChatProvider />
+      </header>
+
+      {/* Public Task List */}
+      <div className="container mx-auto px-4 py-6">
+        {boardData && (
+          <>
+            {/* Live comment notifications for this sub-user */}
+            <PublicCommentNotificationsListener 
+              boardUserId={boardData.user_id} 
+              externalUserName={fullName} 
+            />
+            <PublicBoardNavigation
+              boardId={boardData.id}
+              boardUserId={boardData.user_id}
+              accessToken={accessToken || ''}
+              fullName={fullName}
+              email={email}
+              onlineUsers={onlineUsers}
+            />
+          </>
+        )}
       </div>
-    </PublicBoardAuthProvider>
+    </div>
   );
 };

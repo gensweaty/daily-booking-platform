@@ -17,7 +17,10 @@ export const ChatProvider = () => {
   // Enhanced debug logging with actual values
   console.log('🔍 ChatProvider Debug:', {
     regularUser: !!user,
+    regularUserId: user?.id,
     publicBoardUser: !!publicBoardUser,
+    publicBoardUserId: publicBoardUser?.id,
+    publicBoardUserEmail: publicBoardUser?.email,
     isPublicBoard,
     effectiveUser: !!effectiveUser,
     effectiveUserId: effectiveUser?.id,
@@ -27,6 +30,7 @@ export const ChatProvider = () => {
     isLoading: chat.loading,
     subUsersCount: chat.subUsers?.length || 0,
     channelsCount: chat.channels?.length || 0,
+    currentPath: window.location.pathname,
     subUsers: chat.subUsers?.map(su => ({ id: su.id, email: su.email, fullname: su.fullname })) || []
   });
 
@@ -45,7 +49,8 @@ export const ChatProvider = () => {
       reason: !effectiveUser ? 'no effective user' : 'no sub-users',
       isPublicBoard,
       regularUser: !!user,
-      publicBoardUser: !!publicBoardUser
+      publicBoardUser: !!publicBoardUser,
+      currentPath: window.location.pathname
     });
     return null;
   }

@@ -35,51 +35,58 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
   const [isPublicBoard, setIsPublicBoard] = useState(false);
 
   useEffect(() => {
-    const checkPublicBoardAuth = () => {
-      // Check if we're on a public board route
-      const isOnPublicBoard = !!slug && window.location.pathname.includes(`/board/${slug}`);
-      setIsPublicBoard(isOnPublicBoard);
+      const checkPublicBoardAuth = () => {
+        // Check if we're on a public board route
+        const isOnPublicBoard = !!slug && window.location.pathname.includes(`/board/${slug}`);
+        setIsPublicBoard(isOnPublicBoard);
+        
+        console.log('🔍 PublicBoardAuth: Checking auth, isOnPublicBoard:', isOnPublicBoard, 'slug:', slug, 'path:', window.location.pathname);
 
-      if (isOnPublicBoard && slug) {
-        // Check for existing public board access token
-        const storedData = localStorage.getItem(`public-board-access-${slug}`);
-        if (storedData) {
-          try {
-            const parsedData = JSON.parse(storedData);
-            const { fullName, email, timestamp, boardOwnerId } = parsedData;
-            
-            // Check if token is not expired (3 hours)
-            const threeHoursInMs = 3 * 60 * 60 * 1000;
-            const isExpired = Date.now() - timestamp > threeHoursInMs;
-            
-            if (!isExpired && fullName && email) {
-              // Create a mock user for the chat system
-              setUser({
-                id: `public-${email}-${Date.now()}`, // Generate a consistent ID
-                email,
-                fullName,
-                boardOwnerId: boardOwnerId || ''
-              });
-              console.log('🔍 Public Board Auth: Set user from stored data:', { fullName, email });
-            } else {
+        if (isOnPublicBoard && slug) {
+          // Check for existing public board access token
+          const storedData = localStorage.getItem(`public-board-access-${slug}`);
+          console.log('🔍 PublicBoardAuth: Stored data exists:', !!storedData);
+          
+          if (storedData) {
+            try {
+              const parsedData = JSON.parse(storedData);
+              const { fullName, email, timestamp, boardOwnerId } = parsedData;
+              
+              // Check if token is not expired (3 hours)
+              const threeHoursInMs = 3 * 60 * 60 * 1000;
+              const isExpired = Date.now() - timestamp > threeHoursInMs;
+              
+              console.log('🔍 PublicBoardAuth: Token data:', { fullName, email, boardOwnerId, isExpired });
+              
+              if (!isExpired && fullName && email && boardOwnerId) {
+                // Create a mock user for the chat system
+                const publicUser = {
+                  id: `public-${email}-${boardOwnerId}`, // Generate a consistent ID
+                  email,
+                  fullName,
+                  boardOwnerId
+                };
+                setUser(publicUser);
+                console.log('🔍 PublicBoardAuth: Set user from stored data:', publicUser);
+              } else {
+                setUser(null);
+                console.log('🔍 PublicBoardAuth: Token expired or incomplete');
+              }
+            } catch (error) {
+              console.error('Error parsing public board auth data:', error);
               setUser(null);
-              console.log('🔍 Public Board Auth: Token expired or incomplete');
             }
-          } catch (error) {
-            console.error('Error parsing public board auth data:', error);
+          } else {
             setUser(null);
+            console.log('🔍 PublicBoardAuth: No stored access token');
           }
         } else {
           setUser(null);
-          console.log('🔍 Public Board Auth: No stored access token');
+          console.log('🔍 PublicBoardAuth: Not on public board');
         }
-      } else {
-        setUser(null);
-        console.log('🔍 Public Board Auth: Not on public board');
-      }
-      
-      setLoading(false);
-    };
+        
+        setLoading(false);
+      };
 
     checkPublicBoardAuth();
 

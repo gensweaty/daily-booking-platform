@@ -247,37 +247,39 @@ const AppContent = () => {
   return (
     <SessionAndRealtimeWrapper>
       <AuthProvider>
-        <BusinessRouteInterceptor />
-        <RouteAwareThemeProvider>
-          <RouteAwareWrapper>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/dashboard" element={<Index />} />
-              <Route path="/dashboard/*" element={<Index />} />
-              <Route path="/legal" element={<Legal />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/business/:slug" element={<PublicBusinessPage />} />
-              <Route path="/board/:slug" element={<PublicBoard />} />
-              <Route path="/login" element={<Index />} />
-              <Route path="/signup" element={<Index />} />
-              {/* Admin Panel Routes */}
-              <Route path="/admin-panel" element={<AdminPanel />} />
-              <Route 
-                path="/admin-panel/dashboard" 
-                element={
-                  <AdminRoute>
-                    <AdminPanelDashboard />
-                  </AdminRoute>
-                } 
-              />
-              <Route path="*" element={<Landing />} />
-            </Routes>
-            <ChatProvider />
-            <Toaster />
-          </RouteAwareWrapper>
-        </RouteAwareThemeProvider>
+        <PublicBoardAuthProvider>
+          <BusinessRouteInterceptor />
+          <RouteAwareThemeProvider>
+            <RouteAwareWrapper>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/dashboard" element={<Index />} />
+                <Route path="/dashboard/*" element={<Index />} />
+                <Route path="/legal" element={<Legal />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/business/:slug" element={<PublicBusinessPage />} />
+                <Route path="/board/:slug" element={<PublicBoard />} />
+                <Route path="/login" element={<Index />} />
+                <Route path="/signup" element={<Index />} />
+                {/* Admin Panel Routes */}
+                <Route path="/admin-panel" element={<AdminPanel />} />
+                <Route 
+                  path="/admin-panel/dashboard" 
+                  element={
+                    <AdminRoute>
+                      <AdminPanelDashboard />
+                    </AdminRoute>
+                  } 
+                />
+                <Route path="*" element={<Landing />} />
+              </Routes>
+              <ChatProvider />
+              <Toaster />
+            </RouteAwareWrapper>
+          </RouteAwareThemeProvider>
+        </PublicBoardAuthProvider>
       </AuthProvider>
     </SessionAndRealtimeWrapper>
   );
@@ -285,6 +287,7 @@ const AppContent = () => {
 
 import { useMemoryOptimization } from "@/utils/memoryOptimizer";
 import { ChatProvider } from "@/components/chat/ChatProvider";
+import { PublicBoardAuthProvider } from "@/contexts/PublicBoardAuthContext";
 
 function App() {
   // Initialize memory optimization

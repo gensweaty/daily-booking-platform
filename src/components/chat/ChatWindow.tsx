@@ -101,9 +101,16 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   };
 
   if (!isOpen || !chat.hasSubUsers || !chat.isInitialized) {
-    console.log('💬 ChatWindow not rendering:', { isOpen, hasSubUsers: chat.hasSubUsers, isInitialized: chat.isInitialized });
+    console.log('💬 ChatWindow not rendering:', { 
+      isOpen, 
+      hasSubUsers: chat.hasSubUsers, 
+      isInitialized: chat.isInitialized,
+      reason: !isOpen ? 'not open' : !chat.hasSubUsers ? 'no sub users' : 'not initialized'
+    });
     return null;
   }
+
+  console.log('💬 ChatWindow rendering successfully');
 
   const getWindowStyle = () => {
     switch (windowState) {
