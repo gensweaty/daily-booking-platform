@@ -76,7 +76,10 @@ export const useChat = () => {
 
   // Check if user has sub-users (required for chat to show)
   const checkSubUsers = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setHasSubUsers(false);
+      return;
+    }
     
     try {
       const { data, error } = await supabase
@@ -90,12 +93,13 @@ export const useChat = () => {
       setHasSubUsers((data || []).length > 0);
     } catch (error) {
       console.error('Error checking sub users:', error);
+      setHasSubUsers(false);
     }
   }, [user]);
 
   // Load channels for current user
   const loadChannels = useCallback(async () => {
-    if (!user) return;
+    if (!user || !hasSubUsers) return;
 
     try {
       const { data, error } = await supabase
@@ -122,7 +126,7 @@ export const useChat = () => {
         variant: "destructive"
       });
     }
-  }, [user, currentChannel, toast]);
+  }, [user, hasSubUsers, currentChannel, toast]);
 
   // Load messages for current channel
   const loadMessages = useCallback(async () => {
@@ -435,10 +439,10 @@ export const useChat = () => {
   }, [user, checkSubUsers]);
 
   useEffect(() => {
-    if (hasSubUsers) {
+    if (user && hasSubUsers) {
       loadChannels();
     }
-  }, [hasSubUsers, loadChannels]);
+  }, [user, hasSubUsers, loadChannels]);
 
   useEffect(() => {
     if (currentChannel) {
