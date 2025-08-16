@@ -100,7 +100,10 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     setWindowState(windowState === 'maximized' ? 'normal' : 'maximized');
   };
 
-  if (!isOpen || !chat.hasSubUsers) return null;
+  if (!isOpen || !chat.hasSubUsers || !chat.isInitialized) {
+    console.log('💬 ChatWindow not rendering:', { isOpen, hasSubUsers: chat.hasSubUsers, isInitialized: chat.isInitialized });
+    return null;
+  }
 
   const getWindowStyle = () => {
     switch (windowState) {

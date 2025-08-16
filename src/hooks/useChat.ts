@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePublicBoardAuth } from '@/contexts/PublicBoardAuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 export interface ChatChannel {
@@ -65,6 +66,7 @@ export interface ChatParticipant {
 
 export const useChat = () => {
   const { user } = useAuth();
+  const { user: publicBoardUser, isPublicBoard } = usePublicBoardAuth();
   const { toast } = useToast();
   const [channels, setChannels] = useState<ChatChannel[]>([]);
   const [currentChannel, setCurrentChannel] = useState<ChatChannel | null>(null);
@@ -73,47 +75,56 @@ export const useChat = () => {
   const [subUsers, setSubUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSubUsers, setHasSubUsers] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Determine the effective user and board owner
+  const effectiveUser = isPublicBoard ? publicBoardUser : user;
+  const boardOwnerId = isPublicBoard ? publicBoardUser?.boardOwnerId : user?.id;
 
   // Check if user has sub-users (required for chat to show)
   const checkSubUsers = useCallback(async () => {
-    if (!user) {
+    if (!effectiveUser || !boardOwnerId) {
       setHasSubUsers(false);
-      console.log('🔍 No user, setting hasSubUsers to false');
+      setIsInitialized(true);
+      console.log('🔍 No effective user or board owner ID, setting hasSubUsers to false, initialized');
       return;
     }
     
-    console.log('🔍 Checking sub-users for user:', user.id);
+    console.log('🔍 Checking sub-users for board owner:', boardOwnerId, 'isPublicBoard:', isPublicBoard);
     
     try {
       const { data, error } = await supabase
         .from('sub_users')
         .select('*')
-        .eq('board_owner_id', user.id);
+        .eq('board_owner_id', boardOwnerId);
 
-      console.log('🔍 Sub-users query result:', { data, error });
+      console.log('🔍 Sub-users query result:', { data, error, count: data?.length || 0, boardOwnerId });
 
       if (error) throw error;
       
       setSubUsers(data || []);
-      setHasSubUsers((data || []).length > 0);
-      console.log('🔍 Set hasSubUsers to:', (data || []).length > 0);
+      const hasUsers = (data || []).length > 0;
+      setHasSubUsers(hasUsers);
+      setIsInitialized(true);
+      console.log('🔍 Set hasSubUsers to:', hasUsers, 'with', data?.length || 0, 'sub-users, initialized');
     } catch (error) {
       console.error('❌ Error checking sub users:', error);
       setHasSubUsers(false);
+      setIsInitialized(true);
     }
-  }, [user]);
+  }, [effectiveUser, boardOwnerId, isPublicBoard]);
 
   // Load channels for current user
   const loadChannels = useCallback(async () => {
-    if (!user || !hasSubUsers) return;
+    if (!effectiveUser || !hasSubUsers || !boardOwnerId) return;
 
-    console.log('🔍 Loading channels for user:', user.id, 'hasSubUsers:', hasSubUsers);
+    console.log('🔍 Loading channels for board owner:', boardOwnerId, 'hasSubUsers:', hasSubUsers);
 
     try {
       const { data, error } = await supabase
         .from('chat_channels')
         .select('*')
-        .eq('owner_id', user.id)
+        .eq('owner_id', boardOwnerId)
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: true });
 
@@ -140,7 +151,7 @@ export const useChat = () => {
         variant: "destructive"
       });
     }
-  }, [user, hasSubUsers, currentChannel, toast]);
+  }, [effectiveUser, hasSubUsers, currentChannel, toast, boardOwnerId]);
 
   // Load messages for current channel
   const loadMessages = useCallback(async () => {
@@ -293,15 +304,33 @@ export const useChat = () => {
 
   // Send a message
   const sendMessage = useCallback(async (content: string, replyToId?: string) => {
-    if (!user || !currentChannel || !content.trim()) return;
+    if (!effectiveUser || !currentChannel || !content.trim() || !boardOwnerId) return;
 
     try {
+      // Determine sender info based on context
+      let senderUserId = null;
+      let senderSubUserId = null;
+      let senderType: 'admin' | 'sub_user' = 'admin';
+
+      if (isPublicBoard && publicBoardUser) {
+        // On public board, find the sub-user ID
+        const subUser = subUsers.find(su => su.email.toLowerCase() === publicBoardUser.email.toLowerCase());
+        if (subUser) {
+          senderSubUserId = subUser.id;
+          senderType = 'sub_user';
+        }
+      } else if (user) {
+        senderUserId = user.id;
+        senderType = 'admin';
+      }
+
       const { error } = await supabase
         .from('chat_messages')
         .insert({
           channel_id: currentChannel.id,
-          sender_user_id: user.id,
-          sender_type: 'admin',
+          sender_user_id: senderUserId,
+          sender_sub_user_id: senderSubUserId,
+          sender_type: senderType,
           content: content.trim(),
           reply_to_id: replyToId
         });
@@ -315,19 +344,36 @@ export const useChat = () => {
         variant: "destructive"
       });
     }
-  }, [user, currentChannel, toast]);
+  }, [effectiveUser, currentChannel, toast, boardOwnerId, isPublicBoard, publicBoardUser, subUsers, user]);
 
   // Add reaction to message
   const addReaction = useCallback(async (messageId: string, emoji: string) => {
-    if (!user) return;
+    if (!effectiveUser) return;
 
     try {
+      // Determine sender info based on context
+      let userId = null;
+      let subUserId = null;
+      let userType: 'admin' | 'sub_user' = 'admin';
+
+      if (isPublicBoard && publicBoardUser) {
+        const subUser = subUsers.find(su => su.email.toLowerCase() === publicBoardUser.email.toLowerCase());
+        if (subUser) {
+          subUserId = subUser.id;
+          userType = 'sub_user';
+        }
+      } else if (user) {
+        userId = user.id;
+        userType = 'admin';
+      }
+
       const { error } = await supabase
         .from('chat_message_reactions')
         .insert({
           message_id: messageId,
-          user_id: user.id,
-          user_type: 'admin',
+          user_id: userId,
+          sub_user_id: subUserId,
+          user_type: userType,
           emoji
         });
 
@@ -340,7 +386,7 @@ export const useChat = () => {
         variant: "destructive"
       });
     }
-  }, [user, toast]);
+  }, [effectiveUser, toast, isPublicBoard, publicBoardUser, subUsers, user]);
 
   // Create a new channel
   const createChannel = useCallback(async (name: string, emoji: string = '💬', isPrivate: boolean = false) => {
@@ -401,7 +447,7 @@ export const useChat = () => {
 
   // Set up real-time subscriptions
   useEffect(() => {
-    if (!user || !hasSubUsers) return;
+    if (!effectiveUser || !hasSubUsers) return;
 
     const channels = supabase
       .channel('chat-updates')
@@ -443,20 +489,20 @@ export const useChat = () => {
     return () => {
       supabase.removeChannel(channels);
     };
-  }, [user, hasSubUsers, loadMessages, loadChannels]);
+  }, [effectiveUser, hasSubUsers, loadMessages, loadChannels]);
 
   // Initialize chat
   useEffect(() => {
-    if (user) {
+    if (effectiveUser && boardOwnerId) {
       checkSubUsers();
     }
-  }, [user, checkSubUsers]);
+  }, [effectiveUser, boardOwnerId, checkSubUsers]);
 
   useEffect(() => {
-    if (user && hasSubUsers) {
+    if (effectiveUser && hasSubUsers && boardOwnerId) {
       loadChannels();
     }
-  }, [user, hasSubUsers, loadChannels]);
+  }, [effectiveUser, hasSubUsers, boardOwnerId, loadChannels]);
 
   useEffect(() => {
     if (currentChannel) {
@@ -468,14 +514,14 @@ export const useChat = () => {
   // Auto-setup default channel for new users
   useEffect(() => {
     const setupDefaultChannel = async () => {
-      if (!user || !hasSubUsers || channels.length > 0) return;
+      if (!effectiveUser || !hasSubUsers || channels.length > 0 || !boardOwnerId) return;
 
       try {
         // Create default General channel
         const { data: channelData, error: channelError } = await supabase
           .from('chat_channels')
           .insert({
-            owner_id: user.id,
+            owner_id: boardOwnerId,
             name: 'General',
             emoji: '💬',
             is_default: true
@@ -487,11 +533,13 @@ export const useChat = () => {
 
         // Add owner and all sub-users as participants
         const participantInserts = [
+          // Add the board owner as admin
           {
             channel_id: channelData.id,
-            user_id: user.id,
+            user_id: boardOwnerId,
             user_type: 'admin'
           },
+          // Add all sub-users
           ...subUsers.map(subUser => ({
             channel_id: channelData.id,
             sub_user_id: subUser.id,
@@ -510,17 +558,27 @@ export const useChat = () => {
     };
 
     setupDefaultChannel();
-  }, [user, hasSubUsers, channels.length, subUsers, loadChannels]);
+  }, [effectiveUser, hasSubUsers, channels.length, subUsers, loadChannels, boardOwnerId]);
 
   const currentUserInfo = useMemo(() => {
-    if (!user) return null;
+    if (!effectiveUser) return null;
     
-    return {
-      id: user.id,
-      type: 'admin' as const,
-      name: user.user_metadata?.full_name || user.email || 'Admin'
-    };
-  }, [user]);
+    if (isPublicBoard && publicBoardUser) {
+      return {
+        id: publicBoardUser.id,
+        type: 'sub_user' as const,
+        name: publicBoardUser.fullName || publicBoardUser.email || 'User'
+      };
+    } else if (user) {
+      return {
+        id: user.id,
+        type: 'admin' as const,
+        name: user.user_metadata?.full_name || user.email || 'Admin'
+      };
+    }
+    
+    return null;
+  }, [effectiveUser, isPublicBoard, publicBoardUser, user]);
 
   return {
     channels,
@@ -531,6 +589,7 @@ export const useChat = () => {
     subUsers,
     loading,
     hasSubUsers,
+    isInitialized,
     currentUserInfo,
     sendMessage,
     addReaction,

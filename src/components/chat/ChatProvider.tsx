@@ -3,31 +3,57 @@ import { ChatIcon } from './ChatIcon';
 import { ChatWindow } from './ChatWindow';
 import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePublicBoardAuth } from '@/contexts/PublicBoardAuthContext';
 
 export const ChatProvider = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const { user } = useAuth();
+  const { user: publicBoardUser, isPublicBoard } = usePublicBoardAuth();
   const chat = useChat();
 
-  // Debug logging
+  // Determine the effective user (either regular auth or public board auth)
+  const effectiveUser = isPublicBoard ? publicBoardUser : user;
+
+  // Enhanced debug logging with actual values
   console.log('🔍 ChatProvider Debug:', {
-    user: !!user,
+    regularUser: !!user,
+    publicBoardUser: !!publicBoardUser,
+    isPublicBoard,
+    effectiveUser: !!effectiveUser,
+    effectiveUserId: effectiveUser?.id,
+    effectiveUserEmail: effectiveUser?.email,
     hasSubUsers: chat.hasSubUsers,
+    isInitialized: chat.isInitialized,
     isLoading: chat.loading,
-    subUsersCount: chat.subUsers.length,
-    channels: chat.channels.length
+    subUsersCount: chat.subUsers?.length || 0,
+    channelsCount: chat.channels?.length || 0,
+    subUsers: chat.subUsers?.map(su => ({ id: su.id, email: su.email, fullname: su.fullname })) || []
   });
 
-  // Only show chat if user is authenticated and has sub-users
-  if (!user || !chat.hasSubUsers) {
-    console.log('❌ Chat not showing:', { user: !!user, hasSubUsers: chat.hasSubUsers });
+  // Wait for initialization before deciding whether to show chat
+  if (!chat.isInitialized) {
+    console.log('⏳ Chat not initialized yet, waiting...');
     return null;
   }
 
-  console.log('✅ Chat should be visible now');
+  // Only show chat if user is authenticated and has sub-users
+  if (!effectiveUser || !chat.hasSubUsers) {
+    console.log('❌ Chat not showing:', { 
+      effectiveUser: !!effectiveUser, 
+      hasSubUsers: chat.hasSubUsers, 
+      subUsersCount: chat.subUsers?.length || 0,
+      reason: !effectiveUser ? 'no effective user' : 'no sub-users',
+      isPublicBoard,
+      regularUser: !!user,
+      publicBoardUser: !!publicBoardUser
+    });
+    return null;
+  }
+
+  console.log('✅ Chat should be visible now - effective user has', chat.subUsers?.length || 0, 'sub-users');
 
   const handleChatClick = () => {
-    console.log('🖱️ Chat icon clicked, current state:', isChatOpen);
+    console.log('🖱️ Chat icon clicked, current state:', isChatOpen, 'toggling to:', !isChatOpen);
     setIsChatOpen(!isChatOpen);
   };
 
