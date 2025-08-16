@@ -4,11 +4,9 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { CreateChannelDialog } from './CreateChannelDialog';
-import { useChat } from '@/hooks/useChat';
+import { useChat } from './ChatProvider';
 
 export const ChatSidebar = () => {
-  const [showCreateChannel, setShowCreateChannel] = useState(false);
   const chat = useChat();
 
   const getInitials = (name: string) => {
@@ -31,7 +29,7 @@ export const ChatSidebar = () => {
           <div>
             <h2 className="font-semibold text-sm">Team Workspace</h2>
             <p className="text-xs text-muted-foreground">
-              {chat.participants.length} members
+              Chat with your team
             </p>
           </div>
         </div>
@@ -49,7 +47,6 @@ export const ChatSidebar = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setShowCreateChannel(true)}
                 className="h-5 w-5 p-0 hover:bg-muted"
               >
                 <Plus className="h-3 w-3" />
@@ -58,28 +55,13 @@ export const ChatSidebar = () => {
 
             {/* Channel List */}
             <div className="space-y-1">
-              {chat.channels.map((channel) => (
-                <button
-                  key={channel.id}
-                  onClick={() => chat.setCurrentChannel(channel)}
-                  className={`
-                    w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left
-                    transition-colors duration-150
-                    ${chat.currentChannel?.id === channel.id
-                      ? 'bg-primary/10 text-primary'
-                      : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                    }
-                  `}
-                >
-                  <span className="text-base">{channel.emoji}</span>
-                  <span className="truncate">{channel.name}</span>
-                  {channel.is_default && (
-                    <Badge variant="secondary" className="text-xs ml-auto">
-                      Default
-                    </Badge>
-                  )}
-                </button>
-              ))}
+              <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left transition-colors duration-150 bg-primary/10 text-primary">
+                <span className="text-base">💬</span>
+                <span className="truncate">general</span>
+                <Badge variant="secondary" className="text-xs ml-auto">
+                  Default
+                </Badge>
+              </button>
             </div>
 
             {/* Direct Messages Header */}
@@ -91,44 +73,35 @@ export const ChatSidebar = () => {
 
             {/* Team Members List */}
             <div className="space-y-1">
-              {/* Admin (Current User) */}
-              {chat.currentUserInfo && (
-                <div className="flex items-center gap-2 px-2 py-1.5 rounded text-sm">
-                  <div className="relative">
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src="" />
-                      <AvatarFallback className="text-xs">
-                        {getInitials(chat.currentUserInfo.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-background rounded-full" />
-                  </div>
-                  <span className="truncate text-muted-foreground">
-                    {chat.currentUserInfo.name} (you)
-                  </span>
+              {/* Current User */}
+              <div className="flex items-center gap-2 px-2 py-1.5 rounded text-sm">
+                <div className="relative">
+                  <Avatar className="h-6 w-6">
+                    <AvatarFallback className="text-xs">
+                      AD
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-background rounded-full" />
                 </div>
-              )}
+                <span className="truncate text-muted-foreground">
+                  Admin (you)
+                </span>
+              </div>
 
-              {/* Sub Users */}
-              {chat.subUsers.map((subUser) => (
-                <div
-                  key={subUser.id}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer hover:bg-muted"
-                >
-                  <div className="relative">
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={subUser.avatar_url} />
-                      <AvatarFallback className="text-xs">
-                        {getInitials(subUser.fullname)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-gray-400 border-2 border-background rounded-full" />
-                  </div>
-                  <span className="truncate text-muted-foreground">
-                    {subUser.fullname}
-                  </span>
+              {/* Placeholder for Sub Users */}
+              <div className="flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer hover:bg-muted">
+                <div className="relative">
+                  <Avatar className="h-6 w-6">
+                    <AvatarFallback className="text-xs">
+                      SU
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-gray-400 border-2 border-background rounded-full" />
                 </div>
-              ))}
+                <span className="truncate text-muted-foreground">
+                  Sub Users
+                </span>
+              </div>
             </div>
           </div>
         </ScrollArea>
@@ -138,14 +111,13 @@ export const ChatSidebar = () => {
       <div className="p-3 border-t border-border">
         <div className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
-            <AvatarImage src="" />
             <AvatarFallback className="text-xs">
-              {chat.currentUserInfo ? getInitials(chat.currentUserInfo.name) : 'A'}
+              AD
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">
-              {chat.currentUserInfo?.name || 'Admin'}
+              Admin
             </p>
             <p className="text-xs text-muted-foreground">Online</p>
           </div>
@@ -154,13 +126,6 @@ export const ChatSidebar = () => {
           </Button>
         </div>
       </div>
-
-      {/* Create Channel Dialog */}
-      <CreateChannelDialog
-        open={showCreateChannel}
-        onOpenChange={setShowCreateChannel}
-        onCreateChannel={chat.createChannel}
-      />
     </div>
   );
 };

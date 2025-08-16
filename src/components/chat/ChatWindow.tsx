@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatArea } from './ChatArea';
-import { useChat } from '@/hooks/useChat';
+import { useChat } from './ChatProvider';
 
 interface ChatWindowProps {
   isOpen: boolean;
@@ -100,17 +100,27 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     setWindowState(windowState === 'maximized' ? 'normal' : 'maximized');
   };
 
-  if (!isOpen || !chat.hasSubUsers || !chat.isInitialized) {
-    console.log('💬 ChatWindow not rendering:', { 
-      isOpen, 
-      hasSubUsers: chat.hasSubUsers, 
-      isInitialized: chat.isInitialized,
-      reason: !isOpen ? 'not open' : !chat.hasSubUsers ? 'no sub users' : 'not initialized'
-    });
+  if (!isOpen) {
+    console.log('💬 ChatWindow not open');
     return null;
   }
 
-  console.log('✅ ChatWindow rendering successfully:', { isOpen, hasSubUsers: chat.hasSubUsers, isInitialized: chat.isInitialized });
+  console.log('✅ ChatWindow rendering:', { isOpen, hasSubUsers: chat.hasSubUsers, isInitialized: chat.isInitialized });
+
+  const content = !chat.hasSubUsers ? (
+    <div className="flex h-full items-center justify-center text-sm text-muted-foreground p-4">
+      Chat is available once you add at least one sub-user.
+    </div>
+  ) : !chat.isInitialized ? (
+    <div className="flex h-full items-center justify-center">
+      <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+    </div>
+  ) : (
+    <div className="flex h-full">
+      <ChatSidebar />
+      <ChatArea />
+    </div>
+  );
 
   const getWindowStyle = () => {
     switch (windowState) {
@@ -199,12 +209,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       </div>
 
       {/* Chat Content */}
-      {windowState !== 'minimized' && (
-        <div className="flex h-full">
-          <ChatSidebar />
-          <ChatArea />
-        </div>
-      )}
+      {windowState !== 'minimized' && content}
 
       {/* Resize Handle */}
       {windowState === 'normal' && (

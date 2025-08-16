@@ -1,88 +1,157 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo, createContext, useContext } from 'react';
 import { ChatIcon } from './ChatIcon';
 import { ChatWindow } from './ChatWindow';
-import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePublicBoardAuth } from '@/contexts/PublicBoardAuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { createPortal } from 'react-dom';
+
+type ChatContextType = {
+  isOpen: boolean;
+  open: () => void;
+  close: () => void;
+  toggle: () => void;
+  isInitialized: boolean;
+  hasSubUsers: boolean;
+  userId?: string | null;
+};
+
+const ChatContext = createContext<ChatContextType | null>(null);
+
+export const useChat = () => {
+  const ctx = useContext(ChatContext);
+  if (!ctx) throw new Error('useChat must be used within ChatProvider');
+  return ctx;
+};
 
 export const ChatProvider = () => {
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const { user } = useAuth();
-  const { user: publicBoardUser, isPublicBoard } = usePublicBoardAuth();
-  const chat = useChat();
+  const { user: internalUser } = useAuth();
+  const { user: externalUser, isPublicBoard } = usePublicBoardAuth();
+  
+  // Use the appropriate user based on context
+  const effectiveUser = isPublicBoard ? externalUser : internalUser;
+  const userId = effectiveUser?.id ?? null;
+  const boardOwnerId = isPublicBoard ? externalUser?.boardOwnerId : internalUser?.id;
 
-  // Determine the effective user (either regular auth or public board auth)
-  const effectiveUser = isPublicBoard ? publicBoardUser : user;
+  const [isOpen, setIsOpen] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [hasSubUsers, setHasSubUsers] = useState(false);
 
-  // Enhanced debug logging with actual values
+  // Enhanced debug logging
   console.log('🔍 ChatProvider Debug:', {
-    regularUser: !!user,
-    regularUserId: user?.id,
-    publicBoardUser: !!publicBoardUser,
-    publicBoardUserId: publicBoardUser?.id,
-    publicBoardUserEmail: publicBoardUser?.email,
+    internalUser: !!internalUser,
+    internalUserId: internalUser?.id,
+    externalUser: !!externalUser,
+    externalUserId: externalUser?.id,
+    externalBoardOwnerId: externalUser?.boardOwnerId,
     isPublicBoard,
     effectiveUser: !!effectiveUser,
     effectiveUserId: effectiveUser?.id,
-    effectiveUserEmail: effectiveUser?.email,
-    hasSubUsers: chat.hasSubUsers,
-    isInitialized: chat.isInitialized,
-    isLoading: chat.loading,
-    subUsersCount: chat.subUsers?.length || 0,
-    channelsCount: chat.channels?.length || 0,
-    currentPath: window.location.pathname,
-    subUsers: chat.subUsers?.map(su => ({ id: su.id, email: su.email, fullname: su.fullname })) || []
+    boardOwnerId,
+    hasSubUsers,
+    isInitialized,
+    currentPath: window.location.pathname
   });
 
+  // Initialize: check if this user has sub-users
+  useEffect(() => {
+    let cancelled = false;
+    
+    const initializeChat = async () => {
+      try {
+        // If no board owner ID, we can't init yet
+        if (!boardOwnerId) {
+          console.log('⏳ No board owner ID, marking as initialized with no sub-users');
+          setHasSubUsers(false);
+          setIsInitialized(true);
+          return;
+        }
+
+        console.log('🔍 Checking sub-users for board owner:', boardOwnerId);
+
+        const { data, error } = await supabase
+          .from('sub_users')
+          .select('id, fullname, email')
+          .eq('board_owner_id', boardOwnerId);
+
+        if (!cancelled) {
+          if (error) {
+            console.error('[ChatProvider] sub_users query error:', error);
+            setHasSubUsers(false);
+          } else {
+            const subUserCount = data?.length ?? 0;
+            console.log('✅ Found', subUserCount, 'sub-users for board owner:', boardOwnerId);
+            setHasSubUsers(subUserCount > 0);
+          }
+          setIsInitialized(true);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          console.error('[ChatProvider] init error:', e);
+          setHasSubUsers(false);
+          setIsInitialized(true);
+        }
+      }
+    };
+
+    setIsInitialized(false);
+    initializeChat();
+    
+    return () => { 
+      cancelled = true; 
+    };
+  }, [boardOwnerId]);
+
+  const contextValue = useMemo<ChatContextType>(() => ({
+    isOpen,
+    open: () => {
+      console.log('🖱️ Opening chat');
+      setIsOpen(true);
+    },
+    close: () => {
+      console.log('🔒 Closing chat');
+      setIsOpen(false);
+    },
+    toggle: () => {
+      console.log('🔄 Toggling chat, current state:', isOpen);
+      setIsOpen(prev => !prev);
+    },
+    isInitialized,
+    hasSubUsers,
+    userId,
+  }), [isOpen, isInitialized, hasSubUsers, userId]);
+
   // Wait for initialization before deciding whether to show chat
-  if (!chat.isInitialized) {
+  if (!isInitialized) {
     console.log('⏳ Chat not initialized yet, waiting...');
     return null;
   }
 
-  // Only show chat if user is authenticated and has sub-users
-  if (!effectiveUser || !chat.hasSubUsers) {
-    console.log('❌ Chat not showing:', { 
-      effectiveUser: !!effectiveUser, 
-      hasSubUsers: chat.hasSubUsers, 
-      subUsersCount: chat.subUsers?.length || 0,
-      reason: !effectiveUser ? 'no effective user' : 'no sub-users',
-      isPublicBoard,
-      regularUser: !!user,
-      publicBoardUser: !!publicBoardUser,
-      currentPath: window.location.pathname
-    });
+  // Only show chat if user has sub-users
+  if (!hasSubUsers) {
+    console.log('❌ Chat not showing: no sub-users found');
     return null;
   }
 
-  console.log('✅ Chat should be visible now - effective user has', chat.subUsers?.length || 0, 'sub-users');
+  console.log('✅ Chat should be visible - rendering icon and window');
 
-  const handleChatClick = () => {
-    console.log('🖱️ Chat icon clicked, current state:', isChatOpen, 'toggling to:', !isChatOpen);
-    setIsChatOpen(!isChatOpen);
-  };
-
-  console.log('🎯 ChatProvider rendering components:', { 
-    showingIcon: true, 
-    iconProps: { isOpen: isChatOpen, unreadCount: 0 },
-    windowProps: { isOpen: isChatOpen }
-  });
-
+  // Render to portal to avoid z-index issues
   return (
-    <>
-      <ChatIcon
-        onClick={handleChatClick}
-        isOpen={isChatOpen}
-        unreadCount={0} // TODO: Implement unread count logic
-      />
-      
-      <ChatWindow
-        isOpen={isChatOpen}
-        onClose={() => {
-          console.log('🔒 Closing chat window');
-          setIsChatOpen(false);
-        }}
-      />
-    </>
+    <ChatContext.Provider value={contextValue}>
+      {createPortal(
+        <>
+          <ChatIcon
+            onClick={contextValue.toggle}
+            isOpen={isOpen}
+            unreadCount={0}
+          />
+          <ChatWindow
+            isOpen={isOpen}
+            onClose={contextValue.close}
+          />
+        </>,
+        document.body
+      )}
+    </ChatContext.Provider>
   );
 };
