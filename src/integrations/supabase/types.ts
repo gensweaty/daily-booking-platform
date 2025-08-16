@@ -213,6 +213,222 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_channels: {
+        Row: {
+          created_at: string | null
+          emoji: string | null
+          id: string
+          is_default: boolean | null
+          is_private: boolean | null
+          name: string
+          owner_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          emoji?: string | null
+          id?: string
+          is_default?: boolean | null
+          is_private?: boolean | null
+          name: string
+          owner_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          emoji?: string | null
+          id?: string
+          is_default?: boolean | null
+          is_private?: boolean | null
+          name?: string
+          owner_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      chat_message_files: {
+        Row: {
+          content_type: string | null
+          created_at: string | null
+          file_path: string
+          filename: string
+          id: string
+          message_id: string
+          size: number | null
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string | null
+          file_path: string
+          filename: string
+          id?: string
+          message_id: string
+          size?: number | null
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string | null
+          file_path?: string
+          filename?: string
+          id?: string
+          message_id?: string
+          size?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_files_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_message_reactions: {
+        Row: {
+          created_at: string | null
+          emoji: string
+          id: string
+          message_id: string
+          sub_user_id: string | null
+          user_id: string | null
+          user_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          emoji: string
+          id?: string
+          message_id: string
+          sub_user_id?: string | null
+          user_id?: string | null
+          user_type: string
+        }
+        Update: {
+          created_at?: string | null
+          emoji?: string
+          id?: string
+          message_id?: string
+          sub_user_id?: string | null
+          user_id?: string | null
+          user_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_reactions_sub_user_id_fkey"
+            columns: ["sub_user_id"]
+            isOneToOne: false
+            referencedRelation: "sub_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_messages: {
+        Row: {
+          channel_id: string
+          content: string
+          created_at: string | null
+          id: string
+          reply_to_id: string | null
+          sender_sub_user_id: string | null
+          sender_type: string
+          sender_user_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          channel_id: string
+          content: string
+          created_at?: string | null
+          id?: string
+          reply_to_id?: string | null
+          sender_sub_user_id?: string | null
+          sender_type: string
+          sender_user_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          channel_id?: string
+          content?: string
+          created_at?: string | null
+          id?: string
+          reply_to_id?: string | null
+          sender_sub_user_id?: string | null
+          sender_type?: string
+          sender_user_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "chat_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_sender_sub_user_id_fkey"
+            columns: ["sender_sub_user_id"]
+            isOneToOne: false
+            referencedRelation: "sub_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_participants: {
+        Row: {
+          channel_id: string
+          id: string
+          joined_at: string | null
+          sub_user_id: string | null
+          user_id: string | null
+          user_type: string
+        }
+        Insert: {
+          channel_id: string
+          id?: string
+          joined_at?: string | null
+          sub_user_id?: string | null
+          user_id?: string | null
+          user_type: string
+        }
+        Update: {
+          channel_id?: string
+          id?: string
+          joined_at?: string | null
+          sub_user_id?: string | null
+          user_id?: string | null
+          user_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_participants_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "chat_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_participants_sub_user_id_fkey"
+            columns: ["sub_user_id"]
+            isOneToOne: false
+            referencedRelation: "sub_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checkout_sessions: {
         Row: {
           amount_total: number | null

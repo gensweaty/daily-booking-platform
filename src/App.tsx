@@ -274,6 +274,7 @@ const AppContent = () => {
               />
               <Route path="*" element={<Landing />} />
             </Routes>
+            <ChatProvider />
             <Toaster />
           </RouteAwareWrapper>
         </RouteAwareThemeProvider>
@@ -283,6 +284,7 @@ const AppContent = () => {
 };
 
 import { useMemoryOptimization } from "@/utils/memoryOptimizer";
+import { ChatProvider } from "@/components/chat/ChatProvider";
 
 function App() {
   // Initialize memory optimization
