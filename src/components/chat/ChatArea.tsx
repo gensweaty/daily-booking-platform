@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Hash, Users, Phone, Video, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { MessageInput } from './MessageInput';
 import { useChat } from './ChatProvider';
 
 export const ChatArea = () => {
@@ -49,19 +50,15 @@ export const ChatArea = () => {
           </div>
         </ScrollArea>
 
-        {/* Message Input Placeholder */}
-        <div className="border-t border-border bg-background/50 p-4">
-          <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-md">
-            <input 
-              type="text" 
-              placeholder="Message #general" 
-              className="flex-1 bg-transparent border-none outline-none text-sm"
-              disabled
-            />
-            <Button size="sm" disabled>
-              Send
-            </Button>
-          </div>
+        {/* Message Input */}
+        <div className="border-t border-border bg-background/50">
+          <MessageInput 
+            onSendMessage={(content) => {
+              console.log('💬 Sending message:', content);
+              // TODO: Integrate with actual chat functionality
+            }}
+            placeholder="Message #general"
+          />
         </div>
       </div>
     </div>

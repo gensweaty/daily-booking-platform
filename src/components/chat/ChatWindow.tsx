@@ -26,15 +26,41 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const windowRef = useRef<HTMLDivElement>(null);
   const chat = useChat();
 
-  // Initialize position to bottom-right
+  // Initialize position and responsive size
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const isMobile = window.innerWidth < 768;
+      const responsiveSize = isMobile 
+        ? { width: Math.min(360, window.innerWidth - 20), height: Math.min(500, window.innerHeight - 100) }
+        : { width: 800, height: 600 };
+      
+      setSize(responsiveSize);
       setPosition({
-        x: window.innerWidth - size.width - 120,
-        y: window.innerHeight - size.height - 120
+        x: isMobile ? 10 : window.innerWidth - responsiveSize.width - 120,
+        y: isMobile ? 50 : window.innerHeight - responsiveSize.height - 120
       });
     }
   }, []);
+
+  // Handle window resize for responsiveness
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window !== 'undefined') {
+        const isMobile = window.innerWidth < 768;
+        if (isMobile && windowState === 'normal') {
+          const mobileSize = { 
+            width: Math.min(360, window.innerWidth - 20), 
+            height: Math.min(500, window.innerHeight - 100) 
+          };
+          setSize(mobileSize);
+          setPosition({ x: 10, y: 50 });
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [windowState]);
 
   // Handle mouse events for dragging
   useEffect(() => {
@@ -47,8 +73,11 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       }
       
       if (isResizing) {
-        const newWidth = Math.max(400, resizeStart.width + (e.clientX - resizeStart.x));
-        const newHeight = Math.max(300, resizeStart.height + (e.clientY - resizeStart.y));
+        const isMobile = window.innerWidth < 768;
+        const minWidth = isMobile ? 300 : 400;
+        const minHeight = isMobile ? 250 : 300;
+        const newWidth = Math.max(minWidth, resizeStart.width + (e.clientX - resizeStart.x));
+        const newHeight = Math.max(minHeight, resizeStart.height + (e.clientY - resizeStart.y));
         setSize({ width: newWidth, height: newHeight });
       }
     };
@@ -153,7 +182,9 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       className={cn(
         "fixed z-[9998] overflow-hidden shadow-2xl border-border bg-background transition-all duration-200",
         windowState === 'maximized' ? 'rounded-none' : 'rounded-lg',
-        isDragging ? 'cursor-grabbing' : 'cursor-auto'
+        isDragging ? 'cursor-grabbing' : 'cursor-auto',
+        // Mobile responsive classes
+        "md:min-w-[400px] min-w-[300px]"
       )}
       style={{ ...getWindowStyle(), zIndex: 9998 }}
     >
