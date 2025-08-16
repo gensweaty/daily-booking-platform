@@ -26,28 +26,15 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const windowRef = useRef<HTMLDivElement>(null);
   const chat = useChat();
 
-  // Initialize position and responsive size - default to full screen on mobile
+  // Initialize position and responsive size - default to full screen on mobile/maximized on desktop
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const isMobile = window.innerWidth < 768;
       
-      if (isMobile) {
-        // Full screen on mobile by default
-        setWindowState('maximized');
-        setSize({ width: window.innerWidth, height: window.innerHeight });
-        setPosition({ x: 0, y: 0 });
-      } else {
-        // Large responsive size on desktop
-        const desktopSize = { 
-          width: Math.min(1000, window.innerWidth - 40), 
-          height: Math.min(700, window.innerHeight - 40) 
-        };
-        setSize(desktopSize);
-        setPosition({
-          x: (window.innerWidth - desktopSize.width) / 2,
-          y: (window.innerHeight - desktopSize.height) / 2
-        });
-      }
+      // Always start maximized for better experience
+      setWindowState('maximized');
+      setSize({ width: window.innerWidth, height: window.innerHeight });
+      setPosition({ x: 0, y: 0 });
     }
   }, []);
 
@@ -55,15 +42,8 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   useEffect(() => {
     const handleResize = () => {
       if (typeof window !== 'undefined') {
-        const isMobile = window.innerWidth < 768;
-        
-        if (isMobile) {
-          // Force maximized on mobile
-          setWindowState('maximized');
-          setSize({ width: window.innerWidth, height: window.innerHeight });
-          setPosition({ x: 0, y: 0 });
-        } else if (windowState === 'maximized') {
-          // Keep maximized state on desktop if it was maximized
+        if (windowState === 'maximized') {
+          // Keep maximized state responsive
           setSize({ width: window.innerWidth, height: window.innerHeight });
           setPosition({ x: 0, y: 0 });
         }
@@ -141,19 +121,27 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
 
   const toggleMaximize = () => {
     if (windowState === 'maximized') {
-      // Return to normal centered position
+      // Return to normal sized window (desktop only, mobile stays full screen)
       const isMobile = window.innerWidth < 768;
-      if (!isMobile) {
-        const normalSize = { width: Math.min(1000, window.innerWidth - 40), height: Math.min(700, window.innerHeight - 40) };
-        setSize(normalSize);
-        setPosition({
-          x: (window.innerWidth - normalSize.width) / 2,
-          y: (window.innerHeight - normalSize.height) / 2
-        });
+      if (isMobile) {
+        // Keep mobile full screen
+        return;
       }
+      
+      const normalSize = { 
+        width: Math.min(900, window.innerWidth - 80), 
+        height: Math.min(650, window.innerHeight - 80) 
+      };
+      setSize(normalSize);
+      setPosition({
+        x: (window.innerWidth - normalSize.width) / 2,
+        y: (window.innerHeight - normalSize.height) / 2
+      });
       setWindowState('normal');
     } else {
       setWindowState('maximized');
+      setSize({ width: window.innerWidth, height: window.innerHeight });
+      setPosition({ x: 0, y: 0 });
     }
   };
 

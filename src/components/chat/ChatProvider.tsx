@@ -27,13 +27,13 @@ export const ChatProvider: React.FC = () => {
   const { user } = useAuth();
   const location = useLocation();
   
-  // Only show chat on dashboard routes
+  // Only show chat on dashboard routes (authenticated user areas)
   const isDashboardRoute = useMemo(() => {
     const path = location.pathname;
-    // Show on main dashboard, external board, and other dashboard pages
+    // Show on internal dashboard, external board, and authenticated dashboard pages
     return path === '/dashboard' || 
            path.startsWith('/board/') || 
-           path === '/admin' || 
+           path.startsWith('/admin') || 
            path === '/tasks' || 
            path === '/calendar' || 
            path === '/crm' || 
@@ -150,8 +150,8 @@ export const ChatProvider: React.FC = () => {
     isOpen, open, close, toggle, isInitialized, hasSubUsers
   }), [isOpen, open, close, toggle, isInitialized, hasSubUsers]);
 
-  // Gate: only show icon if we have sub-users AND we've finished init AND we're on a dashboard route
-  const shouldShowIcon = isInitialized && hasSubUsers && isDashboardRoute;
+  // Gate: only show icon if we have user AND sub-users AND we've finished init AND we're on a dashboard route
+  const shouldShowIcon = isInitialized && user?.id && hasSubUsers && isDashboardRoute;
 
   // Nothing to render until portal root is ready
   if (!portalRef.current) return null;

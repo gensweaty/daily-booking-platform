@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Paperclip, Smile, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { ChatMessage } from '@/hooks/useChat';
+import { ChatMessage } from '@/hooks/useChatMessages';
 
 interface MessageInputProps {
   onSendMessage: (content: string) => void;
