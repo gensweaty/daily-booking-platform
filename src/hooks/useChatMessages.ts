@@ -60,10 +60,14 @@ export const useChatMessages = () => {
 
   // Load messages for current channel
   const loadMessages = useCallback(async () => {
-    if (!currentChannel?.id) return;
+    if (!currentChannel?.id) {
+      console.log('No current channel, skipping message load');
+      return;
+    }
 
     try {
       setLoading(true);
+      console.log('Loading messages for channel:', currentChannel.id);
       
       const { data, error } = await supabase
         .from('chat_messages')
@@ -75,7 +79,12 @@ export const useChatMessages = () => {
         .eq('channel_id', currentChannel.id)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading messages:', error);
+        throw error;
+      }
+
+      console.log('Loaded messages:', data);
 
       const enrichedMessages = data?.map(msg => ({
         ...msg,
@@ -84,9 +93,11 @@ export const useChatMessages = () => {
           : (msg.sender_sub_user?.fullname || msg.sender_sub_user?.email || 'Sub User')
       })) || [];
 
+      console.log('Enriched messages:', enrichedMessages);
       setMessages(enrichedMessages);
     } catch (error) {
       console.error('Error loading messages:', error);
+      setMessages([]);
     } finally {
       setLoading(false);
     }
@@ -119,6 +130,8 @@ export const useChatMessages = () => {
   useEffect(() => {
     if (!currentChannel?.id) return;
 
+    console.log('Setting up real-time subscription for channel:', currentChannel.id);
+
     const messagesSubscription = supabase
       .channel(`messages:${currentChannel.id}`)
       .on(
@@ -129,14 +142,17 @@ export const useChatMessages = () => {
           table: 'chat_messages',
           filter: `channel_id=eq.${currentChannel.id}`
         },
-        () => {
-          console.log('Message change detected, reloading...');
+        (payload) => {
+          console.log('Message change detected:', payload);
           loadMessages();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+      });
 
     return () => {
+      console.log('Cleaning up subscription for channel:', currentChannel.id);
       supabase.removeChannel(messagesSubscription);
     };
   }, [currentChannel?.id, loadMessages]);

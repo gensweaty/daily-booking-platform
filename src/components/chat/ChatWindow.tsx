@@ -26,24 +26,38 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const windowRef = useRef<HTMLDivElement>(null);
   const chat = useChat();
 
-  // Initialize position and responsive size - default to full screen on mobile/maximized on desktop
+  // Initialize position and responsive size
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const isMobile = window.innerWidth < 768;
+      const isMobile = window.innerWidth <= 768;
       
-      // Always start maximized for better experience
-      setWindowState('maximized');
-      setSize({ width: window.innerWidth, height: window.innerHeight });
-      setPosition({ x: 0, y: 0 });
+      if (isMobile) {
+        // Mobile: always maximized (full screen)
+        setWindowState('maximized');
+        setSize({ width: window.innerWidth, height: window.innerHeight });
+        setPosition({ x: 0, y: 0 });
+      } else {
+        // Desktop: start maximized, but allow normal state
+        setWindowState('maximized');
+        setSize({ width: window.innerWidth, height: window.innerHeight });
+        setPosition({ x: 0, y: 0 });
+      }
     }
-  }, []);
+  }, [isOpen]);
 
   // Handle window resize for responsiveness
   useEffect(() => {
     const handleResize = () => {
       if (typeof window !== 'undefined') {
-        if (windowState === 'maximized') {
-          // Keep maximized state responsive
+        const isMobile = window.innerWidth <= 768;
+        
+        if (isMobile) {
+          // Force mobile to always be maximized
+          setWindowState('maximized');
+          setSize({ width: window.innerWidth, height: window.innerHeight });
+          setPosition({ x: 0, y: 0 });
+        } else if (windowState === 'maximized') {
+          // Keep desktop maximized responsive
           setSize({ width: window.innerWidth, height: window.innerHeight });
           setPosition({ x: 0, y: 0 });
         }
@@ -115,22 +129,23 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
 
   const toggleMinimize = () => {
     // Don't allow minimize on mobile
-    if (window.innerWidth < 768) return;
+    if (window.innerWidth <= 768) return;
     setWindowState(windowState === 'minimized' ? 'normal' : 'minimized');
   };
 
   const toggleMaximize = () => {
+    const isMobile = window.innerWidth <= 768;
+    
+    if (isMobile) {
+      // Mobile always stays maximized
+      return;
+    }
+    
     if (windowState === 'maximized') {
-      // Return to normal sized window (desktop only, mobile stays full screen)
-      const isMobile = window.innerWidth < 768;
-      if (isMobile) {
-        // Keep mobile full screen
-        return;
-      }
-      
+      // Desktop: return to normal windowed mode
       const normalSize = { 
-        width: Math.min(900, window.innerWidth - 80), 
-        height: Math.min(650, window.innerHeight - 80) 
+        width: Math.min(1000, window.innerWidth - 100), 
+        height: Math.min(700, window.innerHeight - 100) 
       };
       setSize(normalSize);
       setPosition({
@@ -139,6 +154,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       });
       setWindowState('normal');
     } else {
+      // Desktop: maximize
       setWindowState('maximized');
       setSize({ width: window.innerWidth, height: window.innerHeight });
       setPosition({ x: 0, y: 0 });
@@ -168,35 +184,37 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   );
 
   const getWindowStyle = () => {
-    const isMobile = window.innerWidth < 768;
+    const isMobile = window.innerWidth <= 768;
     
     switch (windowState) {
       case 'minimized':
         // Don't allow minimize on mobile
         if (isMobile) {
           return {
+            position: 'fixed' as const,
+            inset: 0,
             width: '100vw',
             height: '100vh',
-            transform: 'translate(0, 0)',
-            top: 0,
-            left: 0
+            transform: 'none'
           };
         }
         return {
+          position: 'fixed' as const,
           width: '300px',
           height: '50px',
           transform: `translate(${position.x}px, ${position.y}px)`
         };
       case 'maximized':
         return {
+          position: 'fixed' as const,
+          inset: 0,
           width: '100vw',
           height: '100vh',
-          transform: 'translate(0, 0)',
-          top: 0,
-          left: 0
+          transform: 'none'
         };
       default:
         return {
+          position: 'fixed' as const,
           width: `${size.width}px`,
           height: `${size.height}px`,
           transform: `translate(${position.x}px, ${position.y}px)`
@@ -235,7 +253,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
         
         <div className="flex items-center gap-1">
           {/* Hide minimize button on mobile */}
-          {window.innerWidth >= 768 && (
+          {typeof window !== 'undefined' && window.innerWidth > 768 && (
             <Button
               variant="ghost"
               size="sm"
@@ -246,18 +264,21 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
             </Button>
           )}
           
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleMaximize}
-            className="h-6 w-6 p-0 hover:bg-muted"
-          >
-            {windowState === 'maximized' ? (
-              <Minimize2 className="h-3 w-3" />
-            ) : (
-              <Maximize2 className="h-3 w-3" />
-            )}
-          </Button>
+          {/* Hide maximize/minimize button on mobile as it should always be fullscreen */}
+          {typeof window !== 'undefined' && window.innerWidth > 768 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleMaximize}
+              className="h-6 w-6 p-0 hover:bg-muted"
+            >
+              {windowState === 'maximized' ? (
+                <Minimize2 className="h-3 w-3" />
+              ) : (
+                <Maximize2 className="h-3 w-3" />
+              )}
+            </Button>
+          )}
           
           <Button
             variant="ghost"

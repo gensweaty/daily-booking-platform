@@ -30,16 +30,19 @@ export const ChatProvider: React.FC = () => {
   // Only show chat on dashboard routes (authenticated user areas)
   const isDashboardRoute = useMemo(() => {
     const path = location.pathname;
-    // Show on internal dashboard, external board, and authenticated dashboard pages
-    return path === '/dashboard' || 
+    // Show ONLY on internal dashboard and external board pages
+    // NOT on main page (/), login, register, or other public pages
+    return user?.id && (
+           path === '/dashboard' || 
            path.startsWith('/board/') || 
            path.startsWith('/admin') || 
            path === '/tasks' || 
            path === '/calendar' || 
            path === '/crm' || 
            path === '/statistics' ||
-           path === '/business';
-  }, [location.pathname]);
+           path === '/business'
+    );
+  }, [location.pathname, user?.id]);
 
   // UI state
   const [isOpen, setIsOpen] = useState<boolean>(() => {
