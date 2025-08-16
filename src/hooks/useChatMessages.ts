@@ -61,42 +61,64 @@ export const useChatMessages = () => {
   // Load messages for current channel
   const loadMessages = useCallback(async () => {
     if (!currentChannel?.id) {
-      console.log('No current channel, skipping message load');
+      console.log('❌ No current channel, skipping message load');
       return;
     }
 
     try {
       setLoading(true);
-      console.log('Loading messages for channel:', currentChannel.id);
+      console.log('📥 Loading messages for channel:', currentChannel.id);
       
+      // First try a simple query without joins to see if we can get basic data
+      const { data: simpleData, error: simpleError } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('channel_id', currentChannel.id)
+        .order('created_at', { ascending: true });
+
+      if (simpleError) {
+        console.error('❌ Error loading messages (simple query):', simpleError);
+        throw simpleError;
+      }
+
+      console.log('📥 Raw messages loaded:', simpleData);
+
+      // Now try with joins for user data
       const { data, error } = await supabase
         .from('chat_messages')
         .select(`
           *,
-          sender_user:sender_user_id(email, username),
+          sender_user:sender_user_id(email),
           sender_sub_user:sender_sub_user_id(fullname, email)
         `)
         .eq('channel_id', currentChannel.id)
         .order('created_at', { ascending: true });
 
       if (error) {
-        console.error('Error loading messages:', error);
-        throw error;
+        console.error('❌ Error loading messages with joins:', error);
+        // Fall back to simple data if joins fail
+        const enrichedMessages = simpleData?.map(msg => ({
+          ...msg,
+          sender_name: msg.sender_type === 'admin' ? 'Admin' : 'Sub User'
+        })) || [];
+        console.log('📥 Using fallback messages:', enrichedMessages);
+        setMessages(enrichedMessages);
+        return;
       }
 
-      console.log('Loaded messages:', data);
+      console.log('📥 Messages with joins loaded:', data);
 
       const enrichedMessages = data?.map(msg => ({
         ...msg,
         sender_name: msg.sender_type === 'admin' 
-          ? (msg.sender_user?.username || msg.sender_user?.email || 'Admin')
+          ? (msg.sender_user?.email || 'Admin')
           : (msg.sender_sub_user?.fullname || msg.sender_sub_user?.email || 'Sub User')
       })) || [];
 
-      console.log('Enriched messages:', enrichedMessages);
+      console.log('✅ Final enriched messages:', enrichedMessages);
       setMessages(enrichedMessages);
     } catch (error) {
-      console.error('Error loading messages:', error);
+      console.error('❌ Critical error loading messages:', error);
       setMessages([]);
     } finally {
       setLoading(false);
@@ -105,10 +127,23 @@ export const useChatMessages = () => {
 
   // Send message
   const sendMessage = useCallback(async (content: string, replyToId?: string) => {
-    if (!currentChannel?.id || !user?.id || !content.trim()) return;
+    if (!currentChannel?.id || !user?.id || !content.trim()) {
+      console.log('❌ Cannot send message:', { 
+        hasChannel: !!currentChannel?.id, 
+        hasUser: !!user?.id, 
+        hasContent: !!content.trim() 
+      });
+      return;
+    }
 
     try {
-      const { error } = await supabase
+      console.log('📤 Sending message:', { 
+        content: content.trim(), 
+        channel_id: currentChannel.id, 
+        sender_user_id: user.id 
+      });
+
+      const { error, data } = await supabase
         .from('chat_messages')
         .insert({
           content: content.trim(),
@@ -116,15 +151,21 @@ export const useChatMessages = () => {
           sender_user_id: user.id,
           sender_type: 'admin',
           reply_to_id: replyToId || null
-        });
+        })
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error sending message:', error);
+        throw error;
+      }
       
-      console.log('Message sent successfully');
+      console.log('✅ Message sent successfully:', data);
+      // Immediately reload messages to show the new one
+      loadMessages();
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('❌ Error in sendMessage:', error);
     }
-  }, [currentChannel?.id, user?.id]);
+  }, [currentChannel?.id, user?.id, loadMessages]);
 
   // Real-time subscriptions
   useEffect(() => {
