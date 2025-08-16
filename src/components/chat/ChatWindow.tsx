@@ -141,11 +141,11 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     <Card
       ref={windowRef}
       className={cn(
-        "fixed z-50 overflow-hidden shadow-2xl border-border bg-background transition-all duration-200",
+        "fixed z-[9998] overflow-hidden shadow-2xl border-border bg-background transition-all duration-200",
         windowState === 'maximized' ? 'rounded-none' : 'rounded-lg',
         isDragging ? 'cursor-grabbing' : 'cursor-auto'
       )}
-      style={getWindowStyle()}
+      style={{ ...getWindowStyle(), zIndex: 9998 }}
     >
       {/* Title Bar */}
       <div

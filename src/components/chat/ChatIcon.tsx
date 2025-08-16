@@ -12,7 +12,7 @@ export const ChatIcon = ({ onClick, isOpen, unreadCount = 0 }: ChatIconProps) =>
   console.log('🎯 ChatIcon rendering:', { isOpen, unreadCount });
   
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-6 right-6 z-[9999]" style={{ zIndex: 9999 }}>
       <Button
         onClick={(e) => {
           e.preventDefault();
@@ -22,12 +22,13 @@ export const ChatIcon = ({ onClick, isOpen, unreadCount = 0 }: ChatIconProps) =>
         }}
         size="lg"
         className={`
-          relative h-14 w-14 rounded-full shadow-lg transition-all duration-200 
+          relative h-14 w-14 rounded-full shadow-lg transition-all duration-200 pointer-events-auto
           ${isOpen 
             ? 'bg-primary/90 hover:bg-primary scale-95' 
             : 'bg-primary hover:bg-primary/90 hover:scale-105'
           }
         `}
+        style={{ zIndex: 9999 }}
       >
         <MessageCircle className="h-6 w-6 text-primary-foreground" />
         
