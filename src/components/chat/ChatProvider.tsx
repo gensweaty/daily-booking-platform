@@ -30,11 +30,10 @@ export const ChatProvider: React.FC = () => {
   // Only show chat on dashboard routes (authenticated user areas)
   const isDashboardRoute = useMemo(() => {
     const path = location.pathname;
-    console.log('🛣️ Checking route for chat visibility:', { path, userId: user?.id });
-    
+    console.log('🎯 Checking dashboard route:', { path, userId: user?.id });
     // Show ONLY on internal dashboard and external board pages
     // NOT on main page (/), login, register, or other public pages
-    const isValidRoute = user?.id && (
+    return user?.id && (
            path === '/dashboard' || 
            path.startsWith('/board/') || 
            path.startsWith('/admin') || 
@@ -44,9 +43,6 @@ export const ChatProvider: React.FC = () => {
            path === '/statistics' ||
            path === '/business'
     );
-    
-    console.log('🛣️ Route check result:', { isValidRoute, path, hasUser: !!user?.id });
-    return isValidRoute;
   }, [location.pathname, user?.id]);
 
   // UI state
@@ -130,7 +126,7 @@ export const ChatProvider: React.FC = () => {
         if (active) {
           setHasSubUsers(has);
           setIsInitialized(true);
-          console.log("✅ Chat init:", { userId: user.id, hasSubUsers: has });
+          console.log("✅ Chat init:", { userId: user.id, hasSubUsers: has, isDashboard: isDashboardRoute });
         }
       } catch (e) {
         console.log("⚠️ Chat init error:", e);
@@ -144,7 +140,7 @@ export const ChatProvider: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [user?.id]);
+  }, [user?.id, isDashboardRoute]);
 
   // Expose a global debug toggle to verify clicks quickly
   useEffect(() => {
@@ -158,16 +154,16 @@ export const ChatProvider: React.FC = () => {
     isOpen, open, close, toggle, isInitialized, hasSubUsers
   }), [isOpen, open, close, toggle, isInitialized, hasSubUsers]);
 
-  // Gate: only show icon if we have user AND (hasSubUsers OR we always want to show for testing) AND we've finished init AND we're on a dashboard route
-  const shouldShowIcon = isInitialized && user?.id && isDashboardRoute && (hasSubUsers || !hasSubUsers); // Always show for now to debug
-  
-  console.log('💬 Chat visibility check:', { 
+  // Gate: only show icon if we have user AND sub-users AND we've finished init AND we're on a dashboard route
+  const shouldShowIcon = isInitialized && user?.id && hasSubUsers && isDashboardRoute;
+
+  console.log('🔍 ChatProvider render:', { 
+    shouldShowIcon, 
     isInitialized, 
-    userId: user?.id, 
+    hasUser: !!user?.id, 
     hasSubUsers, 
-    isDashboardRoute, 
-    shouldShowIcon,
-    currentPath: location.pathname
+    isDashboardRoute,
+    path: location.pathname 
   });
 
   // Nothing to render until portal root is ready

@@ -35,33 +35,42 @@ export const useChatMessages = () => {
 
   // Load channels
   const loadChannels = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log('🚫 No user, cannot load channels');
+      return;
+    }
 
     try {
+      console.log('📂 Loading channels for user:', user.id);
       const { data, error } = await supabase
         .from('chat_channels')
         .select('*')
         .eq('owner_id', user.id)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error loading channels:', error);
+        throw error;
+      }
 
+      console.log('✅ Loaded channels:', data);
       setChannels(data || []);
       
       // Set default channel as current
       const defaultChannel = data?.find(c => c.is_default);
       if (defaultChannel && !currentChannel) {
+        console.log('🎯 Setting default channel:', defaultChannel);
         setCurrentChannel(defaultChannel);
       }
     } catch (error) {
-      console.error('Error loading channels:', error);
+      console.error('❌ Error loading channels:', error);
     }
   }, [user?.id, currentChannel]);
 
   // Load messages for current channel
   const loadMessages = useCallback(async () => {
     if (!currentChannel?.id) {
-      console.log('❌ No current channel, skipping message load');
+      console.log('🚫 No current channel, skipping message load');
       return;
     }
 
@@ -69,56 +78,34 @@ export const useChatMessages = () => {
       setLoading(true);
       console.log('📥 Loading messages for channel:', currentChannel.id);
       
-      // First try a simple query without joins to see if we can get basic data
-      const { data: simpleData, error: simpleError } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('channel_id', currentChannel.id)
-        .order('created_at', { ascending: true });
-
-      if (simpleError) {
-        console.error('❌ Error loading messages (simple query):', simpleError);
-        throw simpleError;
-      }
-
-      console.log('📥 Raw messages loaded:', simpleData);
-
-      // Now try with joins for user data
       const { data, error } = await supabase
         .from('chat_messages')
         .select(`
           *,
-          sender_user:sender_user_id(email),
+          sender_user:sender_user_id(email, username),
           sender_sub_user:sender_sub_user_id(fullname, email)
         `)
         .eq('channel_id', currentChannel.id)
         .order('created_at', { ascending: true });
 
       if (error) {
-        console.error('❌ Error loading messages with joins:', error);
-        // Fall back to simple data if joins fail
-        const enrichedMessages = simpleData?.map(msg => ({
-          ...msg,
-          sender_name: msg.sender_type === 'admin' ? 'Admin' : 'Sub User'
-        })) || [];
-        console.log('📥 Using fallback messages:', enrichedMessages);
-        setMessages(enrichedMessages);
-        return;
+        console.error('❌ Error loading messages:', error);
+        throw error;
       }
 
-      console.log('📥 Messages with joins loaded:', data);
+      console.log('✅ Loaded raw messages:', data);
 
       const enrichedMessages = data?.map(msg => ({
         ...msg,
         sender_name: msg.sender_type === 'admin' 
-          ? (msg.sender_user?.email || 'Admin')
+          ? (msg.sender_user?.username || msg.sender_user?.email || 'Admin')
           : (msg.sender_sub_user?.fullname || msg.sender_sub_user?.email || 'Sub User')
       })) || [];
 
-      console.log('✅ Final enriched messages:', enrichedMessages);
+      console.log('✅ Enriched messages:', enrichedMessages);
       setMessages(enrichedMessages);
     } catch (error) {
-      console.error('❌ Critical error loading messages:', error);
+      console.error('❌ Error loading messages:', error);
       setMessages([]);
     } finally {
       setLoading(false);
@@ -129,21 +116,21 @@ export const useChatMessages = () => {
   const sendMessage = useCallback(async (content: string, replyToId?: string) => {
     if (!currentChannel?.id || !user?.id || !content.trim()) {
       console.log('❌ Cannot send message:', { 
-        hasChannel: !!currentChannel?.id, 
-        hasUser: !!user?.id, 
-        hasContent: !!content.trim() 
+        channelId: currentChannel?.id, 
+        userId: user?.id, 
+        content: content?.trim() 
       });
       return;
     }
 
-    try {
-      console.log('📤 Sending message:', { 
-        content: content.trim(), 
-        channel_id: currentChannel.id, 
-        sender_user_id: user.id 
-      });
+    console.log('📤 Sending message:', { 
+      content: content.trim(), 
+      channelId: currentChannel.id,
+      userId: user.id 
+    });
 
-      const { error, data } = await supabase
+    try {
+      const { data, error } = await supabase
         .from('chat_messages')
         .insert({
           content: content.trim(),
@@ -155,15 +142,15 @@ export const useChatMessages = () => {
         .select();
 
       if (error) {
-        console.error('❌ Error sending message:', error);
+        console.error('❌ Database error sending message:', error);
         throw error;
       }
       
       console.log('✅ Message sent successfully:', data);
-      // Immediately reload messages to show the new one
-      loadMessages();
+      // Force reload messages to ensure UI updates
+      await loadMessages();
     } catch (error) {
-      console.error('❌ Error in sendMessage:', error);
+      console.error('❌ Error sending message:', error);
     }
   }, [currentChannel?.id, user?.id, loadMessages]);
 
@@ -171,7 +158,7 @@ export const useChatMessages = () => {
   useEffect(() => {
     if (!currentChannel?.id) return;
 
-    console.log('Setting up real-time subscription for channel:', currentChannel.id);
+    console.log('🔄 Setting up real-time subscription for channel:', currentChannel.id);
 
     const messagesSubscription = supabase
       .channel(`messages:${currentChannel.id}`)
@@ -184,27 +171,31 @@ export const useChatMessages = () => {
           filter: `channel_id=eq.${currentChannel.id}`
         },
         (payload) => {
-          console.log('Message change detected:', payload);
+          console.log('🔔 Message change detected:', payload);
           loadMessages();
         }
       )
       .subscribe((status) => {
-        console.log('Subscription status:', status);
+        console.log('📡 Subscription status:', status);
       });
 
     return () => {
-      console.log('Cleaning up subscription for channel:', currentChannel.id);
+      console.log('🧹 Cleaning up subscription for channel:', currentChannel.id);
       supabase.removeChannel(messagesSubscription);
     };
   }, [currentChannel?.id, loadMessages]);
 
   // Load initial data
   useEffect(() => {
-    loadChannels();
-  }, [loadChannels]);
+    if (user?.id) {
+      console.log('🔄 User changed, loading channels:', user.id);
+      loadChannels();
+    }
+  }, [user?.id, loadChannels]);
 
   useEffect(() => {
     if (currentChannel) {
+      console.log('🔄 Channel changed, loading messages:', currentChannel.name);
       loadMessages();
     }
   }, [currentChannel, loadMessages]);

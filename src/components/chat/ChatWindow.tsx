@@ -16,7 +16,7 @@ type WindowState = 'normal' | 'minimized' | 'maximized';
 
 export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const [windowState, setWindowState] = useState<WindowState>('maximized');
-  const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [size, setSize] = useState({ width: 800, height: 600 });
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -26,22 +26,13 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const windowRef = useRef<HTMLDivElement>(null);
   const chat = useChat();
 
-  // Initialize position and responsive size
+  // Initialize position and responsive size - Always start maximized
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const isMobile = window.innerWidth <= 768;
-      
-      if (isMobile) {
-        // Mobile: always maximized (full screen)
-        setWindowState('maximized');
-        setSize({ width: window.innerWidth, height: window.innerHeight });
-        setPosition({ x: 0, y: 0 });
-      } else {
-        // Desktop: start maximized, but allow normal state
-        setWindowState('maximized');
-        setSize({ width: window.innerWidth, height: window.innerHeight });
-        setPosition({ x: 0, y: 0 });
-      }
+      // Always start maximized for both mobile and desktop
+      setWindowState('maximized');
+      setSize({ width: window.innerWidth, height: window.innerHeight });
+      setPosition({ x: 0, y: 0 });
     }
   }, [isOpen]);
 
@@ -168,16 +159,13 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
 
   console.log('✅ ChatWindow rendering:', { isOpen, hasSubUsers: chat.hasSubUsers, isInitialized: chat.isInitialized });
 
-  const content = !chat.isInitialized ? (
+  const content = !chat.hasSubUsers ? (
+    <div className="flex h-full items-center justify-center text-sm text-muted-foreground p-4">
+      Chat is available once you add at least one sub-user.
+    </div>
+  ) : !chat.isInitialized ? (
     <div className="flex h-full items-center justify-center">
       <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
-    </div>
-  ) : !chat.hasSubUsers ? (
-    <div className="flex h-full items-center justify-center text-sm text-muted-foreground p-4">
-      <div className="text-center">
-        <p className="mb-2">Chat is available once you add at least one sub-user.</p>
-        <p className="text-xs">Debug: hasSubUsers={String(chat.hasSubUsers)}, isInitialized={String(chat.isInitialized)}</p>
-      </div>
     </div>
   ) : (
     <div className="flex h-full">

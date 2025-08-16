@@ -21,11 +21,13 @@ export const ChatArea = () => {
       {/* Channel Header */}
       <div className="flex items-center justify-between p-4 border-b border-border bg-background/50">
         <div className="flex items-center gap-2">
-          <span className="text-lg">💬</span>
-          <h2 className="font-semibold">general</h2>
-          <div className="flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 rounded-full text-xs">
-            Default
-          </div>
+          <span className="text-lg">{currentChannel?.emoji || '💬'}</span>
+          <h2 className="font-semibold">{currentChannel?.name || 'general'}</h2>
+          {currentChannel?.is_default && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 rounded-full text-xs">
+              Default
+            </div>
+          )}
         </div>
         
         <div className="flex items-center gap-1">
@@ -65,22 +67,29 @@ export const ChatArea = () => {
             ) : (
               <div className="space-y-4">
                 {messages.map((message) => (
-                  <div key={message.id} className="flex flex-col space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-xs font-medium text-primary">
-                          {message.sender_name?.charAt(0).toUpperCase() || 'U'}
-                        </span>
-                      </div>
-                      <span className="text-sm font-medium text-foreground">
-                        {message.sender_name || 'Unknown User'}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(message.created_at).toLocaleTimeString()}
+                  <div key={message.id} className="flex gap-3 group hover:bg-muted/30 -mx-4 px-4 py-2 rounded-lg transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs font-medium text-primary">
+                        {message.sender_name?.charAt(0).toUpperCase() || 'U'}
                       </span>
                     </div>
-                    <div className="ml-10">
-                      <p className="text-sm text-foreground">{message.content}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline gap-2 mb-1">
+                        <span className="text-sm font-medium text-foreground">
+                          {message.sender_name || 'Unknown User'}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(message.created_at).toLocaleTimeString()}
+                        </span>
+                        {message.sender_type === 'admin' && (
+                          <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                            Admin
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-foreground leading-relaxed">
+                        {message.content}
+                      </div>
                     </div>
                   </div>
                 ))}
