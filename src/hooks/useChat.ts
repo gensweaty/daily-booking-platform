@@ -78,8 +78,11 @@ export const useChat = () => {
   const checkSubUsers = useCallback(async () => {
     if (!user) {
       setHasSubUsers(false);
+      console.log('🔍 No user, setting hasSubUsers to false');
       return;
     }
+    
+    console.log('🔍 Checking sub-users for user:', user.id);
     
     try {
       const { data, error } = await supabase
@@ -87,12 +90,15 @@ export const useChat = () => {
         .select('*')
         .eq('board_owner_id', user.id);
 
+      console.log('🔍 Sub-users query result:', { data, error });
+
       if (error) throw error;
       
       setSubUsers(data || []);
       setHasSubUsers((data || []).length > 0);
+      console.log('🔍 Set hasSubUsers to:', (data || []).length > 0);
     } catch (error) {
-      console.error('Error checking sub users:', error);
+      console.error('❌ Error checking sub users:', error);
       setHasSubUsers(false);
     }
   }, [user]);
@@ -100,6 +106,8 @@ export const useChat = () => {
   // Load channels for current user
   const loadChannels = useCallback(async () => {
     if (!user || !hasSubUsers) return;
+
+    console.log('🔍 Loading channels for user:', user.id, 'hasSubUsers:', hasSubUsers);
 
     try {
       const { data, error } = await supabase
@@ -109,7 +117,12 @@ export const useChat = () => {
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      console.log('🔍 Channels query result:', { data, error });
+
+      if (error) {
+        console.error('❌ Error loading channels:', error);
+        throw error;
+      }
       
       setChannels(data || []);
       
@@ -117,9 +130,10 @@ export const useChat = () => {
       if (!currentChannel && data && data.length > 0) {
         const defaultChannel = data.find(c => c.is_default) || data[0];
         setCurrentChannel(defaultChannel);
+        console.log('🔍 Set default channel:', defaultChannel);
       }
     } catch (error) {
-      console.error('Error loading channels:', error);
+      console.error('❌ Error loading channels:', error);
       toast({
         title: "Error",
         description: "Failed to load chat channels",
