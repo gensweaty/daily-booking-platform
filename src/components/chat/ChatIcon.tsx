@@ -9,10 +9,17 @@ interface ChatIconProps {
 }
 
 export const ChatIcon = ({ onClick, isOpen, unreadCount = 0 }: ChatIconProps) => {
+  console.log('🎯 ChatIcon rendering:', { isOpen, unreadCount });
+  
   return (
     <div className="fixed bottom-6 right-6 z-50">
       <Button
-        onClick={onClick}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🖱️ ChatIcon clicked!');
+          onClick();
+        }}
         size="lg"
         className={`
           relative h-14 w-14 rounded-full shadow-lg transition-all duration-200 

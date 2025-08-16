@@ -13,6 +13,7 @@ import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
 import { checkSubscriptionStatus } from "@/utils/optimizedStripeUtils";
 import { CommentNotificationsListener } from "@/components/notifications/CommentNotificationsListener"
+import { ChatProvider } from "@/components/chat/ChatProvider"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -187,6 +188,8 @@ const Index = () => {
           </motion.div>
           {/* Global comment notifications for authenticated users */}
           <CommentNotificationsListener />
+          {/* Chat system for users with sub-users */}
+          <ChatProvider />
         </motion.div>
       ) : (
         <>

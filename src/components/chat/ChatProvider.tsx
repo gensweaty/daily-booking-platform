@@ -62,6 +62,12 @@ export const ChatProvider = () => {
     setIsChatOpen(!isChatOpen);
   };
 
+  console.log('🎯 ChatProvider rendering components:', { 
+    showingIcon: true, 
+    iconProps: { isOpen: isChatOpen, unreadCount: 0 },
+    windowProps: { isOpen: isChatOpen }
+  });
+
   return (
     <>
       <ChatIcon
@@ -72,7 +78,10 @@ export const ChatProvider = () => {
       
       <ChatWindow
         isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
+        onClose={() => {
+          console.log('🔒 Closing chat window');
+          setIsChatOpen(false);
+        }}
       />
     </>
   );

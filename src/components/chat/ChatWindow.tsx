@@ -110,7 +110,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     return null;
   }
 
-  console.log('💬 ChatWindow rendering successfully');
+  console.log('✅ ChatWindow rendering successfully:', { isOpen, hasSubUsers: chat.hasSubUsers, isInitialized: chat.isInitialized });
 
   const getWindowStyle = () => {
     switch (windowState) {
