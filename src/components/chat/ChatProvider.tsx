@@ -6,6 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ChatIcon } from "./ChatIcon";
 import { ChatWindow } from "./ChatWindow";
 
+type Identity = { id: string; name: string; avatarUrl?: string; type: 'admin'|'sub_user' };
+
 type ChatCtx = {
   isOpen: boolean;
   open: () => void;
@@ -13,6 +15,7 @@ type ChatCtx = {
   toggle: () => void;
   isInitialized: boolean;
   hasSubUsers: boolean;
+  me: Identity | null;
 };
 
 const ChatContext = createContext<ChatCtx | null>(null);
@@ -27,23 +30,9 @@ export const ChatProvider: React.FC = () => {
   const { user } = useAuth();
   const location = useLocation();
   
-  // Only show chat on dashboard routes (authenticated user areas)
-  const isDashboardRoute = useMemo(() => {
-    const path = location.pathname;
-    console.log('🎯 Checking dashboard route:', { path, userId: user?.id });
-    // Show ONLY on internal dashboard and external board pages
-    // NOT on main page (/), login, register, or other public pages
-    return user?.id && (
-           path === '/dashboard' || 
-           path.startsWith('/board/') || 
-           path.startsWith('/admin') || 
-           path === '/tasks' || 
-           path === '/calendar' || 
-           path === '/crm' || 
-           path === '/statistics' ||
-           path === '/business'
-    );
-  }, [location.pathname, user?.id]);
+  // ONLY allow on: internal dashboard and external board
+  const isChatPage = /^\/dashboard(\/.*)?$/.test(location.pathname)
+    || /^\/board\/[^/]+$/.test(location.pathname);
 
   // UI state
   const [isOpen, setIsOpen] = useState<boolean>(() => {
@@ -53,6 +42,7 @@ export const ChatProvider: React.FC = () => {
   });
   const [isInitialized, setIsInitialized] = useState(false);
   const [hasSubUsers, setHasSubUsers] = useState(false);
+  const [me, setMe] = useState<Identity | null>(null);
 
   // Make one portal root for chat
   const portalRef = useRef<HTMLElement | null>(null);
@@ -126,7 +116,7 @@ export const ChatProvider: React.FC = () => {
         if (active) {
           setHasSubUsers(has);
           setIsInitialized(true);
-          console.log("✅ Chat init:", { userId: user.id, hasSubUsers: has, isDashboard: isDashboardRoute });
+          console.log("✅ Chat init:", { userId: user.id, hasSubUsers: has, isChatPage });
         }
       } catch (e) {
         console.log("⚠️ Chat init error:", e);
@@ -140,7 +130,44 @@ export const ChatProvider: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [user?.id, isDashboardRoute]);
+  }, [user?.id, isChatPage]);
+
+  // Identity resolution
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!user?.id) { setMe(null); return; }
+
+      // Try sub-user record first
+      const { data: su } = await supabase
+        .from('sub_users')
+        .select('id, fullname, avatar_url')
+        .eq('board_owner_id', user.id)
+        .maybeSingle();
+
+      if (active && su) {
+        setMe({ id: su.id, name: su.fullname || 'Member', avatarUrl: su.avatar_url || '', type: 'sub_user' });
+        return;
+      }
+
+      // Fallback to admin profile
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (active && prof) {
+        setMe({
+          id: prof.id,
+          name: prof.username || 'Admin',
+          avatarUrl: prof.avatar_url || '',
+          type: 'admin'
+        });
+      }
+    })();
+    return () => { active = false; };
+  }, [user?.id]);
 
   // Expose a global debug toggle to verify clicks quickly
   useEffect(() => {
@@ -151,18 +178,22 @@ export const ChatProvider: React.FC = () => {
   }, [toggle]);
 
   const value = useMemo<ChatCtx>(() => ({
-    isOpen, open, close, toggle, isInitialized, hasSubUsers
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers]);
+    isOpen, open, close, toggle, isInitialized, hasSubUsers, me
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me]);
 
-  // Gate: only show icon if we have user AND sub-users AND we've finished init AND we're on a dashboard route
-  const shouldShowIcon = isInitialized && user?.id && hasSubUsers && isDashboardRoute;
+  // before returning the portal, short-circuit:
+  if (!isChatPage) {
+    return null;            // hides icon/window on login, landing, etc.
+  }
+
+  // before: only checked hasSubUsers
+  if (!hasSubUsers || !isChatPage) return null;
 
   console.log('🔍 ChatProvider render:', { 
-    shouldShowIcon, 
+    hasSubUsers, 
     isInitialized, 
     hasUser: !!user?.id, 
-    hasSubUsers, 
-    isDashboardRoute,
+    isChatPage,
     path: location.pathname 
   });
 
@@ -174,7 +205,7 @@ export const ChatProvider: React.FC = () => {
       {createPortal(
         <>
           {/* The icon must be pointer-events enabled inside a pointer-events:none root */}
-          {shouldShowIcon && (
+          {isInitialized && (
             <div style={{ pointerEvents: "auto" }}>
               <ChatIcon onClick={toggle} isOpen={isOpen} unreadCount={0} />
             </div>

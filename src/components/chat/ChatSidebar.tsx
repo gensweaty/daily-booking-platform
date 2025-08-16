@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useChat } from './ChatProvider';
 
 export const ChatSidebar = () => {
-  const chat = useChat();
+  const { me } = useChat();
 
   const getInitials = (name: string) => {
     return name
@@ -18,8 +18,11 @@ export const ChatSidebar = () => {
       .slice(0, 2);
   };
 
+  const initials = (me?.name || 'U')
+    .split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+
   return (
-    <div className="w-64 bg-muted/30 border-r border-border flex flex-col">
+    <div className="min-w-[220px] max-w-[260px] bg-muted/30 border-r border-border flex flex-col">
       {/* Workspace Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-2">
@@ -111,15 +114,14 @@ export const ChatSidebar = () => {
       <div className="p-3 border-t border-border">
         <div className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
-            <AvatarFallback className="text-xs">
-              AD
-            </AvatarFallback>
+            {me?.avatarUrl ? <AvatarImage src={me.avatarUrl} /> : null}
+            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">
-              Admin
+              {me?.name || 'User'}
             </p>
-            <p className="text-xs text-muted-foreground">Online</p>
+            <p className="text-xs text-muted-foreground">{me?.type === 'admin' ? 'Admin' : 'Member'}</p>
           </div>
           <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
             <Settings className="h-3 w-3" />

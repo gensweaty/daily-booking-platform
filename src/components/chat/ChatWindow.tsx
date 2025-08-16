@@ -15,8 +15,8 @@ interface ChatWindowProps {
 type WindowState = 'normal' | 'minimized' | 'maximized';
 
 export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
-  const [windowState, setWindowState] = useState<WindowState>('maximized');
-  const [size, setSize] = useState({ width: 800, height: 600 });
+  const [windowState, setWindowState] = useState<WindowState>('normal');
+  const [size, setSize] = useState({ width: 520, height: 560 }); // compact, fits laptops
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -26,13 +26,21 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const windowRef = useRef<HTMLDivElement>(null);
   const chat = useChat();
 
-  // Initialize position and responsive size - Always start maximized
+  // set sensible defaults per viewport
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Always start maximized for both mobile and desktop
+    if (typeof window === 'undefined') return;
+
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
       setWindowState('maximized');
       setSize({ width: window.innerWidth, height: window.innerHeight });
       setPosition({ x: 0, y: 0 });
+    } else {
+      // bottom-right compact
+      const w = Math.min(560, Math.round(window.innerWidth * 0.38));
+      const h = Math.min(640, Math.round(window.innerHeight * 0.7));
+      setSize({ width: w, height: h });
+      setPosition({ x: window.innerWidth - w - 24, y: window.innerHeight - h - 24 });
     }
   }, [isOpen]);
 
@@ -218,12 +226,20 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       ref={windowRef}
       className={cn(
         "fixed z-[9998] overflow-hidden shadow-2xl border-border bg-background transition-all duration-200",
-        windowState === 'maximized' ? 'rounded-none' : 'rounded-lg',
-        isDragging ? 'cursor-grabbing' : 'cursor-auto',
-        // Mobile responsive classes
-        "md:min-w-[400px] min-w-[300px]"
+        windowState === 'maximized' ? 'rounded-none' : 'rounded-xl'
       )}
-      style={{ ...getWindowStyle(), zIndex: 9998 }}
+      style={{
+        ...(windowState === 'maximized'
+          ? { inset: 0, width: '100vw', height: '100vh' }
+          : {
+              width: typeof window !== 'undefined' ? Math.min(size.width, window.innerWidth - 12) : size.width,
+              height: typeof window !== 'undefined' ? Math.min(size.height, window.innerHeight - 12) : size.height,
+              transform: `translate(${Math.max(0, position.x)}px, ${Math.max(0, position.y)}px)`,
+              maxWidth: '96vw',
+              maxHeight: '94vh'
+            }),
+        zIndex: 9998
+      }}
     >
       {/* Title Bar */}
       <div
