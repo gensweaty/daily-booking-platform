@@ -13,12 +13,13 @@ type Message = {
   sender_user_id: string;
   sender_type: 'admin' | 'sub_user';
   sender_name?: string;
+  sender_avatar_url?: string;
   channel_id: string;
 };
 
 export const ChatArea = () => {
   const { user } = useAuth();
-  const { me } = useChat();
+  const { me, currentChannelId } = useChat();
   const [channelId, setChannelId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [sending, setSending] = useState(false);
@@ -56,36 +57,39 @@ export const ChatArea = () => {
     return () => { active = false; };
   }, [user?.id]);
 
+  // Use currentChannelId from context if set, otherwise default channel
+  const activeChannelId = currentChannelId || channelId;
+
   // 2) load messages
   useEffect(() => {
     let active = true;
     (async () => {
-      if (!channelId) return;
+      if (!activeChannelId) return;
       const { data } = await supabase
         .from('chat_messages')
-        .select('id, content, created_at, sender_user_id, sender_type, channel_id')
-        .eq('channel_id', channelId)
+        .select('id, content, created_at, sender_user_id, sender_type, sender_name, sender_avatar_url, channel_id')
+        .eq('channel_id', activeChannelId)
         .order('created_at', { ascending: true });
 
       if (active && data) setMessages(data as Message[]);
     })();
     return () => { active = false; };
-  }, [channelId]);
+  }, [activeChannelId]);
 
   // 3) realtime subscription
   useEffect(() => {
-    if (!channelId) return;
+    if (!activeChannelId) return;
     const ch = supabase
-      .channel(`chat:${channelId}`)
+      .channel(`chat:${activeChannelId}`)
       .on('postgres_changes',
-        { schema: 'public', table: 'chat_messages', event: 'INSERT', filter: `channel_id=eq.${channelId}` },
+        { schema: 'public', table: 'chat_messages', event: 'INSERT', filter: `channel_id=eq.${activeChannelId}` },
         (payload) => {
           setMessages((prev) => [...prev, payload.new as Message]);
         })
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };
-  }, [channelId]);
+  }, [activeChannelId]);
 
   // 4) auto-scroll on new messages
   useEffect(() => {
@@ -94,14 +98,16 @@ export const ChatArea = () => {
 
   // 5) send message
   const send = async () => {
-    if (!draft.trim() || !channelId || !me?.id) return;
+    if (!draft.trim() || !activeChannelId || !me?.id) return;
     setSending(true);
     try {
       await supabase.from('chat_messages').insert({
         content: draft.trim(),
-        channel_id: channelId,
+        channel_id: activeChannelId,
         sender_user_id: me.id,
         sender_type: me.type,
+        sender_name: me.name,
+        sender_avatar_url: me.avatarUrl || null
       });
       setDraft('');
     } finally {
@@ -138,7 +144,7 @@ export const ChatArea = () => {
             messages.map((m) => (
               <div key={m.id} className="flex flex-col gap-1">
                 <div className="text-xs text-muted-foreground">
-                  {m.sender_type === 'admin' ? 'Admin' : 'Member'} • {new Date(m.created_at).toLocaleTimeString()}
+                  {m.sender_name} • {new Date(m.created_at).toLocaleTimeString()}
                 </div>
                 <div className="text-sm leading-normal whitespace-pre-wrap break-words">{m.content}</div>
               </div>

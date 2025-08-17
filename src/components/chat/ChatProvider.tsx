@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ChatIcon } from "./ChatIcon";
 import { ChatWindow } from "./ChatWindow";
 
-type Identity = { id: string; name: string; avatarUrl?: string; type: 'admin'|'sub_user' };
+type Me = { id: string; type: "admin" | "sub_user"; name: string; avatarUrl?: string };
 
 type ChatCtx = {
   isOpen: boolean;
@@ -15,7 +15,12 @@ type ChatCtx = {
   toggle: () => void;
   isInitialized: boolean;
   hasSubUsers: boolean;
-  me: Identity | null;
+  me: Me | null;
+  currentChannelId: string | null;
+  setCurrentChannelId: (id: string | null) => void;
+  openChannel: (id: string) => void;
+  startDM: (otherId: string, otherType: "admin" | "sub_user") => void;
+  unreadTotal: number;
 };
 
 const ChatContext = createContext<ChatCtx | null>(null);
@@ -30,9 +35,17 @@ export const ChatProvider: React.FC = () => {
   const { user } = useAuth();
   const location = useLocation();
   
-  // ONLY allow on: internal dashboard and external board
-  const isChatPage = /^\/dashboard(\/.*)?$/.test(location.pathname)
-    || /^\/board\/[^/]+$/.test(location.pathname);
+  // Only show chat on dashboard routes (authenticated areas)
+  const isDashboardRoute = useMemo(() => {
+    const p = location.pathname || "";
+    const ok =
+      !!user?.id &&
+      (p === "/dashboard" ||
+       p.startsWith("/dashboard/") ||
+       p.startsWith("/board/"));
+    console.log("🎯 Chat route gate", { path: p, ok, user: !!user?.id });
+    return ok;
+  }, [location.pathname, user?.id]);
 
   // UI state
   const [isOpen, setIsOpen] = useState<boolean>(() => {
@@ -42,7 +55,9 @@ export const ChatProvider: React.FC = () => {
   });
   const [isInitialized, setIsInitialized] = useState(false);
   const [hasSubUsers, setHasSubUsers] = useState(false);
-  const [me, setMe] = useState<Identity | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
+  const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
+  const [unreadTotal, setUnreadTotal] = useState(0);
 
   // Make one portal root for chat
   const portalRef = useRef<HTMLElement | null>(null);
@@ -116,7 +131,7 @@ export const ChatProvider: React.FC = () => {
         if (active) {
           setHasSubUsers(has);
           setIsInitialized(true);
-          console.log("✅ Chat init:", { userId: user.id, hasSubUsers: has, isChatPage });
+          console.log("✅ Chat init:", { userId: user.id, hasSubUsers: has, isDashboardRoute });
         }
       } catch (e) {
         console.log("⚠️ Chat init error:", e);
@@ -130,44 +145,99 @@ export const ChatProvider: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [user?.id, isChatPage]);
+  }, [user?.id, isDashboardRoute]);
 
-  // Identity resolution
+  // Identity resolution with correct schema mapping
   useEffect(() => {
     let active = true;
     (async () => {
-      if (!user?.id) { setMe(null); return; }
+      if (!user?.id) { if (active) setMe(null); return; }
 
-      // Try sub-user record first (if your schema names differ, update the column names only)
+      // try sub_users first (sub user logged into external board)
       const { data: su } = await supabase
-        .from('sub_users')
-        .select('id, fullname, avatar_url')
-        .eq('board_owner_id', user.id)
+        .from("sub_users")
+        .select("id, fullname, avatar_url")
+        .eq("board_owner_id", user.id) // adjust if your sub_users links to auth user by another column
         .maybeSingle();
 
       if (active && su) {
-        setMe({ id: su.id, name: su.fullname || 'Member', avatarUrl: su.avatar_url || '', type: 'sub_user' });
+        setMe({ id: su.id, type: "sub_user", name: su.fullname || "Member", avatarUrl: su.avatar_url || "" });
         return;
       }
 
-      // Fallback to admin profile
+      // fall back to profiles (admin)
       const { data: prof } = await supabase
-        .from('profiles')
-        .select('id, username, avatar_url')
-        .eq('id', user.id)
+        .from("profiles")
+        .select("id, username, avatar_url")
+        .eq("id", user.id)
         .maybeSingle();
 
       if (active && prof) {
-        setMe({
-          id: prof.id,
-          name: prof.username || 'Admin',
-          avatarUrl: prof.avatar_url || '',
-          type: 'admin'
-        });
+        setMe({ id: prof.id, type: "admin", name: prof.username || "Admin", avatarUrl: prof.avatar_url || "" });
       }
     })();
     return () => { active = false; };
   }, [user?.id]);
+
+  // Channel and DM management
+  const openChannel = useCallback((id: string) => {
+    setCurrentChannelId(id);
+    // TODO: mark channel read when RPC is implemented
+  }, []);
+
+  const startDM = useCallback(async (otherId: string, otherType: "admin" | "sub_user") => {
+    if (!me) return;
+    // find-or-create a 1:1 channel between me and other user
+    const { data: existing } = await supabase
+      .from("chat_channels")
+      .select("id")
+      .eq("is_dm", true)
+      .contains("participants", [me.id, otherId])
+      .maybeSingle();
+
+    const channelId = existing?.id ?? (await supabase
+      .from("chat_channels")
+      .insert({
+        is_dm: true,
+        participants: [me.id, otherId],
+        name: null,
+        owner_id: me.type === 'admin' ? me.id : user?.id // use board owner for DMs
+      })
+      .select("id").single()).data.id;
+
+    openChannel(channelId);
+  }, [me, openChannel, user?.id]);
+
+  // Unread tracking and notifications
+  useEffect(() => {
+    if (!me) return;
+    const ch = supabase
+      .channel("chat_unread_listener")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
+        const msg = payload.new as any;
+        const isMine = (msg.sender_user_id === me.id && msg.sender_type === me.type);
+        const isActive = msg.channel_id === currentChannelId;
+        if (!isMine && !isActive) setUnreadTotal((n) => n + 1);
+
+        // Browser notification
+        if (!isMine && document.hidden) {
+          if (Notification.permission === "granted") {
+            new Notification(msg.sender_name || "New message", { body: msg.content.slice(0, 120) });
+          }
+        }
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [me?.id, me?.type, currentChannelId]);
+
+  // Ask permission once
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
 
   // Expose a global debug toggle to verify clicks quickly
   useEffect(() => {
@@ -178,23 +248,24 @@ export const ChatProvider: React.FC = () => {
   }, [toggle]);
 
   const value = useMemo<ChatCtx>(() => ({
-    isOpen, open, close, toggle, isInitialized, hasSubUsers, me
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me]);
+    isOpen, open, close, toggle, isInitialized, hasSubUsers, me,
+    currentChannelId, setCurrentChannelId, openChannel, startDM, unreadTotal
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal]);
 
   // before returning the portal, short-circuit:
-  if (!isChatPage) {
+  if (!isDashboardRoute) {
     return null;            // hides icon/window on login, landing, etc.
   }
 
   // before: only checked hasSubUsers
-  if (!hasSubUsers || !isChatPage) return null;
+  if (!hasSubUsers || !isDashboardRoute) return null;
 
   console.log('🔍 ChatProvider render:', { 
     hasSubUsers, 
     isInitialized, 
     hasUser: !!user?.id, 
-    isChatPage,
-    path: location.pathname 
+    isDashboardRoute,
+    path: location.pathname
   });
 
   // Nothing to render until portal root is ready
@@ -207,7 +278,7 @@ export const ChatProvider: React.FC = () => {
           {/* The icon must be pointer-events enabled inside a pointer-events:none root */}
           {isInitialized && (
             <div style={{ pointerEvents: "auto" }}>
-              <ChatIcon onClick={toggle} isOpen={isOpen} unreadCount={0} />
+              <ChatIcon onClick={toggle} isOpen={isOpen} unreadCount={unreadTotal} />
             </div>
           )}
 

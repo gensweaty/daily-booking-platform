@@ -219,9 +219,11 @@ export type Database = {
           emoji: string | null
           id: string
           is_default: boolean | null
+          is_dm: boolean | null
           is_private: boolean | null
           name: string
           owner_id: string
+          participants: Json | null
           updated_at: string | null
         }
         Insert: {
@@ -229,9 +231,11 @@ export type Database = {
           emoji?: string | null
           id?: string
           is_default?: boolean | null
+          is_dm?: boolean | null
           is_private?: boolean | null
           name: string
           owner_id: string
+          participants?: Json | null
           updated_at?: string | null
         }
         Update: {
@@ -239,9 +243,11 @@ export type Database = {
           emoji?: string | null
           id?: string
           is_default?: boolean | null
+          is_dm?: boolean | null
           is_private?: boolean | null
           name?: string
           owner_id?: string
+          participants?: Json | null
           updated_at?: string | null
         }
         Relationships: []
@@ -336,6 +342,8 @@ export type Database = {
           created_at: string | null
           id: string
           reply_to_id: string | null
+          sender_avatar_url: string | null
+          sender_name: string | null
           sender_sub_user_id: string | null
           sender_type: string
           sender_user_id: string | null
@@ -347,6 +355,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           reply_to_id?: string | null
+          sender_avatar_url?: string | null
+          sender_name?: string | null
           sender_sub_user_id?: string | null
           sender_type: string
           sender_user_id?: string | null
@@ -358,6 +368,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           reply_to_id?: string | null
+          sender_avatar_url?: string | null
+          sender_name?: string | null
           sender_sub_user_id?: string | null
           sender_type?: string
           sender_user_id?: string | null

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Minus, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Minus, Maximize2, Minimize2, PanelLeft, PanelRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const [windowState, setWindowState] = useState<'normal'|'minimized'|'maximized'>('normal');
   const [size, setSize] = useState({ width: 520, height: 560 }); // compact, fits laptops
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 768 : true);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -177,8 +178,22 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     </div>
   ) : (
     <div className="flex h-full">
-      <ChatSidebar />
-      <ChatArea />
+      {/* Sidebar: visible on desktop, slide-over on mobile */}
+      <div
+        className={cn(
+          "h-full bg-muted/30 border-r border-border",
+          "sm:static sm:translate-x-0 sm:w-64",
+          "fixed top-0 bottom-0 left-0 w-[80vw] max-w-[320px] z-[10000] transition-transform",
+          showSidebar ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <ChatSidebar />
+      </div>
+
+      {/* Messages take remaining space */}
+      <div className="flex-1 min-w-0">
+        <ChatArea />
+      </div>
     </div>
   );
 
@@ -258,6 +273,17 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
         </div>
         
         <div className="flex items-center gap-1">
+          {/* Sidebar Toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowSidebar((v) => !v)}
+            className="h-6 w-6 p-0 hover:bg-muted sm:inline-flex inline-flex"
+            title={showSidebar ? "Hide sidebar" : "Show sidebar"}
+          >
+            {showSidebar ? <PanelRight className="h-3 w-3" /> : <PanelLeft className="h-3 w-3" />}
+          </Button>
+          
           {/* Hide minimize button on mobile */}
           {typeof window !== 'undefined' && window.innerWidth > 768 && (
             <Button
