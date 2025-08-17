@@ -76,19 +76,28 @@ export const ChatArea = () => {
     return () => { active = false; };
   }, [activeChannelId]);
 
-  // 3) realtime subscription
+  // 3) realtime subscription with full event handling
   useEffect(() => {
     if (!activeChannelId) return;
+
     const ch = supabase
       .channel(`chat:${activeChannelId}`)
-      .on('postgres_changes',
-        { schema: 'public', table: 'chat_messages', event: 'INSERT', filter: `channel_id=eq.${activeChannelId}` },
+      .on(
+        'postgres_changes',
+        { schema: 'public', table: 'chat_messages', event: '*', filter: `channel_id=eq.${activeChannelId}` },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message]);
-        })
-      .subscribe();
+          if (payload.eventType === 'INSERT') {
+            setMessages(prev => [...prev, payload.new as Message]);
+          } else if (payload.eventType === 'UPDATE') {
+            setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new as Message : m));
+          } else if (payload.eventType === 'DELETE') {
+            setMessages(prev => prev.filter(m => m.id !== (payload.old as any).id));
+          }
+        }
+      )
+      .subscribe((status) => console.log('[realtime] chat_messages:', status));
 
-    return () => { supabase.removeChannel(ch); };
+    return () => supabase.removeChannel(ch);
   }, [activeChannelId]);
 
   // 4) auto-scroll on new messages
@@ -142,11 +151,21 @@ export const ChatArea = () => {
             </div>
           ) : (
             messages.map((m) => (
-              <div key={m.id} className="flex flex-col gap-1">
-                <div className="text-xs text-muted-foreground">
-                  {m.sender_name} • {new Date(m.created_at).toLocaleTimeString()}
+              <div key={m.id} className="flex gap-2 py-2">
+                <img 
+                  src={m.sender_avatar_url || ''} 
+                  className="h-8 w-8 rounded-full object-cover bg-muted" 
+                  alt=""
+                />
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">
+                    {m.sender_name}
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {new Date(m.created_at).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <div className="text-sm break-words">{m.content}</div>
                 </div>
-                <div className="text-sm leading-normal whitespace-pre-wrap break-words">{m.content}</div>
               </div>
             ))
           )}

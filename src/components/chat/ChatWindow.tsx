@@ -18,7 +18,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const [windowState, setWindowState] = useState<'normal'|'minimized'|'maximized'>('normal');
   const [size, setSize] = useState({ width: 520, height: 560 }); // compact, fits laptops
   const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 768 : true);
+  const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 768 : false);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -182,13 +182,25 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       <div
         className={cn(
           "h-full bg-muted/30 border-r border-border",
-          "sm:static sm:translate-x-0 sm:w-64",
-          "fixed top-0 bottom-0 left-0 w-[80vw] max-w-[320px] z-[10000] transition-transform",
+          "sm:static sm:translate-x-0 sm:w-14",
+          "fixed top-0 bottom-0 left-0 w-14 z-[10000] transition-transform",
           showSidebar ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <ChatSidebar />
       </div>
+      
+      {/* Mobile: floating button to open sidebar */}
+      {typeof window !== 'undefined' && window.innerWidth <= 768 && !showSidebar && (
+        <Button
+          className="absolute top-2 left-2 z-[10001]"
+          size="icon"
+          variant="secondary"
+          onClick={() => setShowSidebar(true)}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      )}
 
       {/* Messages take remaining space */}
       <div className="flex-1 min-w-0">
@@ -284,33 +296,28 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
             {showSidebar ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
           </Button>
           
-          {/* Hide minimize button on mobile */}
-          {typeof window !== 'undefined' && window.innerWidth > 768 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleMinimize}
-              className="h-6 w-6 p-0 hover:bg-muted"
-            >
-              <Minus className="h-3 w-3" />
-            </Button>
-          )}
+          {/* Window controls - always visible */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleMinimize}
+            className="h-6 w-6 p-0 hover:bg-muted"
+          >
+            <Minus className="h-3 w-3" />
+          </Button>
           
-          {/* Hide maximize/minimize button on mobile as it should always be fullscreen */}
-          {typeof window !== 'undefined' && window.innerWidth > 768 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleMaximize}
-              className="h-6 w-6 p-0 hover:bg-muted"
-            >
-              {windowState === 'maximized' ? (
-                <Minimize2 className="h-3 w-3" />
-              ) : (
-                <Maximize2 className="h-3 w-3" />
-              )}
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleMaximize}
+            className="h-6 w-6 p-0 hover:bg-muted"
+          >
+            {windowState === 'maximized' ? (
+              <Minimize2 className="h-3 w-3" />
+            ) : (
+              <Maximize2 className="h-3 w-3" />
+            )}
+          </Button>
           
           <Button
             variant="ghost"

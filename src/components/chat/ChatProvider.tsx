@@ -68,7 +68,7 @@ export const ChatProvider: React.FC = () => {
       node.id = "chat-root";
       node.style.position = "fixed";
       node.style.inset = "0";
-      node.style.pointerEvents = "none"; // let floating controls opt-in
+      node.style.pointerEvents = "auto"; // allow all interactions
       node.style.zIndex = "2147483647";  // max z
       document.body.appendChild(node);
     }
