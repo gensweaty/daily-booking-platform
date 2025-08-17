@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Minus, Maximize2, Minimize2, PanelLeft, PanelRight } from 'lucide-react';
+import { X, Minus, Maximize2, Minimize2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -281,7 +281,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
             className="h-6 w-6 p-0 hover:bg-muted sm:inline-flex inline-flex"
             title={showSidebar ? "Hide sidebar" : "Show sidebar"}
           >
-            {showSidebar ? <PanelRight className="h-3 w-3" /> : <PanelLeft className="h-3 w-3" />}
+            {showSidebar ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
           </Button>
           
           {/* Hide minimize button on mobile */}
