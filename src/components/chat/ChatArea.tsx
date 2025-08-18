@@ -94,8 +94,10 @@ export const ChatArea = () => {
             setMessages(prev => prev.filter(m => m.id !== (payload.old as any).id));
           }
         }
-      )
-      .subscribe();
+      );
+
+    // Subscribe and handle the promise separately
+    ch.subscribe();
 
     return () => {
       supabase.removeChannel(ch);
