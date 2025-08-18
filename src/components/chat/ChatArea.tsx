@@ -95,9 +95,11 @@ export const ChatArea = () => {
           }
         }
       )
-      .subscribe((status) => console.log('[realtime] chat_messages:', status));
+      .subscribe();
 
-    return () => supabase.removeChannel(ch);
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, [activeChannelId]);
 
   // 4) auto-scroll on new messages
