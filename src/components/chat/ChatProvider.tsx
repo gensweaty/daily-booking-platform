@@ -147,22 +147,30 @@ export const ChatProvider: React.FC = () => {
     };
   }, [user?.id, isDashboardRoute]);
 
-  // Identity resolution with correct schema mapping
+  // Identity resolution - handle both admin and sub-user contexts
   useEffect(() => {
     let active = true;
     (async () => {
       if (!user?.id) { if (active) setMe(null); return; }
 
-      // try sub_users first (sub user logged into external board)
-      const { data: su } = await supabase
-        .from("sub_users")
-        .select("id, fullname, avatar_url")
-        .eq("board_owner_id", user.id) // adjust if your sub_users links to auth user by another column
-        .maybeSingle();
+      // Check if this is a sub-user by looking for their email in sub_users table
+      const userEmail = user.email;
+      if (userEmail) {
+        const { data: subUser } = await supabase
+          .from("sub_users")
+          .select("id, fullname, avatar_url, board_owner_id")
+          .eq("email", userEmail.toLowerCase())
+          .maybeSingle();
 
-      if (active && su) {
-        setMe({ id: su.id, type: "sub_user", name: su.fullname || "Member", avatarUrl: su.avatar_url || "" });
-        return;
+        if (active && subUser) {
+          setMe({ 
+            id: subUser.id, 
+            type: "sub_user", 
+            name: subUser.fullname || "Member", 
+            avatarUrl: subUser.avatar_url || null 
+          });
+          return;
+        }
       }
 
       // fall back to profiles (admin)
@@ -173,11 +181,16 @@ export const ChatProvider: React.FC = () => {
         .maybeSingle();
 
       if (active && prof) {
-        setMe({ id: prof.id, type: "admin", name: prof.username || "Admin", avatarUrl: prof.avatar_url || "" });
+        setMe({ 
+          id: prof.id, 
+          type: "admin", 
+          name: prof.username || "Admin", 
+          avatarUrl: prof.avatar_url || null 
+        });
       }
     })();
     return () => { active = false; };
-  }, [user?.id]);
+  }, [user?.id, user?.email]);
 
   // Channel and DM management
   const openChannel = useCallback((id: string) => {
@@ -187,25 +200,57 @@ export const ChatProvider: React.FC = () => {
 
   const startDM = useCallback(async (otherId: string, otherType: "admin" | "sub_user") => {
     if (!me) return;
-    // find-or-create a 1:1 channel between me and other user
-    const { data: existing } = await supabase
-      .from("chat_channels")
-      .select("id")
-      .eq("is_dm", true)
-      .contains("participants", [me.id, otherId])
-      .maybeSingle();
+    
+    console.log('🚀 Starting DM with:', { otherId, otherType, me });
+    
+    try {
+      // Determine the board owner for the channel
+      let channelOwnerId = user?.id;
+      if (me.type === 'sub_user') {
+        // If current user is a sub-user, find their board owner
+        const { data: subUserData } = await supabase
+          .from('sub_users')
+          .select('board_owner_id')
+          .eq('id', me.id)
+          .maybeSingle();
+        
+        if (subUserData) {
+          channelOwnerId = subUserData.board_owner_id;
+        }
+      }
 
-    const channelId = existing?.id ?? (await supabase
-      .from("chat_channels")
-      .insert({
-        is_dm: true,
-        participants: [me.id, otherId],
-        name: null,
-        owner_id: me.type === 'admin' ? me.id : user?.id // use board owner for DMs
-      })
-      .select("id").single()).data.id;
+      // find-or-create a 1:1 channel between me and other user
+      const { data: existing } = await supabase
+        .from("chat_channels")
+        .select("id")
+        .eq("is_dm", true)
+        .eq("owner_id", channelOwnerId)
+        .contains("participants", [me.id, otherId])
+        .maybeSingle();
 
-    openChannel(channelId);
+      let channelId = existing?.id;
+      
+      if (!channelId) {
+        const { data: created } = await supabase
+          .from("chat_channels")
+          .insert({
+            is_dm: true,
+            participants: [me.id, otherId],
+            name: null,
+            owner_id: channelOwnerId
+          })
+          .select("id").single();
+        
+        channelId = created?.id;
+      }
+
+      if (channelId) {
+        console.log('✅ DM channel ready:', channelId);
+        openChannel(channelId);
+      }
+    } catch (error) {
+      console.error('❌ Failed to start DM:', error);
+    }
   }, [me, openChannel, user?.id]);
 
   // Unread tracking and notifications

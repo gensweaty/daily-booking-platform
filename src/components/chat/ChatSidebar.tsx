@@ -27,18 +27,33 @@ export const ChatSidebar = () => {
     })();
   }, [user?.id]);
 
-  // Load team members
+  // Load team members (determine correct board owner)
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || !me) return;
     
     (async () => {
       const teamMembers = [];
       
-      // Add admin (current user or board owner)
+      // Determine the board owner ID
+      let boardOwnerId = user.id;
+      if (me.type === 'sub_user') {
+        // If current user is a sub-user, find their board owner
+        const { data: subUserData } = await supabase
+          .from('sub_users')
+          .select('board_owner_id')
+          .eq('id', me.id)
+          .maybeSingle();
+        
+        if (subUserData) {
+          boardOwnerId = subUserData.board_owner_id;
+        }
+      }
+      
+      // Add admin (board owner)
       const { data: adminProfile } = await supabase
         .from('profiles')
         .select('id, username, avatar_url')
-        .eq('id', user.id)
+        .eq('id', boardOwnerId)
         .maybeSingle();
       
       if (adminProfile) {
@@ -46,28 +61,28 @@ export const ChatSidebar = () => {
           id: adminProfile.id,
           name: adminProfile.username || 'Admin',
           type: 'admin' as const,
-          avatarUrl: adminProfile.avatar_url || ''
+          avatarUrl: adminProfile.avatar_url || null
         });
       }
       
-      // Add sub-users
+      // Add sub-users for this board
       const { data: subUsers } = await supabase
         .from('sub_users')
         .select('id, fullname, avatar_url')
-        .eq('board_owner_id', user.id);
+        .eq('board_owner_id', boardOwnerId);
       
       if (subUsers) {
         teamMembers.push(...subUsers.map(su => ({
           id: su.id,
           name: su.fullname || 'Member',
           type: 'sub_user' as const,
-          avatarUrl: su.avatar_url || ''
+          avatarUrl: su.avatar_url || null
         })));
       }
       
       setMembers(teamMembers);
     })();
-  }, [user?.id]);
+  }, [user?.id, me]);
 
   return (
     <div className="h-full w-14 bg-muted/30 border-r border-border flex flex-col items-center py-2 gap-2">
@@ -104,10 +119,22 @@ export const ChatSidebar = () => {
             className="relative h-10 w-10 rounded-full hover:ring-2 ring-primary overflow-hidden bg-muted flex items-center justify-center text-xs font-medium"
             title={member.name}
           >
-            {member.avatarUrl ? (
-              <img src={member.avatarUrl} alt="" className="h-full w-full object-cover" />
+            {member.avatarUrl && member.avatarUrl.trim() ? (
+              <img 
+                src={member.avatarUrl} 
+                alt="" 
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  // Hide broken image and show initials instead
+                  e.currentTarget.style.display = 'none';
+                  const parent = e.currentTarget.parentElement;
+                  if (parent) {
+                    parent.innerHTML = `<span class="text-xs font-medium">${initials}</span>`;
+                  }
+                }}
+              />
             ) : (
-              <span>{initials}</span>
+              <span className="text-xs font-medium">{initials}</span>
             )}
           </button>
         );

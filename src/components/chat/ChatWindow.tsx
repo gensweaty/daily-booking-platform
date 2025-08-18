@@ -333,13 +333,17 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       {/* Chat Content */}
       {windowState !== 'minimized' && content}
 
-      {/* Resize Handle */}
+      {/* Resize Handle - Make it more visible */}
       {windowState === 'normal' && (
         <div
-          className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize bg-muted/50 hover:bg-muted"
+          className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize bg-muted hover:bg-border transition-colors z-50"
           onMouseDown={handleResizeStart}
+          style={{ pointerEvents: 'auto' }}
         >
-          <div className="absolute bottom-1 right-1 w-0 h-0 border-l-2 border-t-2 border-muted-foreground/50" />
+          <div className="absolute bottom-1 right-1 w-2 h-2">
+            <div className="w-full h-px bg-foreground/30 mb-0.5" />
+            <div className="w-full h-px bg-foreground/30" />
+          </div>
         </div>
       )}
     </Card>
