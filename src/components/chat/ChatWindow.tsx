@@ -252,10 +252,11 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     <Card
       ref={windowRef}
       className={cn(
-        "fixed z-[9998] overflow-hidden shadow-2xl border-border bg-background transition-all duration-200",
-        windowState === 'maximized' ? 'rounded-none' : 'rounded-xl'
+        "fixed z-[9998] shadow-2xl border-border bg-background transition-all duration-200",
+        windowState === 'maximized' ? 'rounded-none overflow-hidden' : 'rounded-xl overflow-hidden'
       )}
       style={{
+        pointerEvents: 'auto',
         ...(windowState === 'maximized'
           ? { inset: 0, width: '100vw', height: '100vh' }
           : {
@@ -333,16 +334,20 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       {/* Chat Content */}
       {windowState !== 'minimized' && content}
 
-      {/* Resize Handle - Make it more visible */}
+      {/* Resize Handle - Make it more visible and functional */}
       {windowState === 'normal' && (
         <div
-          className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize bg-muted hover:bg-border transition-colors z-50"
+          className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize bg-primary/20 hover:bg-primary/40 transition-colors z-[60] flex items-end justify-end"
           onMouseDown={handleResizeStart}
-          style={{ pointerEvents: 'auto' }}
+          style={{ 
+            pointerEvents: 'auto',
+            touchAction: 'none'
+          }}
         >
-          <div className="absolute bottom-1 right-1 w-2 h-2">
-            <div className="w-full h-px bg-foreground/30 mb-0.5" />
-            <div className="w-full h-px bg-foreground/30" />
+          <div className="w-3 h-3 flex flex-col justify-end items-end gap-0.5 p-0.5">
+            <div className="w-2 h-px bg-foreground/50" />
+            <div className="w-1.5 h-px bg-foreground/50" />
+            <div className="w-1 h-px bg-foreground/50" />
           </div>
         </div>
       )}

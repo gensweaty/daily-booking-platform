@@ -119,22 +119,26 @@ export const ChatSidebar = () => {
             className="relative h-10 w-10 rounded-full hover:ring-2 ring-primary overflow-hidden bg-muted flex items-center justify-center text-xs font-medium"
             title={member.name}
           >
-            {member.avatarUrl && member.avatarUrl.trim() ? (
+            {member.avatarUrl && member.avatarUrl.trim() && !member.avatarUrl.includes('null') ? (
               <img 
-                src={member.avatarUrl} 
+                src={member.avatarUrl.startsWith('http') ? member.avatarUrl : `https://id-preview--d02a1d0b-0020-419f-ae60-1026a3d93440.lovable.app/storage/v1/object/public/avatars/${member.avatarUrl}`}
                 alt="" 
                 className="h-full w-full object-cover"
                 onError={(e) => {
-                  // Hide broken image and show initials instead
-                  e.currentTarget.style.display = 'none';
-                  const parent = e.currentTarget.parentElement;
-                  if (parent) {
-                    parent.innerHTML = `<span class="text-xs font-medium">${initials}</span>`;
+                  const target = e.currentTarget as HTMLImageElement;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent && !parent.querySelector('.initials-fallback')) {
+                    const span = document.createElement('span');
+                    span.className = 'text-xs font-medium initials-fallback';
+                    span.textContent = initials;
+                    parent.appendChild(span);
                   }
                 }}
               />
-            ) : (
-              <span className="text-xs font-medium">{initials}</span>
+            ) : null}
+            {(!member.avatarUrl || !member.avatarUrl.trim() || member.avatarUrl.includes('null')) && (
+              <span className="text-xs font-medium initials-fallback">{initials}</span>
             )}
           </button>
         );

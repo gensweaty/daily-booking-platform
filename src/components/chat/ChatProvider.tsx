@@ -47,12 +47,8 @@ export const ChatProvider: React.FC = () => {
     return ok;
   }, [location.pathname, user?.id]);
 
-  // UI state
-  const [isOpen, setIsOpen] = useState<boolean>(() => {
-    // restore last open state if you want; default closed
-    const s = localStorage.getItem("chat_isOpen");
-    return s === "true";
-  });
+  // UI state - ALWAYS start closed
+  const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [hasSubUsers, setHasSubUsers] = useState(false);
   const [me, setMe] = useState<Me | null>(null);

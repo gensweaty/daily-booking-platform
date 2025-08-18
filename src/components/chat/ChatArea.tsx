@@ -156,11 +156,30 @@ export const ChatArea = () => {
           ) : (
             messages.map((m) => (
               <div key={m.id} className="flex gap-2 py-2">
-                <img 
-                  src={m.sender_avatar_url || ''} 
-                  className="h-8 w-8 rounded-full object-cover bg-muted" 
-                  alt=""
-                />
+                <div className="relative h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center">
+                  {m.sender_avatar_url && m.sender_avatar_url.trim() && !m.sender_avatar_url.includes('null') ? (
+                    <img 
+                      src={m.sender_avatar_url.startsWith('http') ? m.sender_avatar_url : `https://id-preview--d02a1d0b-0020-419f-ae60-1026a3d93440.lovable.app/storage/v1/object/public/avatars/${m.sender_avatar_url}`}
+                      className="h-full w-full object-cover" 
+                      alt=""
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent && !parent.querySelector('.initials-fallback')) {
+                          const span = document.createElement('span');
+                          span.className = 'text-xs font-medium initials-fallback text-foreground';
+                          span.textContent = (m.sender_name || 'U').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+                          parent.appendChild(span);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <span className="text-xs font-medium text-foreground initials-fallback">
+                      {(m.sender_name || 'U').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
+                    </span>
+                  )}
+                </div>
                 <div className="min-w-0">
                   <div className="text-sm font-medium">
                     {m.sender_name}
