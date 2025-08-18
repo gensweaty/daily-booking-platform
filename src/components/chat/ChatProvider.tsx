@@ -252,12 +252,7 @@ export const ChatProvider: React.FC = () => {
     currentChannelId, setCurrentChannelId, openChannel, startDM, unreadTotal
   }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal]);
 
-  // before returning the portal, short-circuit:
-  if (!isDashboardRoute) {
-    return null;            // hides icon/window on login, landing, etc.
-  }
-
-  // before: only checked hasSubUsers
+  // Only render if we have sub-users and are on dashboard/board routes
   if (!hasSubUsers || !isDashboardRoute) return null;
 
   console.log('🔍 ChatProvider render:', { 
