@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { lazy, Suspense, memo, useEffect, useState, useMemo } from "react";
 import "@/components/landing/animations.css";
 
-// More aggressive lazy loading with better chunking
+// Fixed lazy loading - properly convert named exports to default exports
 const LazyFeatureSection = lazy(() => 
   import("@/components/landing/FeatureSection").then(module => ({ 
     default: module.FeatureSection 
