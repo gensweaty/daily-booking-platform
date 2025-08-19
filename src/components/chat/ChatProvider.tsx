@@ -191,7 +191,8 @@ export const ChatProvider: React.FC = () => {
   // Channel and DM management
   const openChannel = useCallback((id: string) => {
     setCurrentChannelId(id);
-    // TODO: mark channel read when RPC is implemented
+    // Reset unread count when opening a channel
+    setUnreadTotal(0);
   }, []);
 
   const startDM = useCallback(async (otherId: string, otherType: "admin" | "sub_user") => {
@@ -272,6 +273,13 @@ export const ChatProvider: React.FC = () => {
       supabase.removeChannel(ch);
     };
   }, [me?.id, me?.type, currentChannelId]);
+
+  // Reset unread count when chat opens or channel changes
+  useEffect(() => {
+    if (isOpen) {
+      setUnreadTotal(0);
+    }
+  }, [isOpen, currentChannelId]);
 
   // Ask permission once
   useEffect(() => {

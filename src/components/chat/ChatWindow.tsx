@@ -252,8 +252,8 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     <Card
       ref={windowRef}
       className={cn(
-        "fixed z-[9998] shadow-2xl border-border bg-background transition-all duration-200",
-        windowState === 'maximized' ? 'rounded-none overflow-hidden' : 'rounded-xl overflow-hidden'
+        "fixed z-[9998] shadow-2xl border-border bg-background transition-all duration-200 overflow-hidden",
+        windowState === 'maximized' ? 'rounded-none' : 'rounded-xl'
       )}
       style={{
         pointerEvents: 'auto',
@@ -334,20 +334,27 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       {/* Chat Content */}
       {windowState !== 'minimized' && content}
 
-      {/* Resize Handle - Make it more visible and functional */}
+      {/* Resize Handle - More visible and functional */}
       {windowState === 'normal' && (
         <div
-          className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize bg-primary/20 hover:bg-primary/40 transition-colors z-[60] flex items-end justify-end"
+          className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize bg-primary/30 hover:bg-primary/50 transition-colors z-[9999] flex items-center justify-center border-l border-t border-border"
           onMouseDown={handleResizeStart}
           style={{ 
             pointerEvents: 'auto',
-            touchAction: 'none'
+            touchAction: 'none',
+            borderTopLeftRadius: '6px'
           }}
+          title="Resize window"
         >
-          <div className="w-3 h-3 flex flex-col justify-end items-end gap-0.5 p-0.5">
-            <div className="w-2 h-px bg-foreground/50" />
-            <div className="w-1.5 h-px bg-foreground/50" />
-            <div className="w-1 h-px bg-foreground/50" />
+          <div className="w-4 h-4 flex flex-col justify-center items-center gap-0.5">
+            <div className="flex gap-0.5">
+              <div className="w-1 h-1 bg-foreground/70 rounded-sm" />
+              <div className="w-1 h-1 bg-foreground/70 rounded-sm" />
+            </div>
+            <div className="flex gap-0.5">
+              <div className="w-1 h-1 bg-foreground/70 rounded-sm" />
+              <div className="w-1 h-1 bg-foreground/70 rounded-sm" />
+            </div>
           </div>
         </div>
       )}

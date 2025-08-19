@@ -121,7 +121,7 @@ export const ChatSidebar = () => {
           >
             {member.avatarUrl && member.avatarUrl.trim() && !member.avatarUrl.includes('null') ? (
               <img 
-                src={member.avatarUrl.startsWith('http') ? member.avatarUrl : `https://id-preview--d02a1d0b-0020-419f-ae60-1026a3d93440.lovable.app/storage/v1/object/public/avatars/${member.avatarUrl}`}
+                src={member.avatarUrl.startsWith('http') ? member.avatarUrl : `https://mrueqpffzauvdxmuwhfa.supabase.co/storage/v1/object/public/avatars/${member.avatarUrl}`}
                 alt="" 
                 className="h-full w-full object-cover"
                 onError={(e) => {

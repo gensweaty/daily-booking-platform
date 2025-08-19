@@ -147,7 +147,7 @@ export const ChatArea = () => {
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-auto">
         <div className="p-3 md:p-4 space-y-3">
           {messages.length === 0 ? (
             <div className="text-center text-sm text-muted-foreground py-12">
@@ -159,7 +159,7 @@ export const ChatArea = () => {
                 <div className="relative h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center">
                   {m.sender_avatar_url && m.sender_avatar_url.trim() && !m.sender_avatar_url.includes('null') ? (
                     <img 
-                      src={m.sender_avatar_url.startsWith('http') ? m.sender_avatar_url : `https://id-preview--d02a1d0b-0020-419f-ae60-1026a3d93440.lovable.app/storage/v1/object/public/avatars/${m.sender_avatar_url}`}
+                      src={m.sender_avatar_url.startsWith('http') ? m.sender_avatar_url : `https://mrueqpffzauvdxmuwhfa.supabase.co/storage/v1/object/public/avatars/${m.sender_avatar_url}`}
                       className="h-full w-full object-cover" 
                       alt=""
                       onError={(e) => {
