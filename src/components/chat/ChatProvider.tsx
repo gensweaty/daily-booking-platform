@@ -253,25 +253,26 @@ export const ChatProvider: React.FC = () => {
   // Unread tracking and notifications
   useEffect(() => {
     if (!me) return;
+
     const ch = supabase
       .channel("chat_unread_listener")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
-        const msg = payload.new as any;
-        const isMine = (msg.sender_user_id === me.id && msg.sender_type === me.type);
-        const isActive = msg.channel_id === currentChannelId;
-        if (!isMine && !isActive) setUnreadTotal((n) => n + 1);
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_messages" },
+        (payload) => {
+          const msg = payload.new as any;
+          const mine = msg.sender_user_id === me.id && msg.sender_type === me.type;
+          const active = msg.channel_id === currentChannelId;
+          if (!mine && !active) setUnreadTotal((n) => n + 1);
 
-        // Browser notification
-        if (!isMine && document.hidden) {
-          if (Notification.permission === "granted") {
-            new Notification(msg.sender_name || "New message", { body: msg.content.slice(0, 120) });
+          // Push notification only if permitted and the page is not focused on that chat
+          if (!mine && !active && "Notification" in window && Notification.permission === "granted") {
+            new Notification(msg.sender_name || "New message", { body: String(msg.content || "").slice(0, 120) });
           }
         }
-      })
+      )
       .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
+
+    return () => { supabase.removeChannel(ch); };
   }, [me?.id, me?.type, currentChannelId]);
 
   // Reset unread count when chat opens or channel changes

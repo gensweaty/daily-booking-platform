@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
+import { resolveAvatarUrl, initials } from './avatar';
 
 type Message = {
   id: string;
@@ -76,32 +77,61 @@ export const ChatArea = () => {
     return () => { active = false; };
   }, [activeChannelId]);
 
-  // 3) realtime subscription with full event handling
+  // 3) realtime subscription with connection status + fallback polling
   useEffect(() => {
     if (!activeChannelId) return;
 
-    const ch = supabase
-      .channel(`chat:${activeChannelId}`)
+    let cancelled = false;
+
+    // 3a) Subscribe to Realtime changes
+    const channel = supabase
+      .channel(`chat:${activeChannelId}`, { config: { broadcast: { ack: true } } })
       .on(
         'postgres_changes',
         { schema: 'public', table: 'chat_messages', event: '*', filter: `channel_id=eq.${activeChannelId}` },
         (payload) => {
+          if (cancelled) return;
           if (payload.eventType === 'INSERT') {
             setMessages(prev => [...prev, payload.new as Message]);
           } else if (payload.eventType === 'UPDATE') {
-            setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new as Message : m));
+            setMessages(prev => prev.map(m => m.id === (payload.new as any).id ? (payload.new as Message) : m));
           } else if (payload.eventType === 'DELETE') {
             setMessages(prev => prev.filter(m => m.id !== (payload.old as any).id));
           }
         }
       );
 
-    // Subscribe and handle the promise separately
-    ch.subscribe();
+    channel.subscribe((status) => {
+      console.log('📡 chat realtime status', status);
+    });
+
+    // 3b) Fallback polling if Realtime is blocked by network/proxy
+    let pollTimer: any = null;
+    const startPoll = () => {
+      stopPoll();
+      pollTimer = setInterval(async () => {
+        if (!activeChannelId) return;
+        const last = messages[messages.length - 1]?.created_at;
+        const q = supabase
+          .from('chat_messages')
+          .select('id, content, created_at, sender_user_id, sender_type, sender_name, sender_avatar_url, channel_id')
+          .eq('channel_id', activeChannelId)
+          .order('created_at', { ascending: true });
+        const { data } = last ? await q.gt('created_at', last) : await q;
+        if (data?.length) setMessages(prev => [...prev, ...(data as Message[])]);
+      }, 3500);
+    };
+    const stopPoll = () => pollTimer && clearInterval(pollTimer);
+
+    // Start a short poll as safety net
+    startPoll();
 
     return () => {
-      supabase.removeChannel(ch);
+      cancelled = true;
+      stopPoll();
+      supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChannelId]);
 
   // 4) auto-scroll on new messages
@@ -154,29 +184,30 @@ export const ChatArea = () => {
               Welcome to <b>#general</b>. Start a conversation with your team!
             </div>
           ) : (
-            messages.map((m) => (
+            messages.map((m) => {
+              const url = resolveAvatarUrl(m.sender_avatar_url);
+              return (
               <div key={m.id} className="flex gap-2 py-2">
                 <div className="relative h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center">
-                  {m.sender_avatar_url && m.sender_avatar_url.trim() && !m.sender_avatar_url.includes('null') ? (
-                    <img 
-                      src={m.sender_avatar_url.startsWith('http') ? m.sender_avatar_url : `https://mrueqpffzauvdxmuwhfa.supabase.co/storage/v1/object/public/avatars/${m.sender_avatar_url}`}
-                      className="h-full w-full object-cover" 
+                  {url ? (
+                    <img
+                      src={url}
+                      className="h-full w-full object-cover"
                       alt=""
                       onError={(e) => {
-                        const target = e.currentTarget as HTMLImageElement;
-                        target.style.display = 'none';
-                        const parent = target.parentElement;
-                        if (parent && !parent.querySelector('.initials-fallback')) {
-                          const span = document.createElement('span');
-                          span.className = 'text-xs font-medium initials-fallback text-foreground';
-                          span.textContent = (m.sender_name || 'U').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+                        (e.currentTarget as HTMLImageElement).style.display = "none";
+                        const parent = e.currentTarget.parentElement;
+                        if (parent && !parent.querySelector(".initials-fallback")) {
+                          const span = document.createElement("span");
+                          span.className = "text-xs font-medium initials-fallback text-foreground";
+                          span.textContent = initials(m.sender_name);
                           parent.appendChild(span);
                         }
                       }}
                     />
                   ) : (
                     <span className="text-xs font-medium text-foreground initials-fallback">
-                      {(m.sender_name || 'U').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
+                      {initials(m.sender_name)}
                     </span>
                   )}
                 </div>
@@ -190,7 +221,7 @@ export const ChatArea = () => {
                   <div className="text-sm break-words">{m.content}</div>
                 </div>
               </div>
-            ))
+            );})
           )}
           <div ref={bottomRef} />
         </div>
