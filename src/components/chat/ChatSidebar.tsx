@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useChat } from './ChatProvider';
 import { cn } from '@/lib/utils';
-import { resolveAvatarUrl, initials } from './avatar';
+import { resolveAvatarUrl } from './_avatar';
 
 export const ChatSidebar = () => {
   const { user } = useAuth();
@@ -81,7 +81,13 @@ export const ChatSidebar = () => {
         })));
       }
       
-      setMembers(teamMembers);
+      // Resolve avatar URLs
+      const resolved = await Promise.all(teamMembers.map(async m => ({
+        ...m,
+        avatarUrl: await resolveAvatarUrl(m.avatarUrl || null)
+      })));
+      
+      setMembers(resolved);
     })();
   }, [user?.id, me]);
 
@@ -105,8 +111,6 @@ export const ChatSidebar = () => {
       {members.map(member => {
         const isMe = me && member.id === me.id && member.type === me.type;
         if (isMe) return null; // Don't show DM with self
-        
-        const url = resolveAvatarUrl(member.avatarUrl);
 
         return (
           <button
@@ -115,9 +119,9 @@ export const ChatSidebar = () => {
             className="relative h-10 w-10 rounded-full hover:ring-2 ring-primary overflow-hidden bg-muted flex items-center justify-center text-xs font-medium"
             title={member.name}
           >
-            {url ? (
+            {member.avatarUrl ? (
               <img
-                src={url}
+                src={member.avatarUrl}
                 alt=""
                 className="h-full w-full object-cover"
                 onError={(e) => {
@@ -126,13 +130,27 @@ export const ChatSidebar = () => {
                   if (parent && !parent.querySelector(".initials-fallback")) {
                     const span = document.createElement("span");
                     span.className = "text-xs font-medium initials-fallback";
-                    span.textContent = initials(member.name);
+                    span.textContent = (member.name || "U")
+                      .split(" ")
+                      .filter(Boolean)
+                      .map(w => w[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2);
                     parent.appendChild(span);
                   }
                 }}
               />
             ) : (
-              <span className="text-xs font-medium initials-fallback">{initials(member.name)}</span>
+              <span className="text-xs font-medium initials-fallback">
+                {(member.name || "U")
+                  .split(" ")
+                  .filter(Boolean)
+                  .map(w => w[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2)}
+              </span>
             )}
           </button>
         );

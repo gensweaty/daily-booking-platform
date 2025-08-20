@@ -203,9 +203,9 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       )}
 
       {/* Messages take remaining space */}
-      <div className="flex-1 min-w-0">
-        <ChatArea />
-      </div>
+        <div className="flex-1 min-w-0 min-h-0">
+          <ChatArea />
+        </div>
     </div>
   );
 
@@ -334,26 +334,33 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       {/* Chat Content */}
       {windowState !== 'minimized' && content}
 
-      {/* Resize Handle */}
+      {/* Resize rails (desktop normal state only) */}
       {windowState === 'normal' && (
-        <div
-          className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize bg-primary/30 hover:bg-primary/50 transition-colors z-[2147483000] flex items-center justify-center border-l border-t border-border user-select-none"
-          onMouseDown={handleResizeStart}
-          onTouchStart={(e) => {
-            // support touch resize
-            const t = e.touches[0];
-            setIsResizing(true);
-            setResizeStart({ x: t.clientX, y: t.clientY, width: size.width, height: size.height });
-          }}
-          style={{ touchAction: "none", borderTopLeftRadius: 6 }}
-          title="Resize window"
-        >
-          {/* Visual dots */}
-          <div className="w-4 h-4 flex flex-col justify-center items-center gap-0.5">
-            <div className="flex gap-0.5"><div className="w-1 h-1 bg-foreground/70 rounded-sm" /><div className="w-1 h-1 bg-foreground/70 rounded-sm" /></div>
-            <div className="flex gap-0.5"><div className="w-1 h-1 bg-foreground/70 rounded-sm" /><div className="w-1 h-1 bg-foreground/70 rounded-sm" /></div>
-          </div>
-        </div>
+        <>
+          {/* corner */}
+          <div
+            className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize z-[2147483000]"
+            onMouseDown={handleResizeStart}
+            onTouchStart={(e) => {
+              const t = e.touches[0];
+              setIsResizing(true);
+              setResizeStart({ x: t.clientX, y: t.clientY, width: size.width, height: size.height });
+            }}
+            style={{ touchAction: "none" }}
+          />
+
+          {/* right rail */}
+          <div
+            className="absolute top-0 bottom-0 right-0 w-2 cursor-e-resize z-[2147482999]"
+            onMouseDown={handleResizeStart}
+          />
+
+          {/* bottom rail */}
+          <div
+            className="absolute left-0 right-0 bottom-0 h-2 cursor-s-resize z-[2147482999]"
+            onMouseDown={handleResizeStart}
+          />
+        </>
       )}
     </Card>
   );

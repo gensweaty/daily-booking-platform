@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ChatIcon } from "./ChatIcon";
 import { ChatWindow } from "./ChatWindow";
+import { resolveAvatarUrl } from "./_avatar";
 
 type Me = { id: string; type: "admin" | "sub_user"; name: string; avatarUrl?: string };
 
@@ -143,50 +144,58 @@ export const ChatProvider: React.FC = () => {
     };
   }, [user?.id, isDashboardRoute]);
 
-  // Identity resolution - handle both admin and sub-user contexts
+  // Resolve current user identity (admin or sub-user)
   useEffect(() => {
     let active = true;
-    (async () => {
-      if (!user?.id) { if (active) setMe(null); return; }
+    
+    if (!user?.id || !isDashboardRoute) {
+      setMe(null);
+      return;
+    }
 
-      // Check if this is a sub-user by looking for their email in sub_users table
-      const userEmail = user.email;
-      if (userEmail) {
+    (async () => {
+      const isAdmin = location.pathname.includes("/dashboard");
+      
+      if (isAdmin) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+        
+        if (active && prof) {
+          setMe({
+            id: prof.id,
+            type: "admin",
+            name: prof.username || "Admin",
+            avatarUrl: await resolveAvatarUrl(prof.avatar_url || null)
+          });
+        }
+      } else {
+        const userEmail = user.email?.toLowerCase();
+        if (!userEmail) return;
+
         const { data: subUser } = await supabase
           .from("sub_users")
-          .select("id, fullname, avatar_url, board_owner_id")
-          .eq("email", userEmail.toLowerCase())
-          .maybeSingle();
+          .select("*")
+          .filter("email", "ilike", userEmail)
+          .single();
 
         if (active && subUser) {
-          setMe({ 
-            id: subUser.id, 
-            type: "sub_user", 
-            name: subUser.fullname || "Member", 
-            avatarUrl: subUser.avatar_url || null 
+          setMe({
+            id: subUser.id,
+            type: "sub_user",
+            name: subUser.fullname || "Member",
+            avatarUrl: await resolveAvatarUrl(subUser.avatar_url || null)
           });
-          return;
         }
       }
-
-      // fall back to profiles (admin)
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("id, username, avatar_url")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (active && prof) {
-        setMe({ 
-          id: prof.id, 
-          type: "admin", 
-          name: prof.username || "Admin", 
-          avatarUrl: prof.avatar_url || null 
-        });
-      }
     })();
-    return () => { active = false; };
-  }, [user?.id, user?.email]);
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id, isDashboardRoute, location.pathname]);
 
   // Channel and DM management
   const openChannel = useCallback((id: string) => {
@@ -254,19 +263,30 @@ export const ChatProvider: React.FC = () => {
   useEffect(() => {
     if (!me) return;
 
-    const ch = supabase
-      .channel("chat_unread_listener")
-      .on("postgres_changes",
-        { event: "INSERT", schema: "public", table: "chat_messages" },
-        (payload) => {
-          const msg = payload.new as any;
-          const mine = msg.sender_user_id === me.id && msg.sender_type === me.type;
-          const active = msg.channel_id === currentChannelId;
-          if (!mine && !active) setUnreadTotal((n) => n + 1);
+    let boardOwnerIdPromise: Promise<string | null> = (async () => {
+      if (me.type === 'admin') return me.id;
+      const { data } = await supabase.from('sub_users').select('board_owner_id').eq('id', me.id).maybeSingle();
+      return data?.board_owner_id || null;
+    })();
 
-          // Push notification only if permitted and the page is not focused on that chat
-          if (!mine && !active && "Notification" in window && Notification.permission === "granted") {
-            new Notification(msg.sender_name || "New message", { body: String(msg.content || "").slice(0, 120) });
+    const ch = supabase
+      .channel('chat_unread_listener')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+        async (payload) => {
+          const msg = payload.new as any;
+          const ownerId = await boardOwnerIdPromise;
+
+          // Only consider messages that belong to this board owner
+          if (ownerId && msg.owner_id && msg.owner_id !== ownerId) return;
+
+          const isMine = (msg.sender_user_id === me.id && msg.sender_type === me.type);
+          const isActive = (msg.channel_id === currentChannelId);
+
+          if (!isMine && !isActive) setUnreadTotal(n => n + 1);
+
+          if (!isMine && document.hidden && "Notification" in window && Notification.permission === "granted") {
+            new Notification(msg.sender_name || "New message", { body: String(msg.content || '').slice(0,120) });
           }
         }
       )
@@ -302,8 +322,8 @@ export const ChatProvider: React.FC = () => {
     currentChannelId, setCurrentChannelId, openChannel, startDM, unreadTotal
   }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal]);
 
-  // Only render if we have sub-users and are on dashboard/board routes
-  if (!hasSubUsers || !isDashboardRoute) return null;
+  // Show chat when on dashboard route and logged in
+  if (!isDashboardRoute || !user?.id) return null;
 
   console.log('🔍 ChatProvider render:', { 
     hasSubUsers, 
