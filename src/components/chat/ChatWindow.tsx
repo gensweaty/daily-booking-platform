@@ -177,7 +177,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
     </div>
   ) : (
-    <div className="flex h-full">
+    <div className="flex h-full min-h-0">
       {/* Sidebar: visible on desktop, slide-over on mobile */}
       <div
         className={cn(
@@ -334,27 +334,24 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       {/* Chat Content */}
       {windowState !== 'minimized' && content}
 
-      {/* Resize Handle - More visible and functional */}
+      {/* Resize Handle */}
       {windowState === 'normal' && (
         <div
-          className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize bg-primary/30 hover:bg-primary/50 transition-colors z-[9999] flex items-center justify-center border-l border-t border-border"
+          className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize bg-primary/30 hover:bg-primary/50 transition-colors z-[2147483000] flex items-center justify-center border-l border-t border-border user-select-none"
           onMouseDown={handleResizeStart}
-          style={{ 
-            pointerEvents: 'auto',
-            touchAction: 'none',
-            borderTopLeftRadius: '6px'
+          onTouchStart={(e) => {
+            // support touch resize
+            const t = e.touches[0];
+            setIsResizing(true);
+            setResizeStart({ x: t.clientX, y: t.clientY, width: size.width, height: size.height });
           }}
+          style={{ touchAction: "none", borderTopLeftRadius: 6 }}
           title="Resize window"
         >
+          {/* Visual dots */}
           <div className="w-4 h-4 flex flex-col justify-center items-center gap-0.5">
-            <div className="flex gap-0.5">
-              <div className="w-1 h-1 bg-foreground/70 rounded-sm" />
-              <div className="w-1 h-1 bg-foreground/70 rounded-sm" />
-            </div>
-            <div className="flex gap-0.5">
-              <div className="w-1 h-1 bg-foreground/70 rounded-sm" />
-              <div className="w-1 h-1 bg-foreground/70 rounded-sm" />
-            </div>
+            <div className="flex gap-0.5"><div className="w-1 h-1 bg-foreground/70 rounded-sm" /><div className="w-1 h-1 bg-foreground/70 rounded-sm" /></div>
+            <div className="flex gap-0.5"><div className="w-1 h-1 bg-foreground/70 rounded-sm" /><div className="w-1 h-1 bg-foreground/70 rounded-sm" /></div>
           </div>
         </div>
       )}
