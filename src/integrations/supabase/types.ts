@@ -341,6 +341,7 @@ export type Database = {
           content: string
           created_at: string | null
           id: string
+          owner_id: string | null
           reply_to_id: string | null
           sender_avatar_url: string | null
           sender_name: string | null
@@ -354,6 +355,7 @@ export type Database = {
           content: string
           created_at?: string | null
           id?: string
+          owner_id?: string | null
           reply_to_id?: string | null
           sender_avatar_url?: string | null
           sender_name?: string | null
@@ -367,6 +369,7 @@ export type Database = {
           content?: string
           created_at?: string | null
           id?: string
+          owner_id?: string | null
           reply_to_id?: string | null
           sender_avatar_url?: string | null
           sender_name?: string | null

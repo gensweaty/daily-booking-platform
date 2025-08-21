@@ -322,7 +322,7 @@ export const ChatProvider: React.FC = () => {
     currentChannelId, setCurrentChannelId, openChannel, startDM, unreadTotal
   }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal]);
 
-  // Show chat when on dashboard route and logged in
+  // Show chat when on dashboard route and logged in - ALWAYS show when authenticated
   if (!isDashboardRoute || !user?.id) return null;
 
   console.log('🔍 ChatProvider render:', { 
