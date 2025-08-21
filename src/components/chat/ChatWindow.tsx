@@ -168,11 +168,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
 
   console.log('✅ ChatWindow rendering:', { isOpen, hasSubUsers: chat.hasSubUsers, isInitialized: chat.isInitialized });
 
-  const content = !chat.hasSubUsers ? (
-    <div className="flex h-full items-center justify-center text-sm text-muted-foreground p-4">
-      Chat is available once you add at least one sub-user.
-    </div>
-  ) : !chat.isInitialized ? (
+  const content = !chat.isInitialized ? (
     <div className="flex h-full items-center justify-center">
       <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
     </div>

@@ -124,13 +124,21 @@ export const ChatArea = () => {
     if (!draft.trim() || !activeChannelId || !me?.id) return;
     setSending(true);
     try {
+      // Get owner_id for the message
+      let ownerId = user?.id;
+      if (me.type === 'sub_user') {
+        const { data: subUserData } = await supabase.from('sub_users').select('board_owner_id').eq('id', me.id).maybeSingle();
+        if (subUserData) ownerId = subUserData.board_owner_id;
+      }
+
       await supabase.from('chat_messages').insert({
         content: draft.trim(),
         channel_id: activeChannelId,
         sender_user_id: me.id,
         sender_type: me.type,
         sender_name: me.name,
-        sender_avatar_url: me.avatarUrl || null
+        sender_avatar_url: me.avatarUrl || null,
+        owner_id: ownerId
       });
       setDraft('');
     } finally {
