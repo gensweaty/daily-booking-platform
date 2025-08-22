@@ -106,30 +106,27 @@ export const ChatProvider: React.FC = () => {
         return;
       }
 
-      try {
-        // Try the most likely table names. Replace with your actual table if different.
-        // We only care "is there at least one sub-user for this owner?".
-        // NOTE: This is read-only and won't break anything if the table doesn't exist; it will just log.
-        let has = false;
-
-        // 1) sub_users.board_owner_id = user.id
         try {
-          const { data, error } = await supabase
-            .from("sub_users")
-            .select("id")
-            .eq("board_owner_id", user.id)
-            .limit(1);
-          if (error) console.log("ℹ️ sub_users probe:", error.message);
-          if (data?.length) has = true;
-        } catch (e) {
-          console.log("ℹ️ sub_users probe failed (table may not exist)");
-        }
+          let has = true; // don't gate visibility by sub-users anymore
+          
+          // Still try to load sub-users for hasSubUsers state
+          try {
+            const { data, error } = await supabase
+              .from("sub_users")
+              .select("id")
+              .eq("board_owner_id", user.id)
+              .limit(1);
+            if (error) console.log("ℹ️ sub_users probe:", error.message);
+            if (data?.length) setHasSubUsers(true);
+          } catch (e) {
+            console.log("ℹ️ sub_users probe failed (table may not exist)");
+          }
 
-        if (active) {
-          setHasSubUsers(has);
-          setIsInitialized(true);
-          console.log("✅ Chat init:", { userId: user.id, hasSubUsers: has, isDashboardRoute });
-        }
+          if (active) {
+            setHasSubUsers(has);
+            setIsInitialized(true);
+            console.log("✅ Chat init:", { userId: user.id, hasSubUsers: has, isDashboardRoute });
+          }
       } catch (e) {
         console.log("⚠️ Chat init error:", e);
         if (active) {
@@ -279,6 +276,7 @@ export const ChatProvider: React.FC = () => {
 
           // Only consider messages that belong to this board owner
           if (ownerId && msg.owner_id && msg.owner_id !== ownerId) return;
+          // if owner_id is null on old rows, allow them through for now
           // if owner_id is null on old rows, allow them through for now
 
           const isMine = (msg.sender_user_id === me.id && msg.sender_type === me.type);
