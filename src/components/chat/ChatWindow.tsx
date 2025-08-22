@@ -300,6 +300,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
             size="sm"
             onClick={toggleMinimize}
             className="h-6 w-6 p-0 hover:bg-muted"
+            title={windowState === 'minimized' ? 'Restore' : 'Minimize'}
           >
             <Minus className="h-3 w-3" />
           </Button>
@@ -309,6 +310,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
             size="sm"
             onClick={toggleMaximize}
             className="h-6 w-6 p-0 hover:bg-muted"
+            title={windowState === 'maximized' ? 'Restore Down' : 'Maximize'}
           >
             {windowState === 'maximized' ? (
               <Minimize2 className="h-3 w-3" />
@@ -322,6 +324,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
             size="sm"
             onClick={onClose}
             className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+            title="Close"
           >
             <X className="h-3 w-3" />
           </Button>

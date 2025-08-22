@@ -340,7 +340,8 @@ export const ChatProvider: React.FC = () => {
       {createPortal(
         <>
           {/* The icon must be pointer-events enabled inside a pointer-events:none root */}
-          {isInitialized && (
+          {/* Only show icon when chat is closed to prevent overlap with send button */}
+          {isInitialized && !isOpen && (
             <div style={{ pointerEvents: "auto" }}>
               <ChatIcon onClick={toggle} isOpen={isOpen} unreadCount={unreadTotal} />
             </div>
