@@ -253,6 +253,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       )}
       style={{
         pointerEvents: 'auto',
+        overflow: 'hidden',
         ...(windowState === 'maximized'
           ? { inset: 0, width: '100vw', height: '100vh' }
           : {
@@ -328,14 +329,16 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       </div>
 
       {/* Chat Content */}
-      {windowState !== 'minimized' && content}
+      {windowState !== 'minimized' && (
+        <div className="h-full min-h-0">{content}</div>
+      )}
 
       {/* Resize rails (desktop normal state only) */}
       {windowState === 'normal' && (
         <>
           {/* corner */}
           <div
-            className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize z-[2147483000]"
+            className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize bg-primary/30 hover:bg-primary/50 transition-colors z-[2147483640]"
             onMouseDown={handleResizeStart}
             onTouchStart={(e) => {
               const t = e.touches[0];

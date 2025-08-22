@@ -1,19 +1,9 @@
-import { supabase } from "@/integrations/supabase/client";
-
-export async function resolveAvatarUrl(raw?: string | null) {
-  if (!raw || !raw.trim()) return null;
-  // Already absolute
-  if (/^https?:\/\//i.test(raw)) return raw;
-
-  // Most installs keep avatars in the 'avatars' bucket
-  // Try signed first (private bucket friendly)
-  const { data, error } = await supabase.storage
-    .from("avatars")
-    .createSignedUrl(raw.replace(/^\/+/, ""), 3600); // 1h
-
-  if (!error && data?.signedUrl) return data.signedUrl;
-
-  // fallback: public path
-  const { data: pub } = supabase.storage.from("avatars").getPublicUrl(raw.replace(/^\/+/, ""));
-  return pub?.publicUrl || null;
-}
+// normalize full http(s) OR storage object path (avatars/*) into a usable URL
+export const resolveAvatarUrl = (value?: string | null): string | null => {
+  if (!value) return null;
+  const v = value.trim();
+  if (!v || v === 'null') return null;
+  if (/^https?:\/\//i.test(v)) return v;
+  // default bucket is "avatars" – adjust if you use another
+  return `https://mrueqpffzauvdxmuwhfa.supabase.co/storage/v1/object/public/avatars/${v}`;
+};

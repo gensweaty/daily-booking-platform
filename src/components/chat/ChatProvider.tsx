@@ -279,6 +279,7 @@ export const ChatProvider: React.FC = () => {
 
           // Only consider messages that belong to this board owner
           if (ownerId && msg.owner_id && msg.owner_id !== ownerId) return;
+          // if owner_id is null on old rows, allow them through for now
 
           const isMine = (msg.sender_user_id === me.id && msg.sender_type === me.type);
           const isActive = (msg.channel_id === currentChannelId);

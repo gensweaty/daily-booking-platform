@@ -73,13 +73,7 @@ export const ChatArea = () => {
         .order('created_at', { ascending: true });
 
       if (active && data) {
-        const withResolved = await Promise.all(
-          (data as Message[]).map(async m => ({
-            ...m,
-            sender_avatar_url: await resolveAvatarUrl(m.sender_avatar_url || null)
-          }))
-        );
-        setMessages(withResolved);
+        setMessages(data as Message[]);
       }
     })();
     return () => { active = false; };
@@ -105,11 +99,7 @@ export const ChatArea = () => {
         }
       );
 
-    ch.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        // ok
-      }
-    });
+    ch.subscribe((status) => console.log('chat channel status', status));
 
     return () => { supabase.removeChannel(ch); };
   }, [activeChannelId]);
@@ -124,13 +114,18 @@ export const ChatArea = () => {
     if (!draft.trim() || !activeChannelId || !me?.id) return;
     setSending(true);
     try {
-      // Get owner_id for the message
-      let ownerId = user?.id;
-      if (me.type === 'sub_user') {
-        const { data: subUserData } = await supabase.from('sub_users').select('board_owner_id').eq('id', me.id).maybeSingle();
-        if (subUserData) ownerId = subUserData.board_owner_id;
+      // determine board owner for this message
+      let ownerId: string | null = null;
+      if (me.type === 'admin') {
+        ownerId = me.id;
+      } else {
+        const { data: su } = await supabase
+          .from('sub_users')
+          .select('board_owner_id')
+          .eq('id', me.id)
+          .maybeSingle();
+        ownerId = su?.board_owner_id || null;
       }
-
       await supabase.from('chat_messages').insert({
         content: draft.trim(),
         channel_id: activeChannelId,
@@ -154,7 +149,7 @@ export const ChatArea = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-w-0">
+    <div className="flex-1 flex flex-col min-w-0 min-h-0">
       {/* Header */}
       <div className="flex items-center justify-between p-3 md:p-4 border-b border-border bg-background/50">
         <div className="flex items-center gap-2">
@@ -165,65 +160,67 @@ export const ChatArea = () => {
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 overflow-auto">
-        <div className="p-3 md:p-4 space-y-3">
-          {messages.length === 0 ? (
-            <div className="text-center text-sm text-muted-foreground py-12">
-              Welcome to <b>#general</b>. Start a conversation with your team!
-            </div>
-          ) : (
-            messages.map((m) => (
-              <div key={m.id} className="flex gap-2 py-2">
-                <div className="relative h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center">
-                  {m.sender_avatar_url ? (
-                    <img
-                      src={m.sender_avatar_url}
-                      className="h-full w-full object-cover"
-                      alt=""
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display = "none";
-                        const parent = e.currentTarget.parentElement;
-                        if (parent && !parent.querySelector(".initials-fallback")) {
-                          const span = document.createElement("span");
-                          span.className = "text-xs font-medium initials-fallback text-foreground";
-                          span.textContent = (m.sender_name || "U")
-                            .split(" ")
-                            .filter(Boolean)
-                            .map(w => w[0])
-                            .join("")
-                            .toUpperCase()
-                            .slice(0, 2);
-                          parent.appendChild(span);
-                        }
-                      }}
-                    />
-                  ) : (
-                    <span className="text-xs font-medium text-foreground initials-fallback">
-                      {(m.sender_name || "U")
-                        .split(" ")
-                        .filter(Boolean)
-                        .map(w => w[0])
-                        .join("")
-                        .toUpperCase()
-                        .slice(0, 2)}
-                    </span>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-medium">
-                    {m.sender_name}
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      {new Date(m.created_at).toLocaleTimeString()}
-                    </span>
-                  </div>
-                  <div className="text-sm break-words">{m.content}</div>
-                </div>
+      <div className="flex-1 min-h-0">
+        <ScrollArea className="h-full">
+          <div className="p-3 md:p-4 space-y-3">
+            {messages.length === 0 ? (
+              <div className="text-center text-sm text-muted-foreground py-12">
+                Welcome to <b>#general</b>. Start a conversation with your team!
               </div>
-            ))
-          )}
-          <div ref={bottomRef} />
-        </div>
-      </ScrollArea>
+            ) : (
+              messages.map((m) => (
+                <div key={m.id} className="flex gap-2 py-2">
+                  <div className="relative h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center">
+                    {resolveAvatarUrl(m.sender_avatar_url) ? (
+                      <img
+                        src={resolveAvatarUrl(m.sender_avatar_url)!}
+                        className="h-full w-full object-cover"
+                        alt=""
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                          const parent = e.currentTarget.parentElement;
+                          if (parent && !parent.querySelector(".initials-fallback")) {
+                            const span = document.createElement("span");
+                            span.className = "text-xs font-medium initials-fallback text-foreground";
+                            span.textContent = (m.sender_name || "U")
+                              .split(" ")
+                              .filter(Boolean)
+                              .map(w => w[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2);
+                            parent.appendChild(span);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <span className="text-xs font-medium text-foreground initials-fallback">
+                        {(m.sender_name || "U")
+                          .split(" ")
+                          .filter(Boolean)
+                          .map(w => w[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">
+                      {m.sender_name}
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {new Date(m.created_at).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <div className="text-sm break-words">{m.content}</div>
+                  </div>
+                </div>
+              ))
+            )}
+            <div ref={bottomRef} />
+          </div>
+        </ScrollArea>
+      </div>
 
       {/* Composer */}
       <div className="border-t border-border bg-background/50 p-3 md:p-4">

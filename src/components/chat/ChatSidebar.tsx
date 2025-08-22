@@ -81,13 +81,7 @@ export const ChatSidebar = () => {
         })));
       }
       
-      // Resolve avatar URLs
-      const resolved = await Promise.all(teamMembers.map(async m => ({
-        ...m,
-        avatarUrl: await resolveAvatarUrl(m.avatarUrl || null)
-      })));
-      
-      setMembers(resolved);
+      setMembers(teamMembers);
     })();
   }, [user?.id, me]);
 
@@ -119,9 +113,9 @@ export const ChatSidebar = () => {
             className="relative h-10 w-10 rounded-full hover:ring-2 ring-primary overflow-hidden bg-muted flex items-center justify-center text-xs font-medium"
             title={member.name}
           >
-            {member.avatarUrl ? (
+            {resolveAvatarUrl(member.avatarUrl) ? (
               <img
-                src={member.avatarUrl}
+                src={resolveAvatarUrl(member.avatarUrl)!}
                 alt=""
                 className="h-full w-full object-cover"
                 onError={(e) => {
