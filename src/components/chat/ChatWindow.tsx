@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Minus, Maximize2, Minimize2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Minus, Maximize2, Minimize2, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -15,19 +15,20 @@ interface ChatWindowProps {
 type WindowState = 'normal' | 'minimized' | 'maximized';
 
 export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
-  const [windowState, setWindowState] = useState<'normal'|'minimized'|'maximized'>('normal');
-  const [size, setSize] = useState({ width: 520, height: 560 }); // compact, fits laptops
+  const [windowState, setWindowState] = useState<WindowState>('normal');
+  const [size, setSize] = useState({ width: 520, height: 560 });
   const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 768 : false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [resizeType, setResizeType] = useState<'corner' | 'right' | 'bottom' | null>(null);
   
-  const windowRef = useRef<HTMLDivElement>(null);
-  const chat = useChat();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const { isInitialized } = useChat();
 
-  // set sensible defaults per viewport
+  // Set initial position and size
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -36,28 +37,27 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       setWindowState('maximized');
       setSize({ width: window.innerWidth, height: window.innerHeight });
       setPosition({ x: 0, y: 0 });
+      setIsSidebarCollapsed(true);
     } else {
-      // bottom-right compact
-      const w = Math.min(560, Math.round(window.innerWidth * 0.38));
-      const h = Math.min(640, Math.round(window.innerHeight * 0.7));
+      const w = Math.min(600, Math.round(window.innerWidth * 0.4));
+      const h = Math.min(700, Math.round(window.innerHeight * 0.8));
       setSize({ width: w, height: h });
-      setPosition({ x: window.innerWidth - w - 24, y: window.innerHeight - h - 24 });
+      setPosition({ x: window.innerWidth - w - 32, y: window.innerHeight - h - 100 });
     }
   }, [isOpen]);
 
-  // Handle window resize for responsiveness
+  // Handle window resize
   useEffect(() => {
     const handleResize = () => {
       if (typeof window !== 'undefined') {
         const isMobile = window.innerWidth <= 768;
         
         if (isMobile) {
-          // Force mobile to always be maximized
           setWindowState('maximized');
           setSize({ width: window.innerWidth, height: window.innerHeight });
           setPosition({ x: 0, y: 0 });
+          setIsSidebarCollapsed(true);
         } else if (windowState === 'maximized') {
-          // Keep desktop maximized responsive
           setSize({ width: window.innerWidth, height: window.innerHeight });
           setPosition({ x: 0, y: 0 });
         }
@@ -68,7 +68,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     return () => window.removeEventListener('resize', handleResize);
   }, [windowState]);
 
-  // Handle mouse events for dragging
+  // Mouse event handlers for dragging and resizing
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
@@ -78,12 +78,20 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
         });
       }
       
-      if (isResizing) {
-        const isMobile = window.innerWidth < 768;
-        const minWidth = isMobile ? 300 : 400;
-        const minHeight = isMobile ? 250 : 300;
-        const newWidth = Math.max(minWidth, resizeStart.width + (e.clientX - resizeStart.x));
-        const newHeight = Math.max(minHeight, resizeStart.height + (e.clientY - resizeStart.y));
+      if (isResizing && resizeType) {
+        const deltaX = e.clientX - resizeStart.x;
+        const deltaY = e.clientY - resizeStart.y;
+        
+        let newWidth = resizeStart.width;
+        let newHeight = resizeStart.height;
+        
+        if (resizeType === 'corner' || resizeType === 'right') {
+          newWidth = Math.max(400, resizeStart.width + deltaX);
+        }
+        if (resizeType === 'corner' || resizeType === 'bottom') {
+          newHeight = Math.max(300, resizeStart.height + deltaY);
+        }
+        
         setSize({ width: newWidth, height: newHeight });
       }
     };
@@ -91,18 +99,21 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     const handleMouseUp = () => {
       setIsDragging(false);
       setIsResizing(false);
+      setResizeType(null);
     };
 
     if (isDragging || isResizing) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = 'none';
     }
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
     };
-  }, [isDragging, isResizing, dragStart, resizeStart]);
+  }, [isDragging, isResizing, dragStart, resizeStart, resizeType]);
 
   const handleDragStart = (e: React.MouseEvent) => {
     if (windowState === 'maximized') return;
@@ -112,13 +123,16 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       x: e.clientX - position.x,
       y: e.clientY - position.y
     });
+    e.preventDefault();
   };
 
-  const handleResizeStart = (e: React.MouseEvent) => {
+  const handleResizeStart = (e: React.MouseEvent, type: 'corner' | 'right' | 'bottom') => {
     if (windowState === 'maximized') return;
     
     e.stopPropagation();
+    e.preventDefault();
     setIsResizing(true);
+    setResizeType(type);
     setResizeStart({
       x: e.clientX,
       y: e.clientY,
@@ -128,107 +142,41 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   };
 
   const toggleMinimize = () => {
-    // Don't allow minimize on mobile
-    if (window.innerWidth <= 768) return;
-    setWindowState(windowState === 'minimized' ? 'normal' : 'minimized');
+    if (window.innerWidth <= 768) return; // No minimize on mobile
+    setWindowState(prev => prev === 'minimized' ? 'normal' : 'minimized');
   };
 
   const toggleMaximize = () => {
     const isMobile = window.innerWidth <= 768;
     
-    if (isMobile) {
-      // Mobile always stays maximized
-      return;
-    }
+    if (isMobile) return; // Mobile always stays maximized
     
     if (windowState === 'maximized') {
-      // Desktop: return to normal windowed mode
-      const normalSize = { 
-        width: Math.min(1000, window.innerWidth - 100), 
-        height: Math.min(700, window.innerHeight - 100) 
-      };
-      setSize(normalSize);
-      setPosition({
-        x: (window.innerWidth - normalSize.width) / 2,
-        y: (window.innerHeight - normalSize.height) / 2
-      });
       setWindowState('normal');
+      const w = 600;
+      const h = 700;
+      setSize({ width: w, height: h });
+      setPosition({
+        x: (window.innerWidth - w) / 2,
+        y: (window.innerHeight - h) / 2
+      });
     } else {
-      // Desktop: maximize
       setWindowState('maximized');
       setSize({ width: window.innerWidth, height: window.innerHeight });
       setPosition({ x: 0, y: 0 });
     }
   };
 
-  if (!isOpen) {
-    console.log('💬 ChatWindow not open');
-    return null;
-  }
-
-  console.log('✅ ChatWindow rendering:', { isOpen, hasSubUsers: chat.hasSubUsers, isInitialized: chat.isInitialized });
-
-  const content = !chat.isInitialized ? (
-    <div className="flex h-full items-center justify-center">
-      <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
-    </div>
-  ) : (
-    <div className="flex h-full min-h-0">
-      {/* Sidebar: visible on desktop, slide-over on mobile */}
-      <div
-        className={cn(
-          "h-full bg-muted/30 border-r border-border",
-          "sm:static sm:translate-x-0 sm:w-14",
-          "fixed top-0 bottom-0 left-0 w-14 z-[10000] transition-transform",
-          showSidebar ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <ChatSidebar />
-      </div>
-      
-      {/* Mobile: floating button to open sidebar */}
-      {typeof window !== 'undefined' && window.innerWidth <= 768 && !showSidebar && (
-        <Button
-          className="absolute top-2 left-2 z-[10001]"
-          size="icon"
-          variant="secondary"
-          onClick={() => setShowSidebar(true)}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      )}
-
-      {/* Messages take remaining space */}
-        <div className="flex-1 min-w-0 min-h-0">
-          <ChatArea />
-        </div>
-    </div>
-  );
-
   const getWindowStyle = () => {
-    const isMobile = window.innerWidth <= 768;
-    
     switch (windowState) {
       case 'minimized':
-        // Don't allow minimize on mobile
-        if (isMobile) {
-          return {
-            position: 'fixed' as const,
-            inset: 0,
-            width: '100vw',
-            height: '100vh',
-            transform: 'none'
-          };
-        }
         return {
-          position: 'fixed' as const,
           width: '300px',
           height: '50px',
           transform: `translate(${position.x}px, ${position.y}px)`
         };
       case 'maximized':
         return {
-          position: 'fixed' as const,
           inset: 0,
           width: '100vw',
           height: '100vh',
@@ -236,71 +184,54 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
         };
       default:
         return {
-          position: 'fixed' as const,
           width: `${size.width}px`,
           height: `${size.height}px`,
-          transform: `translate(${position.x}px, ${position.y}px)`
+          transform: `translate(${Math.max(0, position.x)}px, ${Math.max(0, position.y)}px)`
         };
     }
   };
 
+  if (!isOpen) return null;
+
   return (
     <Card
-      ref={windowRef}
+      ref={cardRef}
       className={cn(
-        "fixed z-[9998] shadow-2xl border-border bg-background transition-all duration-200 overflow-hidden",
-        windowState === 'maximized' ? 'rounded-none' : 'rounded-xl'
+        "fixed bg-background border shadow-lg pointer-events-auto transition-all duration-200 z-[9998]",
+        "grid grid-rows-[auto,1fr] overflow-hidden",
+        windowState === 'maximized' ? 'rounded-none' : 'rounded-lg'
       )}
-      style={{
-        pointerEvents: 'auto',
-        overflow: 'hidden',
-        ...(windowState === 'maximized'
-          ? { inset: 0, width: '100vw', height: '100vh' }
-          : {
-              width: typeof window !== 'undefined' ? Math.min(size.width, window.innerWidth - 12) : size.width,
-              height: typeof window !== 'undefined' ? Math.min(size.height, window.innerHeight - 12) : size.height,
-              transform: `translate(${Math.max(0, position.x)}px, ${Math.max(0, position.y)}px)`,
-              maxWidth: '96vw',
-              maxHeight: '94vh'
-            })
-      }}
+      style={getWindowStyle()}
     >
       {/* Title Bar */}
       <div
         className={cn(
-          "flex items-center justify-between px-4 py-2 bg-muted/50 border-b border-border",
-          windowState !== 'maximized' && 'cursor-grab active:cursor-grabbing'
+          "flex items-center justify-between px-4 py-2 border-b bg-muted/50 min-h-[48px]",
+          windowState !== 'maximized' ? "cursor-move" : "cursor-default"
         )}
-        onMouseDown={handleDragStart}
+        onMouseDown={windowState !== 'maximized' ? handleDragStart : undefined}
       >
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-red-500"></div>
-          <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-          <div className="w-3 h-3 rounded-full bg-green-500"></div>
-          <span className="ml-2 text-sm font-medium text-foreground">
-            Team Chat
-          </span>
-        </div>
-        
-        <div className="flex items-center gap-1">
-          {/* Sidebar Toggle */}
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setShowSidebar((v) => !v)}
-            className="h-6 w-6 p-0 hover:bg-muted sm:inline-flex inline-flex"
-            title={showSidebar ? "Hide sidebar" : "Show sidebar"}
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="h-6 w-6 p-0"
+            title="Toggle Sidebar"
           >
-            {showSidebar ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+            <Menu className="h-3 w-3" />
           </Button>
-          
-          {/* Window controls - always visible */}
+          <span className="font-medium text-sm">Team Chat</span>
+        </div>
+        
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="sm"
             onClick={toggleMinimize}
             className="h-6 w-6 p-0 hover:bg-muted"
             title={windowState === 'minimized' ? 'Restore' : 'Minimize'}
+            disabled={window.innerWidth <= 768}
           >
             <Minus className="h-3 w-3" />
           </Button>
@@ -311,6 +242,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
             onClick={toggleMaximize}
             className="h-6 w-6 p-0 hover:bg-muted"
             title={windowState === 'maximized' ? 'Restore Down' : 'Maximize'}
+            disabled={window.innerWidth <= 768}
           >
             {windowState === 'maximized' ? (
               <Minimize2 className="h-3 w-3" />
@@ -333,34 +265,49 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
 
       {/* Chat Content */}
       {windowState !== 'minimized' && (
-        <div className="h-full min-h-0">{content}</div>
+        <div className="grid grid-cols-[auto,1fr] overflow-hidden min-h-0">
+          {/* Sidebar */}
+          <div className={cn(
+            "border-r transition-all duration-200 overflow-hidden bg-muted/20",
+            isSidebarCollapsed ? "w-0" : "w-64"
+          )}>
+            {!isInitialized ? (
+              <div className="flex items-center justify-center h-full w-64">
+                <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+              </div>
+            ) : (
+              <ChatSidebar />
+            )}
+          </div>
+          
+          {/* Main Chat Area */}
+          <div className="min-w-0 overflow-hidden">
+            <ChatArea />
+          </div>
+        </div>
       )}
-
-      {/* Resize rails (desktop normal state only) */}
+      
+      {/* Resize Handles - only visible in normal state */}
       {windowState === 'normal' && (
         <>
-          {/* corner */}
+          {/* Corner resize handle */}
           <div
-            className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize bg-primary/30 hover:bg-primary/50 transition-colors z-[2147483640]"
-            onMouseDown={handleResizeStart}
-            onTouchStart={(e) => {
-              const t = e.touches[0];
-              setIsResizing(true);
-              setResizeStart({ x: t.clientX, y: t.clientY, width: size.width, height: size.height });
-            }}
-            style={{ touchAction: "none" }}
+            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-[9999] hover:bg-primary/20 bg-muted/40"
+            onMouseDown={(e) => handleResizeStart(e, 'corner')}
+          >
+            <div className="absolute bottom-1 right-1 w-3 h-3 border-r-2 border-b-2 border-muted-foreground/60"></div>
+          </div>
+          
+          {/* Right resize handle */}
+          <div
+            className="absolute top-12 right-0 w-2 h-[calc(100%-48px)] cursor-e-resize z-[9999] hover:bg-primary/20"
+            onMouseDown={(e) => handleResizeStart(e, 'right')}
           />
-
-          {/* right rail */}
+          
+          {/* Bottom resize handle */}
           <div
-            className="absolute top-0 bottom-0 right-0 w-2 cursor-e-resize z-[2147482999]"
-            onMouseDown={handleResizeStart}
-          />
-
-          {/* bottom rail */}
-          <div
-            className="absolute left-0 right-0 bottom-0 h-2 cursor-s-resize z-[2147482999]"
-            onMouseDown={handleResizeStart}
+            className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize z-[9999] hover:bg-primary/20"
+            onMouseDown={(e) => handleResizeStart(e, 'bottom')}
           />
         </>
       )}

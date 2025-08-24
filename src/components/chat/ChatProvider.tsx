@@ -36,17 +36,17 @@ export const ChatProvider: React.FC = () => {
   const { user } = useAuth();
   const location = useLocation();
   
-  // Only show chat on dashboard routes (authenticated areas)
-  const isDashboardRoute = useMemo(() => {
+  // Only show chat on dashboard routes when user is authenticated
+  const { loading } = useAuth();
+  const shouldShowChat = useMemo(() => {
+    if (loading || !user?.id) return false;
+    
     const p = location.pathname || "";
-    const ok =
-      !!user?.id &&
-      (p === "/dashboard" ||
-       p.startsWith("/dashboard/") ||
-       p.startsWith("/board/"));
-    console.log("🎯 Chat route gate", { path: p, ok, user: !!user?.id });
-    return ok;
-  }, [location.pathname, user?.id]);
+    const isValidRoute = p === "/dashboard" || p.startsWith("/dashboard/") || p.startsWith("/board/");
+    
+    console.log("🎯 Chat route gate", { path: p, isValidRoute, user: !!user?.id, loading });
+    return isValidRoute;
+  }, [location.pathname, user?.id, loading]);
 
   // UI state - ALWAYS start closed
   const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -125,7 +125,7 @@ export const ChatProvider: React.FC = () => {
           if (active) {
             setHasSubUsers(has);
             setIsInitialized(true);
-            console.log("✅ Chat init:", { userId: user.id, hasSubUsers: has, isDashboardRoute });
+            console.log("✅ Chat init:", { userId: user.id, hasSubUsers: has, shouldShowChat });
           }
       } catch (e) {
         console.log("⚠️ Chat init error:", e);
@@ -139,13 +139,13 @@ export const ChatProvider: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [user?.id, isDashboardRoute]);
+  }, [user?.id, shouldShowChat]);
 
   // Resolve current user identity (admin or sub-user)
   useEffect(() => {
     let active = true;
     
-    if (!user?.id || !isDashboardRoute) {
+    if (!user?.id || !shouldShowChat) {
       setMe(null);
       return;
     }
@@ -165,7 +165,7 @@ export const ChatProvider: React.FC = () => {
             id: prof.id,
             type: "admin",
             name: prof.username || "Admin",
-            avatarUrl: await resolveAvatarUrl(prof.avatar_url || null)
+            avatarUrl: resolveAvatarUrl(prof.avatar_url)
           });
         }
       } else {
@@ -183,7 +183,7 @@ export const ChatProvider: React.FC = () => {
             id: subUser.id,
             type: "sub_user",
             name: subUser.fullname || "Member",
-            avatarUrl: await resolveAvatarUrl(subUser.avatar_url || null)
+            avatarUrl: resolveAvatarUrl(subUser.avatar_url)
           });
         }
       }
@@ -192,7 +192,7 @@ export const ChatProvider: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [user?.id, isDashboardRoute, location.pathname]);
+  }, [user?.id, shouldShowChat, location.pathname]);
 
   // Channel and DM management
   const openChannel = useCallback((id: string) => {
@@ -321,14 +321,14 @@ export const ChatProvider: React.FC = () => {
     currentChannelId, setCurrentChannelId, openChannel, startDM, unreadTotal
   }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal]);
 
-  // Show chat when on dashboard route and logged in - ALWAYS show when authenticated
-  if (!isDashboardRoute || !user?.id) return null;
+  // Show chat only when conditions are met
+  if (!shouldShowChat) return null;
 
   console.log('🔍 ChatProvider render:', { 
     hasSubUsers, 
     isInitialized, 
     hasUser: !!user?.id, 
-    isDashboardRoute,
+    shouldShowChat,
     path: location.pathname
   });
 

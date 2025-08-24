@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MessageCircle } from 'lucide-react';
+import { Hash } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useChat } from './ChatProvider';
@@ -10,7 +10,12 @@ export const ChatSidebar = () => {
   const { user } = useAuth();
   const { me, currentChannelId, openChannel, startDM } = useChat();
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
-  const [members, setMembers] = useState<Array<{ id: string; name: string; type: 'admin' | 'sub_user'; avatarUrl?: string }>>([]);
+  const [members, setMembers] = useState<Array<{ 
+    id: string; 
+    name: string; 
+    type: 'admin' | 'sub_user'; 
+    avatarUrl?: string | null;
+  }>>([]);
 
   // Load general channel ID
   useEffect(() => {
@@ -28,7 +33,7 @@ export const ChatSidebar = () => {
     })();
   }, [user?.id]);
 
-  // Load team members (determine correct board owner)
+  // Load team members
   useEffect(() => {
     if (!user?.id || !me) return;
     
@@ -38,7 +43,6 @@ export const ChatSidebar = () => {
       // Determine the board owner ID
       let boardOwnerId = user.id;
       if (me.type === 'sub_user') {
-        // If current user is a sub-user, find their board owner
         const { data: subUserData } = await supabase
           .from('sub_users')
           .select('board_owner_id')
@@ -62,7 +66,7 @@ export const ChatSidebar = () => {
           id: adminProfile.id,
           name: adminProfile.username || 'Admin',
           type: 'admin' as const,
-          avatarUrl: adminProfile.avatar_url || null
+          avatarUrl: adminProfile.avatar_url
         });
       }
       
@@ -77,7 +81,7 @@ export const ChatSidebar = () => {
           id: su.id,
           name: su.fullname || 'Member',
           type: 'sub_user' as const,
-          avatarUrl: su.avatar_url || null
+          avatarUrl: su.avatar_url
         })));
       }
       
@@ -86,69 +90,83 @@ export const ChatSidebar = () => {
   }, [user?.id, me]);
 
   return (
-    <div className="h-full w-14 bg-muted/30 border-r border-border flex flex-col items-center py-2 gap-2">
-      {/* General Channel */}
-      <button
-        onClick={() => generalChannelId && openChannel(generalChannelId)}
-        className={cn(
-          "h-10 w-10 rounded-md hover:bg-muted flex items-center justify-center transition-colors",
-          currentChannelId === generalChannelId ? "bg-primary/10 text-primary" : ""
-        )}
-        title="General"
-      >
-        <span className="text-lg">💬</span>
-      </button>
+    <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
+      <div className="space-y-2">
+        {/* General Channel */}
+        <button
+          onClick={() => generalChannelId && openChannel(generalChannelId)}
+          className={cn(
+            "w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors text-left",
+            currentChannelId === generalChannelId ? "bg-primary/10 text-primary" : ""
+          )}
+        >
+          <Hash className="h-4 w-4" />
+          <span className="font-medium">General</span>
+        </button>
 
-      <div className="my-2 h-px w-8 bg-border" />
-
-      {/* Team Members (DM) */}
-      {members.map(member => {
-        const isMe = me && member.id === me.id && member.type === me.type;
-        if (isMe) return null; // Don't show DM with self
-
-        return (
-          <button
-            key={`${member.type}-${member.id}`}
-            onClick={() => startDM(member.id, member.type)}
-            className="relative h-10 w-10 rounded-full hover:ring-2 ring-primary overflow-hidden bg-muted flex items-center justify-center text-xs font-medium"
-            title={member.name}
-          >
-            {resolveAvatarUrl(member.avatarUrl) ? (
-              <img
-                src={resolveAvatarUrl(member.avatarUrl)!}
-                alt=""
-                className="h-full w-full object-cover"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                  const parent = e.currentTarget.parentElement;
-                  if (parent && !parent.querySelector(".initials-fallback")) {
-                    const span = document.createElement("span");
-                    span.className = "text-xs font-medium initials-fallback";
-                    span.textContent = (member.name || "U")
-                      .split(" ")
-                      .filter(Boolean)
-                      .map(w => w[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2);
-                    parent.appendChild(span);
-                  }
-                }}
-              />
-            ) : (
-              <span className="text-xs font-medium initials-fallback">
-                {(member.name || "U")
-                  .split(" ")
-                  .filter(Boolean)
-                  .map(w => w[0])
-                  .join("")
-                  .toUpperCase()
-                  .slice(0, 2)}
-              </span>
-            )}
-          </button>
-        );
-      })}
+        <div className="pt-4">
+          <p className="text-xs font-medium text-muted-foreground mb-2 px-2 uppercase tracking-wide">
+            Team Members
+          </p>
+          
+          {members.map((member) => {
+            const isMe = me && member.id === me.id && member.type === me.type;
+            if (isMe) return null; // Don't show DM with self
+            
+            return (
+              <button
+                key={`${member.type}-${member.id}`}
+                onClick={() => startDM(member.id, member.type)}
+                className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors text-left"
+              >
+                <div className="flex-shrink-0 relative">
+                  <div className="h-6 w-6 rounded-full bg-muted overflow-hidden flex items-center justify-center">
+                    {resolveAvatarUrl(member.avatarUrl) ? (
+                      <img
+                        src={resolveAvatarUrl(member.avatarUrl)!}
+                        alt={member.name}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent && !parent.querySelector('.initials-fallback')) {
+                            const initials = document.createElement('span');
+                            initials.className = 'text-xs font-medium text-foreground initials-fallback';
+                            initials.textContent = (member.name || "U")
+                              .split(" ")
+                              .map(w => w[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2);
+                            parent.appendChild(initials);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <span className="text-xs font-medium text-foreground">
+                        {(member.name || "U")
+                          .split(" ")
+                          .map(w => w[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-sm font-medium truncate">{member.name}</p>
+                  <p className="text-xs text-muted-foreground capitalize">
+                    {member.type === 'admin' ? 'Owner' : 'Team Member'}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };
