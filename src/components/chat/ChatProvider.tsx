@@ -202,63 +202,94 @@ export const ChatProvider: React.FC = () => {
   }, []);
 
   const startDM = useCallback(async (otherId: string, otherType: "admin" | "sub_user") => {
-    if (!me) return;
+    if (!me || !user?.id) {
+      console.log('❌ Missing me or user for DM:', { me, userId: user?.id });
+      return;
+    }
     
-    console.log('🚀 Starting DM with:', { otherId, otherType, me });
+    console.log('🚀 Starting DM with:', { otherId, otherType, me, userId: user.id });
     
     try {
       // Determine the board owner for the channel
-      let channelOwnerId = user?.id;
+      let channelOwnerId = user.id;
       if (me.type === 'sub_user') {
         // If current user is a sub-user, find their board owner
-        const { data: subUserData } = await supabase
+        const { data: subUserData, error: subUserError } = await supabase
           .from('sub_users')
           .select('board_owner_id')
           .eq('id', me.id)
           .maybeSingle();
         
+        if (subUserError) {
+          console.error('❌ Error finding board owner:', subUserError);
+        }
+        
         if (subUserData) {
           channelOwnerId = subUserData.board_owner_id;
+          console.log('📋 Board owner found:', channelOwnerId);
         }
       }
 
+      // Create DM name for easier identification
+      const dmName = `DM: ${me.name} & ${otherType === 'admin' ? 'Admin' : 'Member'}`;
+
       // find-or-create a 1:1 channel between me and other user
-      const { data: existing } = await supabase
+      const { data: existing, error: searchError } = await supabase
         .from("chat_channels")
-        .select("id")
+        .select("id, name, participants")
         .eq("is_dm", true)
         .eq("owner_id", channelOwnerId)
-        .contains("participants", [me.id, otherId])
-        .maybeSingle();
+        .contains("participants", [me.id, otherId]);
 
-      let channelId = existing?.id;
+      if (searchError) {
+        console.error('❌ Error searching for existing DM:', searchError);
+      }
+
+      let channelId = existing?.[0]?.id;
+      console.log('🔍 Existing DM found:', existing);
       
       if (!channelId) {
-        const { data: created } = await supabase
+        console.log('🆕 Creating new DM channel');
+        const { data: created, error: createError } = await supabase
           .from("chat_channels")
           .insert({
             is_dm: true,
             participants: [me.id, otherId],
-            name: null,
+            name: dmName,
             owner_id: channelOwnerId
           })
-          .select("id").single();
+          .select("id")
+          .single();
+        
+        if (createError) {
+          console.error('❌ Error creating DM channel:', createError);
+          return;
+        }
         
         channelId = created?.id;
+        console.log('✅ New DM channel created:', channelId);
       }
 
       if (channelId) {
-        console.log('✅ DM channel ready:', channelId);
+        console.log('🎯 Opening DM channel:', channelId);
         openChannel(channelId);
+        
+        // Open chat window if not already open
+        if (!isOpen) {
+          console.log('📂 Opening chat window for DM');
+          open();
+        }
       }
     } catch (error) {
       console.error('❌ Failed to start DM:', error);
     }
-  }, [me, openChannel, user?.id]);
+  }, [me, openChannel, user?.id, isOpen, open]);
 
   // Unread tracking and notifications
   useEffect(() => {
-    if (!me) return;
+    if (!me || !shouldShowChat) return;
+
+    console.log('🔔 Setting up notification listener for:', me);
 
     let boardOwnerIdPromise: Promise<string | null> = (async () => {
       if (me.type === 'admin') return me.id;
@@ -272,27 +303,55 @@ export const ChatProvider: React.FC = () => {
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
         async (payload) => {
           const msg = payload.new as any;
+          console.log('📨 New message detected:', msg);
+          
           const ownerId = await boardOwnerIdPromise;
+          console.log('👤 Board owner ID:', ownerId);
 
           // Only consider messages that belong to this board owner
-          if (ownerId && msg.owner_id && msg.owner_id !== ownerId) return;
-          // if owner_id is null on old rows, allow them through for now
-          // if owner_id is null on old rows, allow them through for now
+          if (ownerId && msg.owner_id && msg.owner_id !== ownerId) {
+            console.log('⏭️ Skipping message from different board owner');
+            return;
+          }
 
           const isMine = (msg.sender_user_id === me.id && msg.sender_type === me.type);
-          const isActive = (msg.channel_id === currentChannelId);
+          const isActiveChannelMessage = (msg.channel_id === currentChannelId);
+          const shouldCount = !isMine && (!isActiveChannelMessage || !isOpen);
 
-          if (!isMine && !isActive) setUnreadTotal(n => n + 1);
+          console.log('🔍 Message analysis:', {
+            isMine,
+            isActiveChannelMessage,
+            isOpen,
+            shouldCount,
+            currentChannelId,
+            messageChannelId: msg.channel_id
+          });
 
-          if (!isMine && document.hidden && "Notification" in window && Notification.permission === "granted") {
-            new Notification(msg.sender_name || "New message", { body: String(msg.content || '').slice(0,120) });
+          if (shouldCount) {
+            setUnreadTotal(n => {
+              console.log('📈 Incrementing unread count:', n + 1);
+              return n + 1;
+            });
+          }
+
+          // Show browser notification for non-own messages
+          if (!isMine && "Notification" in window && Notification.permission === "granted") {
+            console.log('🔔 Showing browser notification');
+            new Notification(msg.sender_name || "New message", { 
+              body: String(msg.content || '').slice(0, 120),
+              icon: '/favicon.ico',
+              tag: 'chat-notification'
+            });
           }
         }
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(ch); };
-  }, [me?.id, me?.type, currentChannelId]);
+    return () => { 
+      console.log('🧹 Cleaning up notification listener');
+      supabase.removeChannel(ch); 
+    };
+  }, [me?.id, me?.type, currentChannelId, shouldShowChat, isOpen]);
 
   // Reset unread count when chat opens or channel changes
   useEffect(() => {

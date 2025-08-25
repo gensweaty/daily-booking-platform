@@ -116,13 +116,20 @@ export const ChatSidebar = () => {
             return (
               <button
                 key={`${member.type}-${member.id}`}
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   console.log('🖱️ Starting DM with member:', member);
-                  startDM(member.id, member.type);
+                  console.log('🔍 Current me:', me);
+                  
+                  try {
+                    await startDM(member.id, member.type);
+                    console.log('✅ DM started successfully');
+                  } catch (error) {
+                    console.error('❌ Failed to start DM:', error);
+                  }
                 }}
-                className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors text-left"
+                className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors text-left cursor-pointer"
               >
                 <div className="flex-shrink-0 relative">
                   <div className="h-6 w-6 rounded-full bg-muted overflow-hidden flex items-center justify-center">
