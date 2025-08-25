@@ -296,7 +296,8 @@ export const ChatProvider: React.FC = () => {
 
   // Reset unread count when chat opens or channel changes
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen || currentChannelId) {
+      console.log('💡 Resetting unread count - chat opened or channel switched');
       setUnreadTotal(0);
     }
   }, [isOpen, currentChannelId]);

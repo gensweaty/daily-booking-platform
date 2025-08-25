@@ -14,7 +14,7 @@ export const ChatSidebar = () => {
     id: string; 
     name: string; 
     type: 'admin' | 'sub_user'; 
-    avatarUrl?: string | null;
+    avatar_url?: string | null;
   }>>([]);
 
   // Load general channel ID
@@ -66,7 +66,7 @@ export const ChatSidebar = () => {
           id: adminProfile.id,
           name: adminProfile.username || 'Admin',
           type: 'admin' as const,
-          avatarUrl: adminProfile.avatar_url
+          avatar_url: adminProfile.avatar_url
         });
       }
       
@@ -81,7 +81,7 @@ export const ChatSidebar = () => {
           id: su.id,
           name: su.fullname || 'Member',
           type: 'sub_user' as const,
-          avatarUrl: su.avatar_url
+          avatar_url: su.avatar_url
         })));
       }
       
@@ -116,14 +116,19 @@ export const ChatSidebar = () => {
             return (
               <button
                 key={`${member.type}-${member.id}`}
-                onClick={() => startDM(member.id, member.type)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('🖱️ Starting DM with member:', member);
+                  startDM(member.id, member.type);
+                }}
                 className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors text-left"
               >
                 <div className="flex-shrink-0 relative">
                   <div className="h-6 w-6 rounded-full bg-muted overflow-hidden flex items-center justify-center">
-                    {resolveAvatarUrl(member.avatarUrl) ? (
+                    {resolveAvatarUrl(member.avatar_url) ? (
                       <img
-                        src={resolveAvatarUrl(member.avatarUrl)!}
+                        src={resolveAvatarUrl(member.avatar_url)!}
                         alt={member.name}
                         className="h-full w-full object-cover"
                         onError={(e) => {

@@ -15,7 +15,7 @@ interface ChatWindowProps {
 type WindowState = 'normal' | 'minimized' | 'maximized';
 
 export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
-  const [windowState, setWindowState] = useState<WindowState>('normal');
+  const [windowState, setWindowState] = useState<WindowState>('minimized');
   const [size, setSize] = useState({ width: 520, height: 560 });
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);

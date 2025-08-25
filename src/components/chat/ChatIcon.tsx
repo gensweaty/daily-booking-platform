@@ -22,7 +22,8 @@ export const ChatIcon = ({ onClick, isOpen, unreadCount = 0 }: ChatIconProps) =>
         }}
         size="lg"
         className={`
-          relative h-14 w-14 rounded-full shadow-lg transition-all duration-200 pointer-events-auto
+          relative h-14 w-14 rounded-lg shadow-lg transition-all duration-200 pointer-events-auto
+          flex items-center justify-center
           ${isOpen 
             ? 'bg-primary/90 hover:bg-primary scale-95' 
             : 'bg-primary hover:bg-primary/90 hover:scale-105'
@@ -35,7 +36,7 @@ export const ChatIcon = ({ onClick, isOpen, unreadCount = 0 }: ChatIconProps) =>
         {unreadCount > 0 && (
           <Badge 
             variant="destructive" 
-            className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs font-medium flex items-center justify-center"
+            className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs font-medium flex items-center justify-center min-w-[20px]"
           >
             {unreadCount > 99 ? '99+' : unreadCount}
           </Badge>
