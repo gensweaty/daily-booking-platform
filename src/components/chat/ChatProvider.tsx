@@ -291,6 +291,7 @@ export const ChatProvider: React.FC = () => {
 
     console.log('🔔 Setting up notification listener for:', me);
 
+    // Get board owner ID for filtering messages
     let boardOwnerIdPromise: Promise<string | null> = (async () => {
       if (me.type === 'admin') return me.id;
       const { data } = await supabase.from('sub_users').select('board_owner_id').eq('id', me.id).maybeSingle();
@@ -306,41 +307,52 @@ export const ChatProvider: React.FC = () => {
           console.log('📨 New message detected:', msg);
           
           const ownerId = await boardOwnerIdPromise;
-          console.log('👤 Board owner ID:', ownerId);
+          console.log('👤 Expected board owner ID:', ownerId);
+          console.log('📄 Message owner_id:', msg.owner_id);
 
-          // Only consider messages that belong to this board owner
-          if (ownerId && msg.owner_id && msg.owner_id !== ownerId) {
-            console.log('⏭️ Skipping message from different board owner');
+          // Only process messages for this board
+          if (!ownerId || !msg.owner_id || msg.owner_id !== ownerId) {
+            console.log('⏭️ Skipping message - owner ID mismatch', { ownerId, msgOwnerId: msg.owner_id });
             return;
           }
 
+          // Check if this message is from current user
           const isMine = (msg.sender_user_id === me.id && msg.sender_type === me.type);
           const isActiveChannelMessage = (msg.channel_id === currentChannelId);
           const shouldCount = !isMine && (!isActiveChannelMessage || !isOpen);
+          const shouldNotify = !isMine;
 
           console.log('🔍 Message analysis:', {
+            senderId: msg.sender_user_id,
+            senderType: msg.sender_type,
+            myId: me.id,
+            myType: me.type,
             isMine,
             isActiveChannelMessage,
             isOpen,
             shouldCount,
+            shouldNotify,
             currentChannelId,
             messageChannelId: msg.channel_id
           });
 
+          // Increment unread count for non-own messages when chat is closed or different channel
           if (shouldCount) {
-            setUnreadTotal(n => {
-              console.log('📈 Incrementing unread count:', n + 1);
-              return n + 1;
+            setUnreadTotal(prev => {
+              const newCount = prev + 1;
+              console.log('📈 Incrementing unread count:', prev, '->', newCount);
+              return newCount;
             });
           }
 
           // Show browser notification for non-own messages
-          if (!isMine && "Notification" in window && Notification.permission === "granted") {
+          if (shouldNotify && "Notification" in window && Notification.permission === "granted") {
             console.log('🔔 Showing browser notification');
             new Notification(msg.sender_name || "New message", { 
               body: String(msg.content || '').slice(0, 120),
               icon: '/favicon.ico',
-              tag: 'chat-notification'
+              tag: 'chat-notification',
+              silent: false
             });
           }
         }

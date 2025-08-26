@@ -121,6 +121,7 @@ export const ChatSidebar = () => {
                   e.stopPropagation();
                   console.log('🖱️ Starting DM with member:', member);
                   console.log('🔍 Current me:', me);
+                  console.log('📋 Button clicked, starting DM process...');
                   
                   try {
                     await startDM(member.id, member.type);
@@ -129,7 +130,8 @@ export const ChatSidebar = () => {
                     console.error('❌ Failed to start DM:', error);
                   }
                 }}
-                className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors text-left cursor-pointer"
+                className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted/50 active:bg-muted transition-all text-left cursor-pointer select-none"
+                type="button"
               >
                 <div className="flex-shrink-0 relative">
                   <div className="h-6 w-6 rounded-full bg-muted overflow-hidden flex items-center justify-center">
