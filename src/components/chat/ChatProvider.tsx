@@ -151,41 +151,40 @@ export const ChatProvider: React.FC = () => {
     }
 
     (async () => {
-      const isAdmin = location.pathname.includes("/dashboard");
+      // Try to find user as admin first
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
       
-      if (isAdmin) {
-        const { data: prof } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-        
-        if (active && prof) {
-          setMe({
-            id: prof.id,
-            type: "admin",
-            name: prof.username || "Admin",
-            avatarUrl: resolveAvatarUrl(prof.avatar_url)
-          });
-        }
-      } else {
-        const userEmail = user.email?.toLowerCase();
-        if (!userEmail) return;
+      if (active && prof) {
+        setMe({
+          id: prof.id,
+          type: "admin",
+          name: prof.username || "Admin",
+          avatarUrl: resolveAvatarUrl(prof.avatar_url)
+        });
+        return;
+      }
+      
+      // If not admin, try to find as sub-user
+      const userEmail = user.email?.toLowerCase();
+      if (!userEmail) return;
 
-        const { data: subUser } = await supabase
-          .from("sub_users")
-          .select("*")
-          .filter("email", "ilike", userEmail)
-          .single();
+      const { data: subUser } = await supabase
+        .from("sub_users")
+        .select("*")
+        .filter("email", "ilike", userEmail)
+        .maybeSingle();
 
-        if (active && subUser) {
-          setMe({
-            id: subUser.id,
-            type: "sub_user",
-            name: subUser.fullname || "Member",
-            avatarUrl: resolveAvatarUrl(subUser.avatar_url)
-          });
-        }
+      if (active && subUser) {
+        setMe({
+          id: subUser.id,
+          type: "sub_user",
+          name: subUser.fullname || "Member",
+          avatarUrl: resolveAvatarUrl(subUser.avatar_url)
+        });
       }
     })();
 
@@ -320,7 +319,7 @@ export const ChatProvider: React.FC = () => {
           const isMine = (msg.sender_user_id === me.id && msg.sender_type === me.type);
           const isActiveChannelMessage = (msg.channel_id === currentChannelId);
           const shouldCount = !isMine && (!isActiveChannelMessage || !isOpen);
-          const shouldNotify = !isMine;
+          const shouldNotify = !isMine && !isActiveChannelMessage;
 
           console.log('🔍 Message analysis:', {
             senderId: msg.sender_user_id,

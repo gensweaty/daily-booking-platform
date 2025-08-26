@@ -12,7 +12,7 @@ export const ChatIcon = ({ onClick, isOpen, unreadCount = 0 }: ChatIconProps) =>
   console.log('🎯 ChatIcon rendering:', { isOpen, unreadCount });
   
   return (
-    <div className="fixed bottom-6 right-6 z-[9999]" style={{ zIndex: 9999 }}>
+    <div className="fixed bottom-2 right-2 z-[9999]" style={{ zIndex: 9999 }}>
       <Button
         onClick={(e) => {
           e.preventDefault();

@@ -73,15 +73,15 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     
     // Fixed bottom-right positioning for desktop
     const baseStyle = {
-      bottom: '100px',
-      right: '24px'
+      bottom: '8px',
+      right: '8px'
     };
     
     switch (windowState) {
       case 'minimized':
         return {
           ...baseStyle,
-          width: '300px',
+          width: 'min(300px, calc(100vw - 16px))',
           height: '50px'
         };
       case 'maximized':
