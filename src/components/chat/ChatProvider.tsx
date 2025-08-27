@@ -38,15 +38,30 @@ export const ChatProvider: React.FC = () => {
   
   // Only show chat on dashboard routes when user is authenticated
   const { loading } = useAuth();
+  // Should we show chat at all?
   const shouldShowChat = useMemo(() => {
-    if (loading || !user?.id) return false;
+    // Always show on dashboard or public board routes  
+    const isOnPublicBoard = location.pathname.startsWith('/board/');
+    const isOnDashboard = location.pathname.includes('/dashboard');
+    const hasUser = !!user;
     
-    const p = location.pathname || "";
-    const isValidRoute = p === "/dashboard" || p.startsWith("/dashboard/") || p.startsWith("/board/");
+    console.log('🤔 Should show chat?', { isOnDashboard, isOnPublicBoard, hasUser, path: location.pathname });
     
-    console.log("🎯 Chat route gate", { path: p, isValidRoute, user: !!user?.id, loading });
-    return isValidRoute;
-  }, [location.pathname, user?.id, loading]);
+    // Show on dashboard when user is present
+    if (isOnDashboard && hasUser) {
+      console.log('✅ Dashboard + user -> show chat');
+      return true;
+    }
+    
+    // Show on public board (even without user, for external access)
+    if (isOnPublicBoard) {
+      console.log('✅ Public board -> show chat');
+      return true;
+    }
+    
+    console.log('❌ No conditions met -> hide chat');
+    return false;
+  }, [location.pathname, user]);
 
   // UI state - ALWAYS start closed
   const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -98,6 +113,17 @@ export const ChatProvider: React.FC = () => {
     const load = async () => {
       setIsInitialized(false);
       if (!user?.id) {
+        // On public boards, still allow chat even without authenticated user
+        const isOnPublicBoard = location.pathname.startsWith('/board/');
+        if (isOnPublicBoard) {
+          console.log('📋 Public board - allowing chat without user');
+          if (active) {
+            setHasSubUsers(false);
+            setIsInitialized(true);
+          }
+          return;
+        }
+        
         console.log("👤 No user -> hide chat");
         if (active) {
           setHasSubUsers(false);
@@ -319,7 +345,7 @@ export const ChatProvider: React.FC = () => {
           const isMine = (msg.sender_user_id === me.id && msg.sender_type === me.type);
           const isActiveChannelMessage = (msg.channel_id === currentChannelId);
           const shouldCount = !isMine && (!isActiveChannelMessage || !isOpen);
-          const shouldNotify = !isMine && !isActiveChannelMessage;
+          const shouldNotify = !isMine && (!isOpen || !isActiveChannelMessage);
 
           console.log('🔍 Message analysis:', {
             senderId: msg.sender_user_id,

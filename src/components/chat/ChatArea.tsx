@@ -26,6 +26,7 @@ export const ChatArea = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState('');
+  const [channelInfo, setChannelInfo] = useState<{ name: string; isDM: boolean; dmPartner?: { name: string; avatar?: string } } | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   // Ensure default channel exists and get its id
@@ -61,6 +62,67 @@ export const ChatArea = () => {
 
   // Use currentChannelId from context if set, otherwise default channel
   const activeChannelId = currentChannelId || channelId;
+
+  // Load channel info for dynamic header
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!activeChannelId) return;
+      
+      const { data: channel } = await supabase
+        .from('chat_channels')
+        .select('name, is_dm, participants')
+        .eq('id', activeChannelId)
+        .maybeSingle();
+      
+      if (!active || !channel) return;
+      
+      if (channel.is_dm && channel.participants) {
+        // Find the other participant for DM
+        const participants = channel.participants as any[];
+        const otherParticipant = participants.find(p => 
+          !(p.user_id === me?.id && p.user_type === me?.type)
+        );
+        
+        if (otherParticipant) {
+          // Get participant details
+          let partnerInfo = { name: 'Unknown', avatar: null };
+          
+          if (otherParticipant.user_type === 'admin') {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('username, avatar_url')
+              .eq('id', otherParticipant.user_id)
+              .maybeSingle();
+            if (profile) {
+              partnerInfo = { name: profile.username || 'Admin', avatar: profile.avatar_url };
+            }
+          } else {
+            const { data: subUser } = await supabase
+              .from('sub_users')
+              .select('fullname, avatar_url')
+              .eq('id', otherParticipant.sub_user_id)
+              .maybeSingle();
+            if (subUser) {
+              partnerInfo = { name: subUser.fullname || 'Member', avatar: subUser.avatar_url };
+            }
+          }
+          
+          setChannelInfo({
+            name: channel.name,
+            isDM: true,
+            dmPartner: partnerInfo
+          });
+        }
+      } else {
+        setChannelInfo({
+          name: channel.name,
+          isDM: false
+        });
+      }
+    })();
+    return () => { active = false; };
+  }, [activeChannelId, me]);
 
   // Load messages
   useEffect(() => {
@@ -156,11 +218,56 @@ export const ChatArea = () => {
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-muted/30 min-h-[60px]">
         <div className="flex items-center gap-2">
-          <MessageCircle className="h-5 w-5 text-muted-foreground" />
-          <h2 className="font-semibold">General</h2>
-          <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600">
-            Default
-          </span>
+          {channelInfo?.isDM && channelInfo.dmPartner ? (
+            <>
+              <div className="h-6 w-6 rounded-full bg-muted overflow-hidden flex items-center justify-center">
+                {resolveAvatarUrl(channelInfo.dmPartner.avatar) ? (
+                  <img
+                    src={resolveAvatarUrl(channelInfo.dmPartner.avatar)!}
+                    alt={channelInfo.dmPartner.name}
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent && !parent.querySelector('.initials-fallback')) {
+                        const initials = document.createElement('span');
+                        initials.className = 'text-xs font-medium text-foreground initials-fallback';
+                        initials.textContent = (channelInfo.dmPartner?.name || "U")
+                          .split(" ")
+                          .map(w => w[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2);
+                        parent.appendChild(initials);
+                      }
+                    }}
+                  />
+                ) : (
+                  <span className="text-xs font-medium text-foreground">
+                    {(channelInfo.dmPartner.name || "U")
+                      .split(" ")
+                      .map(w => w[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)}
+                  </span>
+                )}
+              </div>
+              <h2 className="font-semibold">{channelInfo.dmPartner.name}</h2>
+              <span className="text-xs px-2 py-1 rounded-full bg-blue-500/10 text-blue-600">
+                Direct Message
+              </span>
+            </>
+          ) : (
+            <>
+              <MessageCircle className="h-5 w-5 text-muted-foreground" />
+              <h2 className="font-semibold">{channelInfo?.name || 'General'}</h2>
+              <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600">
+                {channelInfo?.name === 'general' ? 'Default' : 'Channel'}
+              </span>
+            </>
+          )}
         </div>
       </div>
 
@@ -171,7 +278,10 @@ export const ChatArea = () => {
             <div className="space-y-4">
               {messages.length === 0 ? (
                 <div className="text-center text-sm text-muted-foreground py-12">
-                  Welcome to <b>#general</b>. Start a conversation with your team!
+                  {channelInfo?.isDM 
+                    ? `Start a conversation with ${channelInfo.dmPartner?.name || 'this user'}!`
+                    : `Welcome to <b>#${channelInfo?.name || 'general'}</b>. Start a conversation with your team!`
+                  }
                 </div>
               ) : (
                 messages.map((message) => (

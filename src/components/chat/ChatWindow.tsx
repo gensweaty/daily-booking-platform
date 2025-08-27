@@ -15,19 +15,21 @@ interface ChatWindowProps {
 type WindowState = 'normal' | 'minimized' | 'maximized';
 
 export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
-  const [windowState, setWindowState] = useState<WindowState>('minimized');
+  const [windowState, setWindowState] = useState<WindowState>('normal');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   const cardRef = useRef<HTMLDivElement>(null);
   const { isInitialized } = useChat();
 
-  // Set mobile state on mount
+  // Set state on mount - minimized on first open for desktop, maximized for mobile
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !isOpen) return;
     const isMobile = window.innerWidth <= 768;
     if (isMobile) {
       setWindowState('maximized');
       setIsSidebarCollapsed(true);
+    } else {
+      setWindowState('minimized');
     }
   }, [isOpen]);
 
