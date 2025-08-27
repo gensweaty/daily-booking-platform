@@ -3,11 +3,13 @@ import { Hash } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useChat } from './ChatProvider';
+import { useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { resolveAvatarUrl } from './_avatar';
 
 export const ChatSidebar = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const { me, currentChannelId, openChannel, startDM } = useChat();
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
   const [members, setMembers] = useState<Array<{ 
@@ -19,39 +21,133 @@ export const ChatSidebar = () => {
 
   // Load general channel ID
   useEffect(() => {
-    if (!user?.id) return;
+    if (!me) return;
+    
+    console.log('🔍 Loading general channel for:', me);
     
     (async () => {
-      const { data } = await supabase
-        .from('chat_channels')
-        .select('id')
-        .eq('owner_id', user.id)
-        .eq('is_default', true)
-        .maybeSingle();
+      let boardOwnerId: string | null = null;
       
-      if (data) setGeneralChannelId(data.id);
+      if (me.type === 'admin') {
+        boardOwnerId = me.id;
+      } else if (me.type === 'sub_user') {
+        // For sub-users, find their board owner
+        if (!me.id.startsWith('external_') && !me.id.startsWith('guest_')) {
+          const { data: subUserData } = await supabase
+            .from('sub_users')
+            .select('board_owner_id')
+            .eq('id', me.id)
+            .maybeSingle();
+          
+          if (subUserData) {
+            boardOwnerId = subUserData.board_owner_id;
+          }
+        } else {
+          // For external users, get board owner from public board access
+          const pathParts = location.pathname.split('/');
+          const accessToken = pathParts[pathParts.length - 1];
+          
+          if (accessToken) {
+            const { data: boardAccess } = await supabase
+              .from('public_board_access')
+              .select('board_id')
+              .eq('access_token', accessToken)
+              .maybeSingle();
+              
+            if (boardAccess) {
+              const { data: publicBoard } = await supabase
+                .from('public_boards')
+                .select('user_id')
+                .eq('id', boardAccess.board_id)
+                .maybeSingle();
+                
+              if (publicBoard) {
+                boardOwnerId = publicBoard.user_id;
+              }
+            }
+          }
+        }
+      }
+      
+      console.log('📋 Board owner for general channel:', boardOwnerId);
+      
+      if (boardOwnerId) {
+        const { data } = await supabase
+          .from('chat_channels')
+          .select('id')
+          .eq('owner_id', boardOwnerId)
+          .eq('is_default', true)
+          .maybeSingle();
+        
+        if (data) {
+          console.log('✅ General channel found:', data.id);
+          setGeneralChannelId(data.id);
+        } else {
+          console.log('❌ No general channel found for owner:', boardOwnerId);
+        }
+      }
     })();
-  }, [user?.id]);
+  }, [me, location.pathname]);
 
   // Load team members
   useEffect(() => {
-    if (!user?.id || !me) return;
+    if (!me) return;
+    
+    console.log('👥 Loading team members for:', me);
     
     (async () => {
       const teamMembers = [];
       
       // Determine the board owner ID
-      let boardOwnerId = user.id;
-      if (me.type === 'sub_user') {
-        const { data: subUserData } = await supabase
-          .from('sub_users')
-          .select('board_owner_id')
-          .eq('id', me.id)
-          .maybeSingle();
-        
-        if (subUserData) {
-          boardOwnerId = subUserData.board_owner_id;
+      let boardOwnerId: string | null = null;
+      
+      if (me.type === 'admin') {
+        boardOwnerId = me.id;
+      } else if (me.type === 'sub_user') {
+        // For sub-users, find their board owner
+        if (!me.id.startsWith('external_') && !me.id.startsWith('guest_')) {
+          const { data: subUserData } = await supabase
+            .from('sub_users')
+            .select('board_owner_id')
+            .eq('id', me.id)
+            .maybeSingle();
+          
+          if (subUserData) {
+            boardOwnerId = subUserData.board_owner_id;
+          }
+        } else {
+          // For external users, get board owner from public board access
+          const pathParts = location.pathname.split('/');
+          const accessToken = pathParts[pathParts.length - 1];
+          
+          if (accessToken) {
+            const { data: boardAccess } = await supabase
+              .from('public_board_access')
+              .select('board_id')
+              .eq('access_token', accessToken)
+              .maybeSingle();
+              
+            if (boardAccess) {
+              const { data: publicBoard } = await supabase
+                .from('public_boards')
+                .select('user_id')
+                .eq('id', boardAccess.board_id)
+                .maybeSingle();
+                
+              if (publicBoard) {
+                boardOwnerId = publicBoard.user_id;
+              }
+            }
+          }
         }
+      }
+      
+      console.log('📋 Board owner ID determined:', boardOwnerId);
+      
+      if (!boardOwnerId) {
+        console.log('❌ Could not determine board owner');
+        setMembers([]);
+        return;
       }
       
       // Add admin (board owner)
@@ -85,9 +181,10 @@ export const ChatSidebar = () => {
         })));
       }
       
+      console.log('👥 Team members loaded:', teamMembers);
       setMembers(teamMembers);
     })();
-  }, [user?.id, me]);
+  }, [me, location.pathname]);
 
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">

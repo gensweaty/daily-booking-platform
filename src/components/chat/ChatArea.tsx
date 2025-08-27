@@ -67,7 +67,12 @@ export const ChatArea = () => {
   useEffect(() => {
     let active = true;
     (async () => {
-      if (!activeChannelId) return;
+      if (!activeChannelId) {
+        if (active) setChannelInfo(null);
+        return;
+      }
+      
+      console.log('🔍 Loading channel info for:', activeChannelId);
       
       const { data: channel } = await supabase
         .from('chat_channels')
@@ -75,50 +80,85 @@ export const ChatArea = () => {
         .eq('id', activeChannelId)
         .maybeSingle();
       
-      if (!active || !channel) return;
+      if (!active || !channel) {
+        console.log('❌ Channel not found:', activeChannelId);
+        return;
+      }
+      
+      console.log('📋 Channel data:', channel);
       
       if (channel.is_dm && channel.participants) {
         // Find the other participant for DM
         const participants = channel.participants as any[];
-        const otherParticipant = participants.find(p => 
-          !(p.user_id === me?.id && p.user_type === me?.type)
-        );
+        console.log('👥 DM participants:', participants);
+        console.log('👤 Current me:', me);
+        
+        // Look for other participant (not current user)
+        const otherParticipant = participants.find(participantId => {
+          // participants array contains just user IDs, not objects
+          if (typeof participantId === 'string') {
+            return participantId !== me?.id;
+          }
+          return false;
+        });
+        
+        console.log('🎯 Other participant ID:', otherParticipant);
         
         if (otherParticipant) {
-          // Get participant details
+          // Get participant details - try both admin and sub-user
           let partnerInfo = { name: 'Unknown', avatar: null };
           
-          if (otherParticipant.user_type === 'admin') {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('username, avatar_url')
-              .eq('id', otherParticipant.user_id)
-              .maybeSingle();
-            if (profile) {
-              partnerInfo = { name: profile.username || 'Admin', avatar: profile.avatar_url };
-            }
+          // Try as admin first
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('username, avatar_url')
+            .eq('id', otherParticipant)
+            .maybeSingle();
+          
+          if (profile) {
+            console.log('✅ Found admin partner:', profile);
+            partnerInfo = { name: profile.username || 'Admin', avatar: profile.avatar_url };
           } else {
+            // Try as sub-user
             const { data: subUser } = await supabase
               .from('sub_users')
               .select('fullname, avatar_url')
-              .eq('id', otherParticipant.sub_user_id)
+              .eq('id', otherParticipant)
               .maybeSingle();
+            
             if (subUser) {
+              console.log('✅ Found sub-user partner:', subUser);
               partnerInfo = { name: subUser.fullname || 'Member', avatar: subUser.avatar_url };
+            } else {
+              console.log('❌ Partner not found in profiles or sub_users');
             }
           }
           
-          setChannelInfo({
-            name: channel.name,
-            isDM: true,
-            dmPartner: partnerInfo
-          });
+          if (active) {
+            setChannelInfo({
+              name: channel.name,
+              isDM: true,
+              dmPartner: partnerInfo
+            });
+          }
+        } else {
+          console.log('❌ No other participant found');
+          if (active) {
+            setChannelInfo({
+              name: channel.name,
+              isDM: true,
+              dmPartner: { name: 'Unknown User', avatar: null }
+            });
+          }
         }
       } else {
-        setChannelInfo({
-          name: channel.name,
-          isDM: false
-        });
+        console.log('📢 Setting channel info for general channel:', channel.name);
+        if (active) {
+          setChannelInfo({
+            name: channel.name,
+            isDM: false
+          });
+        }
       }
     })();
     return () => { active = false; };

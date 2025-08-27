@@ -171,12 +171,55 @@ export const ChatProvider: React.FC = () => {
   useEffect(() => {
     let active = true;
     
-    if (!user?.id || !shouldShowChat) {
+    if (!shouldShowChat) {
       setMe(null);
       return;
     }
 
     (async () => {
+      // Handle public board access (external users without authentication)
+      const isOnPublicBoard = location.pathname.startsWith('/board/');
+      if (isOnPublicBoard && !user?.id) {
+        // For external public board access, check if we can get user info from URL/token
+        const pathParts = location.pathname.split('/');
+        const accessToken = pathParts[pathParts.length - 1];
+        
+        if (accessToken) {
+          const { data: boardAccess } = await supabase
+            .from('public_board_access')
+            .select('external_user_name, external_user_email, board_id')
+            .eq('access_token', accessToken)
+            .maybeSingle();
+          
+          if (active && boardAccess) {
+            console.log('🎯 External user detected:', boardAccess);
+            setMe({
+              id: `external_${accessToken}`,
+              type: "sub_user", // Treat external users as sub-users
+              name: boardAccess.external_user_name || "Guest",
+              avatarUrl: null
+            });
+            return;
+          }
+        }
+        
+        // Fallback for external access without proper token
+        if (active) {
+          setMe({
+            id: `guest_${Date.now()}`,
+            type: "sub_user",
+            name: "Guest User",
+            avatarUrl: null
+          });
+        }
+        return;
+      }
+      
+      if (!user?.id) {
+        if (active) setMe(null);
+        return;
+      }
+
       // Try to find user as admin first
       const { data: prof } = await supabase
         .from("profiles")
@@ -185,6 +228,7 @@ export const ChatProvider: React.FC = () => {
         .maybeSingle();
       
       if (active && prof) {
+        console.log('🎯 Admin user detected:', prof);
         setMe({
           id: prof.id,
           type: "admin",
@@ -194,9 +238,12 @@ export const ChatProvider: React.FC = () => {
         return;
       }
       
-      // If not admin, try to find as sub-user
+      // If not admin, try to find as sub-user by email
       const userEmail = user.email?.toLowerCase();
-      if (!userEmail) return;
+      if (!userEmail) {
+        console.log('❌ No user email found');
+        return;
+      }
 
       const { data: subUser } = await supabase
         .from("sub_users")
@@ -205,12 +252,15 @@ export const ChatProvider: React.FC = () => {
         .maybeSingle();
 
       if (active && subUser) {
+        console.log('🎯 Sub-user detected:', subUser);
         setMe({
           id: subUser.id,
           type: "sub_user",
           name: subUser.fullname || "Member",
           avatarUrl: resolveAvatarUrl(subUser.avatar_url)
         });
+      } else {
+        console.log('❌ No matching sub-user found for email:', userEmail);
       }
     })();
 
@@ -258,13 +308,13 @@ export const ChatProvider: React.FC = () => {
       // Create DM name for easier identification
       const dmName = `DM: ${me.name} & ${otherType === 'admin' ? 'Admin' : 'Member'}`;
 
-      // find-or-create a 1:1 channel between me and other user
+      // Look for existing DM channel - check both participant orders
       const { data: existing, error: searchError } = await supabase
         .from("chat_channels")
         .select("id, name, participants")
         .eq("is_dm", true)
         .eq("owner_id", channelOwnerId)
-        .contains("participants", [me.id, otherId]);
+        .or(`participants.cs.{${me.id},${otherId}},participants.cs.{${otherId},${me.id}}`);
 
       if (searchError) {
         console.error('❌ Error searching for existing DM:', searchError);
@@ -279,12 +329,30 @@ export const ChatProvider: React.FC = () => {
           .from("chat_channels")
           .insert({
             is_dm: true,
-            participants: [me.id, otherId],
+            participants: [me.id, otherId], // Simple array of participant IDs
             name: dmName,
             owner_id: channelOwnerId
           })
           .select("id")
           .single();
+        
+        // Also create participant entries for proper access control
+        if (created?.id) {
+          await supabase.from("chat_participants").insert([
+            {
+              channel_id: created.id,
+              user_id: me.type === 'admin' ? me.id : null,
+              sub_user_id: me.type === 'sub_user' ? me.id : null,
+              user_type: me.type
+            },
+            {
+              channel_id: created.id,
+              user_id: otherType === 'admin' ? otherId : null,
+              sub_user_id: otherType === 'sub_user' ? otherId : null,
+              user_type: otherType
+            }
+          ]);
+        }
         
         if (createError) {
           console.error('❌ Error creating DM channel:', createError);
@@ -319,6 +387,34 @@ export const ChatProvider: React.FC = () => {
     // Get board owner ID for filtering messages
     let boardOwnerIdPromise: Promise<string | null> = (async () => {
       if (me.type === 'admin') return me.id;
+      
+      if (me.id.startsWith('external_') || me.id.startsWith('guest_')) {
+        // For external users, get board owner from public board access
+        const pathParts = location.pathname.split('/');
+        const accessToken = pathParts[pathParts.length - 1];
+        
+        if (accessToken) {
+          const { data: boardAccess } = await supabase
+            .from('public_board_access')
+            .select('board_id')
+            .eq('access_token', accessToken)
+            .maybeSingle();
+            
+          if (boardAccess) {
+            const { data: publicBoard } = await supabase
+              .from('public_boards')
+              .select('user_id')
+              .eq('id', boardAccess.board_id)
+              .maybeSingle();
+              
+            if (publicBoard) {
+              return publicBoard.user_id;
+            }
+          }
+        }
+        return null;
+      }
+      
       const { data } = await supabase.from('sub_users').select('board_owner_id').eq('id', me.id).maybeSingle();
       return data?.board_owner_id || null;
     })();
@@ -341,8 +437,13 @@ export const ChatProvider: React.FC = () => {
             return;
           }
 
-          // Check if this message is from current user
-          const isMine = (msg.sender_user_id === me.id && msg.sender_type === me.type);
+          // Check if this message is from current user - improved detection
+          const isMine = (
+            (msg.sender_user_id === me.id && msg.sender_type === me.type) ||
+            (me.id.startsWith('external_') && msg.sender_name?.includes('Guest')) ||
+            (me.id.startsWith('guest_') && msg.sender_name?.includes('Guest'))
+          );
+          
           const isActiveChannelMessage = (msg.channel_id === currentChannelId);
           const shouldCount = !isMine && (!isActiveChannelMessage || !isOpen);
           const shouldNotify = !isMine && (!isOpen || !isActiveChannelMessage);
@@ -350,8 +451,10 @@ export const ChatProvider: React.FC = () => {
           console.log('🔍 Message analysis:', {
             senderId: msg.sender_user_id,
             senderType: msg.sender_type,
+            senderName: msg.sender_name,
             myId: me.id,
             myType: me.type,
+            myName: me.name,
             isMine,
             isActiveChannelMessage,
             isOpen,
@@ -388,7 +491,7 @@ export const ChatProvider: React.FC = () => {
       console.log('🧹 Cleaning up notification listener');
       supabase.removeChannel(ch); 
     };
-  }, [me?.id, me?.type, currentChannelId, shouldShowChat, isOpen]);
+  }, [me?.id, me?.type, me?.name, currentChannelId, shouldShowChat, isOpen, location.pathname]);
 
   // Reset unread count when chat opens or channel changes
   useEffect(() => {
