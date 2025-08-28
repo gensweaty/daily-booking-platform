@@ -254,8 +254,8 @@ export const ChatSidebar = () => {
             Team Members
           </p>
           
-          {me && members.map((member) => {
-            const isMe = member.id === me.id && member.type === me.type;
+          {members.map((member) => {
+            const isMe = !!me && member.id === me.id && member.type === me.type;
             
             if (isMe) {
               return null;

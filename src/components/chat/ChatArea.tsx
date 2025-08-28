@@ -295,21 +295,26 @@ export const ChatArea = () => {
         const senderEmail = me?.email || stored?.email;
         if (!senderEmail) throw new Error('Missing sub-user email for public board');
 
-        const { error } = await supabase.rpc('send_public_board_message', {
+        const { data, error } = await supabase.rpc('send_public_board_message', {
           p_board_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
           p_sender_email: senderEmail,
           p_content: draft.trim(),
         });
         if (error) throw error;
+
+        // immediate echo
+        if (data) setMessages(prev => [...prev, data as Message]);
       } else {
         // dashboard (owner) - use RPC
-        const { error } = await supabase.rpc('send_authenticated_message', {
+        const { data, error } = await supabase.rpc('send_authenticated_message', {
           p_channel_id: activeChannelId,
           p_owner_id: boardOwnerId,
           p_content: draft.trim(),
         });
         if (error) throw error;
+
+        if (data) setMessages(prev => [...prev, data as Message]);
       }
       
       setDraft('');
