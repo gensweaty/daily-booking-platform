@@ -15,21 +15,52 @@ export const ChatSidebar = () => {
     avatar_url?: string | null;
   }>>([]);
 
-  // Load general channel
+  // Load general channel with participants check
   useEffect(() => {
     if (!boardOwnerId) return;
     
     (async () => {
-      const { data } = await supabase
+      console.log('🔍 Loading General channel for board owner:', boardOwnerId);
+      
+      // Find General channel that has participants (the active one)
+      const { data, error } = await supabase
         .from('chat_channels')
-        .select('id')
+        .select(`
+          id, 
+          name,
+          chat_participants!inner(id)
+        `)
         .eq('owner_id', boardOwnerId)
         .eq('is_default', true)
+        .eq('name', 'General')
+        .limit(1)
         .maybeSingle();
       
+      if (error) {
+        console.error('❌ Error loading General channel:', error);
+        return;
+      }
+      
       if (data) {
-        console.log('✅ General channel found:', data.id);
+        console.log('✅ General channel found with participants:', data.id);
         setGeneralChannelId(data.id);
+      } else {
+        console.log('⚠️ No General channel with participants found');
+        // Fallback: get any General channel for this owner
+        const { data: fallback } = await supabase
+          .from('chat_channels')
+          .select('id')
+          .eq('owner_id', boardOwnerId)
+          .eq('is_default', true)
+          .eq('name', 'General')
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+          
+        if (fallback) {
+          console.log('📋 Using fallback General channel:', fallback.id);
+          setGeneralChannelId(fallback.id);
+        }
       }
     })();
   }, [boardOwnerId]);

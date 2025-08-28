@@ -121,11 +121,15 @@ export const ChatProvider: React.FC = () => {
           console.log('🔍 Checking authenticated user:', user.email);
           
           // Try admin first - check profiles table
-          const { data: profile } = await supabase
+          const { data: profile, error: profileError } = await supabase
             .from("profiles")
             .select("*")
             .eq("id", user.id)
             .maybeSingle();
+          
+          if (profileError) {
+            console.log('⚠️ Profile query error:', profileError);
+          }
           
           if (active && profile) {
             console.log('✅ Admin user detected:', profile.username);
@@ -140,19 +144,24 @@ export const ChatProvider: React.FC = () => {
             return;
           }
           
-          // Try sub-user by email match
+          // Try sub-user by email match (case-insensitive)
           const userEmail = user.email?.toLowerCase();
           if (userEmail) {
             console.log('🔍 Looking for sub-user with email:', userEmail);
             
-            const { data: subUser } = await supabase
+            const { data: subUser, error: subUserError } = await supabase
               .from("sub_users")
               .select("*")
-              .filter("email", "ilike", userEmail)
+              .ilike("email", userEmail)
               .maybeSingle();
+
+            if (subUserError) {
+              console.log('⚠️ Sub-user query error:', subUserError);
+            }
 
             if (active && subUser) {
               console.log('✅ Sub-user detected:', { 
+                id: subUser.id,
                 fullname: subUser.fullname, 
                 boardOwnerId: subUser.board_owner_id 
               });
@@ -352,7 +361,7 @@ export const ChatProvider: React.FC = () => {
     }
   }, [me, boardOwnerId, openChannel, isOpen, open, toast]);
 
-  // Notifications
+  // Notifications with improved logic
   useEffect(() => {
     if (!me || !boardOwnerId || !shouldShowChat) {
       console.log('🔔 Skipping notifications setup - missing data:', { 
@@ -366,19 +375,22 @@ export const ChatProvider: React.FC = () => {
     console.log('🔔 Setting up notifications for:', { 
       userName: me.name, 
       userType: me.type, 
+      userId: me.id,
       boardOwnerId 
     });
 
     const ch = supabase
-      .channel('chat_notifications')
+      .channel(`chat_notifications_${me.id}`)
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
         (payload) => {
           const msg = payload.new as any;
           console.log('📨 New message received:', { 
-            content: msg.content?.slice(0, 50) + '...', 
+            content: msg.content?.slice(0, 30) + '...', 
             senderName: msg.sender_name,
             senderType: msg.sender_type,
+            senderUserId: msg.sender_user_id,
+            senderSubUserId: msg.sender_sub_user_id,
             ownerId: msg.owner_id,
             expectedOwnerId: boardOwnerId,
             channelId: msg.channel_id,
@@ -396,9 +408,9 @@ export const ChatProvider: React.FC = () => {
 
           // Enhanced message ownership detection
           const isMine = (
-            // Standard admin match
+            // Admin user match
             (me.type === 'admin' && msg.sender_type === 'admin' && msg.sender_user_id === me.id) ||
-            // Standard sub-user match  
+            // Sub-user match  
             (me.type === 'sub_user' && msg.sender_type === 'sub_user' && msg.sender_sub_user_id === me.id) ||
             // External/guest user name match
             ((me.id.startsWith('external_') || me.id.startsWith('guest_')) && msg.sender_name === me.name)
@@ -416,7 +428,13 @@ export const ChatProvider: React.FC = () => {
             chatOpen: isOpen,
             myId: me.id,
             myType: me.type,
-            myName: me.name
+            myName: me.name,
+            senderDetails: {
+              userId: msg.sender_user_id,
+              subUserId: msg.sender_sub_user_id,
+              type: msg.sender_type,
+              name: msg.sender_name
+            }
           });
 
           if (shouldCount) {
