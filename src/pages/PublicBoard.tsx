@@ -467,6 +467,17 @@ const handleRegister = async () => {
       // Ensure sub-user record exists
       const subUserData = await ensureSubUser(boardData.user_id, normalizedEmail, fullName.trim());
 
+      // Store password hash and salt for login capability
+      const { error: pwdError } = await supabase
+        .from('sub_users')
+        .update({ 
+          password_hash: hash, 
+          password_salt: salt,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', subUserData.id);
+      if (pwdError) throw pwdError;
+
       // Create access token for immediate board access
       const token = `${boardData.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const { error } = await supabase
