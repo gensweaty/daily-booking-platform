@@ -99,7 +99,12 @@ export const ChatProvider: React.FC = () => {
     let active = true;
     
     (async () => {
-      console.log('🔍 Initializing chat for:', { effectiveUser, isPublicBoard, shouldShowChat });
+      console.log('🔍 Initializing chat for:', { 
+        user: user?.email, 
+        isPublicBoard, 
+        shouldShowChat, 
+        path: location.pathname 
+      });
       
       if (!shouldShowChat) {
         if (active) {
@@ -111,8 +116,66 @@ export const ChatProvider: React.FC = () => {
       }
 
       try {
-        // Handle public board access (external users)
+        // Handle authenticated users FIRST (this covers both admin and sub-users)
+        if (user?.id) {
+          console.log('🔍 Checking authenticated user:', user.email);
+          
+          // Try admin first - check profiles table
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .maybeSingle();
+          
+          if (active && profile) {
+            console.log('✅ Admin user detected:', profile.username);
+            setBoardOwnerId(user.id);
+            setMe({
+              id: profile.id,
+              type: "admin",
+              name: profile.username || "Admin",
+              avatarUrl: resolveAvatarUrl(profile.avatar_url)
+            });
+            setIsInitialized(true);
+            return;
+          }
+          
+          // Try sub-user by email match
+          const userEmail = user.email?.toLowerCase();
+          if (userEmail) {
+            console.log('🔍 Looking for sub-user with email:', userEmail);
+            
+            const { data: subUser } = await supabase
+              .from("sub_users")
+              .select("*")
+              .filter("email", "ilike", userEmail)
+              .maybeSingle();
+
+            if (active && subUser) {
+              console.log('✅ Sub-user detected:', { 
+                fullname: subUser.fullname, 
+                boardOwnerId: subUser.board_owner_id 
+              });
+              
+              setBoardOwnerId(subUser.board_owner_id);
+              setMe({
+                id: subUser.id,
+                type: "sub_user",
+                name: subUser.fullname || "Member",
+                avatarUrl: resolveAvatarUrl(subUser.avatar_url)
+              });
+              setIsInitialized(true);
+              return;
+            }
+          }
+          
+          console.log('❌ Authenticated user not found in profiles or sub_users');
+        }
+        
+        // Handle public board access (external users) - ONLY if no authenticated user
         if (isOnPublicBoard && !user) {
+          console.log('🔍 Checking public board access');
+          
           const pathParts = location.pathname.split('/');
           const accessToken = pathParts[pathParts.length - 1];
           
@@ -131,7 +194,7 @@ export const ChatProvider: React.FC = () => {
                 .maybeSingle();
                 
               if (publicBoard) {
-                console.log('🎯 External user on public board:', boardAccess);
+                console.log('✅ External user on public board:', boardAccess.external_user_name);
                 setBoardOwnerId(publicBoard.user_id);
                 setMe({
                   id: `external_${accessToken}`,
@@ -147,10 +210,10 @@ export const ChatProvider: React.FC = () => {
           
           // Fallback for external access
           if (active) {
-            console.log('🎯 Fallback external user');
+            console.log('⚠️ Fallback external user');
             setMe({
               id: `guest_${Date.now()}`,
-              type: "sub_user",
+              type: "sub_user", 
               name: "Guest User",
               avatarUrl: null
             });
@@ -159,72 +222,14 @@ export const ChatProvider: React.FC = () => {
           return;
         }
         
-        // Handle authenticated users
-        if (!user?.id) {
-          if (active) {
-            setMe(null);
-            setBoardOwnerId(null);
-            setIsInitialized(true);
-          }
-          return;
-        }
-
-        // Try admin first
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .maybeSingle();
-        
-        if (active && profile) {
-          console.log('🎯 Admin user detected:', profile);
-          setBoardOwnerId(user.id);
-          setMe({
-            id: profile.id,
-            type: "admin",
-            name: profile.username || "Admin",
-            avatarUrl: resolveAvatarUrl(profile.avatar_url)
-          });
+        // No valid user found
+        console.log('❌ No valid user identity found');
+        if (active) {
+          setMe(null);
+          setBoardOwnerId(null);
           setIsInitialized(true);
-          return;
         }
         
-        // Try sub-user by email
-        const userEmail = user.email?.toLowerCase();
-        if (!userEmail) {
-          console.log('❌ No user email found');
-          if (active) {
-            setMe(null);
-            setBoardOwnerId(null);
-            setIsInitialized(true);
-          }
-          return;
-        }
-
-        const { data: subUser } = await supabase
-          .from("sub_users")
-          .select("*")
-          .filter("email", "ilike", userEmail)
-          .maybeSingle();
-
-        if (active && subUser) {
-          console.log('🎯 Sub-user detected:', subUser);
-          setBoardOwnerId(subUser.board_owner_id);
-          setMe({
-            id: subUser.id,
-            type: "sub_user",
-            name: subUser.fullname || "Member",
-            avatarUrl: resolveAvatarUrl(subUser.avatar_url)
-          });
-          setIsInitialized(true);
-        } else {
-          console.log('❌ No matching user found');
-          if (active) {
-            setMe(null);
-            setBoardOwnerId(null);
-            setIsInitialized(true);
-          }
-        }
       } catch (error) {
         console.error('❌ Error initializing chat:', error);
         if (active) {
@@ -238,7 +243,7 @@ export const ChatProvider: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [user?.id, shouldShowChat, location.pathname, isOnPublicBoard, effectiveUser]);
+  }, [user?.id, user?.email, shouldShowChat, location.pathname, isOnPublicBoard]);
 
   // Check for sub-users (always allow chat to show)
   useEffect(() => {
@@ -349,9 +354,20 @@ export const ChatProvider: React.FC = () => {
 
   // Notifications
   useEffect(() => {
-    if (!me || !boardOwnerId || !shouldShowChat) return;
+    if (!me || !boardOwnerId || !shouldShowChat) {
+      console.log('🔔 Skipping notifications setup - missing data:', { 
+        hasMe: !!me, 
+        hasBoardOwner: !!boardOwnerId, 
+        shouldShow: shouldShowChat 
+      });
+      return;
+    }
 
-    console.log('🔔 Setting up notifications for:', me);
+    console.log('🔔 Setting up notifications for:', { 
+      userName: me.name, 
+      userType: me.type, 
+      boardOwnerId 
+    });
 
     const ch = supabase
       .channel('chat_notifications')
@@ -359,33 +375,60 @@ export const ChatProvider: React.FC = () => {
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
         (payload) => {
           const msg = payload.new as any;
-          console.log('📨 New message:', msg);
+          console.log('📨 New message received:', { 
+            content: msg.content?.slice(0, 50) + '...', 
+            senderName: msg.sender_name,
+            senderType: msg.sender_type,
+            ownerId: msg.owner_id,
+            expectedOwnerId: boardOwnerId,
+            channelId: msg.channel_id,
+            currentChannelId
+          });
 
           // Only process messages for this board
           if (msg.owner_id !== boardOwnerId) {
-            console.log('⏭️ Skipping - wrong board owner');
+            console.log('⏭️ Skipping message - owner mismatch:', { 
+              msgOwnerId: msg.owner_id, 
+              expectedOwnerId: boardOwnerId 
+            });
             return;
           }
 
-          // Check if it's my message
+          // Enhanced message ownership detection
           const isMine = (
-            (msg.sender_user_id && me.id === msg.sender_user_id && msg.sender_type === 'admin') ||
-            (msg.sender_sub_user_id && me.id === msg.sender_sub_user_id && msg.sender_type === 'sub_user') ||
-            (me.id.startsWith('external_') || me.id.startsWith('guest_')) && 
-            (msg.sender_name === me.name)
+            // Standard admin match
+            (me.type === 'admin' && msg.sender_type === 'admin' && msg.sender_user_id === me.id) ||
+            // Standard sub-user match  
+            (me.type === 'sub_user' && msg.sender_type === 'sub_user' && msg.sender_sub_user_id === me.id) ||
+            // External/guest user name match
+            ((me.id.startsWith('external_') || me.id.startsWith('guest_')) && msg.sender_name === me.name)
           );
           
-          const isActiveChannel = msg.channel_id === currentChannelId;
+          const isActiveChannel = (msg.channel_id === currentChannelId);
           const shouldCount = !isMine && (!isActiveChannel || !isOpen);
           const shouldNotify = !isMine && (!isOpen || !isActiveChannel);
 
-          console.log('🔍 Message check:', { isMine, isActiveChannel, shouldCount, shouldNotify });
+          console.log('🔍 Message analysis:', { 
+            isMine, 
+            isActiveChannel, 
+            shouldCount, 
+            shouldNotify,
+            chatOpen: isOpen,
+            myId: me.id,
+            myType: me.type,
+            myName: me.name
+          });
 
           if (shouldCount) {
-            setUnreadTotal(prev => prev + 1);
+            setUnreadTotal(prev => {
+              const newCount = prev + 1;
+              console.log('📈 Updating unread count:', prev, '->', newCount);
+              return newCount;
+            });
           }
 
           if (shouldNotify && "Notification" in window && Notification.permission === "granted") {
+            console.log('🔔 Showing browser notification');
             new Notification(msg.sender_name || "New message", { 
               body: String(msg.content || '').slice(0, 120),
               icon: '/favicon.ico'
@@ -396,9 +439,10 @@ export const ChatProvider: React.FC = () => {
       .subscribe();
 
     return () => {
+      console.log('🧹 Cleaning up notification listener');
       supabase.removeChannel(ch);
     };
-  }, [me, boardOwnerId, currentChannelId, isOpen, shouldShowChat]);
+  }, [me?.id, me?.type, me?.name, boardOwnerId, currentChannelId, isOpen, shouldShowChat]);
 
   // Reset unread on open/channel change
   useEffect(() => {

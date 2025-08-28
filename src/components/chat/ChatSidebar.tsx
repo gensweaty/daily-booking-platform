@@ -36,44 +36,68 @@ export const ChatSidebar = () => {
 
   // Load team members
   useEffect(() => {
-    if (!boardOwnerId) return;
+    if (!boardOwnerId) {
+      console.log('❌ No boardOwnerId for loading team members');
+      setMembers([]);
+      return;
+    }
+    
+    console.log('👥 Loading team members for board owner:', boardOwnerId);
     
     (async () => {
-      const teamMembers = [];
-      
-      // Add admin (board owner)
-      const { data: adminProfile } = await supabase
-        .from('profiles')
-        .select('id, username, avatar_url')
-        .eq('id', boardOwnerId)
-        .maybeSingle();
-      
-      if (adminProfile) {
-        teamMembers.push({
-          id: adminProfile.id,
-          name: adminProfile.username || 'Admin',
-          type: 'admin' as const,
-          avatar_url: adminProfile.avatar_url
-        });
+      try {
+        const teamMembers = [];
+        
+        // Add admin (board owner)
+        console.log('🔍 Loading admin profile for:', boardOwnerId);
+        const { data: adminProfile, error: adminError } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url')
+          .eq('id', boardOwnerId)
+          .maybeSingle();
+        
+        if (adminError) {
+          console.error('❌ Error loading admin profile:', adminError);
+        } else if (adminProfile) {
+          console.log('✅ Admin profile loaded:', adminProfile.username);
+          teamMembers.push({
+            id: adminProfile.id,
+            name: adminProfile.username || 'Admin',
+            type: 'admin' as const,
+            avatar_url: adminProfile.avatar_url
+          });
+        } else {
+          console.log('⚠️ No admin profile found for board owner');
+        }
+        
+        // Add sub-users
+        console.log('🔍 Loading sub-users for board owner:', boardOwnerId);
+        const { data: subUsers, error: subUsersError } = await supabase
+          .from('sub_users')
+          .select('id, fullname, avatar_url')
+          .eq('board_owner_id', boardOwnerId);
+        
+        if (subUsersError) {
+          console.error('❌ Error loading sub-users:', subUsersError);
+        } else if (subUsers && subUsers.length > 0) {
+          console.log('✅ Sub-users loaded:', subUsers.length, 'users');
+          teamMembers.push(...subUsers.map(su => ({
+            id: su.id,
+            name: su.fullname || 'Member',
+            type: 'sub_user' as const,
+            avatar_url: su.avatar_url
+          })));
+        } else {
+          console.log('⚠️ No sub-users found for board owner');
+        }
+        
+        console.log('👥 Final team members list:', teamMembers.map(m => ({ name: m.name, type: m.type })));
+        setMembers(teamMembers);
+        
+      } catch (error) {
+        console.error('❌ Error loading team members:', error);
+        setMembers([]);
       }
-      
-      // Add sub-users
-      const { data: subUsers } = await supabase
-        .from('sub_users')
-        .select('id, fullname, avatar_url')
-        .eq('board_owner_id', boardOwnerId);
-      
-      if (subUsers) {
-        teamMembers.push(...subUsers.map(su => ({
-          id: su.id,
-          name: su.fullname || 'Member',
-          type: 'sub_user' as const,
-          avatar_url: su.avatar_url
-        })));
-      }
-      
-      console.log('👥 Team members loaded:', teamMembers);
-      setMembers(teamMembers);
     })();
   }, [boardOwnerId]);
 
