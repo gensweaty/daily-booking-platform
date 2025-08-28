@@ -354,12 +354,22 @@ export const ChatArea = () => {
           });
         }
       } else {
-        // dashboard (owner) - use RPC
+        // dashboard (owner) - use RPC with enhanced debugging
+        console.log('📤 Dashboard sending message:', { 
+          channelId: activeChannelId, 
+          ownerId: boardOwnerId, 
+          me,
+          content: draft.trim().slice(0, 30) + '...' 
+        });
+        
         const { data, error } = await supabase.rpc('send_authenticated_message', {
           p_channel_id: activeChannelId,
           p_owner_id: boardOwnerId,
           p_content: draft.trim(),
         });
+        
+        console.log('📤 Dashboard RPC result:', { data, error });
+        
         if (error) throw error;
 
         // immediate echo with deduplication check
