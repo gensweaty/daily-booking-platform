@@ -242,9 +242,17 @@ export const ChatArea = () => {
     return () => { active = false; };
   }, [activeChannelId, location.pathname]);
 
-  // Real-time updates
+  // Real-time updates with enhanced debugging
   useEffect(() => {
     if (!activeChannelId) return;
+
+    console.log('🔄 Setting up real-time subscription for channel:', activeChannelId);
+    console.log('🔍 Current user context:', { 
+      me, 
+      boardOwnerId,
+      activeChannelId,
+      messageCount: messages.length
+    });
 
     const ch = supabase
       .channel(`messages:${activeChannelId}`)
@@ -256,23 +264,52 @@ export const ChatArea = () => {
           filter: `channel_id=eq.${activeChannelId}` 
         },
         (payload) => {
+          console.log('📡 Real-time update received:', { 
+            eventType: payload.eventType,
+            messageId: (payload.new as any)?.id || (payload.old as any)?.id,
+            senderName: (payload.new as any)?.sender_name,
+            senderType: (payload.new as any)?.sender_type,
+            content: (payload.new as any)?.content?.slice(0, 30) + '...',
+            channelId: (payload.new as any)?.channel_id || (payload.old as any)?.channel_id,
+            ownerId: (payload.new as any)?.owner_id
+          });
+
           if (payload.eventType === 'INSERT') {
-            setMessages(prev => [...prev, payload.new as Message]);
+            const newMessage = payload.new as Message;
+            
+            // Check if message is already in our list (prevent duplicates)
+            setMessages(prev => {
+              const exists = prev.find(m => m.id === newMessage.id);
+              if (exists) {
+                console.log('⚠️ Duplicate message prevented:', newMessage.id);
+                return prev;
+              }
+              
+              console.log('✅ Adding new message to chat:', newMessage.id, newMessage.sender_name);
+              return [...prev, newMessage];
+            });
           } else if (payload.eventType === 'UPDATE') {
+            const updatedMessage = payload.new as Message;
             setMessages(prev => prev.map(m => 
-              m.id === (payload.new as any).id ? payload.new as Message : m
+              m.id === updatedMessage.id ? updatedMessage : m
             ));
+            console.log('📝 Updated message:', updatedMessage.id);
           } else if (payload.eventType === 'DELETE') {
-            setMessages(prev => prev.filter(m => m.id !== (payload.old as any).id));
+            const deletedId = (payload.old as any).id;
+            setMessages(prev => prev.filter(m => m.id !== deletedId));
+            console.log('🗑️ Deleted message:', deletedId);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`📡 Real-time subscription status for ${activeChannelId}:`, status);
+      });
 
     return () => {
+      console.log('🧹 Cleaning up real-time subscription for:', activeChannelId);
       supabase.removeChannel(ch);
     };
-  }, [activeChannelId]);
+  }, [activeChannelId, me, boardOwnerId]);
 
   // Auto-scroll
   useEffect(() => {
@@ -304,7 +341,18 @@ export const ChatArea = () => {
         if (error) throw error;
 
         // immediate echo
-        if (data) setMessages(prev => [...prev, data as Message]);
+        // immediate echo with deduplication check
+        if (data) {
+          console.log('📤 Public board message sent, adding to local state:', data);
+          setMessages(prev => {
+            const exists = prev.find(m => m.id === (data as Message).id);
+            if (exists) {
+              console.log('⚠️ Message already exists in local state, skipping echo');
+              return prev;
+            }
+            return [...prev, data as Message];
+          });
+        }
       } else {
         // dashboard (owner) - use RPC
         const { data, error } = await supabase.rpc('send_authenticated_message', {
@@ -314,7 +362,18 @@ export const ChatArea = () => {
         });
         if (error) throw error;
 
-        if (data) setMessages(prev => [...prev, data as Message]);
+        // immediate echo with deduplication check
+        if (data) {
+          console.log('📤 Dashboard message sent, adding to local state:', data);
+          setMessages(prev => {
+            const exists = prev.find(m => m.id === (data as Message).id);
+            if (exists) {
+              console.log('⚠️ Message already exists in local state, skipping echo');
+              return prev;
+            }
+            return [...prev, data as Message];
+          });
+        }
       }
       
       setDraft('');
