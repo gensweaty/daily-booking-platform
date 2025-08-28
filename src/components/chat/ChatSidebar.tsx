@@ -128,7 +128,16 @@ export const ChatSidebar = () => {
           
           if (error) {
             console.error('❌ Error loading team members via service function:', error);
-          } else if (memberData && memberData.length > 0) {
+            setMembers([{ id: boardOwnerId, name: 'Admin', type: 'admin', avatar_url: null }]);
+            return;
+          }
+
+          if (!memberData || memberData.length === 0) {
+            setMembers([{ id: boardOwnerId, name: 'Admin', type: 'admin', avatar_url: null }]);
+            return;
+          }
+
+          if (memberData && memberData.length > 0) {
             console.log('✅ Team members loaded via service function:', memberData.length, 'members');
             
             const mappedMembers = memberData.map((member: any) => ({

@@ -1805,7 +1805,6 @@ export type Database = {
         Args: { p_board_owner_id: string }
         Returns: {
           avatar_url: string
-          email: string
           id: string
           name: string
           type: string
