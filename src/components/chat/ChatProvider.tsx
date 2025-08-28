@@ -358,33 +358,20 @@ export const ChatProvider: React.FC = () => {
     };
   }, [user?.id, user?.email, shouldShowChat, location.pathname, isOnPublicBoard]);
 
-  // (One-time) normalize old DM rows on the fly
+  // Auto-open General channel as default
   useEffect(() => {
-    if (!boardOwnerId) return;
     (async () => {
-      const { data: chans } = await supabase
+      if (!isInitialized || currentChannelId || !boardOwnerId) return;
+      const { data: ch } = await supabase
         .from('chat_channels')
-        .select('id, is_dm, participants, chat_participants(user_id, sub_user_id)')
-        .eq('owner_id', boardOwnerId);
-
-      for (const ch of (chans || [])) {
-        const cps = (ch.chat_participants || []) as any[];
-        const hasOwner = cps.some(p => p.user_id === boardOwnerId);
-        if (!hasOwner) await supabase.from('chat_participants')
-          .insert({ channel_id: ch.id, user_id: boardOwnerId, user_type: 'admin' })
-          .then(() => {});
-        if (cps.length === 2 && ch.is_dm !== true) {
-          await supabase.from('chat_channels').update({ is_dm: true, is_private: true }).eq('id', ch.id);
-        }
-        if (!Array.isArray(ch.participants) || ch.participants.length < 2) {
-          const otherId = (cps.find(p => p.user_id && p.user_id !== boardOwnerId)?.user_id) ||
-                          (cps.find(p => p.sub_user_id)?.sub_user_id);
-          if (otherId) await supabase.from('chat_channels')
-            .update({ participants: [boardOwnerId, otherId] }).eq('id', ch.id);
-        }
-      }
+        .select('id')
+        .eq('owner_id', boardOwnerId)
+        .eq('is_default', true)
+        .limit(1)
+        .maybeSingle();
+      if (ch?.id) setCurrentChannelId(ch.id);
     })();
-  }, [boardOwnerId]);
+  }, [isInitialized, currentChannelId, boardOwnerId]);
 
   // Check for sub-users (always allow chat to show)
   useEffect(() => {

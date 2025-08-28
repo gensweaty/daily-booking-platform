@@ -46,50 +46,15 @@ export const ChatArea = () => {
       const isPublicBoard = location.pathname.startsWith('/board/');
 
       try {
-        if (isPublicBoard) {
-          // ✅ RLS-safe path for public boards
-          const { data, error } = await supabase.rpc('get_default_channel_for_board', {
-            p_board_owner_id: boardOwnerId,
-          });
-
-          if (error) {
-            console.error('❌ get_default_channel_for_board:', error);
-            return;
-          }
-          if (data && data.length > 0) {
-            const ch = data[0];
-            if (active) setDefaultChannelId(ch.id as string);
-            return;
-          }
-          console.warn('⚠️ No default channel via RPC');
-          return;
-        }
-
-        // ✅ Dashboard / authenticated fallback
-        const { data: channelsWithParticipants, error } = await supabase
+        const { data: channels, error } = await supabase
           .from('chat_channels')
-          .select(`id, name, created_at, chat_participants(id)`)
+          .select('id, name')
           .eq('owner_id', boardOwnerId)
           .eq('is_default', true)
-          .eq('name', 'General')
-          .order('created_at', { ascending: true });
+          .limit(1);
 
-        if (error) {
-          console.error('❌ Error loading default channels:', error);
-          return;
-        }
-
-        if (channelsWithParticipants?.length) {
-          const sorted = channelsWithParticipants.sort((a: any, b: any) => {
-            const ac = (a.chat_participants as any[])?.length || 0;
-            const bc = (b.chat_participants as any[])?.length || 0;
-            return ac !== bc
-              ? bc - ac
-              : new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-          });
-          if (active) setDefaultChannelId(sorted[0].id);
-        } else {
-          console.warn('⚠️ No default General channels found');
+        if (!error && channels?.[0]) {
+          setDefaultChannelId(channels[0].id);
         }
       } catch (e) {
         console.error('❌ Error setting up default channel:', e);
@@ -104,52 +69,58 @@ export const ChatArea = () => {
 
   // Load channel info
   useEffect(() => {
-    let active = true;
-    
+    let alive = true;
     (async () => {
-      if (!activeChannelId) {
-        if (active) setChannelInfo(null);
-        return;
-      }
-      
-      const isPublicBoard = location.pathname.startsWith('/board/');
-      
-      const { data: channel } = await supabase
+      if (!activeChannelId) return setChannelInfo(null);
+
+      const { data: ch } = await supabase
         .from('chat_channels')
-        .select('id, name, is_dm, chat_participants(user_id, sub_user_id, user_type)')
+        .select('id, name, is_dm, owner_id')
         .eq('id', activeChannelId)
         .maybeSingle();
 
-      if (!active || !channel) return;
+      if (!alive || !ch) return;
 
-      const cps = (channel as any).chat_participants || [];
-      const isDM = channel.is_dm || cps.length === 2;
-      if (isDM) {
-        // find the other side
-        const amAdmin = me?.type === 'admin';
-        const myId = me?.id;
-        const other = amAdmin
-          ? cps.find((p: any) => p.sub_user_id && p.sub_user_id !== myId) || cps.find((p: any) => p.user_id && p.user_id !== myId)
-          : cps.find((p: any) => p.user_id) || cps.find((p: any) => p.sub_user_id && p.sub_user_id !== myId);
+      if (!ch.is_dm) {
+        setChannelInfo({ name: ch.name, isDM: false });
+        return;
+      }
 
-        if (other?.user_id) {
-          const { data: profile } = await supabase
-            .from('profiles').select('username, avatar_url').eq('id', other.user_id).maybeSingle();
-          setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: profile?.username || 'Admin', avatar: profile?.avatar_url } });
-        } else if (other?.sub_user_id) {
+      // Fetch participants for the DM
+      const { data: cps } = await supabase
+        .from('chat_participants')
+        .select('user_id, sub_user_id, user_type')
+        .eq('channel_id', ch.id);
+
+      // find "other" strictly by my identity
+      let partnerName = 'Member', partnerAvatar: string | undefined;
+
+      if (me?.type === 'admin') {
+        const other = cps?.find(p => p.sub_user_id) || cps?.find(p => p.user_id && p.user_id !== me.id);
+        if (other?.sub_user_id) {
           const { data: su } = await supabase
             .from('sub_users').select('fullname, avatar_url').eq('id', other.sub_user_id).maybeSingle();
-          setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: su?.fullname || 'Member', avatar: su?.avatar_url || undefined } });
-        } else {
-          setChannelInfo({ name: channel.name, isDM: true });
+          partnerName = su?.fullname || partnerName;
+          partnerAvatar = su?.avatar_url || undefined;
+        } else if (other?.user_id) {
+          const { data: pr } = await supabase
+            .from('profiles').select('username, avatar_url').eq('id', other.user_id).maybeSingle();
+          partnerName = pr?.username || 'Admin';
+          partnerAvatar = pr?.avatar_url || undefined;
         }
-      } else {
-        setChannelInfo({ name: channel.name, isDM: false });
+      } else { // me is sub_user
+        const other = cps?.find(p => p.user_id); // the owner
+        const { data: pr } = await supabase
+          .from('profiles').select('username, avatar_url').eq('id', other?.user_id || ch.owner_id).maybeSingle();
+        partnerName = pr?.username || 'Admin';
+        partnerAvatar = pr?.avatar_url || undefined;
       }
+
+      if (!alive) return;
+      setChannelInfo({ name: ch.name, isDM: true, dmPartner: { name: partnerName, avatar: partnerAvatar } });
     })();
-    
-    return () => { active = false; };
-  }, [activeChannelId, me, location.pathname]);
+    return () => { alive = false; };
+  }, [activeChannelId, me]);
 
   // Load messages with enhanced error handling
   useEffect(() => {

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/ui/use-toast";
+import { ensureSubUser } from "@/utils/ensureSubUser";
 import { supabase } from "@/lib/supabase";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -463,33 +464,8 @@ const handleRegister = async () => {
         return;
       }
 
-      // Upsert-like behavior: update name if email exists, otherwise insert
-      const { data: existing, error: findExistingError } = await supabase
-        .from('sub_users')
-        .select('id')
-        .eq('board_owner_id', boardData.user_id)
-        .ilike('email', normalizedEmail)
-        .maybeSingle();
-      if (findExistingError) throw findExistingError;
-
-      const now = new Date().toISOString();
-      if (existing) {
-        await supabase
-          .from('sub_users')
-          .update({ fullname: fullName.trim(), password_hash: hash, password_salt: salt, last_login_at: now, updated_at: now })
-          .eq('id', existing.id);
-      } else {
-        await supabase
-          .from('sub_users')
-          .insert({
-            board_owner_id: boardData.user_id,
-            fullname: fullName.trim(),
-            email: normalizedEmail,
-            password_hash: hash,
-            password_salt: salt,
-            last_login_at: now,
-          });
-      }
+      // Ensure sub-user record exists
+      const subUserData = await ensureSubUser(boardData.user_id, normalizedEmail, fullName.trim());
 
       // Create access token for immediate board access
       const token = `${boardData.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -506,13 +482,13 @@ const handleRegister = async () => {
       localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
         token,
         timestamp: Date.now(),
-        fullName: fullName.trim(),
-        email: normalizedEmail,
+        fullName: subUserData.fullname,
+        email: subUserData.email,
         boardOwnerId: boardData.user_id,
       }));
-      setAccessToken(token);
-      setIsAuthenticated(true);
-      setEmail(normalizedEmail);
+      // Update stored data with actual sub-user values
+      setEmail(subUserData.email);
+      setFullName(subUserData.fullname);
 
       // Clear sensitive fields
       setPassword("");
