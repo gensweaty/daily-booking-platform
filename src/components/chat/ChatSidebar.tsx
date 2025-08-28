@@ -142,12 +142,23 @@ export const ChatSidebar = () => {
           if (memberData && memberData.length > 0) {
             console.log('✅ Team members loaded via service function:', memberData.length, 'members');
             
-            const mappedMembers = memberData.map((member: any) => ({
-              id: member.id,
-              name: member.name,
-              type: member.type as 'admin' | 'sub_user',
-              avatar_url: member.avatar_url
-            }));
+            const mappedMembers = memberData.map((member: any) => {
+              // Enhanced name resolution with multiple fallbacks
+              const resolvedName = member.name || 
+                (member.type === 'admin' ? 'Admin' : 'Member');
+              
+              console.log('👤 Mapping member:', { 
+                original: member, 
+                resolved: { ...member, name: resolvedName } 
+              });
+              
+              return {
+                id: member.id,
+                name: resolvedName,
+                type: member.type as 'admin' | 'sub_user',
+                avatar_url: member.avatar_url
+              };
+            });
             
             setMembers(mappedMembers);
             return;
@@ -165,10 +176,19 @@ export const ChatSidebar = () => {
         if (adminError) {
           console.error('❌ Error loading admin profile:', adminError);
         } else if (adminProfile) {
-          console.log('✅ Admin profile loaded:', adminProfile.username);
+          // Enhanced admin name resolution 
+          const adminName = adminProfile.username?.startsWith('user_') 
+            ? 'Admin' // Don't show auto-generated usernames
+            : (adminProfile.username || 'Admin');
+            
+          console.log('✅ Admin profile loaded:', { 
+            username: adminProfile.username, 
+            resolvedName: adminName 
+          });
+          
           teamMembers.push({
             id: adminProfile.id,
-            name: adminProfile.username || 'Admin',
+            name: adminName,
             type: 'admin' as const,
             avatar_url: adminProfile.avatar_url
           });
@@ -235,11 +255,12 @@ export const ChatSidebar = () => {
     })();
   }, [boardOwnerId, location.pathname]);
 
-  // Update members with unread status when channelUnreads changes
+  // Enhanced DM channel mapping with better participant detection
   useEffect(() => {
-    if (!boardOwnerId || !channelUnreads) return;
+    if (!boardOwnerId || !channelUnreads || !me) return;
 
-    // Build a map of DM channels to their participants
+    console.log('🔄 Building channel-member mapping...');
+    
     (async () => {
       try {
         const { data: dmChannels } = await supabase
@@ -256,47 +277,74 @@ export const ChatSidebar = () => {
           
           dmChannels.forEach((channel: any) => {
             const participants = channel.chat_participants || [];
+            console.log(`🔍 Channel ${channel.id} participants:`, participants);
+            
             // Find the participant who is NOT the current user
             const otherParticipant = participants.find((p: any) => {
-              if (me?.type === 'admin') {
-                return p.user_id !== me.id || p.user_type !== 'admin';
-              } else if (me?.type === 'sub_user') {
-                return p.sub_user_id !== me.id || p.user_type !== 'sub_user';
-              }
-              return true;
+              const isCurrentUser = (
+                (me.type === 'admin' && p.user_type === 'admin' && p.user_id === me.id) ||
+                (me.type === 'sub_user' && p.user_type === 'sub_user' && p.sub_user_id === me.id)
+              );
+              return !isCurrentUser;
             });
 
             if (otherParticipant) {
               const memberId = otherParticipant.user_id || otherParticipant.sub_user_id;
-              const memberType = otherParticipant.user_type;
+              const memberType = otherParticipant.user_type as 'admin' | 'sub_user';
               
               if (memberId && memberType) {
+                console.log(`✅ Mapping channel ${channel.id} to member:`, { 
+                  memberId, 
+                  memberType,
+                  unreadCount: channelUnreads[channel.id] || 0
+                });
+                
                 newChannelMemberMap.set(channel.id, { 
                   id: memberId, 
                   type: memberType 
                 });
               }
+            } else {
+              console.log(`⚠️ No other participant found for channel ${channel.id}`);
             }
           });
           
+          console.log('🗺️ Final channel-member map:', Array.from(newChannelMemberMap.entries()));
           setChannelMemberMap(newChannelMemberMap);
         }
       } catch (error) {
         console.error('❌ Error loading channel-member mapping:', error);
       }
     })();
-  }, [boardOwnerId, me]);
+  }, [boardOwnerId, me, channelUnreads]);
 
-  // Update members with unread indicators
+  // Enhanced unread indicators with detailed logging
   useEffect(() => {
+    console.log('🔄 Updating member unread indicators...');
+    console.log('💬 Channel unreads:', channelUnreads);
+    console.log('🗺️ Channel member map:', Array.from(channelMemberMap.entries()));
+    
     setMembers(prevMembers => 
       prevMembers.map(member => {
         // Find channels where this member has unread messages
         const hasUnread = Array.from(channelMemberMap.entries()).some(([channelId, channelMember]) => {
-          return channelMember.id === member.id && 
-                 channelMember.type === member.type &&
-                 (channelUnreads[channelId] || 0) > 0;
+          const isMatch = channelMember.id === member.id && channelMember.type === member.type;
+          const unreadCount = channelUnreads[channelId] || 0;
+          const hasUnreadMessages = unreadCount > 0;
+          
+          if (isMatch && hasUnreadMessages) {
+            console.log(`🔴 Member ${member.name} has ${unreadCount} unread messages in channel ${channelId}`);
+          }
+          
+          return isMatch && hasUnreadMessages;
         });
+
+        if (hasUnread !== member.hasUnread) {
+          console.log(`📍 Member ${member.name} unread status changed:`, { 
+            from: member.hasUnread, 
+            to: hasUnread 
+          });
+        }
 
         return {
           ...member,
