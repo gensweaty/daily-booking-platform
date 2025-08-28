@@ -8,6 +8,9 @@ import { ChatIcon } from "./ChatIcon";
 import { ChatWindow } from "./ChatWindow";
 import { resolveAvatarUrl } from "./_avatar";
 import { useToast } from "@/hooks/use-toast";
+import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
+import { useUnreadManager } from '@/hooks/useUnreadManager';
+import { useEnhancedRealtimeChat } from '@/hooks/useEnhancedRealtimeChat';
 
 type Me = { 
   id: string; 
@@ -77,7 +80,67 @@ export const ChatProvider: React.FC = () => {
   const [me, setMe] = useState<Me | null>(null);
   const [boardOwnerId, setBoardOwnerId] = useState<string | null>(null);
   const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
-  const [unreadTotal, setUnreadTotal] = useState(0);
+
+  // Enhanced unread management
+  const {
+    unreadTotal,
+    incrementUnread,
+    clearChannelUnread,
+    clearAllUnread,
+  } = useUnreadManager(currentChannelId, isOpen);
+
+  // Enhanced notifications
+  const { requestPermission, showNotification } = useEnhancedNotifications();
+
+  // Enhanced realtime connection
+  const { connectionStatus } = useEnhancedRealtimeChat({
+    onNewMessage: (message) => {
+      console.log('📨 Enhanced realtime message received:', message);
+
+      // Only process messages for this board
+      if (message.owner_id !== boardOwnerId) {
+        console.log('⏭️ Skipping message - owner mismatch');
+        return;
+      }
+
+      // Enhanced message ownership detection
+      const isMine = (
+        (me?.type === 'admin' && message.sender_type === 'admin' && message.sender_user_id === me?.id) ||
+        (me?.type === 'sub_user' && message.sender_type === 'sub_user' && message.sender_sub_user_id === me?.id)
+      );
+
+      const isActiveChannel = (message.channel_id === currentChannelId);
+      const shouldCount = !isMine && (!isActiveChannel || !isOpen);
+      const shouldNotify = !isMine && (!isOpen || !isActiveChannel);
+
+      console.log('🔍 Enhanced message processing:', {
+        isMine,
+        isActiveChannel,
+        shouldCount,
+        shouldNotify,
+        connectionStatus,
+      });
+
+      // Update unread counts
+      if (shouldCount) {
+        incrementUnread(message.channel_id);
+      }
+
+      // Show enhanced notifications with voice
+      if (shouldNotify) {
+        showNotification({
+          title: message.sender_name || 'New message',
+          body: String(message.content || '').slice(0, 120),
+          channelId: message.channel_id,
+          senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
+          senderName: message.sender_name || 'Unknown',
+        });
+      }
+    },
+    userId: me?.id,
+    boardOwnerId: boardOwnerId,
+    enabled: !!me && !!boardOwnerId && shouldShowChat,
+  });
 
   // Create portal root
   const portalRef = useRef<HTMLElement | null>(null);
@@ -406,8 +469,8 @@ export const ChatProvider: React.FC = () => {
   const openChannel = useCallback((id: string) => {
     console.log('📂 Opening channel:', id);
     setCurrentChannelId(id);
-    setUnreadTotal(0);
-  }, []);
+    clearChannelUnread(id);
+  }, [clearChannelUnread]);
 
   const startDM = useCallback(async (otherId: string, otherType: "admin" | "sub_user") => {
     if (!me || !boardOwnerId) return;
@@ -476,138 +539,10 @@ export const ChatProvider: React.FC = () => {
     if (!isOpen) open();
   }, [me, boardOwnerId, openChannel, isOpen, open]);
 
-  // Enhanced notifications with improved message matching
+  // Request notification permission on mount
   useEffect(() => {
-    if (!me || !boardOwnerId || !shouldShowChat) {
-      console.log('🔔 Skipping notifications setup - missing data:', { 
-        hasMe: !!me, 
-        hasBoardOwner: !!boardOwnerId, 
-        shouldShow: shouldShowChat 
-      });
-      return;
-    }
-
-    console.log('🔔 Setting up notifications for:', { 
-      userName: me.name, 
-      userType: me.type, 
-      userId: me.id,
-      boardOwnerId 
-    });
-
-    const ch = supabase
-      .channel(`chat_notifications_${me.id}`)
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-        (payload) => {
-          const msg = payload.new as any;
-          console.log('📨 New message received:', { 
-            content: msg.content?.slice(0, 30) + '...', 
-            senderName: msg.sender_name,
-            senderType: msg.sender_type,
-            senderUserId: msg.sender_user_id,
-            senderSubUserId: msg.sender_sub_user_id,
-            ownerId: msg.owner_id,
-            expectedOwnerId: boardOwnerId,
-            channelId: msg.channel_id,
-            currentChannelId
-          });
-
-          // Only process messages for this board
-          if (msg.owner_id !== boardOwnerId) {
-            console.log('⏭️ Skipping message - owner mismatch:', { 
-              msgOwnerId: msg.owner_id, 
-              expectedOwnerId: boardOwnerId 
-            });
-            return;
-          }
-
-          // Enhanced message ownership detection - only use database IDs
-          const isMine = (
-            // Admin user match (exact ID match)
-            (me.type === 'admin' && msg.sender_type === 'admin' && msg.sender_user_id === me.id) ||
-            // Sub-user match (exact ID match)
-            (me.type === 'sub_user' && msg.sender_type === 'sub_user' && msg.sender_sub_user_id === me.id)
-          );
-          
-          const isActiveChannel = (msg.channel_id === currentChannelId);
-          const shouldCount = !isMine && (!isActiveChannel || !isOpen);
-          const shouldNotify = !isMine && (!isOpen || !isActiveChannel);
-
-          console.log('🔍 Enhanced message analysis:', { 
-            isMine, 
-            isActiveChannel, 
-            shouldCount, 
-            shouldNotify,
-            chatOpen: isOpen,
-            currentUser: {
-              id: me.id,
-              type: me.type,
-              name: me.name
-            },
-            messageFromSender: {
-              userId: msg.sender_user_id,
-              subUserId: msg.sender_sub_user_id,
-              type: msg.sender_type,
-              name: msg.sender_name
-            },
-            matchingLogic: {
-              adminMatch: me.type === 'admin' && msg.sender_type === 'admin' && msg.sender_user_id === me.id,
-              subUserMatch: me.type === 'sub_user' && msg.sender_type === 'sub_user' && msg.sender_sub_user_id === me.id
-            }
-          });
-
-          if (shouldCount) {
-            setUnreadTotal(prev => {
-              const newCount = prev + 1;
-              console.log('📈 Updating unread count:', prev, '->', newCount);
-              return newCount;
-            });
-          }
-
-          // Enhanced notification display
-          if (shouldNotify && "Notification" in window && Notification.permission === "granted") {
-            console.log('🔔 Showing browser notification from:', msg.sender_name);
-            try {
-              const notification = new Notification(msg.sender_name || "New message", { 
-                body: String(msg.content || '').slice(0, 120),
-                icon: '/favicon.ico',
-                tag: `chat-${msg.channel_id}`, // Prevent duplicate notifications
-                requireInteraction: false,
-                silent: false
-              });
-              
-              // Auto-close notification after 5 seconds
-              setTimeout(() => {
-                notification.close();
-              }, 5000);
-              
-            } catch (notifError) {
-              console.error('❌ Failed to show notification:', notifError);
-            }
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      console.log('🧹 Cleaning up notification listener for:', me.name);
-      supabase.removeChannel(ch);
-    };
-  }, [me?.id, me?.type, me?.name, boardOwnerId, currentChannelId, isOpen, shouldShowChat]);
-
-  // Reset unread on open/channel change
-  useEffect(() => {
-    if (isOpen || currentChannelId) {
-      setUnreadTotal(0);
-    }
-  }, [isOpen, currentChannelId]);
-
-  // Request notification permission
-  useEffect(() => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission().catch(() => {});
-    }
-  }, []);
+    requestPermission();
+  }, [requestPermission]);
 
   const value = useMemo<ChatCtx>(() => ({
     isOpen, open, close, toggle, isInitialized, hasSubUsers, me,
