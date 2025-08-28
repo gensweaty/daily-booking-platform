@@ -125,22 +125,43 @@ export const ChatArea = () => {
       const cps = (channel as any).chat_participants || [];
       const isDM = channel.is_dm || cps.length === 2;
       if (isDM) {
-        // find the other side
-        const amAdmin = me?.type === 'admin';
+        // Find the OTHER participant (not me)
+        console.log('🔍 Finding DM partner from participants:', { cps, me });
         const myId = me?.id;
-        const other = amAdmin
-          ? cps.find((p: any) => p.sub_user_id && p.sub_user_id !== myId) || cps.find((p: any) => p.user_id && p.user_id !== myId)
-          : cps.find((p: any) => p.user_id) || cps.find((p: any) => p.sub_user_id && p.sub_user_id !== myId);
+        const myType = me?.type;
+        
+        const other = cps.find((p: any) => {
+          // Skip if this is me
+          if (myType === 'admin' && p.user_id === myId) return false;
+          if (myType === 'sub_user' && p.sub_user_id === myId) return false;
+          // Return the other participant
+          return true;
+        });
+
+        console.log('🔍 Found DM partner participant:', other);
 
         if (other?.user_id) {
           const { data: profile } = await supabase
             .from('profiles').select('username, avatar_url').eq('id', other.user_id).maybeSingle();
-          setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: profile?.username || 'Admin', avatar: profile?.avatar_url } });
+          
+          // Enhanced name resolution for admins
+          const adminName = profile?.username?.startsWith('user_') 
+            ? 'Admin'  // Replace auto-generated usernames
+            : (profile?.username || 'Admin');
+            
+          console.log('✅ Admin DM partner resolved:', { username: profile?.username, displayName: adminName });
+          setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: adminName, avatar: profile?.avatar_url } });
         } else if (other?.sub_user_id) {
           const { data: su } = await supabase
-            .from('sub_users').select('fullname, avatar_url').eq('id', other.sub_user_id).maybeSingle();
-          setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: su?.fullname || 'Member', avatar: su?.avatar_url || undefined } });
+            .from('sub_users').select('fullname, avatar_url, email').eq('id', other.sub_user_id).maybeSingle();
+          
+          // Enhanced name resolution for sub-users
+          const subUserName = su?.fullname || su?.email?.split('@')[0] || 'Member';
+          
+          console.log('✅ Sub-user DM partner resolved:', { fullname: su?.fullname, email: su?.email, displayName: subUserName });
+          setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: subUserName, avatar: su?.avatar_url || undefined } });
         } else {
+          console.log('❌ No valid DM partner found');
           setChannelInfo({ name: channel.name, isDM: true });
         }
       } else {
