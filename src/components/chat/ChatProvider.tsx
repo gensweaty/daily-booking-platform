@@ -33,6 +33,7 @@ type ChatCtx = {
   openChannel: (id: string) => void;
   startDM: (otherId: string, otherType: "admin" | "sub_user") => void;
   unreadTotal: number;
+  channelUnreads: { [channelId: string]: number };
   boardOwnerId: string | null;
 };
 
@@ -84,6 +85,7 @@ export const ChatProvider: React.FC = () => {
   // Enhanced unread management
   const {
     unreadTotal,
+    channelUnreads,
     incrementUnread,
     clearChannelUnread,
     clearAllUnread,
@@ -547,9 +549,9 @@ export const ChatProvider: React.FC = () => {
   const value = useMemo<ChatCtx>(() => ({
     isOpen, open, close, toggle, isInitialized, hasSubUsers, me,
     currentChannelId, setCurrentChannelId, openChannel, startDM, 
-    unreadTotal, boardOwnerId
+    unreadTotal, channelUnreads, boardOwnerId
   }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, 
-       currentChannelId, openChannel, startDM, unreadTotal, boardOwnerId]);
+       currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, boardOwnerId]);
 
   if (!shouldShowChat || !portalRef.current) return null;
 

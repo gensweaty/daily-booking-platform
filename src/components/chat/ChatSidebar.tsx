@@ -7,14 +7,16 @@ import { cn } from '@/lib/utils';
 import { resolveAvatarUrl } from './_avatar';
 
 export const ChatSidebar = () => {
-  const { me, boardOwnerId, currentChannelId, openChannel, startDM } = useChat();
+  const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads } = useChat();
   const location = useLocation();
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
+  const [channelMemberMap, setChannelMemberMap] = useState<Map<string, { id: string; type: 'admin' | 'sub_user' }>>(new Map());
   const [members, setMembers] = useState<Array<{ 
     id: string; 
     name: string; 
     type: 'admin' | 'sub_user'; 
     avatar_url?: string | null;
+    hasUnread?: boolean;
   }>>([]);
 
   // Load general channel with improved selection logic
@@ -233,6 +235,77 @@ export const ChatSidebar = () => {
     })();
   }, [boardOwnerId, location.pathname]);
 
+  // Update members with unread status when channelUnreads changes
+  useEffect(() => {
+    if (!boardOwnerId || !channelUnreads) return;
+
+    // Build a map of DM channels to their participants
+    (async () => {
+      try {
+        const { data: dmChannels } = await supabase
+          .from('chat_channels')
+          .select(`
+            id,
+            chat_participants(user_id, sub_user_id, user_type)
+          `)
+          .eq('owner_id', boardOwnerId)
+          .eq('is_dm', true);
+
+        if (dmChannels) {
+          const newChannelMemberMap = new Map();
+          
+          dmChannels.forEach((channel: any) => {
+            const participants = channel.chat_participants || [];
+            // Find the participant who is NOT the current user
+            const otherParticipant = participants.find((p: any) => {
+              if (me?.type === 'admin') {
+                return p.user_id !== me.id || p.user_type !== 'admin';
+              } else if (me?.type === 'sub_user') {
+                return p.sub_user_id !== me.id || p.user_type !== 'sub_user';
+              }
+              return true;
+            });
+
+            if (otherParticipant) {
+              const memberId = otherParticipant.user_id || otherParticipant.sub_user_id;
+              const memberType = otherParticipant.user_type;
+              
+              if (memberId && memberType) {
+                newChannelMemberMap.set(channel.id, { 
+                  id: memberId, 
+                  type: memberType 
+                });
+              }
+            }
+          });
+          
+          setChannelMemberMap(newChannelMemberMap);
+        }
+      } catch (error) {
+        console.error('❌ Error loading channel-member mapping:', error);
+      }
+    })();
+  }, [boardOwnerId, me]);
+
+  // Update members with unread indicators
+  useEffect(() => {
+    setMembers(prevMembers => 
+      prevMembers.map(member => {
+        // Find channels where this member has unread messages
+        const hasUnread = Array.from(channelMemberMap.entries()).some(([channelId, channelMember]) => {
+          return channelMember.id === member.id && 
+                 channelMember.type === member.type &&
+                 (channelUnreads[channelId] || 0) > 0;
+        });
+
+        return {
+          ...member,
+          hasUnread
+        };
+      })
+    );
+  }, [channelUnreads, channelMemberMap]);
+
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
       <div className="space-y-2">
@@ -282,7 +355,7 @@ export const ChatSidebar = () => {
                 className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted/50 transition-all text-left group"
                 title={`Start conversation with ${member.name}`}
               >
-                <div className="h-6 w-6 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
+                <div className="relative h-6 w-6 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
                   {resolveAvatarUrl(member.avatar_url) ? (
                     <img
                       src={resolveAvatarUrl(member.avatar_url)!}
@@ -293,6 +366,11 @@ export const ChatSidebar = () => {
                     <span className="text-xs font-medium text-foreground">
                       {(member.name || "U").slice(0, 2).toUpperCase()}
                     </span>
+                  )}
+                  {member.hasUnread && (
+                    <div className="absolute -top-1 -right-1 h-3 w-3 bg-destructive rounded-full border-2 border-background flex items-center justify-center">
+                      <div className="h-1.5 w-1.5 bg-white rounded-full animate-pulse" />
+                    </div>
                   )}
                 </div>
                 

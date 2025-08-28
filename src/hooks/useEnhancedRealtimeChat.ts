@@ -60,13 +60,19 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
     setConnectionStatus('connecting');
 
     try {
-      const channelName = `enhanced_chat_${config.userId}_${Date.now()}`;
+      // Use stable channel name to avoid creating too many channels
+      const channelName = `enhanced_chat_${config.boardOwnerId}`;
+      
+      // Remove any existing channels with this name first
+      const existingChannels = supabase.getChannels();
+      const existingChannel = existingChannels.find(ch => ch.topic === channelName);
+      if (existingChannel) {
+        console.log('🧹 Removing existing channel before creating new one:', channelName);
+        supabase.removeChannel(existingChannel);
+      }
+      
       const channel = supabase
-        .channel(channelName, {
-          config: {
-            presence: { key: config.userId },
-          }
-        })
+        .channel(channelName)
         .on('postgres_changes',
           { 
             event: 'INSERT', 
@@ -79,9 +85,6 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
             config.onNewMessage(payload.new);
           }
         )
-        .on('presence', { event: 'sync' }, () => {
-          console.log('👥 Presence synced');
-        })
         .subscribe((status, error) => {
           console.log('📡 Enhanced subscription status:', status, error);
           
@@ -94,15 +97,23 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
             setConnectionStatus('disconnected');
             console.error('❌ Enhanced realtime connection failed:', error);
             
-            // Retry with exponential backoff
-            if (retryCount < 5) {
-              const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
-              console.log(`🔄 Retrying connection in ${delay}ms (attempt ${retryCount + 1}/5)`);
+            // Handle rate limit specifically
+            if (error?.message?.includes('ChannelRateLimitReached')) {
+              console.log('⏸️ Rate limit reached, will not retry to avoid more errors');
+              return;
+            }
+            
+            // Retry with exponential backoff for other errors
+            if (retryCount < 3) {
+              const delay = Math.min(2000 * Math.pow(2, retryCount), 15000);
+              console.log(`🔄 Retrying connection in ${delay}ms (attempt ${retryCount + 1}/3)`);
               
               reconnectTimeoutRef.current = setTimeout(() => {
                 setRetryCount(prev => prev + 1);
                 setupConnection();
               }, delay);
+            } else {
+              console.log('❌ Max retry attempts reached, giving up');
             }
           }
         });
