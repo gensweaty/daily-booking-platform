@@ -103,7 +103,8 @@ export const ChatProvider: React.FC = () => {
         user: user?.email, 
         isPublicBoard, 
         shouldShowChat, 
-        path: location.pathname 
+        path: location.pathname,
+        isOnPublicBoard 
       });
       
       if (!shouldShowChat) {
@@ -116,7 +117,62 @@ export const ChatProvider: React.FC = () => {
       }
 
       try {
-        // Handle authenticated users FIRST (this covers both admin and sub-users)
+        // Handle PUBLIC BOARD ACCESS FIRST (including authenticated sub-users on public boards)
+        if (isOnPublicBoard) {
+          console.log('🔍 Public board access detected');
+          
+          const pathParts = location.pathname.split('/');
+          const slug = pathParts[pathParts.length - 1];
+          
+          // Check if we have local storage access data for this board
+          const storedData = localStorage.getItem(`public-board-access-${slug}`);
+          if (storedData) {
+            try {
+              const parsedData = JSON.parse(storedData);
+              const { token, fullName: storedFullName, email: storedEmail, boardOwnerId: storedBoardOwnerId } = parsedData;
+              
+              if (token && storedFullName && storedBoardOwnerId) {
+                console.log('✅ Found stored public board access:', { 
+                  storedFullName, 
+                  storedEmail,
+                  storedBoardOwnerId 
+                });
+                
+                // For public board users, we need to find their sub-user record to get the ID
+                let subUserId = null;
+                if (storedEmail) {
+                  const { data: subUser } = await supabase
+                    .from("sub_users")
+                    .select("id")
+                    .eq("board_owner_id", storedBoardOwnerId)
+                    .ilike("email", storedEmail.toLowerCase())
+                    .maybeSingle();
+                  
+                  subUserId = subUser?.id;
+                }
+                
+                if (active) {
+                  setBoardOwnerId(storedBoardOwnerId);
+                  setMe({
+                    id: subUserId || `external_${token}`,
+                    type: "sub_user",
+                    name: storedFullName,
+                    avatarUrl: null
+                  });
+                  setIsInitialized(true);
+                  console.log('✅ Public board user initialized:', { id: subUserId || `external_${token}`, name: storedFullName, boardOwnerId: storedBoardOwnerId });
+                }
+                return;
+              }
+            } catch (error) {
+              console.error('❌ Error parsing stored access data:', error);
+            }
+          }
+          
+          console.log('⚠️ No valid public board access found');
+        }
+        
+        // Handle authenticated users (admin and sub-users)
         if (user?.id) {
           console.log('🔍 Checking authenticated user:', user.email);
           
@@ -179,56 +235,6 @@ export const ChatProvider: React.FC = () => {
           }
           
           console.log('❌ Authenticated user not found in profiles or sub_users');
-        }
-        
-        // Handle public board access (external users) - ONLY if no authenticated user
-        if (isOnPublicBoard && !user) {
-          console.log('🔍 Checking public board access');
-          
-          const pathParts = location.pathname.split('/');
-          const accessToken = pathParts[pathParts.length - 1];
-          
-          if (accessToken) {
-            const { data: boardAccess } = await supabase
-              .from('public_board_access')
-              .select('external_user_name, external_user_email, board_id')
-              .eq('access_token', accessToken)
-              .maybeSingle();
-            
-            if (active && boardAccess) {
-              const { data: publicBoard } = await supabase
-                .from('public_boards')
-                .select('user_id')
-                .eq('id', boardAccess.board_id)
-                .maybeSingle();
-                
-              if (publicBoard) {
-                console.log('✅ External user on public board:', boardAccess.external_user_name);
-                setBoardOwnerId(publicBoard.user_id);
-                setMe({
-                  id: `external_${accessToken}`,
-                  type: "sub_user",
-                  name: boardAccess.external_user_name || "Guest",
-                  avatarUrl: null
-                });
-                setIsInitialized(true);
-                return;
-              }
-            }
-          }
-          
-          // Fallback for external access
-          if (active) {
-            console.log('⚠️ Fallback external user');
-            setMe({
-              id: `guest_${Date.now()}`,
-              type: "sub_user", 
-              name: "Guest User",
-              avatarUrl: null
-            });
-            setIsInitialized(true);
-          }
-          return;
         }
         
         // No valid user found
