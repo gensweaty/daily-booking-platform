@@ -139,10 +139,10 @@ export const ChatProvider: React.FC = () => {
                 });
                 
                 // For public board users, we MUST find their sub-user record 
-                // Chat functionality requires valid database records
+                // Chat functionality requires valid database records - use exact same logic as internal dashboard
                 const { data: subUser, error: subUserError } = await supabase
                   .from("sub_users")
-                  .select("id, fullname, avatar_url")
+                  .select("id, fullname, avatar_url, email")
                   .eq("board_owner_id", storedBoardOwnerId)
                   .ilike("email", storedEmail.toLowerCase())
                   .maybeSingle();
@@ -152,9 +152,10 @@ export const ChatProvider: React.FC = () => {
                 }
                 
                 if (subUser?.id) {
-                  console.log('✅ Found valid sub-user record:', { 
+                  console.log('✅ Found valid sub-user record for PUBLIC BOARD:', { 
                     id: subUser.id, 
                     name: subUser.fullname,
+                    email: subUser.email,
                     boardOwnerId: storedBoardOwnerId 
                   });
                   
@@ -162,36 +163,12 @@ export const ChatProvider: React.FC = () => {
                     setBoardOwnerId(storedBoardOwnerId);
                     setMe({
                       id: subUser.id,
-                      type: "sub_user",
+                      type: "sub_user", 
                       name: subUser.fullname || storedFullName,
                       avatarUrl: resolveAvatarUrl(subUser.avatar_url)
                     });
                     setIsInitialized(true);
-                    
-                    // Ensure sub-user is added to the default General channel
-                    const { data: defaultChannel } = await supabase
-                      .from("chat_channels")
-                      .select("id")
-                      .eq("owner_id", storedBoardOwnerId)
-                      .eq("is_default", true)
-                      .eq("name", "General")
-                      .maybeSingle();
-                    
-                    if (defaultChannel?.id) {
-                      // Add sub-user to General channel if not already there
-                      await supabase
-                        .from("chat_participants")
-                        .upsert({
-                          channel_id: defaultChannel.id,
-                          sub_user_id: subUser.id,
-                          user_type: "sub_user"
-                        }, { 
-                          onConflict: "channel_id,sub_user_id,user_type",
-                          ignoreDuplicates: true 
-                        });
-                      
-                      console.log('✅ Ensured sub-user is in General channel');
-                    }
+                    console.log('🎉 PUBLIC BOARD: Chat initialized for sub-user:', subUser.fullname);
                   }
                   return;
                 } else {

@@ -59,9 +59,10 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
               console.log('🔍 PublicBoardAuth: Token data:', { fullName, email, boardOwnerId, isExpired });
               
               if (!isExpired && fullName && email && boardOwnerId) {
-                // Create a mock user for the chat system
+                // For chat to work, we need the actual sub-user database ID
+                // This will be resolved in ChatProvider when it queries the sub_users table
                 const publicUser = {
-                  id: `public-${email}-${boardOwnerId}`, // Generate a consistent ID
+                  id: email, // Use email as temporary ID, ChatProvider will resolve to real DB ID
                   email,
                   fullName,
                   boardOwnerId
