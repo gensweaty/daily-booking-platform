@@ -159,16 +159,20 @@ export const ChatProvider: React.FC = () => {
                     boardOwnerId: storedBoardOwnerId 
                   });
                   
+                  const subUserIdentity = {
+                    id: subUser.id,
+                    type: "sub_user" as const, 
+                    name: subUser.fullname || storedFullName,
+                    avatarUrl: resolveAvatarUrl(subUser.avatar_url)
+                  };
+                  
+                  console.log('🔧 Creating sub-user identity for PUBLIC BOARD:', subUserIdentity);
+                  
                   if (active) {
                     setBoardOwnerId(storedBoardOwnerId);
-                    setMe({
-                      id: subUser.id,
-                      type: "sub_user", 
-                      name: subUser.fullname || storedFullName,
-                      avatarUrl: resolveAvatarUrl(subUser.avatar_url)
-                    });
+                    setMe(subUserIdentity);
                     setIsInitialized(true);
-                    console.log('🎉 PUBLIC BOARD: Chat initialized for sub-user:', subUser.fullname);
+                    console.log('🎉 PUBLIC BOARD: Chat initialized for sub-user with identity:', subUserIdentity);
                   }
                   return;
                 } else {
