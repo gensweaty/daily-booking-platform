@@ -358,6 +358,34 @@ export const ChatProvider: React.FC = () => {
     };
   }, [user?.id, user?.email, shouldShowChat, location.pathname, isOnPublicBoard]);
 
+  // (One-time) normalize old DM rows on the fly
+  useEffect(() => {
+    if (!boardOwnerId) return;
+    (async () => {
+      const { data: chans } = await supabase
+        .from('chat_channels')
+        .select('id, is_dm, participants, chat_participants(user_id, sub_user_id)')
+        .eq('owner_id', boardOwnerId);
+
+      for (const ch of (chans || [])) {
+        const cps = (ch.chat_participants || []) as any[];
+        const hasOwner = cps.some(p => p.user_id === boardOwnerId);
+        if (!hasOwner) await supabase.from('chat_participants')
+          .insert({ channel_id: ch.id, user_id: boardOwnerId, user_type: 'admin' })
+          .then(() => {});
+        if (cps.length === 2 && ch.is_dm !== true) {
+          await supabase.from('chat_channels').update({ is_dm: true, is_private: true }).eq('id', ch.id);
+        }
+        if (!Array.isArray(ch.participants) || ch.participants.length < 2) {
+          const otherId = (cps.find(p => p.user_id && p.user_id !== boardOwnerId)?.user_id) ||
+                          (cps.find(p => p.sub_user_id)?.sub_user_id);
+          if (otherId) await supabase.from('chat_channels')
+            .update({ participants: [boardOwnerId, otherId] }).eq('id', ch.id);
+        }
+      }
+    })();
+  }, [boardOwnerId]);
+
   // Check for sub-users (always allow chat to show)
   useEffect(() => {
     if (boardOwnerId) {
@@ -382,105 +410,71 @@ export const ChatProvider: React.FC = () => {
   }, []);
 
   const startDM = useCallback(async (otherId: string, otherType: "admin" | "sub_user") => {
-    if (!me || !boardOwnerId) {
-      console.log('❌ Missing me or boardOwnerId for DM:', { me, boardOwnerId });
-      return;
-    }
-    
-    console.log('🚀 Starting DM with:', { otherId, otherType, me, boardOwnerId });
-    
-    try {
-      // Look for existing DM channel using participants JSON field
-      const { data: existing } = await supabase
+    if (!me || !boardOwnerId) return;
+
+    // 1) fetch all DM candidates for this owner with their participants
+    const { data: candidates, error: candErr } = await supabase
+      .from("chat_channels")
+      .select(`
+        id, is_dm, created_at, updated_at,
+        chat_participants ( user_id, sub_user_id, user_type )
+      `)
+      .eq("owner_id", boardOwnerId)
+      .eq("is_dm", true);
+
+    if (candErr) { console.error(candErr); return; }
+
+    // 2) reuse the one that has BOTH the owner and the other participant
+    const matches = (candidates || []).filter(c => {
+      const cps = (c.chat_participants || []) as any[];
+      const hasOwner = cps.some(p => p.user_id === boardOwnerId);
+      const hasOther = otherType === "admin"
+        ? cps.some(p => p.user_id === otherId)
+        : cps.some(p => p.sub_user_id === otherId);
+      return hasOwner && hasOther;
+    });
+
+    let channelId = matches.sort((a, b) =>
+      new Date(b.updated_at || b.created_at).getTime() -
+      new Date(a.updated_at || a.created_at).getTime()
+    )[0]?.id;
+
+    // 3) if none, create one
+    if (!channelId) {
+      const { data: created, error: createErr } = await supabase
         .from("chat_channels")
-        .select("id, participants, name")
-        .eq("is_dm", true)
-        .eq("owner_id", boardOwnerId);
-
-      console.log('🔍 Existing DM channels:', existing);
-
-      // Find existing DM with these participants
-      let channelId = existing?.find(ch => {
-        const participants = ch.participants as string[];
-        const hasMe = participants?.includes(me.id);
-        const hasOther = participants?.includes(otherId);
-        console.log('🔍 Checking channel participants:', { 
-          channelId: ch.id, 
-          participants, 
-          hasMe, 
-          hasOther, 
-          myId: me.id, 
-          otherId 
-        });
-        return hasMe && hasOther;
-      })?.id;
-      
-      if (channelId) {
-        console.log('✅ Found existing DM channel:', channelId);
-      } else {
-        console.log('🆕 Creating new DM channel');
-        const dmName = "Direct Message";
-        
-        const { data: created, error } = await supabase
-          .from("chat_channels")
-          .insert({
-            is_dm: true,
-            participants: [me.id, otherId],
-            name: dmName,
-            owner_id: boardOwnerId
-          })
-          .select("id")
-          .single();
-        
-        if (error) {
-          console.error('❌ Error creating DM channel:', error);
-          toast({
-            title: "Error",
-            description: "Failed to start direct message",
-            variant: "destructive"
-          });
-          return;
-        }
-        
-        channelId = created?.id;
-        console.log('✅ New DM channel created:', channelId);
-        
-        // Create participant entries for better compatibility
-        if (channelId) {
-          const participantInserts = [
-            {
-              channel_id: channelId,
-              user_id: me.type === 'admin' ? me.id : null,
-              sub_user_id: me.type === 'sub_user' ? me.id : null,
-              user_type: me.type
-            },
-            {
-              channel_id: channelId,
-              user_id: otherType === 'admin' ? otherId : null,
-              sub_user_id: otherType === 'sub_user' ? otherId : null,
-              user_type: otherType
-            }
-          ];
-          
-          console.log('🔗 Creating participant entries:', participantInserts);
-          await supabase.from("chat_participants").insert(participantInserts);
-        }
-      }
-
-      if (channelId) {
-        console.log('🎯 Opening DM channel:', channelId);
-        openChannel(channelId);
-        if (!isOpen) open();
-      }
-    } catch (error) {
-      console.error('❌ Failed to start DM:', error);
-      toast({
-        title: "Error",
-        description: "Failed to start direct message",
-        variant: "destructive"
-      });
+        .insert({
+          name: "Direct Message",
+          owner_id: boardOwnerId,
+          is_dm: true,
+          is_private: true,
+          participants: [boardOwnerId, otherId], // keep JSON for legacy readers
+        })
+        .select("id")
+        .single();
+      if (createErr || !created) { console.error(createErr); return; }
+      channelId = created.id;
     }
-  }, [me, boardOwnerId, openChannel, isOpen, open, toast]);
+
+    // 4) ensure BOTH participant rows exist (idempotent)
+    await supabase.from("chat_participants").upsert([
+      { channel_id: channelId, user_id: boardOwnerId, user_type: "admin" },
+      {
+        channel_id: channelId,
+        user_id:   otherType === "admin"    ? otherId : null,
+        sub_user_id: otherType === "sub_user" ? otherId : null,
+        user_type: otherType
+      }
+    ], { onConflict: "channel_id,user_id,sub_user_id" });
+
+    // 5) normalize JSON field too (compat)
+    await supabase.from("chat_channels")
+      .update({ participants: [boardOwnerId, otherId], is_dm: true, is_private: true })
+      .eq("id", channelId);
+
+    openChannel(channelId);
+    if (!isOpen) open();
+  }, [me, boardOwnerId, openChannel, isOpen, open]);
 
   // Enhanced notifications with improved message matching
   useEffect(() => {

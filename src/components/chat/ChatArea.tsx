@@ -114,69 +114,32 @@ export const ChatArea = () => {
       
       const isPublicBoard = location.pathname.startsWith('/board/');
       
-      // Use new approach: get channel info without participants JSON
       const { data: channel } = await supabase
         .from('chat_channels')
-        .select('id, name, is_dm')
+        .select('id, name, is_dm, chat_participants(user_id, sub_user_id, user_type)')
         .eq('id', activeChannelId)
         .maybeSingle();
-      
+
       if (!active || !channel) return;
-      
-      if (channel.is_dm) {
-        if (isPublicBoard) {
-          // RLS-safe fallback header in public view
-          setChannelInfo({ name: channel.name, isDM: true });
-          return;
-        }
-        
-        // get both participants from chat_participants
-        const { data: cps, error: cpErr } = await supabase
-          .from('chat_participants')
-          .select('user_id, sub_user_id, user_type')
-          .eq('channel_id', channel.id);
 
-        if (cpErr || !cps) {
-          setChannelInfo({ name: channel.name, isDM: true });
-          return;
-        }
-
-        // identify "me" vs "other"
+      const cps = (channel as any).chat_participants || [];
+      const isDM = channel.is_dm || cps.length === 2;
+      if (isDM) {
+        // find the other side
         const amAdmin = me?.type === 'admin';
         const myId = me?.id;
+        const other = amAdmin
+          ? cps.find((p: any) => p.sub_user_id && p.sub_user_id !== myId) || cps.find((p: any) => p.user_id && p.user_id !== myId)
+          : cps.find((p: any) => p.user_id) || cps.find((p: any) => p.sub_user_id && p.sub_user_id !== myId);
 
-        const other = cps.find(p => {
-          if (amAdmin) return p.user_id && p.user_id !== myId;
-          return p.sub_user_id && p.sub_user_id !== myId;
-        }) || cps.find(p => (amAdmin ? p.sub_user_id : p.user_id)); // fallback
-
-        if (!other) {
-          setChannelInfo({ name: channel.name, isDM: true });
-          return;
-        }
-
-        if (other.user_id) {
+        if (other?.user_id) {
           const { data: profile } = await supabase
-            .from('profiles')
-            .select('username, avatar_url')
-            .eq('id', other.user_id)
-            .maybeSingle();
-          setChannelInfo({
-            name: channel.name,
-            isDM: true,
-            dmPartner: { name: profile?.username || 'Admin', avatar: profile?.avatar_url }
-          });
-        } else if (other.sub_user_id) {
+            .from('profiles').select('username, avatar_url').eq('id', other.user_id).maybeSingle();
+          setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: profile?.username || 'Admin', avatar: profile?.avatar_url } });
+        } else if (other?.sub_user_id) {
           const { data: su } = await supabase
-            .from('sub_users')
-            .select('fullname, avatar_url')
-            .eq('id', other.sub_user_id)
-            .maybeSingle();
-          setChannelInfo({
-            name: channel.name,
-            isDM: true,
-            dmPartner: { name: su?.fullname || 'Member', avatar: su?.avatar_url || undefined }
-          });
+            .from('sub_users').select('fullname, avatar_url').eq('id', other.sub_user_id).maybeSingle();
+          setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: su?.fullname || 'Member', avatar: su?.avatar_url || undefined } });
         } else {
           setChannelInfo({ name: channel.name, isDM: true });
         }
@@ -211,11 +174,11 @@ export const ChatArea = () => {
       });
       
       try {
-        // Use RPC for all message loading (both board + dashboard)
-        const { data, error } = await supabase.rpc('get_chat_messages_for_channel', {
-          p_channel_id: activeChannelId,
-          p_board_owner_id: boardOwnerId
-        });
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select('id, content, created_at, sender_user_id, sender_sub_user_id, sender_type, sender_name, sender_avatar_url, channel_id')
+          .eq('channel_id', activeChannelId)
+          .order('created_at', { ascending: true });
 
         console.log('📨 RPC messages result:', { 
           messageCount: data?.length || 0, 

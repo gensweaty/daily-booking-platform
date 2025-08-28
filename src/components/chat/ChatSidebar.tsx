@@ -273,27 +273,6 @@ export const ChatSidebar = () => {
                   });
                   
                   try {
-                    if (location.pathname.startsWith('/board/')) {
-                      const slug = location.pathname.split('/').pop()!;
-                      const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
-                      const senderEmail = stored?.email;
-                      if (!senderEmail || !boardOwnerId) return;
-
-                      const { data, error } = await supabase.rpc('start_public_board_dm', {
-                        p_board_owner_id: boardOwnerId,
-                        p_sender_email: senderEmail,
-                        p_other_id: member.id,
-                        p_other_type: member.type,
-                      });
-                      if (error) {
-                        console.error('start_public_board_dm error:', error);
-                        return;
-                      }
-                      if (data) openChannel(data as string);
-                      return;
-                    }
-
-                    // Fallback existing startDM for dashboard
                     await startDM(member.id, member.type);
                     console.log('✅ DM started successfully with:', member.name);
                   } catch (error) {
