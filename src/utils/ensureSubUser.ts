@@ -4,15 +4,34 @@ export async function ensureSubUser(boardOwnerId: string, email: string, fullNam
   const normalized = email.trim().toLowerCase();
   const display = fullName?.trim() || normalized.split('@')[0];
 
-  const { data, error } = await supabase
+  // First check if sub-user already exists
+  const { data: existingUser, error: selectError } = await supabase
     .from('sub_users')
-    .upsert(
-      { board_owner_id: boardOwnerId, email: normalized, fullname: display },
-      { onConflict: 'board_owner_id,email' }
-    )
+    .select('id, fullname, email, avatar_url')
+    .eq('board_owner_id', boardOwnerId)
+    .ilike('email', normalized)
+    .single();
+
+  if (selectError && selectError.code !== 'PGRST116') {
+    throw selectError;
+  }
+
+  // If user exists, return it
+  if (existingUser) {
+    return existingUser;
+  }
+
+  // If user doesn't exist, create new one
+  const { data: newUser, error: insertError } = await supabase
+    .from('sub_users')
+    .insert({
+      board_owner_id: boardOwnerId,
+      email: normalized,
+      fullname: display
+    })
     .select('id, fullname, email, avatar_url')
     .single();
 
-  if (error) throw error;
-  return data;
+  if (insertError) throw insertError;
+  return newUser;
 }
