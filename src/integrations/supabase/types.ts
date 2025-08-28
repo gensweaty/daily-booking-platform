@@ -1668,6 +1668,31 @@ export type Database = {
           email: string
         }[]
       }
+      get_chat_messages_for_channel: {
+        Args: { p_board_owner_id?: string; p_channel_id: string }
+        Returns: {
+          channel_id: string
+          content: string
+          created_at: string
+          id: string
+          owner_id: string
+          reply_to_id: string
+          sender_avatar_url: string
+          sender_name: string
+          sender_sub_user_id: string
+          sender_type: string
+          sender_user_id: string
+          updated_at: string
+        }[]
+      }
+      get_default_channel_for_board: {
+        Args: { p_board_owner_id: string }
+        Returns: {
+          id: string
+          name: string
+          participant_count: number
+        }[]
+      }
       get_public_board_by_token: {
         Args: { access_token_param: string }
         Returns: {
@@ -1770,6 +1795,16 @@ export type Database = {
           in_progress: number
           todo: number
           total: number
+        }[]
+      }
+      get_team_members_for_board: {
+        Args: { p_board_owner_id: string }
+        Returns: {
+          avatar_url: string
+          email: string
+          id: string
+          name: string
+          type: string
         }[]
       }
       save_event_with_persons: {

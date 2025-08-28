@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
@@ -23,6 +24,7 @@ type Message = {
 export const ChatArea = () => {
   const { me, currentChannelId, boardOwnerId } = useChat();
   const { toast } = useToast();
+  const location = useLocation();
   const [defaultChannelId, setDefaultChannelId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
@@ -192,14 +194,44 @@ export const ChatArea = () => {
         hasAuthError: !!authResult.error
       });
       
+      
       try {
+        const isPublicBoard = location.pathname.startsWith('/board/');
+        
+        if (isPublicBoard && boardOwnerId) {
+          console.log('🔍 Using service function for public board messages');
+          const { data, error } = await supabase.rpc('get_chat_messages_for_channel', {
+            p_channel_id: activeChannelId,
+            p_board_owner_id: boardOwnerId
+          });
+
+          console.log('📨 Service function messages result:', { 
+            messageCount: data?.length || 0, 
+            error: error?.message,
+            firstMessage: data?.[0],
+            channelId: activeChannelId
+          });
+
+          if (error) {
+            console.error('❌ Error loading messages via service function:', error);
+            return;
+          }
+
+          if (active && data) {
+            console.log('✅ Messages loaded via service function:', data.length, 'messages');
+            setMessages(data as Message[]);
+          }
+          return;
+        }
+        
+        // Fallback to regular query for authenticated users
         const { data, error } = await supabase
           .from('chat_messages')
           .select('*')
           .eq('channel_id', activeChannelId)
           .order('created_at', { ascending: true });
 
-        console.log('📨 Messages query result:', { 
+        console.log('📨 Regular query messages result:', { 
           messageCount: data?.length || 0, 
           error: error?.message,
           firstMessage: data?.[0],
@@ -222,7 +254,7 @@ export const ChatArea = () => {
     })();
     
     return () => { active = false; };
-  }, [activeChannelId]);
+  }, [activeChannelId, location.pathname]);
 
   // Real-time updates
   useEffect(() => {

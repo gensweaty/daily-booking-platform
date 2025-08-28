@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Hash } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
 import { cn } from '@/lib/utils';
@@ -7,6 +8,7 @@ import { resolveAvatarUrl } from './_avatar';
 
 export const ChatSidebar = () => {
   const { me, boardOwnerId, currentChannelId, openChannel, startDM } = useChat();
+  const location = useLocation();
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
   const [members, setMembers] = useState<Array<{ 
     id: string; 
@@ -23,7 +25,33 @@ export const ChatSidebar = () => {
       console.log('🔍 Loading General channel for board owner:', boardOwnerId);
       
       try {
-        // Strategy 1: Find General channel with most participants (preferred)
+        // Use service function for public boards to bypass RLS
+        const isPublicBoard = location.pathname.startsWith('/board/');
+        
+        if (isPublicBoard) {
+          console.log('🔍 Using service function for public board channel');
+          const { data: channelData, error } = await supabase.rpc('get_default_channel_for_board', {
+            p_board_owner_id: boardOwnerId
+          });
+          
+          if (error) {
+            console.error('❌ Error loading channel via service function:', error);
+            return;
+          }
+          
+          if (channelData && channelData.length > 0) {
+            const channel = channelData[0];
+            console.log('✅ Found General channel via service function:', {
+              id: channel.id,
+              name: channel.name,
+              participantCount: channel.participant_count
+            });
+            setGeneralChannelId(channel.id);
+            return;
+          }
+        }
+        
+        // Fallback to regular query for authenticated users
         const { data: channelsWithParticipants, error: participantsError } = await supabase
           .from('chat_channels')
           .select(`
@@ -43,16 +71,14 @@ export const ChatSidebar = () => {
         }
         
         if (channelsWithParticipants && channelsWithParticipants.length > 0) {
-          // Sort by participant count (descending), then by creation date (ascending) 
           const sortedChannels = channelsWithParticipants.sort((a, b) => {
             const aParticipants = (a.chat_participants as any[])?.length || 0;
             const bParticipants = (b.chat_participants as any[])?.length || 0;
             
             if (aParticipants !== bParticipants) {
-              return bParticipants - aParticipants; // More participants first
+              return bParticipants - aParticipants;
             }
             
-            // If same participant count, prefer older channel
             return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
           });
           
@@ -70,13 +96,13 @@ export const ChatSidebar = () => {
           return;
         }
         
-        console.log('⚠️ No General channels found, this should not happen after cleanup');
+        console.log('⚠️ No General channels found');
         
       } catch (error) {
         console.error('❌ Unexpected error loading General channel:', error);
       }
     })();
-  }, [boardOwnerId]);
+  }, [boardOwnerId, location.pathname]);
 
   // Load team members with enhanced logic
   useEffect(() => {
@@ -92,8 +118,32 @@ export const ChatSidebar = () => {
     (async () => {
       try {
         const teamMembers = [];
+        const isPublicBoard = location.pathname.startsWith('/board/');
         
-        // Add admin (board owner) - always include
+        if (isPublicBoard) {
+          console.log('🔍 Using service function for public board team members');
+          const { data: memberData, error } = await supabase.rpc('get_team_members_for_board', {
+            p_board_owner_id: boardOwnerId
+          });
+          
+          if (error) {
+            console.error('❌ Error loading team members via service function:', error);
+          } else if (memberData && memberData.length > 0) {
+            console.log('✅ Team members loaded via service function:', memberData.length, 'members');
+            
+            const mappedMembers = memberData.map((member: any) => ({
+              id: member.id,
+              name: member.name,
+              type: member.type as 'admin' | 'sub_user',
+              avatar_url: member.avatar_url
+            }));
+            
+            setMembers(mappedMembers);
+            return;
+          }
+        }
+        
+        // Fallback to regular queries for authenticated users
         console.log('🔍 Loading admin profile for:', boardOwnerId);
         const { data: adminProfile, error: adminError } = await supabase
           .from('profiles')
@@ -113,7 +163,6 @@ export const ChatSidebar = () => {
           });
         } else {
           console.log('⚠️ No admin profile found, creating placeholder admin');
-          // Fallback: include admin even without profile
           teamMembers.push({
             id: boardOwnerId,
             name: 'Admin',
@@ -173,7 +222,7 @@ export const ChatSidebar = () => {
         }]);
       }
     })();
-  }, [boardOwnerId]);
+  }, [boardOwnerId, location.pathname]);
 
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
