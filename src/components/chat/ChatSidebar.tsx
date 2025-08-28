@@ -255,11 +255,11 @@ export const ChatSidebar = () => {
     })();
   }, [boardOwnerId, location.pathname]);
 
-  // Enhanced DM channel mapping with better participant detection
+  // Enhanced DM channel mapping - proper PEER-TO-PEER identification
   useEffect(() => {
     if (!boardOwnerId || !channelUnreads || !me) return;
 
-    console.log('🔄 Building channel-member mapping...');
+    console.log('🔄 Building enhanced PEER-TO-PEER channel-member mapping...');
     
     (async () => {
       try {
@@ -267,6 +267,8 @@ export const ChatSidebar = () => {
           .from('chat_channels')
           .select(`
             id,
+            is_dm,
+            participants,
             chat_participants(user_id, sub_user_id, user_type)
           `)
           .eq('owner_id', boardOwnerId)
@@ -277,15 +279,31 @@ export const ChatSidebar = () => {
           
           dmChannels.forEach((channel: any) => {
             const participants = channel.chat_participants || [];
-            console.log(`🔍 Channel ${channel.id} participants:`, participants);
+            console.log(`🔍 Processing PEER-TO-PEER DM channel ${channel.id}:`, {
+              participantCount: participants.length,
+              participants: participants.map((p: any) => ({
+                userId: p.user_id,
+                subUserId: p.sub_user_id,
+                userType: p.user_type
+              }))
+            });
             
-            // Find the participant who is NOT the current user
+            // For PEER-TO-PEER DMs, we expect exactly 2 participants
+            if (participants.length !== 2) {
+              console.log(`⏭️ Skipping channel ${channel.id} - not exactly 2 participants (has ${participants.length})`);
+              return;
+            }
+
+            // Find the OTHER participant (not me)
+            const myId = me.id;
+            const myType = me.type;
+            
             const otherParticipant = participants.find((p: any) => {
-              const isCurrentUser = (
-                (me.type === 'admin' && p.user_type === 'admin' && p.user_id === me.id) ||
-                (me.type === 'sub_user' && p.user_type === 'sub_user' && p.sub_user_id === me.id)
-              );
-              return !isCurrentUser;
+              // Skip if this is me
+              if (myType === 'admin' && p.user_type === 'admin' && p.user_id === myId) return false;
+              if (myType === 'sub_user' && p.user_type === 'sub_user' && p.sub_user_id === myId) return false;
+              // Return the other participant
+              return true;
             });
 
             if (otherParticipant) {
@@ -293,7 +311,7 @@ export const ChatSidebar = () => {
               const memberType = otherParticipant.user_type as 'admin' | 'sub_user';
               
               if (memberId && memberType) {
-                console.log(`✅ Mapping channel ${channel.id} to member:`, { 
+                console.log(`✅ Mapped PEER-TO-PEER DM channel ${channel.id} to member:`, { 
                   memberId, 
                   memberType,
                   unreadCount: channelUnreads[channel.id] || 0
@@ -305,15 +323,15 @@ export const ChatSidebar = () => {
                 });
               }
             } else {
-              console.log(`⚠️ No other participant found for channel ${channel.id}`);
+              console.log(`❌ Could not identify other participant in PEER-TO-PEER DM ${channel.id}`);
             }
           });
           
-          console.log('🗺️ Final channel-member map:', Array.from(newChannelMemberMap.entries()));
+          console.log('🗺️ Final PEER-TO-PEER channel-member map:', Array.from(newChannelMemberMap.entries()));
           setChannelMemberMap(newChannelMemberMap);
         }
       } catch (error) {
-        console.error('❌ Error loading channel-member mapping:', error);
+        console.error('❌ Error loading PEER-TO-PEER channel-member mapping:', error);
       }
     })();
   }, [boardOwnerId, me, channelUnreads]);
