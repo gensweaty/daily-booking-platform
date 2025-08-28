@@ -120,30 +120,34 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    // Skip my own messages for notifications
+    // Skip my own messages for notifications but NOT for display
     const isMyMessage = me?.type === 'admin' 
       ? message.sender_user_id === me.id 
       : message.sender_sub_user_id === me.id;
 
-    if (isMyMessage) {
+    if (!isMyMessage) {
+      // Increment unread count for channel
+      incrementUnread(message.channel_id);
+
+      // Show notification if chat is closed or different channel
+      if (!isOpen || currentChannelId !== message.channel_id) {
+        console.log('🔔 Showing notification for message:', message);
+        showNotification({
+          title: `${message.sender_name || 'Someone'} messaged`,
+          body: message.content,
+          channelId: message.channel_id,
+          senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
+          senderName: message.sender_name || 'Unknown',
+        });
+      }
+    } else {
       console.log('⏭️ Skipping notification - own message');
-      return;
     }
 
-    // Increment unread count for channel
-    incrementUnread(message.channel_id);
-
-    // Show notification if chat is closed or different channel
-    if (!isOpen || currentChannelId !== message.channel_id) {
-      console.log('🔔 Showing notification for message:', message);
-      showNotification({
-        title: `${message.sender_name || 'Someone'} messaged`,
-        body: message.content,
-        channelId: message.channel_id,
-        senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
-        senderName: message.sender_name || 'Unknown',
-      });
-    }
+    // BROADCAST MESSAGE TO ALL CHAT AREAS for immediate display
+    window.dispatchEvent(new CustomEvent('chat-message-received', {
+      detail: { message }
+    }));
   }, [boardOwnerId, me, isOpen, currentChannelId, incrementUnread, showNotification]);
 
   // Enhanced realtime connection with memoized handler
@@ -154,12 +158,19 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     enabled: shouldShowChat && isInitialized && !!boardOwnerId,
   });
 
-  // Request notification permission on mount - immediate request
+  // Request notification permission and preload audio on mount
   useEffect(() => {
     if (shouldShowChat) {
-      console.log('🔔 Requesting notification permission...');
+      console.log('🔔 Requesting notification permission and preloading audio...');
+      
+      // Request notification permission
       requestPermission().then((granted) => {
         console.log('🔔 Notification permission:', granted ? 'granted' : 'denied');
+      });
+      
+      // Preload notification sound
+      import('@/utils/audioManager').then(({ preloadNotificationSound }) => {
+        preloadNotificationSound();
       });
     }
   }, [shouldShowChat, requestPermission]);
@@ -567,11 +578,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       {children}
       {shouldShowChat && portalRoot && createPortal(
         <>
-          <ChatIcon 
-            onClick={toggle} 
-            isOpen={isOpen} 
-            unreadCount={unreadTotal}
-          />
+          {!isOpen && (
+            <ChatIcon 
+              onClick={toggle} 
+              isOpen={isOpen} 
+              unreadCount={unreadTotal}
+            />
+          )}
           {isOpen && (
             <ChatWindow isOpen={isOpen} onClose={close} />
           )}

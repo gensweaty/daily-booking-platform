@@ -20,14 +20,18 @@ export const useEnhancedNotifications = () => {
     }
 
     if (Notification.permission === 'granted') {
+      console.log('✅ Notification permission already granted');
       return true;
     }
 
     if (Notification.permission !== 'denied') {
+      console.log('🔔 Requesting notification permission...');
       const permission = await Notification.requestPermission();
+      console.log('🔔 Notification permission result:', permission);
       return permission === 'granted';
     }
 
+    console.log('❌ Notification permission denied');
     return false;
   }, []);
 

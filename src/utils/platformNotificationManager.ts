@@ -159,17 +159,21 @@ class PlatformNotificationManager {
     }
   }
 
-  private playNotificationSound() {
-    if (!this.capabilities.supportsSound) return;
-    
+  async playNotificationSound(): Promise<void> {
     try {
-      const audio = new Audio("/audio/notification.mp3");
-      audio.volume = 0.5;
-      audio.play().catch((error) => {
-        console.log("🔇 Could not play notification sound:", error);
-      });
+      // Try modern Web Audio API first
+      const { playNotificationSound } = await import('./audioManager');
+      const played = await playNotificationSound();
+      
+      if (!played) {
+        // Fallback to HTML Audio
+        const audio = new Audio('/audio/notification.mp3');
+        audio.volume = 0.5;
+        await audio.play();
+        console.log('✅ Notification sound played (fallback)');
+      }
     } catch (error) {
-      console.log("🔇 Notification sound not available:", error);
+      console.warn('❌ Could not play notification sound:', error);
     }
   }
 

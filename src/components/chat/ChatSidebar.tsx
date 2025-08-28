@@ -313,12 +313,19 @@ export const ChatSidebar = () => {
         <button
           onClick={() => generalChannelId && openChannel(generalChannelId)}
           className={cn(
-            "w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors text-left",
+            "w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors text-left relative",
             currentChannelId === generalChannelId ? "bg-primary/10 text-primary" : ""
           )}
         >
           <Hash className="h-4 w-4" />
           <span className="font-medium">General</span>
+          {generalChannelId && channelUnreads[generalChannelId] > 0 && (
+            <div className="absolute -top-1 -right-1 h-4 w-4 bg-destructive rounded-full border-2 border-background flex items-center justify-center">
+              <span className="text-xs text-white font-bold">
+                {channelUnreads[generalChannelId] > 9 ? '9+' : channelUnreads[generalChannelId]}
+              </span>
+            </div>
+          )}
         </button>
 
         {/* Team Members */}

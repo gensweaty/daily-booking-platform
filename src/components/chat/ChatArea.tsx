@@ -205,46 +205,25 @@ export const ChatArea = () => {
     return () => { active = false; };
   }, [activeChannelId, location.pathname]);
 
-  // Real-time updates - using stable channel name to prevent rate limits
+  // Listen for real-time messages broadcast from ChatProvider
   useEffect(() => {
-    if (!activeChannelId) return;
+    const handleMessage = (event: CustomEvent) => {
+      const { message } = event.detail;
+      
+      // Only process messages for this channel
+      if (message.channel_id === activeChannelId) {
+        console.log('📨 Received broadcasted message for channel:', activeChannelId);
+        setMessages(prev => {
+          const exists = prev.some(m => m.id === message.id);
+          if (exists) return prev; // Prevent duplicates
+          return [...prev, message as Message];
+        });
+      }
+    };
 
-    console.log('🔗 Setting up real-time subscription for channel:', activeChannelId);
-    
-    const channelName = `chat-messages-${activeChannelId}`;
-    const ch = supabase
-      .channel(channelName)
-      .on('postgres_changes',
-        { 
-          schema: 'public', 
-          table: 'chat_messages', 
-          event: '*', 
-          filter: `channel_id=eq.${activeChannelId}` 
-        },
-        (payload) => {
-          console.log('📨 Real-time message update:', payload);
-          if (payload.eventType === 'INSERT') {
-            setMessages(prev => {
-              const exists = prev.some(m => m.id === (payload.new as any).id);
-              if (exists) return prev; // Prevent duplicates
-              return [...prev, payload.new as Message];
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            setMessages(prev => prev.map(m => 
-              m.id === (payload.new as any).id ? payload.new as Message : m
-            ));
-          } else if (payload.eventType === 'DELETE') {
-            setMessages(prev => prev.filter(m => m.id !== (payload.old as any).id));
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 ChatArea subscription status:', status);
-      });
-
+    window.addEventListener('chat-message-received', handleMessage as EventListener);
     return () => {
-      console.log('🧹 Cleaning up ChatArea subscription for:', channelName);
-      supabase.removeChannel(ch);
+      window.removeEventListener('chat-message-received', handleMessage as EventListener);
     };
   }, [activeChannelId]);
 
