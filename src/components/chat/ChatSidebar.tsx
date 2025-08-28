@@ -86,7 +86,8 @@ export const ChatSidebar = () => {
       return;
     }
     
-    console.log('👥 Loading team members for board owner:', boardOwnerId);
+  console.log('👥 Loading team members for board owner:', boardOwnerId);
+    console.log('🔍 Current user context for team loading:', { me, boardOwnerId });
     
     (async () => {
       try {

@@ -104,7 +104,9 @@ export const ChatProvider: React.FC = () => {
         isPublicBoard, 
         shouldShowChat, 
         path: location.pathname,
-        isOnPublicBoard 
+        isOnPublicBoard,
+        effectiveUser: effectiveUser?.email,
+        publicBoardUser: publicBoardUser?.email
       });
       
       if (!shouldShowChat) {

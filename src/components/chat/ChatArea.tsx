@@ -182,10 +182,14 @@ export const ChatArea = () => {
       }
       
       console.log('📨 Loading messages for channel:', activeChannelId);
-      console.log('🔍 Current user context:', { 
+      
+      const authResult = await supabase.auth.getUser();
+      console.log('🔍 Current user context for messages:', { 
         me, 
         boardOwnerId,
-        authUser: (await supabase.auth.getUser()).data.user?.id || 'NO_AUTH_USER'
+        authUser: authResult.data.user?.id || 'NO_AUTH_USER',
+        authUserEmail: authResult.data.user?.email || 'NO_AUTH_EMAIL',
+        hasAuthError: !!authResult.error
       });
       
       try {
